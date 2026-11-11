@@ -12,6 +12,7 @@ const tool = (name, extra = {}) => ({
   description: `${name} description`,
   annotations: null,
   enabled: false,
+  ask_first: true,
   changes_data: true,
   changed_since_review: false,
   removed: false,
@@ -123,10 +124,17 @@ describe('Agent connected apps', () => {
       '/integrations/mcp/5/refresh-tools/'
     )
 
-    // New tools start off; turn on the first one.
+    // New tools start off and ask first. Ask first only applies to an
+    // allowed tool: turn on the first one and let it run without asking.
     const rows = inBody('.agent-mcp-tools__columns').slice(1)
     expect(rows).toHaveLength(2)
+    const askFirst = () =>
+      inBody('.agent-mcp-tools__columns')[1].querySelectorAll('.checkbox')[1]
+    expect(askFirst().classList).toContain('checkbox--disabled')
     rows[0].querySelector('.checkbox').click()
+    await flushPromises()
+    expect(askFirst().classList).not.toContain('checkbox--disabled')
+    askFirst().click()
     await flushPromises()
     buttonInBody('agent.toolsDone').click()
     await flushPromises()
@@ -137,11 +145,13 @@ describe('Agent connected apps', () => {
           name: 'search',
           definition_hash: 'search-hash',
           enabled: true,
+          ask_first: false,
         },
         {
           name: 'delete',
           definition_hash: 'delete-hash',
           enabled: false,
+          ask_first: true,
         },
       ],
     })
@@ -442,6 +452,7 @@ describe('Agent connected apps', () => {
           name: 'search',
           definition_hash: 'search-hash-2',
           enabled: false,
+          ask_first: true,
         },
       ],
     })
@@ -464,7 +475,7 @@ describe('Agent connected apps', () => {
 
     const rows = inBody('.agent-mcp-tools__columns').slice(1)
     expect(rows).toHaveLength(2)
-    expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(1)
+    expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(2)
   })
 
   test('viewers see the apps but cannot add or edit them', async () => {

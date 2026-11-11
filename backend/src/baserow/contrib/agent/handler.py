@@ -59,6 +59,7 @@ from .constants import (
     AGENT_RUN_TYPE,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
+    MCP_TOOL_CHANGED_CALL_NOTE,
     REJECTED_TOOL_CALL_NOTE,
     RUN_AS_LOST_TOOL_CALL_NOTE,
     RUN_AS_SUBJECT_TYPES,
@@ -971,13 +972,21 @@ class AgentHandler:
             if acting_subject
             else {"allowed_tools": [], "ask_first_tools": []}
         )
+        mcp_servers = self.get_mcp_servers(agent)
         resume = (
             None
             if transcript is None
             else self._get_reply_resume(
                 reply,
                 ConversationTypeAdapter.validate_python(transcript.paused_conversation),
-                tools["allowed_tools"],
+                {
+                    **{name: "" for name in tools["allowed_tools"]},
+                    **{
+                        name: tool.approval_key
+                        for server in mcp_servers
+                        for name, tool in server.model_tool_names().items()
+                    },
+                },
                 DISALLOWED_TOOL_CALL_NOTE
                 if acting_subject
                 else RUN_AS_LOST_TOOL_CALL_NOTE,
@@ -986,7 +995,6 @@ class AgentHandler:
         prompt, history = (
             (None, []) if resume is not None else self._get_reply_prompt(reply)
         )
-        mcp_servers = self.get_mcp_servers(agent)
         web_search_tool = (
             self._get_web_search_tool(
                 agent, bool(tools["allowed_tools"]) or bool(mcp_servers)
@@ -1115,7 +1123,7 @@ class AgentHandler:
         self,
         reply: AgentMessage,
         paused_conversation: Conversation,
-        allowed_tool_names: list[str],
+        callable_tools: dict[str, str],
         disallowed_note: str,
     ) -> AgentReplyResume:
         """
@@ -1124,7 +1132,8 @@ class AgentHandler:
 
         :param reply: The paused reply.
         :param paused_conversation: Its paused run, holding the calls.
-        :param allowed_tool_names: The tools the reply may call now.
+        :param callable_tools: The tools the reply may call now, with the
+            approval key of the MCP ones.
         :param disallowed_note: Tells the model why an approved call can't run.
         :return: The paused run with the decisions and the saved steps.
         """
@@ -1140,7 +1149,7 @@ class AgentHandler:
         # An undecided call gets no result, so the run fails instead of guessing.
         results = {
             tool_call_id: self._get_approval_result(
-                approval, allowed_tool_names, disallowed_note
+                approval, callable_tools, disallowed_note
             )
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
@@ -1163,16 +1172,18 @@ class AgentHandler:
     def _get_approval_result(
         self,
         approval: AgentToolApproval,
-        allowed_tool_names: list[str],
+        callable_tools: dict[str, str],
         disallowed_note: str,
     ) -> ToolApproved | ToolDenied:
         """
         Tell the model what the owner decided about a held call. An approved call
-        to a tool the reply may no longer call is denied instead, and its step then
-        shows a permission failure rather than a rejection.
+        to a tool the reply may no longer call, or to an MCP tool whose server,
+        account or definition changed since it was held, is denied instead, and
+        its step then shows a permission failure rather than a rejection.
 
         :param approval: The decided approval of the call.
-        :param allowed_tool_names: The tools the reply may call now.
+        :param callable_tools: The tools the reply may call now, with the
+            approval key of the MCP ones.
         :param disallowed_note: Tells the model why an approved call can't run.
         :return: Whether the call runs, or why it doesn't.
         """
@@ -1183,8 +1194,13 @@ class AgentHandler:
                 if approval.reason
                 else REJECTED_TOOL_CALL_NOTE
             )
-        if approval.tool_name not in allowed_tool_names:
-            return ToolDenied(disallowed_note)
+        if approval.tool_name not in callable_tools:
+            # An MCP tool doesn't act as the Agent's identity, so losing it isn't why.
+            return ToolDenied(
+                DISALLOWED_TOOL_CALL_NOTE if approval.tool_key else disallowed_note
+            )
+        if callable_tools[approval.tool_name] != approval.tool_key:
+            return ToolDenied(MCP_TOOL_CHANGED_CALL_NOTE)
         return ToolApproved()
 
     def finish_reply(
@@ -1246,6 +1262,7 @@ class AgentHandler:
                     step_id=call.step_id,
                     pause=last_pause + 1,
                     tool_name=call.tool_name,
+                    tool_key=result.tool_keys.get(call.tool_name, ""),
                 )
                 for call in result.waiting_calls
             )

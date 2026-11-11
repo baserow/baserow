@@ -123,6 +123,9 @@ class MCPServerTool(models.Model):
     enabled = models.BooleanField(default=False, db_default=False)
     # From the server's read-only hint: a tool without it counts as changing data.
     changes_data = models.BooleanField(default=True, db_default=True)
+    # Whether a call waits for the conversation owner's approval. On until an
+    # editor turns it off: the server's tools run with its own credential.
+    ask_first = models.BooleanField(default=True, db_default=True)
     # Set when the server changed a tool that was turned on, cleared on review.
     changed_since_review = models.BooleanField(default=False, db_default=False)
     removed = models.BooleanField(default=False, db_default=False)

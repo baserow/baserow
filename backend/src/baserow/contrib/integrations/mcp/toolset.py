@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable
@@ -59,6 +60,53 @@ class MCPToolSnapshot:
     input_schema: dict[str, Any]
     definition_hash: str
     changes_data: bool
+    ask_first: bool
+    approval_key: str
+    """
+    Who and what an approval of a call is for: the server, the account it's
+    called with and the tool's definition. An approved call runs only while
+    they're the same.
+    """
+
+
+def _account_key(integration: "MCPServerIntegration") -> str:
+    """
+    :param integration: The server.
+    :return: What tells the account its tools are called with from another. An
+        OAuth sign-in counts as a new account, even for the same person.
+    """
+
+    from .models import MCPAuthType
+
+    if integration.auth_type == MCPAuthType.OAUTH:
+        connected_at = integration.oauth_connected_at
+        return (
+            f"oauth:{integration.oauth_generation}:"
+            f"{connected_at.isoformat() if connected_at else ''}"
+        )
+    if integration.auth_type == MCPAuthType.HEADER:
+        credential = f"{integration.auth_header_name}\0{integration.auth_header_value}"
+        return "header:" + hashlib.sha256(credential.encode()).hexdigest()
+    return "none"
+
+
+def approval_key(integration: "MCPServerIntegration", tool: "MCPServerTool") -> str:
+    """
+    :param integration: The server.
+    :param tool: One of its stored tools.
+    :return: The tool's `MCPToolSnapshot.approval_key`.
+    """
+
+    payload = json.dumps(
+        [
+            integration.id,
+            integration.url,
+            _account_key(integration),
+            tool.name,
+            tool.definition_hash,
+        ]
+    )
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -99,6 +147,8 @@ class MCPServerSnapshot:
                     input_schema=tool.input_schema,
                     definition_hash=tool.definition_hash,
                     changes_data=tool.changes_data,
+                    ask_first=tool.ask_first,
+                    approval_key=approval_key(integration, tool),
                 )
                 for tool in tools
             ),

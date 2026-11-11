@@ -56,6 +56,9 @@ def test_refresh_stores_new_tools_turned_off(data_fixture, mocker):
     assert add.description == "Add two numbers."
     assert add.input_schema["required"] == ["a", "b"]
     assert add.changes_data is True
+    # The server's tools run with its own credential: calls wait for approval
+    # until an editor says otherwise.
+    assert add.ask_first is True
 
 
 @pytest.mark.django_db
@@ -233,7 +236,16 @@ def test_refresh_and_review_tools_through_the_api(data_fixture, api_client, mock
 
     response = api_client.patch(
         reverse("api:mcp_server:tools", args=[integration.id]),
-        {"tools": [{"name": "add", "enabled": True, "changes_data": False}]},
+        {
+            "tools": [
+                {
+                    "name": "add",
+                    "enabled": True,
+                    "ask_first": False,
+                    "changes_data": False,
+                }
+            ]
+        },
         format="json",
         **headers,
     )
@@ -241,7 +253,11 @@ def test_refresh_and_review_tools_through_the_api(data_fixture, api_client, mock
     assert response.status_code == 200, response.json()
     add = next(tool for tool in response.json()["tools"] if tool["name"] == "add")
     # Whether it changes data comes from the server, not the editor.
-    assert (add["enabled"], add["changes_data"]) == (True, True)
+    assert (add["enabled"], add["ask_first"], add["changes_data"]) == (
+        True,
+        False,
+        True,
+    )
 
 
 @pytest.mark.django_db
@@ -301,7 +317,7 @@ def test_the_client_does_not_follow_redirects():
 
 def test_model_tool_names_are_valid_and_unique():
     def tool(name):
-        return MCPToolSnapshot(name, "", "", {}, "hash", True)
+        return MCPToolSnapshot(name, "", "", {}, "hash", True, True, "key")
 
     server = MCPServerSnapshot(
         integration_id=7,

@@ -32,6 +32,7 @@
             <span>{{ $t('agent.connectedAppTool') }}</span>
             <span class="agent-mcp-tools__columns">
               <span>{{ $t('agent.toolAllow') }}</span>
+              <span>{{ $t('agent.toolAskFirst') }}</span>
             </span>
           </div>
           <div
@@ -123,6 +124,17 @@
                 @update:model-value="set(tool, 'enabled', $event)"
                 >{{ tool.title || tool.name }}</Checkbox
               >
+              <Checkbox
+                class="agent-tool-permissions__ask-first"
+                :model-value="choice(tool).ask_first"
+                :disabled="!editable || tool.removed || !choice(tool).enabled"
+                @update:model-value="set(tool, 'ask_first', $event)"
+                >{{
+                  $t('agent.toolAskFirstLabel', {
+                    name: tool.title || tool.name,
+                  })
+                }}</Checkbox
+              >
             </span>
           </div>
         </div>
@@ -151,8 +163,8 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import { mcpErrorMessage } from '@baserow/modules/agent/utils/mcp'
 
 /**
- * Reviews the tools of an MCP server: which ones the Agent may call and the
- * parameters the model fills in. Saving marks every
+ * Reviews the tools of an MCP server: which ones the Agent may call, which
+ * wait for the owner's approval, and the parameters the model fills in. Saving marks every
  * listed tool as reviewed, including changed ones the editor leaves off.
  */
 const props = defineProps({
@@ -217,6 +229,7 @@ function choice(tool) {
     : {
         definition_hash: tool.definition_hash,
         enabled: tool.enabled,
+        ask_first: tool.ask_first,
       }
 }
 

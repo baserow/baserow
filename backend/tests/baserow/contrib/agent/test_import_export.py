@@ -487,6 +487,7 @@ def test_copies_keep_mcp_servers_and_only_duplicates_keep_tool_choices(data_fixt
                 definition_hash="a" * 64,
                 annotations={"readOnlyHint": True},
                 enabled=True,
+                ask_first=False,
                 changes_data=False,
                 order=0,
             ),
@@ -508,15 +509,16 @@ def test_copies_keep_mcp_servers_and_only_duplicates_keep_tool_choices(data_fixt
     )
 
     # A duplicate keeps the key and the choices. An import may come from
-    # anyone, so it has no key and its tools start off until reviewed.
+    # anyone, so it has no key and its tools start off and ask first until
+    # reviewed.
     expected = {
         duplicate: (
             "Bearer s3cr3t-value",
-            [("search", True, False), ("delete", False, True)],
+            [("search", True, False, False), ("delete", False, True, True)],
         ),
         imported: (
             "",
-            [("search", False, False), ("delete", False, True)],
+            [("search", False, True, False), ("delete", False, True, True)],
         ),
     }
     for copy, (key, tools) in expected.items():
@@ -524,7 +526,10 @@ def test_copies_keep_mcp_servers_and_only_duplicates_keep_tool_choices(data_fixt
         assert copied.url == server.url
         assert copied.auth_header_value == key
         assert (
-            list(copied.tools.values_list("name", "enabled", "changes_data")) == tools
+            list(
+                copied.tools.values_list("name", "enabled", "ask_first", "changes_data")
+            )
+            == tools
         )
     assert MCPServerTool.objects.filter(integration=server).count() == 2
 

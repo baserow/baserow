@@ -50,6 +50,7 @@ class Migration(migrations.Migration):
                 ('definition_hash', models.CharField(max_length=64)),
                 ('enabled', models.BooleanField(db_default=False, default=False)),
                 ('changes_data', models.BooleanField(db_default=True, default=True)),
+                ('ask_first', models.BooleanField(db_default=True, default=True)),
                 ('changed_since_review', models.BooleanField(db_default=False, default=False)),
                 ('removed', models.BooleanField(db_default=False, default=False)),
                 ('order', models.PositiveIntegerField(db_default=0, default=0)),

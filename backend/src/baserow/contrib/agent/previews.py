@@ -3,6 +3,7 @@ Readable requests of the Agent's tools: values masked and lists cut to what
 people can read.
 """
 
+import re
 from dataclasses import dataclass
 from dataclasses import field as dataclass_field
 from typing import Any
@@ -66,6 +67,45 @@ class StepPreview:
         if bounded and truncated:
             bounded["truncated"] = True
         return bounded
+
+
+# Argument names that may hold a credential, masked in what the owner approves.
+_SECRET_NAME = re.compile(
+    r"pass(word|phrase)?|secret|token|api[_-]?key|authori[sz]ation|credential"
+    r"|private[_-]?key|cookie",
+    re.IGNORECASE,
+)
+
+
+def mask_secrets(value: Any) -> Any:
+    """
+    :param value: The arguments of a call to a tool Baserow doesn't know.
+    :return: The value with every argument whose name may hold a credential
+        masked, at any depth.
+    """
+
+    if isinstance(value, dict):
+        return {
+            key: MASKED_VALUE
+            if isinstance(key, str) and _SECRET_NAME.search(key)
+            else mask_secrets(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [mask_secrets(item) for item in value]
+    return value
+
+
+def arguments_preview(arguments: dict[str, Any]) -> dict[str, Any]:
+    """
+    :param arguments: The arguments of a call to a tool Baserow doesn't know.
+    :return: The call's readable request for the step's input: the arguments,
+        credentials masked and bounded like every preview.
+    """
+
+    masked = mask_secrets(arguments)
+    values = cut(masked)
+    return StepPreview(names=values, truncated=values != masked).to_input()
 
 
 def cut(value: Any) -> Any:

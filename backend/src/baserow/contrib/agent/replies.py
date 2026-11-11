@@ -14,11 +14,10 @@ from pydantic_ai import (
     ConversationTypeAdapter,
     DeferredToolRequests,
     RunContext,
-    ToolReturn,
     WebSearchTool,
 )
 from pydantic_ai.capabilities import WebSearch
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ApprovalRequired, ModelHTTPError
 from pydantic_ai.messages import (
     AgentStreamEvent,
     FunctionToolCallEvent,
@@ -43,14 +42,17 @@ from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import to_jsonable_python
 
-from baserow.contrib.integrations.mcp.toolset import MCPServerToolset
+from baserow.contrib.integrations.mcp.toolset import (
+    MCPServerToolset,
+    MCPToolSnapshot,
+)
 from baserow.core.chat_runs.constants import (
     ChatRunErrorCode,
     ChatRunStepStatus,
     ChatRunStopReason,
 )
 from baserow.core.chat_runs.models import ChatRunStatus
-from baserow.core.chat_runs.steps import ChatRunSteps
+from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -72,6 +74,7 @@ from .constants import (
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
 from .models import AgentMessage
+from .previews import arguments_preview
 from .registries import agent_tool_type_registry, hold_call, input_shower
 from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
 
@@ -234,19 +237,12 @@ class _HeldCallsToolset(WrapperToolset[None]):
         return await super().call_tool(name, tool_args, ctx, tool)
 
 
-# What the model reads when an MCP call isn't run because it follows a held one.
-MCP_CALL_AFTER_HELD_NOTE = (
-    "Not run: it may change data and comes after a step that waits for the "
-    "owner's approval. Call it again once that step is decided."
-)
-
-
 @dataclass
-class _AfterHeldCallsToolset(WrapperToolset[None]):
+class _HeldMCPCallsToolset(WrapperToolset[None]):
     """
-    Refuses the MCP calls that would have to wait behind a held call. They can't
-    be held themselves, and must not change anything before the held call is
-    decided.
+    Holds the calls to an MCP server's tools that wait for approval. The owner
+    decides on the call's arguments, credentials masked: the server's tools are
+    only known by the description it gave.
     """
 
     is_held: Callable[[RunContext[None]], bool]
@@ -259,10 +255,9 @@ class _AfterHeldCallsToolset(WrapperToolset[None]):
         tool: ToolsetTool[None],
     ) -> Any:
         if not ctx.tool_call_approved and self.is_held(ctx):
-            return ToolReturn(
-                return_value={"error": MCP_CALL_AFTER_HELD_NOTE},
-                metadata={"error_code": ToolErrorCode.NOT_RUN},
-            )
+            if preview := arguments_preview(tool_args):
+                await ctx.emit(ToolCallInputEvent(input=preview))
+            raise ApprovalRequired()
         return await super().call_tool(name, tool_args, ctx, tool)
 
 
@@ -371,8 +366,14 @@ class AgentResponder:
         instructions = request.instructions
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
-        if request.resume is not None or (
-            request.allowed_tool_names and request.ask_first_tool_names
+        if (
+            request.resume is not None
+            or (request.allowed_tool_names and request.ask_first_tool_names)
+            or any(
+                tool.ask_first
+                for server in request.mcp_servers
+                for tool in server.tools
+            )
         ):
             instructions += f"\n\n{ASK_FIRST_INSTRUCTIONS}"
         if web_search_tool is not None:
@@ -523,7 +524,7 @@ class AgentResponder:
         return [
             *toolsets,
             *(
-                _AfterHeldCallsToolset(toolset, self._is_held)
+                _HeldMCPCallsToolset(toolset, self._is_held)
                 for toolset in self._mcp_toolsets
             ),
         ]
@@ -558,28 +559,27 @@ class AgentResponder:
         for call in calls:
             if call.tool_call_id in self._invalid_call_ids:
                 continue
-            changes_data = (
-                agent_tool_type_registry.get(call.tool_name).changes_data
-                if call.tool_name in request.allowed_tool_names
-                else self._mcp_changes_data(call.tool_name)
-            )
-            if call.tool_name in request.ask_first_tool_names or (
-                held and changes_data
-            ):
+            if call.tool_name in request.allowed_tool_names:
+                changes_data = agent_tool_type_registry.get(call.tool_name).changes_data
+                ask_first = call.tool_name in request.ask_first_tool_names
+            elif snapshot := self._mcp_tool(call.tool_name):
+                changes_data, ask_first = snapshot.changes_data, snapshot.ask_first
+            else:
+                continue
+            if ask_first or (held and changes_data):
                 held.add(call.tool_call_id)
         return held
 
-    def _mcp_changes_data(self, name: str) -> bool:
+    def _mcp_tool(self, name: str) -> MCPToolSnapshot | None:
         """
         :param name: A called tool's name.
-        :return: Whether it's an MCP tool that may change data.
+        :return: The MCP tool the reply offers under that name, if any.
         """
 
-        return any(
-            snapshot.changes_data
-            for toolset in self._mcp_toolsets
-            if (snapshot := toolset.get_tool_snapshot(name))
-        )
+        for toolset in self._mcp_toolsets:
+            if snapshot := toolset.get_tool_snapshot(name):
+                return snapshot
+        return None
 
     def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """
@@ -659,6 +659,7 @@ class AgentResponder:
             self._result.output, DeferredToolRequests
         )
         steps = self._steps.finish() or None
+        waiting_calls = self._steps.waiting_calls() if paused else []
         if self._result is None:
             return AgentReplyResult(
                 text=self._text,
@@ -675,7 +676,12 @@ class AgentResponder:
             ),
             usage=to_jsonable_python(self._result.usage),
             steps=steps,
-            waiting_calls=self._steps.waiting_calls() if paused else [],
+            waiting_calls=waiting_calls,
+            tool_keys={
+                call.tool_name: tool.approval_key
+                for call in waiting_calls
+                if (tool := self._mcp_tool(call.tool_name))
+            },
             paused_run=AgentPausedRun(
                 conversation=ConversationTypeAdapter.dump_python(
                     self._result.conversation, mode="json"

@@ -28,6 +28,7 @@ class MCPServerToolSerializer(serializers.ModelSerializer):
             "input_schema",
             "annotations",
             "enabled",
+            "ask_first",
             "changes_data",
             "changed_since_review",
             "removed",
@@ -46,6 +47,7 @@ EXPORTED_TOOL_FIELDS = (
     "annotations",
     "definition_hash",
     "enabled",
+    "ask_first",
     "changed_since_review",
     "removed",
     "order",
@@ -259,7 +261,7 @@ class MCPServerIntegrationType(IntegrationType):
     ) -> MCPServerTool:
         values = {name: tool[name] for name in EXPORTED_TOOL_FIELDS if name in tool}
         if not keep_choices:
-            values.update(enabled=False, changed_since_review=False)
+            values.update(enabled=False, ask_first=True, changed_since_review=False)
         # Hashed again from what is imported: the call-time check compares the
         # server's definition with this, and a file can't vouch for itself.
         definition = MCPToolDefinition(

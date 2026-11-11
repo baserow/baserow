@@ -4,6 +4,7 @@ from rest_framework import serializers
 class MCPToolSettingsSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=128)
     enabled = serializers.BooleanField(required=False)
+    ask_first = serializers.BooleanField(required=False)
     definition_hash = serializers.CharField(
         max_length=64,
         required=False,

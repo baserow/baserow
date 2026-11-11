@@ -203,8 +203,9 @@ const text = (value) =>
 
 /**
  * Calls to the tools of an MCP server. Their names are made at runtime from the
- * server's id, so this type claims them by prefix. Only the server's name and
- * the tool's reviewed title are shown, never the call's arguments.
+ * server's id, so this type claims them by prefix. The server's name and the
+ * tool's reviewed title name the call; its arguments are only shown for a call
+ * waiting for approval, credentials masked by the backend.
  */
 export class MCPServerToolPresentationType extends ToolPresentationType {
   static getType() {
@@ -217,6 +218,10 @@ export class MCPServerToolPresentationType extends ToolPresentationType {
 
   getLabel(t) {
     return t('agent.toolMCP')
+  }
+
+  getInput({ input }) {
+    return input?.values ? input : null
   }
 
   getActivity({ status, input }, t) {

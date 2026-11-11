@@ -53,6 +53,7 @@ MAX_TOOL_NAME_LENGTH = 128
 class MCPToolSettings:
     name: str
     enabled: bool | None = None
+    ask_first: bool | None = None
     # The definition the editor reviewed. A tool changed since keeps waiting.
     definition_hash: str | None = None
 
@@ -229,8 +230,8 @@ class MCPServerHandler:
         self, integration: MCPServerIntegration, settings: list[MCPToolSettings]
     ) -> list[MCPServerTool]:
         """
-        Turn tools on or off. Saving a tool marks its current definition as
-        reviewed.
+        Turn tools on or off and say whether their calls wait for approval.
+        Saving a tool marks its current definition as reviewed.
 
         :param integration: The server.
         :param settings: Per tool, the values to change. Unknown names are
@@ -255,9 +256,11 @@ class MCPServerHandler:
                 setting = by_name[tool.name]
                 if setting.enabled is not None:
                     tool.enabled = setting.enabled and not tool.removed
+                if setting.ask_first is not None:
+                    tool.ask_first = setting.ask_first
                 tool.changed_since_review = False
             MCPServerTool.objects.bulk_update(
-                tools, ["enabled", "changed_since_review"]
+                tools, ["enabled", "ask_first", "changed_since_review"]
             )
         return list(integration.tools.all())
 

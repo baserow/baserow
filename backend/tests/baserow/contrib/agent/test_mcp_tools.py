@@ -63,7 +63,8 @@ def agent_with_server(data_fixture, configured_agent, enabled):
     handler = MCPServerHandler()
     handler.refresh_tools(integration)
     handler.update_tools(
-        integration, [MCPToolSettings(name, enabled=True) for name in enabled]
+        integration,
+        [MCPToolSettings(name, enabled=True, ask_first=False) for name in enabled],
     )
     return user, agent, integration
 

@@ -158,6 +158,8 @@ class AgentReplyResult:
     """Its tool calls in call order, or None when it made none."""
     waiting_calls: list[ChatRunWaitingCall] = field(default_factory=list)
     """The calls held for the owner's approval, when the run paused."""
+    tool_keys: dict[str, str] = field(default_factory=dict)
+    """The approval key of each held MCP call's tool, by tool name."""
     paused_run: AgentPausedRun | None = None
     """The paused run, to resume once its held calls are decided."""
 

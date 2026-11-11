@@ -54,7 +54,7 @@ class UpdateMCPServerToolsActionType(ActionType):
         application_id: int
         application_name: str
         enabled_tools: list[str]
-        tools_changing_data: list[str]
+        ask_first_tools: list[str]
 
     @classmethod
     def do(
@@ -77,7 +77,9 @@ class UpdateMCPServerToolsActionType(ActionType):
                 user,
                 integration,
                 enabled_tools=[tool.name for tool in stored if tool.enabled],
-                tools_changing_data=[tool.name for tool in stored if tool.changes_data],
+                ask_first_tools=[
+                    tool.name for tool in stored if tool.enabled and tool.ask_first
+                ],
             )
         return integration
 

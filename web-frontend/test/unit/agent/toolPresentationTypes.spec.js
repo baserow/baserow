@@ -380,7 +380,7 @@ describe('Agent tool presentations', () => {
     }
   )
 
-  test('connected app calls name the tool and the app, never the arguments', () => {
+  test('connected app calls name the tool and the app', () => {
     const call = (status, input) =>
       toolActivity(
         {
@@ -403,6 +403,13 @@ describe('Agent tool presentations', () => {
       group: null,
     })
     expect(call('done', {}).title).toBe('Connected app tool')
+    expect(call('done', input).input).toBeNull()
+    // A call held for approval shows its arguments, as the backend masked them.
+    const values = { title: 'Bug', api_key: '••••' }
+    expect(call('waiting', { ...input, values }).input).toEqual({
+      values,
+      truncated: false,
+    })
     // A built-in tool that only looks similar is not claimed.
     expect(toolActivity(step('mcp_tables', 'done'), registry, t).title).toBe(
       'Tool completed'
