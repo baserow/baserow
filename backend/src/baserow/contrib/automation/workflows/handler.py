@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 from zipfile import ZipFile
 
@@ -27,6 +27,9 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.nodes.constants import (
+    AUTOMATION_PENDING_NODE_STALE_SECONDS,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.signals import automation_node_updated
@@ -35,6 +38,9 @@ from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
+    STALLED_RUN_CANCELLED_ERROR,
+    STALLED_RUN_ERROR,
+    STALLED_RUN_SWEEP_BATCH_SIZE,
     WORKFLOW_DIRTY_CACHE_KEY,
     WorkflowState,
 )
@@ -48,6 +54,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_before_run,
+    automation_workflow_dispatch_done,
     automation_workflow_dispatch_started,
     automation_workflow_updated,
 )
@@ -1166,6 +1173,182 @@ class AutomationWorkflowHandler:
             status=HistoryStatusChoices.ERROR,
             message=error,
             completed_on=now,
+        )
+
+    def _get_stall_candidates(
+        self, now: datetime, threshold: datetime
+    ) -> QuerySet[AutomationWorkflowHistory]:
+        """
+        Returns the `STARTED` runs that look dead: the run is still open, but
+        its last sign of activity is older than `threshold`.
+
+        The last sign of activity is the latest of these timestamps: when the
+        run started, when any of its nodes started, and when any of its nodes
+        completed. A completed node does not make the run finished, it only
+        shows the run was alive at that moment. The next node should start
+        right after, so a run whose last node completed long ago and that has
+        no newer node is stuck between two nodes.
+
+        A node that is still running has no `completed_on` yet, so only its
+        `started_on` counts. That is what catches a parent node waiting on a
+        deferred child whose result never arrived.
+
+        A run with a waiting node is left alone while that node's resume is not
+        overdue by more than the grace: a Wait node can idle for hours by design,
+        and the recovery of a lost resume which runs in the periodic cleanup,
+        gets two tries inside the grace. A run whose resume keeps failing after
+        that is stalled like any other.
+
+        :param now: The current time, from which the waiting grace is computed.
+        :param threshold: Runs with progress at or after this time are excluded.
+        :return: The stalled runs. Callers that need a specific order set it.
+        """
+
+        # A lost resume is re-queued by the periodic cleanup once the node is
+        # `AUTOMATION_PENDING_NODE_STALE_SECONDS` overdue. The cleanup only runs
+        # once per interval, so its first try can land up to one interval later
+        # and its second try one interval after that. Two intervals give the
+        # recovery two tries before the run counts as stalled: 75 + 2 * 60 = 195
+        # minutes with the defaults.
+        waiting_grace = timedelta(
+            seconds=AUTOMATION_PENDING_NODE_STALE_SECONDS
+        ) + 2 * timedelta(
+            minutes=settings.AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES
+        )
+        # Written as an `Exists` so that both conditions apply to the same node
+        # row: an `exclude()` across the multi-valued relation would not tie
+        # them together.
+        has_waiting_node_in_grace = Exists(
+            AutomationNodeHistory.objects.filter(
+                workflow_history=OuterRef("pk"),
+                status=HistoryStatusChoices.WAITING,
+                resume_at__gte=now - waiting_grace,
+            )
+        )
+
+        # `exclude()` across the relation means "has no node row matching",
+        # and does not match a NULL `completed_on`.
+        return (
+            AutomationWorkflowHistory.objects.filter(
+                status=HistoryStatusChoices.STARTED,
+                started_on__lt=threshold,
+            )
+            .exclude(node_histories__started_on__gte=threshold)
+            .exclude(node_histories__completed_on__gte=threshold)
+            .filter(~has_waiting_node_in_grace)
+        )
+
+    @baserow_trace(tracer)
+    def mark_failure_for_stalled_history(self) -> int:
+        """
+        Resolves the runs that stopped making progress for longer than
+        `AUTOMATION_RUN_STALL_TIMEOUT_MINUTES`. The runner moves from one node to
+        the next by publishing a Celery task, and nothing records that handoff:
+        if the publish is lost or the worker dies after receiving the task, the
+        run would stay `started` until the run timeout labels it as too long.
+
+        Nothing is re-run, since a node can have side effects. A run that was
+        only delayed, not lost, finds itself resolved when its next task is
+        picked up and stops there.
+
+        At most `STALLED_RUN_SWEEP_BATCH_SIZE` runs are resolved per call, the
+        oldest first; the next call takes the rest.
+
+        :return: The number of runs this call resolved.
+        """
+
+        now = timezone.now()
+        threshold = now - timedelta(
+            minutes=settings.AUTOMATION_RUN_STALL_TIMEOUT_MINUTES
+        )
+
+        workflow_history_ids = list(
+            self._get_stall_candidates(now, threshold)
+            .order_by("started_on", "id")
+            .values_list("id", flat=True)[:STALLED_RUN_SWEEP_BATCH_SIZE]
+        )
+        if not workflow_history_ids:
+            return 0
+
+        # The writes go through a flat queryset on the ids read above, each
+        # guarded on the run still being `STARTED`, so a run resolved between
+        # the read and the write (dispatch-done handler, runner-side
+        # cancellation) is left alone. The cancellation flag is re-read at write
+        # time, so a request that lands after the read is honoured.
+        still_started_histories = AutomationWorkflowHistory.objects.filter(
+            id__in=workflow_history_ids,
+            status=HistoryStatusChoices.STARTED,
+        )
+        still_started_histories.filter(cancellation_requested_on__isnull=False).update(
+            status=HistoryStatusChoices.CANCELLED,
+            message=STALLED_RUN_CANCELLED_ERROR,
+            completed_on=now,
+        )
+        still_started_histories.filter(cancellation_requested_on__isnull=True).update(
+            status=HistoryStatusChoices.ERROR,
+            message=STALLED_RUN_ERROR,
+            completed_on=now,
+        )
+
+        # Only the runs this call changed: a run that finished on its own in the
+        # meantime already sent its own event.
+        resolved_histories = list(
+            AutomationWorkflowHistory.objects.filter(
+                id__in=workflow_history_ids,
+                completed_on=now,
+                message__in=(STALLED_RUN_ERROR, STALLED_RUN_CANCELLED_ERROR),
+            ).select_related("original_workflow__automation")
+        )
+        if not resolved_histories:
+            return 0
+
+        # Closes the half-open row of a parent waiting on a lost deferred child,
+        # and an overdue waiting node, whose resume task then finds the run
+        # resolved and leaves it alone.
+        AutomationNodeHistory.objects.filter(
+            workflow_history_id__in=[history.id for history in resolved_histories],
+            status__in=(HistoryStatusChoices.STARTED, HistoryStatusChoices.WAITING),
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=STALLED_RUN_ERROR,
+            completed_on=now,
+        )
+
+        # No default response is created: every response waiter (an HTTP
+        # trigger waiting for a response, a parent waiting on a child run) gives
+        # up within seconds, long before a run counts as stalled.
+        for history in resolved_histories:
+            automation_workflow_dispatch_done.send(
+                sender=None,
+                workflow_history=history,
+            )
+
+        return len(resolved_histories)
+
+    @baserow_trace(tracer)
+    def count_runs_newly_stalled(self) -> int:
+        """
+        Counts the `STARTED` runs whose last progress became older than
+        `AUTOMATION_RUN_STALL_WARNING_MINUTES` during the last stall sweep
+        interval, so each run is counted once, by one sweep. Used to tell a
+        backed-up queue apart from a lost task: nothing is resolved.
+
+        :return: The number of runs that newly crossed the warning threshold.
+        """
+
+        now = timezone.now()
+        threshold = now - timedelta(
+            minutes=settings.AUTOMATION_RUN_STALL_WARNING_MINUTES
+        )
+        previous_threshold = threshold - timedelta(
+            minutes=settings.AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES
+        )
+        return (
+            self._get_stall_candidates(now, threshold)
+            .exclude(
+                id__in=self._get_stall_candidates(now, previous_threshold).values("id")
+            )
+            .count()
         )
 
     def _ensure_published_for_run(
