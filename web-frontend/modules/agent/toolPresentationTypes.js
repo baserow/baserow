@@ -197,6 +197,47 @@ export class DeleteRowsToolPresentationType extends DatabaseToolPresentationType
   }
 }
 
+const MCP_TOOL_NAME = /^mcp\d+_/
+const text = (value) =>
+  typeof value === 'string' && value.trim() ? value.trim() : null
+
+/**
+ * Calls to the tools of an MCP server. Their names are made at runtime from the
+ * server's id, so this type claims them by prefix. The server's name and the
+ * tool's reviewed title name the call; its arguments are only shown for a call
+ * waiting for approval, credentials masked by the backend.
+ */
+export class MCPServerToolPresentationType extends ToolPresentationType {
+  static getType() {
+    return 'mcp_server_tool'
+  }
+
+  matchesTool(name) {
+    return MCP_TOOL_NAME.test(name)
+  }
+
+  getLabel(t) {
+    return t('agent.toolMCP')
+  }
+
+  getInput({ input }) {
+    return input?.values ? input : null
+  }
+
+  getActivity({ status, input }, t) {
+    const tool = text(input.tool)
+    const server = text(input.server)
+    if (!tool || !server) return this.getLabel(t)
+    const key =
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolMCPRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolMCPDone'
+          : 'agent.toolMCPNamed'
+    return t(key, { tool, server })
+  }
+}
+
 /** A search the AI provider runs itself, so it has no tool to allow or configure. */
 export class WebSearchToolPresentationType extends ToolPresentationType {
   static getType() {
@@ -258,4 +299,5 @@ export const agentToolPresentationTypes = [
   CreateRowsToolPresentationType,
   UpdateRowsToolPresentationType,
   DeleteRowsToolPresentationType,
+  MCPServerToolPresentationType,
 ]

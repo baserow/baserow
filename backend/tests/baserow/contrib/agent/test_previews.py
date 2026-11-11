@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from baserow.contrib.agent.previews import (
     MASKED_VALUE,
     StepPreview,
+    arguments_preview,
     as_requested,
     mask,
     name_field_references,
@@ -90,3 +91,31 @@ def test_known_field_ids_become_names_and_unknown_ones_stay():
         "field_options": [{"field": "Name", "name": "Title"}],
         "date_field_id": 9,
     }
+
+
+def test_arguments_preview_masks_credentials_at_any_depth():
+    preview = arguments_preview(
+        {
+            "query": "open tickets",
+            "api_key": "s3cret",
+            "headers": {"Authorization": "Bearer s3cret", "Accept": "json"},
+            "accounts": [{"name": "ops", "password": "hunter2"}],
+            "max_tokens": 10,
+        }
+    )
+
+    assert preview == {
+        "values": {
+            "query": "open tickets",
+            "api_key": MASKED_VALUE,
+            "headers": {"Authorization": MASKED_VALUE, "Accept": "json"},
+            "accounts": [{"name": "ops", "password": MASKED_VALUE}],
+            "max_tokens": MASKED_VALUE,
+        }
+    }
+
+
+def test_arguments_preview_is_bounded_like_every_preview():
+    preview = arguments_preview({"ids": list(range(50))})
+
+    assert preview == {"values": {"ids": list(range(10))}, "truncated": True}

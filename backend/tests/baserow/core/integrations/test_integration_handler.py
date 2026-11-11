@@ -27,7 +27,12 @@ def pytest_generate_tests(metafunc):
     if "integration_type" in metafunc.fixturenames:
         metafunc.parametrize(
             "integration_type",
-            [pytest.param(e, id=e.type) for e in integration_type_registry.get_all()],
+            [
+                pytest.param(e, id=e.type)
+                for e in integration_type_registry.get_all()
+                # The tests create them on an application builder.
+                if e.supports_application_type(application_type_registry.get("builder"))
+            ],
         )
 
 

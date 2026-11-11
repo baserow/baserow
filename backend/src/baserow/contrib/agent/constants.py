@@ -50,6 +50,10 @@ ASK_FIRST_INSTRUCTIONS = (
     "repeat the call unless they ask for it again."
 )
 DISALLOWED_TOOL_CALL_NOTE = "This tool is no longer allowed."
+MCP_TOOL_CHANGED_CALL_NOTE = (
+    "This tool, its server or the account it's called with changed after the call "
+    "was held, so the approval no longer applies. The call did not run."
+)
 RUN_AS_LOST_TOOL_CALL_NOTE = (
     "You no longer act as the identity this call was held under, so it did not run. "
     "Tools are unavailable for the rest of this reply; the user can ask again in a "

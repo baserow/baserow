@@ -1,0 +1,164 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import transaction
+
+from baserow.core.handler import CoreHandler
+from baserow.core.integrations.exceptions import IntegrationDoesNotExist
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.operations import UpdateIntegrationOperationType
+from baserow.core.integrations.signals import integration_updated
+
+from .exceptions import MCPOAuthFailed, MCPServerDoesNotUseOAuth
+from .handler import MCPServerHandler, MCPToolSettings
+from .models import MCP_SERVER_LOCK_OF, MCPAuthType, MCPServerIntegration
+
+
+class MCPServerService:
+    def get_server_for_update(
+        self, user: AbstractUser, integration_id: int
+    ) -> MCPServerIntegration:
+        """
+        Return the MCP server if the user may change it.
+
+        :param user: Who asks.
+        :param integration_id: The integration.
+        :raises IntegrationDoesNotExist: When it doesn't exist or isn't an MCP
+            server.
+        :return: The server.
+        """
+
+        integration = IntegrationHandler().get_integration(integration_id).specific
+        if not isinstance(integration, MCPServerIntegration):
+            raise IntegrationDoesNotExist()
+        CoreHandler().check_permissions(
+            user,
+            UpdateIntegrationOperationType.type,
+            workspace=integration.application.workspace,
+            context=integration,
+        )
+        return integration
+
+    def refresh_tools(
+        self, user: AbstractUser, integration_id: int
+    ) -> MCPServerIntegration:
+        """
+        List the server's tools and store them. The permission check and the
+        network call happen outside a transaction, the store inside one.
+
+        :param user: Who asks.
+        :param integration_id: The integration.
+        :raises MCPServerUnreachable: When the server can't list its tools.
+        :return: The server, with its stored tools.
+        """
+
+        integration = self.get_server_for_update(user, integration_id)
+        fetched_from = integration.url
+        definitions = MCPServerHandler().fetch_remote_tools(integration)
+        with transaction.atomic():
+            # Checked again: access may have changed while the server answered.
+            integration = self.get_server_for_update(user, integration_id)
+            # Tools of a server the integration no longer points to are dropped.
+            # Locked first, so a URL change still being saved is waited for.
+            current_url = (
+                MCPServerIntegration.objects.select_for_update(of=MCP_SERVER_LOCK_OF)
+                .filter(id=integration_id)
+                .values_list("url", flat=True)
+                .first()
+            )
+            if current_url == fetched_from:
+                MCPServerHandler().store_tools(integration, definitions)
+        return self.notify_updated(user, integration_id)
+
+    def update_tools(
+        self, user: AbstractUser, integration_id: int, tools: list[dict]
+    ) -> MCPServerIntegration:
+        """
+        Turn tools on or off and say whether they change data.
+
+        :param user: Who asks.
+        :param integration_id: The integration.
+        :param tools: Per tool, its name and the values to change, see
+            `MCPToolSettings`.
+        :return: The server, with its stored tools.
+        """
+
+        with transaction.atomic():
+            integration = self.get_server_for_update(user, integration_id)
+            MCPServerHandler().update_tools(
+                integration, [MCPToolSettings(**tool) for tool in tools]
+            )
+            return self.notify_updated(user, integration_id)
+
+    def start_oauth(self, user: AbstractUser, integration_id: int) -> str:
+        """
+        Start connecting an account to a server that uses OAuth.
+
+        :param user: Who signs in.
+        :param integration_id: The integration.
+        :raises MCPServerDoesNotUseOAuth: When the server isn't set to use
+            OAuth.
+        :raises MCPOAuthFailed: When the server doesn't support OAuth sign-in.
+        :return: Where to send the editor to sign in.
+        """
+
+        integration = self.get_server_for_update(user, integration_id)
+        if integration.auth_type != MCPAuthType.OAUTH:
+            raise MCPServerDoesNotUseOAuth()
+        return MCPServerHandler().start_oauth(integration, user)
+
+    def complete_oauth(
+        self, user: AbstractUser, state: str, code: str
+    ) -> MCPServerIntegration:
+        """
+        Finish an authorization when the provider redirects back. Only the
+        editor who started it can finish it, so an authorization URL sent to
+        someone else can't connect their account to this server.
+
+        :param user: Who finishes the sign-in.
+        :param state: The state the provider redirected back with.
+        :param code: Empty when the editor cancelled or the provider refused.
+        :raises MCPOAuthStateInvalid: When the state is unknown, expired or
+            started by someone else.
+        :raises MCPOAuthFailed: When the sign-in was cancelled or the token
+            exchange fails.
+        :return: The server, before other editors are told it changed: see
+            `notify_updated`.
+        """
+
+        pending = MCPServerHandler().pop_oauth_state(state, user)
+        if not code:
+            raise MCPOAuthFailed("The sign-in was cancelled or refused.")
+        integration = self.get_server_for_update(user, pending.integration_id)
+        MCPServerHandler().complete_oauth(integration, user, pending, code)
+        return integration
+
+    def disconnect_oauth(
+        self, user: AbstractUser, integration_id: int
+    ) -> MCPServerIntegration:
+        """
+        Forget the account connected to a server.
+
+        :param user: Who asks.
+        :param integration_id: The integration.
+        :return: The server.
+        """
+
+        with transaction.atomic():
+            integration = self.get_server_for_update(user, integration_id)
+            MCPServerHandler().disconnect_oauth(integration)
+            return self.notify_updated(user, integration_id)
+
+    def notify_updated(
+        self, user: AbstractUser, integration_id: int
+    ) -> MCPServerIntegration:
+        """
+        Read the server again, so its prefetched tools are the stored ones, and
+        tell other editors it changed.
+
+        :param user: Who changed it.
+        :param integration_id: The integration.
+        :return: The server.
+        """
+
+        integration = IntegrationHandler().get_integration(integration_id).specific
+        integration_updated.send(self, integration=integration, user=user)
+        return integration

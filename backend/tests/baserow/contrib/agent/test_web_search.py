@@ -33,6 +33,7 @@ from baserow.contrib.agent.models import AgentApplication, AgentMessage
 from baserow.contrib.agent.replies import AgentResponder, _web_search_step_input
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.integrations.mcp.models import MCPServerTool
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
@@ -386,6 +387,37 @@ def test_configuration_says_when_tools_block_search(data_fixture, configured_age
     assert configuration.web_search_blocked_by_tools is False
 
 
+def agent_with_only_mcp_tools(configured_agent, user, data_fixture):
+    agent = agent_with_tools(configured_agent, user, "google", "gemini-2.5-flash")
+    AgentHandler().update_configuration(agent, allowed_tools=[])
+    server = data_fixture.create_mcp_server_integration(application=agent)
+    MCPServerTool.objects.create(
+        integration=server, name="search", definition_hash="x", enabled=True
+    )
+    return agent
+
+
+@pytest.mark.django_db
+def test_mcp_tools_block_search_like_workspace_tools(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_only_mcp_tools(configured_agent, user, data_fixture)
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(info.model_request_parameters.native_tools)
+        yield "ok"
+
+    use_stream(mocker, stream)
+
+    configuration = AgentHandler().get_configuration(agent)
+    assert configuration.web_search_available is False
+    assert configuration.web_search_blocked_by_tools is True
+    assert answer(user, agent).status == "completed"
+    assert seen[0] == []
+
+
 @pytest.mark.django_db
 def test_web_search_starts_off_and_is_available_only_with_a_supported_model(
     configured_agent,
@@ -559,7 +591,7 @@ def test_code_the_provider_runs_to_filter_results_is_not_a_step(
 def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], resume=None), journal, Mock(), {}
+        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
     )
     started = NativeToolCallPart(WebSearchTool.kind, tool_call_id="search-1")
 
@@ -579,7 +611,7 @@ def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives()
 def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], resume=None), journal, Mock(), {}
+        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
     )
 
     for index, part in enumerate(
@@ -598,7 +630,7 @@ def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
 def test_text_before_a_search_whose_result_arrives_late_leaves_the_stream():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], resume=None), journal, Mock(), {}
+        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
     )
 
     for index, part in enumerate(

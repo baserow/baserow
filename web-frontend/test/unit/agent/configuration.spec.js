@@ -593,7 +593,7 @@ describe('Agent configuration', () => {
     mockConfiguration(testApp, incompleteConfiguration('model_identifier'))
     const wrapper = await mount()
 
-    const [instructionsSection, , settingsSection] = wrapper.findAll(
+    const [instructionsSection, , , settingsSection] = wrapper.findAll(
       '.menu-list__item-button'
     )
 
@@ -2021,7 +2021,7 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(3)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(4)
   })
 
   test('warns when model availability cannot be loaded until retry', async () => {

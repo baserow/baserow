@@ -147,6 +147,14 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
         help_text="Which pause of its reply held the call, counting from 1."
     )
     tool_name = models.CharField(max_length=100)
+    tool_key = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="For an MCP tool, its server, account and definition when the "
+        "call was held. An approved call only runs while they're the same.",
+    )
     status = models.CharField(
         max_length=16,
         choices=Status.choices,

@@ -107,6 +107,7 @@
             @rename="$emit('rename')"
             @change="$emit('change', $event)"
             @flush="$emit('flush')"
+            @reload="$emit('reload')"
           />
         </form>
       </ReadOnlyForm>
