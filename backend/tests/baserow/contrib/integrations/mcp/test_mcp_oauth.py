@@ -807,3 +807,133 @@ def test_only_a_fetchable_https_backend_offers_a_client_metadata_document(
 ):
     with override_settings(PUBLIC_BACKEND_URL=backend_url):
         assert (oauth.get_client_metadata_url() is not None) is expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("refresh_token", ["refresh-1", None])
+def test_a_token_that_lives_zero_seconds_is_never_sent(
+    data_fixture, api_client, mocker, refresh_token
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    fake.expires_in = 0
+    fake.refresh_token = refresh_token
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    complete(api_client, token, state=state, code=fake.authorize(url))
+    integration = MCPServerIntegration.objects.get(id=integration.id)
+
+    if refresh_token:
+        connection = MCPServerHandler().get_connection(integration)
+        assert connection.headers == {"Authorization": "Bearer access-2"}
+    else:
+        with pytest.raises(MCPServerNotConnected):
+            MCPServerHandler().get_connection(integration)
+
+
+@pytest.mark.django_db
+def test_a_new_issuer_at_the_same_url_drops_the_old_account(
+    data_fixture, api_client, mocker
+):
+    fake = serve_oauth(mocker, FakeAuthorizationServer())
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    url = start(api_client, token, integration).json()["authorization_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    complete(api_client, token, state=state, code=fake.authorize(url))
+    # The resource now names another authorization server; the editor starts
+    # signing in there but doesn't finish.
+    fake.ISSUER = "https://other-auth.example.com"
+    start(api_client, token, integration)
+    fake.requests.clear()
+
+    with freeze_time(timezone.now() + timedelta(days=1)):
+        with pytest.raises(MCPServerNotConnected):
+            MCPServerHandler().get_connection(
+                MCPServerIntegration.objects.get(id=integration.id)
+            )
+
+    assert not [r for r in fake.requests if r.url.path == "/token"]
+    assert not MCPServerIntegration.objects.get(id=integration.id).oauth_connected
+
+
+@pytest.mark.django_db(transaction=True)
+def test_disconnecting_waits_for_an_integration_update_without_a_deadlock(
+    data_fixture,
+):
+    import threading
+    import time
+
+    from django.db import connection, transaction
+
+    from baserow.core.integrations.handler import IntegrationHandler
+
+    user = data_fixture.create_user()
+    integration = oauth_server(data_fixture, user, oauth_access_token="access-1")
+    errors = []
+
+    def disconnect():
+        try:
+            MCPServerHandler().disconnect_oauth(integration)
+        except Exception as exc:
+            errors.append(exc)
+        finally:
+            connection.close()
+
+    # Locks like an integration PATCH: the parent row first, then the MCP row.
+    with transaction.atomic():
+        IntegrationHandler().get_integration_for_update(integration.id)
+        other = threading.Thread(target=disconnect)
+        other.start()
+        time.sleep(0.5)
+        try:
+            MCPServerIntegration.objects.filter(id=integration.id).update(
+                oauth_client_id="patched"
+            )
+        except Exception as exc:
+            errors.append(exc)
+    other.join(10)
+
+    assert errors == []
+    integration.refresh_from_db()
+    assert integration.oauth_client_id == "patched"
+    assert not integration.oauth_connected
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_tool_change_is_audited_even_when_telling_other_editors_fails(
+    data_fixture, api_client, mocker
+):
+    mocker.patch(
+        "baserow.core.integrations.ws.signals.broadcast_to_permitted_users.delay",
+        side_effect=ConnectionError("broker down"),
+    )
+    audited = []
+
+    def audit(sender, action_type, **kwargs):
+        audited.append(action_type.type)
+
+    action_done.connect(audit)
+    user, token = data_fixture.create_user_and_token()
+    integration = oauth_server(data_fixture, user)
+    MCPServerTool.objects.create(integration=integration, name="search")
+
+    try:
+        with pytest.raises(ConnectionError):
+            api_client.patch(
+                reverse("api:mcp_server:tools", args=[integration.id]),
+                {"tools": [{"name": "search", "enabled": True}]},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+        with pytest.raises(ConnectionError):
+            api_client.post(
+                reverse("api:mcp_server:oauth_disconnect", args=[integration.id]),
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+    finally:
+        action_done.disconnect(audit)
+
+    assert MCPServerTool.objects.get(integration=integration).enabled
+    assert audited == ["update_mcp_server_tools", "disconnect_mcp_server_account"]

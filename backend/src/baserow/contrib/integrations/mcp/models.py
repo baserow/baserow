@@ -19,6 +19,11 @@ class MCPOAuthClientSource(models.TextChoices):
     METADATA_DOCUMENT = "metadata_document"
 
 
+# Locks an MCP server through its integration row only. Integration updates
+# lock that row before writing the MCP one, so taking both here could deadlock.
+MCP_SERVER_LOCK_OF = ("integration_ptr",)
+
+
 class MCPServerIntegration(Integration):
     """
     A remote MCP server reached over Streamable HTTP. It authenticates with a

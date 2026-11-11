@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
 from baserow.core.action.registries import ActionType, ActionTypeDescription
@@ -66,15 +67,18 @@ class UpdateMCPServerToolsActionType(ActionType):
         :return: The server, with its stored tools.
         """
 
-        integration = MCPServerService().update_tools(user, integration_id, tools)
-        stored = [tool for tool in integration.tools.all() if not tool.removed]
-        _register(
-            cls,
-            user,
-            integration,
-            enabled_tools=[tool.name for tool in stored if tool.enabled],
-            tools_changing_data=[tool.name for tool in stored if tool.changes_data],
-        )
+        # Registered before the commit sends the change to other editors, so
+        # a failure there can't leave a change without its audit entry.
+        with transaction.atomic():
+            integration = MCPServerService().update_tools(user, integration_id, tools)
+            stored = [tool for tool in integration.tools.all() if not tool.removed]
+            _register(
+                cls,
+                user,
+                integration,
+                enabled_tools=[tool.name for tool in stored if tool.enabled],
+                tools_changing_data=[tool.name for tool in stored if tool.changes_data],
+            )
         return integration
 
     @classmethod
@@ -111,8 +115,12 @@ class ConnectMCPServerAccountActionType(ActionType):
         :return: The connected server.
         """
 
+        # The token exchange happens outside a transaction; the audit entry is
+        # registered before other editors are told, as for the other actions.
         integration = MCPServerService().complete_oauth(user, state, code)
-        _register(cls, user, integration)
+        with transaction.atomic():
+            integration = MCPServerService().notify_updated(user, integration.id)
+            _register(cls, user, integration)
         return integration
 
     @classmethod
@@ -149,8 +157,9 @@ class DisconnectMCPServerAccountActionType(ActionType):
         :return: The server.
         """
 
-        integration = MCPServerService().disconnect_oauth(user, integration_id)
-        _register(cls, user, integration)
+        with transaction.atomic():
+            integration = MCPServerService().disconnect_oauth(user, integration_id)
+            _register(cls, user, integration)
         return integration
 
     @classmethod

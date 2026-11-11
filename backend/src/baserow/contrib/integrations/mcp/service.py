@@ -9,7 +9,7 @@ from baserow.core.integrations.signals import integration_updated
 
 from .exceptions import MCPOAuthFailed, MCPServerDoesNotUseOAuth
 from .handler import MCPServerHandler, MCPToolSettings
-from .models import MCPAuthType, MCPServerIntegration
+from .models import MCP_SERVER_LOCK_OF, MCPAuthType, MCPServerIntegration
 
 
 class MCPServerService:
@@ -59,14 +59,14 @@ class MCPServerService:
             # Tools of a server the integration no longer points to are dropped.
             # Locked first, so a URL change still being saved is waited for.
             current_url = (
-                MCPServerIntegration.objects.select_for_update()
+                MCPServerIntegration.objects.select_for_update(of=MCP_SERVER_LOCK_OF)
                 .filter(id=integration_id)
                 .values_list("url", flat=True)
                 .first()
             )
             if current_url == fetched_from:
                 MCPServerHandler().store_tools(integration, definitions)
-        return self._updated(user, integration_id)
+        return self.notify_updated(user, integration_id)
 
     def update_tools(
         self, user: AbstractUser, integration_id: int, tools: list[dict]
@@ -86,7 +86,7 @@ class MCPServerService:
             MCPServerHandler().update_tools(
                 integration, [MCPToolSettings(**tool) for tool in tools]
             )
-            return self._updated(user, integration_id)
+            return self.notify_updated(user, integration_id)
 
     def start_oauth(self, user: AbstractUser, integration_id: int) -> str:
         """
@@ -120,6 +120,8 @@ class MCPServerService:
             started by someone else.
         :raises MCPOAuthFailed: When the sign-in was cancelled or the token
             exchange fails.
+        :return: The server, before other editors are told it changed: see
+            `notify_updated`.
         """
 
         pending = MCPServerHandler().pop_oauth_state(state, user)
@@ -127,7 +129,7 @@ class MCPServerService:
             raise MCPOAuthFailed("The sign-in was cancelled or refused.")
         integration = self.get_server_for_update(user, pending.integration_id)
         MCPServerHandler().complete_oauth(integration, user, pending, code)
-        return self._updated(user, integration.id)
+        return integration
 
     def disconnect_oauth(
         self, user: AbstractUser, integration_id: int
@@ -143,9 +145,11 @@ class MCPServerService:
         with transaction.atomic():
             integration = self.get_server_for_update(user, integration_id)
             MCPServerHandler().disconnect_oauth(integration)
-            return self._updated(user, integration_id)
+            return self.notify_updated(user, integration_id)
 
-    def _updated(self, user: AbstractUser, integration_id: int) -> MCPServerIntegration:
+    def notify_updated(
+        self, user: AbstractUser, integration_id: int
+    ) -> MCPServerIntegration:
         """
         Read the server again, so its prefetched tools are the stored ones, and
         tell other editors it changed.

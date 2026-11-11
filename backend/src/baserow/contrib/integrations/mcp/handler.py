@@ -26,6 +26,7 @@ from .exceptions import (
     MCPServerUnreachable,
 )
 from .models import (
+    MCP_SERVER_LOCK_OF,
     MCPAuthType,
     MCPOAuthClientSource,
     MCPServerIntegration,
@@ -319,9 +320,9 @@ class MCPServerHandler:
 
         failure = None
         with transaction.atomic():
-            locked = MCPServerIntegration.objects.select_for_update().get(
-                id=integration.id
-            )
+            locked = MCPServerIntegration.objects.select_for_update(
+                of=MCP_SERVER_LOCK_OF
+            ).get(id=integration.id)
             if not self._same_connection(locked, integration):
                 # Its tokens belong to another server or sign-in than the one
                 # the caller is about to use.
@@ -411,14 +412,23 @@ class MCPServerHandler:
             client = async_to_sync(oauth.register)(server)
 
         with transaction.atomic():
-            locked = MCPServerIntegration.objects.select_for_update().get(
-                id=integration.id
-            )
+            locked = MCPServerIntegration.objects.select_for_update(
+                of=MCP_SERVER_LOCK_OF
+            ).get(id=integration.id)
             # What was discovered belongs to the server as it was read.
             if not self._same_connection(locked, integration):
                 raise MCPOAuthFailed(
                     "The server was changed while signing in. Try again."
                 )
+            stored = locked.oauth_server or {}
+            if (
+                stored.get("issuer") != server.issuer
+                or locked.oauth_client_id != client.client_id
+            ):
+                # The account was connected through another authorization
+                # server or client: its tokens must not go to this one.
+                locked.clear_oauth_tokens()
+                locked.oauth_generation += 1
             locked.oauth_server = {
                 **server.to_dict(),
                 "client_auth_method": client.auth_method,
@@ -428,6 +438,8 @@ class MCPServerHandler:
             locked.oauth_client_source = client.source
             locked.save(
                 update_fields=[
+                    *OAUTH_TOKEN_FIELDS,
+                    "oauth_generation",
                     "oauth_server",
                     "oauth_client_id",
                     "oauth_client_secret",
@@ -442,8 +454,8 @@ class MCPServerHandler:
             user_id=user.id,
             code_verifier=authorization.code_verifier,
             client_id=client.client_id,
-            url=integration.url,
-            generation=integration.oauth_generation,
+            url=locked.url,
+            generation=locked.oauth_generation,
         )
         cache.set(
             OAUTH_STATE_CACHE_KEY.format(state),
@@ -504,9 +516,9 @@ class MCPServerHandler:
         with transaction.atomic():
             # Checked again: the server may have been moved while the provider
             # answered, and its tokens must not go to the new one.
-            locked = MCPServerIntegration.objects.select_for_update().get(
-                id=integration.id
-            )
+            locked = MCPServerIntegration.objects.select_for_update(
+                of=MCP_SERVER_LOCK_OF
+            ).get(id=integration.id)
             if not pending.still_matches(locked):
                 raise MCPOAuthStateInvalid()
             # A new sign-in may be another account: nothing of the old one stays.
@@ -524,9 +536,9 @@ class MCPServerHandler:
         """
 
         with transaction.atomic():
-            locked = MCPServerIntegration.objects.select_for_update().get(
-                id=integration.id
-            )
+            locked = MCPServerIntegration.objects.select_for_update(
+                of=MCP_SERVER_LOCK_OF
+            ).get(id=integration.id)
             locked.clear_oauth_tokens()
             locked.oauth_generation += 1
             locked.save(update_fields=[*OAUTH_TOKEN_FIELDS, "oauth_generation"])
@@ -566,9 +578,13 @@ class MCPServerHandler:
         if token.refresh_token:
             integration.oauth_refresh_token = token.refresh_token
         lifetime = token.expires_in
-        if not lifetime and integration.oauth_refresh_token:
+        if lifetime is None and integration.oauth_refresh_token:
             # The provider didn't say; refresh regularly rather than never.
             lifetime = DEFAULT_TOKEN_LIFETIME_SECONDS
+        # Zero means already expired, so the token is refreshed or the account
+        # connected again before it's ever sent.
         integration.oauth_expires_at = (
-            timezone.now() + timedelta(seconds=lifetime) if lifetime else None
+            timezone.now() + timedelta(seconds=lifetime)
+            if lifetime is not None
+            else None
         )
