@@ -5,6 +5,7 @@ from django.db import migrations, models
 
 import baserow.core.formula.field
 
+
 class Migration(migrations.Migration):
     dependencies = [
         ("baserow_enterprise", "0070_semantic_search"),
@@ -29,7 +30,10 @@ class Migration(migrations.Migration):
                 (
                     "html",
                     baserow.core.formula.field.FormulaField(
-                        blank=True, default="", help_text="HTML content to render.", null=True
+                        blank=True,
+                        default="",
+                        help_text="HTML content to render.",
+                        null=True,
                     ),
                 ),
             ],
