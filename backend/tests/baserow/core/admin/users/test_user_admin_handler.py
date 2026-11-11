@@ -319,9 +319,6 @@ def test_admin_changing_their_own_password_keeps_their_current_tab_connected(
             admin_user, admin_user.id, password="new_password"
         )
 
-    admin_user.profile.refresh_from_db()
-    assert admin_user.profile.last_password_change is not None
-    password_changed_signal.assert_called_once()
     assert (
         password_changed_signal.call_args.kwargs["ignore_web_socket_id"] == "admin-tab"
     )

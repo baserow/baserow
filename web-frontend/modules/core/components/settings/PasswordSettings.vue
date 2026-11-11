@@ -76,6 +76,7 @@ import { sameAs, required, helpers } from '@vuelidate/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import AuthService from '@baserow/modules/core/services/auth'
+import { loginAgainAfterPasswordChange } from '@baserow/modules/core/utils/auth'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
 import { passwordValidation } from '@baserow/modules/core/validators'
 
@@ -115,10 +116,15 @@ export default {
         // Changing the password invalidates all the refresh and access token, so we
         // have to log in again. This can be done with the new password we still have
         // in memory.
-        await this.$store.dispatch('auth/login', {
-          email: this.$store.getters['auth/getUsername'],
-          password: this.account.newPassword,
-        })
+        if (
+          !(await loginAgainAfterPasswordChange(
+            this.$router,
+            this.$store,
+            this.account.newPassword
+          ))
+        ) {
+          return
+        }
         this.success = true
         this.loading = false
       } catch (error) {

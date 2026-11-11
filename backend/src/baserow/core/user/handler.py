@@ -638,8 +638,8 @@ class UserHandler:
         and saved, and tells them by email. Every path that changes a password must
         call this, otherwise someone holding an old token keeps access.
 
-        Tokens issued before now stop working, open real-time connections are
-        closed and OAuth apps are signed out.
+        JWT access and refresh tokens issued before now stop working, open
+        real-time connections are closed and OAuth apps are signed out.
 
         :param user: The user whose password was changed.
         :param ignore_web_socket_id: The real-time connection to keep open, if the

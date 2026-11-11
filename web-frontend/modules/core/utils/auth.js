@@ -154,6 +154,33 @@ export const getTokenIfEnoughTimeLeft = async (
   return data && (data.exp - now) / (data.exp - data.iat) > 0.1 ? token : null
 }
 
+/**
+ * Signs the current user back in after they changed their own password, which
+ * ends all of their sessions. When the account has two-factor authentication,
+ * signing in can't finish without the second factor, so the user is sent to the
+ * login page with a message instead.
+ *
+ * @param {object} router The app router, used for the redirect to the login page.
+ * @param {object} store The Vuex store.
+ * @param {string} password The new password.
+ * @returns {Promise<boolean>} Whether the user is still signed in.
+ */
+export const loginAgainAfterPasswordChange = async (
+  router,
+  store,
+  password
+) => {
+  const result = await store.dispatch('auth/login', {
+    email: store.getters['auth/getUsername'],
+    password,
+  })
+  if (result?.two_factor_auth) {
+    await logoutAndRedirectToLogin(router, store, false, true)
+    return false
+  }
+  return true
+}
+
 export const logoutAndRedirectToLogin = async (
   router,
   store,

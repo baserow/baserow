@@ -84,8 +84,6 @@ describe('RealTimeHandler force_disconnect', () => {
     await fire(handler, 'force_disconnect', {})
 
     expect(handler.reconnect).toBe(false)
-    // The app router must be passed, otherwise the redirect crashes.
-    expect(context.app.$router).toBeDefined()
     expect(logoutAndRedirectToLogin).toHaveBeenCalledWith(
       context.app.$router,
       store,

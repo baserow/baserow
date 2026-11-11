@@ -16,6 +16,7 @@ import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import UserAdminService from '@baserow/modules/core/services/admin/users'
 import ChangePasswordForm from '@baserow/modules/core/components/admin/users/forms/ChangePasswordForm'
+import { loginAgainAfterPasswordChange } from '@baserow/modules/core/utils/auth'
 
 export default {
   name: 'ChangePasswordModal',
@@ -44,11 +45,15 @@ export default {
         // Changing a password signs that user out everywhere. When admins change
         // their own, log them back in with the new password so this session
         // carries on.
-        if (this.user.id === this.$store.getters['auth/getUserId']) {
-          await this.$store.dispatch('auth/login', {
-            email: this.$store.getters['auth/getUsername'],
-            password: values.password,
-          })
+        if (
+          this.user.id === this.$store.getters['auth/getUserId'] &&
+          !(await loginAgainAfterPasswordChange(
+            this.$router,
+            this.$store,
+            values.password
+          ))
+        ) {
+          return
         }
         this.loading = false
         this.hide()
