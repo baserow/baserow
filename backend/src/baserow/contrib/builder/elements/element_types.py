@@ -2187,13 +2187,21 @@ class IFrameElementType(UntrustedContentTypeMixin, ElementType):
     display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
-    allowed_fields = ["source_type", "url", "embed", "height", "allow_same_origin"]
+    allowed_fields = [
+        "source_type",
+        "url",
+        "embed",
+        "height",
+        "allow_same_origin",
+        "auto_height",
+    ]
     serializer_field_names = [
         "source_type",
         "url",
         "embed",
         "height",
         "allow_same_origin",
+        "auto_height",
     ]
     simple_formula_fields = ["url", "embed"]
 
@@ -2203,6 +2211,7 @@ class IFrameElementType(UntrustedContentTypeMixin, ElementType):
         embed: BaserowFormulaObject
         height: int
         allow_same_origin: bool
+        auto_height: bool
 
     @property
     def serializer_field_overrides(self):
@@ -2233,6 +2242,11 @@ class IFrameElementType(UntrustedContentTypeMixin, ElementType):
                 required=False,
                 default=False,
             ),
+            "auto_height": serializers.BooleanField(
+                help_text=IFrameElement._meta.get_field("auto_height").help_text,
+                required=False,
+                default=False,
+            ),
         }
 
         return overrides
@@ -2252,6 +2266,7 @@ class IFrameElementType(UntrustedContentTypeMixin, ElementType):
             ),
             "height": 300,
             "allow_same_origin": False,
+            "auto_height": False,
         }
 
 
