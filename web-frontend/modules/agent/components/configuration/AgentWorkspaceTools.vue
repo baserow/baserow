@@ -38,7 +38,10 @@
           <div class="agent-workspace-tools__ask-title">
             {{ $t('agent.askBeforeChanges') }}
           </div>
-          <div class="agent-workspace-tools__ask-description">
+          <div
+            :id="askDescriptionId"
+            class="agent-workspace-tools__ask-description"
+          >
             {{ $t('agent.askBeforeChangesDescription') }}
           </div>
         </div>
@@ -48,6 +51,7 @@
           role="checkbox"
           :tabindex="canAskBeforeChanges ? 0 : -1"
           :aria-label="$t('agent.askBeforeChanges')"
+          :aria-describedby="askDescriptionId"
           :aria-checked="askBeforeChanges ?? 'mixed'"
           :aria-disabled="!canAskBeforeChanges"
           :model-value="askBeforeChanges"
@@ -77,7 +81,11 @@
             })
           }}
           <template v-if="countIn(group, askFirstTools)">
-            <span class="agent-workspace-tools__group-separator">•</span>
+            <span
+              class="agent-workspace-tools__group-separator"
+              aria-hidden="true"
+              >•</span
+            >
             {{
               $t('agent.toolsAskCount', {
                 count: countIn(group, askFirstTools),
@@ -102,7 +110,7 @@
 
 <script setup>
 import { useNuxtApp } from '#app'
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import {
@@ -122,6 +130,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update'])
 const { t } = useI18n()
+const askDescriptionId = useId()
 const { $registry } = useNuxtApp()
 
 const permissions = ref(null)

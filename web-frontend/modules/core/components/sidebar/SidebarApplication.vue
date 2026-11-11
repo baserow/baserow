@@ -10,7 +10,6 @@
       :class="{
         'tree__action--highlighted': highlighted,
         'tree__action--error': isInError,
-        'tree__action--has-counter': application.pending_count > 0,
       }"
       data-sortable-handle
       :data-highlight="`sidebar-application-${application.id}`"

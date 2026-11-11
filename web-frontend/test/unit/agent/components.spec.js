@@ -111,9 +111,6 @@ describe('Agent components', () => {
     const counter = wrapper.get('.tree__counter')
     expect(counter.text()).toBe('2')
     expect(counter.classes()).toContain('badge-counter--yellow')
-    expect(wrapper.get('.tree__action').classes()).toContain(
-      'tree__action--has-counter'
-    )
 
     await testApp.store.dispatch('application/forceUpdate', {
       application,
