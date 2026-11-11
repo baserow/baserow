@@ -66,16 +66,16 @@ def test_on_event_materializes_services_once_and_concatenates_listener_results()
     user = object()
     calls = []
 
-    def listener(result):
-        def on_event(services, event_payload, user, isolate_failures):
+    def listener_returning(result):
+        def listener(services, event_payload, user, isolate_failures):
             calls.append((services, event_payload, user, isolate_failures))
             return result
 
-        return on_event
+        return listener
 
-    service_type.start_listening(listener(["first"]))
-    service_type.start_listening(listener(None))
-    service_type.start_listening(listener(["second", "third"]))
+    service_type.start_listening(listener_returning(["first"]))
+    service_type.start_listening(listener_returning(None))
+    service_type.start_listening(listener_returning(["second", "third"]))
 
     result = service_type.on_event(
         iter(services), payload, user=user, isolate_failures=True
@@ -169,7 +169,7 @@ class RegistryFakeTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
 
 def recording_listener(received: list) -> Callable:
     """
-    Builds a registry listener with the `on_event` call shape that appends
+    Builds a registry listener with the `start_listening` call shape that appends
     `(services, event_payload)` to `received` and reports no histories.
 
     :param received: The list the listener appends to.
@@ -205,13 +205,13 @@ def registry_trigger_listeners(
 
     registry = mutable_service_type_registry
     before = list(registry.trigger_listeners)
-    for on_event in before:
-        registry.remove_trigger_listener(on_event)
+    for listener in before:
+        registry.remove_trigger_listener(listener)
     yield registry
-    for on_event in list(registry.trigger_listeners):
-        registry.remove_trigger_listener(on_event)
-    for on_event in before:
-        registry.add_trigger_listener(on_event)
+    for listener in list(registry.trigger_listeners):
+        registry.remove_trigger_listener(listener)
+    for listener in before:
+        registry.add_trigger_listener(listener)
 
 
 def registered_trigger_types(

@@ -888,36 +888,37 @@ class TriggerServiceTypeMixin(ABC):
     def dispatch_transform(self, data):
         return DispatchResult(data=data)
 
-    def start_listening(self, on_event: Callable) -> None:
+    def start_listening(self, listener: Callable) -> None:
         """
         Subscribes a listener to this trigger type's events. The type connects to
         its event source (a Django signal, the Celery beat, ...) only when the
         first listener subscribes, so nothing is received while nobody consumes.
 
-        :param on_event: Called as `on_event(services, event_payload, user=...,
+        :param listener: Called as `listener(services, event_payload, user=...,
             isolate_failures=...)` when the event occurs. It may return a list of
-            results, which `on_event` concatenates across listeners.
+            results, which `TriggerServiceTypeMixin.on_event` concatenates across
+            listeners.
         """
 
-        if on_event in self.listeners:
+        if listener in self.listeners:
             return
 
-        self.listeners.append(on_event)
+        self.listeners.append(listener)
         if len(self.listeners) == 1:
             self.connect()
 
-    def stop_listening(self, on_event: Callable) -> None:
+    def stop_listening(self, listener: Callable) -> None:
         """
         Unsubscribes a listener. The type disconnects from its event source when
         the last listener leaves. Unknown listeners are ignored.
 
-        :param on_event: The callable given to `start_listening`.
+        :param listener: The callable given to `start_listening`.
         """
 
-        if on_event not in self.listeners:
+        if listener not in self.listeners:
             return
 
-        self.listeners.remove(on_event)
+        self.listeners.remove(listener)
         if not self.listeners:
             self.disconnect()
 
@@ -935,10 +936,8 @@ class TriggerServiceTypeMixin(ABC):
 
     def arm(self, service: Service) -> None:
         """
-        Makes the service receive real events from now on. Automation calls it
-        when publishing a workflow, agent triggers when a trigger is created,
-        reconfigured or enabled. Types whose services are always live keep this
-        no-op.
+        Makes the service receive real events from now on. Types whose services
+        are always live keep this no-op.
 
         :param service: The specific trigger service to arm.
         """
@@ -983,8 +982,8 @@ class TriggerServiceTypeMixin(ABC):
         """
 
         super().after_register()
-        for on_event in service_type_registry.trigger_listeners:
-            self.start_listening(on_event)
+        for listener in service_type_registry.trigger_listeners:
+            self.start_listening(listener)
 
 
 class ServiceTypeRegistry(
@@ -1015,33 +1014,33 @@ class ServiceTypeRegistry(
             if isinstance(service_type, TriggerServiceTypeMixin)
         ]
 
-    def add_trigger_listener(self, on_event: Callable) -> None:
+    def add_trigger_listener(self, listener: Callable) -> None:
         """
-        Subscribes `on_event` to every trigger service type, the ones registered
+        Subscribes `listener` to every trigger service type, the ones registered
         now and the ones registered later, so a consumer without node types can
         react to every trigger event.
 
-        :param on_event: Called like `TriggerServiceTypeMixin.on_event` with the
-            services an event applies to; must return a list.
+        :param listener: Called like the listeners of
+            `TriggerServiceTypeMixin.start_listening`; must return a list.
         """
 
-        if on_event not in self.trigger_listeners:
-            self.trigger_listeners.append(on_event)
+        if listener not in self.trigger_listeners:
+            self.trigger_listeners.append(listener)
         for service_type in self._trigger_service_types():
-            service_type.start_listening(on_event)
+            service_type.start_listening(listener)
 
-    def remove_trigger_listener(self, on_event: Callable) -> None:
+    def remove_trigger_listener(self, listener: Callable) -> None:
         """
-        Unsubscribes `on_event` from every trigger service type and stops
+        Unsubscribes `listener` from every trigger service type and stops
         subscribing it to the ones registered later.
 
-        :param on_event: The listener given to `add_trigger_listener`.
+        :param listener: The listener given to `add_trigger_listener`.
         """
 
-        if on_event in self.trigger_listeners:
-            self.trigger_listeners.remove(on_event)
+        if listener in self.trigger_listeners:
+            self.trigger_listeners.remove(listener)
         for service_type in self._trigger_service_types():
-            service_type.stop_listening(on_event)
+            service_type.stop_listening(listener)
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()
