@@ -107,6 +107,7 @@ from baserow.core.tools.errors import (
     validation_messages,
 )
 from baserow.core.user_sources.actions import CreateUserSourceActionType
+from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
 from .errors import UnknownRefError
 from .page_parameters import parameters_in_page_order
@@ -1580,6 +1581,40 @@ def update_workflow_action(
             UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)
 
 
+def _mappable_service(action, action_id: int, field_id: int):
+    """
+    The service of a create_row or update_row action, after checking the field is
+    one of its table's and can take a value.
+    """
+
+    action_type = action.get_type().type
+    if action_type not in ("create_row", "update_row"):
+        raise ToolInputError(
+            f"Cannot add field mappings to '{action_type}'. "
+            "Only create_row and update_row support field mappings."
+        )
+
+    service = action.service.specific
+    if not service.table_id:
+        raise ToolInputError(
+            f"Action {action_id} has no table selected, so it has no fields to map. "
+            "This tool cannot select a table. Until one is selected, the action will fail."
+        )
+
+    field = (
+        Field.objects_and_trash.select_related("content_type")
+        .filter(id=field_id, table_id=service.table_id)
+        .first()
+    )
+    if field is None:
+        raise ToolInputError(
+            f"Field {field_id} is not in the table this action writes to. "
+            "Use the IDs of that table's fields."
+        )
+    raise_if_read_only_field(field)
+    return service
+
+
 def add_field_mapping_to_action(
     user: AbstractUser,
     workspace: Workspace,
@@ -1599,41 +1634,23 @@ def add_field_mapping_to_action(
     from baserow_enterprise.tools.formula_utils import formula_object
 
     action = get_writable_action(user, workspace, action_id)
-    action_type = action.get_type().type
-
-    if action_type not in ("create_row", "update_row"):
-        raise ToolInputError(
-            f"Cannot add field mappings to '{action_type}'. "
-            "Only create_row and update_row support field mappings."
-        )
-
-    service = action.service.specific
-
-    if not service.table_id:
-        raise ToolInputError(
-            f"Action {action_id} has no table selected, so it has no fields to map. "
-            "This tool cannot select a table. Until one is selected, the action will fail."
-        )
-
-    field = (
-        Field.objects_and_trash.select_related("content_type")
-        .filter(id=field_id, table_id=service.table_id)
-        .first()
-    )
-    if field is None:
-        raise ToolInputError(
-            f"Field {field_id} is not in the table this action writes to. "
-            "Use the IDs of that table's fields."
-        )
-    raise_if_read_only_field(field)
+    value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
 
     # The service replaces its whole list of mappings, so its lock makes a
     # concurrent addition wait for this one, and the transaction keeps the old list
-    # if the replacement fails.
-    value = formula_object(value_formula, mode=BASEROW_FORMULA_MODE_ADVANCED)
+    # if the replacement fails. The checks run on the action as loaded after the
+    # lock, so an editor's change of its table or type is seen.
     with transaction.atomic():
-        action = BuilderWorkflowActionHandler().get_workflow_action_for_update(action)
-        service = action.service.specific
+        try:
+            action = BuilderWorkflowActionHandler().get_workflow_action_for_update(
+                action
+            )
+        except WorkflowActionDoesNotExist:
+            raise ToolInputError(
+                f"Action {action_id} was deleted or changed type while it was "
+                "updated. List the element's actions again."
+            )
+        service = _mappable_service(action, action_id, field_id)
         status = (
             "updated"
             if LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(

@@ -2236,3 +2236,55 @@ def test_a_form_made_in_an_earlier_call_can_be_wired(builder_ctx):
     assert "formula_errors" not in result
     action = stored(result["created_actions"][0]["id"])
     assert action.service.specific.field_mappings.get().value["formula"] == value
+
+
+def _edit_before_the_lock(edit):
+    """Run ``edit`` as an editor's change landing just before the service lock."""
+
+    from baserow.contrib.builder.workflow_actions.handler import (
+        BuilderWorkflowActionHandler,
+    )
+
+    lock = BuilderWorkflowActionHandler.lock_service_for_update
+
+    def edit_then_lock(self, workflow_action):
+        edit()
+        return lock(self, workflow_action)
+
+    return patch.object(
+        BuilderWorkflowActionHandler, "lock_service_for_update", edit_then_lock
+    )
+
+
+@pytest.mark.django_db
+def test_add_action_field_mapping_checks_the_table_the_action_has_after_the_lock(
+    data_fixture, builder_ctx, row_action_with_mapping
+):
+    action, table, field = row_action_with_mapping
+    other_table = data_fixture.create_database_table(database=table.database)
+
+    service = action.service.specific
+
+    def change_table():
+        type(service).objects.filter(id=service.id).update(table_id=other_table.id)
+
+    with _edit_before_the_lock(change_table):
+        with pytest.raises(ToolInputError, match="not in the table"):
+            actions.add_element_action_field_mapping(
+                builder_ctx["ctx"], action.id, field.id, "'y'"
+            )
+
+
+@pytest.mark.django_db
+def test_add_action_field_mapping_on_an_action_deleted_meanwhile_is_an_input_error(
+    builder_ctx, row_action_with_mapping
+):
+    action, _table, field = row_action_with_mapping
+
+    with _edit_before_the_lock(
+        lambda: type(action).objects.filter(id=action.id).delete()
+    ):
+        with pytest.raises(ToolInputError, match="deleted or changed type"):
+            actions.add_element_action_field_mapping(
+                builder_ctx["ctx"], action.id, field.id, "'y'"
+            )
