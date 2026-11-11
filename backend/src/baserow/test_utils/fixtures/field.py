@@ -107,7 +107,7 @@ class FieldFixtures:
             # break tests that interpolate the field name into a single-quoted
             # formula string without escaping it. Strip them so a randomly
             # generated name is always safe to use in a formula reference.
-            kwargs["name"] = self.fake.name().replace("'", "")
+            kwargs["name"] = self.fake.unique.name().replace("'", "")
 
         if "order" not in kwargs:
             kwargs["order"] = 0
