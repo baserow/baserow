@@ -32,11 +32,4 @@ describe('BadgeCounter.vue', () => {
 
     expect(wrapper.vm.hasOneDigitOnly).toBe(true)
   })
-
-  it('renders the yellow variant only when asked', () => {
-    expect(mount(BadgeCounter).classes()).not.toContain('badge-counter--yellow')
-    expect(
-      mount(BadgeCounter, { propsData: { color: 'yellow' } }).classes()
-    ).toContain('badge-counter--yellow')
-  })
 })

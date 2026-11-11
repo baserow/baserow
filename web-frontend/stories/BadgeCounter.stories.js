@@ -14,11 +14,6 @@ export default {
       description:
         'The maximum number to display. If count >= limit, displays (limit-1)+',
     },
-    color: {
-      control: 'select',
-      options: ['red', 'yellow'],
-      description: 'The color scheme of the badge',
-    },
   },
   args: {
     count: 5,

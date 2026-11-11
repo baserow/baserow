@@ -1,10 +1,7 @@
 <template>
   <div
     class="badge-counter"
-    :class="{
-      'badge-counter--one-digit': hasOneDigitOnly,
-      'badge-counter--yellow': color === 'yellow',
-    }"
+    :class="{ 'badge-counter--one-digit': hasOneDigitOnly }"
   >
     {{ value }}
   </div>
@@ -29,14 +26,6 @@ export default {
       type: Number,
       required: false,
       default: 10,
-    },
-    color: {
-      type: String,
-      required: false,
-      default: 'red',
-      validator: function (value) {
-        return ['red', 'yellow'].includes(value)
-      },
     },
   },
   computed: {

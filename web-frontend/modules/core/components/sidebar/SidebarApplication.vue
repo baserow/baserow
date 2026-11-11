@@ -48,8 +48,7 @@
 
       <BadgeCounter
         v-if="application.pending_count > 0"
-        class="tree__counter"
-        color="yellow"
+        class="tree__counter badge-counter--warning"
         :count="application.pending_count"
       />
 
