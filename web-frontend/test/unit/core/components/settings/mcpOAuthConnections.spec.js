@@ -122,11 +122,52 @@ describe('McpOAuthConnections', () => {
     )
     expect(docs.attributes('target')).toBe('_blank')
     const tabs = wrapper.findAll('.tabs__link').map((tab) => tab.text())
-    expect(tabs).toEqual(['Claude Code', 'Cursor'])
+    expect(tabs).toEqual([
+      'Claude Code',
+      'Cursor',
+      'VS Code',
+      'mcpOAuthConnections.otherApps',
+    ])
+    expect(
+      wrapper.find('[data-test="mcp-oauth-claude-code-plugin"]').text()
+    ).toContain('/plugin install baserow@baserow')
     expect(wrapper.text()).toContain(
       `claude mcp add --transport http baserow ${mcpUrl}`
     )
     expect(wrapper.find('[data-test="mcp-oauth-empty"]').exists()).toBe(true)
+  })
+
+  test('builds the Cursor and VS Code install links from the instance URL', async () => {
+    const wrapper = await mount({
+      oauth_enabled: true,
+      mcp_url: mcpUrl,
+      connections: [],
+    })
+    const tabLinks = wrapper.findAll('.tabs__link')
+
+    await tabLinks[1].trigger('click')
+    const cursor = new URL(
+      wrapper.find('[data-test="mcp-oauth-cursor-install"]').attributes('href')
+    )
+    expect(cursor.origin + cursor.pathname).toBe(
+      'https://cursor.com/install-mcp'
+    )
+    expect(cursor.searchParams.get('name')).toBe('baserow')
+    expect(JSON.parse(atob(cursor.searchParams.get('config')))).toEqual({
+      url: mcpUrl,
+    })
+
+    await tabLinks[2].trigger('click')
+    const vsCode = new URL(
+      wrapper.find('[data-test="mcp-oauth-vscode-install"]').attributes('href')
+    )
+    expect(vsCode.origin + vsCode.pathname).toBe(
+      'https://vscode.dev/redirect/mcp/install'
+    )
+    expect(JSON.parse(vsCode.searchParams.get('config'))).toEqual({
+      type: 'http',
+      url: mcpUrl,
+    })
   })
 
   test('lists connections with badge, workspace and tool count', async () => {

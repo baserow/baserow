@@ -2,9 +2,15 @@
 
 With `BASEROW_MCP_OAUTH_ENABLED=true`, MCP clients such as Claude, ChatGPT, Cursor and
 VS Code connect to `<PUBLIC_BACKEND_URL>/mcp` and sign the user in with OAuth instead
-of a pasted endpoint key. Setup steps for each client are in the
-[baserow-mcp README](https://github.com/baserow/baserow-mcp). A few things to check on
-a self-hosted install:
+of a pasted endpoint key. Users find the URL, and copy-ready setup for Claude Code,
+Cursor, VS Code, Codex and Gemini CLI, under *My settings → MCP server*. Steps for
+each app are in the [MCP server user docs](https://baserow.io/user-docs/mcp-server),
+and the plugins and skills are in the
+[baserow-mcp repo](https://github.com/baserow/baserow-mcp). The Codex, Copilot and
+Gemini plugins and the Cursor and VS Code directory buttons point at baserow.io, so on
+a self-hosted install users add the server with their own URL and run
+`npx skills add baserow/baserow-mcp` for the skills. A few things to check on a
+self-hosted install:
 
 * **Public HTTPS URL.** Apps like claude.ai, Claude Desktop and ChatGPT reach Baserow from
   the internet, so `PUBLIC_BACKEND_URL` (or `BASEROW_PUBLIC_URL`) must be the public HTTPS

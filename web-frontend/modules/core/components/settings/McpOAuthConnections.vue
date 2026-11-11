@@ -27,7 +27,7 @@
     >
       <template #link>
         <a
-          href="https://baserow.io/user-docs/mcp-server"
+          :href="docsUrl"
           target="_blank"
           rel="noopener noreferrer"
           data-test="mcp-oauth-setup-docs"
@@ -39,11 +39,30 @@
       <Tab title="Claude Code">
         <MarkdownIt
           class="mcp-oauth-connections__instructions margin-bottom-1"
-          :content="$t('mcpOAuthConnections.claudeCodeInstructions')"
+          :content="$t('mcpOAuthConnections.claudeCodePluginInstructions')"
+        ></MarkdownIt>
+        <pre
+          class="margin-bottom-2"
+        ><code class="mcp-oauth-connections__code" data-test="mcp-oauth-claude-code-plugin">/plugin marketplace add baserow/baserow-mcp
+/plugin install baserow@baserow</code></pre>
+        <MarkdownIt
+          class="mcp-oauth-connections__instructions margin-bottom-1"
+          :content="$t('mcpOAuthConnections.claudeCodeServerInstructions')"
         ></MarkdownIt>
         <pre><code class="mcp-oauth-connections__code">claude mcp add --transport http baserow {{ mcpUrl }}</code></pre>
       </Tab>
       <Tab title="Cursor">
+        <div class="mcp-oauth-connections__install">
+          <Button
+            tag="a"
+            type="secondary"
+            :href="cursorInstallUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-test="mcp-oauth-cursor-install"
+            >{{ $t('mcpOAuthConnections.addToCursor') }}</Button
+          >
+        </div>
         <MarkdownIt
           class="mcp-oauth-connections__instructions margin-bottom-1"
           :content="$t('mcpOAuthConnections.cursorInstructions')"
@@ -55,6 +74,54 @@
     }
   }
 }</code></pre>
+      </Tab>
+      <Tab title="VS Code">
+        <div class="mcp-oauth-connections__install">
+          <Button
+            tag="a"
+            type="secondary"
+            :href="vsCodeInstallUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-test="mcp-oauth-vscode-install"
+            >{{ $t('mcpOAuthConnections.addToVsCode') }}</Button
+          >
+        </div>
+        <MarkdownIt
+          class="mcp-oauth-connections__instructions margin-bottom-1"
+          :content="$t('mcpOAuthConnections.vsCodeInstructions')"
+        ></MarkdownIt>
+        <pre><code class="mcp-oauth-connections__code">{
+  "servers": {
+    "baserow": {
+      "type": "http",
+      "url": "{{ mcpUrl }}"
+    }
+  }
+}</code></pre>
+      </Tab>
+      <Tab :title="$t('mcpOAuthConnections.otherApps')">
+        <MarkdownIt
+          class="mcp-oauth-connections__instructions margin-bottom-1"
+          :content="$t('mcpOAuthConnections.codexInstructions')"
+        ></MarkdownIt>
+        <pre
+          class="margin-bottom-2"
+        ><code class="mcp-oauth-connections__code">codex mcp add baserow --url {{ mcpUrl }}
+codex mcp login baserow</code></pre>
+        <MarkdownIt
+          class="mcp-oauth-connections__instructions margin-bottom-1"
+          :content="$t('mcpOAuthConnections.geminiInstructions')"
+        ></MarkdownIt>
+        <pre
+          class="margin-bottom-2"
+        ><code class="mcp-oauth-connections__code">gemini mcp add -s user -t http baserow {{ mcpUrl }}</code></pre>
+        <MarkdownIt
+          class="mcp-oauth-connections__instructions margin-bottom-1"
+          :content="$t('mcpOAuthConnections.otherAppsInstructions')"
+        ></MarkdownIt>
+        <pre><code class="mcp-oauth-connections__code">npx add-mcp {{ mcpUrl }} -n baserow -g
+npx skills add baserow/baserow-mcp</code></pre>
       </Tab>
     </Tabs>
     <h3 class="mcp-oauth-connections__title">
@@ -205,6 +272,19 @@ const savingTools = ref(null)
 const confirming = ref(null)
 const disconnecting = ref(null)
 const copied = ref(null)
+
+const docsUrl = 'https://baserow.io/user-docs/mcp-server'
+
+// One-click installs for the editors that support them. Both carry this
+// instance's URL, so they also work on self-hosted Baserow.
+const cursorInstallUrl = computed(() => {
+  const config = btoa(JSON.stringify({ url: mcpUrl.value }))
+  return `https://cursor.com/install-mcp?name=baserow&config=${encodeURIComponent(config)}`
+})
+const vsCodeInstallUrl = computed(() => {
+  const config = JSON.stringify({ type: 'http', url: mcpUrl.value })
+  return `https://vscode.dev/redirect/mcp/install?name=baserow&config=${encodeURIComponent(config)}`
+})
 
 onMounted(async () => {
   try {
