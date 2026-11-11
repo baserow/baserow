@@ -88,10 +88,14 @@ class AgentToolDecisionsResult:
     """Saved decisions on a reply's held calls, and what they changed."""
 
     reply: AgentMessage
-    run_id: UUID | None
-    """The run continuing the reply, or None while some calls are undecided."""
+    approved_tools: list[str]
+    """The tools of the calls approved by these decisions."""
+    rejected_tools: list[str]
+    """The tools of the calls rejected by these decisions."""
     always_allowed_tools: list[str]
     """The tools that stopped asking first, in registry order."""
+    run_id: UUID | None
+    """The run continuing the reply, or None while some calls are undecided."""
 
 
 @dataclass(frozen=True)

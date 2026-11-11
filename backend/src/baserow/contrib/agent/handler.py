@@ -341,7 +341,9 @@ class AgentHandler:
             for name in self.get_tool_configuration(agent)["ask_first_tools"]
             if name in requested
         ]
-        agent.allowed_tools.filter(name__in=stopped).update(ask_first=False)
+        if stopped:
+            agent.allowed_tools.filter(name__in=stopped).update(ask_first=False)
+            agent.save(update_fields=["updated_on"])
         return stopped
 
     def get_run_as_subject(
@@ -892,7 +894,7 @@ class AgentHandler:
         conversation: AgentConversation,
         user: AbstractUser,
         decisions: list[AgentToolDecision],
-    ) -> tuple[AgentMessage, bool]:
+    ) -> tuple[AgentMessage, list[AgentToolApproval], bool]:
         """
         Save the owner's decisions on held calls of the conversation's waiting reply.
 
@@ -902,7 +904,8 @@ class AgentHandler:
             reason for a rejection.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
-        :return: The reply with its approvals, and whether all of them are decided.
+        :return: The reply with its approvals, the approvals just decided, and
+            whether all of them are decided.
         """
 
         reply = self.get_waiting_reply(conversation)
@@ -933,7 +936,7 @@ class AgentHandler:
             decided, ["status", "reason", "decided_by", "decided_on"]
         )
         prefetch_related_objects([reply], "approvals")
-        return reply, not pending
+        return reply, decided, not pending
 
     def resume_reply(self, reply: AgentMessage) -> ChatRun:
         """

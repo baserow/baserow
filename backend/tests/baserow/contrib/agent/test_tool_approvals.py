@@ -320,10 +320,13 @@ def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
     agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
     agent.save()
-    data_fixture.create_agent_tool_approval(reply=held_reply, tool_name="delete_rows")
-    created, updated, deleted = held_reply.approvals.all()
+    for tool_name in ("delete_rows", "list_tables"):
+        data_fixture.create_agent_tool_approval(reply=held_reply, tool_name=tool_name)
+    created, updated, deleted, listed = held_reply.approvals.all()
     AgentHandler().set_allowed_tools(
-        agent, ["create_rows", "delete_rows"], ["create_rows", "delete_rows"]
+        agent,
+        ["create_rows", "update_rows", "delete_rows"],
+        ["create_rows", "delete_rows"],
     )
     audited = mocker.spy(DecideAgentToolApprovalsActionType, "send_action_done_signal")
     configuration_updated = mocker.spy(application_updated, "send")
@@ -342,12 +345,13 @@ def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
         held_reply,
         {"id": created.id, "approved": True},
         {"id": updated.id, "approved": True},
+        {"id": listed.id, "approved": True},
         always_allow=True,
     )
 
     assert response.status_code == 200
     assert AgentHandler().get_tool_configuration(agent) == {
-        "allowed_tools": ["create_rows", "delete_rows"],
+        "allowed_tools": ["create_rows", "update_rows", "delete_rows"],
         "ask_first_tools": ["delete_rows"],
     }
     assert audited.call_args.args[1]["always_allowed_tools"] == ["create_rows"]

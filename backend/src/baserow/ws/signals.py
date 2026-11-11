@@ -357,8 +357,8 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
     )
 
 
-@receiver(signals.application_pending_count_changed)
-def application_pending_count_changed(
+@receiver(signals.application_pending_count_updated)
+def application_pending_count_updated(
     sender: Any, application: Application, user_ids: list[int], **kwargs: Any
 ) -> None:
     """

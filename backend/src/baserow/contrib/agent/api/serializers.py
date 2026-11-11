@@ -462,7 +462,6 @@ class AgentToolDecisionsSerializer(
         "per approval. The reply continues once none is pending.",
     )
     always_allow = serializers.BooleanField(
-        required=False,
         default=False,
         help_text="Whether the tools of the approved calls stop asking first. Needs "
         "the permissions to update the agent's configuration.",

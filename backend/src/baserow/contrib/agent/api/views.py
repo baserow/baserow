@@ -552,11 +552,11 @@ class AgentToolApprovalsView(APIView):
     ) -> Response:
         """Saves the owner's decisions and names the run continuing the reply."""
 
-        reply, run_id = action_type_registry.get_by_type(
+        result = action_type_registry.get_by_type(
             DecideAgentToolApprovalsActionType
         ).do(request.user, agent_id, conversation_uuid, **data)
+        reply = result.reply
+        active_runs = {reply.id: result.run_id} if result.run_id else {}
         return Response(
-            AgentMessageSerializer(
-                reply, context={"active_runs": {reply.id: run_id} if run_id else {}}
-            ).data
+            AgentMessageSerializer(reply, context={"active_runs": active_runs}).data
         )

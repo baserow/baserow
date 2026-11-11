@@ -15,7 +15,7 @@ from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
 from baserow.core.models import Workspace
-from baserow.core.signals import application_pending_count_changed
+from baserow.core.signals import application_pending_count_updated
 
 from .api.serializers import AgentMessageSerializer
 from .constants import AGENT_NOT_ALLOWED, AGENT_NOT_READY, AGENT_RUN_TYPE
@@ -140,7 +140,7 @@ class AgentChatRunType(ChatRunType):
         conversation = reply.conversation
         agent_conversation_activity.send(self, conversation=conversation, user=None)
         if reply.status == AgentReplyStatus.WAITING:
-            application_pending_count_changed.send(
+            application_pending_count_updated.send(
                 self,
                 application=conversation.agent,
                 user_ids=[conversation.owner_user_id],

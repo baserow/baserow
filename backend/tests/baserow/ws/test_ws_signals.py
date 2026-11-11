@@ -678,14 +678,14 @@ def test_application_updated(mock_broadcast_to_permitted_users, data_fixture):
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_application_pending_counts")
 @pytest.mark.websockets
-def test_application_pending_count_changed_queues_the_counts_on_commit(
+def test_application_pending_count_updated_queues_the_counts_on_commit(
     mock_task, data_fixture
 ):
     user = data_fixture.create_user()
     dashboard = data_fixture.create_dashboard_application(user=user)
 
     with transaction.atomic():
-        signals.application_pending_count_changed.send(
+        signals.application_pending_count_updated.send(
             None, application=dashboard, user_ids=[user.id]
         )
         mock_task.delay.assert_not_called()

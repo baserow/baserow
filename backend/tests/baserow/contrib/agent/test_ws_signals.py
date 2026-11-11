@@ -24,7 +24,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.models import Agent
-from baserow.core.signals import application_pending_count_changed
+from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -49,11 +49,9 @@ def conversation_write(data_fixture, user, agent, kind):
     )
 
 
-@pytest.fixture(autouse=True)
-def pending_count_changed(mocker: MockerFixture) -> MagicMock:
-    """Keep the core's event for this signal out of the owner events asserted here."""
-
-    return mocker.patch.object(application_pending_count_changed, "send")
+@pytest.fixture
+def pending_count_updated(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch.object(application_pending_count_updated, "send")
 
 
 def update_of(
@@ -225,7 +223,7 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
     configured_agent,
     mocker,
     django_capture_on_commit_callbacks,
-    pending_count_changed,
+    pending_count_updated,
 ):
     user = data_fixture.create_user(web_socket_id="source-tab")
     other_user = data_fixture.create_user()
@@ -266,7 +264,7 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
         call([user.id], update_of(conversation), ignore_web_socket_id=None),
     ]
     assert (
-        pending_count_changed.call_args_list
+        pending_count_updated.call_args_list
         == [call(ANY, application=agent, user_ids=[user.id])] * 2
     )
 
@@ -310,7 +308,7 @@ def test_every_decision_tells_the_owner_s_other_sessions_what_is_left_to_decide(
     expected = []
     for approval, left in [(first, 1), (last, 0)]:
         with django_capture_on_commit_callbacks(execute=True):
-            _, run_id = action_type_registry.get_by_type(
+            result = action_type_registry.get_by_type(
                 DecideAgentToolApprovalsActionType
             ).do(
                 user,
@@ -322,7 +320,7 @@ def test_every_decision_tells_the_owner_s_other_sessions_what_is_left_to_decide(
         expected.append(
             call(
                 [user.id],
-                update_of(conversation, run_id, left),
+                update_of(conversation, result.run_id, left),
                 ignore_web_socket_id="source-tab",
             )
         )

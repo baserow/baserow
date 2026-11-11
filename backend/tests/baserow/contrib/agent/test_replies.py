@@ -76,7 +76,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
-from baserow.core.signals import application_pending_count_changed
+from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
@@ -1495,7 +1495,7 @@ def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
 ):
     user, agent, table = ask_first_agent
     respond(mocker, ({0: tool_call("list_tables", "call_read"), 1: add_row(table)},))
-    pending_count_changed = mocker.spy(application_pending_count_changed, "send")
+    pending_count_updated = mocker.spy(application_pending_count_updated, "send")
 
     reply = pause(user, agent)
 
@@ -1521,7 +1521,7 @@ def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
         agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
     ).json()["results"]
     assert run.outcome == listed[-1]
-    assert pending_count_changed.call_args_list == [
+    assert pending_count_updated.call_args_list == [
         call(ANY, application=agent, user_ids=[user.id])
     ]
 

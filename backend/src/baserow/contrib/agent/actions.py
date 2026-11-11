@@ -16,9 +16,14 @@ from baserow.core.action.registries import (
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 
-from .models import AgentConversation, AgentMessage, AgentToolApproval
+from .models import AgentConversation
 from .service import AgentService
-from .types import AgentConfiguration, AgentMessageCreated, AgentToolDecision
+from .types import (
+    AgentConfiguration,
+    AgentMessageCreated,
+    AgentToolDecision,
+    AgentToolDecisionsResult,
+)
 
 
 class CreateAgentConversationActionType(ActionType):
@@ -151,7 +156,7 @@ class DecideAgentToolApprovalsActionType(ActionType):
         conversation_uuid: UUID,
         decisions: list[AgentToolDecision],
         always_allow: bool = False,
-    ) -> tuple[AgentMessage, UUID | None]:
+    ) -> AgentToolDecisionsResult:
         """
         Approve or reject held calls, auditing the tools decided and those that
         stopped asking first, but never the rejection reasons, which can quote the
@@ -164,40 +169,28 @@ class DecideAgentToolApprovalsActionType(ActionType):
             reason for a rejection.
         :param always_allow: Whether the tools of the approved calls stop asking
             first.
-        :return: The reply with its approvals, and the run continuing it, or None
-            while some held calls are still undecided.
+        :return: The saved decisions, the tools that stopped asking first and the
+            run continuing the reply.
         """
 
         result = AgentService().decide_approvals(
             user, agent_id, conversation_uuid, decisions, always_allow
         )
         reply = result.reply
-        decided_ids = {decision["id"] for decision in decisions}
-        decided = [
-            approval for approval in reply.approvals.all() if approval.id in decided_ids
-        ]
         cls.register_action(
             user,
             cls.Params(
                 agent_id,
                 reply.conversation_id,
                 reply.id,
-                approved=[
-                    approval.tool_name
-                    for approval in decided
-                    if approval.status == AgentToolApproval.Status.APPROVED
-                ],
-                rejected=[
-                    approval.tool_name
-                    for approval in decided
-                    if approval.status == AgentToolApproval.Status.REJECTED
-                ],
+                approved=result.approved_tools,
+                rejected=result.rejected_tools,
                 always_allowed_tools=result.always_allowed_tools,
             ),
             cls.scope(agent_id),
             reply.conversation.agent.workspace,
         )
-        return reply, result.run_id
+        return result
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:
