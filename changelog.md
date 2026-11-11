@@ -2,6 +2,11 @@
 
 ## Released 2.4.2
 
+### New features
+* [Dashboard] Choose custom colors for dashboard chart series
+* [Dashboard] Set bucket limits for grouped dashboard data sources
+* [Dashboard] Support more field types when grouping dashboard data sources
+
 ### Bug fixes
 * [Core] Keep what users type or tick in forms and on the login page before the page finishes loading [#3185](https://github.com/baserow/baserow/issues/3185)
 * [Core] Allow OpenID Connect sign-in for users identified by a claim other than their email (e.g. the AWS Cognito user id) when the provider reports their email as unverified. [#6534](https://github.com/baserow/baserow/issues/6534)
