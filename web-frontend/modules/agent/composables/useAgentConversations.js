@@ -128,6 +128,7 @@ export function useAgentConversations(agent, configuration) {
   let conversationsReloadPending = false
   // Changes since a list read started, whose older copy would undo them.
   let conversationChanges = 0
+  let loadingWaitingScope = null
 
   const conversationItems = computed(() => [
     ...localConversations.value.filter((item) =>
@@ -629,18 +630,52 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
-  /** Cycle through loaded waiting conversations without fetching another list page. */
-  function selectNextWaitingConversation() {
-    if (!canReadConversations.value) return
+  /**
+   * Select the next waiting conversation after the selected one, loading older
+   * pages first while the Agent's count says some wait beyond the loaded ones.
+   */
+  async function selectNextWaitingConversation() {
+    if (!canReadConversations.value || loadingWaitingScope === scope) return
+    const currentScope = scope
+    const clickedFrom = selectedUuid.value
+    loadingWaitingScope = currentScope
+    try {
+      while (!waitingAfterSelected() && moreWaitingUnloaded()) {
+        const cursor = conversationsCursor.value
+        await loadMoreConversations()
+        if (!scopeIsCurrent(currentScope)) return
+        if (conversationsCursor.value === cursor) break
+      }
+      if (selectedUuid.value !== clickedFrom) return
+      const next =
+        waitingAfterSelected() || conversationItems.value.find(isWaiting)
+      if (next) selectConversation(next)
+    } finally {
+      if (loadingWaitingScope === currentScope) loadingWaitingScope = null
+    }
+  }
+
+  function isWaiting(conversation) {
+    return conversation.pending_approval_count > 0
+  }
+
+  function waitingAfterSelected() {
     const items = conversationItems.value
     const selectedIndex = items.findIndex(
       (item) => item.uuid === selectedUuid.value
     )
-    const next = [
-      ...items.slice(selectedIndex + 1),
-      ...items.slice(0, selectedIndex + 1),
-    ].find((item) => item.pending_approval_count > 0)
-    if (next) selectConversation(next)
+    return items.slice(selectedIndex + 1).find(isWaiting)
+  }
+
+  function moreWaitingUnloaded() {
+    const loadedCount = conversations.value.reduce(
+      (sum, item) => sum + (item.pending_approval_count || 0),
+      0
+    )
+    return (
+      Boolean(conversationsCursor.value) &&
+      loadedCount < (agent.value.pending_count || 0)
+    )
   }
 
   async function updateConversation(conversation, values) {

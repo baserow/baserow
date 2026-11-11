@@ -821,7 +821,7 @@ describe('Agent tool approvals', () => {
     expect(waitingDot(wrapper)).toBe(true)
   })
 
-  test('the header pill cycles only loaded waiting conversations without fetching a list', async () => {
+  test('the header pill cycles loaded waiting conversations when none wait beyond them', async () => {
     const row = (uuid, updatedOn, count) => ({
       ...conversation(uuid, uuid, updatedOn),
       pending_approval_count: count,
@@ -835,12 +835,11 @@ describe('Agent tool approvals', () => {
     for (const { uuid } of loaded) mockMessages(testApp, uuid, page([]))
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
-      // Most waiting conversations are outside the loaded page.
-      data: { pending_count: 106 },
+      data: { pending_count: 3 },
     })
     const wrapper = await mount()
     const pill = () => wrapper.find('.agent-application__approvals')
-    expect(pill().text()).toBe('agent.approvalsWaiting - 106')
+    expect(pill().text()).toBe('agent.approvalsWaiting - 3')
 
     const opened = []
     for (let click = 0; click < 6; click++) {
@@ -872,20 +871,59 @@ describe('Agent tool approvals', () => {
     expect(pill().exists()).toBe(false)
   })
 
-  test('the pill preserves the selection when no loaded conversation is waiting', async () => {
+  test('the pill loads older pages until it reaches a waiting conversation', async () => {
     const idle = { ...conversation('idle', 'Idle'), pending_approval_count: 0 }
-    mockConversations(testApp, conversationsPage([idle], 'next'))
-    mockMessages(testApp, idle.uuid, page([]))
+    const older = {
+      ...conversation('older', 'Older'),
+      pending_approval_count: 0,
+    }
+    const waiting = {
+      ...conversation('waiting', 'Waiting'),
+      pending_approval_count: 1,
+    }
+    mockConversations(
+      testApp,
+      conversationsPage([idle], 'p2'),
+      conversationsPage([older], 'p3'),
+      conversationsPage([waiting])
+    )
+    for (const { uuid } of [idle, older, waiting])
+      mockMessages(testApp, uuid, page([]))
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
-      data: { pending_count: 106 },
+      data: { pending_count: 1 },
     })
     const wrapper = await mount()
     await selectConversation(wrapper, 'Idle')
-    for (let click = 0; click < 6; click++) {
+    const listReads = () =>
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/conversations/'
+      ).length
+
+    for (let click = 0; click < 2; click++) {
       await wrapper.get('.agent-application__approvals').trigger('click')
       await flushPromises()
+      expect(
+        selected(wrapper).get('.agent-conversations__item-name').text()
+      ).toBe('Waiting')
     }
+    expect(listReads()).toBe(3)
+  })
+
+  test('the pill stops loading and keeps the selection when a page fails', async () => {
+    const idle = { ...conversation('idle', 'Idle'), pending_approval_count: 0 }
+    mockConversations(testApp, conversationsPage([idle], 'p2'), [500, {}])
+    mockMessages(testApp, idle.uuid, page([]))
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 1 },
+    })
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'Idle')
+
+    await wrapper.get('.agent-application__approvals').trigger('click')
+    await flushPromises()
+
     expect(
       selected(wrapper).get('.agent-conversations__item-name').text()
     ).toBe('Idle')
@@ -893,7 +931,7 @@ describe('Agent tool approvals', () => {
       testApp.mock.history.get.filter(
         ({ url }) => url === '/agent/10/conversations/'
       )
-    ).toHaveLength(1)
+    ).toHaveLength(2)
   })
 
   test('a list read started before a decision keeps the decided count', async () => {
