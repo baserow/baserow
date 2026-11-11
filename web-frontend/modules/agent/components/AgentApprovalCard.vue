@@ -21,6 +21,7 @@
         size="small"
         class="agent-approval__always-allow"
         :disabled="locked"
+        :title="alwaysAllowTitle"
         @click="approve(pending, { alwaysAllow: true })"
       >
         {{ alwaysAllowLabel }}
@@ -198,14 +199,22 @@ const pending = computed(() =>
 )
 const { $registry } = useNuxtApp()
 const { locale, t } = useI18n()
+const pendingToolNames = computed(() =>
+  [...new Set(pending.value.map((item) => item.tool))].map((tool) =>
+    agentToolLabel(tool, $registry, t)
+  )
+)
 const alwaysAllowLabel = computed(() =>
-  t('agent.alwaysAllowTools', {
-    tools: new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
-      [...new Set(pending.value.map((item) => item.tool))].map((tool) =>
-        agentToolLabel(tool, $registry, t)
+  pendingToolNames.value.length > 1
+    ? t('agent.alwaysAllowAllPendingTools')
+    : t('agent.alwaysAllowTools', { tools: pendingToolNames.value[0] })
+)
+const alwaysAllowTitle = computed(() =>
+  pendingToolNames.value.length > 1
+    ? new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
+        pendingToolNames.value
       )
-    ),
-  })
+    : null
 )
 const countOf = (status) =>
   props.items.filter((item) => item.status === status).length

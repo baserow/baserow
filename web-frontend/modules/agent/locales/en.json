@@ -301,6 +301,7 @@
     "approveAll": "Approve all",
     "rejectAll": "Reject all",
     "alwaysAllowTools": "Always allow {tools}",
+    "alwaysAllowAllPendingTools": "Always allow all",
     "approved": "Approved",
     "rejected": "Rejected",
     "showDetails": "Show details",
