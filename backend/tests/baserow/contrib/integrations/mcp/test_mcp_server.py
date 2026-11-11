@@ -8,6 +8,8 @@ from django.urls import reverse
 import httpx
 import pytest
 from asgiref.sync import async_to_sync
+from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from baserow.contrib.integrations.mcp.client import (
     MAX_TOOL_PAGES,
@@ -54,6 +56,36 @@ def test_refresh_stores_new_tools_turned_off(data_fixture, mocker):
     assert add.description == "Add two numbers."
     assert add.input_schema["required"] == ["a", "b"]
     assert add.changes_data is True
+
+
+@pytest.mark.django_db
+def test_only_a_tool_the_server_marks_read_only_counts_as_not_changing_data(
+    data_fixture, mocker
+):
+    server = FastMCP("test")
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
+    def search() -> str:
+        return ""
+
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=False))
+    def delete() -> str:
+        return ""
+
+    @server.tool()
+    def unmarked() -> str:
+        return ""
+
+    serve(mocker, server)
+    integration = data_fixture.create_mcp_server_integration()
+
+    MCPServerHandler().refresh_tools(integration)
+
+    assert list(integration.tools.values_list("name", "changes_data")) == [
+        ("search", False),
+        ("delete", True),
+        ("unmarked", True),
+    ]
 
 
 @pytest.mark.django_db
@@ -208,7 +240,8 @@ def test_refresh_and_review_tools_through_the_api(data_fixture, api_client, mock
 
     assert response.status_code == 200, response.json()
     add = next(tool for tool in response.json()["tools"] if tool["name"] == "add")
-    assert (add["enabled"], add["changes_data"]) == (True, False)
+    # Whether it changes data comes from the server, not the editor.
+    assert (add["enabled"], add["changes_data"]) == (True, True)
 
 
 @pytest.mark.django_db

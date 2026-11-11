@@ -53,7 +53,6 @@ MAX_TOOL_NAME_LENGTH = 128
 class MCPToolSettings:
     name: str
     enabled: bool | None = None
-    changes_data: bool | None = None
     # The definition the editor reviewed. A tool changed since keeps waiting.
     definition_hash: str | None = None
 
@@ -168,6 +167,7 @@ class MCPServerHandler:
                     "description": definition.description,
                     "input_schema": definition.input_schema,
                     "annotations": definition.annotations,
+                    "changes_data": definition.changes_data,
                     "definition_hash": definition.definition_hash,
                     "order": order,
                     "removed": False,
@@ -202,6 +202,7 @@ class MCPServerHandler:
                     "description",
                     "input_schema",
                     "annotations",
+                    "changes_data",
                     "definition_hash",
                     "order",
                     "removed",
@@ -228,8 +229,8 @@ class MCPServerHandler:
         self, integration: MCPServerIntegration, settings: list[MCPToolSettings]
     ) -> list[MCPServerTool]:
         """
-        Turn tools on or off and say whether they change data. Saving a tool
-        marks its current definition as reviewed.
+        Turn tools on or off. Saving a tool marks its current definition as
+        reviewed.
 
         :param integration: The server.
         :param settings: Per tool, the values to change. Unknown names are
@@ -254,11 +255,9 @@ class MCPServerHandler:
                 setting = by_name[tool.name]
                 if setting.enabled is not None:
                     tool.enabled = setting.enabled and not tool.removed
-                if setting.changes_data is not None:
-                    tool.changes_data = setting.changes_data
                 tool.changed_since_review = False
             MCPServerTool.objects.bulk_update(
-                tools, ["enabled", "changes_data", "changed_since_review"]
+                tools, ["enabled", "changed_since_review"]
             )
         return list(integration.tools.all())
 

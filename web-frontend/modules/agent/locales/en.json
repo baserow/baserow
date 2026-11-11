@@ -209,7 +209,6 @@
     "connectedAppToolsDescription": "Choose the tools {name} may use. A tool whose description changes is turned off until you review it again.",
     "connectedAppRefresh": "Refresh",
     "connectedAppTool": "Tool",
-    "connectedAppChangesData": "Changes data",
     "connectedAppToolChanged": "Changed",
     "connectedAppToolRemoved": "Removed",
     "connectedAppUnreachableTitle": "Server not reached",

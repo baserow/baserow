@@ -485,6 +485,7 @@ def test_copies_keep_mcp_servers_and_only_duplicates_keep_tool_choices(data_fixt
                 integration=server,
                 name="search",
                 definition_hash="a" * 64,
+                annotations={"readOnlyHint": True},
                 enabled=True,
                 changes_data=False,
                 order=0,

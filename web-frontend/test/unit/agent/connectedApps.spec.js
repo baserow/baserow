@@ -123,12 +123,10 @@ describe('Agent connected apps', () => {
       '/integrations/mcp/5/refresh-tools/'
     )
 
-    // New tools start off; turn on the first one and mark it as a read.
+    // New tools start off; turn on the first one.
     const rows = inBody('.agent-mcp-tools__columns').slice(1)
     expect(rows).toHaveLength(2)
-    const [changesData, allow] = rows[0].querySelectorAll('.checkbox')
-    allow.click()
-    changesData.click()
+    rows[0].querySelector('.checkbox').click()
     await flushPromises()
     buttonInBody('agent.toolsDone').click()
     await flushPromises()
@@ -139,13 +137,11 @@ describe('Agent connected apps', () => {
           name: 'search',
           definition_hash: 'search-hash',
           enabled: true,
-          changes_data: false,
         },
         {
           name: 'delete',
           definition_hash: 'delete-hash',
           enabled: false,
-          changes_data: true,
         },
       ],
     })
@@ -419,10 +415,7 @@ describe('Agent connected apps', () => {
       .findAll('.agent-connected-apps__server button')[0]
       .trigger('click')
     await flushPromises()
-    const [, allow] = inBody('.agent-mcp-tools__columns')[1].querySelectorAll(
-      '.checkbox'
-    )
-    allow.click()
+    inBody('.agent-mcp-tools__columns')[1].querySelector('.checkbox').click()
     await flushPromises()
 
     handlers.integration_updated(
@@ -449,7 +442,6 @@ describe('Agent connected apps', () => {
           name: 'search',
           definition_hash: 'search-hash-2',
           enabled: false,
-          changes_data: true,
         },
       ],
     })
@@ -472,7 +464,7 @@ describe('Agent connected apps', () => {
 
     const rows = inBody('.agent-mcp-tools__columns').slice(1)
     expect(rows).toHaveLength(2)
-    expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(2)
+    expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(1)
   })
 
   test('viewers see the apps but cannot add or edit them', async () => {

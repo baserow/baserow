@@ -70,6 +70,15 @@ class MCPToolDefinition:
         )
         return hashlib.sha256(payload.encode()).hexdigest()
 
+    @property
+    def changes_data(self) -> bool:
+        """
+        Only a tool the server marks read-only counts as only reading. Without
+        the hint, the MCP spec says to assume it changes data.
+        """
+
+        return (self.annotations or {}).get("readOnlyHint") is not True
+
     @classmethod
     def from_mcp(cls, tool: types.Tool) -> "MCPToolDefinition":
         annotations = (

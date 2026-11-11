@@ -27,11 +27,10 @@
         <p v-if="!tools.length" class="agent-mcp-tools__empty">
           {{ $t('agent.connectedAppNoTools') }}
         </p>
-        <div v-else class="agent-tool-permissions__list agent-mcp-tools__list">
+        <div v-else class="agent-tool-permissions__list">
           <div class="agent-tool-permissions__list-head">
             <span>{{ $t('agent.connectedAppTool') }}</span>
             <span class="agent-mcp-tools__columns">
-              <span>{{ $t('agent.connectedAppChangesData') }}</span>
               <span>{{ $t('agent.toolAllow') }}</span>
             </span>
           </div>
@@ -119,13 +118,6 @@
             <span class="agent-mcp-tools__columns">
               <Checkbox
                 class="agent-tool-permissions__allow"
-                :model-value="choice(tool).changes_data"
-                :disabled="!editable || tool.removed"
-                @update:model-value="set(tool, 'changes_data', $event)"
-                >{{ $t('agent.connectedAppChangesData') }}</Checkbox
-              >
-              <Checkbox
-                class="agent-tool-permissions__allow"
                 :model-value="choice(tool).enabled"
                 :disabled="!editable || tool.removed"
                 @update:model-value="set(tool, 'enabled', $event)"
@@ -159,8 +151,8 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import { mcpErrorMessage } from '@baserow/modules/agent/utils/mcp'
 
 /**
- * Reviews the tools of an MCP server: which ones the Agent may call, which
- * change data, and the parameters the model fills in. Saving marks every
+ * Reviews the tools of an MCP server: which ones the Agent may call and the
+ * parameters the model fills in. Saving marks every
  * listed tool as reviewed, including changed ones the editor leaves off.
  */
 const props = defineProps({
@@ -225,7 +217,6 @@ function choice(tool) {
     : {
         definition_hash: tool.definition_hash,
         enabled: tool.enabled,
-        changes_data: tool.changes_data,
       }
 }
 

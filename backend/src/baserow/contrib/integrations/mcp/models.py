@@ -121,8 +121,7 @@ class MCPServerTool(models.Model):
     annotations = models.JSONField(null=True)
     definition_hash = models.CharField(max_length=64)
     enabled = models.BooleanField(default=False, db_default=False)
-    # The server's own read-only hint can't be trusted, so every tool counts as
-    # changing data until an editor says otherwise.
+    # From the server's read-only hint: a tool without it counts as changing data.
     changes_data = models.BooleanField(default=True, db_default=True)
     # Set when the server changed a tool that was turned on, cleared on review.
     changed_since_review = models.BooleanField(default=False, db_default=False)

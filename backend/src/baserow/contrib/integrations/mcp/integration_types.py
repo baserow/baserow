@@ -46,7 +46,6 @@ EXPORTED_TOOL_FIELDS = (
     "annotations",
     "definition_hash",
     "enabled",
-    "changes_data",
     "changed_since_review",
     "removed",
     "order",
@@ -263,13 +262,15 @@ class MCPServerIntegrationType(IntegrationType):
             values.update(enabled=False, changed_since_review=False)
         # Hashed again from what is imported: the call-time check compares the
         # server's definition with this, and a file can't vouch for itself.
-        values["definition_hash"] = MCPToolDefinition(
+        definition = MCPToolDefinition(
             name=values["name"],
             title=values.get("title", ""),
             description=values.get("description", ""),
             input_schema=values.get("input_schema", {}),
             annotations=values.get("annotations"),
-        ).definition_hash
+        )
+        values["definition_hash"] = definition.definition_hash
+        values["changes_data"] = definition.changes_data
         return MCPServerTool(integration=integration, **values)
 
     def import_serialized(
