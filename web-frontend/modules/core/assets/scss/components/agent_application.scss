@@ -844,7 +844,8 @@
   justify-items: center;
 }
 
-.agent-tool-permissions__columns .checkbox__label {
+.agent-tool-permissions__columns .checkbox__label,
+.agent-mcp-tools__columns .checkbox__label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1003,12 +1004,6 @@
   flex-basis: 100%;
   color: $palette-neutral-900;
   overflow-wrap: anywhere;
-}
-
-// Servers can list many tools; the modal stays within the window.
-.agent-mcp-tools__list {
-  max-height: 60vh;
-  overflow-y: auto;
 }
 
 .agent-mcp-tools__schema {
