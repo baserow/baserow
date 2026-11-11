@@ -1253,6 +1253,42 @@ def test_update_periodic_trigger_before_an_interval_is_chosen(api_client, data_f
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "saved,payload",
+    [
+        ({"interval": "MINUTE", "minute": 20}, {"minute": 5}),
+        ({"interval": "HOUR", "minute": 5}, {"interval": "MINUTE"}),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_update_periodic_trigger_cant_go_under_minute_minimum_in_two_requests(
+    api_client, data_fixture, saved, payload
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, create_trigger=False)
+    node = data_fixture.create_core_periodic_trigger_node(
+        user=user, workflow=workflow, service_kwargs=saved
+    )
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": {"type": "periodic", **payload}},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+    assert response.json()["error"] == "ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE"
+
+    service = node.service.specific
+    service.refresh_from_db()
+    assert service.interval == saved["interval"]
+    assert service.minute == saved["minute"]
+
+
+@pytest.mark.django_db
 def test_update_node_error_policy(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
