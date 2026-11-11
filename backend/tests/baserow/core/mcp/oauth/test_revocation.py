@@ -1,11 +1,16 @@
+from django.contrib.auth import get_user_model
+
 import pytest
 from oauth2_provider.models import AccessToken, RefreshToken
 
+from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.handler import CoreHandler
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.oauth.tokens import revoke_endpoint_tokens
 from baserow.core.user.handler import UserHandler
 from tests.baserow.core.mcp.oauth.helpers import obtain_tokens
+
+User = get_user_model()
 
 
 @pytest.mark.django_db
@@ -82,8 +87,17 @@ def _reset_password(user):
     handler.reset_password(token, "new-password-1234")
 
 
+def _admin_change_password(user):
+    admin = User.objects.create_user(
+        username="admin@test.nl", email="admin@test.nl", is_staff=True
+    )
+    UserAdminHandler().update_user(admin, user.id, password="new-password-1234")
+
+
 @pytest.mark.django_db
-@pytest.mark.parametrize("change", [_change_password, _reset_password])
+@pytest.mark.parametrize(
+    "change", [_change_password, _reset_password, _admin_change_password]
+)
 def test_password_change_signs_apps_out(client, api_client, data_fixture, change):
     user, token = data_fixture.create_user_and_token(password="password")
     workspace = data_fixture.create_workspace(user=user)

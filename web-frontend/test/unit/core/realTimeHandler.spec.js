@@ -1,6 +1,7 @@
 import { vi, describe, beforeEach, test, expect } from 'vitest'
 
 import { RealTimeHandler } from '@baserow/modules/core/plugins/realTimeHandler'
+import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
   FIRST_CONNECT_CURSOR,
   NO_REPLAY_AVAILABLE,
@@ -10,6 +11,10 @@ vi.mock('#imports', () => ({
   useRuntimeConfig: () => ({
     public: { publicBackendUrl: 'http://localhost' },
   }),
+}))
+
+vi.mock('@baserow/modules/core/utils/auth', () => ({
+  logoutAndRedirectToLogin: vi.fn(() => Promise.resolve()),
 }))
 
 // The handler reads WebSocket.OPEN / CONNECTING constants; the test
@@ -49,7 +54,7 @@ function makeStore() {
 
 function makeHandler() {
   const store = makeStore()
-  const context = { store, app: { router: {} } }
+  const context = { store, app: { $router: { push: vi.fn() } } }
   const handler = new RealTimeHandler(context)
   // Stand-in for an open websocket so _sendReplayEventsRequest goes
   // through.
@@ -70,6 +75,23 @@ function fire(handler, type, data) {
     (handler.events[type] || []).map((cb) => cb(handler.context, data))
   )
 }
+
+describe('RealTimeHandler force_disconnect', () => {
+  test('logs the user out through the app router and stops reconnecting', async () => {
+    const { handler, store, context } = makeHandler()
+    handler.reconnect = true
+
+    await fire(handler, 'force_disconnect', {})
+
+    expect(handler.reconnect).toBe(false)
+    expect(logoutAndRedirectToLogin).toHaveBeenCalledWith(
+      context.app.$router,
+      store,
+      false,
+      true
+    )
+  })
+})
 
 describe('RealTimeHandler application updates', () => {
   test.each([false, true])(
@@ -1069,7 +1091,7 @@ describe('RealTimeHandler reconnect logic', () => {
     const addSpy = vi.spyOn(window, 'addEventListener')
     const handler = new RealTimeHandler({
       store: makeStore(),
-      app: { router: {} },
+      app: { $router: { push: vi.fn() } },
     })
     const focusCall = addSpy.mock.calls.find(([type]) => type === 'focus')
     expect(focusCall).toBeDefined()
@@ -1806,7 +1828,7 @@ describe('RealTimeHandler token refresh on reconnect', () => {
   }
 
   function makeHandlerWith(store) {
-    const context = { store, app: { router: {} } }
+    const context = { store, app: { $router: { push: vi.fn() } } }
     return { handler: new RealTimeHandler(context), store }
   }
 
