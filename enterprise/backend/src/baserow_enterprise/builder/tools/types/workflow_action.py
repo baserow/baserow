@@ -759,10 +759,15 @@ def _parameters_update_values(
 def _open_page_update_values(
     action: "ActionUpdate", orm_action: "BuilderWorkflowAction"
 ) -> dict[str, Any]:
+    # Stored in the page's order. The formula step matches its formulas to the
+    # parameters by name, so the call's own list keeps its order.
+    asked = {
+        "page_parameters": action.page_parameters,
+        "query_parameters": action.query_parameters,
+    }
     if action.page_parameters:
         page_id = action.navigate_to_page_id or orm_action.navigate_to_page_id
-        # In place: a formula's field names its parameter by position in this list.
-        action.page_parameters = parameters_in_page_order(
+        asked["page_parameters"] = parameters_in_page_order(
             orm_action.page.builder_id, page_id, action.page_parameters
         )
     values: dict[str, Any] = {}
@@ -771,8 +776,7 @@ def _open_page_update_values(
         values["navigate_to_page_id"] = action.navigate_to_page_id
     if action.target is not None:
         values["target"] = action.target
-    for field in ("page_parameters", "query_parameters"):
-        params = getattr(action, field)
+    for field, params in asked.items():
         if params is not None:
             values[field] = _parameters_update_values(
                 params, getattr(orm_action, field)
