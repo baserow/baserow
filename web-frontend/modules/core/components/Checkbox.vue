@@ -3,6 +3,7 @@
     <input
       :id="inputId"
       ref="nativeInput"
+      v-pre-hydration-input
       class="checkbox__native"
       type="checkbox"
       :checked="currentValue"
@@ -66,9 +67,11 @@
 
 <script>
 import { useId } from 'vue'
+import preHydrationInput from '@baserow/modules/core/directives/preHydrationInput'
 
 export default {
   name: 'Checkbox',
+  directives: { preHydrationInput },
   props: {
     /**
      * The model value of the textarea in Vue 3 style.

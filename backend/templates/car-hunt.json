@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Car Hunt",
+    "description": "Shortlist cars for sale with prices, history reports and features.",
     "icon": "iconoir-car",
     "keywords": [
         "car",

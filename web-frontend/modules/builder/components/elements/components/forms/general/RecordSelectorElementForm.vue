@@ -40,7 +40,7 @@
     <!--
     We use a key here otherwise Vuejs reuse the components of the following
     expression input with the old application context when the v-if becomes true.
-    Therefore the "allowSameElement" value is wrong showing invalid expression when they
+    Therefore the data scope is wrong, showing invalid expressions when they
     are valid. We could also solve this by using a v-show instead of a v-if.
     -->
     <FormGroup
@@ -57,9 +57,7 @@
         :placeholder="
           $t('recordSelectorElementForm.optionNameSuffixPlaceholder')
         "
-        :application-context-additions="{
-          allowSameElement: true,
-        }"
+        :application-context-additions="optionSuffixFormulaContext"
       />
     </FormGroup>
     <FormGroup
@@ -147,6 +145,7 @@ import {
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown.vue'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 import { BASEROW_FORMULA_FORMATS } from '@baserow/modules/core/formula/constants'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 export default {
   name: 'RecordSelectorElementForm',
@@ -163,6 +162,9 @@ export default {
   },
   data() {
     return {
+      optionSuffixFormulaContext: {
+        dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+      },
       allowedValues: [
         'required',
         'data_source_id',

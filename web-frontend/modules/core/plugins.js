@@ -167,6 +167,14 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional options in the share
+   * dashboard context, below the public link of the dashboard.
+   */
+  getAdditionalDashboardShareLinkOptions() {
+    return []
+  }
+
+  /**
    * Every registered plugin can display multiple components to the head of the table
    * header. This will be positioned directly next to the name of the view.
    */

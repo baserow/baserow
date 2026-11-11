@@ -459,4 +459,85 @@ describe('RecordSelectorElement', () => {
     expect(wrapper.vm.$refs.recordSelectorDropdown.hasValue()).toBe(true)
     expect(mock.history.get).toHaveLength(0)
   })
+
+  test('resolves default record names with the page mode when the display mode is forced', async () => {
+    const page = {
+      id: 1,
+      dataSources: [
+        {
+          id: 1,
+          type: 'local_baserow_list_rows',
+          table_id: 1,
+          schema: {
+            type: 'array',
+            items: {
+              properties: {
+                field_1: {
+                  metadata: { primary: true },
+                  title: 'Name',
+                },
+              },
+            },
+          },
+        },
+      ],
+      elements: [],
+    }
+    const sharedPage = {
+      id: 2,
+      dataSources: [],
+      elements: [],
+      shared: true,
+    }
+    const builder = {
+      id: 1,
+      theme: { primary_color: '#ccc' },
+      pages: [sharedPage, page],
+    }
+    const workspace = {}
+    const element = {
+      id: 1,
+      type: 'record_selector',
+      data_source_id: page.dataSources[0].id,
+      items_per_page: 5,
+      page_id: page.id,
+      multiple: false,
+      default_value: { formula: "'2'", mode: 'simple' },
+    }
+    store.dispatch('element/forceCreate', { page, element })
+
+    // Only the editor endpoint is mocked. The published endpoint would throw
+    // because of `onNoMatch: 'throwException'`.
+    mockServer.mock
+      .onGet('builder/data-source/1/record-names/')
+      .reply(200, { 2: 'Banana' })
+
+    const wrapper = await mountComponent({
+      props: {
+        element,
+      },
+      provide: {
+        builder,
+        currentPage: page,
+        elementPage: page,
+        // Inside a repeat element the editor renders the non-editable
+        // repetitions with a forced `public` display mode...
+        mode: 'public',
+        // ...while the page itself is still being edited.
+        applicationContext: { builder, page, mode: 'editing', element },
+        element,
+        workspace,
+      },
+    })
+
+    // Record name lookups are grouped during a short grace delay before the
+    // request is sent.
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    await flushPromises()
+
+    expect(mock.history.get.map(({ url, params }) => [url, params])).toEqual([
+      ['builder/data-source/1/record-names/', { record_ids: '2' }],
+    ])
+    expect(wrapper.find('.ab-dropdown__selected-text').text()).toBe('Banana')
+  })
 })

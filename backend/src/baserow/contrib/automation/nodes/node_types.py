@@ -1,12 +1,16 @@
 from typing import Any, Callable, Dict, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.db import router
+from django.db import router, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from celery.exceptions import SoftTimeLimitExceeded
+from loguru import logger
+
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeFirstNodeMustBeTrigger,
@@ -33,6 +37,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     CoreStartWorkflowActionNode,
+    CoreWaitActionNode,
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowCreateRowsActionNode,
@@ -64,11 +69,12 @@ from baserow.contrib.integrations.core.service_types import (
     CoreInboundEmailTriggerServiceType,
     CoreIteratorServiceType,
     CoreManualTriggerServiceType,
-    CorePeriodicServiceType,
+    CorePeriodicTriggerServiceType,
     CoreResponseServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
+    CoreWaitServiceType,
 )
 from baserow.contrib.integrations.local_baserow.mixins import (
     UpdateRowRequiresRowIdMixin,
@@ -77,12 +83,12 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
     LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
-    LocalBaserowFieldsUpdatedServiceType,
+    LocalBaserowFieldsUpdatedTriggerServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
-    LocalBaserowRowsCreatedServiceType,
-    LocalBaserowRowsDeletedServiceType,
-    LocalBaserowRowsUpdatedServiceType,
+    LocalBaserowRowsCreatedTriggerServiceType,
+    LocalBaserowRowsDeletedTriggerServiceType,
+    LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
 )
@@ -101,10 +107,26 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
+from baserow.core.utils import exception_capturer
 
 
-class AutomationNodeActionNodeType(AutomationNodeType):
+class AutomationActionNodeType(AutomationNodeType):
     is_workflow_action = True
+    # Action nodes carry an error policy, unless their dispatch can only fail
+    # the same way again, in which case a retry cannot help.
+    has_error_policy = True
+
+    # The retry condition is a formula on the node itself, not on its service,
+    # so the node type's own `import_formulas()` pass remaps it on import.
+    simple_formula_fields = ["retry_condition"]
+
+    @property
+    def allowed_fields(self):
+        # Trigger types, and action types without an error policy, keep the
+        # base list, so these fields are dropped when sent to them.
+        if not self.has_error_policy:
+            return super().allowed_fields
+        return super().allowed_fields + ERROR_POLICY_FIELDS
 
     def before_create(self, workflow, reference_node, position, output):
         if reference_node is None:
@@ -153,7 +175,30 @@ class ContainerNodeTypeMixin:
         super().before_move(node, reference_node, position, output)
 
 
-class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
+class LocalBaserowTableNodeTypeMixin:
+    """
+    For a node whose service reads or writes a table of the workspace. List it
+    before the node type base, so that its `raise_if_misconfigured` runs.
+    """
+
+    def raise_if_misconfigured(self, automation_node: AutomationNode) -> None:
+        """
+        Refuses a node that names no table: a trigger never fires and an action
+        fails every run.
+
+        :param automation_node: The node to check.
+        :raises ServiceImproperlyConfiguredDispatchException: When no table is set.
+        """
+
+        super().raise_if_misconfigured(automation_node)
+
+        if automation_node.service.specific.table_id is None:
+            raise ServiceImproperlyConfiguredDispatchException("No table is selected.")
+
+
+class LocalBaserowUpsertRowActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     type = "local_baserow_upsert_row"
     compat_type = "upsert_row"
     service_type = LocalBaserowUpsertRowServiceType.type
@@ -163,14 +208,16 @@ class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
         return {"service": service}
 
 
-class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
+class LocalBaserowCreateRowActionNodeType(LocalBaserowUpsertRowActionNodeType):
     display_name = _("Local Baserow create row")
     type = "local_baserow_create_row"
     compat_type = "create_row"
     model_class = LocalBaserowCreateRowActionNode
 
 
-class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
+class LocalBaserowCreateRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     type = "local_baserow_create_rows"
     model_class = LocalBaserowCreateRowsActionNode
     service_type = LocalBaserowCreateRowsServiceType.type
@@ -180,16 +227,25 @@ class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
         return {"service": service}
 
 
-class LocalBaserowUpdateRowNodeType(
-    UpdateRowRequiresRowIdMixin, LocalBaserowUpsertRowNodeType
+class LocalBaserowUpdateRowActionNodeType(
+    UpdateRowRequiresRowIdMixin, LocalBaserowUpsertRowActionNodeType
 ):
     display_name = _("Local Baserow update row")
     type = "local_baserow_update_row"
     compat_type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
 
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        # An empty string literal passes the row ID check but fails every run.
+        formula = automation_node.service.specific.row_id["formula"].strip()
+        if formula in ("''", '""'):
+            return ["No row ID is set, so every run fails here."]
+        return []
 
-class LocalBaserowUpdateRowsNodeType(AutomationNodeActionNodeType):
+
+class LocalBaserowUpdateRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     type = "local_baserow_update_rows"
     model_class = LocalBaserowUpdateRowsActionNode
     service_type = LocalBaserowUpdateRowsServiceType.type
@@ -199,15 +255,25 @@ class LocalBaserowUpdateRowsNodeType(AutomationNodeActionNodeType):
         return {"service": service}
 
 
-class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
+class LocalBaserowDeleteRowActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow delete row")
     type = "local_baserow_delete_row"
     compat_type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
     service_type = LocalBaserowDeleteRowServiceType.type
 
+    def get_publish_notices(self, automation_node: AutomationNode) -> list[str]:
+        formula = automation_node.service.specific.row_id["formula"].strip()
+        if formula in ("", "''", '""'):
+            return ["No row ID is set, so every run deletes nothing."]
+        return []
 
-class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
+
+class LocalBaserowGetRowActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow get row")
     type = "local_baserow_get_row"
     compat_type = "get_row"
@@ -215,7 +281,9 @@ class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
     service_type = LocalBaserowGetRowUserServiceType.type
 
 
-class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
+class LocalBaserowListRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow list rows")
     type = "local_baserow_list_rows"
     compat_type = "list_rows"
@@ -223,7 +291,9 @@ class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
     service_type = LocalBaserowListRowsUserServiceType.type
 
 
-class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
+class LocalBaserowAggregateRowsActionNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationActionNodeType
+):
     display_name = _("Local Baserow aggregate rows")
     type = "local_baserow_aggregate_rows"
     compat_type = "aggregate_rows"
@@ -231,34 +301,37 @@ class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
     service_type = LocalBaserowAggregateRowsUserServiceType.type
 
 
-class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
+class CoreHTTPRequestActionNodeType(AutomationActionNodeType):
     display_name = _("HTTP request")
     type = "http_request"
     model_class = CoreHTTPRequestActionNode
     service_type = CoreHTTPRequestServiceType.type
 
 
-class CoreIteratorNodeType(ContainerNodeTypeMixin, AutomationNodeActionNodeType):
+class CoreIteratorActionNodeType(ContainerNodeTypeMixin, AutomationActionNodeType):
     display_name = _("Iterator")
     type = "iterator"
     model_class = CoreIteratorActionNode
     service_type = CoreIteratorServiceType.type
+    # It only fails when its source is not a list, which a retry evaluates
+    # again from the same data.
+    has_error_policy = False
 
 
-class CoreCSVFileReaderNodeType(AutomationNodeActionNodeType):
+class CoreCSVFileReaderActionNodeType(AutomationActionNodeType):
     type = "csv_file_reader"
     model_class = CoreCSVFileReaderActionNode
     service_type = CoreCSVFileReaderServiceType.type
 
 
-class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
+class CoreSMTPEmailActionNodeType(AutomationActionNodeType):
     display_name = _("Send email")
     type = "smtp_email"
     model_class = CoreSMTPEmailActionNode
     service_type = CoreSMTPEmailServiceType.type
 
 
-class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
+class CoreStartWorkflowActionNodeType(AutomationActionNodeType):
     type = "start_workflow"
     model_class = CoreStartWorkflowActionNode
     service_type = CoreStartWorkflowServiceType.type
@@ -282,11 +355,14 @@ class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
         return super().prepare_values(values, user, instance)
 
 
-class CoreResponseNodeType(AutomationNodeActionNodeType):
+class CoreResponseActionNodeType(AutomationActionNodeType):
     display_name = _("Response")
     type = "response"
     model_class = CoreResponseActionNode
     service_type = CoreResponseServiceType.type
+    # It only fails on its formulas, which a retry evaluates again from the
+    # same data, and once a response is written a retry is ignored anyway.
+    has_error_policy = False
 
     def prepare_values(
         self,
@@ -310,18 +386,21 @@ class CoreResponseNodeType(AutomationNodeActionNodeType):
         return super().prepare_values(values, user, instance)
 
 
-class AIAgentActionNodeType(AutomationNodeActionNodeType):
+class AIAgentActionNodeType(AutomationActionNodeType):
     display_name = _("AI agent")
     type = "ai_agent"
     model_class = AIAgentActionNode
     service_type = AIAgentServiceType.type
 
 
-class CoreRouterActionNodeType(AutomationNodeActionNodeType):
+class CoreRouterActionNodeType(AutomationActionNodeType):
     display_name = _("Router")
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
+    # Its branch conditions are evaluated from the data of the earlier nodes,
+    # which a retry sees unchanged.
+    has_error_policy = False
 
     def has_node_on_edge(self, node: CoreRouterActionNode) -> bool:
         """
@@ -426,10 +505,13 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         return super().prepare_values(values, user, instance)
 
 
-class CoreGotoActionNodeType(AutomationNodeActionNodeType):
+class CoreGotoActionNodeType(AutomationActionNodeType):
     type = "goto"
     model_class = CoreGotoActionNode
     service_type = CoreGotoServiceType.type
+    # Its condition is evaluated from the data of the earlier nodes, which a
+    # retry sees unchanged, and a missing destination stays missing.
+    has_error_policy = False
 
     def get_history_status(self, dispatch_result: DispatchResult) -> str:
         """
@@ -684,7 +766,17 @@ class CoreGotoActionNodeType(AutomationNodeActionNodeType):
             )
 
 
-class AutomationNodeTriggerType(AutomationNodeType):
+class CoreWaitActionNodeType(AutomationActionNodeType):
+    display_name = _("Wait")
+    type = "wait"
+    model_class = CoreWaitActionNode
+    service_type = CoreWaitServiceType.type
+    # A wait only fails on its duration (not a whole non-negative number, or
+    # over the cap), which a retry evaluates again to the same value.
+    has_error_policy = False
+
+
+class AutomationTriggerNodeType(AutomationNodeType):
     is_workflow_trigger = True
 
     def after_register(self):
@@ -723,15 +815,41 @@ class AutomationNodeTriggerType(AutomationNodeType):
     ):
         raise AutomationNodeNotMovable("Trigger nodes cannot be moved.")
 
+    def _belongs_to_workflow(self, trigger, service: Service) -> bool:
+        """
+        Returns whether the trigger's service reads only through what its workflow's
+        automation may use.
+
+        :param trigger: The trigger node.
+        :param service: The trigger's service.
+        :return: True when the trigger may be started.
+        """
+
+        try:
+            self.check_service_belongs_to_workflow(trigger.workflow, service)
+        except AutomationNodeMisconfiguredService:
+            return False
+        return True
+
     def on_event(
         self,
         services: Iterable[Service],
         event_payload: Dict | None | Callable = None,
         user: Optional[AbstractUser] = None,
+        isolate_failures: bool = False,
     ):
-        from baserow.contrib.automation.workflows.handler import (
-            AutomationWorkflowHandler,
-        )
+        """
+        Starts the workflow of every trigger whose service the event applies to.
+
+        :param services: The services the event applies to.
+        :param event_payload: The event payload, or a callable returning the payload
+            for a given service.
+        :param user: The user who caused the event, if any.
+        :param isolate_failures: Whether a workflow that fails to start is rolled
+            back and skipped, so that the other workflows still start. Otherwise the
+            failure is raised.
+        :return: The histories of the started workflows.
+        """
 
         triggers = list(
             self.model_class.objects.filter(
@@ -751,81 +869,157 @@ class AutomationNodeTriggerType(AutomationNodeType):
         # For perf reasons, store the trigger<->service relationship.
         service_map = {service.id: service for service in services}
 
+        # A trigger whose service reads through what its automation may not use
+        # isn't started.
+        triggers = [
+            trigger
+            for trigger in triggers
+            if self._belongs_to_workflow(trigger, service_map[trigger.service_id])
+        ]
+
         histories = []
         for trigger in triggers:
-            # If we've received a callable payload, call it with the specific service,
-            # this can give us a payload that is specific to the trigger's service.
-            service_payload = (
-                event_payload(service_map[trigger.service_id])
-                if callable(event_payload)
-                else event_payload
-            )
-
-            workflow = trigger.workflow
-            history = AutomationWorkflowHandler().async_start_workflow(
-                workflow,
-                service_payload,
-                # Read before the reset below clears it.
-                triggered_by=AutomationWorkflowHandler().get_test_run_triggered_by(
-                    workflow
-                ),
+            service = service_map[trigger.service_id]
+            history = (
+                self._start_workflow_in_savepoint(trigger, service, event_payload)
+                if isolate_failures
+                else self._start_workflow(trigger, service, event_payload)
             )
             if history is not None:
                 histories.append(history)
 
-            # We don't want subsequent events to trigger a new test run
-            AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
-
         return histories
 
+    def _start_workflow_in_savepoint(
+        self,
+        trigger: AutomationTriggerNode,
+        service: Service,
+        event_payload: Dict | None | Callable = None,
+    ):
+        """
+        Starts the workflow of one trigger in a savepoint. If it fails, everything
+        it did is rolled back and the failure is logged rather than raised.
 
-class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
+        :param trigger: The trigger node whose workflow is started.
+        :param service: The trigger's service.
+        :param event_payload: The event payload, or a callable returning the payload
+            for a given service.
+        :return: The history of the started workflow, if one was created.
+        """
+
+        try:
+            with transaction.atomic():
+                return self._start_workflow(trigger, service, event_payload)
+        except SoftTimeLimitExceeded:
+            # The task is out of time, so it must stop rather than carry on with
+            # the next trigger until the hard time limit kills it.
+            raise
+        except Exception as e:
+            logger.exception(
+                "Could not start workflow {} from trigger {}.",
+                trigger.workflow_id,
+                trigger.id,
+            )
+            exception_capturer(e)
+            return None
+
+    def _start_workflow(
+        self,
+        trigger: AutomationTriggerNode,
+        service: Service,
+        event_payload: Dict | None | Callable = None,
+    ):
+        """
+        Starts the workflow of one trigger that the event applies to.
+
+        :param trigger: The trigger node whose workflow is started.
+        :param service: The trigger's service.
+        :param event_payload: The event payload, or a callable returning the payload
+            for a given service.
+        :return: The history of the started workflow, if one was created.
+        """
+
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        # If we've received a callable payload, call it with the specific service,
+        # this can give us a payload that is specific to the trigger's service.
+        service_payload = (
+            event_payload(service) if callable(event_payload) else event_payload
+        )
+
+        workflow = trigger.workflow
+        history = AutomationWorkflowHandler().async_start_workflow(
+            workflow,
+            service_payload,
+            # Read before the reset below clears it.
+            triggered_by=AutomationWorkflowHandler().get_test_run_triggered_by(
+                workflow
+            ),
+        )
+
+        # We don't want subsequent events to trigger a new test run
+        AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+        return history
+
+
+class LocalBaserowRowsCreatedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     display_name = _("Local Baserow rows created")
     type = "local_baserow_rows_created"
     compat_type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
-    service_type = LocalBaserowRowsCreatedServiceType.type
+    service_type = LocalBaserowRowsCreatedTriggerServiceType.type
 
 
-class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+class LocalBaserowRowsUpdatedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     display_name = _("Local Baserow rows updated")
     type = "local_baserow_rows_updated"
     compat_type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
-    service_type = LocalBaserowRowsUpdatedServiceType.type
+    service_type = LocalBaserowRowsUpdatedTriggerServiceType.type
 
 
-class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
+class LocalBaserowRowsDeletedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     display_name = _("Local Baserow rows deleted")
     type = "local_baserow_rows_deleted"
     compat_type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
-    service_type = LocalBaserowRowsDeletedServiceType.type
+    service_type = LocalBaserowRowsDeletedTriggerServiceType.type
 
 
-class LocalBaserowFieldsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+class LocalBaserowFieldsUpdatedTriggerNodeType(
+    LocalBaserowTableNodeTypeMixin, AutomationTriggerNodeType
+):
     type = "local_baserow_fields_updated"
     model_class = LocalBaserowFieldsUpdatedTriggerNode
-    service_type = LocalBaserowFieldsUpdatedServiceType.type
+    service_type = LocalBaserowFieldsUpdatedTriggerServiceType.type
 
 
 class CorePeriodicTriggerNodeType(
-    AutomationNodeTriggerType,
+    AutomationTriggerNodeType,
 ):
     display_name = _("Periodic trigger")
     type = "periodic"
     model_class = CorePeriodicTriggerNode
-    service_type = CorePeriodicServiceType.type
+    service_type = CorePeriodicTriggerServiceType.type
 
 
-class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
+class CoreHTTPTriggerNodeType(AutomationTriggerNodeType):
     display_name = _("HTTP trigger")
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
 
 
-class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
+class CoreInboundEmailTriggerNodeType(AutomationTriggerNodeType):
     display_name = _("Email trigger")
     type = "email_trigger"
     model_class = CoreInboundEmailTriggerNode
@@ -838,13 +1032,13 @@ class CoreInboundEmailTriggerNodeType(AutomationNodeTriggerType):
         return not is_inbound_email_configured()
 
 
-class CoreManualTriggerNodeType(AutomationNodeTriggerType):
+class CoreManualTriggerNodeType(AutomationTriggerNodeType):
     type = "manual"
     model_class = CoreManualTriggerNode
     service_type = CoreManualTriggerServiceType.type
 
 
-class SlackWriteMessageActionNodeType(AutomationNodeActionNodeType):
+class SlackWriteMessageActionNodeType(AutomationActionNodeType):
     display_name = _("Slack write message")
     type = "slack_write_message"
     model_class = SlackWriteMessageActionNode

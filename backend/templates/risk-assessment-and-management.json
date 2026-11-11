@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Risk Assessment and Management",
+    "description": "Register risks, assess impact and likelihood, and plan mitigations.",
     "icon": "iconoir-check-circle",
     "keywords": [
         "risk assessment",

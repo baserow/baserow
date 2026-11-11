@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes sensitive data filtering in Builder application exports",
+    "issue_origin": "github",
+    "issue_number": 6330,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-20"
+}

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Campaign Management",
+    "description": "Run marketing campaigns with activities, assets and metrics.",
     "icon": "iconoir-stats-report",
     "keywords": [
         "campaign",

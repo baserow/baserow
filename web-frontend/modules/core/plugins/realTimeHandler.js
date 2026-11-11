@@ -1,3 +1,4 @@
+import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
@@ -873,6 +874,27 @@ export class RealTimeHandler {
       })
     })
 
+    this.registerEvent('agent_run_as_updated', ({ store }, data) => {
+      const selectedAgentIds = new Set(data.selected_agent_ids)
+      for (const agentId of data.agent_ids) {
+        const application = store.getters['application/get'](agentId)
+        if (application?.type !== AGENT_APPLICATION_TYPE) continue
+        store.dispatch('application/forceUpdate', {
+          application,
+          data: {
+            _: {
+              ...application._,
+              runAsOptionsVersion:
+                (application._?.runAsOptionsVersion || 0) + 1,
+              runAsIdentityVersion:
+                (application._?.runAsIdentityVersion || 0) +
+                Number(selectedAgentIds.has(agentId)),
+            },
+          },
+        })
+      }
+    })
+
     this.registerEvent('application_created', ({ store }, data) => {
       store.dispatch('application/forceCreate', data.application)
     })
@@ -883,6 +905,7 @@ export class RealTimeHandler {
         store.dispatch('application/forceUpdate', {
           application,
           data: data.application,
+          viaRealtime: true,
         })
       }
     })
@@ -900,6 +923,21 @@ export class RealTimeHandler {
         })
       }
     })
+
+    this.registerEvent(
+      'application_pending_count_updated',
+      ({ store }, data) => {
+        const application = store.getters['application/get'](
+          data.application_id
+        )
+        if (application !== undefined) {
+          store.dispatch('application/forceUpdate', {
+            application,
+            data: { pending_count: data.pending_count },
+          })
+        }
+      }
+    )
 
     this.registerEvent('application_deleted', ({ store }, data) => {
       const application = store.getters['application/get'](data.application_id)
@@ -1008,7 +1046,7 @@ export class RealTimeHandler {
 
     this.registerEvent('force_disconnect', ({ store }) => {
       this.reconnect = false
-      logoutAndRedirectToLogin(this.context.app.router, store, false, true)
+      logoutAndRedirectToLogin(this.context.app.$router, store, false, true)
     })
 
     this.registerEvent('job_started', ({ store }, data) => {

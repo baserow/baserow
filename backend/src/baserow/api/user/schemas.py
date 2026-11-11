@@ -107,4 +107,16 @@ else:
     )
 
 
+if settings.ROTATE_REFRESH_TOKENS:
+    token_refresh_response_schema = build_object_type(
+        {
+            **user_response_schema,
+            **access_token_schema,
+            **refresh_token_schema,
+        }
+    )
+else:
+    token_refresh_response_schema = authenticate_user_schema
+
+
 verify_user_schema = build_object_type(user_response_schema)

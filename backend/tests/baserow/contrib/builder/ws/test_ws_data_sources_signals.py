@@ -11,7 +11,12 @@ from baserow.core.services.registries import service_type_registry
 def test_data_source_created(mock_broadcast_to_permitted_users, data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )

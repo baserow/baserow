@@ -1,10 +1,13 @@
 from abc import ABC
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 
 from baserow.api.integrations.fields import HasSecretField
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
+    APIUrlsInstanceMixin,
+    APIUrlsRegistryMixin,
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -14,11 +17,38 @@ from baserow.core.registry import (
     Registry,
 )
 
+from .exceptions import IntegrationCredentialRequired
 from .models import Integration
 from .types import IntegrationDictSubClass, IntegrationSubClass
 
 
+def check_secret_targets_unchanged(
+    secret: str,
+    targets: List[str],
+    values: Dict[str, Any],
+    get_stored: Callable[[str], Any],
+):
+    """
+    Raises if a request-target field protecting a stored secret is being changed
+    while the secret is omitted. A target that is omitted is not a change.
+
+    :param secret: The secret's name, used in the error message.
+    :param targets: The fields that choose where the secret is sent.
+    :param values: The new values, without the secret.
+    :param get_stored: Returns the stored value of a target.
+    :raises IntegrationCredentialRequired: When a target changes.
+    """
+
+    if any(
+        target in values and values[target] != get_stored(target) for target in targets
+    ):
+        raise IntegrationCredentialRequired(
+            f"The `{secret}` must be supplied again when the connection target changes."
+        )
+
+
 class IntegrationType(
+    APIUrlsInstanceMixin,
     ModelInstanceMixin[Integration],
     EasyImportExportMixin[IntegrationSubClass],
     CustomFieldsInstanceMixin,
@@ -57,6 +87,33 @@ class IntegrationType(
     integration may authenticate anonymously.
     """
 
+    def get_dropped_secrets(
+        self, values: Dict[str, Any], instance: IntegrationSubClass
+    ) -> Set[str]:
+        """
+        The secrets an update clears, such as a credential of a sign-in method
+        the integration no longer uses. They aren't asked for again when the
+        fields they protect change, since they won't be sent anywhere.
+
+        :param values: The values of the update.
+        :param instance: The integration as it is.
+        :return: The names of the secret fields the update clears.
+        """
+
+        return set()
+
+    def supports_application_type(self, application_type) -> bool:
+        """
+        Whether this integration can be created on applications of the given type.
+        Every type accepts every application that holds integrations, unless it is
+        only useful to some of them.
+
+        :param application_type: The application type in question.
+        :return: True when it may be created on such an application.
+        """
+
+        return True
+
     def enhance_queryset(self, queryset):
         """
         Allow to enhance the queryset when querying the integration mainly to improve
@@ -66,7 +123,11 @@ class IntegrationType(
         return queryset
 
     def prepare_values(
-        self, values: Dict[str, Any], user: AbstractUser
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        application: Optional[Any] = None,
+        instance: Optional[IntegrationSubClass] = None,
     ) -> Dict[str, Any]:
         """
         The prepare_values hook gives the possibility to change the provided values
@@ -77,6 +138,7 @@ class IntegrationType(
 
         :param values: The provided values.
         :param user: The user on whose behalf the change is made.
+        :param instance: The current instance if it exists.
         :return: The updated values.
         """
 
@@ -154,6 +216,7 @@ class IntegrationType(
         self,
         integration: Integration,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -162,7 +225,12 @@ class IntegrationType(
             return str(integration.order)
 
         return super().serialize_property(
-            integration, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            integration,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_serialized(
@@ -173,11 +241,13 @@ class IntegrationType(
         files_zip=None,
         storage=None,
         cache=None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> IntegrationSubClass:
         return super().import_serialized(
             parent,
             serialized_values,
             id_mapping,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
@@ -203,6 +273,7 @@ IntegrationTypeSubClass = TypeVar("IntegrationTypeSubClass", bound=IntegrationTy
 
 
 class IntegrationTypeRegistry(
+    APIUrlsRegistryMixin,
     ModelRegistryMixin[IntegrationSubClass, IntegrationTypeSubClass],
     Registry[IntegrationTypeSubClass],
     CustomFieldsRegistryMixin,

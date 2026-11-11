@@ -1,0 +1,82 @@
+<template>
+  <div>
+    <span v-if="disabled">
+      {{ currentValue.name }}
+    </span>
+    <a
+      v-else
+      ref="editRoleContextLink"
+      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
+    >
+      {{ currentValue.name }}
+      <i class="iconoir-nav-arrow-down"></i>
+    </a>
+    <EditRoleContext
+      ref="editRoleContext"
+      :subject="currentValue"
+      :roles="roles"
+      :allow-removing-role="allowRemovingRole"
+      :workspace="workspace"
+      :show-commercial-info="showCommercialInfo"
+      role-value-column="uid"
+      @update-role="roleUpdated"
+      @delete="remove"
+    />
+  </div>
+</template>
+
+<script>
+import EditRoleContext from '@baserow/modules/core/components/settings/members/EditRoleContext'
+
+export default {
+  name: 'ScopeRoleSelector',
+  components: { EditRoleContext },
+  props: {
+    value: {
+      type: Object,
+      default: undefined,
+    },
+    modelValue: {
+      type: Object,
+      default: undefined,
+    },
+    roles: {
+      type: Array,
+      default: () => [],
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
+    allowRemovingRole: {
+      type: Boolean,
+      default: false,
+    },
+    workspace: {
+      type: Object,
+      required: true,
+    },
+    showCommercialInfo: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  emits: ['delete', 'input', 'update:modelValue'],
+  computed: {
+    currentValue() {
+      return this.modelValue !== undefined ? this.modelValue : this.value || {}
+    },
+  },
+  methods: {
+    remove() {
+      this.$refs.editRoleContext.hide()
+      this.$emit('delete')
+    },
+    roleUpdated({ uid }) {
+      const role = this.roles.find((role) => role.uid === uid)
+      this.$emit('input', role)
+      this.$emit('update:modelValue', role)
+    },
+  },
+}
+</script>

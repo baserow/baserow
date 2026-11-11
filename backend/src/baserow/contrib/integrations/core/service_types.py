@@ -5,9 +5,14 @@ import re
 import socket
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import partial
-from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPNotSupportedError
+from smtplib import (
+    SMTPAuthenticationError,
+    SMTPConnectError,
+    SMTPNotSupportedError,
+    SMTPServerDisconnected,
+)
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
@@ -70,6 +75,7 @@ from baserow.contrib.integrations.core.models import (
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
+    CoreWaitService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
@@ -87,6 +93,7 @@ from baserow.core.deferred_callbacks import (
     is_deferred_callback_context_active,
     register_deferred_callback,
 )
+from baserow.core.emails import can_deliver_emails
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import (
@@ -111,6 +118,7 @@ from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
     RemoteRefusedDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
@@ -122,7 +130,12 @@ from baserow.core.services.registries import (
     ServiceType,
     TriggerServiceTypeMixin,
 )
-from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+from baserow.core.services.types import (
+    DispatchResult,
+    FormulaToResolve,
+    PendingDispatch,
+    ServiceDict,
+)
 from baserow.core.utils import remove_null_characters
 from baserow.version import VERSION as BASEROW_VERSION
 
@@ -393,6 +406,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         self,
         service: CoreHTTPRequestService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -429,7 +443,12 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(
@@ -780,7 +799,8 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
         except ConnectionError as e:
-            raise UnexpectedDispatchException(
+            # A lookup, refused or reset connection: transient, so retryable.
+            raise RuntimeDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
         except request_exceptions.Timeout:
@@ -794,7 +814,9 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 }
             }
         except request_exceptions.RequestException as e:
-            raise UnexpectedDispatchException(str(e)) from e
+            # Dropped connection, broken chunked encoding and the like, which a
+            # later attempt may not hit again.
+            raise RuntimeDispatchException(str(e)) from e
         except Exception as e:
             # Not `logger.exception`: loguru prints the frame locals beside the
             # traceback, and this frame holds the URL, every resolved header
@@ -975,10 +997,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
         }
 
-    # An installation with no SMTP server keeps a backend that writes the
-    # message somewhere local and reports that it sent it.
-    NON_DELIVERING_EMAIL_BACKENDS = ("console", "dummy", "locmem", "filebased")
-
     # Why this installation cannot send through its own server. Returned as a
     # code rather than a sentence, so each caller can word it for its own
     # reader and translate it.
@@ -1019,15 +1037,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         if not self.instance_smtp_is_available():
             return self.INSTANCE_SMTP_NO_SERVER
 
-        # `EMAIL_HOST` falls back to Django's own "localhost", so having a host
-        # says nothing about whether this installation can send. What it does
-        # with a message it is given does, and a backend it does not name at
-        # all is one the service could not ask for.
-        backend = getattr(settings, "CELERY_EMAIL_BACKEND", None) or ""
-        segments = backend.split(".")
-        if not backend or any(
-            name in segments for name in self.NON_DELIVERING_EMAIL_BACKENDS
-        ):
+        if not can_deliver_emails():
             return self.INSTANCE_SMTP_NO_SERVER
         return None
 
@@ -1222,9 +1232,13 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 "The username or password is incorrect"
             ) from e
         except SMTPConnectError as e:
-            raise UnexpectedDispatchException(
+            # The server answered the connection with a refusal greeting,
+            # typically because it is restarting or overloaded.
+            raise RuntimeDispatchException(
                 "Unable to connect to the SMTP server"
             ) from e
+        except (SMTPServerDisconnected, TimeoutError) as e:
+            raise RuntimeDispatchException("The SMTP server did not answer") from e
         except Exception as e:
             raise UnexpectedDispatchException(f"Failed to send email: {str(e)}") from e
 
@@ -1338,6 +1352,7 @@ class CoreRouterServiceType(CoreServiceType):
         self,
         service: CoreRouterService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1363,7 +1378,12 @@ class CoreRouterServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def formulas_to_resolve(self, service: CoreRouterService) -> list[FormulaToResolve]:
@@ -1732,7 +1752,125 @@ class CoreGotoServiceType(CoreServiceType):
         )
 
 
-class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
+class CoreWaitServiceType(CoreServiceType):
+    """
+    Pauses for a number of seconds.
+
+    The service never sleeps itself: it returns a `PendingDispatch` naming the
+    time to resume at, and the consumer that dispatched it parks the dispatch
+    and calls `resume_dispatch()` once that time has passed.
+    """
+
+    type = "wait"
+    model_class = CoreWaitService
+    dispatch_types = [DispatchTypes.ACTION]
+    allowed_fields = ["seconds"]
+    serializer_field_names = ["seconds"]
+    simple_formula_fields = ["seconds"]
+
+    class SerializedDict(ServiceDict):
+        seconds: str
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "seconds": FormulaSerializerField(
+                help_text=CoreWaitService._meta.get_field("seconds").help_text,
+                required=False,
+                default="",
+            ),
+        }
+
+    def get_schema_name(self, service: CoreWaitService) -> str:
+        return f"Wait{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreWaitService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        properties = {}
+        if allowed_fields is None or "seconds" in allowed_fields:
+            properties["seconds"] = {
+                "type": "integer",
+                "title": _("Seconds"),
+                "description": _("The number of seconds waited."),
+            }
+        if allowed_fields is None or "resumed_at" in allowed_fields:
+            properties["resumed_at"] = {
+                "type": "string",
+                "format": "date-time",
+                "title": _("Resumed at"),
+                "description": _("When the wait ended."),
+            }
+
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
+    def formulas_to_resolve(self, service: CoreWaitService) -> list[FormulaToResolve]:
+        # Only a whole, non-negative number of seconds is a valid wait. An
+        # empty, text, boolean, fractional or negative value is a value error:
+        # it is never rounded or clamped.
+        return [
+            FormulaToResolve(
+                "seconds",
+                service.seconds,
+                lambda value: ensure_integer(
+                    value, allow_empty=False, allow_negative=False
+                ),
+                'property "seconds"',
+            )
+        ]
+
+    def _wait_result(self, seconds: int) -> Dict[str, Any]:
+        return {"seconds": seconds, "resumed_at": timezone.now().isoformat()}
+
+    def dispatch_data(
+        self,
+        service: CoreWaitService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any] | PendingDispatch:
+        seconds = resolved_values["seconds"]
+        max_seconds = settings.AUTOMATION_WAIT_MAX_SECONDS
+        if seconds > max_seconds:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The wait of {seconds} seconds exceeds the maximum of "
+                f"{max_seconds} seconds."
+            )
+
+        # A simulation never waits, and a wait of zero seconds has nothing to
+        # wait for: both complete at once.
+        if dispatch_context.use_sample_data or seconds == 0:
+            return self._wait_result(seconds)
+
+        return PendingDispatch(
+            resume_at=timezone.now() + timedelta(seconds=seconds),
+            state={"seconds": seconds},
+        )
+
+    def dispatch_transform(
+        self, data: Dict[str, Any] | PendingDispatch
+    ) -> DispatchResult:
+        if isinstance(data, PendingDispatch):
+            return DispatchResult(pending=data)
+        return DispatchResult(data=data)
+
+    def resume_dispatch(
+        self,
+        service: CoreWaitService,
+        state: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        return DispatchResult(data=self._wait_result(state["seconds"]))
+
+
+class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"
     model_class = CorePeriodicService
 
@@ -1815,7 +1953,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
     ) -> Dict[str, Any]:
         """
         Responsible for preparing and validating the periodic service values.
-        If the `interval` is set to `MINUTE`, it ensures that the `minute` value
+        If the `interval` ends up as `MINUTE`, it ensures that the `minute` value
         is greater than or equal to the minimum allowed value defined in the settings.
         The `timezone` is validated here so that an unknown one can't be persisted,
         as it would then raise every time the schedule is calculated.
@@ -1826,9 +1964,22 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :return: The prepared values.
         """
 
-        minute = values.get("minute", None)
-        if values.get("interval") == PERIODIC_INTERVAL_MINUTE and minute is not None:
-            if minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN:
+        # The minimum applies to the schedule that ends up saved. A partial update
+        # only carries the fields that change, so the other one is read from the
+        # saved service, or from the model's defaults for a service that's being
+        # created. Otherwise `interval` and `minute` sent in separate requests
+        # would each pass on their own. An update that touches neither isn't
+        # checked, so a service that's already under the minimum can still have
+        # its other properties changed.
+        if "interval" in values or "minute" in values:
+            saved = instance or CorePeriodicService()
+            interval = values.get("interval", saved.interval)
+            minute = values.get("minute", saved.minute)
+            if (
+                interval == PERIODIC_INTERVAL_MINUTE
+                and minute is not None
+                and minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN
+            ):
                 raise AutomationNodeMisconfiguredService(
                     "The `minute` value must be greater "
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
@@ -2075,9 +2226,13 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             periodic_services_dispatched.append(dispatched_service)
             return self._get_dispatch_payload(dispatched_service)
 
+        # Every service that is due is called in the same transaction, so a
+        # workflow that fails to start is isolated rather than rolling back all the
+        # others with it.
         self.on_event(
             periodic_services_due,
             _get_service_payload,
+            isolate_failures=True,
         )
 
         if periodic_services_dispatched:
@@ -2218,6 +2373,7 @@ class CoreResponseServiceType(CoreServiceType):
         self,
         service: CoreResponseService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2232,7 +2388,12 @@ class CoreResponseServiceType(CoreServiceType):
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def create_instance_from_serialized(
@@ -2458,6 +2619,7 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         self,
         service: CoreHTTPTriggerService,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2476,7 +2638,12 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
             return str(service.uid)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def process_webhook_request(
@@ -2613,16 +2780,19 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         **kwargs,
     ):
         """
-        Handle the is_public field during import based on publishing context.
+        Handle the is_public and uid fields during import based on publishing
+        context.
         """
 
-        if import_export_config:
-            if import_export_config.is_publishing:
-                serialized_values["is_public"] = True
-            if import_export_config.is_duplicate:
-                # Ensure that duplicating a service (e.g. installing a template)
-                # results in a new unique uuid.
-                serialized_values["uid"] = str(uuid.uuid4())
+        if import_export_config and import_export_config.is_publishing:
+            # Publishing must keep the uid so the published URL is the one
+            # shown next to the draft.
+            serialized_values["is_public"] = True
+        else:
+            # Every other import (duplicating, installing a template,
+            # importing an exported application) gets its own URL, since the
+            # newest service with a uid receives that URL's requests.
+            serialized_values["uid"] = str(uuid.uuid4())
 
         return super().import_serialized(
             parent,

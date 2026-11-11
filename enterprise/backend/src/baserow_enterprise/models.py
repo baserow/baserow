@@ -21,7 +21,15 @@ from baserow_enterprise.integrations.models import (
     LocalBaserowPasswordAppAuthProvider,
     LocalBaserowUserSource,
 )
-from baserow_enterprise.role.models import Role, RoleAssignment
+from baserow_enterprise.role.models import (
+    Role,
+    RoleAssignment,
+    WorkspaceScopedInvitation,
+)
+from baserow_enterprise.semantic_search.models import (
+    SemanticSearchField,
+    SemanticSearchPendingUpdate,
+)
 from baserow_enterprise.teams.models import Team, TeamSubject
 
 __all__ = [
@@ -29,6 +37,7 @@ __all__ = [
     "TeamSubject",
     "Role",
     "RoleAssignment",
+    "WorkspaceScopedInvitation",
     "LocalBaserowUserSource",
     "AuthFormElement",
     "GraphElement",
@@ -42,4 +51,6 @@ __all__ = [
     "CoreCodeServiceInjection",
     "CoreCodeWorkflowAction",
     "CoreCodeActionNode",
+    "SemanticSearchField",
+    "SemanticSearchPendingUpdate",
 ]

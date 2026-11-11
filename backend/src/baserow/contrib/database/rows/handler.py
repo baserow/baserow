@@ -93,7 +93,12 @@ from baserow.core.utils import Progress, get_non_unique_values, grouper
 
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
 from .error_report import RowErrorReport
-from .exceptions import InvalidRowLength, RowDoesNotExist, RowIdsNotUnique
+from .exceptions import (
+    FieldsNotWritable,
+    InvalidRowLength,
+    RowDoesNotExist,
+    RowIdsNotUnique,
+)
 from .operations import (
     DeleteDatabaseRowOperationType,
     MoveRowDatabaseRowOperationType,
@@ -120,6 +125,13 @@ from .types import (
     RowsForUpdate,
     UpdatedRowsData,
 )
+
+
+def user_for_row_audit_columns(actor):
+    """Return a real user for generated-table user foreign keys."""
+
+    return actor if isinstance(actor, AbstractUser) and actor.id else None
+
 
 if TYPE_CHECKING:
     from django.db.backends.utils import CursorWrapper
@@ -1177,6 +1189,11 @@ class RowHandler:
             deleted_m2m_rels_per_link_field=deleted_m2m_rels_per_link_field,
             collect_dependant_rows=collect_dependant_rows,
         )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependant_fields_group in all_dependent_fields_grouped_by_depth
+            for dependant_field, _, _ in dependant_fields_group
+        )
         updated_fields = []
         for depth, dependant_fields_group in enumerate(
             all_dependent_fields_grouped_by_depth
@@ -1247,7 +1264,7 @@ class RowHandler:
         if signal_params is None:
             signal_params = {}
 
-        user_id = user and user.id
+        audit_user = user_for_row_audit_columns(user)
 
         unique_orders = self.get_unique_orders_before_row(
             before_row, model, amount=len(rows_values)
@@ -1282,10 +1299,10 @@ class RowHandler:
             row_values["order"] = unique_orders[index]
 
             if getattr(model, CREATED_BY_COLUMN_NAME, None):
-                row_values[CREATED_BY_COLUMN_NAME] = user if user_id else None
+                row_values[CREATED_BY_COLUMN_NAME] = audit_user
 
             if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
-                row_values[LAST_MODIFIED_BY_COLUMN_NAME] = user if user_id else None
+                row_values[LAST_MODIFIED_BY_COLUMN_NAME] = audit_user
 
             instance = model(**row_values)
             field_rules_handler.validate_row(instance)
@@ -1591,6 +1608,11 @@ class RowHandler:
                 associated_relations_changed=True,
                 database_id_prefilter=table.database_id,
             )
+        )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependant_fields_group in all_dependent_fields_grouped_by_depth
+            for dependant_field, _, _ in dependant_fields_group
         )
 
         for depth, dependant_fields_group in enumerate(
@@ -2217,9 +2239,7 @@ class RowHandler:
         ]
         unwritable_fields = self._get_unwritable_fields(user, model, fields)
         if unwritable_fields and raise_if_not_permitted:
-            raise PermissionDenied(
-                f"You don't have permission to update the following fields: {', '.join([f.name for f in unwritable_fields])}"
-            )
+            raise FieldsNotWritable(unwritable_fields)
         return unwritable_fields
 
     def _get_unwritable_fields(
@@ -2328,7 +2348,7 @@ class RowHandler:
         if model is None:
             model = table.get_model()
 
-        user_id = user and user.id
+        audit_user = user_for_row_audit_columns(user)
 
         if values_already_prepared:
             # Row IDs are removed below, so do not mutate the caller's dictionaries.
@@ -2417,7 +2437,7 @@ class RowHandler:
                 setattr(obj, name, value)
 
             if getattr(model, LAST_MODIFIED_BY_COLUMN_NAME, None):
-                setattr(obj, LAST_MODIFIED_BY_COLUMN_NAME, user if user_id else None)
+                setattr(obj, LAST_MODIFIED_BY_COLUMN_NAME, audit_user)
 
             relations = {
                 field_name: value
@@ -3028,7 +3048,9 @@ class RowHandler:
         )
 
         workspace = table.database.workspace
-        TrashHandler.trash(user, workspace, table.database, row)
+        TrashHandler.trash(
+            user_for_row_audit_columns(user), workspace, table.database, row
+        )
         rows_deleted_counter.add(1)
 
         (
@@ -3094,6 +3116,11 @@ class RowHandler:
                 associated_relations_changed=True,
                 database_id_prefilter=table.database_id,
             )
+        )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependent_fields_level in all_dependent_fields_grouped_by_level
+            for dependant_field, _, _ in dependent_fields_level
         )
 
         for depth, dependent_fields_level in enumerate(
@@ -3239,7 +3266,12 @@ class RowHandler:
             # for example used when storing the names in the trash.
             trashed_rows.rows = rows
 
-            TrashHandler.trash(user, workspace, table.database, trashed_rows)
+            TrashHandler.trash(
+                user_for_row_audit_columns(user),
+                workspace,
+                table.database,
+                trashed_rows,
+            )
 
         rows_deleted_counter.add(len(row_ids))
 
@@ -3266,6 +3298,11 @@ class RowHandler:
                 associated_relations_changed=True,
                 database_id_prefilter=table.database_id,
             )
+        )
+        update_collector.set_dependant_fields(
+            dependant_field
+            for dependent_fields_level in all_dependent_fields_grouped_by_level
+            for _, dependant_field, _ in dependent_fields_level
         )
 
         for depth, dependent_fields_level in enumerate(

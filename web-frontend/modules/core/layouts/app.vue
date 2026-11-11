@@ -96,6 +96,7 @@ import {
 } from '@baserow/modules/core/utils/events'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
+import { provideWorkspaceSidebarVisible } from '@baserow/modules/core/composables/useWorkspaceSidebar'
 
 const store = useStore()
 const { $registry, $priorityBus, $realtime, $bus } = useNuxtApp()
@@ -120,6 +121,12 @@ const router = useRouter()
 // `definePageMeta({ sidebarType: SIDEBAR_TYPES.ALL_WORKSPACES })`.
 const sidebarType = computed(
   () => route.meta.sidebarType ?? SIDEBAR_TYPES.WORKSPACE
+)
+
+provideWorkspaceSidebarVisible(
+  computed(
+    () => sidebarType.value === SIDEBAR_TYPES.WORKSPACE && !isCollapsed.value
+  )
 )
 
 // The sidebar decides which workspace and application level actions the user

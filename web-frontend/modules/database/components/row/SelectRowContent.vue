@@ -479,6 +479,7 @@ export default {
             row: populated,
             primary: this.primary,
             fields: this.fields,
+            created: true,
           })
         }
       }

@@ -1,6 +1,6 @@
 import { getClient } from "../client";
+import { waitForInvitationToken } from "./mail";
 import { User } from "./user";
-import { baserowConfig } from "../playwright.config";
 
 export class Workspace {
   constructor(public id: number, public name: string, public user: User) {}
@@ -29,11 +29,11 @@ export async function addUserToWorkspace(
     {
       email: invitee.email,
       permissions,
-      base_url: `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/workspace-invitation`,
     }
   );
   await getClient(invitee).post(
-    `workspaces/invitations/${invitation.data.id}/accept/`
+    `workspaces/invitations/${invitation.data.id}/accept/`,
+    { token: await waitForInvitationToken(invitee.email) }
   );
 }
 

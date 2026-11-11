@@ -21,6 +21,7 @@ import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
 import PageSidePanels from '@baserow/modules/builder/components/page/PageSidePanels'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import _ from 'lodash'
 
 const mode = 'editing'
@@ -40,6 +41,7 @@ export default {
         builder: this.builder,
         page: this.currentPage,
         mode,
+        dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
       },
     }
   },
@@ -71,6 +73,7 @@ export default {
         builder: this.builder,
         page: this.currentPage,
         mode,
+        dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
       }
     },
     sharedPage() {

@@ -24,8 +24,8 @@ class AlwaysFailingHealthCheck(BaseHealthCheckBackend):
 
 
 @pytest.fixture(autouse=True)
-def reset_health_checks_to_expected():
-    plugin_dir.reset()
+def reset_health_checks_to_expected(monkeypatch):
+    monkeypatch.setattr(plugin_dir, "_registry", [])
     plugin_dir.register(DatabaseBackend)
 
 
@@ -146,27 +146,17 @@ def test_celery_queue_size_exceed_outside_limits(
 @pytest.mark.django_db
 @override_settings(BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE=10)
 @patch("baserow.api.health.views.get_celery_queue_size", kwargs={"queue": "celery"})
-def test_celery_queue_size_exceed_queue_name(mock_get_size, data_fixture, api_client):
-    mock_get_size.return_value = 0
-    api_client.get(
-        reverse("api:health:celery_queue_size_exceeded") + "?queue=celery",
-        content_type="application/json",
-    )
-    mock_get_size.assert_called_with("celery")
-
-
-@pytest.mark.django_db
-@override_settings(BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE=10)
-@patch("baserow.api.health.views.get_celery_queue_size", kwargs={"queue": "celery"})
-def test_celery_queue_size_exceed_export_queue_name(
-    mock_get_size, data_fixture, api_client
+@pytest.mark.parametrize("queue", ["celery", "export", "chat_run"])
+def test_celery_queue_size_exceed_queue_name(
+    mock_get_size, data_fixture, api_client, queue
 ):
     mock_get_size.return_value = 0
-    api_client.get(
-        reverse("api:health:celery_queue_size_exceeded") + "?queue=export",
+    response = api_client.get(
+        reverse("api:health:celery_queue_size_exceeded") + f"?queue={queue}",
         content_type="application/json",
     )
-    mock_get_size.assert_called_with("export")
+    assert response.status_code == HTTP_200_OK
+    mock_get_size.assert_called_with(queue)
 
 
 @pytest.mark.django_db

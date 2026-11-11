@@ -10,11 +10,11 @@ import {
   CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import {
-  LocalBaserowCreateRowWorkflowServiceType,
-  LocalBaserowCreateRowsWorkflowServiceType,
-  LocalBaserowUpdateRowWorkflowServiceType,
-  LocalBaserowUpdateRowsWorkflowServiceType,
-  LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowCreateRowServiceType,
+  LocalBaserowCreateRowsServiceType,
+  LocalBaserowUpdateRowServiceType,
+  LocalBaserowUpdateRowsServiceType,
+  LocalBaserowDeleteRowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 
@@ -500,7 +500,7 @@ export class CreateRowWorkflowActionType extends LocalBaserowWorkflowActionServi
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowCreateRowWorkflowServiceType.getType()
+      LocalBaserowCreateRowServiceType.getType()
     )
   }
 }
@@ -517,7 +517,7 @@ export class LocalBaserowCreateRowsWorkflowActionType extends LocalBaserowWorkfl
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowCreateRowsWorkflowServiceType.getType()
+      LocalBaserowCreateRowsServiceType.getType()
     )
   }
 
@@ -538,7 +538,7 @@ export class UpdateRowWorkflowActionType extends LocalBaserowWorkflowActionServi
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowUpdateRowWorkflowServiceType.getType()
+      LocalBaserowUpdateRowServiceType.getType()
     )
   }
 }
@@ -555,7 +555,7 @@ export class LocalBaserowUpdateRowsWorkflowActionType extends LocalBaserowWorkfl
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowUpdateRowsWorkflowServiceType.getType()
+      LocalBaserowUpdateRowsServiceType.getType()
     )
   }
 
@@ -576,7 +576,7 @@ export class DeleteRowWorkflowActionType extends LocalBaserowWorkflowActionServi
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowDeleteRowWorkflowServiceType.getType()
+      LocalBaserowDeleteRowServiceType.getType()
     )
   }
 }

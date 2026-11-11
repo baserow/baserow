@@ -19,6 +19,12 @@ class CoreHTTPTriggerServiceMethodNotAllowed(Exception):
     pass
 
 
+class CoreHTTPTriggerRequestBodyTooLarge(Exception):
+    """When the HTTP trigger request body is larger than the configured cap."""
+
+    pass
+
+
 class CoreInboundEmailTriggerServiceDoesNotExist(Exception):
     """When no email trigger service matches the provided token."""
 

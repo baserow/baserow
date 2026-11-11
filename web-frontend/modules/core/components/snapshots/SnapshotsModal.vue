@@ -10,7 +10,10 @@
         })
       }}
       <span v-if="maxSnapshots >= 0">{{
-        $t('snapshotsModal.descriptionLimits', { count: maxSnapshots })
+        $t('snapshotsModal.descriptionLimits', {
+          count: maxSnapshots,
+          n: maxSnapshots,
+        })
       }}</span>
     </p>
     <component
@@ -177,6 +180,9 @@ export default {
     },
     onJobCancelled() {
       this.createLoading = false
+    },
+    getJobNotCancellableMessage() {
+      return this.$t('job.errorJobCannotBeCancelledDescription')
     },
     async loadSnapshots() {
       this.snapshotsLoading = true

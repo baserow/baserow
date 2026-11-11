@@ -357,7 +357,7 @@
         "title": "Elfelejtett jelszó",
         "message": "Kérlek add meg e-mail címed. Amennyiben szerepel ilyen e-mail címmel fiók, a rendszer e-mail-ben küldeni fog egy linket az új jelszó igényléséhez.",
         "submit": "Kérem a linket",
-        "confirmation": "Ha szerepel az e-mail cím az adatbázisunkban, hamarosan kapsz egy e-mailt benne az új jelszó igényléséhez szükséges linkkel.",
+        "confirmation": "Küldtünk egy e-mailt a(z) {email} címre, amely egy linket tartalmaz a Baserow-jelszavad visszaállításához.",
         "disabled": "Új jelszó igénylése funkció letiltva",
         "disabledMessage": "Nem lehetséges új jelszó igénylése. A funkció le van tiltva.",
         "loginText": "Van már fiókod és jelszavad?"

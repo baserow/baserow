@@ -166,6 +166,8 @@ def test_list_last_viewed_items_validates_query_parameters(api_client, data_fixt
         {"cursor": "1_"},
         {"cursor": "-1_1"},
         {"cursor": "99999999999999999999_1"},
+        {"cursor": "9" * 4400 + "_1"},
+        {"cursor": "1_" + "9" * 4400},
         {"workspace_ids": "1,a"},
         {"types": "unknown"},
         {"types": "database_view:unknown"},

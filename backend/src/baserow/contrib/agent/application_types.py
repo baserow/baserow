@@ -1,0 +1,294 @@
+from zipfile import ZipFile
+
+from django.contrib.auth.models import AbstractUser
+from django.core.files.storage import Storage
+from django.db import transaction
+from django.db.transaction import Atomic
+from django.urls import URLResolver, include, path
+
+from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
+from baserow.contrib.agent.constants import AgentRunAsState
+from baserow.contrib.agent.handler import AgentHandler
+from baserow.contrib.agent.models import AgentApplication
+from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.registries import agent_tool_type_registry
+from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
+from baserow.core.generative_ai.constants import ReasoningEffort
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.operations import ReadIntegrationOperationType
+from baserow.core.models import Workspace
+from baserow.core.registries import ApplicationType, ImportExportConfig
+from baserow.core.storage import ExportZipFile
+from baserow.core.types import PermissionCheck
+from baserow.core.utils import ChildProgressBuilder
+
+
+class AgentApplicationType(ApplicationType):
+    type = "agent"
+    model_class = AgentApplication
+    serializer_field_names = ["name", "readiness"]
+    serializer_mixins = [AgentApplicationSerializer]
+    request_serializer_field_names = ["name"]
+    request_serializer_mixins = []
+    supports_integrations = True
+
+    @staticmethod
+    def _includes_conversations(import_export_config: ImportExportConfig) -> bool:
+        """Conversations are private, so only internal full-data copies carry them."""
+
+        return (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and not import_export_config.is_publishing
+            and not import_export_config.only_structure
+            and not import_export_config.exclude_sensitive_data
+        )
+
+    @staticmethod
+    def _imported_run_as(
+        workspace: Workspace | None,
+        serialized_values: dict,
+        import_export_config: ImportExportConfig,
+    ) -> tuple[str | None, int | None]:
+        """
+        Keep existing identity references in internal copies of their workspace.
+
+        A trashed identity remains configured so restoring it also restores access
+        for the copy. Execution still requires an active identity.
+
+        :param workspace: The workspace the Agent is imported into, or None for a
+            snapshot, which keeps the identity for its restore.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :return: The run-as type and id to save.
+        """
+
+        run_as = (
+            serialized_values.get("run_as_subject_type"),
+            serialized_values.get("run_as_subject_id"),
+        )
+        # Ids from another instance or template could match unrelated identities.
+        if not import_export_config.is_duplicate or import_export_config.is_template:
+            return None, None
+        if workspace is None:
+            return run_as
+        resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)
+        if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
+            return run_as
+        return None, None
+
+    def supports_integration_type(self, integration_type) -> bool:
+        """Only MCP servers: an Agent uses no other integration."""
+
+        from baserow.contrib.integrations.mcp.integration_types import (
+            MCPServerIntegrationType,
+        )
+
+        return (
+            super().supports_integration_type(integration_type)
+            and integration_type.type == MCPServerIntegrationType.type
+        )
+
+    def get_api_urls(self) -> list[URLResolver]:
+        from baserow.contrib.agent.api import urls as api_urls
+
+        return [path("agent/", include(api_urls, namespace=self.type))]
+
+    def get_pending_counts(
+        self, users: list[AbstractUser], applications: list[AgentApplication]
+    ) -> dict[int, dict[int, int]]:
+        """
+        Count the held calls waiting for each user's decision in their own
+        conversations with each Agent.
+
+        :param users: The users to count for.
+        :param applications: The Agents to count in.
+        :return: The number of pending approvals by Agent id, by user id, leaving
+            out users and Agents with none.
+        """
+
+        return AgentHandler().get_pending_approval_counts(
+            [user.id for user in users],
+            [application.id for application in applications],
+        )
+
+    def export_safe_transaction_context(self, application: AgentApplication) -> Atomic:
+        return transaction.atomic()
+
+    def create_application(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        init_with_data: bool = False,
+        **kwargs,
+    ) -> AgentApplication:
+        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
+        models = generative_ai_model_type_registry.get_enabled_models_per_type(
+            workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
+        )
+        # Match AI Agent service defaults, only when creating a new application.
+        # Reading or importing an Agent must preserve deliberately blank settings.
+        if models and not {"provider_type", "model_identifier"}.intersection(kwargs):
+            provider_type, identifiers = next(iter(models.items()))
+            kwargs.update(provider_type=provider_type, model_identifier=identifiers[0])
+        return super().create_application(
+            user, workspace, init_with_data=init_with_data, **kwargs
+        )
+
+    def _integrations_to_export(
+        self, application: AgentApplication, import_export_config: ImportExportConfig
+    ) -> list[Integration]:
+        """
+        The connected apps a copy carries. A duplicate keeps their credentials,
+        so it only carries the ones the person copying may read.
+        """
+
+        integrations = list(IntegrationHandler().get_integrations(application))
+        copied_by = import_export_config.copied_by
+        if copied_by is None or import_export_config.exclude_sensitive_data:
+            return integrations
+        checks = [
+            PermissionCheck(copied_by, ReadIntegrationOperationType.type, integration)
+            for integration in integrations
+        ]
+        allowed = CoreHandler().check_multiple_permissions(
+            checks, workspace=application.workspace
+        )
+        return [
+            integration
+            for check, integration in zip(checks, integrations)
+            if allowed.get(check, False) is True
+        ]
+
+    def export_serialized(
+        self,
+        application: AgentApplication,
+        import_export_config: ImportExportConfig,
+        files_zip: ExportZipFile | None = None,
+        storage: Storage | None = None,
+        progress_builder: ChildProgressBuilder | None = None,
+    ) -> dict:
+        """Package the configuration, adding conversations only to internal copies."""
+
+        if import_export_config.exported_by is not None:
+            CoreHandler().check_permissions(
+                import_export_config.exported_by,
+                ReadAgentConfigurationOperationType.type,
+                workspace=application.workspace,
+                context=application,
+            )
+        serialized = super().export_serialized(
+            application, import_export_config, files_zip, storage, progress_builder
+        )
+        serialized.update(
+            instructions=application.instructions,
+            provider_type=application.provider_type,
+            model_identifier=application.model_identifier,
+            reasoning_effort=application.reasoning_effort,
+            **AgentHandler().get_tool_configuration(application),
+            integrations=[
+                IntegrationHandler().export_integration(
+                    integration,
+                    import_export_config=import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                )
+                for integration in self._integrations_to_export(
+                    application, import_export_config
+                )
+            ],
+            web_search_enabled=application.web_search_enabled,
+        )
+        # Identity ids are local references, not portable configuration.
+        if (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and not import_export_config.exclude_sensitive_data
+        ):
+            serialized.update(
+                run_as_subject_type=application.run_as_subject_type,
+                run_as_subject_id=application.run_as_subject_id,
+            )
+        if self._includes_conversations(import_export_config):
+            serialized["conversations"] = AgentHandler().export_conversations(
+                application
+            )
+        return serialized
+
+    def import_serialized(
+        self,
+        workspace: Workspace | None,
+        serialized_values: dict,
+        import_export_config: ImportExportConfig,
+        id_mapping: dict,
+        files_zip: ZipFile | None = None,
+        storage: Storage | None = None,
+        progress_builder: ChildProgressBuilder | None = None,
+    ) -> AgentApplication:
+        """Import the configuration and any copied conversations as one new Agent."""
+
+        serialized_integrations = serialized_values.pop("integrations", [])
+        id_mapping.setdefault("integrations", {})
+        application = super().import_serialized(
+            workspace,
+            serialized_values,
+            import_export_config,
+            id_mapping,
+            files_zip,
+            storage,
+            progress_builder,
+        )
+        application.instructions = serialized_values.get("instructions", "")
+        application.provider_type = serialized_values.get("provider_type") or None
+        application.model_identifier = serialized_values.get("model_identifier") or None
+        reasoning_effort = serialized_values.get("reasoning_effort")
+        application.reasoning_effort = (
+            reasoning_effort if reasoning_effort in ReasoningEffort else None
+        )
+        application.run_as_subject_type, application.run_as_subject_id = (
+            self._imported_run_as(workspace, serialized_values, import_export_config)
+        )
+        # Searching is paid and sends data out, so outside copies must opt in again.
+        application.web_search_enabled = (
+            import_export_config.is_duplicate
+            and not import_export_config.is_template
+            and serialized_values.get("web_search_enabled", False)
+        )
+        application.save()
+        registered = agent_tool_type_registry.get_types()
+        allowed_tools = (
+            [
+                name
+                for name in serialized_values.get("allowed_tools", [])
+                if name in registered
+            ]
+            if application.run_as_subject_type and application.run_as_subject_id
+            else []
+        )
+        AgentHandler().set_allowed_tools(
+            application,
+            allowed_tools,
+            [
+                name
+                for name in serialized_values.get("ask_first_tools", [])
+                if name in allowed_tools
+            ],
+        )
+        for serialized_integration in serialized_integrations:
+            IntegrationHandler().import_integration(
+                application,
+                serialized_integration,
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                import_export_config=import_export_config,
+            )
+        if self._includes_conversations(import_export_config):
+            AgentHandler().import_conversations(
+                application, serialized_values.get("conversations", [])
+            )
+        return application

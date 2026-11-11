@@ -164,7 +164,7 @@ def test_accepts_email_and_starts_live_workflow(
         user=user, application=automation
     )
 
-    trigger_node = data_fixture.create_inbound_email_trigger_node(
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node(
         workflow=workflow,
         service_kwargs={"token": TOKEN, "is_public": True},
     )
@@ -221,7 +221,7 @@ def test_duplicate_delivery_is_idempotent(api_client, data_fixture):
     workflow = data_fixture.create_automation_workflow(
         user=user, state=WorkflowState.LIVE, create_trigger=False
     )
-    data_fixture.create_inbound_email_trigger_node(
+    data_fixture.create_core_inbound_email_trigger_node(
         workflow=workflow,
         service_kwargs={"token": TOKEN, "is_public": True},
     )
@@ -248,7 +248,7 @@ def test_draft_workflow_not_started_outside_test_window(api_client, data_fixture
     workflow = data_fixture.create_automation_workflow(
         user=user, state=WorkflowState.DRAFT, create_trigger=False
     )
-    data_fixture.create_inbound_email_trigger_node(
+    data_fixture.create_core_inbound_email_trigger_node(
         workflow=workflow,
         service_kwargs={"token": TOKEN},
     )
@@ -281,7 +281,7 @@ def test_test_address_starts_draft_workflow_in_test_window(api_client, data_fixt
         create_trigger=False,
         allow_test_run_until=timezone.now() + timedelta(minutes=5),
     )
-    data_fixture.create_inbound_email_trigger_node(
+    data_fixture.create_core_inbound_email_trigger_node(
         workflow=workflow,
         service_kwargs={"token": TOKEN},
     )
@@ -311,7 +311,7 @@ def test_bare_address_does_not_reach_a_draft_workflow(api_client, data_fixture):
         create_trigger=False,
         allow_test_run_until=timezone.now() + timedelta(minutes=5),
     )
-    data_fixture.create_inbound_email_trigger_node(
+    data_fixture.create_core_inbound_email_trigger_node(
         workflow=workflow,
         service_kwargs={"token": TOKEN},
     )
@@ -339,7 +339,7 @@ def test_test_address_does_not_reach_a_published_workflow(api_client, data_fixtu
     workflow = data_fixture.create_automation_workflow(
         user=user, state=WorkflowState.LIVE, create_trigger=False
     )
-    data_fixture.create_inbound_email_trigger_node(
+    data_fixture.create_core_inbound_email_trigger_node(
         workflow=workflow,
         service_kwargs={"token": TOKEN, "is_public": True},
     )

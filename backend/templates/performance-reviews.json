@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Performance Reviews",
+    "description": "Run employee performance reviews with reviewers and rating averages.",
     "icon": "iconoir-profile-circle",
     "keywords": [
         "employee review",

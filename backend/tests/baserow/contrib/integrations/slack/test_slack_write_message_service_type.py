@@ -28,8 +28,10 @@ from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
+    RemoteBusyDispatchException,
     RemoteRefusedDispatchException,
     ResponseTooLargeDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -819,16 +821,65 @@ def test_slack_write_message_failure_does_not_repeat_the_request(data_fixture):
         "text=a+private+message"
     )
 
+    # The request failed on the way, so the automation runner may retry it.
     with patch(
         "baserow.contrib.integrations.slack.service_types.send_http_request",
         new=Mock(side_effect=failure),
     ):
-        with pytest.raises(UnexpectedDispatchException) as raised:
+        with pytest.raises(RuntimeDispatchException) as raised:
             service.get_type().dispatch(service, FakeDispatchContext())
 
     assert "a private message" not in str(raised.value)
     assert "social" not in str(raised.value)
     assert "ConnectionError" in str(raised.value)
+
+
+@pytest.mark.django_db
+def test_slack_write_message_rate_limit_is_retryable(data_fixture):
+    """
+    Slack asks for the message to be sent again later. The refusal keeps its
+    message, which is written for whoever sent it, and the automation runner
+    may retry it.
+    """
+
+    service = data_fixture.create_slack_write_message_service(
+        channel="general", text="'hi'"
+    )
+    answer = Mock()
+    answer.json.return_value = {"ok": False, "error": "rate_limited"}
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(return_value=answer),
+    ):
+        with pytest.raises(RemoteBusyDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert isinstance(raised.value, RemoteRefusedDispatchException)
+    assert isinstance(raised.value, UnexpectedDispatchException)
+    assert (
+        str(raised.value)
+        == "Your app has sent too many requests in a short period of time."
+    )
+
+
+@pytest.mark.django_db
+def test_slack_write_message_other_refusals_are_not_retryable(data_fixture):
+    service = data_fixture.create_slack_write_message_service(
+        channel="general", text="'hi'"
+    )
+    answer = Mock()
+    answer.json.return_value = {"ok": False, "error": "invalid_auth"}
+
+    with patch(
+        "baserow.contrib.integrations.slack.service_types.send_http_request",
+        new=Mock(return_value=answer),
+    ):
+        with pytest.raises(RemoteRefusedDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert not isinstance(raised.value, RuntimeDispatchException)
+    assert str(raised.value) == "Invalid bot user token."
 
 
 @pytest.mark.django_db

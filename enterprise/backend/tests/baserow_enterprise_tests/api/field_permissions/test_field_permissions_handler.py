@@ -41,7 +41,11 @@ def test_only_builder_and_up_can_get_field_permissions(
     enterprise_data_fixture, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        custom_permissions=[(user, "VIEWER")]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
     enterprise_data_fixture.enable_enterprise()
@@ -106,7 +110,11 @@ def test_only_builder_and_up_can_update_field_permissions(
     enterprise_data_fixture, synced_roles
 ):
     user = enterprise_data_fixture.create_user()
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        custom_permissions=[(user, "VIEWER")]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
     enterprise_data_fixture.enable_enterprise()
@@ -336,6 +344,33 @@ def test_get_subject_options_returns_searchable_workspace_users_and_teams(
 
 
 @pytest.mark.django_db
+def test_get_subject_options_orders_users_by_displayed_name(enterprise_data_fixture):
+    admin = enterprise_data_fixture.create_user()
+    first_by_email = enterprise_data_fixture.create_user(
+        first_name="Zoe", email="a@example.com"
+    )
+    first_by_name = enterprise_data_fixture.create_user(
+        first_name="Ada", email="z@example.com"
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    enterprise_data_fixture.create_user_workspace(
+        user=first_by_email, workspace=workspace, permissions="EDITOR"
+    )
+    enterprise_data_fixture.create_user_workspace(
+        user=first_by_name, workspace=workspace, permissions="EDITOR"
+    )
+
+    options = FieldPermissionsHandler.get_subject_options(
+        workspace, exclude_user_ids=[admin.id]
+    )
+
+    assert [option["subject_id"] for option in options] == [
+        first_by_name.id,
+        first_by_email.id,
+    ]
+
+
+@pytest.mark.django_db
 def test_sync_empty_field_permission_subjects_uses_single_delete_query(
     enterprise_data_fixture, django_assert_num_queries
 ):
@@ -477,7 +512,10 @@ def test_cannot_create_or_update_rows_without_proper_permisisons(
 ):
     user = enterprise_data_fixture.create_user()
     test_user = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(users=[user, test_user])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[user], custom_permissions=[(test_user, "VIEWER")]
+    )
     database = enterprise_data_fixture.create_database_application(
         user=user, workspace=workspace
     )
@@ -624,7 +662,10 @@ def test_import_rows_excludes_unwritable_fields_from_positional_schema(
 ):
     admin = enterprise_data_fixture.create_user()
     importer = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(users=[admin, importer])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[admin], custom_permissions=[(importer, "VIEWER")]
+    )
     database = enterprise_data_fixture.create_database_application(
         user=admin, workspace=workspace
     )
@@ -701,7 +742,10 @@ def test_import_rows_rejects_unwritable_upsert_fields(
 ):
     admin = enterprise_data_fixture.create_user()
     importer = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(users=[admin, importer])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[admin], custom_permissions=[(importer, "VIEWER")]
+    )
     database = enterprise_data_fixture.create_database_application(
         user=admin, workspace=workspace
     )
@@ -764,7 +808,10 @@ def test_import_rows_preserves_queued_field_positions_when_permissions_change(
 ):
     admin = enterprise_data_fixture.create_user()
     importer = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(users=[admin, importer])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[admin], custom_permissions=[(importer, "VIEWER")]
+    )
     database = enterprise_data_fixture.create_database_application(
         user=admin, workspace=workspace
     )

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Company Asset Tracker",
+    "description": "Track company equipment, who uses it and its repair history.",
     "icon": "iconoir-barcode",
     "keywords": [
         "asset tracker",

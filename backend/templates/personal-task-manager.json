@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Personal Task Manager",
+    "description": "Organize personal tasks, shopping lists and contacts.",
     "icon": "iconoir-paste-clipboard",
     "keywords": [
         "todo",

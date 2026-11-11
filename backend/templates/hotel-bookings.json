@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Hotel Bookings",
+    "description": "Manage hotel rooms, reservations, customers and booking platforms.",
     "icon": "iconoir-small-shop",
     "keywords": [
         "hotel",

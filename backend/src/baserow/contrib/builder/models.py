@@ -12,6 +12,7 @@ from baserow.contrib.builder.theme.models import (
     TypographyThemeConfigBlock,
 )
 from baserow.core.models import Application, UserFile
+from baserow.core.services.deferred_deletion import deferred_service_deletion_context
 
 __all__ = [
     "Builder",
@@ -90,6 +91,18 @@ def default_builder_breakpoints():
 
 
 class Builder(Application):
+    import_report = models.JSONField(
+        default=list,
+        db_default=[],
+        editable=False,
+        help_text="Active content found during import, using the imported object IDs.",
+    )
+
+    untrusted_content = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Blocks custom code and embedded content until explicitly trusted.",
+    )
     breakpoints = models.JSONField(
         default=default_builder_breakpoints,
         db_default=LEGACY_BUILDER_BREAKPOINTS,
@@ -121,6 +134,10 @@ class Builder(Application):
             # Create the shared page
             PageHandler().create_shared_page(self)
 
+    def delete(self, *args, **kwargs):
+        with deferred_service_deletion_context():
+            return super().delete(*args, **kwargs)
+
     def get_parent(self):
         # If we had select related workspace we want to keep it
         self.application_ptr.workspace = self.workspace
@@ -147,6 +164,6 @@ class Builder(Application):
 
         if not self.workspace_id:
             domain = DomainHandler().get_domain_for_builder(self)
-            return domain.builder.workspace
+            return domain.builder.workspace if domain else None
         else:
             return self.workspace

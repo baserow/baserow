@@ -1,4 +1,5 @@
 import { defineComponent } from 'vue'
+import { DOMWrapper } from '@vue/test-utils'
 
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -11,8 +12,8 @@ describe('PaginatedDropdown component', () => {
     testApp = new TestApp()
   })
 
-  afterEach(() => {
-    testApp.afterEach()
+  afterEach(async () => {
+    await testApp.afterEach()
   })
 
   const results = [
@@ -108,5 +109,137 @@ describe('PaginatedDropdown component', () => {
       displayName: 'Unnamed 2',
       item: { id: 2, value: '' },
     })
+  })
+
+  test('keyboard selection uses server results without filtering their labels locally', async () => {
+    const remoteFetch = vi.fn(fetchPage)
+    const wrapper = await mountComponent({
+      fetchPage: remoteFetch,
+      fetchOnOpen: true,
+      debounceTime: 0,
+      addEmptyItem: false,
+    })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await wrapper
+      .get('.select__search-input')
+      .setValue('a matching server alias')
+    await vi.waitFor(() =>
+      expect(remoteFetch).toHaveBeenLastCalledWith(1, 'a matching server alias')
+    )
+    await flushPromises()
+
+    expect(wrapper.get('.select__item').classes()).not.toContain('hidden')
+    const body = new DOMWrapper(document.body)
+    await body.trigger('keydown', { key: 'ArrowDown' })
+    await body.trigger('keydown', { key: 'Enter' })
+
+    expect(wrapper.emitted('update:modelValue')).toEqual([[1]])
+  })
+  test('does not fetch while disabled, including a disabled click', async () => {
+    const fetch = vi.fn(fetchPage)
+    const wrapper = await mountComponent({ fetchPage: fetch, disabled: true })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    expect(fetch).not.toHaveBeenCalled()
+    await wrapper.setProps({ disabled: false })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  test('ignores an old replacement after refreshing the open list', async () => {
+    let resolveOld
+    const fetch = vi
+      .fn()
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOld = resolve
+        })
+      )
+      .mockResolvedValue({
+        data: { results: [{ id: 2, value: 'Current choice' }], count: 1 },
+      })
+    const wrapper = await mountComponent({
+      fetchPage: fetch,
+      fetchOnOpen: true,
+    })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await wrapper.setProps({ refreshKey: 1 })
+    await flushPromises()
+    resolveOld({
+      data: { results: [{ id: 1, value: 'Stale choice' }], count: 1 },
+    })
+    await flushPromises()
+    expect(wrapper.get('.select__items').text()).toContain('Current choice')
+    expect(wrapper.get('.select__items').text()).not.toContain('Stale choice')
+  })
+
+  test('ignores an old appended page after invalidation', async () => {
+    let resolveOldPage
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: { results: [{ id: 1, value: 'First choice' }], count: 3 },
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOldPage = resolve
+        })
+      )
+      .mockResolvedValue({
+        data: { results: [{ id: 3, value: 'Current choice' }], count: 1 },
+      })
+    const wrapper = await mountComponent({
+      fetchPage: fetch,
+      fetchOnOpen: true,
+    })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    const items = wrapper.get('.select__items')
+    Object.defineProperties(items.element, {
+      scrollHeight: { value: 100, configurable: true },
+      clientHeight: { value: 10, configurable: true },
+      scrollTop: { value: 90, configurable: true },
+    })
+    await items.trigger('scroll')
+    await flushPromises()
+    expect(fetch).toHaveBeenCalledTimes(2)
+    await wrapper.setProps({ refreshKey: 1 })
+    await flushPromises()
+    resolveOldPage({
+      data: { results: [{ id: 2, value: 'Stale page' }], count: 3 },
+    })
+    await flushPromises()
+    expect(items.text()).toContain('Current choice')
+    expect(items.text()).not.toContain('Stale page')
+    expect(items.text()).not.toContain('First choice')
+  })
+
+  test('removes positioning listeners when a paginated dropdown closes', async () => {
+    const add = vi.spyOn(window, 'addEventListener')
+    const remove = vi.spyOn(window, 'removeEventListener')
+    const wrapper = await mountComponent({
+      fixedItems: true,
+      fetchOnOpen: true,
+    })
+    await wrapper.get('.dropdown__selected').trigger('click')
+    await flushPromises()
+    const positions = add.mock.calls.filter(([type]) =>
+      ['scroll', 'resize'].includes(type)
+    )
+    expect(positions).toHaveLength(2)
+    await new DOMWrapper(document.body).trigger('keydown', { key: 'Escape' })
+    for (const [type, listener] of positions) {
+      expect(
+        remove.mock.calls.some(
+          ([removedType, removedListener]) =>
+            removedType === type && removedListener === listener
+        )
+      ).toBe(true)
+    }
+    add.mockRestore()
+    remove.mockRestore()
   })
 })

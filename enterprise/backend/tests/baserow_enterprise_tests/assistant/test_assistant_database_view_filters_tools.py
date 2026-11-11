@@ -131,7 +131,7 @@ def test_all_number_filters_conversion(data_fixture):
         (
             {"type": "number", "operator": "empty", "value": 0.0, "or_equal": False},
             "empty",
-            "0.0",
+            "",
         ),
         (
             {
@@ -141,7 +141,7 @@ def test_all_number_filters_conversion(data_fixture):
                 "or_equal": False,
             },
             "not_empty",
-            "0.0",
+            "",
         ),
     ]
 

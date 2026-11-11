@@ -127,6 +127,33 @@ def test_disconnect_records_action(client, api_client, data_fixture, done_action
 
 
 @pytest.mark.django_db
+def test_disconnect_sends_posthog_event_with_the_app(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = cimd_client(client, client_name="My app")
+    tokens = obtain_tokens(client, api_client, token, workspace, client_id=client_id)
+
+    with patch("baserow.core.posthog.capture_user_event") as capture:
+        response = api_client.delete(
+            reverse(
+                "api:mcp:oauth_connection",
+                kwargs={"connection_id": tokens["endpoint_id"]},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == 204
+    capture.assert_called_once()
+    assert capture.call_args.args[1] == "disconnect_mcp_oauth_client"
+    assert capture.call_args.args[2] == {
+        "endpoint_id": tokens["endpoint_id"],
+        "workspace_id": workspace.id,
+        "client_name": "My app",
+        "client_host": "claude.ai",
+    }
+
+
+@pytest.mark.django_db
 def test_consent_sends_posthog_event_after_commit(
     client, api_client, data_fixture, django_capture_on_commit_callbacks
 ):
@@ -145,7 +172,12 @@ def test_consent_sends_posthog_event_after_commit(
     capture.assert_called_once_with(
         user,
         "connect_mcp_oauth_client",
-        {"endpoint_id": endpoint.id, "workspace_id": workspace.id},
+        {
+            "endpoint_id": endpoint.id,
+            "workspace_id": workspace.id,
+            "client_name": "Test MCP client",
+            "client_host": "claude.ai",
+        },
         workspace=workspace,
         session=None,
     )

@@ -42,6 +42,7 @@
       <AssistantMessageList
         v-if="currentChatId"
         :messages="messages"
+        :running="isAssistantRunning"
       ></AssistantMessageList>
       <AssistantWelcomeMessage
         v-else
@@ -71,6 +72,7 @@ import AssistantMessageList from '@baserow_enterprise/components/assistant/Assis
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
 import { waitFor } from '@baserow/modules/core/utils/queue'
+import { provideNow } from '@baserow/modules/core/composables/useNow'
 
 export default {
   name: 'AssistantPanel',
@@ -86,6 +88,9 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    provideNow()
   },
   data() {
     return {
@@ -123,7 +128,10 @@ export default {
     workspace: {
       handler(newWorkspace) {
         this.resetStore()
-        this.fetchChats(newWorkspace.id)
+        // The selected workspace is an empty object once it goes away.
+        if (newWorkspace.id !== undefined) {
+          this.fetchChats(newWorkspace.id)
+        }
       },
       immediate: true,
     },
@@ -239,6 +247,15 @@ export default {
               },
             })
           })
+        } else if (newLocation.type === 'dashboard') {
+          waitFor(() =>
+            store.getters['application/get'](newLocation.dashboard_id)
+          ).then(() => {
+            router.push({
+              name: 'dashboard-application',
+              params: { dashboardId: newLocation.dashboard_id },
+            })
+          })
         }
       },
     },
@@ -255,10 +272,14 @@ export default {
       isUserScrolling = !atBottom
     })
 
-    // Watch for DOM changes
+    // Hidden thinking text can change without growing its capped preview.
+    let previousHeight = container.scrollHeight
     const observer = new MutationObserver(() => {
+      const height = container.scrollHeight
+      if (height === previousHeight) return
+      previousHeight = height
       if (!isUserScrolling) {
-        container.scrollTop = container.scrollHeight
+        container.scrollTop = height
       }
     })
 

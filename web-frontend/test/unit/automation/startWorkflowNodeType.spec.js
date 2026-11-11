@@ -1,6 +1,6 @@
-import { CoreStartWorkflowNodeType } from '@baserow/modules/automation/nodeTypes'
+import { CoreStartWorkflowActionNodeType } from '@baserow/modules/automation/nodeTypes'
 
-describe('CoreStartWorkflowNodeType label', () => {
+describe('CoreStartWorkflowActionNodeType label', () => {
   const workspace = { id: 1 }
   const automations = [
     {
@@ -18,7 +18,7 @@ describe('CoreStartWorkflowNodeType label', () => {
   ]
 
   const makeNodeType = () =>
-    new CoreStartWorkflowNodeType({
+    new CoreStartWorkflowActionNodeType({
       app: {
         $i18n: {
           t: (key, data) => (data ? `${key} ${JSON.stringify(data)}` : key),

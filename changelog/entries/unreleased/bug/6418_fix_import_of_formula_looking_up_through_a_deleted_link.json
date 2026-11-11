@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix importing, duplicating or snapshotting a database when a formula looks up through a deleted link field.",
+    "issue_origin": "github",
+    "issue_number": 6418,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-19"
+}

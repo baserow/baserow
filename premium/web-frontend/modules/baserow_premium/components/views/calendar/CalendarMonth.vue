@@ -200,6 +200,9 @@ export default {
       ]
     },
     weekDays() {
+      // The names depend on moment's locale, which isn't reactive, so the i18n
+      // locale is read to recompute them when the language changes.
+      this.$i18n.locale
       return weekDaysShort()
     },
   },

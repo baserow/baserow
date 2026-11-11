@@ -152,6 +152,22 @@ class AdHocFilters:
             only_filter_by_field_ids=only_filter_by_field_ids,
         )
 
+    def get_api_filters_field_ids(self) -> set[int]:
+        """
+        Returns the ids of the fields referenced by the grouped filters,
+        including the filters nested in groups at any depth.
+
+        :return: The set of referenced field ids.
+        """
+
+        field_ids = set()
+        pending = [self.api_filters] if self.api_filters else []
+        while pending:
+            group = pending.pop()
+            field_ids.update(f["field"] for f in group.get("filters", []))
+            pending.extend(group.get("groups", []))
+        return field_ids
+
     @property
     def has_simple_filters(self):
         return (

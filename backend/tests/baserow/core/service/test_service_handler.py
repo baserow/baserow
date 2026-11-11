@@ -215,6 +215,25 @@ def test_update_service_sortings(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_service_refuses_a_sort_on_another_table(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    table = data_fixture.create_database_table()
+    data_fixture.create_text_field(table=table, name="Name")
+    other_field = data_fixture.create_text_field(name="Elsewhere")
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    service_type = service_type_registry.get("local_baserow_list_rows")
+
+    with pytest.raises(ValidationError):
+        ServiceHandler().update_service(
+            service_type,
+            service,
+            service_sorts=[{"field": other_field, "order_by": "ASC"}],
+        )
+    assert service.service_sorts.count() == 0
+
+
+@pytest.mark.django_db
 def test_update_service_invalid_values(data_fixture):
     service = data_fixture.create_local_baserow_get_row_service()
 

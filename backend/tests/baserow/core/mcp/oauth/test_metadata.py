@@ -29,3 +29,19 @@ def test_protected_resource_metadata(client, settings):
         assert data["scopes_supported"] == ["mcp"]
         assert "offline_access" not in data["scopes_supported"]
         assert data["bearer_methods_supported"] == ["header"]
+
+
+@pytest.mark.django_db
+def test_openai_apps_challenge_returns_the_token(client, settings):
+    settings.BASEROW_MCP_OPENAI_APPS_CHALLENGE = "challenge-token"
+    response = client.get("/.well-known/openai-apps-challenge")
+    assert response.status_code == 200
+    assert response["Content-Type"].startswith("text/plain")
+    assert response.content == b"challenge-token"
+
+
+@pytest.mark.django_db
+def test_openai_apps_challenge_is_not_found_without_a_token(client, settings):
+    settings.BASEROW_MCP_OPENAI_APPS_CHALLENGE = ""
+    response = client.get("/.well-known/openai-apps-challenge")
+    assert response.status_code == 404

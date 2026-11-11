@@ -8,16 +8,17 @@ import pytest
 from pydantic import ValidationError
 
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow_enterprise.assistant.tools.builder import helpers
+from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.types import (
+    DisplayElementCreate,
+    ElementMove,
+    LayoutElementCreate,
+)
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_display_elements,
     create_layout_elements,
     move_elements,
-)
-from baserow_enterprise.assistant.tools.builder.types import (
-    DisplayElementCreate,
-    ElementMove,
-    LayoutElementCreate,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -31,23 +32,7 @@ def mock_formula_generators(monkeypatch):
         return []
 
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_element_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_data_source_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_workflow_action_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_single_element_formulas",
-        noop,
-    )
-    monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.builder.agents.update_single_data_source_formulas",
+        "baserow_enterprise.assistant.tools.builder.agents.repair_builder_formula_errors",
         noop,
     )
 
@@ -119,6 +104,129 @@ def test_move_element_to_end(data_fixture):
             "First-0": {},
         }
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_element_to_end_keeps_the_request_cache(data_fixture):
+    from django.test import override_settings
+
+    from baserow.core.cache import local_cache
+
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+
+    with override_settings(BASEROW_USE_LOCAL_CACHE=True), local_cache.context():
+        local_cache.get("kept", lambda: "value")
+        move_elements(
+            ctx,
+            page_id=page.id,
+            moves=[ElementMove(element_id=ref_to_id_map["h1"], before_id=None)],
+            thought="move to end",
+        )
+        assert local_cache.get("kept", lambda: "rebuilt") == "value"
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
+        }
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_move_after_a_failed_move_reads_the_saved_graph(data_fixture, monkeypatch):
+    from django.test import override_settings
+
+    from baserow.contrib.builder.tools import helpers
+    from baserow.core.cache import local_cache
+
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+    move_element = helpers.move_element
+    calls = []
+
+    def fail_the_first_move(*args, **kwargs):
+        element = move_element(*args, **kwargs)
+        calls.append(element.id)
+        if len(calls) == 1:
+            raise ValueError("failed after moving")
+        return element
+
+    monkeypatch.setattr(helpers, "move_element", fail_the_first_move)
+    move_to_end = ElementMove(element_id=ref_to_id_map["h1"], before_id=None)
+
+    with override_settings(BASEROW_USE_LOCAL_CACHE=True), local_cache.context():
+        result = move_elements(
+            ctx, page_id=page.id, moves=[move_to_end, move_to_end], thought="t"
+        )
+
+    assert len(result["errors"]) == 1
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
+        }
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_element_added_during_the_moves_is_kept(data_fixture, monkeypatch):
+    from threading import Thread
+
+    from django.db import connection
+    from django.test import override_settings
+
+    from baserow.contrib.builder.elements.registries import element_type_registry
+    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.core.cache import local_cache
+
+    ctx, page, ref_to_id_map = _create_two_headings(data_fixture)
+    move_element = helpers.move_element
+    added = []
+
+    def add_heading_from_another_connection():
+        try:
+            added.append(
+                ElementService().create_element(
+                    ctx.deps.user,
+                    element_type_registry.get("heading"),
+                    page.__class__.objects.get(id=page.id),
+                    value="'Added'",
+                )
+            )
+        finally:
+            connection.close()
+
+    thread = Thread(target=add_heading_from_another_connection)
+    calls = []
+
+    def add_before_the_second_move(*args, **kwargs):
+        # The moves are one transaction, so the addition waits for them.
+        calls.append(1)
+        if len(calls) == 2:
+            thread.start()
+        return move_element(*args, **kwargs)
+
+    monkeypatch.setattr(helpers, "move_element", add_before_the_second_move)
+
+    with override_settings(BASEROW_USE_LOCAL_CACHE=True), local_cache.context():
+        result = move_elements(
+            ctx,
+            page_id=page.id,
+            moves=[
+                ElementMove(element_id=ref_to_id_map["h1"], before_id=None),
+                ElementMove(element_id=ref_to_id_map["h2"], before_id=None),
+            ],
+            thought="t",
+        )
+    thread.join(timeout=10)
+
+    assert "errors" not in result
+    page.refresh_from_db()
+    assert str(added[0].id) in page.graph
+    assert str(ref_to_id_map["h2"]) in page.graph
 
 
 @pytest.mark.django_db(transaction=True)
@@ -264,7 +372,7 @@ def test_move_element_helper_drops_place_in_container_without_parent(
 
     # The tool wraps each move in a transaction (the helper locks the row).
     with transaction.atomic():
-        helpers.move_element(ctx.deps.user, move)
+        helpers.move_element(ctx.deps.user, page, move)
 
     page.refresh_from_db()
     # h1 is last, on the default output; no stray `next["0"]` edge.
@@ -314,3 +422,62 @@ def test_create_display_element_without_parent_ignores_place_in_container(
             "Second-1": {},
         }
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_children_keep_their_order_when_created_and_moved(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+    ctx = make_test_ctx(user, workspace, create_fake_tool_helpers())
+
+    layout = create_layout_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            LayoutElementCreate(ref="box", type="simple_container"),
+            LayoutElementCreate(ref="top", type="header"),
+        ],
+        thought="test",
+    )["ref_to_id_map"]
+    create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(
+                ref=value, type="heading", value=value, parent_element=layout["box"]
+            )
+            for value in ("First", "Second")
+        ]
+        + [
+            DisplayElementCreate(
+                ref=value, type="button", value=value, parent_element=layout["top"]
+            )
+            for value in ("One", "Two")
+        ],
+        thought="test",
+    )
+    loose = create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[DisplayElementCreate(ref="h", type="heading", value="Third")],
+        thought="test",
+    )["ref_to_id_map"]["h"]
+    move_elements(
+        ctx,
+        page_id=page.id,
+        moves=[ElementMove(element_id=loose, parent_element_id=layout["box"])],
+        thought="test",
+    )
+
+    def children(element_id):
+        container = Element.objects.get(id=element_id)
+        container.page.reload_graph()
+        return [
+            child.specific.value["formula"]
+            for child in container.page.get_graph().get_children(element_id)
+        ]
+
+    assert children(layout["box"]) == ["'First'", "'Second'", "'Third'"]
+    assert children(layout["top"]) == ["'One'", "'Two'"]

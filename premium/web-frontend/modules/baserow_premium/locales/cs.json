@@ -219,7 +219,9 @@
         "aiFeatures": "Funkce AI",
         "aiFeaturesContent": "Pomocí AI automatizujte a vylepšujte pracovní postupy. Pole promptu AI umožňuje generovat text, souhrny nebo poznatky přímo v buňkách podle dynamických promptů, které mohou odkazovat na jiná pole. Samostatně můžete AI požádat také o vytvoření vzorců.",
         "chartWidget": "Widget grafu",
-        "chartWidgetContent": "Vizualizujte data pomocí grafů na nástěnkách. Jako zdroj dat použijte libovolnou tabulku, přidejte více datových řad a seskupujte nebo řaďte podle polí s bohatými možnostmi souhrnů."
+        "chartWidgetContent": "Vizualizujte data pomocí grafů na nástěnkách. Jako zdroj dat použijte libovolnou tabulku, přidejte více datových řad a seskupujte nebo řaďte podle polí s bohatými možnostmi souhrnů.",
+        "groupedAggregateRowsDataSource": "Seskupit řádky a vytvořit souhrny",
+        "groupedAggregateRowsDataSourceContent": "Seskupte řádky z tabulky Baserow a vypočítejte souhrny pro použití na stránkách Builderu."
     },
     "licenses": {
         "titleNoLicenses": "Nebyly nalezeny žádné licence",
@@ -428,7 +430,8 @@
     },
     "premiumFieldType": {
         "ai": "Prompt AI",
-        "aiDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole."
+        "aiDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole.",
+        "aiRichTextDescription": "Pole pouze pro čtení, které obsahuje text vygenerovaný AI podle promptu tohoto pole, formátovaný pomocí Markdownu."
     },
     "functionalGridViewFieldAI": {
         "generate": "Generovat"
@@ -481,7 +484,8 @@
     "chart": {
         "true": "pravda",
         "false": "nepravda",
-        "other": "Ostatní"
+        "other": "Ostatní",
+        "empty": "Prázdný"
     },
     "generateAIValuesModal": {
         "title": "Vygenerovat všechny hodnoty AI",
@@ -511,5 +515,62 @@
     },
     "trashType": {
         "row_comment": "komentář k řádku"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Řady",
+        "addSeries": "Přidat řadu",
+        "data": "Data",
+        "sourceFieldLabel": "Zdroj",
+        "viewFieldLabel": "Zobrazení",
+        "notSelected": "Nevybráno"
+    },
+    "localBaserowGroupedAggregateRowsForm": {
+        "series": "Řady",
+        "addSeries": "Přidat řadu"
+    },
+    "serviceType": {
+        "localBaserowGroupedAggregateRows": "Seskupit řádky a vytvořit souhrny",
+        "localBaserowGroupedAggregateRowsDescription": "Seskupte řádky z tabulky Baserow a vypočítejte souhrny.",
+        "errorNoAggregationSeriesDefined": "Nejsou definovány žádné souhrnné řady.",
+        "errorIncompleteAggregationSeries": "Jedna nebo více souhrnných řad je neúplných.",
+        "errorTrashedAggregationField": "Alespoň jedno nakonfigurované pole bylo přesunuto do koše."
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Pole",
+        "aggregationTypeLabel": "Souhrn",
+        "deleteSeries": "Odstranit řadu",
+        "chartType": "Typ grafu",
+        "barChart": "Sloupcový",
+        "lineChart": "Spojnicový",
+        "pieChart": "Koláčový",
+        "doughnutChart": "Prstencový",
+        "polarAreaChart": "Polární plocha",
+        "seriesColor": "Barva",
+        "automaticColor": "Použít automatickou barvu"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Seskupit podle",
+        "groupByNone": "Žádné",
+        "groupByRowId": "ID řádku",
+        "rowIdDisabledTooltip": "Seskupování podle ID řádku není momentálně k dispozici, protože primární pole může obsahovat více hodnot.",
+        "groupedByField": "Seskupeno podle {field}",
+        "bucketLimit": "Maximální počet skupin",
+        "bucketLimitHelp": "Zahrnuje skupinu Ostatní. Ponecháte-li pole prázdné, použije se maximální počet na serveru ({max}).",
+        "modeLabel": "Seskupovat vícenásobný výběr",
+        "completeSelection": "Úplný výběr",
+        "eachOption": "Každá vybraná možnost"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Řadit podle",
+        "none": "Žádné",
+        "ascending": "Vzestupně",
+        "descending": "Sestupně"
+    },
+    "aiProviderModelFeature": {
+        "aiFields": "Pole AI",
+        "aiFieldsDescription": "Generovat hodnoty v polích AI."
+    },
+    "premiumDashboardShareOptions": {
+        "hideLogo": "Skrýt logo Baserow na sdílené nástěnce"
     }
 }

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "OOO Management",
+    "description": "Handle out-of-office requests with approvals and an absence calendar.",
     "icon": "iconoir-sea-and-sun",
     "keywords": [
         "ooo",

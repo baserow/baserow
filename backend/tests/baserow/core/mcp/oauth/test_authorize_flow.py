@@ -263,8 +263,16 @@ def test_consent_get_lists_workspaces_and_enabled_tools(
     assert data["verified"] is True
     assert data["verified_host"] == "claude.ai"
     assert data["workspaces"] == [
-        {"id": workspace_1.id, "name": "One", "database_count": 2},
-        {"id": workspace_2.id, "name": "Two", "database_count": 0},
+        {
+            "id": workspace_1.id,
+            "name": "One",
+            "database_count": 2,
+        },
+        {
+            "id": workspace_2.id,
+            "name": "Two",
+            "database_count": 0,
+        },
     ]
     tools = {tool["name"]: tool for tool in data["tools"]}
     assert [tool["name"] for tool in data["tools"]] == enabled_tool_names()
@@ -275,7 +283,9 @@ def test_consent_get_lists_workspaces_and_enabled_tools(
         "title": "List tables",
         "read_only": True,
         "destructive": False,
+        "group": "database_read",
     }
+    assert tools["delete_rows"]["group"] == "database_delete"
     assert tools["delete_rows"]["read_only"] is False
     assert tools["delete_rows"]["destructive"] is True
 

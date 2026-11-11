@@ -19,6 +19,7 @@ from baserow.core.mixins import (
     OrderableMixin,
     TrashableModelMixin,
 )
+from baserow.core.services.deferred_deletion import deferred_service_deletion_context
 from baserow.core.subjects import UserSubjectType
 
 if TYPE_CHECKING:
@@ -52,6 +53,17 @@ class AutomationWorkflow(
     OrderableMixin,
     GraphModelMixin,
 ):
+    untrusted_content = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Blocks custom code nodes until explicitly trusted.",
+    )
+    import_report = models.JSONField(
+        default=list,
+        db_default=[],
+        editable=False,
+        help_text="Active content found during import, using the imported object IDs.",
+    )
     supports_edges = True
 
     automation = models.ForeignKey(
@@ -112,6 +124,10 @@ class AutomationWorkflow(
 
     def get_parent(self):
         return self.automation
+
+    def delete(self, *args, **kwargs):
+        with deferred_service_deletion_context():
+            return super().delete(*args, **kwargs)
 
     @classmethod
     def get_last_order(cls, automation: "Automation"):

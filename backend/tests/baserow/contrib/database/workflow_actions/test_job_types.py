@@ -607,7 +607,7 @@ def test_denied_message_reads_the_detail_of_an_api_error():
 
 @pytest.mark.django_db
 def test_a_click_cancelled_while_running_starts_no_further_action(
-    data_fixture, dispatched_clicks
+    data_fixture, dispatched_clicks, django_capture_on_commit_callbacks
 ):
     """The owner can cancel a running job. The action running then finishes,
     but no later one starts."""
@@ -630,7 +630,9 @@ def test_a_click_cancelled_while_running_starts_no_further_action(
         answer = request.side_effect
 
         def cancel_while_sending(*args, **kwargs):
-            JobHandler.cancel_job(ButtonFieldDispatchJob.objects.get(id=job.id))
+            # The cancellation commits in its own request.
+            with django_capture_on_commit_callbacks(execute=True):
+                JobHandler.cancel_job(ButtonFieldDispatchJob.objects.get(id=job.id))
             return answer(*args, **kwargs)
 
         request.side_effect = cancel_while_sending

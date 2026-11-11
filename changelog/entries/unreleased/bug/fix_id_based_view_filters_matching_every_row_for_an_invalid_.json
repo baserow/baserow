@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix id based view filters matching every row for an invalid value",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

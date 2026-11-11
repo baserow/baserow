@@ -25,19 +25,24 @@ import {
   CoreHTTPTriggerNodeType,
   CoreInboundEmailTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
-  CoreCSVFileReaderNodeType,
-  CoreHttpRequestNodeType,
-  CoreIteratorNodeType,
-  CoreSMTPEmailNodeType,
-  CoreRouterNodeType,
-  CoreGotoNodeType,
+  CoreCSVFileReaderActionNodeType,
+  CoreHTTPRequestActionNodeType,
+  CoreIteratorActionNodeType,
+  CoreSMTPEmailActionNodeType,
+  CoreRouterActionNodeType,
+  CoreGotoActionNodeType,
+  CoreWaitActionNodeType,
   CorePeriodicTriggerNodeType,
-  CoreResponseNodeType,
-  CoreStartWorkflowNodeType,
+  CoreResponseActionNodeType,
+  CoreStartWorkflowActionNodeType,
   CoreManualTriggerNodeType,
   AIAgentActionNodeType,
-  SlackWriteMessageNodeType,
+  SlackWriteMessageActionNodeType,
 } from '@baserow/modules/automation/nodeTypes'
+import {
+  ForLoopNodeRecipeType,
+  WhileLoopNodeRecipeType,
+} from '@baserow/modules/automation/nodeRecipeTypes'
 import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,
@@ -53,6 +58,7 @@ import { AutomationGuidedTourType } from '@baserow/modules/automation/guidedTour
 import {
   PreviousNodeDataProviderType,
   CurrentIterationDataProviderType,
+  CurrentNodeDataProviderType,
 } from '@baserow/modules/automation/dataProviderTypes'
 
 export default defineNuxtPlugin({
@@ -81,6 +87,7 @@ export default defineNuxtPlugin({
 
     $registry.registerNamespace('automationDataProvider')
     $registry.registerNamespace('node')
+    $registry.registerNamespace('automationNodeRecipe')
     $registry.registerNamespace('editorSidePanel')
 
     // Automation data providers
@@ -96,6 +103,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'automationDataProvider',
       new CurrentIterationDataProviderType(context)
+    )
+    $registry.register(
+      'automationDataProvider',
+      new CurrentNodeDataProviderType(context)
     )
 
     // Automation node types
@@ -127,15 +138,16 @@ export default defineNuxtPlugin({
       'node',
       new LocalBaserowUpdateRowsActionNodeType(context)
     )
-    $registry.register('node', new CoreHttpRequestNodeType(context))
-    $registry.register('node', new CoreSMTPEmailNodeType(context))
-    $registry.register('node', new CoreRouterNodeType(context))
-    $registry.register('node', new CoreGotoNodeType(context))
-    $registry.register('node', new CoreResponseNodeType(context))
-    $registry.register('node', new CoreIteratorNodeType(context))
-    $registry.register('node', new CoreCSVFileReaderNodeType(context))
-    $registry.register('node', new CoreStartWorkflowNodeType(context))
-    $registry.register('node', new SlackWriteMessageNodeType(context))
+    $registry.register('node', new CoreHTTPRequestActionNodeType(context))
+    $registry.register('node', new CoreSMTPEmailActionNodeType(context))
+    $registry.register('node', new CoreRouterActionNodeType(context))
+    $registry.register('node', new CoreGotoActionNodeType(context))
+    $registry.register('node', new CoreWaitActionNodeType(context))
+    $registry.register('node', new CoreResponseActionNodeType(context))
+    $registry.register('node', new CoreIteratorActionNodeType(context))
+    $registry.register('node', new CoreCSVFileReaderActionNodeType(context))
+    $registry.register('node', new CoreStartWorkflowActionNodeType(context))
+    $registry.register('node', new SlackWriteMessageActionNodeType(context))
     $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
     $registry.register('node', new LocalBaserowGetRowActionNodeType(context))
     $registry.register('node', new LocalBaserowListRowsActionNodeType(context))
@@ -146,6 +158,16 @@ export default defineNuxtPlugin({
     $registry.register('node', new CorePeriodicTriggerNodeType(context))
     $registry.register('node', new CoreManualTriggerNodeType(context))
     $registry.register('node', new AIAgentActionNodeType(context))
+
+    // Automation node recipes: menu entries that insert pre-configured nodes
+    $registry.register(
+      'automationNodeRecipe',
+      new ForLoopNodeRecipeType(context)
+    )
+    $registry.register(
+      'automationNodeRecipe',
+      new WhileLoopNodeRecipeType(context)
+    )
 
     // Automation job types
     $registry.register('job', new DuplicateAutomationWorkflowJobType(context))

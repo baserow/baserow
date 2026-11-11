@@ -82,13 +82,15 @@ class AutomationApplicationType(ApplicationType):
         storage: Optional[Storage] = None,
         progress_builder: ChildProgressBuilder | None = None,
         workflows: Optional[List[AutomationWorkflow]] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> AutomationDict:
         """
         Exports the automation application type to a serialized format that can later
         be imported via the `import_serialized`.
         """
 
-        self.cache = {}
+        if cache is None:
+            cache = {}
 
         handler = AutomationWorkflowHandler()
         workflows = (
@@ -101,7 +103,7 @@ class AutomationApplicationType(ApplicationType):
                 import_export_config,
                 files_zip=files_zip,
                 storage=storage,
-                cache=self.cache,
+                cache=cache,
             )
             for i in IntegrationHandler().get_integrations(automation)
         ]
@@ -112,7 +114,7 @@ class AutomationApplicationType(ApplicationType):
                 import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
-                cache=self.cache,
+                cache=cache,
             )
             for w in workflows
         ]
@@ -137,6 +139,8 @@ class AutomationApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> List[Integration]:
         """
         Import integrations to builder. This method has to be compatible with the output
@@ -152,6 +156,9 @@ class AutomationApplicationType(ApplicationType):
         :return: The created integration instances.
         """
 
+        if cache is None:
+            cache = {}
+
         progress = ChildProgressBuilder.build(
             progress_builder, child_total=len(serialized_integrations)
         )
@@ -163,7 +170,8 @@ class AutomationApplicationType(ApplicationType):
                 automation,
                 serialized_integration,
                 id_mapping,
-                cache=self.cache,
+                import_export_config=import_export_config,
+                cache=cache,
                 files_zip=files_zip,
                 storage=storage,
             )
@@ -182,12 +190,14 @@ class AutomationApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> Application:
         """
         Imports an automation application exported by the `export_serialized` method.
         """
 
-        self.cache = {}
+        if cache is None:
+            cache = {}
 
         serialized_workflows = serialized_values.pop("workflows")
         serialized_integrations = serialized_values.pop("integrations")
@@ -226,6 +236,8 @@ class AutomationApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=integration_progress),
+                import_export_config=import_export_config,
+                cache=cache,
             )
 
         if not serialized_workflows:
@@ -239,6 +251,7 @@ class AutomationApplicationType(ApplicationType):
                 storage,
                 progress.create_child_builder(represents_progress=workflow_progress),
                 import_export_config=import_export_config,
+                cache=cache,
             )
 
         return automation

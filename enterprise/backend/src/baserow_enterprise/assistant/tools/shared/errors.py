@@ -3,26 +3,14 @@ from functools import wraps
 from typing import ParamSpec, TypeVar
 
 from baserow.core.exceptions import PermissionException
+from baserow.core.tools.errors import (  # noqa: F401
+    ToolInputError,
+    raise_if_permission_denied,
+    validation_messages,
+)
 
 _Params = ParamSpec("_Params")
 _Result = TypeVar("_Result")
-
-
-class ToolInputError(Exception):
-    """Raised when tool input is invalid."""
-
-
-def raise_if_permission_denied(error: Exception) -> None:
-    """
-    Let the mode router explain permission failures.
-
-    :param error: The caught exception to inspect.
-    :raises PermissionException: When the given error is one, so it reaches
-        the mode router instead of being swallowed by a containment handler.
-    """
-
-    if isinstance(error, PermissionException):
-        raise error
 
 
 def permission_denied_result(tool_name: str) -> dict[str, str]:

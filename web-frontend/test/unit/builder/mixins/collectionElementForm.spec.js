@@ -1,4 +1,5 @@
 import collectionElementForm from '@baserow/modules/builder/mixins/collectionElementForm'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 vi.mock('@baserow/modules/builder/dataProviderTypes', () => ({
   UserDataProviderType: {
@@ -25,6 +26,23 @@ vi.mock('@baserow/modules/builder/dataProviderTypes', () => ({
 }))
 
 describe('collectionElementForm', () => {
+  test('uses the target data source scope for the property selector', () => {
+    const getDataSchema = vi.fn()
+    const applicationContext = { element: { id: 1 } }
+
+    collectionElementForm.computed.propertySelectorSchema.call({
+      $registry: {
+        get: vi.fn(() => ({ getDataSchema })),
+      },
+      applicationContext,
+    })
+
+    expect(getDataSchema).toHaveBeenCalledWith({
+      ...applicationContext,
+      dataScope: DATA_SCOPES.INCLUDE_TARGET_DATA_SOURCE,
+    })
+  })
+
   test.each([
     [true, true],
     [false, false],

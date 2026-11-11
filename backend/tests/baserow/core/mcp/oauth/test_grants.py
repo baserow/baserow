@@ -44,6 +44,21 @@ def test_second_consent_reuses_the_grant(data_fixture):
 
 
 @pytest.mark.django_db
+def test_second_consent_takes_the_client_s_current_name(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    handler = MCPEndpointHandler()
+
+    handler.grant_oauth_client(user, workspace, CLIENT_ID, "Claude", ["list_tables"])
+    endpoint, _ = handler.grant_oauth_client(
+        user, workspace, CLIENT_ID, "Claude Desktop", ["list_tables"]
+    )
+
+    endpoint.refresh_from_db()
+    assert endpoint.name == "Claude Desktop"
+
+
+@pytest.mark.django_db
 def test_grant_constraint_blocks_duplicates(data_fixture):
     from django.db import IntegrityError, transaction
 

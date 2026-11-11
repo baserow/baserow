@@ -3,13 +3,16 @@ import string
 import pytest
 
 from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.exceptions import (
     MaximumUniqueEndpointTriesError,
     MCPEndpointDoesNotBelongToUser,
     MCPEndpointDoesNotExist,
+    MCPToolsNotAvailable,
 )
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
+from baserow.core.mcp.registries import mcp_tool_registry
 
 
 @pytest.mark.django_db
@@ -101,6 +104,25 @@ def test_create_endpoint(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_endpoint_stores_read_only_and_legacy_tools(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    endpoint = MCPEndpointHandler().create_endpoint(user, workspace, "Test")
+
+    expected = [
+        tool.name
+        for tool in mcp_tool_registry.get_enabled_tools()
+        if (tool.read_only and not tool.off_by_default)
+        or tool.name in LEGACY_DEFAULT_TOOLS
+    ]
+    assert endpoint.allowed_tools == expected
+    assert set(LEGACY_DEFAULT_TOOLS) <= set(expected)
+    endpoint.refresh_from_db()
+    assert endpoint.allowed_tools == expected
+
+
+@pytest.mark.django_db
 def test_update_endpoint(data_fixture):
     user = data_fixture.create_user()
     endpoint_1 = data_fixture.create_mcp_endpoint(user=user)
@@ -133,3 +155,25 @@ def test_delete_endpoint(data_fixture):
 
     assert MCPEndpoint.objects.all().count() == 1
     assert MCPEndpoint.objects.all().first().id == endpoint_2.id
+
+
+@pytest.mark.django_db
+def test_update_allowed_tools(data_fixture):
+    user = data_fixture.create_user()
+    other = data_fixture.create_user()
+    endpoint = data_fixture.create_mcp_endpoint(
+        user=user, allowed_tools=["list_tables"]
+    )
+    handler = MCPEndpointHandler()
+
+    with pytest.raises(MCPEndpointDoesNotBelongToUser):
+        handler.update_allowed_tools(other, endpoint, ["list_databases"])
+    with pytest.raises(MCPToolsNotAvailable) as error:
+        handler.update_allowed_tools(user, endpoint, ["list_databases", "nope"])
+    assert error.value.names == ["nope"]
+    endpoint.refresh_from_db()
+    assert endpoint.allowed_tools == ["list_tables"]
+
+    handler.update_allowed_tools(user, endpoint, ["list_tables", "list_databases"])
+    endpoint.refresh_from_db()
+    assert endpoint.allowed_tools == ["list_databases", "list_tables"]

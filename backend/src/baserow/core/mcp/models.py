@@ -46,8 +46,8 @@ class MCPEndpoint(
         null=True,
         blank=True,
         default=None,
-        help_text="Names of the MCP tools this endpoint may use. Null allows every "
-        "enabled tool.",
+        help_text="Names of the MCP tools this endpoint may use. Null is only left "
+        "by older versions and allows the legacy default tools.",
     )
     oauth_client_id = models.CharField(
         max_length=255,

@@ -4,6 +4,7 @@ from baserow.api.user_files.serializers import UserFileField
 from baserow.contrib.integrations.core.inbound_email import (
     is_inbound_email_configured,
 )
+from baserow.core.emails import can_deliver_emails
 from baserow.core.models import Settings
 
 
@@ -16,6 +17,11 @@ class SettingsSerializer(serializers.ModelSerializer):
         help_text="Whether this instance is configured to receive inbound email "
         "for the automation email trigger. Derived from the instance's environment "
         "and read-only.",
+    )
+    email_delivery_enabled = serializers.SerializerMethodField(
+        help_text="Whether this instance is configured to deliver emails, for "
+        "example invitations and email verifications. Derived from the instance's "
+        "environment and read-only.",
     )
 
     class Meta:
@@ -33,7 +39,9 @@ class SettingsSerializer(serializers.ModelSerializer):
             "email_verification",
             "verify_import_signature",
             "allow_reporting_abuse",
+            "user_templates_require_approval",
             "inbound_email_enabled",
+            "email_delivery_enabled",
         )
         extra_kwargs = {
             "allow_new_signups": {"required": False},
@@ -46,10 +54,22 @@ class SettingsSerializer(serializers.ModelSerializer):
             "email_verification": {"required": False},
             "verify_import_signature": {"required": False},
             "allow_reporting_abuse": {"required": False},
+            "user_templates_require_approval": {
+                "required": False,
+                "help_text": "Whether a user template made public, and every edit "
+                "of a listed one, is listed only once an instance admin approves "
+                "it. Switching it off approves the templates in review that an "
+                "admin could approve, except the ones rejected since their last "
+                "approval. Can only be changed with the user templates feature "
+                "enabled.",
+            },
         }
 
     def get_inbound_email_enabled(self, instance) -> bool:
         return is_inbound_email_configured()
+
+    def get_email_delivery_enabled(self, instance) -> bool:
+        return can_deliver_emails()
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

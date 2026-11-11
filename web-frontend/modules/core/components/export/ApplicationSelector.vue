@@ -5,12 +5,13 @@
   >
     <div class="application-selector__header">
       <h4 class="application-selector__title">
-        {{ $t('exportWorkspaceForm.selectDataToExport') }}
+        {{ title || $t('exportWorkspaceForm.selectDataToExport') }}
       </h4>
       <div class="application-selector__actions">
         <button
           type="button"
           class="application-selector__action-btn"
+          :disabled="disabled"
           @click="selectAll"
         >
           {{ $t('exportWorkspaceForm.selectAll') }}
@@ -18,6 +19,7 @@
         <button
           type="button"
           class="application-selector__action-btn"
+          :disabled="disabled"
           @click="deselectAll"
         >
           {{ $t('exportWorkspaceForm.deselectAll') }}
@@ -36,6 +38,7 @@
             <Checkbox
               :checked="isGroupSelected(group)"
               :indeterminate="isGroupIndeterminate(group)"
+              :disabled="disabled"
               @input="(value) => handleGroupToggle(group, value)"
               @click.stop
             />
@@ -69,6 +72,7 @@
             <div class="application-selector__item-main">
               <Checkbox
                 :checked="selectedApplicationIds.includes(application.id)"
+                :disabled="disabled"
                 @input="(value) => handleApplicationToggle(application, value)"
                 @click.stop
               />
@@ -106,6 +110,11 @@ export default {
     disabled: {
       type: Boolean,
       default: false,
+    },
+    // Replaces the export copy of the header.
+    title: {
+      type: String,
+      default: null,
     },
   },
   emits: ['update'],

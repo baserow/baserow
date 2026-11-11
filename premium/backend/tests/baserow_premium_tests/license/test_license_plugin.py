@@ -14,6 +14,7 @@ from baserow_premium.application_user_usage.constants import (
 from baserow_premium.license.models import License
 from baserow_premium.license.plugin import LicensePlugin
 from baserow_premium.license.registries import license_type_registry
+from baserow_premium.usage.handler import PremiumUsageHandler
 
 
 def _reset_license_table():
@@ -235,3 +236,19 @@ def test_get_application_user_usage_and_limit_ignores_inactive_licenses(
             7,
             10,
         )
+
+
+@pytest.mark.django_db
+def test_seats_are_not_counted_for_template_workspaces(data_fixture):
+    workspace = data_fixture.create_workspace(user=data_fixture.create_user())
+    official = data_fixture.create_template()
+    root = data_fixture.create_user_template()
+    revision = data_fixture.create_user_template_revision(root)
+
+    assert set(
+        LicensePlugin().get_workspaces_to_periodically_update_seats_taken_for()
+    ) == {workspace}
+    assert PremiumUsageHandler.calculate_per_workspace_seats_taken() == 1
+    for template in (official, root, revision):
+        template.workspace.refresh_from_db()
+        assert template.workspace.seats_taken_updated_at is None

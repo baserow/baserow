@@ -1,8 +1,16 @@
 from django.contrib.contenttypes.models import ContentType
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Manager
 
+from baserow.contrib.automation.nodes.constants import (
+    AUTOMATION_NODE_DEFAULT_RETRIES,
+    AUTOMATION_NODE_MAX_RETRIES,
+    AUTOMATION_NODE_MIN_RETRIES,
+    AutomationNodeOnFailure,
+)
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.formula.field import FormulaField
 from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
@@ -76,6 +84,36 @@ class AutomationNode(
         help_text="The service which this node is associated with.",
         related_name="automation_workflow_node",
         on_delete=models.CASCADE,
+    )
+
+    # Error policy. Lives on the concrete base table rather than on the
+    # abstract `AutomationActionNode`, whose children are multi-table
+    # subclasses, so one column set serves every node type.
+    on_failure = models.CharField(
+        max_length=16,
+        choices=AutomationNodeOnFailure.choices,
+        default=AutomationNodeOnFailure.STOP,
+        db_default=AutomationNodeOnFailure.STOP,
+        help_text="What happens when this node fails: stop the run, or retry "
+        "the node first.",
+    )
+    max_retries = models.PositiveSmallIntegerField(
+        default=AUTOMATION_NODE_DEFAULT_RETRIES,
+        db_default=AUTOMATION_NODE_DEFAULT_RETRIES,
+        validators=[
+            MinValueValidator(AUTOMATION_NODE_MIN_RETRIES),
+            MaxValueValidator(AUTOMATION_NODE_MAX_RETRIES),
+        ],
+        help_text="How many times the node is retried after its first attempt. "
+        "Only used when on_failure is retry.",
+    )
+    retry_condition = FormulaField(
+        default="",
+        blank=True,
+        db_default="",
+        help_text="Formula evaluated against the node's result (the `current_node` "
+        "data provider). When true the attempt counts as failed; empty means no "
+        "condition.",
     )
 
     objects = AutomationNodeTrashManager()
@@ -189,6 +227,9 @@ class CoreRouterActionNode(AutomationActionNode): ...
 
 
 class CoreGotoActionNode(AutomationActionNode): ...
+
+
+class CoreWaitActionNode(AutomationActionNode): ...
 
 
 class CoreIteratorActionNode(AutomationActionNode): ...

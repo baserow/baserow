@@ -14,7 +14,7 @@ from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Application
-from baserow.core.registries import application_type_registry
+from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.exceptions import UserSourceDoesNotExist
 from baserow.core.user_sources.models import UserSource
@@ -311,12 +311,14 @@ class UserSourceHandler:
     def export_user_source(
         self,
         user_source,
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
     ):
         return user_source.get_type().export_serialized(
             user_source,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

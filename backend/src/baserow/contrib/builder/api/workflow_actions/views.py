@@ -33,6 +33,9 @@ from baserow.api.utils import (
     type_from_data_or_registry,
     validate_data_custom_fields,
 )
+from baserow.contrib.builder.api.data_sources.errors import (
+    ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
+)
 from baserow.contrib.builder.api.elements.errors import ERROR_ELEMENT_DOES_NOT_EXIST
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
 from baserow.contrib.builder.api.workflow_actions.errors import (
@@ -51,6 +54,9 @@ from baserow.contrib.builder.api.workflow_actions.serializers import (
 from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
+)
+from baserow.contrib.builder.data_sources.exceptions import (
+    DataSourceRefinementForbidden,
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -413,6 +419,7 @@ class DispatchBuilderWorkflowActionView(APIView):
             DoesNotExist: ERROR_DATA_DOES_NOT_EXIST,
             WorkflowActionDoesNotExist: ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST,
             BuilderWorkflowActionCannotBeDispatched: ERROR_WORKFLOW_ACTION_CANNOT_BE_DISPATCHED,
+            DataSourceRefinementForbidden: ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
             ServiceImproperlyConfiguredDispatchException: ERROR_SERVICE_IMPROPERLY_CONFIGURED,
             InvalidContextDispatchException: ERROR_SERVICE_INVALID_DISPATCH_CONTEXT,

@@ -54,6 +54,7 @@ export default defineNuxtModule({
       nuxt.options.runtimeConfig.public,
       {
         baserowPremiumGroupedAggregateServiceMaxSeries: 3,
+        baserowPremiumGroupedAggregateServiceMaxAggBuckets: 10,
         baserowPricingUrl: '',
       }
     )

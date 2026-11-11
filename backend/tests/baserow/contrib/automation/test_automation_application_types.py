@@ -78,7 +78,7 @@ def test_automation_export_serialized(data_fixture):
     trigger = workflow.get_trigger()
     integration = trigger.service.specific.integration
     first_action = data_fixture.create_local_baserow_create_row_action_node(
-        workflow=workflow
+        workflow=workflow, service_kwargs={"integration": integration}
     )
     serialized = AutomationApplicationType().export_serialized(
         automation, ImportExportConfig(include_permission_data=True)
@@ -96,7 +96,8 @@ def test_automation_export_serialized(data_fixture):
                 "name": integration.name,
                 "order": str(integration.order),
                 "type": "local_baserow",
-                "authorized_user": None,
+                "authorized_subject_type": None,
+                "authorized_subject_id": None,
             }
         ],
         "workflows": [
@@ -112,6 +113,13 @@ def test_automation_export_serialized(data_fixture):
                         "label": trigger.label,
                         "type": "local_baserow_rows_created",
                         "workflow_id": trigger.workflow_id,
+                        "on_failure": "stop",
+                        "max_retries": 2,
+                        "retry_condition": {
+                            "formula": "",
+                            "mode": "simple",
+                            "version": "0.1",
+                        },
                         "service": {
                             "id": trigger.service_id,
                             "integration_id": trigger.service.specific.integration_id,
@@ -125,6 +133,13 @@ def test_automation_export_serialized(data_fixture):
                         "label": first_action.label,
                         "type": "local_baserow_create_row",
                         "workflow_id": first_action.workflow_id,
+                        "on_failure": "stop",
+                        "max_retries": 2,
+                        "retry_condition": {
+                            "formula": "",
+                            "mode": "simple",
+                            "version": "0.1",
+                        },
                         "service": {
                             "id": first_action.service_id,
                             "integration_id": first_action.service.specific.integration_id,
@@ -193,7 +208,7 @@ def test_automation_application_import(data_fixture):
 
     assert automation.integrations.count() == 1
     first_integration = automation.integrations.first().specific
-    assert first_integration.authorized_user.id == user.id
+    assert first_integration.authorized_subject == user
 
     assert automation.workflows.count() == 1
     workflow = automation.workflows.first()
@@ -350,3 +365,69 @@ def test_enhance_queryset(data_fixture, django_assert_num_queries):
             for automation in queryset
             for workflow in automation.workflows.all()
         ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values,expected_untrusted",
+    [
+        ({}, True),
+        ({"is_user_template": True}, True),
+        ({"is_user_template": True, "is_duplicate": True}, False),
+        ({"is_user_template": True, "is_publishing": True}, False),
+        ({"is_user_template": True, "is_template": True}, False),
+        ({"is_duplicate": True}, False),
+        ({"is_publishing": True}, False),
+        ({"is_template": True}, False),
+    ],
+)
+@pytest.mark.parametrize("already_untrusted", [False, True])
+def test_automation_content_trust_export_import(
+    data_fixture, config_values, expected_untrusted, already_untrusted
+):
+    """Empty external copies stay trusted; internal copies preserve existing restrictions."""
+
+    automation = data_fixture.create_automation_application()
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, untrusted_content=already_untrusted
+    )
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+    is_external = expected_untrusted
+    expected_untrusted = already_untrusted and not expected_untrusted
+    application_type = AutomationApplicationType()
+    serialized = application_type.export_serialized(automation, config)
+    if is_external:
+        # An external import detects it again, so the file never carries it.
+        assert "untrusted_content" not in serialized["workflows"][0]
+    else:
+        assert serialized["workflows"][0]["untrusted_content"] is already_untrusted
+    workflow.refresh_from_db()
+    assert workflow.untrusted_content is already_untrusted
+
+    imported = application_type.import_serialized(
+        automation.workspace, serialized, config, {}
+    )
+    imported.refresh_from_db()
+    assert imported.workflows.get().untrusted_content is expected_untrusted
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("serialized_flag", [None, False, True])
+def test_external_automation_import_without_code_stays_trusted(
+    data_fixture, serialized_flag
+):
+    """Applications without custom code do not require content consent."""
+
+    automation = data_fixture.create_automation_application()
+    data_fixture.create_automation_workflow(automation=automation)
+    application_type = AutomationApplicationType()
+    config = ImportExportConfig(include_permission_data=False)
+    serialized = application_type.export_serialized(automation, config)
+    if serialized_flag is None:
+        assert "untrusted_content" not in serialized["workflows"][0]
+    else:
+        serialized["workflows"][0]["untrusted_content"] = serialized_flag
+    imported = application_type.import_serialized(
+        automation.workspace, serialized, config, {}
+    )
+    assert imported.workflows.get().untrusted_content is False

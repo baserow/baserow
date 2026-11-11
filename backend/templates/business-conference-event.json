@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Business Conference Event",
+    "description": "Plan a conference with talks, speakers, sponsors and rooms.",
     "icon": "iconoir-large-suitcase",
     "keywords": [
         "business",

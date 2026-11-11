@@ -1,14 +1,10 @@
 FROM python:3.14.8-slim-trixie AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /build
-COPY _download_model.py .
+COPY requirements.txt _download_model.py ./
 
-RUN pip install --no-cache-dir \
-    huggingface_hub==0.31.0 \
-    transformers==4.53.0 && \
+RUN pip install --no-cache-dir --root-user-action=ignore \
+    -c requirements.txt huggingface_hub==2.2.0 tokenizers && \
     python _download_model.py && \
     rm _download_model.py
 
@@ -16,15 +12,20 @@ FROM python:3.14.8-slim-trixie
 
 COPY --from=builder /model /model
 
-RUN pip install --no-cache-dir \
-    onnxruntime==1.24.1 \
-    transformers==4.53.0 \
-    starlette==0.48.0 \
-    uvicorn==0.37.0 && \
-    rm -rf /root/.cache
+RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+COPY requirements.txt .
+
+# Nothing installs packages at runtime, so pip only adds CVEs.
+RUN pip install --no-cache-dir --root-user-action=ignore --no-deps \
+    -r requirements.txt && \
+    pip uninstall -y --root-user-action=ignore pip && \
+    rm -rf /root/.cache
+
 COPY app.py .
+# --no-deps can't catch a missing dependency, so fail the build instead of startup.
+RUN python -B -c "import app"
 
 EXPOSE 80
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]

@@ -8,7 +8,7 @@ Software versions are divided into the following groups:
   before the release.
 * `Recommended`: Recommended software for the best experience.  
 
-## Baserow 2.4.1
+## Baserow 2.4.2
 
 
 | Dependency     | Supported versions | Tested versions | Recommended versions | 
@@ -17,7 +17,7 @@ Software versions are divided into the following groups:
 | Chrome         | Latest             | Latest          | Latest               |
 | Edge           | Latest             | Latest          | Latest               |
 | Python         | >=3.14.0           | 3.14.8          | latest 3.14.x        |
-| Node.js        | >= 24.0.0          | 24.21.0         | >= 24.0.0            |
+| Node.js        | >= 24.0.0          | 24.22.1         | >= 24.0.0            |
 | Docker         | >= 19.03           | Latest          | Latest               |
 | docker-compose | >= 1.19.0          | Latest          | Latest               |
 | PostgreSQL     | >= 14              | 14              | 15+                  |

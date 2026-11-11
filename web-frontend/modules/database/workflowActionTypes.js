@@ -2,9 +2,9 @@ import { WorkflowActionType } from '@baserow/modules/core/workflowActionTypes'
 import DatabaseWorkflowActionWithService from '@baserow/modules/database/components/field/DatabaseWorkflowActionWithService'
 import OpenUrlWorkflowActionForm from '@baserow/modules/database/components/field/OpenUrlWorkflowActionForm'
 import {
-  LocalBaserowCreateRowWorkflowServiceType,
-  LocalBaserowUpdateRowWorkflowServiceType,
-  LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowCreateRowServiceType,
+  LocalBaserowUpdateRowServiceType,
+  LocalBaserowDeleteRowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreHTTPRequestServiceType,
@@ -527,7 +527,7 @@ export class LocalBaserowCreateRowWorkflowActionType extends DatabaseWorkflowAct
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowCreateRowWorkflowServiceType.getType()
+      LocalBaserowCreateRowServiceType.getType()
     )
   }
 }
@@ -548,7 +548,7 @@ export class LocalBaserowUpdateRowWorkflowActionType extends DatabaseWorkflowAct
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowUpdateRowWorkflowServiceType.getType()
+      LocalBaserowUpdateRowServiceType.getType()
     )
   }
 }
@@ -581,7 +581,7 @@ export class LocalBaserowDeleteRowWorkflowActionType extends DatabaseWorkflowAct
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowDeleteRowWorkflowServiceType.getType()
+      LocalBaserowDeleteRowServiceType.getType()
     )
   }
 }

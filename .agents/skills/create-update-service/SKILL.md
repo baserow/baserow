@@ -27,8 +27,8 @@ Decide the intended product surface before editing:
 | Builder data source | `DataSource.service` in `backend/src/baserow/contrib/builder/data_sources/**` | Service type registered in `web-frontend/modules/integrations/plugin.js` and used by builder data source UI | `DispatchTypes.DATA` |
 | Dashboard data source | `DashboardDataSource.service` in `backend/src/baserow/contrib/dashboard/**` | Service type registered in integrations plugin and dashboard form/UI | `DispatchTypes.DATA` |
 | Builder workflow action | `BuilderWorkflowServiceActionType` subclass in `backend/src/baserow/contrib/builder/workflow_actions/workflow_action_types.py` plus a workflow action model | `WorkflowActionType` subclass in `web-frontend/modules/builder/workflowActionTypes.js` | `DispatchTypes.ACTION` |
-| Automation action node | `AutomationNodeActionNodeType` subclass in `backend/src/baserow/contrib/automation/nodes/node_types.py` plus an automation node model | `ActionNodeTypeMixin` node type in `web-frontend/modules/automation/nodeTypes.js` | `DispatchTypes.ACTION` |
-| Automation trigger node | trigger node type in `backend/src/baserow/contrib/automation/nodes/node_types.py`, often using `TriggerServiceTypeMixin` | `TriggerNodeTypeMixin` node type in `web-frontend/modules/automation/nodeTypes.js` | trigger-capable service type |
+| Automation action node | `AutomationActionNodeType` subclass in `backend/src/baserow/contrib/automation/nodes/node_types.py` plus an automation node model | `ActionNodeTypeMixin` node type in `web-frontend/modules/automation/nodeTypes.js` | `DispatchTypes.ACTION` |
+| Automation trigger node | `AutomationTriggerNodeType` subclass in `backend/src/baserow/contrib/automation/nodes/node_types.py` wrapping a service type that uses `TriggerServiceTypeMixin` | `TriggerNodeTypeMixin` node type in `web-frontend/modules/automation/nodeTypes.js` | trigger-capable service type |
 
 For data sources, a service with `DispatchTypes.DATA` is normally enough because the product object points directly at the service. For workflow actions and automation nodes, also add wrapper types/models so the service appears in the action/node registries.
 
@@ -138,20 +138,22 @@ regression test that imports with an old-to-new `id_mapping`.
 
 1. Ensure the backend service type has `DispatchTypes.ACTION`.
 2. Add or reuse an automation node model in `backend/src/baserow/contrib/automation/nodes/models.py`.
-3. Add an `AutomationNodeActionNodeType` subclass with `type`, `model_class`, `service_type`, and `get_pytest_params`.
-4. Register it in `backend/src/baserow/contrib/automation/apps.py`.
-5. Add a frontend node type using `ActionNodeTypeMixin` in `web-frontend/modules/automation/nodeTypes.js`.
-6. Register it in `web-frontend/modules/automation/plugin.js`.
-7. Add translations for the node label, default label template, description, validation, and form copy.
+3. Add an `AutomationActionNodeType` subclass with `type`, `model_class`, `service_type`, and `get_pytest_params`.
+4. Name it `<Prefix><Thing>ActionNodeType` after its node model (`<Prefix><Thing>ActionNode`) and give the frontend node type the same class name; see `docs/technical/automation-node-and-service-type-naming.md`.
+5. Register it in `backend/src/baserow/contrib/automation/apps.py`.
+6. Add a frontend node type using `ActionNodeTypeMixin` in `web-frontend/modules/automation/nodeTypes.js`.
+7. Register it in `web-frontend/modules/automation/plugin.js`.
+8. Add translations for the node label, default label template, description, validation, and form copy.
 
 ### Automation trigger node
 
 1. Use or implement a trigger-capable service type, usually with `TriggerServiceTypeMixin`.
 2. Add or reuse an automation trigger node model and backend node type with `is_workflow_trigger` behavior via the existing trigger mixins/patterns.
-3. Register the backend node type in `backend/src/baserow/contrib/automation/apps.py`.
-4. Add a frontend node type using `TriggerNodeTypeMixin`.
-5. Register it in `web-frontend/modules/automation/plugin.js`.
-6. Confirm sample data, output schema, edge behavior, and workflow simulation behavior match existing trigger patterns.
+3. Name the node type `<Prefix><Thing>TriggerNodeType` after its model and the service type `<Prefix><Thing>TriggerServiceType`; the frontend classes use the same names (see `docs/technical/automation-node-and-service-type-naming.md`).
+4. Register the backend node type in `backend/src/baserow/contrib/automation/apps.py`.
+5. Add a frontend node type using `TriggerNodeTypeMixin`.
+6. Register it in `web-frontend/modules/automation/plugin.js`.
+7. Confirm sample data, output schema, edge behavior, and workflow simulation behavior match existing trigger patterns.
 
 ## Frontend Checklist
 
@@ -252,7 +254,7 @@ Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
 - `grep -RInE "TriggerServiceTypeMixin|ListServiceTypeMixin" backend/src/baserow/contrib/integrations`
 - `grep -RInE "register\\(" backend/src/baserow/contrib/integrations/apps.py web-frontend/modules/integrations/plugin.js`
 - `grep -RInE "BuilderWorkflowServiceActionType|builder_workflow_action_type_registry" backend/src/baserow/contrib/builder`
-- `grep -RInE "AutomationNodeActionNodeType|TriggerNodeType|automation_node_type_registry" backend/src/baserow/contrib/automation`
+- `grep -RInE "AutomationActionNodeType|ActionNodeType|TriggerNodeType|automation_node_type_registry" backend/src/baserow/contrib/automation`
 - `grep -RInE "WorkflowActionType|register\\('workflowAction'" web-frontend/modules/builder`
 - `grep -RInE "ActionNodeTypeMixin|TriggerNodeTypeMixin|register\\('node'" web-frontend/modules/automation`
 - `grep -RInE "getType\\(\\)" web-frontend/modules/integrations`
@@ -262,6 +264,7 @@ Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
 
 - Do not add a backend type without checking the matching frontend registration path.
 - Do not rename a persisted `type` string casually.
+- Name node types, trigger service types, service forms and node fixtures as described in `docs/technical/automation-node-and-service-type-naming.md`.
 - Do not forget migrations when model fields change.
 - Do not expose a service as a data source unless it can be dispatched as `DispatchTypes.DATA`.
 - Do not expose a service as a workflow action or action node unless it can be dispatched as `DispatchTypes.ACTION`.

@@ -9,7 +9,7 @@ from baserow.contrib.automation.api.nodes.serializers import (
     CreateAutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
 )
-from baserow.contrib.automation.nodes.node_types import LocalBaserowGetRowNodeType
+from baserow.contrib.automation.nodes.node_types import LocalBaserowGetRowActionNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
@@ -40,7 +40,7 @@ def service_field(serializer_class):
         ),
         (
             automation_node_type_registry,
-            LocalBaserowGetRowNodeType,
+            LocalBaserowGetRowActionNodeType,
             {"base_class": UpdateAutomationNodeSerializer},
         ),
     ],
@@ -92,7 +92,9 @@ def test_request_serializer_without_a_service_field_gains_none():
     field must not be declared where `service` isn't a field.
     """
 
-    instance_type = automation_node_type_registry.get(LocalBaserowGetRowNodeType.type)
+    instance_type = automation_node_type_registry.get(
+        LocalBaserowGetRowActionNodeType.type
+    )
 
     serializer_class = instance_type.get_serializer_class(
         request_serializer=True, base_class=CreateAutomationNodeSerializer

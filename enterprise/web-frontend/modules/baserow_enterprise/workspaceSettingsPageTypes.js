@@ -4,6 +4,10 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
 
 export class TeamsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
+  getOrder() {
+    return 30
+  }
+
   static getType() {
     return 'teams'
   }

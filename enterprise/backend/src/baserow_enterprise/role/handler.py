@@ -1,31 +1,56 @@
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Case, IntegerField, Q, QuerySet, Value, When
+from django.contrib.contenttypes.prefetch import GenericPrefetch
+from django.db.models import (
+    Case,
+    IntegerField,
+    Q,
+    QuerySet,
+    Value,
+    When,
+    prefetch_related_objects,
+)
 
 from baserow.core.cache import local_cache
-from baserow.core.exceptions import PermissionDenied
+from baserow.core.exceptions import (
+    InvalidWorkspaceRole,
+    PermissionDenied,
+    WorkspaceInvitationLinkSignupsDisabled,
+)
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace, WorkspaceUser
-from baserow.core.object_scopes import CoreObjectScopeType
+from baserow.core.models import (
+    Workspace,
+    WorkspaceInvitation,
+    WorkspaceInvitationLink,
+    WorkspaceUser,
+)
+from baserow.core.object_scopes import CoreObjectScopeType, WorkspaceObjectScopeType
 from baserow.core.registries import (
+    ObjectScopeType,
     SubjectType,
     object_scope_type_registry,
+    permission_manager_type_registry,
     subject_type_registry,
 )
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck, ScopeObject, Subject
+from baserow.core.user.utils import normalize_email_address
 from baserow_enterprise.exceptions import (
+    CannotAssignRoleToSelf,
+    ScopedInvitationDoesNotExist,
     ScopeNotExist,
     SubjectNotExist,
     SubjectUnsupported,
 )
 from baserow_enterprise.features import RBAC
 from baserow_enterprise.models import RoleAssignment
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, WorkspaceScopedInvitation
 from baserow_enterprise.signals import (
     role_assignment_created,
     role_assignment_deleted,
@@ -35,6 +60,7 @@ from baserow_enterprise.teams.models import Team, TeamSubject
 from baserow_premium.license.handler import LicenseHandler
 
 from .constants import (
+    ADMIN_ROLE_UID,
     ALLOWED_SUBJECT_TYPE_BY_PRIORITY,
     INTERNAL_ROLE_UIDS,
     NO_ACCESS_ROLE_UID,
@@ -42,7 +68,7 @@ from .constants import (
     READ_ONLY_ROLE_UID,
     ROLE_ASSIGNABLE_OBJECT_MAP,
 )
-from .types import NewRoleAssignment
+from .types import EffectiveAccess, NewRoleAssignment, SubjectRoleAssignment
 
 ROLE_ASSIGNMENT_CACHE_KEY_PREFIX = "role_assignments"
 
@@ -83,6 +109,22 @@ def team_subjects_cache_key(subject_type_name: str, actor_ids: List[int]) -> str
 
     joined_actor_ids = "_".join(str(actor_id) for actor_id in actor_ids)
     return f"{ROLE_ASSIGNMENT_CACHE_KEY_PREFIX}_{subject_type_name}_{joined_actor_ids}"
+
+
+def get_assignable_scope_type(scope_object: ScopeObject) -> Optional[ObjectScopeType]:
+    """
+    Returns the scope type a role can be assigned on that the given object is
+    stored as, for instance the application scope type for a database.
+
+    :param scope_object: The object to return the scope type of.
+    :return: The scope type, or None when no role can be assigned on the object.
+    """
+
+    for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP:
+        scope_type = object_scope_type_registry.get(scope_type_name)
+        if isinstance(scope_object, scope_type.model_class):
+            return scope_type
+    return None
 
 
 def _clear_role_assignments_from_local_cache():
@@ -519,6 +561,10 @@ class RoleAssignmentHandler:
         # Track the latest role priority for each scope of each subject
         priorities_by_scope_per_actor_id = defaultdict(dict)
 
+        # The scopes on which each actor holds the admin role through a role
+        # assignment of their own, see `apply_admin_precedence`.
+        admin_scope_params_per_actor_id = defaultdict(set)
+
         # Keep a list of scope params to query later
         scopes_to_query = defaultdict(set)
 
@@ -535,10 +581,13 @@ class RoleAssignmentHandler:
             # Is it a simple actor or a team?
             # If it's a team we need to iterate over all the actor that are
             # subject of the team
-            if role_assignment.subject_type == content_types[Team]:
+            is_team_assignment = role_assignment.subject_type == content_types[Team]
+            if is_team_assignment:
                 actor_ids = subjects_per_team[subject_id]
             else:
                 actor_ids = [subject_id]
+                if role.uid == ADMIN_ROLE_UID:
+                    admin_scope_params_per_actor_id[subject_id].add(scope_param)
 
             for actor_id in actor_ids:
                 if not roles_by_scope[actor_id].get(scope_param, []):
@@ -577,20 +626,24 @@ class RoleAssignmentHandler:
                     workspace_roles_by_actor_id.get(actor.id, NO_ACCESS_ROLE_UID),
                     use_fallback=True,
                 )
-                inherited_workspace_roles = roles_by_scope[actor.id].get(
-                    workspace_scope_param
-                )
                 if actor_subject_type.is_workspace_role_fallback(
                     workspace_level_role.uid
                 ):
-                    if not inherited_workspace_roles:
+                    if not roles_by_scope[actor.id].get(workspace_scope_param):
                         roles_by_scope[actor.id][workspace_scope_param] = [
                             self.get_role_by_uid(NO_ACCESS_ROLE_UID)
                         ]
                 else:
+                    # The stored workspace role is canonical: the roles of the
+                    # actor's teams on the workspace only apply to the fallback
+                    # role above.
                     roles_by_scope[actor.id][workspace_scope_param] = [
                         workspace_level_role
                     ]
+                    if workspace_level_role.uid == ADMIN_ROLE_UID:
+                        admin_scope_params_per_actor_id[actor.id].add(
+                            workspace_scope_param
+                        )
 
         # Populate scope cache by querying all scopes type by type
         scope_cache = {workspace_scope_param: workspace}
@@ -601,6 +654,7 @@ class RoleAssignmentHandler:
         # Finally replace scope_params by real scope
         roles_per_scope_per_user = defaultdict(list)
         for actor in actors:
+            roles_per_scope = []
             for key, value in roles_by_scope[actor.id].items():
                 # scope_cache contains all the filtered scopes we need to check
                 # permissions for. Objects from snapshotted applications (table,
@@ -608,7 +662,15 @@ class RoleAssignmentHandler:
                 # user, so we can safely ignore them here.
                 if key not in scope_cache:
                     continue
-                roles_per_scope_per_user[actor].append((scope_cache[key], value))
+                roles_per_scope.append((scope_cache[key], value))
+            roles_per_scope_per_user[actor] = self.apply_admin_precedence(
+                roles_per_scope,
+                [
+                    scope_cache[key]
+                    for key in admin_scope_params_per_actor_id[actor.id]
+                    if key in scope_cache
+                ],
+            )
 
         return roles_per_scope_per_user
 
@@ -617,9 +679,11 @@ class RoleAssignmentHandler:
     ) -> Dict[int, List[Tuple[int, int, int, int, int, int]]]:
         """
         Returns, for every given workspace, its role assignment rows matching the given
-        subject filter (excluding the internal roles) as plain tuples `(id,
-        subject_type_id, subject_id, role_id, scope_type_id, scope_id)`, fetched with a
-        single query for all the workspaces.
+        subject filter as plain tuples `(id, subject_type_id, subject_id, role_id,
+        scope_type_id, scope_id)`, fetched with a single query for all the workspaces.
+        Like the single workspace query, it leaves out the internal roles and the
+        workspace rows of the subject types whose workspace role is stored elsewhere,
+        so a stale row can't become effective.
 
         :param workspaces: The workspaces to get the role assignment rows for.
         :param subjects_q: The filter selecting the subjects the rows must belong to.
@@ -630,6 +694,7 @@ class RoleAssignmentHandler:
         rows = (
             RoleAssignment.objects.filter(workspace__in=workspaces)
             .filter(subjects_q)
+            .exclude(self._direct_workspace_roles_q())
             .exclude(
                 role__uid__in=[
                     NO_ROLE_LOW_PRIORITY_ROLE_UID,
@@ -787,6 +852,7 @@ class RoleAssignmentHandler:
 
         scopes_to_query = defaultdict(set)
         roles_by_scope_per_workspace = {}
+        admin_scope_params_per_workspace = {}
 
         for workspace in workspaces:
             workspace_scope_param = (workspace_content_type.id, workspace.id)
@@ -813,13 +879,21 @@ class RoleAssignmentHandler:
             # highest scope to the lowest.
             roles_by_scope = {workspace_scope_param: []}
             priorities_by_scope = {}
+            # See `apply_admin_precedence`.
+            admin_scope_params = set()
 
             for _, _, role_priority, _, _, row in relevant_rows:
-                _, _, _, role_id, scope_type_id, scope_id = row
+                _, subject_type_id, _, role_id, scope_type_id, scope_id = row
                 scope_param = (scope_type_id, scope_id)
                 role = self.get_role_by_id(role_id)
 
                 scopes_to_query[scope_type_id].add(scope_id)
+
+                if (
+                    role.uid == ADMIN_ROLE_UID
+                    and subject_type_id == actor_content_type.id
+                ):
+                    admin_scope_params.add(scope_param)
 
                 if not roles_by_scope.get(scope_param, []):
                     roles_by_scope[scope_param] = [role]
@@ -845,8 +919,11 @@ class RoleAssignmentHandler:
                         ]
                 else:
                     roles_by_scope[workspace_scope_param] = [workspace_level_role]
+                    if workspace_level_role.uid == ADMIN_ROLE_UID:
+                        admin_scope_params.add(workspace_scope_param)
 
             roles_by_scope_per_workspace[workspace.id] = roles_by_scope
+            admin_scope_params_per_workspace[workspace.id] = admin_scope_params
 
         # Hydrate all the scopes of all the workspaces at once, one query per distinct
         # scope content type.
@@ -868,6 +945,14 @@ class RoleAssignmentHandler:
                 if key not in scope_cache:
                     continue
                 roles_per_scope.append((scope_cache[key], value))
+            roles_per_scope = self.apply_admin_precedence(
+                roles_per_scope,
+                [
+                    scope_cache[key]
+                    for key in admin_scope_params_per_workspace[workspace.id]
+                    if key in scope_cache
+                ],
+            )
 
             # Prime the request local cache `get_roles_per_scope` reads from. If it
             # was already computed earlier in the request, the existing value wins to
@@ -930,6 +1015,79 @@ class RoleAssignmentHandler:
 
         return permissions_per_workspace
 
+    def apply_admin_precedence(
+        self,
+        roles_per_scope: List[Tuple[ScopeObject, List[Role]]],
+        admin_scopes: List[ScopeObject],
+    ) -> List[Tuple[ScopeObject, List[Role]]]:
+        """
+        Applies the rule that an admin can never be locked out of what they
+        administer to an ordered `(scope, roles)` list, the workspace entry first.
+
+        The rule only applies to the admin role an actor holds directly: their
+        stored workspace role, or a role assignment of their own on an application,
+        a table or a view. Such an admin keeps the admin role on that scope and on
+        everything inside it, so the entries of its descendant scopes are dropped
+        and a "no access" or lower role given to them there, directly or through a
+        team, has no effect. An admin of the workspace is an admin everywhere in it.
+
+        The admin role given by a team is a role like any other: it applies on the
+        scope the team holds it on and a role on a scope inside still wins there.
+
+        :param roles_per_scope: The ordered roles per scope of one actor.
+        :param admin_scopes: The scopes of that list on which the actor holds the
+            admin role directly.
+        :return: The same list with the entries an admin role makes inert removed.
+        """
+
+        if not roles_per_scope or not admin_scopes:
+            return roles_per_scope
+
+        admin_role = self.get_role_by_uid(ADMIN_ROLE_UID)
+        admin_scopes = set(admin_scopes)
+
+        workspace_scope, _ = roles_per_scope[0]
+        if workspace_scope in admin_scopes:
+            return [(workspace_scope, [admin_role])]
+
+        result = []
+        applied_admin_scopes = []
+        for scope, roles in roles_per_scope:
+            if any(
+                object_scope_type_registry.scope_includes_context(admin_scope, scope)
+                for admin_scope in applied_admin_scopes
+            ):
+                continue
+            if scope in admin_scopes:
+                roles = [admin_role]
+                applied_admin_scopes.append(scope)
+            result.append((scope, roles))
+
+        return result
+
+    @staticmethod
+    def is_workspace_admin(
+        roles_per_scope: List[Tuple[ScopeObject, List[Role]]],
+    ) -> bool:
+        """
+        Whether the given ordered `(scope, roles)` list, as returned by
+        `get_roles_per_scope`, is reduced to the admin role on the workspace itself.
+        Such an actor can't be denied anything in the workspace, so the admin role
+        alone decides every operation. `apply_admin_precedence` reduces the list to
+        that single entry for an actor whose stored workspace role is admin. A team's
+        admin role on the workspace doesn't, so the list keeps the entries of the
+        lower scopes when there are any, and they have to be resolved as usual.
+
+        :param roles_per_scope: The ordered roles per scope of one actor.
+        :return: True if the admin role on the workspace decides everything.
+        """
+
+        if len(roles_per_scope) != 1:
+            return False
+
+        _, workspace_roles = roles_per_scope[0]
+        return any(role.uid == ADMIN_ROLE_UID for role in workspace_roles)
+
     def get_computed_roles(
         self, roles_per_scopes, context: Any, cache: Optional[Dict] = None
     ) -> List[Role]:
@@ -944,7 +1102,8 @@ class RoleAssignmentHandler:
 
         most_precise_roles = [self.get_role_by_uid(NO_ACCESS_ROLE_UID)]
 
-        cache = cache or {}
+        if cache is None:
+            cache = {}
 
         def scope_includes_context(scope, context):
             key = (type(scope).__name__, scope.id, type(context).__name__, context.id)
@@ -1115,12 +1274,23 @@ class RoleAssignmentHandler:
             role assignments.
         :raise ScopeNotExist: If at least one of the scopes is not a child of the
             workspace.
+        :raise CannotAssignRoleToSelf: If the user assigns a role to themselves, on
+            the workspace or on anything inside it.
         :return: A list of the result of each assignment. Each result can be a
             RoleAssignment object or None if the assignment has been removed.
         """
 
         # First check licence
         LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, user, workspace)
+
+        # Nobody can give themselves a role: an admin could demote themselves or
+        # lock themselves out of an application, table or view that way.
+        for subject, _, _ in new_role_assignments:
+            if (
+                subject_type_registry.get_by_model(subject).type == UserSubjectType.type
+                and subject.id == user.id
+            ):
+                raise CannotAssignRoleToSelf()
 
         # Create a dict of unique scope and subject by type to allow performants
         # preliminary checks
@@ -1190,6 +1360,19 @@ class RoleAssignmentHandler:
             id__in=scope_ids
         )
 
+    def prefetch_role_assignment_subjects(self, role_assignments):
+        """Bulk-load subjects with the team counts required by role serialization.
+
+        Removed assignments are represented by None and are left untouched.
+        """
+
+        from baserow_enterprise.teams.handler import TeamHandler
+
+        prefetch_related_objects(
+            [assignment for assignment in role_assignments if assignment is not None],
+            GenericPrefetch("subject", [TeamHandler().get_teams_queryset()]),
+        )
+
     def get_role_assignments(self, workspace: Workspace, scope: Optional[ScopeObject]):
         """
         Helper method that returns all role assignments given a scope and workspace.
@@ -1199,11 +1382,13 @@ class RoleAssignmentHandler:
         """
 
         role_assignments = list(
-            self._get_role_assignments_for_valid_subjects_qs().filter(
+            self._get_role_assignments_for_valid_subjects_qs()
+            .filter(
                 workspace=workspace,
                 scope_id=scope.id,
                 scope_type=ContentType.objects.get_for_model(scope),
             )
+            .select_related("role", "subject_type", "scope_type")
         )
         # Include both record-backed roles and roles owned by subject types.
         if scope == workspace:
@@ -1216,6 +1401,356 @@ class RoleAssignmentHandler:
                     )
         return role_assignments
 
+    def get_effective_access(
+        self, workspace: Workspace, scope: ScopeObject
+    ) -> List[EffectiveAccess]:
+        """
+        Resolves the role every user and agent of the workspace effectively holds on
+        the given scope, with the resolution the permission checks use, and where it
+        comes from.
+
+        The source of a role is the most specific scope, the given one or one above
+        it, that holds a role for the subject once the admin precedence is applied.
+        The subject holds that role themselves, by their stored workspace role or a
+        role assignment of their own, or otherwise through the teams they belong to
+        that hold a role there.
+
+        Subjects without access are left out: those resolving to no access, which
+        includes being blocked on a scope above, and those only reaching the scope
+        to navigate to something inside it that they hold a role on.
+
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope to resolve the access on.
+        :return: The effective access of every subject with access, ordered by
+            subject type priority.
+        """
+
+        team_content_type = ContentType.objects.get_for_model(Team)
+        operation_counts = {}
+
+        def get_operation_count(role):
+            if role.id not in operation_counts:
+                operation_counts[role.id] = len(role.operations.all())
+            return operation_counts[role.id]
+
+        def get_scope_key(scope_object):
+            scope_type = object_scope_type_registry.get_by_model(scope_object)
+            return (
+                ContentType.objects.get_for_model(scope_type.model_class).id,
+                scope_object.id,
+            )
+
+        # Resolve the role of every subject, keeping the scope whose roles apply.
+        resolved = []
+        for subject_type_name in ALLOWED_SUBJECT_TYPE_BY_PRIORITY:
+            subject_type = subject_type_registry.get(subject_type_name)
+            if not subject_type.has_direct_workspace_roles:
+                continue
+            subjects = list(subject_type.get_workspace_subjects(workspace))
+            if not subjects:
+                continue
+            roles_per_scope_per_subject = self.get_roles_per_scope_for_actors(
+                workspace, subject_type, subjects
+            )
+            stored_role_uids = subject_type.get_workspace_role_uids(subjects, workspace)
+            for subject in subjects:
+                source = None
+                for source_scope, roles in roles_per_scope_per_subject[subject]:
+                    # Ordered from the workspace down, so the last match is the most
+                    # specific one.
+                    if object_scope_type_registry.scope_includes_context(
+                        source_scope, scope
+                    ):
+                        source = (source_scope, roles)
+                if source is None:
+                    continue
+                source_scope, roles = source
+                roles = [role for role in roles if role.uid != NO_ACCESS_ROLE_UID]
+                if not roles:
+                    continue
+                resolved.append(
+                    (
+                        subject_type,
+                        subject,
+                        # Roles held at the same level add up, so the one granting
+                        # the most operations is the effective one.
+                        max(roles, key=get_operation_count),
+                        source_scope,
+                        stored_role_uids.get(subject.id),
+                    )
+                )
+
+        # Fetch the role assignments of the source scopes to tell whether a role is
+        # held by the subject themselves or through their teams.
+        # The source scopes are the given one and the few above it.
+        source_scopes_q = Q(pk__in=[])
+        for scope_type_id, scope_id in {
+            get_scope_key(source_scope) for _, _, _, source_scope, _ in resolved
+        }:
+            source_scopes_q |= Q(scope_type_id=scope_type_id, scope_id=scope_id)
+        own_keys = set()
+        team_ids_per_scope_key = defaultdict(set)
+        for subject_type_id, subject_id, scope_type_id, scope_id in (
+            RoleAssignment.objects.filter(workspace=workspace)
+            .filter(source_scopes_q)
+            .exclude(self._direct_workspace_roles_q())
+            .exclude(role__uid__in=[NO_ROLE_LOW_PRIORITY_ROLE_UID, *INTERNAL_ROLE_UIDS])
+            .values_list("subject_type_id", "subject_id", "scope_type_id", "scope_id")
+        ):
+            scope_key = (scope_type_id, scope_id)
+            if subject_type_id == team_content_type.id:
+                team_ids_per_scope_key[scope_key].add(subject_id)
+            else:
+                own_keys.add((subject_type_id, subject_id, scope_key))
+
+        team_ids = set().union(*team_ids_per_scope_key.values())
+        teams_by_id = Team.objects.filter(id__in=team_ids).in_bulk()
+        team_ids_per_subject_key = defaultdict(set)
+        for subject_type_id, subject_id, team_id in TeamSubject.objects.filter(
+            team_id__in=team_ids
+        ).values_list("subject_type_id", "subject_id", "team_id"):
+            team_ids_per_subject_key[(subject_type_id, subject_id)].add(team_id)
+
+        result = []
+        for subject_type, subject, role, source_scope, stored_role_uid in resolved:
+            subject_type_id = subject_type.get_content_type().id
+            scope_key = get_scope_key(source_scope)
+            if source_scope == workspace:
+                is_own = not subject_type.is_workspace_role_fallback(stored_role_uid)
+            else:
+                is_own = (subject_type_id, subject.id, scope_key) in own_keys
+            teams = []
+            if not is_own:
+                teams = sorted(
+                    (
+                        teams_by_id[team_id]
+                        for team_id in team_ids_per_scope_key[scope_key]
+                        & team_ids_per_subject_key[(subject_type_id, subject.id)]
+                    ),
+                    key=lambda team: (team.name, team.id),
+                )
+            result.append(EffectiveAccess(subject, role, source_scope, teams))
+
+        return result
+
+    def get_subject_role_assignments(
+        self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
+    ) -> Dict[Subject, List[SubjectRoleAssignment]]:
+        """
+        Returns the roles the given users, agents or teams hold on databases, tables
+        and views of the workspace, as shown to the given user: only on objects whose
+        roles the user may read, not on objects in the trash, and on views only while
+        they are restricted, as a role on any other view has no effect.
+
+        A role is locked when the subject holds the admin role themselves on the
+        workspace or on a database or table the object is in, which makes the role
+        inert. A team's admin role never locks anything.
+
+        :param user: The user the roles are shown to.
+        :param workspace: The workspace the roles are held in.
+        :param subjects: The users, agents or teams to return the roles of.
+        :return: The roles of every given subject, grouped by the database they are
+            in, a database before its tables and a table before its views, then by
+            name.
+        """
+
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+
+        result = {subject: [] for subject in subjects}
+        if not subjects:
+            return result
+
+        subjects_by_key = {}
+        subjects_q = Q(pk__in=[])
+        for subject in subjects:
+            subject_type = subject_type_registry.get_by_model(subject)
+            content_type_id = subject_type.get_content_type().id
+            subjects_by_key[(content_type_id, subject.id)] = subject
+        for content_type_id in {key[0] for key in subjects_by_key}:
+            subjects_q |= Q(
+                subject_type_id=content_type_id,
+                subject_id__in=[
+                    subject_id
+                    for subject_type_id, subject_id in subjects_by_key
+                    if subject_type_id == content_type_id
+                ],
+            )
+
+        scope_types = [
+            object_scope_type_registry.get(scope_type_name)
+            for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP
+            if scope_type_name != WorkspaceObjectScopeType.type
+        ]
+        scope_types_by_content_type_id = {
+            ContentType.objects.get_for_model(scope_type.model_class).id: scope_type
+            for scope_type in scope_types
+        }
+
+        def get_scope_key(scope_object):
+            return get_assignable_scope_type(scope_object).type, scope_object.id
+
+        role_assignments = list(
+            RoleAssignment.objects.filter(workspace=workspace)
+            .filter(subjects_q)
+            .filter(scope_type_id__in=scope_types_by_content_type_id.keys())
+            .exclude(role__uid__in=[NO_ROLE_LOW_PRIORITY_ROLE_UID, *INTERNAL_ROLE_UIDS])
+        )
+
+        scope_ids_per_content_type_id = defaultdict(set)
+        for role_assignment in role_assignments:
+            scope_ids_per_content_type_id[role_assignment.scope_type_id].add(
+                role_assignment.scope_id
+            )
+        scopes = {}
+        for content_type_id, scope_ids in scope_ids_per_content_type_id.items():
+            scope_type = scope_types_by_content_type_id[content_type_id]
+            for scope in scope_type.get_enhanced_queryset(include_trash=True).filter(
+                id__in=scope_ids
+            ):
+                scopes[(content_type_id, scope.id)] = scope
+
+        def get_parent_scopes(scope_object):
+            parents = []
+            parent = scope_object.get_parent()
+            while parent is not None and not isinstance(parent, Workspace):
+                # A database's parent is the application it is, the same scope.
+                if not parents or get_scope_key(parent) != get_scope_key(parents[0]):
+                    parents.insert(0, parent)
+                parent = parent.get_parent()
+            return parents
+
+        # The scopes on which each user or agent holds the admin role themselves.
+        admin_keys_per_subject_key = defaultdict(set)
+        for role_assignment in role_assignments:
+            subject_key = (role_assignment.subject_type_id, role_assignment.subject_id)
+            subject_type = subject_type_registry.get_by_model(
+                subjects_by_key[subject_key]
+            )
+            role = self.get_role_by_id(role_assignment.role_id)
+            scope = scopes.get(
+                (role_assignment.scope_type_id, role_assignment.scope_id)
+            )
+            if (
+                subject_type.has_direct_workspace_roles
+                and role.uid == ADMIN_ROLE_UID
+                and scope is not None
+            ):
+                admin_keys_per_subject_key[subject_key].add(get_scope_key(scope))
+        workspace_admin_subject_keys = set()
+        for subject_type in {
+            subject_type_registry.get_by_model(subject) for subject in subjects
+        }:
+            if not subject_type.has_direct_workspace_roles:
+                continue
+            content_type_id = subject_type.get_content_type().id
+            role_uids = subject_type.get_workspace_role_uids(
+                [
+                    subject
+                    for (type_id, _), subject in subjects_by_key.items()
+                    if type_id == content_type_id
+                ],
+                workspace,
+            )
+            workspace_admin_subject_keys.update(
+                (content_type_id, subject_id)
+                for subject_id, role_uid in role_uids.items()
+                if role_uid == ADMIN_ROLE_UID
+            )
+
+        listed = []
+        for role_assignment in role_assignments:
+            scope = scopes.get(
+                (role_assignment.scope_type_id, role_assignment.scope_id)
+            )
+            if scope is None:
+                continue
+            parent_scopes = get_parent_scopes(scope)
+            if any(
+                getattr(scope_object, "trashed", False)
+                for scope_object in [*parent_scopes, scope]
+            ):
+                continue
+            if (
+                get_scope_key(scope)[0] == "database_view"
+                and scope.ownership_type != RestrictedViewOwnershipType.type
+            ):
+                continue
+            listed.append((role_assignment, scope, parent_scopes))
+
+        # Only the roles on objects whose roles the user may read are shown.
+        checks = {}
+        for _, scope, _ in listed:
+            scope_key = get_scope_key(scope)
+            if scope_key not in checks:
+                checks[scope_key] = PermissionCheck(
+                    user, ROLE_ASSIGNABLE_OBJECT_MAP[scope_key[0]]["READ"], scope
+                )
+        permissions = CoreHandler().check_multiple_permissions(
+            list(checks.values()), workspace=workspace
+        )
+
+        for role_assignment, scope, parent_scopes in listed:
+            if permissions[checks[get_scope_key(scope)]] is not True:
+                continue
+            subject_key = (role_assignment.subject_type_id, role_assignment.subject_id)
+            if subject_key in workspace_admin_subject_keys:
+                locked_by = workspace
+            else:
+                locked_by = next(
+                    (
+                        parent
+                        for parent in parent_scopes
+                        if get_scope_key(parent)
+                        in admin_keys_per_subject_key[subject_key]
+                    ),
+                    None,
+                )
+            result[subjects_by_key[subject_key]].append(
+                SubjectRoleAssignment(role_assignment, scope, parent_scopes, locked_by)
+            )
+
+        def get_sort_key(subject_role_assignment):
+            return [
+                (scope_object.name.lower(), scope_object.id)
+                for scope_object in [
+                    *subject_role_assignment.parent_scopes,
+                    subject_role_assignment.scope,
+                ]
+            ]
+
+        for subject_role_assignments in result.values():
+            subject_role_assignments.sort(key=get_sort_key)
+
+        return result
+
+    def count_subject_role_assignments(
+        self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
+    ) -> Dict[Subject, int]:
+        """
+        Counts the roles `get_subject_role_assignments` lists for every given subject,
+        so that a count always matches the listed roles. Nothing is counted when roles
+        don't apply to the workspace, without the RBAC licence for instance.
+
+        :param user: The user the roles are shown to.
+        :param workspace: The workspace the roles are held in.
+        :param subjects: The users, agents or teams to count the roles of.
+        :return: The number of listed roles per subject, or an empty dict when roles
+            don't apply to the workspace.
+        """
+
+        if (
+            "role" not in settings.PERMISSION_MANAGERS
+            or not permission_manager_type_registry.get("role").is_enabled(workspace)
+        ):
+            return {}
+
+        return {
+            subject: len(subject_role_assignments)
+            for subject, subject_role_assignments in self.get_subject_role_assignments(
+                user, workspace, subjects
+            ).items()
+        }
+
     @classmethod
     def is_workspace_level_assignment(
         cls, workspace: Workspace, scope: ScopeObject, subject: Subject
@@ -1225,3 +1760,410 @@ class RoleAssignmentHandler:
             and scope.id == workspace.id
             and subject_type_registry.get_by_model(subject).has_direct_workspace_roles
         )
+
+    def check_scoped_invitation_permissions(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        scope: ScopeObject,
+        operation: str = "UPDATE",
+    ):
+        """
+        Runs the checks that guard managing scoped invitations: the RBAC licence, the
+        scope being a role assignable object inside the workspace other than the
+        workspace itself, and the user holding the scope's role operation.
+
+        :param user: The user managing the scoped invitation.
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope the invitation grants a role on.
+        :param operation: Which role operation of the scope must be held, `UPDATE`
+            to change invitations or `READ` to list them.
+        :raises ScopeNotExist: If the scope can't carry a scoped invitation or isn't
+            part of the workspace.
+        :raises PermissionDenied: If the user doesn't hold the operation on the scope.
+        """
+
+        LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, user, workspace)
+
+        scope_type = object_scope_type_registry.get_by_model(scope)
+        if scope_type.type not in ROLE_ASSIGNABLE_OBJECT_MAP or isinstance(
+            scope, Workspace
+        ):
+            raise ScopeNotExist()
+        if not scope_type.are_objects_child_of([scope], workspace)[0]:
+            raise ScopeNotExist()
+
+        CoreHandler().check_permissions(
+            user,
+            ROLE_ASSIGNABLE_OBJECT_MAP[scope_type.type][operation],
+            workspace=workspace,
+            context=scope,
+        )
+
+    def _get_live_scope(
+        self,
+        scoped_invitation: Union[WorkspaceScopedInvitation, WorkspaceInvitationLink],
+    ) -> ScopeObject:
+        """
+        Returns the scope of a scoped invitation or invitation link, or raises when
+        it was deleted or trashed in the meantime, because nothing can be managed on
+        it anymore.
+        """
+
+        scope = scoped_invitation.scope
+        if scope is None or getattr(scope, "trashed", False):
+            raise ScopeNotExist()
+        return scope
+
+    def create_scoped_invitation(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        email: str,
+        role: Role,
+        scope: ScopeObject,
+    ) -> WorkspaceScopedInvitation:
+        """
+        Invites the given email address to one scope of the workspace. The person
+        joins the workspace with the `NO_ROLE_LOW_PRIORITY` workspace role and gets
+        the given role on the scope once they accept. If a pending invitation already
+        exists for the address it is reused: its workspace role is kept as it is and
+        the scope is added to it, so one invitation can grant roles on several
+        objects. Inviting the same address to the same scope again updates the role.
+
+        :param user: The user on whose behalf the invitation is created.
+        :param workspace: The workspace the scope belongs to.
+        :param email: The email address of the person that is invited.
+        :param role: The role granted on the scope once the invitation is accepted.
+        :param scope: The application, table or view the role is granted on.
+        :raises ScopeNotExist: If the scope can't carry a scoped invitation.
+        :raises WorkspaceUserAlreadyExists: If the address already belongs to a
+            member of the workspace, who should be given a role directly instead.
+        :return: The created or updated scoped invitation.
+        """
+
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        email = normalize_email_address(email)
+        existing_invitation = WorkspaceInvitation.objects.filter(
+            workspace=workspace, email=email
+        ).first()
+        permissions = (
+            existing_invitation.permissions
+            if existing_invitation
+            else NO_ROLE_LOW_PRIORITY_ROLE_UID
+        )
+        invitation = CoreHandler().create_workspace_invitation(
+            user, workspace, email, permissions
+        )
+
+        scoped_invitation, _ = WorkspaceScopedInvitation.objects.update_or_create(
+            invitation=invitation,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+            defaults={"role": role},
+        )
+        return scoped_invitation
+
+    def get_scoped_invitations(
+        self, workspace: Workspace, scope: ScopeObject
+    ) -> QuerySet[WorkspaceScopedInvitation]:
+        """
+        Returns the pending scoped invitations that grant a role on the given scope.
+
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope the invitations grant a role on.
+        :return: A queryset of the scoped invitations, oldest first.
+        """
+
+        return WorkspaceScopedInvitation.objects.filter(
+            invitation__workspace=workspace,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+        ).select_related("invitation", "role", "scope_type")
+
+    def get_scoped_invitation(
+        self, scoped_invitation_id: int
+    ) -> WorkspaceScopedInvitation:
+        """
+        Returns the scoped invitation with the given id.
+
+        :param scoped_invitation_id: The id of the scoped invitation.
+        :raises ScopedInvitationDoesNotExist: If it doesn't exist.
+        :return: The scoped invitation with its invitation, workspace and role loaded.
+        """
+
+        try:
+            return WorkspaceScopedInvitation.objects.select_related(
+                "invitation__workspace", "role", "scope_type"
+            ).get(id=scoped_invitation_id)
+        except WorkspaceScopedInvitation.DoesNotExist:
+            raise ScopedInvitationDoesNotExist(
+                f"The scoped invitation with id {scoped_invitation_id} does not exist."
+            )
+
+    def update_scoped_invitation(
+        self,
+        user: AbstractUser,
+        scoped_invitation: WorkspaceScopedInvitation,
+        role: Role,
+    ) -> WorkspaceScopedInvitation:
+        """
+        Changes the role a pending scoped invitation grants.
+
+        :param user: The user changing the invitation.
+        :param scoped_invitation: The scoped invitation to change.
+        :param role: The new role.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :return: The updated scoped invitation.
+        """
+
+        workspace = scoped_invitation.invitation.workspace
+        scope = self._get_live_scope(scoped_invitation)
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        scoped_invitation.role = role
+        scoped_invitation.save()
+        return scoped_invitation
+
+    def delete_scoped_invitation(
+        self, user: AbstractUser, scoped_invitation: WorkspaceScopedInvitation
+    ):
+        """
+        Revokes the role a pending invitation grants on one scope. Only that scope is
+        removed, the workspace invitation itself and its other scopes are kept.
+
+        :param user: The user revoking the scoped invitation.
+        :param scoped_invitation: The scoped invitation to delete.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        """
+
+        workspace = scoped_invitation.invitation.workspace
+        scope = self._get_live_scope(scoped_invitation)
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        scoped_invitation.delete()
+
+    def assign_scoped_invitation_roles(
+        self, invitation: WorkspaceInvitation, user: AbstractUser
+    ) -> List[Optional[RoleAssignment]]:
+        """
+        Turns the scoped invitations of an accepted workspace invitation into role
+        assignments for the user who accepted it. Scopes that were deleted or trashed
+        in the meantime are skipped, so the person still joins the workspace.
+
+        :param invitation: The accepted invitation, still carrying its scopes.
+        :param user: The user who accepted it and is now a member of the workspace.
+        :return: The created role assignments.
+        """
+
+        new_role_assignments = []
+        for scoped_invitation in invitation.scoped_invitations.select_related(
+            "role", "scope_type"
+        ):
+            scope = scoped_invitation.scope
+            if scope is None or getattr(scope, "trashed", False):
+                continue
+            new_role_assignments.append(
+                NewRoleAssignment(user, scoped_invitation.role, scope)
+            )
+
+        if not new_role_assignments:
+            return []
+
+        return self.assign_role_batch(invitation.workspace, new_role_assignments)
+
+    def get_scoped_invitation_links(
+        self, workspace: Workspace, scope: ScopeObject
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        """
+        Returns the permanent invitation links that give a role on the given scope.
+
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The scope the links give a role on.
+        :return: The invitation links of the scope.
+        """
+
+        return WorkspaceInvitationLink.objects.filter(
+            workspace=workspace,
+            scope_type=ContentType.objects.get_for_model(scope),
+            scope_id=scope.id,
+        )
+
+    def get_scoped_invitation_link(
+        self, invitation_link_id: int
+    ) -> WorkspaceInvitationLink:
+        """
+        Returns the permanent invitation link with the given id that gives a role on
+        a scope of its workspace.
+
+        :param invitation_link_id: The id of the invitation link.
+        :raises WorkspaceInvitationLinkDoesNotExist: If there is no such link.
+        :return: The invitation link.
+        """
+
+        return CoreHandler().get_workspace_invitation_link(
+            invitation_link_id,
+            base_queryset=WorkspaceInvitationLink.objects.filter(
+                scope_type__isnull=False
+            ).select_related("scope_type"),
+        )
+
+    def is_supported_invitation_link_scope(self, scope: ScopeObject) -> bool:
+        """Only restricted views support loading rows with a view-level role."""
+
+        from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
+
+        scope_type = object_scope_type_registry.get_by_model(scope)
+        return scope_type.type != "database_view" or (
+            scope.ownership_type == RestrictedViewOwnershipType.type
+        )
+
+    def _validate_scoped_invitation_link_role(self, role: Role, workspace: Workspace):
+        """Validate workspace availability and require a role granting scoped access."""
+
+        CoreHandler().raise_if_invalid_workspace_role(role.uid, workspace)
+        if role.uid in (NO_ACCESS_ROLE_UID, NO_ROLE_LOW_PRIORITY_ROLE_UID):
+            raise InvalidWorkspaceRole(
+                f"The role {role.uid} cannot grant access through a scoped invitation link."
+            )
+
+    def create_scoped_invitation_link(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        scope: ScopeObject,
+        role: Role,
+        name: str = "",
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a permanent link that anyone can use to join the workspace and get
+        the given role on the scope. People who aren't a member yet join without a
+        workspace role. Admins of the workspace and admins of the scope can create
+        them.
+
+        :param user: The user on whose behalf the link is created.
+        :param workspace: The workspace the scope belongs to.
+        :param scope: The application, table or view the link gives a role on.
+        :param role: The role people get on the scope when they join.
+        :param name: A name that reminds the admins what the link is for.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises ScopeNotExist: If the scope can't get a role through a link.
+        :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
+        :raises PermissionDenied: If the user can't manage the roles of the scope.
+        :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
+            don't let anyone sign up through the link.
+        :return: The created invitation link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        self.check_scoped_invitation_permissions(user, workspace, scope)
+
+        if not self.is_supported_invitation_link_scope(scope):
+            raise ScopeNotExist()
+        self._validate_scoped_invitation_link_role(role, workspace)
+
+        if not CoreHandler().invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkSignupsDisabled(
+                "Invitation links can't be created while signups are disabled."
+            )
+
+        return WorkspaceInvitationLink.objects.create(
+            workspace=workspace,
+            created_by=user,
+            permissions=role.uid,
+            name=name,
+            scope=scope,
+        )
+
+    def update_scoped_invitation_link(
+        self,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        role: Optional[Role] = None,
+        name: Optional[str] = None,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of a link to a scope or the role people get on the scope
+        when joining through it. People who already joined keep their role.
+
+        :param user: The user on whose behalf the link is updated.
+        :param invitation_link: The link that must be updated.
+        :param role: The new role of the link, if it changes.
+        :param name: The new name of the link, if it changes.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
+        :raises PermissionDenied: If the user can't manage the roles of the scope.
+        :return: The updated invitation link.
+        """
+
+        scope = self._get_live_scope(invitation_link)
+        self.check_scoped_invitation_permissions(user, invitation_link.workspace, scope)
+
+        update_fields = ["updated_on"]
+        if role is not None:
+            if not self.is_supported_invitation_link_scope(scope):
+                raise ScopeNotExist()
+            self._validate_scoped_invitation_link_role(role, invitation_link.workspace)
+            invitation_link.permissions = role.uid
+            update_fields.append("permissions")
+        if name is not None:
+            invitation_link.name = name
+            update_fields.append("name")
+        invitation_link.save(update_fields=update_fields)
+
+        return invitation_link
+
+    def delete_scoped_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ):
+        """
+        Deletes a link to a scope, after which it can't be used anymore. People who
+        joined through it keep their role.
+
+        :param user: The user on whose behalf the link is deleted.
+        :param invitation_link: The link that must be deleted.
+        :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
+        :raises PermissionDenied: If the user can't manage the roles of the scope.
+        """
+
+        scope = self._get_live_scope(invitation_link)
+        self.check_scoped_invitation_permissions(user, invitation_link.workspace, scope)
+
+        invitation_link.delete()
+
+    def get_role_raised_by_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> Optional[str]:
+        """
+        Returns the role a member currently has on the scope of a link, resolved like
+        the permission checks do, if the role of the link gives them everything that
+        role does and more. A role that lacks any operation of the current one never
+        replaces it, so a link can't lower anyone's access.
+
+        :param user: A member of the workspace of the link.
+        :param invitation_link: A link that gives a role on a scope.
+        :return: The uid of the current role on the scope, or None if the link
+            wouldn't raise it.
+        """
+
+        try:
+            link_role = self.get_role_by_uid(invitation_link.permissions)
+        except Role.DoesNotExist:
+            return None
+
+        roles_per_scope = self.get_roles_per_scope(invitation_link.workspace, user)
+        current_roles = self.get_computed_roles(roles_per_scope, invitation_link.scope)
+        current_operations = {
+            operation.name
+            for role in current_roles
+            for operation in role.operations.all()
+        }
+        link_operations = {operation.name for operation in link_role.operations.all()}
+
+        if not link_operations > current_operations:
+            return None
+        if not current_operations:
+            return NO_ACCESS_ROLE_UID
+        return current_roles[0].uid

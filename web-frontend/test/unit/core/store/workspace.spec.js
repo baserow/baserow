@@ -516,6 +516,8 @@ describe('Workspace store', () => {
 
   test(`forceDeleteWorkspaceUser removes the whole workspace if the
         current user is being removed`, async () => {
+    // Deleting the workspace also cleans up the other stores.
+    const store = testApp.store
     await store.dispatch('auth/forceSetUserData', {
       user: {
         id: 256,
@@ -535,6 +537,7 @@ describe('Workspace store', () => {
           name: 'Workspace 1',
           order: 1,
           permissions: 'ADMIN',
+          _: { selected: false },
           users: [
             {
               id: 73,
@@ -547,6 +550,14 @@ describe('Workspace store', () => {
               created_on: '2022-08-10T14:20:05.629890Z',
             },
           ],
+        },
+        {
+          id: 2,
+          name: 'Workspace 2',
+          order: 2,
+          permissions: 'ADMIN',
+          _: { selected: false },
+          users: [],
         },
       ],
     })
@@ -569,7 +580,7 @@ describe('Workspace store', () => {
     })
 
     const workspaces = store.getters['workspace/getAll']
-    expect(workspaces.length).toBe(0)
+    expect(workspaces.map((workspace) => workspace.id)).toEqual([2])
   })
 
   test('forceDeleteUser deletes all workspace users across all workspaces', async () => {

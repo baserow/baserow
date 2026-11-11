@@ -481,7 +481,8 @@
         "filterTypeNotFound": "Typ filtru není kompatibilní.",
         "noCompatibleFilterTypesErrorTitle": "Žádné kompatibilní typy filtrů",
         "noCompatibleFilterTypesErrorMessage": "Žádné z vašich polí nemá kompatibilní typ filtru",
-        "addFilterGroup": "Přidat skupinu filtrů"
+        "addFilterGroup": "Přidat skupinu filtrů",
+        "copyFromView": "Kopírovat z jiného zobrazení"
     },
     "viewFilterTypeFileTypeDropdown": {
         "image": "obrázek",
@@ -580,7 +581,8 @@
         "deleteView": "Odstranit zobrazení",
         "toPersonal": "Převést na osobní",
         "toCollaborative": "Převést na spolupracující",
-        "defaultRowValues": "Výchozí hodnoty řádků"
+        "defaultRowValues": "Výchozí hodnoty řádků",
+        "copyConfiguration": "Kopírovat konfiguraci ze zobrazení"
     },
     "deleteViewModal": {
         "title": "Odstranit {name}",
@@ -699,7 +701,7 @@
     },
     "apiDocsDatabase": {
         "pageTitle": "Dokumentace API databáze {name}",
-        "back": "Zpět na nástěnku",
+        "back": "Zpět na přehled",
         "openDatabase": "otevřít databázi"
     },
     "apiDocsComponent": {
@@ -708,7 +710,7 @@
         "settings": "nastavení",
         "selectApplicationTitle": "Pro kterou databázi chcete zobrazit dokumentaci?",
         "signIn": "Přihlaste se a začněte",
-        "back": "Zpět na nástěnku"
+        "back": "Zpět na přehled"
     },
     "viewAggregationType": {
         "emptyCount": "(Prázdné)",
@@ -914,7 +916,8 @@
         "restored": "obnovil(a) tento řádek",
         "createdUndo": "vrátil(a) zpět vytvoření řádku",
         "updatedUndo": "vrátil(a) zpět aktualizaci řádku",
-        "deletedUndo": "vrátil(a) zpět odstranění řádku"
+        "deletedUndo": "vrátil(a) zpět odstranění řádku",
+        "anonymousUser": "Anonymní uživatel"
     },
     "apiDocsFiltersBuilderModal": {
         "title": "Nástroj pro sestavení parametru filtrů",
@@ -935,7 +938,10 @@
         "maxGroupBysReached": "Můžete seskupovat podle nejvýše {count} polí.",
         "hiddenFieldWarning": "Jedno nebo více seskupení odkazuje na skrytá pole, která nebudou viditelná pro editory a nižší role.",
         "collapseAllGroups": "Sbalit vše",
-        "expandAllGroups": "Rozbalit vše"
+        "expandAllGroups": "Rozbalit vše",
+        "layout": "Rozvržení skupin",
+        "layoutSection": "Oddíly",
+        "layoutColumn": "Sloupce"
     },
     "formSubmittedNotification": {
         "title": "Formulář {formName} byl odeslán v tabulce {tableName}:",
@@ -961,7 +967,11 @@
         "passwordDeleted": "Heslo bylo odstraněno"
     },
     "dataProviderTypes": {
-        "fieldsName": "Pole"
+        "fieldsName": "Pole",
+        "rowName": "Kliknutý řádek",
+        "rowId": "ID řádku",
+        "previousActionName": "Předchozí akce",
+        "previousActionRowId": "ID"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} vás zmínil(a) v poli {fieldName} řádku {rowId} tabulky {tableName}",
@@ -1324,6 +1334,98 @@
         "labelPlaceholder": "Otevřít",
         "url": "URL",
         "urlPlaceholder": "např. concat('https://example.com/', get('fields.field_1'))",
-        "invalidUrl": "Vzorec adresy URL je neplatný."
+        "invalidUrl": "Vzorec adresy URL je neplatný.",
+        "unresolvedReferenceTitle": "Akce nebyla uložena",
+        "unresolvedReferenceMessage": "Akce používá výsledek akce, která se nespouští před ní. Přesuňte ji zpět nebo odstraňte odkaz a poté ji znovu uložte."
+    },
+    "copyViewConfigurationModal": {
+        "title": "Kopírovat konfiguraci do {name}",
+        "sourceView": "Kopírovat ze zobrazení",
+        "selectAll": "Vybrat vše",
+        "clearAll": "Vymazat vše",
+        "copy": "Kopírovat konfiguraci"
+    },
+    "copyViewConfigurationOption": {
+        "fieldVisibility": "Viditelnost polí",
+        "fieldOrder": "Pořadí polí",
+        "fieldWidths": "Šířky polí",
+        "viewSettings": "Nastavení ({settings})",
+        "viewSettingsRowHeightSize": "výška řádku",
+        "viewSettingsFrozenColumnCount": "zmrazené sloupce",
+        "viewSettingsRowIdentifierType": "identifikátor řádku",
+        "viewSettingsGroupByLayout": "rozvržení skupin",
+        "filters": "Filtry",
+        "sorts": "Řazení",
+        "groupBys": "Seskupení",
+        "decorations": "Dekorace",
+        "defaultRowValues": "Výchozí hodnoty řádku"
+    },
+    "hiddenRows": {
+        "title": "Řádek skryt | Řádky skryty",
+        "createdMessage": "Nový řádek neodpovídá filtrům tohoto zobrazení, proto není zobrazen. Požádejte autora zobrazení, aby nastavil výchozí hodnoty odpovídající filtrům. | {count} nových řádků neodpovídá filtrům tohoto zobrazení, proto nejsou zobrazeny. Požádejte autora zobrazení, aby nastavil výchozí hodnoty odpovídající filtrům.",
+        "updatedMessage": "Řádek už neodpovídá filtrům tohoto zobrazení, proto je skryt. | {count} řádků už neodpovídá filtrům tohoto zobrazení, proto jsou skryty."
+    },
+    "databaseWorkflowActionWithService": {
+        "nothingCapturedYet": "Kliknutím na toto tlačítko u řádku zachytíte odpověď koncového bodu, aby následující akce mohly používat její pole. Spustí se také ostatní akce tlačítka.",
+        "payloadModalTitle": "Zachycená odpověď pro {actionLabel}",
+        "payloadModalSubTitle": "Datová část JSON"
+    },
+    "databaseWorkflowActionType": {
+        "openUrl": "Otevřít adresu URL",
+        "sendEmail": "Odeslat e-mail",
+        "deleteRow": "Odstranit řádek",
+        "noUrl": "Zadejte adresu URL, kterou chcete otevřít.",
+        "staleReference": "Tato akce používá výsledek akce, která se už nespouští před ní.",
+        "unreadableReference": "Tato akce používá výsledek akce, která jej už nevrací.",
+        "writesToTrashedField": "Tato akce zapisuje do pole, které je v koši. Obnovte pole, abyste akci mohli znovu spustit.",
+        "tableTrashed": "Tato akce používá tabulku, která je v koši nebo už neexistuje. Obnovte tabulku nebo vyberte jinou.",
+        "requiresReconfiguration": "Tato akce odkazuje na tabulku, pole nebo integraci, které jsou v koši nebo už neexistují.",
+        "noInstanceSmtp": "Tato instance Baserow nemá nakonfigurovaný server SMTP. Chcete-li odeslat tento e-mail, vyberte integraci SMTP.",
+        "instanceSmtpTurnedOff": "Odesílání prostřednictvím vlastního serveru SMTP této instance Baserow je vypnuté. Chcete-li odeslat tento e-mail, vyberte integraci SMTP.",
+        "slackOk": "OK",
+        "slackChannel": "Kanál",
+        "slackTs": "Časové razítko zprávy",
+        "smtpIntegrationIncomplete": "Tato integrace SMTP nemá server. Než tlačítko bude moci odesílat, vyplňte její název hostitele.",
+        "slackTokenMissing": "Tento bot nemá token. Než bude tlačítko moci odesílat příspěvky, přidejte nového bota s jeho tokenem nebo token vložte do tohoto bota.",
+        "slackData": "Data",
+        "startWorkflowMissing": "Pracovní postup této akce nelze najít. Mohl být odstraněn nebo k němu nemáte přístup. Vyberte jiný pracovní postup nebo požádejte někoho, kdo tento postup vidí.",
+        "startWorkflowUnpublished": "Tento pracovní postup ještě nebyl publikován. Než jej tlačítko bude moci spustit, publikujte jej.",
+        "startWorkflowNotLive": "Tento pracovní postup je pozastavený nebo zakázaný. Než jej tlačítko bude moci spustit, obnovte jej."
+    },
+    "openUrlWorkflowActionForm": {
+        "url": "URL",
+        "urlPlaceholder": "URL…",
+        "openIn": "Otevřít v",
+        "sameTab": "Stejná karta",
+        "newTab": "Nová karta"
+    },
+    "openUrlWorkflowAction": {
+        "invalidUrlTitle": "Adresu URL nelze otevřít",
+        "invalidUrlMessage": "Adresu URL se pro tento řádek nepodařilo určit nebo používá nepovolený protokol."
+    },
+    "buttonFieldActionList": {
+        "actions": "Akce",
+        "addAction": "Přidat akci",
+        "chooseAction": "Zvolit akci…",
+        "searchActions": "Hledat akce",
+        "misconfigured": "Alespoň jedna akce je chybně nakonfigurována",
+        "toggleAction": "Zobrazit nebo skrýt tuto akci",
+        "moveAction": "Přesunout akci; k změně pořadí použijte klávesy se šipkami"
+    },
+    "buttonField": {
+        "dispatchErrorTitle": "Akce se nepodařilo spustit",
+        "dispatchErrorMessage": "Při spouštění akcí tlačítka došlo k chybě. Zkuste to prosím znovu.",
+        "rateLimitedTitle": "Příliš mnoho kliknutí",
+        "rateLimitedMessage": "Na toto tlačítko bylo kliknuto příliš často. Chvíli počkejte a zkuste to znovu.",
+        "requiresReconfiguration": "Než bude možné na toto tlačítko kliknout, je nutné je znovu nakonfigurovat.",
+        "noPermission": "Nemáte oprávnění kliknout na toto tlačítko.",
+        "stillRunningTitle": "Stále se spouští",
+        "stillRunningMessage": "Akce tlačítka se možná stále spouštějí na pozadí."
+    },
+    "rowEditFieldButtonField": {
+        "createRowBefore": "Akce lze spustit až po vytvoření řádku."
+    },
+    "lastViewedItemType": {
+        "databaseView": "Zobrazení {name}"
     }
 }

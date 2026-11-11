@@ -65,6 +65,9 @@ from baserow.core.formula.types import (
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_sources.registries import DEFAULT_USER_ROLE_PREFIX
@@ -732,7 +735,9 @@ def test_choice_element_is_valid_formula_data_source(data_fixture):
         columns=[("Name", "text")],
         rows=[["BMW"], ["Audi"], ["Seat"], ["Volvo"]],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1445,7 +1450,9 @@ def test_choice_element_integer_option_values(data_fixture):
             ["Gobi Manchurian", "Cauliflower"],
         ],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
@@ -1511,7 +1518,9 @@ def test_record_element_is_valid(data_fixture):
         model.objects.create(name="Tesla").id,
     ]
 
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1850,7 +1859,9 @@ def test_choice_element_is_valid_formula_options_with_markdown_name(data_fixture
         columns=[("Name", "text"), ("Description", "text")],
         rows=[["BMW", "**German**"], ["Volvo", "**Swedish**"]],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -2013,3 +2024,32 @@ def test_choice_element_import_legacy_formula_options(
         formula=f"get('data_source.{data_source.id}.*.id')"
     )
     assert "format" not in imported_element.formula_value
+
+
+@pytest.mark.django_db
+def test_record_element_is_valid_refuses_integration_of_another_application(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    other_user = data_fixture.create_user()
+    other_builder = data_fixture.create_builder_application(user=other_user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=other_builder, authorized_user=other_user
+    )
+    table = data_fixture.create_database_table(user=other_user)
+    data_fixture.create_text_field(name="Name", table=table, primary=True)
+    row = table.get_model(attribute_names=True).objects.create(name="Secret")
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, integration=integration, table=table
+    )
+    dispatch_context = BuilderDispatchContext(
+        HttpRequest(), page, only_expose_public_allowed_properties=False
+    )
+
+    element = RecordSelectorElement(data_source=data_source)
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+        RecordSelectorElementType().is_valid(element, str(row.id), dispatch_context)
+    assert str(exc.value) == (
+        "The integration used by this service belongs to another application."
+    )

@@ -22,16 +22,16 @@ from baserow.contrib.builder.elements.models import (
 )
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.types import ElementUpdate
+from baserow.contrib.builder.tools.types.menu_items import new_menu_link
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.action.models import Action
 from baserow.test_utils.fixtures import Fixtures
-from baserow_enterprise.assistant.tools.builder import helpers
 from baserow_enterprise.assistant.tools.builder.tools import (
     list_elements,
     update_element,
 )
-from baserow_enterprise.assistant.tools.builder.types import ElementUpdate
-from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 from .utils import make_test_ctx
@@ -455,7 +455,7 @@ def test_a_refused_header_menu_change_leaves_the_header_unsaved(
         _update(
             site,
             site.container,
-            share_type="only",
+            share_type="except",
             remove_menu_items=[str(uuid.uuid4())],
         )
 
@@ -470,13 +470,13 @@ def test_the_update_helper_saves_nothing_itself_when_a_menu_change_is_refused(
     update = ElementUpdate.model_validate(
         {
             "element_id": site.container.id,
-            "share_type": "only",
+            "share_type": "except",
             "remove_menu_items": [str(uuid.uuid4())],
         }
     )
 
     with pytest.raises(ToolInputError, match="not in this menu"):
-        helpers.update_element(site.user, update)
+        helpers.update_element(site.user, site.container.page, update)
 
     assert Element.objects.get(id=site.container.id).specific.share_type == "all"
     assert _tree(site.menu) == SEEDED_TREE

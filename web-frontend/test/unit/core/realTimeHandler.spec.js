@@ -1,6 +1,7 @@
 import { vi, describe, beforeEach, test, expect } from 'vitest'
 
 import { RealTimeHandler } from '@baserow/modules/core/plugins/realTimeHandler'
+import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
   FIRST_CONNECT_CURSOR,
   NO_REPLAY_AVAILABLE,
@@ -10,6 +11,10 @@ vi.mock('#imports', () => ({
   useRuntimeConfig: () => ({
     public: { publicBackendUrl: 'http://localhost' },
   }),
+}))
+
+vi.mock('@baserow/modules/core/utils/auth', () => ({
+  logoutAndRedirectToLogin: vi.fn(() => Promise.resolve()),
 }))
 
 // The handler reads WebSocket.OPEN / CONNECTING constants; the test
@@ -49,7 +54,7 @@ function makeStore() {
 
 function makeHandler() {
   const store = makeStore()
-  const context = { store, app: { router: {} } }
+  const context = { store, app: { $router: { push: vi.fn() } } }
   const handler = new RealTimeHandler(context)
   // Stand-in for an open websocket so _sendReplayEventsRequest goes
   // through.
@@ -70,6 +75,107 @@ function fire(handler, type, data) {
     (handler.events[type] || []).map((cb) => cb(handler.context, data))
   )
 }
+
+describe('RealTimeHandler force_disconnect', () => {
+  test('logs the user out through the app router and stops reconnecting', async () => {
+    const { handler, store, context } = makeHandler()
+    handler.reconnect = true
+
+    await fire(handler, 'force_disconnect', {})
+
+    expect(handler.reconnect).toBe(false)
+    expect(logoutAndRedirectToLogin).toHaveBeenCalledWith(
+      context.app.$router,
+      store,
+      false,
+      true
+    )
+  })
+})
+
+describe('RealTimeHandler application updates', () => {
+  test.each([false, true])(
+    'invalidates agent choices, with selected identity changed=%s',
+    async (changed) => {
+      const { handler, store } = makeHandler()
+      const application = { id: 3, type: 'agent', _: { realtimeVersion: 7 } }
+      store.getters['application/get'] = () => application
+      await fire(handler, 'agent_run_as_updated', {
+        agent_ids: [3],
+        selected_agent_ids: changed ? [3] : [],
+      })
+      expect(store._dispatched).toEqual([
+        [
+          'application/forceUpdate',
+          {
+            application,
+            data: {
+              _: {
+                realtimeVersion: 7,
+                runAsOptionsVersion: 1,
+                runAsIdentityVersion: Number(changed),
+              },
+            },
+          },
+        ],
+      ])
+    }
+  )
+
+  test('invalidates each loaded Agent once from a combined identity update', async () => {
+    const { handler, store } = makeHandler()
+    const applications = [
+      { id: 3, type: 'agent', _: { runAsIdentityVersion: 7 } },
+      { id: 4, type: 'agent', _: { runAsOptionsVersion: 2 } },
+      { id: 5, type: 'database' },
+    ]
+    store.getters['application/get'] = (id) =>
+      applications.find((application) => application.id === id)
+
+    await fire(handler, 'agent_run_as_updated', {
+      agent_ids: [3, 4, 5, 6],
+      selected_agent_ids: [3],
+    })
+
+    expect(
+      store._dispatched.map(([action, { application, data }]) => [
+        action,
+        application.id,
+        data._,
+      ])
+    ).toEqual([
+      [
+        'application/forceUpdate',
+        3,
+        { runAsIdentityVersion: 8, runAsOptionsVersion: 1 },
+      ],
+      [
+        'application/forceUpdate',
+        4,
+        { runAsOptionsVersion: 3, runAsIdentityVersion: 0 },
+      ],
+    ])
+  })
+
+  test('marks application updates as external, including unchanged public metadata', async () => {
+    const { handler, store } = makeHandler()
+    const application = { id: 3, type: 'agent', readiness: 'ready' }
+    store.getters['application/get'] = (id) =>
+      application.id === id ? application : undefined
+
+    await fire(handler, 'application_updated', {
+      application_id: 3,
+      application: { ...application },
+    })
+
+    expect(store._dispatched).toEqual([
+      [
+        'application/forceUpdate',
+        { application, data: application, viaRealtime: true },
+      ],
+    ])
+  })
+})
 
 describe('RealTimeHandler agent events', () => {
   test('create and update events upsert the serialized agent', () => {
@@ -985,7 +1091,7 @@ describe('RealTimeHandler reconnect logic', () => {
     const addSpy = vi.spyOn(window, 'addEventListener')
     const handler = new RealTimeHandler({
       store: makeStore(),
-      app: { router: {} },
+      app: { $router: { push: vi.fn() } },
     })
     const focusCall = addSpy.mock.calls.find(([type]) => type === 'focus')
     expect(focusCall).toBeDefined()
@@ -1722,7 +1828,7 @@ describe('RealTimeHandler token refresh on reconnect', () => {
   }
 
   function makeHandlerWith(store) {
-    const context = { store, app: { router: {} } }
+    const context = { store, app: { $router: { push: vi.fn() } } }
     return { handler: new RealTimeHandler(context), store }
   }
 
@@ -1957,5 +2063,27 @@ describe('RealTimeHandler last_viewed_updated', () => {
 
   test('ignores an application that is not in the store', () => {
     expect(fireFor(undefined, '2026-01-01T12:05:00Z')).toEqual([])
+  })
+})
+
+describe('RealTimeHandler application_pending_count_updated', () => {
+  test('sets the count of an application in the store only', () => {
+    const { handler, store } = makeHandler()
+    const application = { id: 3, pending_count: 0 }
+    store.getters['application/get'] = (id) =>
+      application.id === id ? application : undefined
+
+    fire(handler, 'application_pending_count_updated', {
+      application_id: 3,
+      pending_count: 2,
+    })
+    fire(handler, 'application_pending_count_updated', {
+      application_id: 4,
+      pending_count: 1,
+    })
+
+    expect(store._dispatched).toEqual([
+      ['application/forceUpdate', { application, data: { pending_count: 2 } }],
+    ])
   })
 })

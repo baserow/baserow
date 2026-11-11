@@ -1,0 +1,51 @@
+/**
+ Password page of a publicly shared dashboard, rendered in the `login` layout:
+ a key icon, the title and text, the password form and the Baserow logo.
+ */
+
+.public-dashboard-auth {
+  max-width: 360px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.public-dashboard-auth__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: $palette-neutral-900;
+  border: 1px solid $palette-neutral-400;
+
+  @include rounded($rounded-md);
+}
+
+.public-dashboard-auth__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: $palette-neutral-1200;
+}
+
+.public-dashboard-auth__description {
+  margin: 0 0 24px;
+  font-size: 12px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+}
+
+.public-dashboard-auth__form {
+  text-align: left;
+}
+
+.public-dashboard-auth__footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}

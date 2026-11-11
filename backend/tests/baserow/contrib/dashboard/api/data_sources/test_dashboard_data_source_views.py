@@ -137,7 +137,12 @@ def test_get_dashboard_data_sources_permission_denied(api_client, data_fixture):
 def test_update_data_source(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     dashboard = data_fixture.create_dashboard_application(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=dashboard.workspace
+        ),
+        user=user,
+    )
     view = data_fixture.create_grid_view(user, table=table)
     data_source1 = (
         data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(

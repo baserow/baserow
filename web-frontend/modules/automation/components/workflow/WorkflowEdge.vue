@@ -28,6 +28,7 @@
         }"
         :disabled="readOnly"
         @add-node="handleAddNode"
+        @add-recipe="handleAddRecipe"
       />
     </div>
 
@@ -39,6 +40,7 @@
       :debug="debug"
       :read-only="readOnly"
       @add-node="emit('add-node', $event)"
+      @add-recipe="emit('add-recipe', $event)"
       @select-node="emit('select-node', $event)"
       @remove-node="emit('remove-node', $event)"
       @replace-node="emit('replace-node', $event)"
@@ -86,6 +88,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'add-node',
+  'add-recipe',
   'select-node',
   'move-node',
   'remove-node',
@@ -177,6 +180,11 @@ const handleDrop = () => {
 const handleAddNode = (type) => {
   const { referenceNode, position, output } = resolveHeadTarget()
   emit('add-node', { type, referenceNode, position, output })
+}
+
+const handleAddRecipe = (recipe) => {
+  const { referenceNode, position, output } = resolveHeadTarget()
+  emit('add-recipe', { recipe, referenceNode, position, output })
 }
 
 const nextNodesOnEdge = computed(() => {

@@ -105,7 +105,25 @@
           {{ toolCount(connection.tool_count) }} ·
           {{ connectedOn(connection.created) }}
         </div>
+        <div
+          v-if="toolsOff(connection) > 0"
+          class="mcp-oauth-connections__tools-off"
+          data-test="mcp-oauth-tools-off"
+        >
+          {{
+            $t('mcpOAuthConnections.toolsOff', {
+              count: toolsOff(connection),
+            })
+          }}
+        </div>
       </div>
+      <Button
+        type="secondary"
+        size="small"
+        data-test="mcp-oauth-edit-tools"
+        @click="editTools(connection)"
+        >{{ $t('mcpOAuthConnections.editTools') }}</Button
+      >
       <Button
         type="secondary"
         size="small"
@@ -120,14 +138,51 @@
         }}</Button
       >
     </div>
+    <Modal ref="toolsModal" small @hidden="editing = null">
+      <template v-if="editing" #content>
+        <h2 class="box__title">
+          {{
+            $t('mcpOAuthConnections.editToolsTitle', {
+              client: editing.client_name,
+            })
+          }}
+        </h2>
+        <p class="mcp-oauth-connections__modal-description">
+          {{
+            $t('mcpOAuthConnections.editToolsDescription', {
+              workspace: editing.workspace_name,
+            })
+          }}
+        </p>
+        <McpToolPicker v-model="pickedTools" :tools="tools" :groups="groups" />
+        <div class="mcp-oauth-connections__modal-actions">
+          <Button type="secondary" @click="toolsModal.hide()">{{
+            $t('action.cancel')
+          }}</Button>
+          <Button
+            type="primary"
+            :loading="savingTools === editing.id"
+            :disabled="savingTools === editing.id || !pickedTools.length"
+            data-test="mcp-oauth-save-tools"
+            @click="saveTools"
+            >{{ $t('mcpOAuthConnections.saveTools') }}</Button
+          >
+        </div>
+      </template>
+    </Modal>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import McpToolPicker from '@baserow/modules/core/components/mcp/McpToolPicker'
 import moment from '@baserow/modules/core/moment'
 import MCPOAuthService from '@baserow/modules/core/services/mcpOAuth'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  grantedToolNames,
+  listedTools,
+} from '@baserow/modules/core/utils/mcpTools'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 
 const emit = defineEmits(['loaded'])
@@ -138,6 +193,15 @@ const { t } = useI18n()
 const oauthEnabled = ref(false)
 const mcpUrl = ref('')
 const connections = ref([])
+// Every tool a connection can be given, and their groups.
+const tools = ref([])
+const groups = ref([])
+const toolsModal = ref(null)
+// The connection whose tools are being edited.
+const editing = ref(null)
+const pickedTools = ref([])
+// The id of the connection whose tools are being saved.
+const savingTools = ref(null)
 const confirming = ref(null)
 const disconnecting = ref(null)
 const copied = ref(null)
@@ -148,6 +212,8 @@ onMounted(async () => {
     oauthEnabled.value = data.oauth_enabled
     mcpUrl.value = data.mcp_url
     connections.value = data.connections
+    tools.value = data.tools || []
+    groups.value = data.groups || []
   } catch (error) {
     notifyIf(error)
   }
@@ -166,6 +232,47 @@ function connectedOn(created) {
   return t('mcpOAuthConnections.connectedOn', {
     date: moment.utc(created).local().format('L'),
   })
+}
+
+const pickableTools = computed(() => listedTools(tools.value, groups.value))
+
+// Tools the connection could use but doesn't have. New tools are never turned on
+// for an existing connection, so this is where the user finds them.
+function toolsOff(connection) {
+  const allowed = new Set(connection.allowed_tools || [])
+  return pickableTools.value.filter((tool) => !allowed.has(tool.name)).length
+}
+
+function editTools(connection) {
+  editing.value = connection
+  pickedTools.value = grantedToolNames(
+    tools.value,
+    connection.allowed_tools || []
+  )
+  toolsModal.value.show()
+}
+
+async function saveTools() {
+  const id = editing.value.id
+  savingTools.value = id
+  try {
+    const { data } = await MCPOAuthService($client).updateTools(
+      id,
+      pickedTools.value
+    )
+    connections.value = connections.value.map((c) =>
+      c.id === data.id ? data : c
+    )
+    // The modal may have been closed, or opened for another app, meanwhile.
+    if (editing.value?.id === id) {
+      toolsModal.value.hide()
+    }
+  } catch (error) {
+    notifyIf(error)
+  }
+  if (savingTools.value === id) {
+    savingTools.value = null
+  }
 }
 
 function copyUrl() {

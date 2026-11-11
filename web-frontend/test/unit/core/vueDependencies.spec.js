@@ -31,4 +31,10 @@ describe('Vue dependencies', () => {
       realpathSync(require.resolve('vue'))
     )
   })
+
+  test('nuxt uses the root vue-router', () => {
+    expect(resolveFrom('nuxt', 'vue-router')).toBe(
+      realpathSync(require.resolve('vue-router'))
+    )
+  })
 })

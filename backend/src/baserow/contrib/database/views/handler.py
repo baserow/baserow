@@ -7,7 +7,6 @@ from copy import deepcopy
 from hashlib import shake_128
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
-from django.conf import settings
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
@@ -33,7 +32,7 @@ from django.db.models import (
 from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
-import jwt
+from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 from opentelemetry import trace
 from redis.exceptions import LockNotOwnedError
@@ -117,10 +116,15 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
 )
 from baserow.contrib.database.views.view_filter_groups import ViewGroupedFiltersAdapter
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator, sql, transaction_atomic
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.public_sharing import (
+    encode_public_access_token,
+    is_public_access_token_valid,
+)
 from baserow.core.registries import ImportExportConfig
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.trash.handler import TrashHandler
@@ -284,39 +288,33 @@ class ViewIndexingHandler:
         return f"i{table_id}:"
 
     @classmethod
-    def before_field_type_change(cls, field: Field, model=None):
+    def before_field_type_change(
+        cls, field: Field, model: Optional[GeneratedTableModel] = None
+    ):
         """
-        Remove all the indexes for the views that have a sort on the field
-        that is being changed.
+        Remove saved view indexes before a table column changes its type.
+        The caller must retain the transaction through the schema change.
 
         :param field: The field that is being changed.
-        :param model: The model to use for the table. If not provided it will be
-            taken from the field.
+        :param model: The model to use for the table, if already generated.
         """
 
-        views = View.objects.filter(
-            id__in=ViewSort.objects.filter(field=field).values("view_id"),
-            db_index_name__isnull=False,
+        # Hold the same lock needed by ALTER TABLE before reading index metadata.
+        # Otherwise an index worker can replace an index after the snapshot and
+        # leave an incompatible expression behind during the column conversion.
+        table_name = (
+            model._meta.db_table if model else field.table.get_database_table_name()
         )
-        if not views:
-            return
-
-        if model is None:
-            model = field.table.get_model()
-
-        dropped_indexes = set()
-        for view in views:
-            if view.db_index_name in dropped_indexes:
-                continue
-
-            cls.drop_index(
-                view=view,
-                db_index=django_models.Index("id", name=view.db_index_name),
-                model=model,
+        with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE").format(
+                    sql.Identifier(table_name)
+                )
             )
-            dropped_indexes.add(view.db_index_name)
 
-        View.objects.filter(id__in=[v.id for v in views]).update(db_index_name=None)
+        # Lazy indexes can still reflect deleted or changed ordering rules, so
+        # current sort/group metadata cannot identify every dependent index.
+        cls.drop_all_indexes_for_table(field.table_id)
 
     @classmethod
     def _get_index_hash(
@@ -410,7 +408,13 @@ class ViewIndexingHandler:
 
         for view_sort_or_group_by in view.get_all_ordering():
             field_object = model._field_objects[view_sort_or_group_by.field_id]
-            annotated_order_by = field_object["type"].get_order(
+            field_type = field_object["type"]
+            get_order = (
+                field_type.get_group_by_sort_order
+                if isinstance(view_sort_or_group_by, ViewGroupBy)
+                else field_type.get_order
+            )
+            annotated_order_by = get_order(
                 field_object["field"],
                 field_object["name"],
                 view_sort_or_group_by.order,
@@ -491,8 +495,9 @@ class ViewIndexingHandler:
             be dropped.
         """
 
+        # Trashed views retain their physical indexes until permanent deletion.
         views_with_index = list(
-            View.objects.filter(
+            View.objects_and_trash.filter(
                 table_id=table_id,
                 db_index_name__isnull=False,
             )
@@ -511,9 +516,9 @@ class ViewIndexingHandler:
                 cursor.execute(drop_index_sql)
 
         if views_with_index:
-            View.objects.filter(id__in=[v.id for v in views_with_index]).update(
-                db_index_name=None
-            )
+            View.objects_and_trash.filter(
+                id__in=[v.id for v in views_with_index]
+            ).update(db_index_name=None)
 
     @classmethod
     def handle_index_row_size_error(cls, table_id: int):
@@ -696,8 +701,6 @@ class ViewIndexingHandler:
 
 @baserow_trace_handler
 class ViewHandler:
-    PUBLIC_VIEW_TOKEN_ALGORITHM = "HS256"  # nosec
-
     def list_views(
         self,
         user: AbstractUser,
@@ -1046,7 +1049,10 @@ class ViewHandler:
         last_order = model_class.get_last_order(table)
 
         instance = model_class.objects.create(
-            table=table, order=last_order, owned_by=user, **view_values
+            table=table,
+            order=last_order,
+            owned_by=user if isinstance(user, AbstractUser) else None,
+            **view_values,
         )
 
         if instance.public:
@@ -1174,29 +1180,41 @@ class ViewHandler:
         return duplicated_view
 
     def _check_view_configuration_permissions(
-        self, user: AbstractUser, view: View, categories: Iterable[str]
+        self,
+        user: AbstractUser,
+        view: View,
+        categories: Iterable[str],
+        is_source: bool = False,
     ):
         """
         Checks in one batch that the user is allowed to configure all the requested
         categories on the given view. The same check is applied to the source and
         the destination of a copy because the ownership managers hide configuration
         from users that lack these write operations, so a read check alone would
-        leak configuration that the interface hides.
+        leak configuration that the interface hides, except for a source whose
+        configuration is visible to everyone who can read it, see
+        `get_source_operation_types`.
 
         :param user: The user on whose behalf the permissions are checked.
         :param view: The view that the categories are configured on.
         :param categories: The category types that must be checked.
+        :param is_source: Whether the view is the source of the copy.
         :raises PermissionException: When the user is not allowed to configure one
             of the categories on the view.
         """
 
-        checks = [
-            PermissionCheck(user, operation_type.type, view)
-            for category in categories
-            for operation_type in view_configuration_copy_category_type_registry.get(
-                category
-            ).operation_types
-        ]
+        checks = []
+        for category in categories:
+            category_type = view_configuration_copy_category_type_registry.get(category)
+            operation_types = (
+                category_type.get_source_operation_types(view)
+                if is_source
+                else category_type.operation_types
+            )
+            checks.extend(
+                PermissionCheck(user, operation_type.type, view)
+                for operation_type in operation_types
+            )
         CoreHandler().check_multiple_permissions(
             checks,
             workspace=view.table.database.workspace,
@@ -1366,7 +1384,9 @@ class ViewHandler:
             workspace=dest_view.table.database.workspace,
             context=source_view,
         )
-        self._check_view_configuration_permissions(user, source_view, categories)
+        self._check_view_configuration_permissions(
+            user, source_view, categories, is_source=True
+        )
 
         configuration = self.export_view_configuration(source_view, categories)
         self.apply_view_configuration(user, dest_view, configuration)
@@ -2501,6 +2521,16 @@ class ViewHandler:
             instance.refresh_from_db(fields=["priority"])
             return instance
 
+    def lock_view_sorts(self, view: View) -> None:
+        """
+        Makes the changes to the list of sorts of a view wait for each other, until
+        the transaction ends. Take it before locking or changing any sort: a new sort
+        checks its view when it commits, so a lock that blocks that check, or sorts
+        locked before the view, can deadlock.
+        """
+
+        View.objects.select_for_update(of=("self",), no_key=True).get(id=view.id)
+
     def create_sort(
         self,
         user: AbstractUser,
@@ -2560,20 +2590,23 @@ class ViewHandler:
                 f"The field {field.pk} does not belong to table {view.table.id}."
             )
 
-        # Check if the field already exists as sort
-        if view.viewsort_set.filter(field_id=field.pk).exists():
-            raise ViewSortFieldAlreadyExist(
-                f"A sort with the field {field.pk} already exists."
-            )
+        with transaction.atomic():
+            self.lock_view_sorts(view)
 
-        view_sort = self._append_to_priority_chain(
-            ViewSort,
-            view,
-            pk=primary_key,
-            field=field,
-            order=order,
-            type=sort_type,
-        )
+            # Check if the field already exists as sort
+            if view.viewsort_set.filter(field_id=field.pk).exists():
+                raise ViewSortFieldAlreadyExist(
+                    f"A sort with the field {field.pk} already exists."
+                )
+
+            view_sort = self._append_to_priority_chain(
+                ViewSort,
+                view,
+                pk=primary_key,
+                field=field,
+                order=order,
+                type=sort_type,
+            )
 
         view_sort_created.send(self, view_sort=view_sort, user=user)
 
@@ -2712,6 +2745,7 @@ class ViewHandler:
             context=view,
         )
 
+        self.lock_view_sorts(view)
         queryset = ViewSort.objects.select_for_update(of=("self",)).filter(view=view)
         sort_ids = set(queryset.values_list("id", flat=True))
 
@@ -3821,8 +3855,12 @@ class ViewHandler:
             view_model = View
 
         try:
-            view = view_model.objects.select_related("table__database__workspace").get(
-                slug=slug
+            # Views of a template are only shown in the template preview, never as
+            # shared views or forms of their own.
+            view = (
+                view_model.objects.select_related("table__database__workspace")
+                .filter(table__database__workspace__template__isnull=True)
+                .get(slug=slug)
             )
         except (view_model.DoesNotExist, ValidationError) as exc:
             raise ViewDoesNotExist("The view does not exist.") from exc
@@ -4025,59 +4063,29 @@ class ViewHandler:
                 restricted_rows.append(row_copy)
         return restricted_rows
 
-    def _get_public_view_jwt_secret(self, view: View) -> str:
-        """
-        This method provides the secret to encode and decode the (non-expiring) JWT
-        token used in password protected public views.
-        By changing the `slug` or the `public_view_password`, previous tokens cannot
-        be decoded anymore so the user will be forced to the password input page.
-        Server's SECRET_KEY is used to be sure that the JWT cannot be guessed.
-        :param view: The public view to restrict access to.
-        :return: A string to use as secret to encode/decode JWT for the view.
-        """
-
-        return f"{view.slug}-{view.public_view_password}-{settings.SECRET_KEY}"
-
     def encode_public_view_token(self, view: View) -> str:
         """
-        Create a non-expiring JWT token that authorize public requests for this view.
-        :param view: The public view to restrict access to.
-        :return: A string to use as JWT token to authorize the access for the view.
+        Creates the non-expiring token that grants access to the password
+        protected public view. Rotating the slug or changing the password
+        invalidates it.
+
+        :param view: The password protected public view.
+        :return: The encoded token.
         """
 
-        secret = self._get_public_view_jwt_secret(view)
-        return jwt.encode(
-            {"slug_id": view.slug},
-            key=secret,
-            algorithm=self.PUBLIC_VIEW_TOKEN_ALGORITHM,
-        )
-
-    def decode_public_view_token(self, view: View, token: str) -> Dict[str, Any]:
-        """
-        Decode the token using the view's secret.
-        :param view: The public view to restrict access to.
-        :param token: The JWT token to decode.
-        :return: The payload decoded or, if invalid, a jwt.InvalidTokenError is raised.
-        """
-
-        secret = self._get_public_view_jwt_secret(view)
-        return jwt.decode(
-            token, key=secret, algorithms=[self.PUBLIC_VIEW_TOKEN_ALGORITHM]
-        )
+        return encode_public_access_token(view.slug, view.public_view_password)
 
     def is_public_view_token_valid(self, view: View, token: str) -> bool:
         """
-        Verify if the token provided is valid for the public view or not.
-        :param view: The public view to restrict access to.
-        :param token: The JWT token to decode.
+        Checks whether the token grants access to the password protected public
+        view.
+
+        :param view: The password protected public view.
+        :param token: The token to check.
         :return: True if the token is valid for the view, False otherwise.
         """
 
-        try:
-            self.decode_public_view_token(view, token)
-            return True
-        except jwt.InvalidTokenError:
-            return False
+        return is_public_access_token_valid(view.slug, view.public_view_password, token)
 
     @baserow_trace(tracer, allow_nested=True)
     def get_public_rows_queryset_and_field_ids(
@@ -4163,7 +4171,12 @@ class ViewHandler:
                 )
 
             if not has_adhoc_sorting:
-                effective_order_by = serialize_sorts_to_string(view.viewsort_set.all())
+                # The public view info leaves out sorts on hidden fields too.
+                effective_order_by = serialize_sorts_to_string(
+                    sort
+                    for sort in view.viewsort_set.all()
+                    if sort.field_id in visible_field_ids
+                )
 
             queryset = queryset.order_by_fields_string(
                 effective_order_by,
@@ -5573,8 +5586,14 @@ class ViewHandler:
             value = item.get("value")
             func_name = item.get("function")
 
-            # Validate function against field type.
             field_obj = model._field_objects[field_id]
+            if field_obj["type"].write_only:
+                raise ValidationError(
+                    f"Field of type {field_obj['type'].type} can't have a default "
+                    "value."
+                )
+
+            # Validate function against field type.
             if func_name:
                 supported = field_obj["type"].get_supported_default_value_functions()
                 if func_name not in supported:
@@ -5655,6 +5674,8 @@ class ViewHandler:
             field_obj = model._field_objects[field_id]
             field = field_obj["field"]
             field_type = field_obj["type"]
+            if field_type.write_only:
+                continue
             field_name = field_obj["name"]
             supported_functions = field_type.get_supported_default_value_functions()
 
@@ -5767,6 +5788,12 @@ class ViewSubscriptionHandler:
         Checks for views that have time-sensitive filters. If a view has a
         time-sensitive filter, calling this method periodically ensure proper signals
         are emitted to notify subscribers that the view results have changed.
+
+        Each table is checked in its own atomic block with its own local cache, so
+        when called outside a transaction every table commits on its own. A table
+        that fails before its commit is logged and rolled back alone and is checked
+        again on the next call; the other tables are not affected. A soft time limit
+        stops the whole check.
         """
 
         views = View.objects.filter(
@@ -5774,11 +5801,19 @@ class ViewSubscriptionHandler:
                 type__in=view_filter_type_registry.get_time_sensitive_filter_types(),
                 view__in=ViewSubscription.objects.values("view"),
             ).values("view_id")
-        ).order_by("table", "id")
-        for _, view_group in itertools.groupby(views, key=lambda f: f.table):
+        ).order_by("table_id", "id")
+        for table_id, view_group in itertools.groupby(views, key=lambda v: v.table_id):
             view_ids = [v.id for v in view_group]
-            if view_ids:
-                cls.notify_table_views(view_ids)
+            try:
+                with local_cache.context(), transaction.atomic():
+                    cls.notify_table_views(view_ids)
+            except SoftTimeLimitExceeded:
+                raise
+            except Exception:
+                logger.exception(
+                    "Checking the time-sensitive views of table {table_id} failed.",
+                    table_id=table_id,
+                )
 
     @classmethod
     def notify_table_views_updates(

@@ -11,9 +11,9 @@ from baserow.contrib.automation.nodes.actions import (
     ReplaceAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.node_types import (
-    LocalBaserowCreateRowNodeType,
-    LocalBaserowRowsUpdatedNodeTriggerType,
-    LocalBaserowUpdateRowNodeType,
+    LocalBaserowCreateRowActionNodeType,
+    LocalBaserowRowsUpdatedTriggerNodeType,
+    LocalBaserowUpdateRowActionNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
@@ -30,15 +30,19 @@ def test_create_node_action(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="Node before"
+        workflow=workflow,
+        type=LocalBaserowCreateRowActionNodeType.type,
+        label="Node before",
     )
     node_after = data_fixture.create_automation_node(
         workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        type=LocalBaserowCreateRowActionNodeType.type,
         previous_node=node_before,
         label="Node after",
     )
-    node_type = automation_node_type_registry.get(LocalBaserowCreateRowNodeType.type)
+    node_type = automation_node_type_registry.get(
+        LocalBaserowCreateRowActionNodeType.type
+    )
 
     workflow.assert_reference(
         {
@@ -107,13 +111,15 @@ def test_replace_automation_action_node_type(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="To replace"
+        workflow=workflow,
+        type=LocalBaserowCreateRowActionNodeType.type,
+        label="To replace",
     )
     workflow.simulate_until_node_id = node.id
     workflow.save()
 
     data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="After"
+        workflow=workflow, type=LocalBaserowCreateRowActionNodeType.type, label="After"
     )
 
     workflow.assert_reference(
@@ -126,7 +132,7 @@ def test_replace_automation_action_node_type(data_fixture):
     )
 
     replaced_node = ReplaceAutomationNodeActionType.do(
-        user, node.id, LocalBaserowUpdateRowNodeType.type
+        user, node.id, LocalBaserowUpdateRowActionNodeType.type
     )
 
     workflow.refresh_from_db()
@@ -144,7 +150,7 @@ def test_replace_automation_action_node_type(data_fixture):
     # The original node is trashed, we have a new node of the new type.
     node.refresh_from_db(fields=["trashed"])
     assert node.trashed
-    assert isinstance(replaced_node, LocalBaserowUpdateRowNodeType.model_class)
+    assert isinstance(replaced_node, LocalBaserowUpdateRowActionNodeType.model_class)
 
     # Confirm that the `node` trash entry exists, and it is
     # `managed` to prevent users from restoring it manually.
@@ -217,7 +223,7 @@ def test_replace_automation_trigger_node_type(data_fixture):
     original_trigger = workflow.get_trigger()
     data_fixture.create_automation_node(
         workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        type=LocalBaserowCreateRowActionNodeType.type,
     )
     workflow.simulate_until_node_id = original_trigger.id
     workflow.save()
@@ -231,7 +237,7 @@ def test_replace_automation_trigger_node_type(data_fixture):
     )
 
     replaced_trigger = ReplaceAutomationNodeActionType.do(
-        user, original_trigger.id, LocalBaserowRowsUpdatedNodeTriggerType.type
+        user, original_trigger.id, LocalBaserowRowsUpdatedTriggerNodeType.type
     )
 
     workflow.refresh_from_db()
@@ -250,7 +256,7 @@ def test_replace_automation_trigger_node_type(data_fixture):
 
     assert original_trigger.trashed
     assert isinstance(
-        replaced_trigger, LocalBaserowRowsUpdatedNodeTriggerType.model_class
+        replaced_trigger, LocalBaserowRowsUpdatedTriggerNodeType.model_class
     )
 
     # Confirm that the `original_trigger` trash entry exists, and
@@ -321,13 +327,15 @@ def test_delete_node_action(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="Before"
+        workflow=workflow, type=LocalBaserowCreateRowActionNodeType.type, label="Before"
     )
     node = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="To delete"
+        workflow=workflow,
+        type=LocalBaserowCreateRowActionNodeType.type,
+        label="To delete",
     )
     node_after = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="After"
+        workflow=workflow, type=LocalBaserowCreateRowActionNodeType.type, label="After"
     )
 
     workflow.assert_reference(
@@ -395,11 +403,11 @@ def test_delete_node_action_after_nothing(data_fixture):
     automation = data_fixture.create_automation_application(workspace=workspace)
     workflow = data_fixture.create_automation_workflow(user, automation=automation)
     node_before = data_fixture.create_automation_node(
-        workflow=workflow, type=LocalBaserowCreateRowNodeType.type, label="Before"
+        workflow=workflow, type=LocalBaserowCreateRowActionNodeType.type, label="Before"
     )
     node = data_fixture.create_automation_node(
         workflow=workflow,
-        type=LocalBaserowCreateRowNodeType.type,
+        type=LocalBaserowCreateRowActionNodeType.type,
         previous_node=node_before,
         label="To delete",
     )

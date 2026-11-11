@@ -1,7 +1,4 @@
-import {
-  AdminRoleType,
-  MemberRoleType,
-} from '@baserow/modules/database/roleTypes'
+import { AdminRoleType, MemberRoleType } from '@baserow/modules/core/roleTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
@@ -34,6 +31,10 @@ export class EnterpriseBuilderRoleType extends MemberRoleType {
 
   getUid() {
     return 'BUILDER'
+  }
+
+  getIconClass() {
+    return 'iconoir-tools'
   }
 
   getName() {
@@ -83,6 +84,10 @@ export class EnterpriseEditorRoleType extends MemberRoleType {
     return 'EDITOR'
   }
 
+  getIconClass() {
+    return 'iconoir-edit-pencil'
+  }
+
   getName() {
     const { $i18n } = this.app
     return $i18n.t('roles.editor.name')
@@ -122,6 +127,10 @@ export class EnterpriseCommenterRoleType extends MemberRoleType {
     return 'COMMENTER'
   }
 
+  getIconClass() {
+    return 'iconoir-chat-bubble'
+  }
+
   getName() {
     const { $i18n } = this.app
     return $i18n.t('roles.commenter.name')
@@ -153,12 +162,20 @@ export class EnterpriseCommenterRoleType extends MemberRoleType {
 }
 
 export class EnterpriseViewerRoleType extends MemberRoleType {
+  getIsDefaultForInvitations(workspaceId) {
+    return true
+  }
+
   static getType() {
     return 'viewer'
   }
 
   getUid() {
     return 'VIEWER'
+  }
+
+  getIconClass() {
+    return 'iconoir-eye-empty'
   }
 
   getName() {
@@ -200,6 +217,10 @@ export class NoAccessRoleType extends MemberRoleType {
     return 'NO_ACCESS'
   }
 
+  getIconClass() {
+    return 'iconoir-eye-off'
+  }
+
   getName() {
     const { $i18n } = this.app
     return $i18n.t('roles.noAccess.name')
@@ -231,12 +252,20 @@ export class NoAccessRoleType extends MemberRoleType {
 }
 
 export class NoRoleLowPriorityRoleType extends MemberRoleType {
+  getInvitationSubtitle(workspaceId) {
+    return this.app.$i18n.t('shareScope.pendingNoWorkspaceRole')
+  }
+
   static getType() {
     return 'noRoleLowPriority'
   }
 
   getUid() {
     return 'NO_ROLE_LOW_PRIORITY'
+  }
+
+  getIconClass() {
+    return 'iconoir-minus'
   }
 
   getName() {

@@ -1,0 +1,48 @@
+// The roles a member, team or agent holds on databases, tables and views, shown
+// as rows below their row in the members, teams and agents tables.
+.subject-role-assignments__object {
+  gap: 8px;
+  min-width: 0;
+}
+
+.subject-role-assignments__icon {
+  flex-shrink: 0;
+  margin-right: 4px;
+  background: $palette-neutral-200;
+  color: $palette-neutral-700;
+}
+
+.subject-role-assignments__name {
+  @extend %ellipsis;
+}
+
+.subject-role-assignments__separator {
+  color: $palette-neutral-400;
+}
+
+.subject-role-assignments__location {
+  @extend %ellipsis;
+
+  color: $palette-neutral-900;
+}
+
+.subject-role-assignments__role {
+  gap: 8px;
+}
+
+.subject-role-assignments__remove {
+  width: 32px;
+  height: 32px;
+  margin-left: auto;
+  justify-content: center;
+
+  .button-text__icon {
+    font-size: 16px;
+    color: $palette-neutral-700;
+  }
+}
+
+.subject-role-assignments__more {
+  color: $palette-blue-800;
+  cursor: pointer;
+}

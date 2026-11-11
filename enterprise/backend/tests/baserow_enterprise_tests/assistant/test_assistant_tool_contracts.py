@@ -10,7 +10,9 @@ raised ``AttributeError``.
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Callable
+from unittest.mock import patch
 
 from django.contrib.auth.models import AbstractUser
 
@@ -21,29 +23,44 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.dashboard.models import Dashboard
+from baserow.contrib.dashboard.tools.widgets import create_widgets
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.models import Workspace
+from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
+from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.automation.tools import (
     list_nodes,
     list_workflows,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
-    list_actions,
     list_data_sources,
+    list_element_actions,
     list_elements,
     list_pages,
 )
-from baserow_enterprise.assistant.tools.core.tools import list_builders
+from baserow_enterprise.assistant.tools.core.tools import (
+    list_audit_log,
+    list_builders,
+    search_workspace,
+)
+from baserow_enterprise.assistant.tools.dashboard.tools import (
+    get_widget_data,
+    list_widgets,
+)
 from baserow_enterprise.assistant.tools.database.tools import (
     get_tables_schema,
+    list_row_comments,
     list_rows,
     list_tables,
     list_views,
 )
 from baserow_enterprise.assistant.tools.database.types import ListTablesFilterArg
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+from baserow_enterprise.audit_log.models import AuditLogEntry
+from baserow_premium.row_comments.models import RowComment
 
 from .utils import make_test_ctx
 
@@ -87,6 +104,8 @@ class SeededWorkspace:
     button: Element
     automation: Automation
     workflow: AutomationWorkflow
+    dashboard: Dashboard
+    widget_id: int
 
 
 def _seed_database(fx: Any, user: AbstractUser, workspace: Workspace) -> dict[str, Any]:
@@ -244,6 +263,30 @@ def _seed_automation(
     return {"automation": automation, "workflow": workflow}
 
 
+def _seed_dashboard(
+    fx: Any, user: AbstractUser, workspace: Workspace, table: Table
+) -> dict[str, Any]:
+    dashboard = fx.create_dashboard_application(
+        user=user, workspace=workspace, name="Sales"
+    )
+    fx.create_local_baserow_integration(application=dashboard, authorized_user=user)
+    amount = table.field_set.get(name="Amount")
+    (widget,) = create_widgets(
+        ToolContext(user=user, workspace=workspace),
+        dashboard.id,
+        [
+            {
+                "type": "summary",
+                "title": "Total",
+                "table_id": table.id,
+                "field_id": amount.id,
+                "aggregation_type": "sum",
+            }
+        ],
+    )["created"]
+    return {"dashboard": dashboard, "widget_id": widget["id"]}
+
+
 @pytest.fixture
 def seed(premium_data_fixture: Any) -> SeededWorkspace:
     fx = premium_data_fixture
@@ -255,6 +298,7 @@ def seed(premium_data_fixture: Any) -> SeededWorkspace:
         fx, user, workspace, db_parts["table"], db_parts["name_field"]
     )
     automation_parts = _seed_automation(fx, user, workspace)
+    dashboard_parts = _seed_dashboard(fx, user, workspace, db_parts["table"])
 
     return SeededWorkspace(
         user=user,
@@ -267,6 +311,8 @@ def seed(premium_data_fixture: Any) -> SeededWorkspace:
         button=builder_parts["button"],
         automation=automation_parts["automation"],
         workflow=automation_parts["workflow"],
+        dashboard=dashboard_parts["dashboard"],
+        widget_id=dashboard_parts["widget_id"],
     )
 
 
@@ -303,6 +349,80 @@ class ReadToolCase:
     name: str
     invoke: Callable[[Any, SeededWorkspace], Any]
     check: Callable[[Any, SeededWorkspace], None]
+
+
+def _check_search_workspace(result: Any, seed: SeededWorkspace) -> None:
+    assert set(result) == {"results", "has_more"}
+    assert_items(
+        result["results"],
+        {"type": str, "id": int, "title": str},
+        "search_workspace",
+    )
+    assert any(item["id"] == seed.table.id for item in result["results"])
+
+
+def _list_row_comments_of_a_new_comment(ctx: Any, seed: SeededWorkspace) -> Any:
+    row_id = seed.table.get_model().objects.first().id
+    RowComment.objects.create(
+        table=seed.table,
+        row_id=row_id,
+        user=seed.user,
+        message=prosemirror_doc_from_plain_text("Called them"),
+    )
+    with patch(
+        "baserow_premium.row_comments.handler.LicenseHandler"
+        ".raise_if_user_doesnt_have_feature"
+    ):
+        return list_row_comments(ctx, seed.table.id, row_id, thought="contract")
+
+
+def _check_list_row_comments(result: Any, seed: SeededWorkspace) -> None:
+    assert result["count"] == 1
+    assert_items(
+        result["comments"],
+        {"id": int, "user_name": str, "text": str, "created_on": str, "edited": bool},
+        "list_row_comments",
+    )
+
+
+_AUDIT_LOG_CHECK = (
+    "baserow_enterprise.audit_log.tools.check_for_license_and_permissions_or_raise"
+)
+
+
+def _audit_log_entry(seed: SeededWorkspace) -> AuditLogEntry:
+    return AuditLogEntry.objects.create(
+        workspace_id=seed.workspace.id,
+        actor_id=seed.user.id,
+        actor_name=seed.user.email,
+        action_type="create_table",
+        action_timestamp=datetime.now(timezone.utc),
+        action_params={},
+        original_action_short_descr="Create table",
+        original_action_long_descr="Table created",
+    )
+
+
+def _list_audit_log_of_a_new_entry(ctx: Any, seed: SeededWorkspace) -> Any:
+    _audit_log_entry(seed)
+    with patch(_AUDIT_LOG_CHECK):
+        return list_audit_log(ctx, thought="contract")
+
+
+def _check_audit_log(result: Any, seed: SeededWorkspace) -> None:
+    assert result["has_more"] is False
+    assert_items(
+        result["entries"],
+        {
+            "id": int,
+            "timestamp": str,
+            "actor": dict,
+            "action_type": str,
+            "description": str,
+        },
+        "audit_log",
+    )
+    assert result["entries"][0]["actor"]["id"] == seed.user.id
 
 
 def _check_list_builders(result: Any, seed: SeededWorkspace) -> None:
@@ -372,6 +492,24 @@ def _check_list_workflows(result: Any, seed: SeededWorkspace) -> None:
     assert [w["id"] for w in result["workflows"]] == [seed.workflow.id]
 
 
+def _check_list_widgets(result: Any, seed: SeededWorkspace) -> None:
+    assert_items(
+        result["widgets"],
+        {"id": int, "type": str, "title": str, "table_id": int},
+        "list_widgets",
+    )
+    assert [w["id"] for w in result["widgets"]] == [seed.widget_id]
+
+
+def _check_get_widget_data(result: Any, seed: SeededWorkspace) -> None:
+    assert result == {
+        "widgets": [
+            {"widget_id": seed.widget_id, "configured": True, "data": {"result": "30"}}
+        ],
+        "errors": [],
+    }
+
+
 def _check_list_nodes(result: Any, seed: SeededWorkspace) -> None:
     assert_items(result["nodes"], {"id": int, "label": str, "type": str}, "list_nodes")
     assert len(result["nodes"]) == 3
@@ -424,7 +562,7 @@ def _check_list_actions(result: Any, seed: SeededWorkspace) -> None:
     assert_items(
         actions,
         {"id": int, "type": str, "element_id": int, "event": str},
-        "list_actions",
+        "list_element_actions",
     )
     assert {a["type"] for a in actions} == {"notification", "create_row"}
     create_row = next(a for a in actions if a["type"] == "create_row")
@@ -432,7 +570,7 @@ def _check_list_actions(result: Any, seed: SeededWorkspace) -> None:
     assert_items(
         create_row["field_mappings"],
         {"field_id": int, "field_name": str, "value": str},
-        "list_actions.field_mappings",
+        "list_element_actions.field_mappings",
     )
 
 
@@ -442,6 +580,17 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         lambda ctx, s: list_builders(ctx, builder_types=None, thought="contract"),
         _check_list_builders,
     ),
+    ReadToolCase(
+        "search_workspace",
+        lambda ctx, s: search_workspace(ctx, query=s.table.name, thought="contract"),
+        _check_search_workspace,
+    ),
+    ReadToolCase(
+        "list_row_comments",
+        _list_row_comments_of_a_new_comment,
+        _check_list_row_comments,
+    ),
+    ReadToolCase("list_audit_log", _list_audit_log_of_a_new_entry, _check_audit_log),
     ReadToolCase(
         "list_tables",
         lambda ctx, s: list_tables(
@@ -493,6 +642,20 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_nodes,
     ),
     ReadToolCase(
+        "list_widgets",
+        lambda ctx, s: list_widgets(
+            ctx, dashboard_id=s.dashboard.id, thought="contract"
+        ),
+        _check_list_widgets,
+    ),
+    ReadToolCase(
+        "get_widget_data",
+        lambda ctx, s: get_widget_data(
+            ctx, widget_ids=[s.widget_id], thought="contract"
+        ),
+        _check_get_widget_data,
+    ),
+    ReadToolCase(
         "list_pages",
         lambda ctx, s: list_pages(ctx, application_id=s.builder.id, thought="contract"),
         _check_list_pages,
@@ -508,8 +671,8 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_elements,
     ),
     ReadToolCase(
-        "list_actions",
-        lambda ctx, s: list_actions(ctx, page_id=s.page.id, thought="contract"),
+        "list_element_actions",
+        lambda ctx, s: list_element_actions(ctx, page_id=s.page.id, thought="contract"),
         _check_list_actions,
     ),
 ]
@@ -539,7 +702,20 @@ EXEMPT_TOOLS: dict[str, str] = {
     "load_row_tools": _CONTROL,
     "search_user_docs": _LLM,
     "generate_formula": _LLM,
-    "create_builders": _WRITE,
+    "create_database": _WRITE,
+    "create_automation": _WRITE,
+    "create_dashboard": _WRITE,
+    "create_builder": _WRITE,
+    "create_row_comments": _WRITE,
+    "set_view_sorts": _WRITE,
+    "set_field_visibility": _WRITE,
+    "add_row_colours": _WRITE,
+    "delete_views": _WRITE,
+    "delete_view_filters": _WRITE,
+    "delete_row_colours": _WRITE,
+    "update_database": _WRITE,
+    "update_automation": _WRITE,
+    "update_dashboard": _WRITE,
     "update_builder": _WRITE,
     "create_tables": _WRITE,
     "create_fields": _WRITE,
@@ -551,6 +727,9 @@ EXEMPT_TOOLS: dict[str, str] = {
     "add_nodes": _WRITE,
     "update_nodes": _WRITE,
     "delete_nodes": _WRITE,
+    "create_widgets": _WRITE,
+    "update_widgets": _WRITE,
+    "delete_widgets": _WRITE,
     "create_pages": _WRITE,
     "update_page": _WRITE,
     "create_data_sources": _WRITE,
@@ -562,8 +741,9 @@ EXEMPT_TOOLS: dict[str, str] = {
     "update_element": _WRITE,
     "update_element_style": _WRITE,
     "move_elements": _WRITE,
-    "create_actions": _WRITE,
-    "add_action_field_mapping": _WRITE,
+    "create_element_actions": _WRITE,
+    "add_element_action_field_mapping": _WRITE,
+    "update_element_action": _WRITE,
     "setup_page": _WRITE,
     "setup_user_source": _WRITE,
     "set_theme": _WRITE,

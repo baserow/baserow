@@ -190,6 +190,17 @@
               {{ $t('fieldForm.dbIndexDescription') }}
             </p>
           </div>
+
+          <component
+            :is="advancedSettingType.component"
+            v-for="advancedSettingType in advancedSettingTypes"
+            :key="advancedSettingType.getType()"
+            :default-values="defaultValues"
+            :field-values="fieldForConstraints"
+            :database="database"
+            :table="table"
+            @show="selectedTabIndex = 1"
+          />
         </div>
       </form>
     </div>
@@ -306,11 +317,17 @@ export default {
       const values = Object.assign({}, this.defaultValues, this.values)
       return this.$registry.get('field', values.type).canHaveDbIndex(values)
     },
+    advancedSettingTypes() {
+      return this.$registry.getOrderedList('fieldFormAdvancedSetting')
+    },
     fieldForConstraints() {
       return {
         type: this.values.type,
         ...this.defaultValues,
         ...this.values,
+        // The values of the type specific form, like the output type of an AI
+        // field, can change before they're saved as well.
+        ...this.getChildFormsValues(),
       }
     },
     ...mapGetters({

@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from typing import Annotated, Any
 from unittest.mock import AsyncMock, MagicMock
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 import pytest
 from loguru import logger
 from pydantic import AfterValidator, ValidationError
@@ -18,8 +20,13 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.builder.tools.types.data_source import (
+    DataSourceCreate,
+)
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
+from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow_enterprise.assistant.action_memory import (
     get_mutation_evidence,
     get_verified_tool_outcomes,
@@ -28,9 +35,6 @@ from baserow_enterprise.assistant.deps import AgentMode
 from baserow_enterprise.assistant.tools.automation.types.node import (
     ActionNodeCreate,
     TriggerNodeCreate,
-)
-from baserow_enterprise.assistant.tools.builder.types.data_source import (
-    DataSourceCreate,
 )
 from baserow_enterprise.assistant.tools.database.tools import (
     create_fields,
@@ -51,6 +55,7 @@ from baserow_enterprise.assistant.tools.toolset import (
     move_thought_to_top_level,
 )
 from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
+from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from .utils import make_test_ctx
 
@@ -219,6 +224,13 @@ async def test_deferred_tool_switches_modes_then_executes_once(initial_args):
         (PermissionDenied(), "permission was denied"),
         (UserNotInWorkspace(), "outside the current workspace"),
         (ToolInputError("Invalid workflow"), "Invalid workflow"),
+        (SharedToolInputError("Invalid workflow"), "Invalid workflow"),
+        (DjangoValidationError("Invalid range"), "Invalid value. Invalid range"),
+        (FeaturesNotAvailableError(), "This needs a licence"),
+        (
+            DRFValidationError("The page with id 7 doesn't exist."),
+            "The page with id 7 doesn't exist.",
+        ),
         (ModelRetry("Invalid workflow"), "Invalid workflow"),
     ],
 )
@@ -248,6 +260,30 @@ async def test_complete_deferred_tool_preserves_domain_errors(error, expected):
         )
         assert expected in result["error"]
     assert deps.mode == AgentMode.AUTOMATION
+
+
+@pytest.mark.asyncio
+async def test_a_shared_input_error_keeps_its_hint_for_the_model():
+    deps = SimpleNamespace(mode=AgentMode.AUTOMATION)
+
+    def create_workflows(name: str):
+        raise SharedToolInputError("Invalid workflow.", hint="Use list_workflows.")
+
+    model = TestModel()
+    toolset = ModeAwareToolset(
+        InlineRefsToolset(
+            FunctionToolset([create_workflows]), model=model, model_profile=MagicMock()
+        ),
+        deps,
+    )
+    ctx = RunContext(deps=deps, model=model, usage=RunUsage(), prompt="Create")
+    tools = await toolset.get_tools(ctx)
+
+    result = await toolset.call_tool(
+        "create_workflows", {"name": "Orders"}, ctx, tools["create_workflows"]
+    )
+
+    assert result == {"error": "Invalid workflow.", "next_steps": "Use list_workflows."}
 
 
 @pytest.mark.asyncio

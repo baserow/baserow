@@ -9,6 +9,14 @@ export class WorkspaceSettingsPageType extends Registerable {
     return null
   }
 
+  get developmentStage() {
+    return null
+  }
+
+  getBadge() {
+    return null
+  }
+
   constructor(...args) {
     super(...args)
     this.type = this.getType()
@@ -51,6 +59,10 @@ export class WorkspaceSettingsPageType extends Registerable {
 }
 
 export class MembersWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
+  getOrder() {
+    return 10
+  }
+
   static getType() {
     return 'members'
   }
@@ -70,45 +82,25 @@ export class MembersWorkspaceSettingsPageType extends WorkspaceSettingsPageType 
   }
 }
 
-export class InvitesWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
-  static getType() {
-    return 'invites'
-  }
-
-  getName() {
-    const { $i18n: i18n } = this.app
-    return i18n.t('membersSettings.invitesTabTitle')
-  }
-
-  /**
-   * Responsible for returning whether the user has access to the
-   * invitations table by checking their `workspace.list_invitations` permission.
-   */
-  hasPermission(workspace) {
-    return this.app.$hasPermission(
-      'workspace.list_invitations',
-      workspace,
-      workspace.id
-    )
-  }
-
-  getRoute(workspace) {
-    return {
-      name: 'settings-invites',
-      params: {
-        workspaceId: workspace.id,
-      },
-    }
-  }
-}
-
 export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
+  getOrder() {
+    return 40
+  }
+
   static getType() {
     return 'agents'
   }
 
+  getBadge() {
+    return this.app.$i18n.t('identities.new')
+  }
+
   getName() {
-    return this.app.$i18n.t('agents.tabTitle')
+    return this.app.$i18n.t('identities.tabTitle')
+  }
+
+  get developmentStage() {
+    return 'beta'
   }
 
   hasPermission(workspace) {

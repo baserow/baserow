@@ -1,5 +1,12 @@
+from time import perf_counter
+
+from django.core.files.storage import FileSystemStorage
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.domains.domain_types import CustomDomainType
 from baserow.contrib.builder.domains.exceptions import (
     DomainDoesNotExist,
@@ -14,8 +21,20 @@ from baserow.contrib.builder.elements.permission_manager import (
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowListRows,
+    LocalBaserowUpsertRow,
+)
 from baserow.core.cache import global_cache
+from baserow.core.handler import CoreHandler
+from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
+from baserow.core.models import Agent, Template
+from baserow.core.services.models import Service
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_sources.constants import DEFAULT_USER_ROLE_PREFIX
 from baserow.core.utils import Progress
 
@@ -204,7 +223,7 @@ def test_get_published_builder_for_trashed_builder(data_fixture):
 
 
 @pytest.mark.django_db
-def test_domain_publishing(data_fixture):
+def test_domain_publishing(data_fixture, django_capture_on_commit_callbacks):
     builder = data_fixture.create_builder_application()
 
     domain1 = data_fixture.create_builder_custom_domain(builder=builder)
@@ -240,12 +259,111 @@ def test_domain_publishing(data_fixture):
     assert progress.progress == progress.total
 
     # Let's publish it a second time.
-    DomainHandler().publish(domain1, progress)
+    with django_capture_on_commit_callbacks(execute=True):
+        DomainHandler().publish(domain1, progress)
 
-    # Following a re-publish, the builder-by-domain cache is invalidated
+    # Once the re-publish is committed, the builder-by-domain cache is invalidated
     assert global_cache.get(builder_by_domain_cache_key, default="after") == "after"
 
     assert Builder.objects.count() == 2
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.disabled_in_ci
+# Run manually with:
+# just b test tests/baserow/contrib/builder/domains/test_domain_handler.py \
+#     -s --run-disabled-in-ci
+def test_republishing_work_management_platform_performance(
+    data_fixture, django_capture_on_commit_callbacks, profiler, tmpdir
+):
+    """Reports the elapsed time and query count of a Work Management republish."""
+
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    core_handler = CoreHandler()
+    core_handler.sync_templates(storage=storage, pattern="work-management-platform")
+
+    workspace_user = data_fixture.create_user_workspace()
+    template = Template.objects.get(name="Work Management Platform")
+    with transaction.atomic():
+        applications, _ = core_handler.install_template(
+            workspace_user.user,
+            workspace_user.workspace,
+            template,
+            storage=storage,
+        )
+
+    builder = next(
+        application for application in applications if isinstance(application, Builder)
+    )
+    assert Page.objects.filter(builder=builder).count() == 18
+    assert DataSource.objects.filter(page__builder=builder).count() == 53
+    assert BuilderWorkflowAction.objects.filter(page__builder=builder).count() == 66
+
+    domain = data_fixture.create_builder_custom_domain(
+        builder=builder, domain_name="work-management.test"
+    )
+    with (
+        transaction.atomic(),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        DomainHandler().publish(domain)
+    domain.refresh_from_db()
+
+    with profiler(
+        print_result=False,
+        html_report_name="builder_work_management_platform_republish",
+    ):
+        started_at = perf_counter()
+        with (
+            CaptureQueriesContext(connection) as captured_queries,
+            django_capture_on_commit_callbacks(execute=True),
+            transaction.atomic(),
+        ):
+            DomainHandler().publish(domain)
+        elapsed_seconds = perf_counter() - started_at
+
+    print(f"Work Management Platform republish time: {elapsed_seconds:.3f}s")
+    print(f"Work Management Platform republish queries: {len(captured_queries)}")
+
+
+@pytest.mark.django_db
+def test_domain_publishing_preserves_local_baserow_authorized_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    agent = Agent.objects.create(workspace=workspace, name="Builder agent")
+    data_fixture.create_local_baserow_integration(
+        application=builder,
+        authorized_user=user,
+        authorized_agent=agent,
+    )
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    domain = DomainHandler().publish(domain)
+
+    published_integration = domain.published_to.integrations.get().specific
+    assert published_integration.authorized_subject == agent
+
+
+@pytest.mark.django_db
+def test_domain_publishing_rejects_trashed_local_baserow_agent(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    agent = Agent.objects.create(
+        workspace=workspace, name="Trashed agent", trashed=True
+    )
+    data_fixture.create_local_baserow_integration(
+        application=builder,
+        authorized_user=user,
+        authorized_agent=agent,
+    )
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    with pytest.raises(
+        IntegrationImproperlyConfigured, match="authorized subject is trashed"
+    ):
+        DomainHandler().publish(domain)
 
 
 @pytest.mark.django_db
@@ -393,3 +511,220 @@ def test_publish_page_roles_follow_user_source(data_fixture, role_kind, role_typ
         assert published_page.roles == [published_user.role]
         page.refresh_from_db()
         assert page.roles == [original_role]
+
+
+def _create_builder_with_services(data_fixture, sets, builder=None):
+    """
+    Creates a builder with `sets` data sources and `sets` workflow actions of
+    each of three service action types, all on one integration, plus a trashed
+    data source and a trashed workflow action. Returns the builder, the ids of
+    all of its services and its number of workflow actions.
+    """
+
+    if builder is None:
+        builder = data_fixture.create_builder_application(workspace=None)
+    page = data_fixture.create_builder_page(builder=builder)
+    button = data_fixture.create_builder_button_element(page=page)
+    integration = data_fixture.create_local_baserow_integration(application=builder)
+    services = []
+    actions = 0
+
+    def create_data_source():
+        data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page,
+            service=data_fixture.create_local_baserow_list_rows_service(
+                integration=integration
+            ),
+        )
+        services.append(data_source.service)
+        return data_source
+
+    def create_action(create_action, create_service, **kwargs):
+        nonlocal actions
+        action = create_action(
+            page=page,
+            element=button,
+            event=EventTypes.CLICK,
+            service=create_service(integration=integration),
+            **kwargs,
+        )
+        services.append(action.service)
+        actions += 1
+
+    for _ in range(sets):
+        create_data_source()
+        create_action(
+            data_fixture.create_local_baserow_create_row_workflow_action,
+            data_fixture.create_local_baserow_upsert_row_service,
+        )
+        create_action(
+            data_fixture.create_local_baserow_update_row_workflow_action,
+            data_fixture.create_local_baserow_upsert_row_service,
+        )
+        create_action(
+            data_fixture.create_local_baserow_delete_row_workflow_action,
+            data_fixture.create_local_baserow_delete_row_service,
+        )
+
+    trashed_data_source = create_data_source()
+    trashed_data_source.trashed = True
+    trashed_data_source.save()
+    create_action(
+        data_fixture.create_local_baserow_create_row_workflow_action,
+        data_fixture.create_local_baserow_upsert_row_service,
+        trashed=True,
+    )
+
+    return builder, [service.id for service in services], actions
+
+
+def _assert_services_deleted(service_ids):
+    assert not Service.objects_and_trash.filter(id__in=service_ids).exists()
+    assert not LocalBaserowListRows.objects_and_trash.filter(
+        id__in=service_ids
+    ).exists()
+    assert not LocalBaserowUpsertRow.objects_and_trash.filter(
+        id__in=service_ids
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_deleting_builder_deletes_all_services_in_one_pass(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    def delete_and_count_queries(builder):
+        with (
+            CaptureQueriesContext(connection) as ctx,
+            django_capture_on_commit_callbacks(execute=True),
+        ):
+            builder.delete()
+        return len(ctx.captured_queries)
+
+    small_builder, small_service_ids, small_actions = _create_builder_with_services(
+        data_fixture, 1
+    )
+    large_builder, large_service_ids, large_actions = _create_builder_with_services(
+        data_fixture, 5
+    )
+
+    small_queries = delete_and_count_queries(small_builder)
+    large_queries = delete_and_count_queries(large_builder)
+
+    assert not Builder.objects.filter(
+        id__in=[small_builder.id, large_builder.id]
+    ).exists()
+    _assert_services_deleted(small_service_ids + large_service_ids)
+    # The services are deleted in one batched pass. What's left per service is
+    # Django's collector loading each service's parent row while it collects the
+    # service subclass rows. Per workflow action, the receiver loads the specific
+    # action and then runs a single empty query after commit. Deleting the
+    # services one by one costs more than 60 queries per service.
+    extra_services = len(large_service_ids) - len(small_service_ids)
+    extra_actions = large_actions - small_actions
+    assert large_queries <= small_queries + extra_services + 2 * extra_actions
+
+
+@pytest.mark.django_db
+def test_deleting_workspace_builder_deletes_all_services(data_fixture):
+    builder, service_ids, _ = _create_builder_with_services(
+        data_fixture, 1, builder=data_fixture.create_builder_application()
+    )
+
+    builder.delete()
+
+    assert not Builder.objects.filter(id=builder.id).exists()
+    _assert_services_deleted(service_ids)
+
+
+@pytest.mark.django_db
+def test_domain_republishing_deletes_previous_services(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    builder, _, _ = _create_builder_with_services(
+        data_fixture, 1, builder=data_fixture.create_builder_application()
+    )
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        DomainHandler().publish(domain)
+    domain.refresh_from_db()
+    first_published_to = domain.published_to
+    first_service_ids = set(Service.objects_and_trash.values_list("id", flat=True))
+
+    with django_capture_on_commit_callbacks(execute=True):
+        DomainHandler().publish(domain)
+    domain.refresh_from_db()
+
+    assert not Builder.objects.filter(id=first_published_to.id).exists()
+    # Only the services of the builder and of the new publication are left, the
+    # same number as after the first publication.
+    service_ids = set(Service.objects_and_trash.values_list("id", flat=True))
+    assert len(service_ids) == len(first_service_ids)
+
+
+@pytest.mark.django_db
+def test_delete_domain_deletes_published_builder_services(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    builder = data_fixture.create_builder_application()
+    published_builder, service_ids, _ = _create_builder_with_services(data_fixture, 1)
+    domain = data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        DomainHandler().delete_domain(domain)
+
+    assert not Builder.objects.filter(id=published_builder.id).exists()
+    _assert_services_deleted(service_ids)
+
+
+@pytest.mark.django_db
+def test_trashing_builder_keeps_its_services(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    builder, service_ids, _ = _create_builder_with_services(
+        data_fixture, 1, builder=builder
+    )
+    published_builder, published_service_ids, _ = _create_builder_with_services(
+        data_fixture, 1
+    )
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        TrashHandler.trash(user, builder.workspace, builder, builder)
+
+    assert Service.objects_and_trash.filter(id__in=service_ids).count() == len(
+        service_ids
+    )
+    assert Service.objects_and_trash.filter(
+        id__in=published_service_ids
+    ).count() == len(published_service_ids)
+
+
+@pytest.mark.django_db
+def test_permanently_deleting_builder_deletes_all_services(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    builder = data_fixture.create_builder_application()
+    builder, service_ids, _ = _create_builder_with_services(
+        data_fixture, 1, builder=builder
+    )
+    published_builder, published_service_ids, _ = _create_builder_with_services(
+        data_fixture, 1
+    )
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        TrashHandler.permanently_delete(builder)
+
+    assert not Builder.objects.filter(
+        id__in=[builder.id, published_builder.id]
+    ).exists()
+    _assert_services_deleted(service_ids + published_service_ids)

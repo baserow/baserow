@@ -88,6 +88,21 @@ spec:
                 name: backend-asgi
                 port:
                   number: 80
+          # AI replies stream from these paths, and only the ASGI service can stream them.
+          - pathType: Prefix
+            path: "/assistant/"
+            backend:
+              service:
+                name: backend-asgi
+                port:
+                  number: 80
+          - pathType: Prefix
+            path: "/api/chat-runs/"
+            backend:
+              service:
+                name: backend-asgi
+                port:
+                  number: 80
           - pathType: Prefix
             path: "/"
             backend:
@@ -175,7 +190,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: backend-asgi
-          image: baserow/backend:2.4.1
+          image: baserow/backend:2.4.2
           workingDir: /baserow
           args:
             - "gunicorn"
@@ -232,7 +247,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: backend-wsgi
-          image: baserow/backend:2.4.1
+          image: baserow/backend:2.4.2
           workingDir: /baserow
           args:
             - "gunicorn-wsgi"
@@ -291,7 +306,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: backend-worker
-          image: baserow/backend:2.4.1
+          image: baserow/backend:2.4.2
           args:
             - "celery-worker"
           imagePullPolicy: Always
@@ -308,7 +323,7 @@ spec:
             - secretRef:
                 name: YOUR_ENV_SECRET_REF
         - name: backend-export-worker
-          image: baserow/backend:2.4.1
+          image: baserow/backend:2.4.2
           args:
             - "celery-exportworker"
           imagePullPolicy: Always
@@ -325,7 +340,7 @@ spec:
             - secretRef:
                 name: YOUR_ENV_SECRET_REF
         - name: backend-beat-worker
-          image: baserow/backend:2.4.1
+          image: baserow/backend:2.4.2
           args:
             - "celery-beat"
           imagePullPolicy: Always
@@ -366,7 +381,7 @@ spec:
                 topologyKey: "kubernetes.io/hostname"
       containers:
         - name: web-frontend
-          image: baserow/web-frontend:2.4.1
+          image: baserow/web-frontend:2.4.2
           args:
             - nuxt
           ports:

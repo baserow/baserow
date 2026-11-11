@@ -1,6 +1,10 @@
 from django.db.models.signals import pre_delete
 
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.core.services.deferred_deletion import (
+    defer_service_deletion,
+    is_service_deletion_deferred,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -10,6 +14,10 @@ def before_data_source_permanently_deleted(sender, instance, **kwargs):
     """
     Delete the service related to a data_source
     """
+
+    if instance.service_id and is_service_deletion_deferred():
+        defer_service_deletion(instance.service_id)
+        return
 
     try:
         if instance.service:

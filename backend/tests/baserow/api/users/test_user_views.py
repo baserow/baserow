@@ -1,4 +1,5 @@
 import os
+import re
 from unittest.mock import patch
 
 from django.conf import settings
@@ -22,8 +23,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from baserow.api.user.registries import UserDataType, user_data_registry
 from baserow.contrib.database.models import Database, Table
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Settings, Workspace, WorkspaceUser
+from baserow.core.user.actions import SendResetUserPasswordActionType
 from baserow.core.user.handler import UserHandler
+from baserow.throttling.types import RateLimit
 
 User = get_user_model()
 
@@ -611,6 +614,50 @@ def test_create_user_with_invitation(data_fixture, client):
 
 
 @pytest.mark.django_db
+def test_create_user_with_invitation_signs_in_when_verification_is_enforced(
+    data_fixture, client
+):
+    data_fixture.create_password_provider()
+    core_handler = CoreHandler()
+    instance_settings = core_handler.get_settings()
+    instance_settings.email_verification = Settings.EmailVerificationOptions.ENFORCED
+    instance_settings.save()
+    invitation = data_fixture.create_workspace_invitation(email="test0@test.nl")
+    signer = core_handler.get_workspace_invitation_signer()
+
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test1",
+            "email": "test1@test.nl",
+            "password": "thisIsAValidPassword",
+            "authenticate": True,
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "access_token" not in response.json()
+
+    # The token from the invitation email verifies the email address.
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test0",
+            "email": "test0@test.nl",
+            "password": "thisIsAValidPassword",
+            "authenticate": True,
+            "workspace_invitation_token": signer.dumps(invitation.id),
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert "access_token" in response_json
+    assert "refresh_token" in response_json
+    assert response_json["user"]["email_verified"] is True
+
+
+@pytest.mark.django_db
 def test_create_user_with_template(data_fixture, client):
     data_fixture.create_password_provider()
     old_templates = settings.APPLICATION_TEMPLATES_DIR
@@ -687,7 +734,7 @@ def test_send_reset_password_email(data_fixture, client, mailoutbox):
 
     response = client.post(
         reverse("api:user:send_reset_password_email"),
-        {"email": "unknown@localhost.nl", "base_url": "http://localhost:3000"},
+        {"email": "unknown@localhost.nl"},
         format="json",
     )
     assert response.status_code == 204
@@ -695,17 +742,7 @@ def test_send_reset_password_email(data_fixture, client, mailoutbox):
 
     response = client.post(
         reverse("api:user:send_reset_password_email"),
-        {"email": "test@localhost.nl", "base_url": "http://test.nl"},
-        format="json",
-    )
-    response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response_json["error"] == "ERROR_HOSTNAME_IS_NOT_ALLOWED"
-    assert len(mailoutbox) == 0
-
-    response = client.post(
-        reverse("api:user:send_reset_password_email"),
-        {"email": "test@localhost.nl", "base_url": "http://localhost:3000"},
+        {"email": "test@localhost.nl"},
         format="json",
     )
     assert response.status_code == 204
@@ -713,7 +750,7 @@ def test_send_reset_password_email(data_fixture, client, mailoutbox):
 
     response = client.post(
         reverse("api:user:send_reset_password_email"),
-        {"email": " teST@locAlhost.nl ", "base_url": "http://localhost:3000"},
+        {"email": " teST@locAlhost.nl "},
         format="json",
     )
     assert response.status_code == 204
@@ -728,11 +765,82 @@ def test_send_reset_password_email(data_fixture, client, mailoutbox):
 
     response = client.post(
         reverse("api:user:send_reset_password_email"),
-        {"email": " teST@locAlhost.nl ", "base_url": "http://localhost:3000"},
+        {"email": " teST@locAlhost.nl "},
         format="json",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    PUBLIC_WEB_FRONTEND_URL="https://baserow.example",
+    BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow",
+)
+def test_send_reset_password_email_link_points_to_embedded_share_url(
+    data_fixture, client, mailoutbox
+):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user(email="test@localhost.nl")
+
+    response = client.post(
+        reverse("api:user:send_reset_password_email"),
+        {"email": "test@localhost.nl"},
+        format="json",
+    )
+
+    assert response.status_code == 204
+    assert len(mailoutbox) == 1
+    links = re.findall(
+        r'href="([^"]*reset-password[^"]*)"', mailoutbox[0].alternatives[0][0]
+    )
+    prefix = "https://embed.example/baserow/reset-password/"
+    assert len(links) == 1
+    assert links[0].startswith(prefix)
+    token = links[0].removeprefix(prefix)
+    assert UserHandler().get_reset_password_signer().loads(token)[0] == user.id
+
+
+# The browser opens evil.com for this URL while urlparse sees localhost:3000. The
+# endpoints used to accept it as base_url and put it in the emailed link.
+DECEPTIVE_BASE_URL = "http://evil.com\\@localhost:3000"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("route", ["reset-password", "change-email"])
+def test_emailed_links_ignore_a_deceptive_base_url(
+    data_fixture, client, mailoutbox, route
+):
+    data_fixture.create_password_provider()
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="thisIsAValidPassword"
+    )
+
+    if route == "reset-password":
+        response = client.post(
+            reverse("api:user:send_reset_password_email"),
+            {"email": user.email, "base_url": f"{DECEPTIVE_BASE_URL}/{route}"},
+            format="json",
+        )
+    else:
+        response = client.post(
+            reverse("api:user:send_change_email_confirmation"),
+            {
+                "new_email": "new@test.nl",
+                "password": "thisIsAValidPassword",
+                "base_url": f"{DECEPTIVE_BASE_URL}/{route}",
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == 204
+    assert len(mailoutbox) == 1
+    html_body = mailoutbox[0].alternatives[0][0]
+    assert "evil.com" not in html_body
+    links = re.findall(rf'href="([^"]*{route}/[^"]*)"', html_body)
+    assert len(links) == 1
+    assert links[0].startswith(f"http://localhost:3000/{route}/")
 
 
 @pytest.mark.django_db
@@ -744,7 +852,7 @@ def test_send_reset_password_email_password_auth_disabled(
 
     response = api_client.post(
         reverse("api:user:send_reset_password_email"),
-        {"email": "test@localhost.nl", "base_url": "http://localhost:3000"},
+        {"email": "test@localhost.nl"},
         format="json",
     )
 
@@ -765,7 +873,7 @@ def test_send_reset_password_email_password_auth_disabled_staff(
 
     response = api_client.post(
         reverse("api:user:send_reset_password_email"),
-        {"email": "test@localhost.nl", "base_url": "http://localhost:3000"},
+        {"email": "test@localhost.nl"},
         format="json",
     )
 
@@ -1292,6 +1400,45 @@ def test_verify_email_address_with_login(client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_verify_email_address_does_not_log_in_two_factor_user(client, data_fixture):
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+    token = UserHandler().create_email_verification_token(user)
+
+    response = client.post(
+        reverse("api:user:verify_email"),
+        {"token": token},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {"email": user.email}
+    user.refresh_from_db()
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+def test_verify_email_address_two_factor_user_password_auth_disabled(
+    client, data_fixture
+):
+    data_fixture.create_password_provider(enabled=False)
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+    token = UserHandler().create_email_verification_token(user)
+
+    response = client.post(
+        reverse("api:user:verify_email"),
+        {"token": token},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "ERROR_AUTH_PROVIDER_DISABLED"
+    user.refresh_from_db()
+    assert user.profile.email_verified is False
+
+
+@pytest.mark.django_db
 def test_verify_email_address_no_login(client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     token = UserHandler().create_email_verification_token(user)
@@ -1355,6 +1502,98 @@ def test_send_verify_email_address(client, data_fixture, mailoutbox):
 
     assert response.status_code == HTTP_204_NO_CONTENT
     assert len(mailoutbox) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    BASEROW_THROTTLE_IP_ENABLED=True,
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS=(RateLimit.from_string("2/m"),),
+)
+@pytest.mark.parametrize(
+    "url_name", ["api:user:send_reset_password_email", "api:user:send_verify_email"]
+)
+def test_anonymous_email_endpoints_are_rate_limited_per_ip(
+    client, data_fixture, mailoutbox, url_name
+):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user()
+
+    def send(email, ip):
+        return client.post(
+            reverse(url_name),
+            {"email": email},
+            format="json",
+            HTTP_X_FORWARDED_FOR=ip,
+        )
+
+    # Unknown addresses count as well, so the limit doesn't reveal accounts.
+    assert send("unknown@example.com", "1.1.1.1").status_code == HTTP_204_NO_CONTENT
+    assert send(user.email, "1.1.1.1").status_code == HTTP_204_NO_CONTENT
+    assert send(user.email, "1.1.1.1").status_code == 429
+    assert send(user.email, "2.2.2.2").status_code == HTTP_204_NO_CONTENT
+
+    assert len(mailoutbox) == 2
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_THROTTLE_IP_ENABLED=True,
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS=(RateLimit.from_string("1/m"),),
+)
+def test_anonymous_email_ip_rate_limit_only_counts_post(client):
+    url = reverse("api:user:send_reset_password_email")
+
+    assert client.get(url).status_code == 405
+    assert client.get(url).status_code == 405
+    response = client.post(
+        url,
+        {"email": "unknown@example.com"},
+        format="json",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_THROTTLE_IP_ENABLED=False,
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS=(RateLimit.from_string("1/m"),),
+)
+def test_anonymous_email_ip_rate_limit_needs_ip_throttling_enabled(client):
+    # Without it, the client IP may be shared by every caller, or picked by them.
+    for _ in range(2):
+        response = client.post(
+            reverse("api:user:send_verify_email"),
+            {"email": "unknown@example.com"},
+            format="json",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT=RateLimit.from_string("2/h"),
+)
+def test_send_reset_password_email_rate_limited_per_recipient(
+    client, data_fixture, mailoutbox
+):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user()
+
+    with patch.object(
+        SendResetUserPasswordActionType, "register_action"
+    ) as register_action:
+        for _ in range(3):
+            response = client.post(
+                reverse("api:user:send_reset_password_email"),
+                {"email": user.email},
+                format="json",
+            )
+            # Dropped requests look the same, so they don't reveal the account.
+            assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert len(mailoutbox) == 2
+    # The dropped request isn't written to the audit log either.
+    assert register_action.call_count == 2
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1460,7 +1699,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
         {
             "new_email": "newemail@test.nl",
             "password": "wrongpassword",
-            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1475,7 +1713,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
         {
             "new_email": "existing@test.nl",
             "password": valid_password,
-            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1489,7 +1726,6 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
         {
             "new_email": "newemail@test.nl",
             "password": valid_password,
-            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1498,6 +1734,43 @@ def test_send_change_email_confirmation(data_fixture, client, mailoutbox):
     assert len(mailoutbox) == 1
     assert mailoutbox[0].to[0] == "newemail@test.nl"
     assert "Confirm email address change" in mailoutbox[0].subject
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(
+    PUBLIC_WEB_FRONTEND_URL="https://baserow.example",
+    BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow",
+)
+def test_send_change_email_confirmation_link_points_to_embedded_share_url(
+    data_fixture, client, mailoutbox
+):
+    data_fixture.create_password_provider()
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="thisIsAValidPassword"
+    )
+
+    response = client.post(
+        reverse("api:user:send_change_email_confirmation"),
+        {
+            "new_email": "new@test.nl",
+            "password": "thisIsAValidPassword",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 204
+    assert len(mailoutbox) == 1
+    links = re.findall(
+        r'href="([^"]*change-email[^"]*)"', mailoutbox[0].alternatives[0][0]
+    )
+    prefix = "https://embed.example/baserow/change-email/"
+    assert len(links) == 1
+    assert links[0].startswith(prefix)
+    payload = (
+        UserHandler().get_change_email_signer().loads(links[0].removeprefix(prefix))
+    )
+    assert payload == {"user_id": user.id, "new_email": "new@test.nl"}
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1515,7 +1788,6 @@ def test_send_change_email_confirmation_password_auth_disabled(
         {
             "new_email": "newemail@test.nl",
             "password": valid_password,
-            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1543,7 +1815,6 @@ def test_send_change_email_confirmation_without_password(
         {
             "new_email": "newemail@test.nl",
             "password": "dummy_password",  # Provided but user has no password
-            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1570,7 +1841,6 @@ def test_change_email(data_fixture, client, mailoutbox):
         {
             "new_email": "newemail@test.nl",
             "password": valid_password,
-            "base_url": f"{settings.PUBLIC_WEB_FRONTEND_URL}/change-email",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -1804,3 +2074,24 @@ def test_create_user_captcha_only_for_configured_context(client, data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     assert User.objects.filter(email="captcha_context@test.nl").exists()
+
+
+@pytest.mark.django_db
+def test_user_account_creation_with_user_template(data_fixture, client):
+    data_fixture.create_password_provider()
+    user_template = data_fixture.create_user_template()
+
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test1",
+            "email": "test0@test.nl",
+            "password": "thisIsAValidPassword",
+            "template_id": user_template.id,
+        },
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["template_id"][0]["code"] == "does_not_exist"

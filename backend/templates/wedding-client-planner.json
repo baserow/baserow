@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Wedding Client Planner",
+    "description": "Plan client weddings with venues, vendors and supplies.",
     "icon": "iconoir-heart",
     "keywords": [
         "wedding",

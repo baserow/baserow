@@ -19,30 +19,31 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             AIAgentActionNodeType,
-            CoreCSVFileReaderNodeType,
+            CoreCSVFileReaderActionNodeType,
             CoreGotoActionNodeType,
-            CoreHttpRequestNodeType,
+            CoreHTTPRequestActionNodeType,
             CoreHTTPTriggerNodeType,
             CoreInboundEmailTriggerNodeType,
-            CoreIteratorNodeType,
+            CoreIteratorActionNodeType,
             CoreManualTriggerNodeType,
             CorePeriodicTriggerNodeType,
-            CoreResponseNodeType,
+            CoreResponseActionNodeType,
             CoreRouterActionNodeType,
-            CoreSMTPEmailNodeType,
-            CoreStartWorkflowNodeType,
-            LocalBaserowAggregateRowsNodeType,
-            LocalBaserowCreateRowNodeType,
-            LocalBaserowCreateRowsNodeType,
-            LocalBaserowDeleteRowNodeType,
-            LocalBaserowFieldsUpdatedNodeTriggerType,
-            LocalBaserowGetRowNodeType,
-            LocalBaserowListRowsNodeType,
-            LocalBaserowRowsCreatedNodeTriggerType,
-            LocalBaserowRowsDeletedNodeTriggerType,
-            LocalBaserowRowsUpdatedNodeTriggerType,
-            LocalBaserowUpdateRowNodeType,
-            LocalBaserowUpdateRowsNodeType,
+            CoreSMTPEmailActionNodeType,
+            CoreStartWorkflowActionNodeType,
+            CoreWaitActionNodeType,
+            LocalBaserowAggregateRowsActionNodeType,
+            LocalBaserowCreateRowActionNodeType,
+            LocalBaserowCreateRowsActionNodeType,
+            LocalBaserowDeleteRowActionNodeType,
+            LocalBaserowFieldsUpdatedTriggerNodeType,
+            LocalBaserowGetRowActionNodeType,
+            LocalBaserowListRowsActionNodeType,
+            LocalBaserowRowsCreatedTriggerNodeType,
+            LocalBaserowRowsDeletedTriggerNodeType,
+            LocalBaserowRowsUpdatedTriggerNodeType,
+            LocalBaserowUpdateRowActionNodeType,
+            LocalBaserowUpdateRowsActionNodeType,
             SlackWriteMessageActionNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
@@ -168,6 +169,42 @@ class AutomationConfig(AppConfig):
 
         action_scope_registry.register(WorkflowActionScopeType())
 
+        from baserow.contrib.automation.mcp.nodes.tools import (
+            AddNodesMcpTool,
+            DeleteNodesMcpTool,
+            ListNodesMcpTool,
+            UpdateNodesMcpTool,
+        )
+        from baserow.contrib.automation.mcp.workflows.tools import (
+            CreateAutomationMcpTool,
+            CreateWorkflowsMcpTool,
+            ListWorkflowsMcpTool,
+            PauseWorkflowMcpTool,
+            PublishWorkflowMcpTool,
+            UpdateAutomationMcpTool,
+        )
+        from baserow.core.mcp.groups import (
+            AutomationDeleteMCPToolGroup,
+            AutomationEditMCPToolGroup,
+            AutomationReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        mcp_tool_group_registry.register(AutomationReadMCPToolGroup())
+        mcp_tool_group_registry.register(AutomationEditMCPToolGroup())
+        mcp_tool_group_registry.register(AutomationDeleteMCPToolGroup())
+        mcp_tool_registry.register(ListWorkflowsMcpTool())
+        mcp_tool_registry.register(ListNodesMcpTool())
+        mcp_tool_registry.register(CreateAutomationMcpTool())
+        mcp_tool_registry.register(UpdateAutomationMcpTool())
+        mcp_tool_registry.register(CreateWorkflowsMcpTool())
+        mcp_tool_registry.register(PublishWorkflowMcpTool())
+        mcp_tool_registry.register(PauseWorkflowMcpTool())
+        mcp_tool_registry.register(AddNodesMcpTool())
+        mcp_tool_registry.register(UpdateNodesMcpTool())
+        mcp_tool_registry.register(DeleteNodesMcpTool())
+
         from baserow.core.registries import permission_manager_type_registry
 
         from .permission_manager import AllowIfTemplatePermissionManagerType
@@ -182,27 +219,30 @@ class AutomationConfig(AppConfig):
             AllowIfTemplatePermissionManagerType(prev_manager)
         )
 
-        automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
-        automation_node_type_registry.register(LocalBaserowCreateRowsNodeType())
-        automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
-        automation_node_type_registry.register(LocalBaserowUpdateRowsNodeType())
-        automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
-        automation_node_type_registry.register(LocalBaserowGetRowNodeType())
-        automation_node_type_registry.register(LocalBaserowListRowsNodeType())
-        automation_node_type_registry.register(LocalBaserowAggregateRowsNodeType())
-        automation_node_type_registry.register(CoreHttpRequestNodeType())
-        automation_node_type_registry.register(CoreIteratorNodeType())
-        automation_node_type_registry.register(CoreCSVFileReaderNodeType())
-        automation_node_type_registry.register(CoreSMTPEmailNodeType())
-        automation_node_type_registry.register(CoreRouterActionNodeType())
-        automation_node_type_registry.register(CoreStartWorkflowNodeType())
-        automation_node_type_registry.register(CoreGotoActionNodeType())
-        automation_node_type_registry.register(CoreResponseNodeType())
-        automation_node_type_registry.register(LocalBaserowRowsCreatedNodeTriggerType())
-        automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
-        automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())
+        automation_node_type_registry.register(LocalBaserowCreateRowActionNodeType())
+        automation_node_type_registry.register(LocalBaserowCreateRowsActionNodeType())
+        automation_node_type_registry.register(LocalBaserowUpdateRowActionNodeType())
+        automation_node_type_registry.register(LocalBaserowUpdateRowsActionNodeType())
+        automation_node_type_registry.register(LocalBaserowDeleteRowActionNodeType())
+        automation_node_type_registry.register(LocalBaserowGetRowActionNodeType())
+        automation_node_type_registry.register(LocalBaserowListRowsActionNodeType())
         automation_node_type_registry.register(
-            LocalBaserowFieldsUpdatedNodeTriggerType()
+            LocalBaserowAggregateRowsActionNodeType()
+        )
+        automation_node_type_registry.register(CoreHTTPRequestActionNodeType())
+        automation_node_type_registry.register(CoreIteratorActionNodeType())
+        automation_node_type_registry.register(CoreCSVFileReaderActionNodeType())
+        automation_node_type_registry.register(CoreSMTPEmailActionNodeType())
+        automation_node_type_registry.register(CoreRouterActionNodeType())
+        automation_node_type_registry.register(CoreStartWorkflowActionNodeType())
+        automation_node_type_registry.register(CoreGotoActionNodeType())
+        automation_node_type_registry.register(CoreWaitActionNodeType())
+        automation_node_type_registry.register(CoreResponseActionNodeType())
+        automation_node_type_registry.register(LocalBaserowRowsCreatedTriggerNodeType())
+        automation_node_type_registry.register(LocalBaserowRowsUpdatedTriggerNodeType())
+        automation_node_type_registry.register(LocalBaserowRowsDeletedTriggerNodeType())
+        automation_node_type_registry.register(
+            LocalBaserowFieldsUpdatedTriggerNodeType()
         )
         automation_node_type_registry.register(CorePeriodicTriggerNodeType())
         automation_node_type_registry.register(CoreHTTPTriggerNodeType())
@@ -219,6 +259,7 @@ class AutomationConfig(AppConfig):
 
         from baserow.contrib.automation.data_providers.data_provider_types import (
             CurrentIterationDataProviderType,
+            CurrentNodeDataProviderType,
             PreviousNodeProviderType,
         )
         from baserow.contrib.automation.data_providers.registries import (
@@ -229,6 +270,7 @@ class AutomationConfig(AppConfig):
         automation_data_provider_type_registry.register(
             CurrentIterationDataProviderType()
         )
+        automation_data_provider_type_registry.register(CurrentNodeDataProviderType())
 
         from baserow.contrib.automation.nodes.permission_manager import (
             AutomationNodePermissionManager,

@@ -5,6 +5,8 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import include, path
 
+from rest_framework import serializers
+
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import DashboardDict
@@ -25,7 +27,28 @@ from baserow.core.utils import ChildProgressBuilder
 class DashboardApplicationType(ApplicationType):
     type = "dashboard"
     model_class = Dashboard
-    serializer_field_names = ["name", "description"]
+    serializer_field_names = [
+        "name",
+        "description",
+        "public",
+        "slug",
+        "public_has_password",
+        "show_logo",
+    ]
+    # The sharing state (`public`, `public_password`, `show_logo`) is left out on
+    # purpose: it is changed through the dedicated sharing endpoints and
+    # `UpdateDashboardSharingActionType`, so the audit log describes what changed
+    # instead of reporting a rename.
+    request_serializer_field_names = ["description"]
+    serializer_field_overrides = {
+        "public_has_password": serializers.BooleanField(
+            read_only=True,
+            help_text="Indicates whether the public dashboard is password protected.",
+        ),
+    }
+    # Without this the request serializer inherits `serializer_field_overrides`,
+    # declaring `public_has_password` on a serializer that doesn't list it.
+    request_serializer_field_overrides = {}
     allowed_fields = ["description"]
     supports_integrations = True
     # Dashboard supports runtime functions, but no data provider references.
@@ -47,7 +70,8 @@ class DashboardApplicationType(ApplicationType):
                 LocalBaserowIntegrationType.type
             ),
             application=application,
-            authorized_user=user,
+            authorized_subject_type="auth.User",
+            authorized_subject_id=user.id,
         )
 
     def pre_delete(self, dashboard):
@@ -79,6 +103,7 @@ class DashboardApplicationType(ApplicationType):
         serialized_integrations = [
             IntegrationHandler().export_integration(
                 i,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 cache=self.cache,
@@ -90,7 +115,11 @@ class DashboardApplicationType(ApplicationType):
 
         serialized_widgets = [
             WidgetHandler().export_widget(
-                widget, files_zip=files_zip, storage=storage, cache=self.cache
+                widget,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
             )
             for widget in widgets
         ]
@@ -99,7 +128,11 @@ class DashboardApplicationType(ApplicationType):
 
         serialized_data_sources = [
             DashboardDataSourceHandler().export_data_source(
-                data_source, files_zip=files_zip, storage=storage, cache=self.cache
+                data_source,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
             )
             for data_source in data_sources
         ]
@@ -140,6 +173,12 @@ class DashboardApplicationType(ApplicationType):
         serialized_data_sources = serialized_values.pop("data_sources")
         serialized_widgets = serialized_values.pop("widgets")
 
+        # A full application import must remap integrations and data sources,
+        # including when none were exported. Copies within the same dashboard
+        # supply MirrorDict mappings for references that should be preserved.
+        id_mapping.setdefault("integrations", {})
+        id_mapping.setdefault("dashboard_data_sources", {})
+
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
         application_progress = progress.create_child_builder(represents_progress=20)
         integrations_progress = progress.create_child(
@@ -174,6 +213,7 @@ class DashboardApplicationType(ApplicationType):
                 cache=self.cache,
                 files_zip=files_zip,
                 storage=storage,
+                import_export_config=import_export_config,
             )
             integrations_progress.increment()
 

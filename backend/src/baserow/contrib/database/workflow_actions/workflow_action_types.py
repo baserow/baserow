@@ -50,6 +50,7 @@ from baserow.core.db import specific_queryset
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.registry import Instance
@@ -153,70 +154,29 @@ class DatabaseWorkflowServiceActionType(
         service_type = service_type_registry.get_by_model(pytest_params["service"])
         return {"service": service_type.export_serialized(pytest_params["service"])}
 
-    def export_serialized(
-        self,
-        instance: WorkflowAction,
-        import_export_config: Optional[Any] = None,
-        files_zip: Optional[ZipFile] = None,
-        storage: Optional[Storage] = None,
-        cache: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """
-        Blanks whatever the backing service calls sensitive. `serialize_property`
-        is where the service is exported, and it is never handed the config, so
-        the stripping happens here instead.
-
-        A key on an HTTP action lives in the service's own headers rather than
-        in an integration, so without this it travels with every export.
-        """
-
-        exported = super().export_serialized(
-            instance, import_export_config, files_zip, storage, cache
-        )
-
-        if getattr(import_export_config, "exclude_sensitive_data", False):
-            service = exported.get("service") or {}
-            for prop_name in instance.service.specific.get_type().sensitive_fields:
-                if prop_name not in service:
-                    continue
-                rows = service[prop_name]
-                if isinstance(rows, list):
-                    # Only the value is dropped. Blanking the whole list would
-                    # take `Content-Type` and `api-version` with the key, and
-                    # the imported button would send a different request while
-                    # looking configured. Keeping the names says what has to be
-                    # entered again, which is what the data sync types do.
-                    service[prop_name] = [
-                        {**row, "value": None} if isinstance(row, dict) else row
-                        for row in rows
-                    ]
-                else:
-                    service[prop_name] = None
-
-        return exported
-
     def serialize_property(
         self,
         workflow_action: WorkflowAction,
         prop_name: str,
+        import_export_config: Optional[Any] = None,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, Any]] = None,
     ) -> Any:
         if prop_name == "service":
             service = workflow_action.service.specific
-            exported = service.get_type().export_serialized(
-                service, files_zip=files_zip, storage=storage, cache=cache
+            return service.get_type().export_serialized(
+                service,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
-            # An export travels to snapshots, copies and templates, and what a
-            # click remembered describes this installation's data. Nothing
-            # needs it there: the editor rebuilds it from the next click.
-            exported.pop("sample_data", None)
-            return exported
 
         return super().serialize_property(
             workflow_action,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
@@ -473,10 +433,10 @@ class DatabaseWorkflowServiceActionType(
         :return: True when this action may carry it.
         """
 
-        return (
-            field is not None
-            and integration.get_type().type in self.allowed_integration_types
-            and integration.application_id == field.table.database_id
+        return field is not None and IntegrationHandler().is_integration_usable(
+            integration,
+            application_id=field.table.database_id,
+            integration_types=self.allowed_integration_types,
         )
 
     def _check_integration(

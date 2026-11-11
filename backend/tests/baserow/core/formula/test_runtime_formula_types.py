@@ -38,6 +38,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeLessThan,
     RuntimeLessThanOrEqual,
     RuntimeLower,
+    RuntimeMarkdownToHtml,
     RuntimeMinus,
     RuntimeMinute,
     RuntimeMonth,
@@ -2323,6 +2324,56 @@ def test_runtime_encode_uri_validate_number_of_args(args, expected):
     assert RuntimeEncodeUriComponent().validate_number_of_args(args) is expected
 
 
+# The rendering itself is covered by `tests/baserow/core/test_core_markdown.py`;
+# these only check the argument handling of the formula function.
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], ""),
+        ([None], ""),
+        (["**b**"], "<p><strong>b</strong></p>"),
+        # Non-string values are coerced to text first.
+        ([42], "<p>42</p>"),
+        (
+            ["- [ ] a"],
+            '<ul class="contains-task-list">\n'
+            '<li class="task-list-item"><input class="task-list-item-checkbox" '
+            'disabled="" type="checkbox"> a</li>\n'
+            "</ul>",
+        ),
+    ],
+)
+def test_runtime_markdown_to_html_execute(args, expected):
+    parsed_args = RuntimeMarkdownToHtml().parse_args(args)
+    result = RuntimeMarkdownToHtml().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([""], []),
+        (["foo"], []),
+    ],
+)
+def test_runtime_markdown_to_html_validate_type_of_args(args, expected):
+    result = RuntimeMarkdownToHtml().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_markdown_to_html_validate_number_of_args(args, expected):
+    result = RuntimeMarkdownToHtml().validate_number_of_args(args)
+    assert result is expected
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [
@@ -2695,6 +2746,12 @@ def test_runtime_number_format_execute(args, expected):
     parsed_args = RuntimeNumberFormat().parse_args(args)
     result = RuntimeNumberFormat().execute({}, parsed_args)
     assert result == expected
+
+
+def test_runtime_number_format_execute_caps_decimal_places():
+    parsed_args = RuntimeNumberFormat().parse_args([42, 1000])
+    result = RuntimeNumberFormat().execute({}, parsed_args)
+    assert result == "42." + "0" * 100
 
 
 @pytest.mark.parametrize(

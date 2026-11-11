@@ -32,6 +32,15 @@ describe('SegmentControl.vue', () => {
     expect(wrapper.findAll('.segment-control__button').length).toBe(3)
   })
 
+  it('renders the pills type', async () => {
+    const wrapper = await testApp.mount(SegmentControl, {
+      propsData: { segments: [{ label: 'One' }], type: 'pills' },
+    })
+
+    expect(wrapper.classes()).toContain('segment-control--pills')
+    expect(wrapper.classes()).not.toContain('segment-control--rounded')
+  })
+
   it('sets the active segment correctly', async () => {
     const wrapper = await mountComponent()
 

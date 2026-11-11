@@ -1,12 +1,10 @@
 import time
-from collections import deque
 from collections.abc import Iterable
 from functools import wraps
 from math import ceil
 from uuid import uuid4
 
 from django.conf import settings
-from django.core.cache import cache
 
 from django_redis import get_redis_connection
 from loguru import logger
@@ -95,6 +93,42 @@ return result
 
 def _get_redis_cli():
     return get_redis_connection("default")
+
+
+_reserve_rate_limit_slot_script = None
+
+
+def reserve_rate_limit_slot(
+    redis_cli, cache_key: str, rate_limits: Iterable[RateLimit], now: float, member: str
+) -> tuple[bool, list[int]]:
+    """
+    Reserves a slot for `member` in the sorted set at `cache_key` if none of the
+    rate limits is exceeded, checking and reserving in one atomic step.
+
+    :return: Whether the slot was reserved, and the number of calls counted for
+        every rate limit, in the same order.
+    """
+
+    global _reserve_rate_limit_slot_script
+
+    # Registering compiles the script once and lets redis-py call it by its
+    # hash, falling back to sending the source when redis doesn't know it.
+    if _reserve_rate_limit_slot_script is None:
+        _reserve_rate_limit_slot_script = redis_cli.register_script(
+            reserve_rate_limit_slot_if_allowed_lua_script
+        )
+
+    rate_limits = tuple(rate_limits)
+    largest_period = max(rate.period_in_seconds for rate in rate_limits)
+
+    args = [now, member, largest_period]
+    for rate in rate_limits:
+        args += [rate.period_in_seconds, rate.number_of_calls]
+
+    reserved, *counts = _reserve_rate_limit_slot_script(
+        keys=[cache_key], args=args, client=redis_cli
+    )
+    return bool(reserved), counts
 
 
 class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
@@ -274,21 +308,10 @@ class RateLimitThrottle(BaseThrottle):
 
     scope = None
     cache_key_format = "baserow_rate_limit:%(scope)s:%(ident)s"
-    _reserve_script = None
 
     def __init__(self):
         self._wait = None
         self._reserved = None
-
-    @property
-    def reserve_script(self):
-        # Registering compiles the script once and lets redis-py call it by its
-        # hash, falling back to sending the source when redis doesn't know it.
-        if RateLimitThrottle._reserve_script is None:
-            RateLimitThrottle._reserve_script = self.redis_cli.register_script(
-                reserve_rate_limit_slot_if_allowed_lua_script
-            )
-        return RateLimitThrottle._reserve_script
 
     @property
     def redis_cli(self):
@@ -334,14 +357,8 @@ class RateLimitThrottle(BaseThrottle):
 
         now = self.timer()
         member = str(uuid4())
-        largest_period = max(rate.period_in_seconds for rate in rate_limits)
-
-        args = [now, member, largest_period]
-        for rate in rate_limits:
-            args += [rate.period_in_seconds, rate.number_of_calls]
-
-        reserved, *counts = self.reserve_script(
-            keys=[cache_key], args=args, client=self.redis_cli
+        reserved, counts = reserve_rate_limit_slot(
+            self.redis_cli, cache_key, rate_limits, now, member
         )
 
         if not reserved:
@@ -452,12 +469,56 @@ class WorkspaceInvitationRateThrottle(RateLimitThrottle):
         return str(user.id)
 
 
+class AnonymousEmailRateThrottle(RateLimitThrottle):
+    """
+    Limits per client IP how often the endpoints that send an email to an address
+    given by an anonymous caller, like the password reset, can be called. Every
+    call counts, also for unknown addresses, so the limit doesn't tell which
+    addresses belong to an account.
+
+    It only applies when ``BASEROW_THROTTLE_IP_ENABLED`` is set, because the
+    client IP is only reliable when the proxies in front of Baserow pass it on
+    correctly. Otherwise every caller could share one IP, or pick their own.
+    """
+
+    scope = "anonymous_email"
+
+    def get_rate_limits(self, request):
+        if not settings.BASEROW_THROTTLE_IP_ENABLED:
+            return ()
+        return settings.BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS
+
+    def get_ident(self, request) -> str | None:
+        return get_user_remote_ip_address_from_request(request)
+
+
+def consume_rate_limit(rate: RateLimit, name: str, key: str) -> bool:
+    """
+    Counts one call towards the rate limit identified by `name` and `key`, unless
+    the limit is already reached. The check and the count happen in one atomic
+    Redis script, so the limit also holds when called in parallel.
+
+    :param rate: The number of allowed calls over specified period.
+    :param name: Identifies what is limited, for example the email being sent.
+        Calls with the same name and key share one limit.
+    :param key: Identifies who the limit applies to, for example a username.
+    :return: Whether the call is allowed.
+    """
+
+    reserved, _ = reserve_rate_limit_slot(
+        _get_redis_cli(),
+        f"baserow_rate_limit_fn:{name}:{key}",
+        (rate,),
+        time.time(),
+        str(uuid4()),
+    )
+    return reserved
+
+
 def rate_limit(rate: RateLimit, key: str, raise_exception: bool = True):
     """
-    A general purpose throttling function decorator.
-
-    Currently the implementation is not suitable for highly concurrent access
-    as multiple callers can overwrite cached timestamps.
+    A general purpose throttling function decorator, limiting calls by the name
+    of the decorated function and `key`. See `consume_rate_limit`.
 
     :param rate: The number of allowed calls over specified period.
     :param key: The key parametrizes the same function calls that should be
@@ -471,24 +532,13 @@ def rate_limit(rate: RateLimit, key: str, raise_exception: bool = True):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            cache_key = f"{func.__name__}:{key}"
-            timestamps = cache.get(cache_key, deque())
-            current_time = time.time()
-
-            # Remove timestamps outside the current window
-            while timestamps and timestamps[0] <= current_time - rate.period_in_seconds:
-                timestamps.popleft()
-
-            if len(timestamps) >= rate.number_of_calls:
+            if not consume_rate_limit(rate, func.__name__, key):
                 if raise_exception:
                     raise RateLimitExceededException(
                         f"Rate limit exceeded for {func.__name__}"
                     )
                 else:
                     return None
-
-            timestamps.append(current_time)
-            cache.set(cache_key, timestamps, timeout=rate.period_in_seconds)
 
             return func(*args, **kwargs)
 

@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Luxury Theme",
+  "description": "Dark application theme with gold accents and serif headings.",
   "icon": "",
   "keywords": [
     "application",

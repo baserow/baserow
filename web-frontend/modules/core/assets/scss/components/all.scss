@@ -1,6 +1,9 @@
+@import 'agent_application';
+@import 'chat';
 @import 'colors';
 @import 'add';
 @import 'avatar';
+@import 'agent_avatar';
 @import 'icon';
 @import 'button';
 @import 'button_text';
@@ -19,6 +22,7 @@
 @import 'tree';
 @import 'sidebar';
 @import 'header';
+@import 'untrusted_content_report';
 @import 'scrollbar';
 @import 'modal';
 @import 'context';
@@ -122,7 +126,14 @@
 @import 'admin_health';
 @import 'templates';
 @import 'template_details';
+@import 'template_empty_state';
 @import 'template_list';
+@import 'user_template_list';
+@import 'public_template_list';
+@import 'user_template_modal';
+@import 'user_template_private_link';
+@import 'user_template_form';
+@import 'template_icon_select_context';
 @import 'legacy_templates';
 @import 'paginator';
 @import 'sortable';
@@ -150,10 +161,16 @@
 @import 'expand_on_overflow_list';
 @import 'list';
 @import 'help_icon';
-@import 'group_invite_form';
 @import 'invitation_link_empty';
+@import 'invitation_links';
+@import 'invite_modal';
+@import 'invite_input';
+@import 'invite_list';
+@import 'select_members_list';
+@import 'member_assignment_modal';
 @import 'settings/members/edit_role_context';
 @import 'settings/members/member_role_field';
+@import 'settings/management_pages';
 @import 'settings/two_factor_auth/two_factor_auth_empty';
 @import 'settings/two_factor_auth/enable_with_qr_code';
 @import 'settings/two_factor_auth/auth_code_input';
@@ -210,6 +227,7 @@
 @import 'admin_dashboard';
 @import 'user_admin';
 @import 'group_admin';
+@import 'templates_admin';
 @import 'template_import_item';
 @import 'highlight';
 @import 'guided_tour_step';
@@ -218,6 +236,7 @@
 @import 'mcp_endpoint_settings';
 @import 'mcp_authorize';
 @import 'mcp_oauth_connections';
+@import 'mcp_tool_picker';
 @import 'code_editor';
 @import 'sample_data_modal';
 @import 'sample_data_viewer';

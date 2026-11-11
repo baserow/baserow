@@ -1,4 +1,4 @@
-from django.db import IntegrityError, connection
+from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
 import pytest
@@ -336,3 +336,270 @@ def test_0125_imports_legacy_ai_provider_settings(
         (workspace.id, instance_provider.id),
         (trashed_workspace.id, instance_provider.id),
     }
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0129_backfills_existing_templates_as_listed_official_templates(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate(
+        [("core", "0127_mcpendpoint_allowed_tools")]
+    )
+    Template = old_state.apps.get_model("core", "Template")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    template = Template.objects.create(
+        name="Template", slug="template", icon="file", workspace=Workspace.objects.create()
+    )
+    # Left behind when the sync failed to delete a template after its workspace.
+    orphan = Template.objects.create(name="Orphan", slug="orphan", icon="file")
+
+    new_state = migrator.migrate([("core", "0129_template_backfill_official")])
+    NewTemplate = new_state.apps.get_model("core", "Template")
+
+    migrated = NewTemplate.objects.get(id=template.id)
+    assert migrated.type == "official"
+    assert migrated.version == 1
+    assert migrated.review_state == "approved"
+    assert migrated.public_revision_id == template.id
+    assert migrated.install_count == 0
+    assert migrated.created_on is None
+    assert migrated.updated_on is None
+
+    # Without content it can't be listed.
+    migrated_orphan = NewTemplate.objects.get(id=orphan.id)
+    assert migrated_orphan.type == "official"
+    assert migrated_orphan.review_state == "not_submitted"
+    assert migrated_orphan.public_revision_id is None
+
+    # The previous version keeps inserting templates during the deploy, without
+    # knowing the new columns.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO core_template "
+            "(name, slug, icon, export_hash, keywords, open_application) "
+            "VALUES ('Old', 'old', 'file', '', '', NULL) RETURNING id"
+        )
+        old_id = cursor.fetchone()[0]
+
+    inserted = NewTemplate.objects.get(id=old_id)
+    assert inserted.type is None
+    assert inserted.version == 1
+    assert inserted.review_state == "not_submitted"
+    assert inserted.public_revision_id is None
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        NewTemplate.objects.create(name="Duplicate", slug="template", icon="file")
+
+    NewTemplate.objects.update(public_revision=None)
+    NewTemplate.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0128_upgrades_instance_with_duplicate_template_slugs(
+    migrator, teardown_table_metadata
+):
+    # Two syncs running at the same time (the task before it was a singleton, or
+    # `manage.py sync_templates` next to the task) each create a template for the
+    # same file. Such an instance must still be able to upgrade, keeping both rows.
+    old_state = migrator.migrate(
+        [("core", "0127_mcpendpoint_allowed_tools")]
+    )
+    Template = old_state.apps.get_model("core", "Template")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    first = Template.objects.create(
+        name="CRM", slug="crm", icon="file", workspace=Workspace.objects.create()
+    )
+    second = Template.objects.create(
+        name="CRM", slug="crm", icon="file", workspace=Workspace.objects.create()
+    )
+    # Already uses the slug the duplicate would get with its id appended.
+    taken = Template.objects.create(
+        name="CRM", slug=f"crm-{second.id}", icon="file", workspace=Workspace.objects.create()
+    )
+
+    new_state = migrator.migrate([("core", "0129_template_backfill_official")])
+    NewTemplate = new_state.apps.get_model("core", "Template")
+
+    ids = [first.id, second.id, taken.id]
+    rows = {t.id: t for t in NewTemplate.objects.filter(id__in=ids)}
+    assert set(rows) == set(ids)
+    assert rows[first.id].slug == "crm"
+    assert rows[taken.id].slug == f"crm-{second.id}"
+    assert rows[second.id].slug not in ("", "crm", f"crm-{second.id}")
+    assert rows[second.id].workspace_id == second.workspace_id
+
+    NewTemplate.objects.update(public_revision=None)
+    NewTemplate.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0130_freezes_mcp_endpoints_without_an_allow_list(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate([("core", "0129_template_backfill_official")])
+    User = old_state.apps.get_model("auth", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
+    user = User.objects.create(username="mcp-freeze")
+    workspace = Workspace.objects.create(name="ws")
+    legacy = MCPEndpoint.objects.create(
+        name="legacy", key="a" * 32, user=user, workspace=workspace
+    )
+    limited = MCPEndpoint.objects.create(
+        name="limited",
+        key="b" * 32,
+        user=user,
+        workspace=workspace,
+        allowed_tools=["list_tables"],
+    )
+
+    new_state = migrator.migrate([("core", "0130_mcpendpoint_freeze_allowed_tools")])
+    NewMCPEndpoint = new_state.apps.get_model("core", "MCPEndpoint")
+
+    assert NewMCPEndpoint.objects.get(id=legacy.id).allowed_tools == [
+        "list_databases",
+        "list_tables",
+        "get_table_schema",
+        "list_table_rows",
+        "create_rows",
+        "update_rows",
+        "delete_rows",
+    ]
+    assert NewMCPEndpoint.objects.get(id=limited.id).allowed_tools == ["list_tables"]
+
+    NewMCPEndpoint.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0133_adds_template_metadata_and_lets_revisions_share_a_workspace(
+    migrator, teardown_table_metadata
+):
+    def insert_template_like_the_previous_code(workspace_id, slug):
+        # The previous code version doesn't know `metadata`.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO core_template (name, slug, icon, keywords, workspace_id,
+                    export_hash, type, version, review_state, reject_reason,
+                    install_count, created_on, updated_on, description)
+                VALUES ('T', %s, 'file', '', %s, '', 'official', 1, 'draft', '', 0,
+                    now(), now(), '')
+                RETURNING id
+                """,
+                [slug, workspace_id],
+            )
+            return cursor.fetchone()[0]
+
+    old_state = migrator.migrate([("core", "0132_createusertemplatejob")])
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    workspace = Workspace.objects.create(name="ws")
+    existing_id = insert_template_like_the_previous_code(workspace.id, "existing")
+
+    new_state = migrator.migrate([("core", "0133_template_shared_content")])
+    NewTemplate = new_state.apps.get_model("core", "Template")
+
+    # A row written by the previous code during the deploy shares the workspace.
+    written_id = insert_template_like_the_previous_code(workspace.id, "written")
+    assert NewTemplate.objects.get(id=existing_id).metadata == {}
+    assert NewTemplate.objects.get(id=written_id).metadata == {}
+    assert NewTemplate.objects.filter(workspace_id=workspace.id).count() == 2
+
+    NewTemplate.objects.update(public_revision=None)
+    NewTemplate.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0137_renames_create_dashboards_in_stored_allow_lists(
+    migrator, teardown_table_metadata
+):
+    old_state = migrator.migrate([("core", "0136_template_reject_reason_help_text")])
+    User = old_state.apps.get_model("auth", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
+    user = User.objects.create(username="mcp-rename-dashboards")
+    workspace = Workspace.objects.create(name="ws")
+
+    def endpoint(key, allowed_tools):
+        return MCPEndpoint.objects.create(
+            name=key,
+            key=key * 32,
+            user=user,
+            workspace=workspace,
+            allowed_tools=allowed_tools,
+        )
+
+    granted = endpoint("a", ["list_dashboards", "create_dashboards", "list_tables"])
+    both = endpoint("b", ["create_dashboard", "create_dashboards"])
+    other = endpoint("c", ["list_dashboards"])
+    legacy = endpoint("d", None)
+
+    new_state = migrator.migrate(
+        [("core", "0137_mcpendpoint_rename_create_dashboards")]
+    )
+    NewMCPEndpoint = new_state.apps.get_model("core", "MCPEndpoint")
+
+    def allowed(e):
+        return NewMCPEndpoint.objects.get(id=e.id).allowed_tools
+
+    assert allowed(granted) == ["list_dashboards", "create_dashboard", "list_tables"]
+    assert allowed(both) == ["create_dashboard"]
+    assert allowed(other) == ["list_dashboards"]
+    assert allowed(legacy) is None
+
+    NewMCPEndpoint.objects.all().delete()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0137_keeps_a_tool_revoked_while_it_runs(migrator, teardown_table_metadata):
+    import threading
+
+    from django.db import connection as test_connection
+
+    old_state = migrator.migrate([("core", "0136_template_reject_reason_help_text")])
+    User = old_state.apps.get_model("auth", "User")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    MCPEndpoint = old_state.apps.get_model("core", "MCPEndpoint")
+    endpoint = MCPEndpoint.objects.create(
+        name="a",
+        key="a" * 32,
+        user=User.objects.create(username="mcp-revoke-during-rename"),
+        workspace=Workspace.objects.create(name="ws"),
+        allowed_tools=["create_dashboards", "delete_rows"],
+    )
+    revoked = threading.Event()
+    migrated = threading.Event()
+
+    def revoke():
+        # Another connection removes delete_rows and commits only once the
+        # migration has started, like a user revoking a tool during a deploy.
+        connection = test_connection.copy()
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("BEGIN")
+                cursor.execute(
+                    "UPDATE core_mcpendpoint SET allowed_tools = %s::jsonb "
+                    "WHERE id = %s",
+                    ['["create_dashboards"]', endpoint.id],
+                )
+                revoked.set()
+                migrated.wait(timeout=2)
+                cursor.execute("COMMIT")
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=revoke)
+    thread.start()
+    revoked.wait(timeout=10)
+    # The migration waits for the revocation's lock, so release it shortly.
+    threading.Timer(0.5, migrated.set).start()
+    new_state = migrator.migrate(
+        [("core", "0137_mcpendpoint_rename_create_dashboards")]
+    )
+    thread.join(timeout=10)
+
+    NewMCPEndpoint = new_state.apps.get_model("core", "MCPEndpoint")
+    assert NewMCPEndpoint.objects.get(id=endpoint.id).allowed_tools == [
+        "create_dashboard"
+    ]
+
+    NewMCPEndpoint.objects.all().delete()

@@ -52,6 +52,41 @@ class RolePermissionManagerType(PermissionManagerType):
             partial(LicenseHandler.workspace_has_feature, RBAC, workspace),
         )
 
+    def get_workspace_user_role_uid(self, workspace_user):
+        if self.is_enabled(workspace_user.workspace):
+            return (
+                RoleAssignmentHandler()
+                .get_role_by_uid(workspace_user.permissions, use_fallback=True)
+                .uid
+            )
+        return None
+
+    def is_workspace_role_uid_valid(self, role_uid, workspace):
+        if not self.is_enabled(workspace):
+            return None
+        # Resolve through the role handler so aliases such as MEMBER -> BUILDER are
+        # accepted the same way they are resolved during permission checks.
+        try:
+            role = RoleAssignmentHandler().get_role_by_uid(role_uid)
+        except Role.DoesNotExist:
+            return False
+        return not role.hidden and role.workspace_id in (None, workspace.id)
+
+    def is_workspace_role_upgrade(self, current_role_uid, new_role_uid, workspace):
+        if not self.is_enabled(workspace):
+            return None
+        handler = RoleAssignmentHandler()
+        current_role = handler.get_role_by_uid(current_role_uid, use_fallback=True)
+        try:
+            new_role = handler.get_role_by_uid(new_role_uid)
+        except Role.DoesNotExist:
+            return False
+        # Comparing operations also ranks roles that aren't default roles. A role
+        # that lacks any operation of the current one is not an upgrade.
+        return self.get_role_operations(new_role) > self.get_role_operations(
+            current_role
+        )
+
     def get_role_operations(self, role: Role) -> List[str]:
         """
         Return the operation name list for the role with the given role_id.
@@ -104,18 +139,23 @@ class RolePermissionManagerType(PermissionManagerType):
             )
 
         scope_includes_cache = {}
+        operations_by_role = {}
         for actor, context_and_checks in checks_by_actor_and_context.items():
+            roles_per_scope = roles_per_scope_by_actor[actor]
             for context, checks in context_and_checks.items():
+                # An admin of the workspace holds the admin role on everything in
+                # it, whatever roles they were given on lower scopes, and their
+                # list is already reduced to the workspace entry. No shortcut
+                # here though: the walk is what denies a context that doesn't
+                # belong to the workspace of the check.
                 computed_roles = RoleAssignmentHandler().get_computed_roles(
-                    roles_per_scope_by_actor[actor], context, scope_includes_cache
+                    roles_per_scope, context, scope_includes_cache
                 )
-                permitted_operations = set(
-                    [
-                        operation_name
-                        for r in computed_roles
-                        for operation_name in self.get_role_operations(r)
-                    ]
-                )
+                permitted_operations = set()
+                for role in computed_roles:
+                    if role.id not in operations_by_role:
+                        operations_by_role[role.id] = self.get_role_operations(role)
+                    permitted_operations.update(operations_by_role[role.id])
                 check_results = {
                     check: (
                         True
@@ -251,11 +291,27 @@ class RolePermissionManagerType(PermissionManagerType):
         # Get all role assignments for this actor into this workspace
         roles_by_scope = RoleAssignmentHandler().get_roles_per_scope(workspace, actor)
 
+        all_operations = for_operation_types or operation_type_registry.get_all()
+
+        if RoleAssignmentHandler.is_workspace_admin(roles_by_scope):
+            # An admin of the workspace holds the admin role everywhere in it,
+            # whatever roles they were given on lower scopes, so the admin role
+            # alone decides every operation and there are no exceptions.
+            _, workspace_roles = roles_by_scope[0]
+            admin_operations = set()
+            for role in workspace_roles:
+                admin_operations |= self.get_role_operations(role)
+            return {
+                operation_type.type: {
+                    "default": operation_type.type in admin_operations,
+                    "exceptions": [],
+                }
+                for operation_type in all_operations
+            }
+
         policy_per_operation = defaultdict(lambda: {"default": False, "exceptions": []})
 
         scope_map_with_mixed_types_per_scope = defaultdict(set)
-
-        all_operations = for_operation_types or operation_type_registry.get_all()
 
         # First, for each operation we want the default policy and exceptions
         for operation_type in all_operations:
@@ -374,6 +430,19 @@ class RolePermissionManagerType(PermissionManagerType):
         policy_per_workspace = {}
         all_exception_scopes = set()
         for workspace in workspaces:
+            roles_per_scope = roles_per_scope_per_workspace[workspace.id]
+            if RoleAssignmentHandler.is_workspace_admin(roles_per_scope):
+                # An admin of the workspace holds the admin role on every object
+                # in it, whatever roles they were given on lower scopes, so there
+                # are no exceptions to resolve.
+                _, workspace_roles = roles_per_scope[0]
+                default = any(
+                    operation_type.type in self.get_role_operations(role)
+                    for role in workspace_roles
+                )
+                policy_per_workspace[workspace.id] = (default, set(), set())
+                continue
+
             default, exceptions, inclusions = self.get_operation_policy(
                 roles_per_scope_per_workspace[workspace.id],
                 operation_type,

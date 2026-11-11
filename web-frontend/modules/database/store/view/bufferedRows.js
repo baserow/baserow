@@ -6,6 +6,7 @@ import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import {
   calculateSingleRowSearchMatches,
   extractRowMetadata,
+  fetchRowsInChunks,
   getFilters,
   getOrderBy,
   getRowSortFunction,
@@ -15,6 +16,7 @@ import {
 import ViewService from '@baserow/modules/database/services/view'
 import RowService from '@baserow/modules/database/services/row'
 import {
+  canTellIfDeletedRowWasCounted,
   extractChangedFields,
   getRowMetadata,
   resolveBeforeRow,
@@ -147,6 +149,14 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
     // checks if there is an un-fetched row before and after in one loop.
     return { offset, limit: Math.min(limit, maxRequestSize) }
   }
+
+  // The backend rejects page sizes above the configured row page size limit, so
+  // larger ranges are fetched in several requests.
+  const fetchRows = ($client, $config, params) =>
+    fetchRowsInChunks((chunk) => service($client).fetchRows(chunk), {
+      chunkSize: $config.public.baserowRowPageSizeLimit,
+      ...params,
+    })
 
   const state = () => ({
     // If another visible rows action has been dispatched whilst a previous action
@@ -332,7 +342,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
       const view = rootGetters['view/get'](viewId)
-      const { data } = await service($client).fetchRows({
+      const { data } = await fetchRows($client, $config, {
         viewId,
         offset: 0,
         limit: getters.getRequestSize,
@@ -416,7 +426,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       commit('SET_FETCHING', true)
       lastRequestController = new AbortController()
       try {
-        const { data } = await service($client).fetchRows({
+        const { data } = await fetchRows($client, $config, {
           viewId,
           offset: rangeToFetch.offset,
           limit: rangeToFetch.limit,
@@ -525,7 +535,7 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
           )
 
           // Only fetch visible rows if there are any.
-          const { data } = await service($client).fetchRows({
+          const { data } = await fetchRows($client, $config, {
             viewId,
             offset: rangeToFetch.offset,
             limit: rangeToFetch.limit,
@@ -1110,14 +1120,30 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         }
       }
     },
-    /**
-     * When a new row deleted and it does exist in the store, it must be deleted
-     * removed from is. Based on the provided values of the row we can figure out if
-     * it was in the store and we can figure out what index it has.
-     */
-    async afterExistingRowDeleted({ dispatch, commit }, { view, fields, row }) {
+    /** Removes the row by id if held, else its estimated placeholder. */
+    async afterExistingRowDeleted(
+      { dispatch, commit, getters },
+      { view, fields, row }
+    ) {
+      const heldIndex = getters.getRows.findIndex((r) => r?.id === row.id)
+      if (heldIndex > -1) {
+        commit('DELETE_ROW_AT_INDEX', { index: heldIndex })
+        return
+      }
+
       row = clone(row)
       populateRow(row)
+
+      const canTellIfCounted = canTellIfDeletedRowWasCounted({
+        row,
+        view,
+        fields,
+        fieldOptions: getters.getAllFieldOptions,
+        checkSortAndGroupBy: true,
+      })
+      if (!canTellIfCounted) {
+        return
+      }
 
       const rowMatchesFilters = await dispatch('rowMatchesFilters', {
         view,
@@ -1138,7 +1164,8 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
         fields,
         row,
       })
-      if (index > -1) {
+      // A held row at the estimated slot is a neighbour, not the deleted row.
+      if (index > -1 && getters.getRows[index] === null) {
         commit('DELETE_ROW_AT_INDEX', { index })
       }
     },

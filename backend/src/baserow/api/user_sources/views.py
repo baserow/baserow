@@ -488,14 +488,12 @@ class ListUserSourceUsersView(APIView):
 
         application = CoreHandler().get_application(application_id)
 
-        user_sources = UserSourceService().get_user_sources(request.user, application)
-        search = request.GET.get("search", "")
-
-        users_per_user_sources = {}
-        for user_source in user_sources:
-            users_per_user_sources[user_source.id] = user_source.get_type().list_users(
-                user_source, count=5, search=search
-            )
+        users_per_user_sources = UserSourceService().list_users_per_user_source(
+            request.user,
+            application,
+            count=5,
+            search=request.GET.get("search", ""),
+        )
 
         return Response(
             UsersPerUserSourceSerializer(
@@ -654,6 +652,8 @@ class UserSourceBlacklistJSONWebToken(BlacklistJSONWebToken):
     authentication_classes = ()
 
     token_class = UserSourceToken
+    # User source refresh tokens aren't rotated.
+    revoke_session = False
 
     @extend_schema(
         tags=["User sources"],

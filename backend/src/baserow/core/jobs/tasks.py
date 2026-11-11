@@ -1,10 +1,12 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.db import transaction
 
 from loguru import logger
 
 from baserow.config.celery import app
+from baserow.core.jobs.constants import JOB_CANCELLED
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.sentry import setup_user_in_sentry
@@ -27,18 +29,27 @@ def run_async_job(self, job_id: int):
 
     job = Job.objects.select_related("user", "content_type").get(id=job_id).specific
     job_type = job_type_registry.get_by_model(job)
-    if job.cancelled:
-        try:
-            job_type.on_cancelled(job)
-        finally:
-            job.clear_job_cache()
-        return  # Job cancelled before it started. No need to run it.
 
     with setup_user_in_baggage_and_spans(job.user):
         setup_user_in_sentry(job.user)
 
-        job.set_state_started()
-        job.save()
+        # A job type that sets `lock_on_cancel` checks the locked row too, and only
+        # the state is saved, so that a cancellation isn't overwritten.
+        with transaction.atomic():
+            cancelled = job.cancelled or (
+                job_type.lock_on_cancel
+                and JobHandler.lock_job(job).state == JOB_CANCELLED
+            )
+            if not cancelled:
+                job.set_state_started()
+                job.save(update_fields=["state", "updated_on"])
+        if cancelled:
+            job.set_state_cancelled()
+            try:
+                job_type.on_cancelled(job)
+            finally:
+                job.clear_job_cache()
+            return  # Job cancelled before it started. No need to run it.
 
         try:
             with job_type.transaction_atomic_context(job):

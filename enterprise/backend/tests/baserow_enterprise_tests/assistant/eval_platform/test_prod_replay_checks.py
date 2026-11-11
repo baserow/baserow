@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.database.fields.constants import DeleteFieldStrategyEnum
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
@@ -13,6 +14,8 @@ from baserow_enterprise.assistant.evals.datasets.prod_replay import (
     _check_form_for_table_with_formula_field,
     _check_impossible_formula_request,
     _check_iso_week_number_formula,
+    _check_orders_linked_to_number_primary,
+    _check_page_at_taken_path,
     _check_page_inspection_existing_elements,
     _check_project_tracker_onboarding,
     _check_signed_amount_formula,
@@ -20,6 +23,8 @@ from baserow_enterprise.assistant.evals.datasets.prod_replay import (
     _form_for_table_with_formula_field_scenario,
     _impossible_formula_request_scenario,
     _iso_week_number_formula_scenario,
+    _orders_linked_to_number_primary_scenario,
+    _page_at_taken_path_scenario,
     _page_inspection_existing_elements_scenario,
     _project_tracker_onboarding_scenario,
     _signed_amount_formula_scenario,
@@ -423,5 +428,67 @@ def test_signed_amount_check_compares_the_saved_values(data_fixture, formula, fa
     )
 
     checks = _check_signed_amount_formula(None, scenario, _output())
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "defect, failed",
+    [
+        (None, set()),
+        ("fewer_orders", {"3 orders created"}),
+        ("unlinked_order", {"every order links to an existing product"}),
+    ],
+)
+def test_orders_check_requires_every_order_linked(data_fixture, defect, failed):
+    scenario = _orders_linked_to_number_primary_scenario(data_fixture)
+    link = scenario.refs["link"]
+    product_ids = list(
+        scenario.refs["products"].get_model().objects.values_list("id", flat=True)
+    )
+    count = 2 if defect == "fewer_orders" else 3
+    rows = [{link.db_column: [product_ids[i]]} for i in range(count)]
+    if defect == "unlinked_order":
+        rows[1] = {}
+    RowHandler().force_create_rows(scenario.user, scenario.refs["orders"], rows)
+
+    checks = _check_orders_linked_to_number_primary(None, scenario, _output())
+
+    assert _failed(checks) == failed
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "outcome, answer, failed",
+    [
+        ("free_path", "Added the page at /product/:product_id/edit.", set()),
+        ("none", "Product details uses that path. Which one?", set()),
+        ("none", "That path is already used. Which one?", set()),
+        ("none", "Done.", {"page created at a free path, or the clash reported"}),
+        (
+            "renamed",
+            "Done.",
+            {
+                "Product details page unchanged",
+                "page created at a free path, or the clash reported",
+            },
+        ),
+    ],
+)
+def test_page_at_taken_path_check_keeps_the_existing_page(
+    data_fixture, outcome, answer, failed
+):
+    scenario = _page_at_taken_path_scenario(data_fixture)
+    if outcome == "free_path":
+        data_fixture.create_builder_page(
+            builder=scenario.refs["builder"],
+            name="Edit product",
+            path="/product/:product_id/edit",
+        )
+    elif outcome == "renamed":
+        PageHandler().update_page(scenario.refs["taken_page"], name="Edit product")
+
+    checks = _check_page_at_taken_path(None, scenario, _output(answer=answer))
 
     assert _failed(checks) == failed

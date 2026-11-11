@@ -35,11 +35,13 @@ export default {
       return this.fieldType.getRowValueFromGroupValue(field, this.groupValue)
     },
     isEmptyValue() {
-      const value = this.rowValueForGroup
-      if (Array.isArray(value)) {
-        return value.length === 0
+      if (!this.groupByField || !this.fieldType) {
+        return true
       }
-      return value === null || value === undefined || value === ''
+      return this.fieldType.isEmptyForGrouping(
+        this.groupByField,
+        this.rowValueForGroup
+      )
     },
     groupByComponent() {
       if (this.isEmptyValue || !this.groupByField || !this.fieldType) {

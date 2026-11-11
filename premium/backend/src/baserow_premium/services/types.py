@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 
 class ServiceAggregationSeriesDict(TypedDict):
@@ -9,6 +9,7 @@ class ServiceAggregationSeriesDict(TypedDict):
 
 class ServiceAggregationGroupByDict(TypedDict):
     field_id: int | None
+    mode: NotRequired[str]
 
 
 class ServiceAggregationSortByDict(TypedDict):

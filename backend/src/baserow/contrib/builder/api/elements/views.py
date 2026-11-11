@@ -195,6 +195,7 @@ class ElementsView(APIView):
         element_type_registry,
         base_serializer_class=CreateElementSerializer,
         serializer_class_context={"application_type": BuilderApplicationType},
+        return_validated=True,
     )
     def post(self, request, data: Dict, page_id: int):
         """Creates a new element."""

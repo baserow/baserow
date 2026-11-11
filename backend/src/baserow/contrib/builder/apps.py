@@ -455,3 +455,91 @@ class BuilderConfig(AppConfig):
         from .search_types import BuilderSearchType
 
         workspace_search_registry.register(BuilderSearchType())
+
+        from baserow.contrib.builder.mcp.actions.tools import (
+            CreateElementActionsMcpTool,
+            ListElementActionsMcpTool,
+            UpdateElementActionMcpTool,
+        )
+        from baserow.contrib.builder.mcp.applications.tools import (
+            CreateBuilderMcpTool,
+            ListBuildersMcpTool,
+            UpdateBuilderMcpTool,
+        )
+        from baserow.contrib.builder.mcp.data_sources.tools import (
+            CreateDataSourcesMcpTool,
+            ListDataSourcesMcpTool,
+            UpdateDataSourceMcpTool,
+        )
+        from baserow.contrib.builder.mcp.elements.tools import (
+            CreateCollectionElementsMcpTool,
+            CreateDisplayElementsMcpTool,
+            CreateFormElementsMcpTool,
+            CreateLayoutElementsMcpTool,
+            DeleteElementItemsMcpTool,
+            ListElementsMcpTool,
+            MoveElementsMcpTool,
+            UpdateElementMcpTool,
+            UpdateElementStyleMcpTool,
+        )
+        from baserow.contrib.builder.mcp.pages.tools import (
+            CreatePagesMcpTool,
+            ListPagesMcpTool,
+            SetupPageMcpTool,
+            UpdatePageMcpTool,
+        )
+        from baserow.contrib.builder.mcp.themes.tools import SetThemeMcpTool
+        from baserow.contrib.builder.tools.element_tool_types import (
+            ButtonElementToolType,
+            ColumnElementToolType,
+            FooterElementToolType,
+            HeaderElementToolType,
+            LinkElementToolType,
+            MenuElementToolType,
+            TableElementToolType,
+        )
+        from baserow.contrib.builder.tools.registries import (
+            element_tool_type_registry,
+        )
+        from baserow.core.mcp.groups import (
+            BuilderDeleteMCPToolGroup,
+            BuilderEditMCPToolGroup,
+            BuilderReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+
+        element_tool_type_registry.register(TableElementToolType())
+        element_tool_type_registry.register(ButtonElementToolType())
+        element_tool_type_registry.register(LinkElementToolType())
+        element_tool_type_registry.register(ColumnElementToolType())
+        element_tool_type_registry.register(MenuElementToolType())
+        element_tool_type_registry.register(HeaderElementToolType())
+        element_tool_type_registry.register(FooterElementToolType())
+
+        mcp_tool_group_registry.register(BuilderReadMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderEditMCPToolGroup())
+        mcp_tool_group_registry.register(BuilderDeleteMCPToolGroup())
+        mcp_tool_registry.register(ListBuildersMcpTool())
+        mcp_tool_registry.register(ListPagesMcpTool())
+        mcp_tool_registry.register(ListDataSourcesMcpTool())
+        mcp_tool_registry.register(ListElementsMcpTool())
+        mcp_tool_registry.register(ListElementActionsMcpTool())
+        mcp_tool_registry.register(CreateBuilderMcpTool())
+        mcp_tool_registry.register(UpdateBuilderMcpTool())
+        mcp_tool_registry.register(CreatePagesMcpTool())
+        mcp_tool_registry.register(UpdatePageMcpTool())
+        mcp_tool_registry.register(CreateDataSourcesMcpTool())
+        mcp_tool_registry.register(UpdateDataSourceMcpTool())
+        mcp_tool_registry.register(CreateDisplayElementsMcpTool())
+        mcp_tool_registry.register(CreateLayoutElementsMcpTool())
+        mcp_tool_registry.register(CreateFormElementsMcpTool())
+        mcp_tool_registry.register(CreateCollectionElementsMcpTool())
+        mcp_tool_registry.register(UpdateElementMcpTool())
+        mcp_tool_registry.register(UpdateElementStyleMcpTool())
+        mcp_tool_registry.register(MoveElementsMcpTool())
+        mcp_tool_registry.register(DeleteElementItemsMcpTool())
+        mcp_tool_registry.register(CreateElementActionsMcpTool())
+        mcp_tool_registry.register(UpdateElementActionMcpTool())
+        mcp_tool_registry.register(SetupPageMcpTool())
+        mcp_tool_registry.register(SetThemeMcpTool())

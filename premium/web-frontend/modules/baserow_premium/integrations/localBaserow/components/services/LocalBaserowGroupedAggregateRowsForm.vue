@@ -43,6 +43,7 @@
       :values="values"
       :table-fields="tableFields"
       :group-count-override="values.aggregation_group_bys.length"
+      :group-title-override="groupTitleOverride"
       :sort-count-override="values.aggregation_sorts.length"
       show-filter
       show-group
@@ -51,8 +52,11 @@
       <template #group-form>
         <AggregationGroupByForm
           :aggregation-group-bys="values.aggregation_group_bys"
+          :bucket-limit="values.bucket_limit"
           :table-fields="tableFields"
           @value-changed="onGroupByUpdated($event)"
+          @mode-changed="onGroupByModeUpdated($event)"
+          @bucket-limit-changed="onBucketLimitUpdated($event)"
         />
       </template>
       <template #sort-form>
@@ -98,6 +102,7 @@ export default {
         'aggregation_series',
         'aggregation_group_bys',
         'aggregation_sorts',
+        'bucket_limit',
       ],
       values: {
         table_id: null,
@@ -109,10 +114,23 @@ export default {
         aggregation_series: [],
         aggregation_group_bys: [],
         aggregation_sorts: [],
+        bucket_limit: null,
       },
     }
   },
   computed: {
+    groupTitleOverride() {
+      const groupBy = this.values.aggregation_group_bys[0]
+      if (!groupBy) return null
+      const field = this.tableFields.find(
+        (field) => field.id === groupBy.field_id
+      )
+      const name = field
+        ? field.name
+        : this.$t('aggregationGroupByForm.groupByRowId')
+      return this.$t('aggregationGroupByForm.groupedByField', { field: name })
+    },
+
     primaryTableField() {
       return this.tableFields.find((item) => item.primary === true)
     },
@@ -165,6 +183,10 @@ export default {
     },
   },
   methods: {
+    onBucketLimitUpdated(bucketLimit) {
+      this.values.bucket_limit = bucketLimit
+    },
+
     /**
      * Child forms update values through their events. Keep series values nested
      * and only serialize service fields, so a series ID cannot replace a source ID.
@@ -226,6 +248,11 @@ export default {
       }
       this.values.aggregation_series.splice(index, 1, cleaned)
       this.removeInvalidSorts()
+    },
+    onGroupByModeUpdated(mode) {
+      this.values.aggregation_group_bys = this.values.aggregation_group_bys.map(
+        (groupBy) => ({ ...groupBy, mode })
+      )
     },
     onGroupByUpdated(groupBy) {
       const aggregationGroupBys = []

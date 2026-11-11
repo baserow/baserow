@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Lightweight CRM",
+    "description": "Simple CRM for companies, contacts, pipelines and activities.",
     "icon": "iconoir-verified-user",
     "keywords": [
         "CRM",

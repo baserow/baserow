@@ -1,15 +1,20 @@
+import gc
 import inspect
+import secrets
+import weakref
 
 from django.contrib.auth.models import AnonymousUser
 from django.db import connection
 from django.db.models import Q, QuerySet
 from django.test.utils import CaptureQueriesContext, override_settings
+from django.utils import timezone
 
 import pytest
 
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.core.cache import local_cache
+from baserow.core.context import private_link_token
 from baserow.core.exceptions import (
     PermissionDenied,
     UserInvalidWorkspacePermissionsError,
@@ -21,16 +26,18 @@ from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
     UpdateIntegrationOperationType,
 )
-from baserow.core.models import Agent
+from baserow.core.models import Agent, Template, Workspace
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
     ListWorkspacesOperationType,
+    ReadWorkspaceOperationType,
     UpdateApplicationOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceOperationType,
 )
 from baserow.core.permission_manager import (
+    AllowIfTemplatePermissionManagerType,
     BasicPermissionManagerType,
     CorePermissionManagerType,
     StaffOnlyPermissionManagerType,
@@ -51,6 +58,12 @@ from baserow.core.user_sources.operations import (
     LoginUserSourceOperationType,
     UpdateUserSourceOperationType,
 )
+
+
+@pytest.mark.parametrize("actor", [None, AnonymousUser(), Agent(id=1)])
+def test_permission_check_preserves_actor_and_anonymous_fallback(actor):
+    check = PermissionCheck(actor, ReadWorkspaceOperationType.type)
+    assert check.actor is (AnonymousUser if actor is None else actor)
 
 
 @pytest.mark.django_db
@@ -595,6 +608,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -656,6 +670,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -693,9 +708,15 @@ def test_get_permissions(data_fixture):
                     "invitation.read",
                     "invitation.update",
                     "invitation.delete",
+                    "workspace.list_invitation_links",
+                    "workspace.create_invitation_link",
+                    "invitation_link.update",
+                    "invitation_link.delete",
                     "workspace.list_workspace_users",
                     "workspace.update",
                     "workspace.delete",
+                    "workspace.restore",
+                    "workspace.empty_trash",
                     "workspace_user.update",
                     "workspace_user.delete",
                     "agent.create",
@@ -737,6 +758,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -798,6 +820,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -835,9 +858,15 @@ def test_get_permissions(data_fixture):
                     "invitation.read",
                     "invitation.update",
                     "invitation.delete",
+                    "workspace.list_invitation_links",
+                    "workspace.create_invitation_link",
+                    "invitation_link.update",
+                    "invitation_link.delete",
                     "workspace.list_workspace_users",
                     "workspace.update",
                     "workspace.delete",
+                    "workspace.restore",
+                    "workspace.empty_trash",
                     "workspace_user.update",
                     "workspace_user.delete",
                     "agent.create",
@@ -879,6 +908,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -940,6 +970,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -977,9 +1008,15 @@ def test_get_permissions(data_fixture):
                     "invitation.read",
                     "invitation.update",
                     "invitation.delete",
+                    "workspace.list_invitation_links",
+                    "workspace.create_invitation_link",
+                    "invitation_link.update",
+                    "invitation_link.delete",
                     "workspace.list_workspace_users",
                     "workspace.update",
                     "workspace.delete",
+                    "workspace.restore",
+                    "workspace.empty_trash",
                     "workspace_user.update",
                     "workspace_user.delete",
                     "agent.create",
@@ -1021,6 +1058,7 @@ def test_get_permissions(data_fixture):
                     "workspace.list_applications",
                     "application.list_integrations",
                     "application.list_user_sources",
+                    "application.user_source.read",
                     "application.user_source.login",
                     "database.table.field_rules.read_field_rules",
                     "database.list_tables",
@@ -1431,3 +1469,374 @@ def test_all_scope_types_query_methods():
 
         for parent in scope_type.get_parent_scopes():
             assert isinstance(scope_type.get_filter_for_scope_type(parent, []), Q)
+
+
+OTHERS, HOLDER, OWNER, ADMIN = 1, 2, 3, 4
+
+
+def create_templates_of_each_state(data_fixture, owner, with_links=False):
+    """
+    Returns templates with who can open them while user templates are enabled:
+    the others (not the owner, a link holder or an admin), anyone with the token of
+    the private link of the template, see `get_link_token`, the owner, and an
+    instance admin who isn't the owner. With `allow_instance_admin`, which only the
+    checks of a single template pass, the admin opens what the owner opens. Only the
+    official ones open while user templates are disabled.
+
+    :param with_links: Whether the templates that can have a private link get one.
+    """
+
+    official = data_fixture.create_template()
+    legacy = data_fixture.create_template(type=None)
+    private = data_fixture.create_user_template(user=owner)
+    revision = data_fixture.create_user_template_revision(private)
+    latest_revision = data_fixture.create_user_template_revision(private)
+    pending = data_fixture.create_user_template(
+        user=owner, review_state=Template.ReviewState.PENDING
+    )
+    rejected = data_fixture.create_user_template(
+        user=owner, review_state=Template.ReviewState.REJECTED
+    )
+    withdrawn = data_fixture.create_user_template(
+        user=owner, review_state=Template.ReviewState.WITHDRAWN
+    )
+    public = data_fixture.create_user_template(user=owner)
+    data_fixture.set_user_template_state(public, "public")
+    blocked = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(user=owner), "public_blocked"
+    )
+    blocked_private = data_fixture.create_user_template(
+        user=owner, blocked_at=timezone.now()
+    )
+    public_revision = data_fixture.create_user_template_revision(public)
+    marked = data_fixture.create_user_template(
+        user=owner, marked_for_deletion_at=timezone.now()
+    )
+    marked_revision = data_fixture.create_user_template_revision(marked)
+    public_marked = data_fixture.create_user_template(
+        user=owner, marked_for_deletion_at=timezone.now()
+    )
+    data_fixture.set_user_template_state(public_marked, "public")
+    if with_links:
+        roots = [
+            private,
+            pending,
+            rejected,
+            withdrawn,
+            public,
+            blocked,
+            blocked_private,
+            marked,
+            public_marked,
+        ]
+        for root in roots:
+            Template.objects.filter(id=root.id).update(
+                private_link_token=secrets.token_hex(32)
+            )
+    return [
+        (official, True, True, True, True),
+        (legacy, True, True, True, True),
+        (private, False, False, True, False),
+        (revision, False, False, True, False),
+        (latest_revision, False, True, True, False),
+        (pending, False, True, True, True),
+        (rejected, False, True, True, True),
+        (withdrawn, False, True, True, False),
+        (public, True, True, True, True),
+        (public_revision, False, False, True, False),
+        (blocked, False, False, True, False),
+        (blocked_private, False, False, True, False),
+        (marked, False, False, False, False),
+        (marked_revision, False, False, False, False),
+        (public_marked, False, False, False, False),
+    ]
+
+
+def get_link_token(template):
+    return Template.objects.get(id=template.root_id or template.id).private_link_token
+
+
+def get_template_actors(data_fixture, owner):
+    """
+    Returns the actors with their column in `create_templates_of_each_state` and
+    whether they send the token of the private link of the template. A `None`
+    actor is anonymous too, see `PermissionCheck.actor`. A deactivated admin is
+    like anybody else.
+    """
+
+    return [
+        (AnonymousUser(), OTHERS, False),
+        (AnonymousUser(), HOLDER, True),
+        (None, OTHERS, False),
+        (data_fixture.create_user(), OTHERS, False),
+        (data_fixture.create_user(is_staff=True, is_active=False), OTHERS, False),
+        (data_fixture.create_user(), HOLDER, True),
+        (owner, OWNER, False),
+        (data_fixture.create_user(is_staff=True), ADMIN, False),
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("user_templates_enabled", [True, False])
+def test_allow_if_template_permission_manager_allows_openable_templates(
+    data_fixture, settings, user_templates_enabled
+):
+    if not user_templates_enabled:
+        settings.FEATURE_FLAGS = []
+    owner = data_fixture.create_user()
+    templates = create_templates_of_each_state(data_fixture, owner, with_links=True)
+    not_a_template = (data_fixture.create_workspace(), False, False)
+    manager = AllowIfTemplatePermissionManagerType()
+
+    for actor, column, has_link in get_template_actors(data_fixture, owner):
+        for row in templates:
+            template, workspace = row[0], row[0].workspace
+            token = get_link_token(template) if has_link else None
+            enabled = user_templates_enabled or template.type != Template.Type.USER
+            allowed = row[column] and enabled
+            listed_column = OTHERS if column == HOLDER else column
+            listed = row[listed_column] and enabled
+            in_lists = column != ADMIN or row[OTHERS]
+            as_admin = OWNER if column == ADMIN else None
+            checked = row[as_admin or column] and enabled
+            checked_listed = row[as_admin or listed_column] and enabled
+            opener = PermissionCheck(actor, ReadWorkspaceOperationType.type).actor
+            reason = (template.name, actor, has_link)
+            assert (
+                Template.objects.openable(opener, private_link_token=token)
+                .filter(id=template.id)
+                .exists()
+            ) is (allowed and in_lists), reason
+            assert (
+                Template.objects.openable(
+                    opener, private_link_token=token, allow_instance_admin=True
+                )
+                .filter(id=template.id)
+                .exists()
+            ) is checked, reason
+            assert (
+                workspace.has_openable_template(opener, allow_instance_admin=True)
+                is checked_listed
+            ), reason
+            assert (
+                Template.objects.openable(opener).filter(id=template.id).exists()
+            ) is (listed and in_lists), reason
+            for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
+                check = PermissionCheck(actor, operation, workspace)
+                queryset = workspace.application_set.all()
+                reason = (template.name, actor, has_link, operation)
+
+                with private_link_token(token):
+                    assert manager.check_multiple_permissions([check], workspace) == (
+                        {check: True} if checked else {}
+                    ), reason
+                    assert (
+                        manager.filter_queryset(
+                            check.actor, operation, queryset, workspace
+                        )
+                        is not None
+                    ) is checked, reason
+                    assert (
+                        workspace.id
+                        in manager.filter_queryset_for_workspaces(
+                            check.actor, operation, queryset, [workspace]
+                        )
+                    ) is checked, reason
+
+        workspace = not_a_template[0]
+        check = PermissionCheck(actor, ReadWorkspaceOperationType.type, workspace)
+        assert manager.check_multiple_permissions([check], workspace) == {}
+
+
+@pytest.mark.django_db
+def test_allow_if_template_permission_manager_checks_each_actor(data_fixture):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_user_template(user=owner).workspace
+    owner_check = PermissionCheck(
+        owner, ListApplicationsWorkspaceOperationType.type, workspace
+    )
+    stranger_check = PermissionCheck(
+        data_fixture.create_user(),
+        ListApplicationsWorkspaceOperationType.type,
+        workspace,
+    )
+
+    assert AllowIfTemplatePermissionManagerType().check_multiple_permissions(
+        [stranger_check, owner_check], workspace
+    ) == {owner_check: True}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("user_templates_enabled", [True, False])
+def test_allow_if_template_permissions_object_lists_official_and_own_templates(
+    data_fixture, settings, user_templates_enabled
+):
+    if not user_templates_enabled:
+        settings.FEATURE_FLAGS = []
+    owner = data_fixture.create_user()
+    templates = create_templates_of_each_state(data_fixture, owner, with_links=True)
+    # The public templates of other users aren't listed.
+    others_public = data_fixture.create_user_template()
+    data_fixture.set_user_template_state(others_public, "public")
+    manager = AllowIfTemplatePermissionManagerType()
+
+    linked = templates[2][0]
+
+    for actor, column, has_link in get_template_actors(data_fixture, owner):
+        with private_link_token(get_link_token(linked) if has_link else None):
+            permissions = manager.get_permissions_object(actor)
+
+        assert set(permissions["workspace_template_ids"]) == {
+            row[0].workspace_id
+            for row in templates
+            if row[0].type != Template.Type.USER
+            or (
+                user_templates_enabled
+                and row[column]
+                and (
+                    column == OWNER
+                    or column == HOLDER
+                    and (row[0].root_id or row[0].id) == linked.id
+                )
+            )
+        }, actor
+
+
+@pytest.mark.django_db
+def test_allow_if_template_permission_manager_refuses_template_once_marked(
+    data_fixture,
+):
+    owner = data_fixture.create_user()
+    user_template = data_fixture.create_user_template(user=owner)
+    workspace = user_template.workspace
+    check = PermissionCheck(
+        owner, ListApplicationsWorkspaceOperationType.type, workspace
+    )
+    manager = AllowIfTemplatePermissionManagerType()
+    assert manager.check_multiple_permissions([check], workspace) == {check: True}
+
+    user_template.marked_for_deletion_at = timezone.now()
+    user_template.save()
+
+    # The template types of the workspace are cached, its marking is not.
+    assert manager.check_multiple_permissions([check], workspace) == {}
+
+
+@pytest.mark.django_db
+def test_openable_template_check_uses_prefetched_templates(
+    data_fixture, django_assert_num_queries
+):
+    owner = data_fixture.create_user()
+    templates = create_templates_of_each_state(data_fixture, owner)
+    workspace_ids = [row[0].workspace_id for row in templates]
+    workspaces = list(
+        CoreHandler().get_enhanced_workspace_queryset(
+            Workspace.objects.filter(id__in=workspace_ids)
+        )
+    )
+
+    admin = data_fixture.create_user(is_staff=True)
+
+    with django_assert_num_queries(0):
+        openable = {w.id for w in workspaces if w.has_openable_template(owner)}
+        openable_by_admin = {
+            w.id
+            for w in workspaces
+            if w.has_openable_template(admin, allow_instance_admin=True)
+        }
+
+    assert openable == {row[0].workspace_id for row in templates if row[OWNER]}
+    assert openable_by_admin == openable
+
+
+@pytest.mark.django_db
+def test_workspace_template_types_cache_drops_the_workspace(
+    data_fixture, django_assert_num_queries
+):
+    workspace_id = data_fixture.create_user_template().workspace_id
+    workspace = Workspace.objects.get(id=workspace_id)
+    reference = weakref.ref(workspace)
+
+    assert workspace.get_template_types() == {Template.Type.USER}
+    del workspace
+    gc.collect()
+
+    assert reference() is None
+    workspace = Workspace.objects.get(id=workspace_id)
+    with django_assert_num_queries(0):
+        assert workspace.get_template_types() == {Template.Type.USER}
+
+
+@pytest.mark.django_db
+def test_allow_if_template_permissions_object_lists_a_shared_workspace_once(
+    data_fixture,
+):
+    owner = data_fixture.create_user()
+    user_template = data_fixture.create_user_template(user=owner)
+    # Details-only revisions share the workspace of the revision before them.
+    data_fixture.create_user_template_revision(
+        user_template, workspace=user_template.workspace
+    )
+    data_fixture.create_user_template_revision(
+        user_template, workspace=user_template.workspace
+    )
+
+    permissions = AllowIfTemplatePermissionManagerType().get_permissions_object(owner)
+
+    assert permissions["workspace_template_ids"] == [user_template.workspace_id]
+
+
+@pytest.mark.django_db
+def test_openable_template_check_selects_the_root_of_a_revision(
+    data_fixture, django_assert_num_queries
+):
+    owner = data_fixture.create_user()
+    user_template = data_fixture.create_user_template(user=owner)
+    revision = data_fixture.create_user_template_revision(user_template)
+    workspace = Workspace.objects.get(id=revision.workspace_id)
+    # The template types of the workspace are cached by the first check.
+    workspace.get_template_types()
+
+    with django_assert_num_queries(1):
+        assert workspace.has_openable_template(owner)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "latest_state,openable", [("private", False), ("in_review", True)]
+)
+def test_openable_template_check_queries_the_review_queue_once_for_an_admin(
+    data_fixture, django_assert_num_queries, latest_state, openable
+):
+    admin = data_fixture.create_user(is_staff=True)
+    user_template = data_fixture.create_user_template()
+    for _ in range(2):
+        revision = data_fixture.create_user_template_revision(
+            user_template, workspace=user_template.workspace
+        )
+    data_fixture.set_user_template_state(user_template, latest_state, revision)
+    workspace = Workspace.objects.get(id=user_template.workspace_id)
+    workspace.get_template_types()
+
+    with django_assert_num_queries(2):
+        assert workspace.has_openable_template(admin) is openable
+
+
+@pytest.mark.django_db
+def test_allow_if_template_permission_manager_checks_a_user_template_once(
+    data_fixture, django_assert_num_queries
+):
+    owner = data_fixture.create_user()
+    workspace = data_fixture.create_user_template(user=owner).workspace
+    workspace = Workspace.objects.get(id=workspace.id)
+    workspace.get_template_types()
+    manager = AllowIfTemplatePermissionManagerType()
+    checks = [
+        PermissionCheck(owner, operation, workspace)
+        for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES
+    ]
+
+    with django_assert_num_queries(1):
+        assert manager.check_multiple_permissions(checks, workspace) == {
+            check: True for check in checks
+        }

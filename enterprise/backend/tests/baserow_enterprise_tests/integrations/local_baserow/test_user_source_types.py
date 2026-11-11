@@ -510,6 +510,66 @@ def test_create_user_source_table_from_other_workspace(api_client, data_fixture)
 
 
 @pytest.mark.django_db
+def test_create_user_source_table_restricted_in_same_workspace(
+    api_client, data_fixture, synced_roles
+):
+    """
+    A builder editor who, through RBAC, has no access to a table in their own
+    workspace cannot point a user source at it. The table being in the same
+    workspace as the integration is not enough; the editor must be able to read
+    it. A forbidden table is reported the same as a missing one.
+    """
+
+    from baserow_enterprise.role.handler import RoleAssignmentHandler
+    from baserow_enterprise.role.models import Role
+
+    admin = data_fixture.create_user()
+    editor, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[admin, editor])
+    application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=editor
+    )
+
+    # The admin owns a table the editor must not see.
+    database = data_fixture.create_database_application(workspace=workspace)
+    table, fields, rows = data_fixture.build_table(
+        user=admin,
+        database=database,
+        columns=[("Email", "text"), ("Name", "text")],
+        rows=[["secret@victim.io", "Secret"]],
+    )
+
+    RoleAssignmentHandler().assign_role(
+        subject=editor, workspace=workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    RoleAssignmentHandler().assign_role(
+        subject=editor,
+        workspace=workspace,
+        role=Role.objects.get(uid="NO_ACCESS"),
+        scope=database,
+    )
+
+    url = reverse("api:user_sources:list", kwargs={"application_id": application.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "local_baserow",
+            "name": "test",
+            "integration_id": integration.id,
+            "table_id": table.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"]["table_id"][0]["code"] == "invalid_table"
+    assert not LocalBaserowUserSource.objects.filter(application=application).exists()
+
+
+@pytest.mark.django_db
 def test_create_local_baserow_user_source_w_a_missing_table(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -693,6 +753,7 @@ def test_user_source_create_user(data_fixture):
     email_field, name_field = fields
 
     user_source = data_fixture.create_user_source_with_first_type(
+        application=application,
         integration=integration,
         name="Test name",
         table=table_from_same_workspace1,
@@ -738,6 +799,7 @@ def test_user_source_create_user_w_role(data_fixture):
     email_field, name_field, role_field = fields
 
     user_source = data_fixture.create_user_source_with_first_type(
+        application=application,
         integration=integration,
         name="Test name",
         table=table_from_same_workspace1,
@@ -1095,6 +1157,7 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
 
     # Create the table to dispatch
     table, fields, rows = data_fixture.build_table(
+        database=database,
         user=user,
         columns=[
             ("Name", "text"),
@@ -1123,6 +1186,7 @@ def test_public_dispatch_data_source_with_ab_user_using_user_source(
 
     # Create the user table for the user_source
     user_table, user_fields, _ = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Email", "text"),
@@ -2732,3 +2796,66 @@ def test_local_baserow_user_source_get_or_create_user_allowed_within_application
     )
     assert created is True
     assert user.email == "new@baserow.io"
+
+
+def _create_user_source_with_integration_of_another_application(data_fixture):
+    """
+    Returns a builder and a user source in it whose integration and user table
+    belong to another user's builder and workspace.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    other_user = data_fixture.create_user()
+    other_builder = data_fixture.create_builder_application(user=other_user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=other_builder, authorized_user=other_user
+    )
+    user_source, _ = data_fixture.create_user_table_and_role(
+        other_user, builder, "role", integration=integration
+    )
+    return token, builder, user_source
+
+
+@pytest.mark.django_db
+def test_local_baserow_user_source_with_integration_of_another_application(
+    data_fixture,
+):
+    _, _, user_source = _create_user_source_with_integration_of_another_application(
+        data_fixture
+    )
+    user_source_type = user_source.get_type()
+
+    assert not user_source_type.is_configured(user_source)
+    assert user_source_type.list_users(user_source) == []
+    assert user_source_type.get_user_count(user_source) is None
+    with pytest.raises(UserNotFound):
+        user_source_type.get_user(user_source, email="foo@bar.com")
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.authenticate(
+            user_source, email="foo@bar.com", password="secret"
+        )
+    with pytest.raises(UserSourceImproperlyConfigured):
+        user_source_type.create_user(user_source, "new@bar.com", "New")
+    assert user_source.table.get_model().objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_list_user_source_users_with_integration_of_another_application(
+    api_client, data_fixture
+):
+    token, builder, user_source = (
+        _create_user_source_with_integration_of_another_application(data_fixture)
+    )
+
+    response = api_client.get(
+        reverse(
+            "api:user_sources:list_user_source_users",
+            kwargs={"application_id": builder.id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {"users_per_user_sources": {str(user_source.id): []}}

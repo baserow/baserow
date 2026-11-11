@@ -31,6 +31,7 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import RunUsage
 
+from baserow.contrib.automation.models import Automation
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
@@ -185,6 +186,56 @@ def test_wrong_mode_tools_are_deferred_but_resolvable(built: BuiltToolset) -> No
 
 
 @pytest.mark.django_db(transaction=True)
+def test_model_can_search_and_create_an_automation_from_database_mode(
+    built: BuiltToolset,
+) -> None:
+    built.deps.mode = AgentMode.DATABASE
+    requests: list[dict[str, Any]] = []
+
+    def model_function(messages, info: AgentInfo) -> ModelResponse:
+        visible = {tool.name: tool for tool in info.function_tools}
+        requests.append(visible)
+        call = ToolCallPart(
+            tool_name="create_automation",
+            args={"name": "Order flow", "thought": "Creating the automation"},
+        )
+        if len(requests) == 1:
+            assert "create_automation" not in visible
+            return ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="search_tools",
+                        args={"queries": ["create_automation"]},
+                    )
+                ]
+            )
+        if len(requests) == 2:
+            assert visible["create_automation"].defer_loading
+            return ModelResponse(parts=[call])
+        last = messages[-1].parts[-1]
+        assert isinstance(last, ToolReturnPart)
+        assert last.tool_name == "create_automation"
+        assert last.content["created_builders"][0]["name"] == "Order flow"
+        return ModelResponse(parts=[TextPart(content="done")])
+
+    gpt_oss = GroqModel(
+        "openai/gpt-oss-120b", provider=GroqProvider(api_key="not-used")
+    )
+    agent: Agent[AssistantDeps, str] = Agent(
+        model=FunctionModel(model_function, profile=gpt_oss.profile),
+        deps_type=AssistantDeps,
+        output_type=str,
+        toolsets=[built.toolset],
+    )
+    agent.run_sync("create an automation", deps=built.deps)
+
+    assert len(requests) == 3
+    assert built.deps.mode == AgentMode.AUTOMATION
+    automations = Automation.objects.filter(workspace=built.deps.workspace)
+    assert [a.name for a in automations] == ["Order flow"]
+
+
+@pytest.mark.django_db(transaction=True)
 def test_gpt_oss_model_can_discover_route_and_execute_a_wrong_mode_tool(
     built: BuiltToolset, data_fixture: Any
 ) -> None:
@@ -238,8 +289,8 @@ def test_gpt_oss_model_can_discover_route_and_execute_a_wrong_mode_tool(
             return ModelResponse(parts=[call])
 
         if request_number == 3:
-            # The retry triggered by the discovered call switched modes. The
-            # next request now contains the active, non-deferred schema.
+            # The first call ran and switched modes. The next request holds the
+            # active, non-deferred schema, and the model calls the tool again.
             assert built.deps.mode == AgentMode.AUTOMATION
             assert not visible["list_workflows"].defer_loading
             return ModelResponse(parts=[call])
@@ -383,16 +434,23 @@ def test_canonical_home_is_independent_from_shared_visibility() -> None:
 DATABASE = AgentMode.DATABASE
 APPLICATION = AgentMode.APPLICATION
 AUTOMATION = AgentMode.AUTOMATION
+DASHBOARD = AgentMode.DASHBOARD
 EXPLAIN = AgentMode.EXPLAIN
 EVERYWHERE = frozenset(AgentMode)
 
 # Adding a tool must fail here, so its reach is a decision and not a default.
 TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
-    "add_action_field_mapping": frozenset({APPLICATION}),
+    "add_element_action_field_mapping": frozenset({APPLICATION}),
     "add_nodes": frozenset({AUTOMATION}),
     "ask_user": EVERYWHERE,
-    "create_actions": frozenset({APPLICATION}),
-    "create_builders": EVERYWHERE - {EXPLAIN},
+    "create_element_actions": frozenset({APPLICATION}),
+    "create_database": frozenset({DATABASE}),
+    "create_automation": frozenset({AUTOMATION}),
+    "create_dashboard": frozenset({DASHBOARD}),
+    "create_builder": frozenset({APPLICATION}),
+    "update_database": frozenset({DATABASE}),
+    "update_automation": frozenset({AUTOMATION}),
+    "update_dashboard": frozenset({DASHBOARD}),
     "create_collection_elements": frozenset({APPLICATION}),
     "create_data_sources": frozenset({APPLICATION}),
     "create_display_elements": frozenset({APPLICATION}),
@@ -400,39 +458,55 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "create_form_elements": frozenset({APPLICATION}),
     "create_layout_elements": frozenset({APPLICATION}),
     "create_pages": frozenset({APPLICATION}),
+    "create_row_comments": frozenset({DATABASE}),
     "create_tables": frozenset({DATABASE}),
     "create_view_filters": frozenset({DATABASE}),
     "create_views": frozenset({DATABASE}),
+    "create_widgets": frozenset({DASHBOARD}),
     "create_workflows": frozenset({AUTOMATION}),
     "delete_fields": frozenset({DATABASE}),
     "delete_nodes": frozenset({AUTOMATION}),
+    "delete_row_colours": frozenset({DATABASE}),
+    "delete_view_filters": frozenset({DATABASE}),
+    "delete_views": frozenset({DATABASE}),
+    "delete_widgets": frozenset({DASHBOARD}),
     "generate_formula": frozenset({DATABASE}),
     "get_tables_schema": EVERYWHERE,
-    "list_actions": frozenset({APPLICATION, EXPLAIN}),
+    "get_widget_data": frozenset({DASHBOARD, EXPLAIN}),
+    "list_element_actions": frozenset({APPLICATION, EXPLAIN}),
+    "list_audit_log": EVERYWHERE,
     "list_builders": EVERYWHERE,
+    "search_workspace": EVERYWHERE,
     "list_data_sources": frozenset({APPLICATION, EXPLAIN}),
     "list_elements": frozenset({APPLICATION, EXPLAIN}),
     "list_nodes": frozenset({AUTOMATION, EXPLAIN}),
     "list_pages": frozenset({APPLICATION, EXPLAIN}),
+    "list_row_comments": EVERYWHERE,
     "list_rows": EVERYWHERE,
     "list_tables": EVERYWHERE,
     "list_views": EVERYWHERE,
+    "list_widgets": frozenset({DASHBOARD, EXPLAIN}),
     "list_workflows": frozenset({AUTOMATION, EXPLAIN}),
     "load_row_tools": frozenset({DATABASE}),
     "move_elements": frozenset({APPLICATION}),
     "navigate": EVERYWHERE,
     "search_user_docs": EVERYWHERE,
+    "set_field_visibility": frozenset({DATABASE}),
+    "add_row_colours": frozenset({DATABASE}),
     "set_theme": frozenset({APPLICATION}),
+    "set_view_sorts": frozenset({DATABASE}),
     "setup_page": frozenset({APPLICATION}),
     "setup_user_source": frozenset({APPLICATION}),
     "switch_mode": EVERYWHERE,
-    "update_builder": EVERYWHERE - {EXPLAIN},
+    "update_element_action": frozenset({APPLICATION}),
+    "update_builder": frozenset({APPLICATION}),
     "update_data_source": frozenset({APPLICATION}),
     "update_element": frozenset({APPLICATION}),
     "update_element_style": frozenset({APPLICATION}),
     "update_fields": frozenset({DATABASE}),
     "update_nodes": frozenset({AUTOMATION}),
     "update_page": frozenset({APPLICATION}),
+    "update_widgets": frozenset({DASHBOARD}),
 }
 
 
@@ -443,6 +517,22 @@ def test_every_routed_tool_has_the_expected_reach() -> None:
     }
 
     assert actual == TOOL_VISIBILITY
+
+
+@pytest.mark.parametrize(
+    "application_type,mode",
+    [
+        ("database", DATABASE),
+        ("automation", AUTOMATION),
+        ("dashboard", DASHBOARD),
+        ("builder", APPLICATION),
+    ],
+)
+def test_application_tools_live_in_the_mode_of_their_type(application_type, mode):
+    # A routed tool that is not active in a mode is deferred there, so tool search
+    # finds it.
+    assert tool_home(f"create_{application_type}") == mode
+    assert tool_home(f"update_{application_type}") == mode
 
 
 @pytest.mark.django_db

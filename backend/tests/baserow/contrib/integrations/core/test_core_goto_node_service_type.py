@@ -25,7 +25,7 @@ def test_create_core_goto_node_service(data_fixture):
 @pytest.mark.django_db
 def test_update_core_goto_node_service_sets_destination(data_fixture):
     user = data_fixture.create_user()
-    goto_node = data_fixture.create_core_goto_node(user=user)
+    goto_node = data_fixture.create_core_goto_action_node(user=user)
     workflow = goto_node.workflow
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=goto_node, label="destination"
@@ -52,7 +52,7 @@ def test_core_goto_node_dispatch_condition_true(data_fixture, truthful_condition
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger, position="south", label="destination"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination, position="south"
     )
 
@@ -70,7 +70,7 @@ def test_core_goto_node_dispatch_condition_true(data_fixture, truthful_condition
 @pytest.mark.django_db
 def test_core_goto_node_dispatch_condition_false(data_fixture):
     user = data_fixture.create_user()
-    goto_node = data_fixture.create_core_goto_node(user=user)
+    goto_node = data_fixture.create_core_goto_action_node(user=user)
     workflow = goto_node.workflow
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=goto_node, label="destination"
@@ -104,7 +104,7 @@ def test_core_goto_node_dispatch_empty_condition_jumps(data_fixture, empty_condi
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger, position="south", label="destination"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination, position="south"
     )
 
@@ -122,7 +122,7 @@ def test_core_goto_node_dispatch_empty_condition_jumps(data_fixture, empty_condi
 @pytest.mark.django_db
 def test_core_goto_node_dispatch_missing_destination_raises(data_fixture):
     user = data_fixture.create_user()
-    goto_node = data_fixture.create_core_goto_node(user=user)
+    goto_node = data_fixture.create_core_goto_action_node(user=user)
     service = goto_node.service.specific
     service.condition = "'true'"
     service.save()
@@ -151,7 +151,7 @@ def test_core_goto_node_generate_schema(data_fixture):
 @pytest.mark.django_db
 def test_core_goto_node_destination_set_null_on_delete(data_fixture):
     user = data_fixture.create_user()
-    goto_node = data_fixture.create_core_goto_node(user=user)
+    goto_node = data_fixture.create_core_goto_action_node(user=user)
     workflow = goto_node.workflow
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=goto_node, label="destination"
@@ -183,7 +183,7 @@ def test_core_goto_node_import_export_remaps_destination(data_fixture):
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=source_workflow, reference_node=trigger, label="destination"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=source_workflow, reference_node=destination
     )
     service = goto_node.service.specific
@@ -229,7 +229,7 @@ def test_core_goto_node_single_node_duplicate_keeps_destination(data_fixture):
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger, label="destination"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination
     )
     service = goto_node.service.specific

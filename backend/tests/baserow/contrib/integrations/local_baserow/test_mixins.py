@@ -521,3 +521,33 @@ def test_local_baserow_table_service_searchable_mixin_get_used_field_names(
     result = service_type.get_used_field_names(service, dispatch_context)
 
     assert result == []
+
+
+@pytest.mark.parametrize("is_duplicate,unmapped_field_id", [(False, None), (True, 2)])
+def test_local_baserow_table_service_refinements_with_an_unmapped_field(
+    is_duplicate, unmapped_field_id
+):
+    config = ImportExportConfig(include_permission_data=True, is_duplicate=is_duplicate)
+    id_mapping = {"database_fields": {1: 41}}
+    value = {"mode": "simple", "version": "0.1", "formula": "'foo'"}
+    expected_field_ids = [41] if unmapped_field_id is None else [41, 2]
+
+    filters = LocalBaserowTableServiceFilterableMixin().deserialize_filters(
+        [{"field_id": 1, "value": value}, {"field_id": 2, "value": value}],
+        id_mapping,
+        config,
+    )
+    sorts = LocalBaserowTableServiceSortableMixin().deserialize_sorts(
+        [{"field_id": 1, "order_by": "ASC"}, {"field_id": 2, "order_by": "ASC"}],
+        id_mapping,
+        config,
+    )
+
+    assert [f["field_id"] for f in filters] == expected_field_ids
+    assert [s["field_id"] for s in sorts] == expected_field_ids
+
+
+def test_local_baserow_table_service_refinements_without_field_mapping():
+    sorts = [{"field_id": 2, "order_by": "ASC"}]
+
+    assert LocalBaserowTableServiceSortableMixin().deserialize_sorts(sorts, {}) == sorts

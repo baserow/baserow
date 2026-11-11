@@ -170,6 +170,39 @@ def test_create_node_rejects_integration_from_another_application(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_node_rejects_trashed_integration_from_another_application(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    other_user = data_fixture.create_user()
+    other_automation = data_fixture.create_automation_application(user=other_user)
+    other_integration = data_fixture.create_local_baserow_integration(
+        application=other_automation, authorized_user=other_user
+    )
+    TrashHandler.trash(
+        other_user, other_automation.workspace, other_automation, other_integration
+    )
+
+    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+        AutomationNodeService().create_node(
+            user,
+            automation_node_type_registry.get("local_baserow_create_row"),
+            workflow,
+            reference_node_id=workflow.get_trigger().id,
+            position="south",
+            output="",
+            service={"integration_id": other_integration.id},
+        )
+
+    assert (
+        str(exc.value)
+        == f"The integration with ID {other_integration.id} is not related to the "
+        f"automation {workflow.automation_id}."
+    )
+
+
+@pytest.mark.django_db
 def test_get_node(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)

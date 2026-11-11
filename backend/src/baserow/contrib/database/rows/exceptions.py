@@ -1,3 +1,6 @@
+from baserow.core.exceptions import PermissionDenied
+
+
 class RowDoesNotExist(Exception):
     """Raised when trying to get rows that don't exist."""
 
@@ -45,3 +48,16 @@ class InvalidRowLength(Exception):
 
     def __init__(self, row_idx: int):
         self.row_idx = row_idx
+
+
+class FieldsNotWritable(PermissionDenied):
+    """Raised when the user may change the rows but not some of their fields."""
+
+    def __init__(self, fields, *args, **kwargs):
+        self.fields = fields
+        names = ", ".join(field.name for field in fields)
+        super().__init__(
+            f"You don't have permission to update the following fields: {names}",
+            *args,
+            **kwargs,
+        )

@@ -1,0 +1,14 @@
+# Installed with --no-deps: tokenizers' huggingface-hub is unused.
+anyio==4.15.1
+click==8.5.0
+flatbuffers==25.12.19
+h11==0.16.0
+idna==3.20
+numpy==2.5.4
+onnxruntime==1.26.0
+packaging==26.3
+protobuf==7.36.2
+starlette==1.8.0
+tokenizers==0.23.3
+typing_extensions==4.16.0
+uvicorn==0.54.0

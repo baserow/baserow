@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Grocery Planner",
+    "description": "Plan grocery runs around meals, with items, shops and costs.",
     "icon": "iconoir-apple",
     "keywords": [
         "groceries",

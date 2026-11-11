@@ -138,9 +138,10 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
         LoginUserSourceOperationType.type,
         AuthenticateUserSourceOperationType.type,
     ]
+    # The published app gets its user sources from the public builder serializer,
+    # listing them is reserved to the editors of the application.
     application_level_operations = [
         ReadApplicationOperationType.type,
-        ListUserSourcesApplicationOperationType.type,
     ]
 
     def get_builder_from_id(self, builder_id):

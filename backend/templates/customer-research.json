@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Customer Research",
+    "description": "Turn customer interviews into insights and themes per product.",
     "icon": "iconoir-search",
     "keywords": [
         "research",

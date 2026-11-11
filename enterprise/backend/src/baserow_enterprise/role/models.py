@@ -5,7 +5,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from baserow.core.mixins import CreatedAndUpdatedOnMixin
-from baserow.core.models import Operation, Workspace
+from baserow.core.models import Operation, Workspace, WorkspaceInvitation
 
 
 class RoleQuerySet(models.QuerySet):
@@ -131,3 +131,50 @@ class RoleAssignment(CreatedAndUpdatedOnMixin):
             )
         ]
         ordering = ("id",)
+
+
+class WorkspaceScopedInvitation(CreatedAndUpdatedOnMixin):
+    """
+    Grants a role on one scope, for example an application, a table or a view, to
+    the person a workspace invitation is addressed to once they accept it. One
+    invitation can carry any number of these, one per scope, so the same pending
+    invitation is reused when the person is invited to another object.
+    """
+
+    invitation = models.ForeignKey(
+        WorkspaceInvitation,
+        on_delete=models.CASCADE,
+        related_name="scoped_invitations",
+        help_text="The workspace invitation that grants the role once accepted.",
+    )
+    scope = GenericForeignKey("scope_type", "scope_id")
+    scope_id = models.IntegerField(help_text="The unique scope ID.")
+    scope_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The scope type.",
+    )
+    role = models.ForeignKey(
+        Role,
+        on_delete=models.CASCADE,
+        help_text="The role granted on the scope once the invitation is accepted.",
+    )
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return (
+            f"<WorkspaceScopedInvitation {self.invitation.email} - {self.role.name} - "
+            f"{self.scope}>"
+        )
+
+    class Meta:
+        ordering = ("id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["invitation", "scope_id", "scope_type"],
+                name="scoped_invitation_scope_uniqueness",
+            )
+        ]

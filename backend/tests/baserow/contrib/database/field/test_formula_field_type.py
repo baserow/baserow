@@ -2311,6 +2311,117 @@ def test_can_export_import_database_with_broken_via_dependency(data_fixture):
 
 
 @pytest.mark.django_db
+def test_can_export_import_database_with_broken_via_dependency_named_as_target(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table_1 = data_fixture.create_database_table(database=database, name="Items")
+    data_fixture.create_text_field(table=table_1, name="Name", primary=True)
+    data_fixture.create_text_field(table=table_1, name="Category")
+    table_2 = data_fixture.create_database_table(database=database, name="Orders")
+    data_fixture.create_text_field(table=table_2, name="Name", primary=True)
+
+    field_handler = FieldHandler()
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=table_2,
+        type_name="link_row",
+        name="Link",
+        link_row_table=table_1,
+    )
+    # The formula field has the same name as the looked up field in the other table.
+    formula_field = field_handler.create_field(
+        user,
+        table_2,
+        name="Category",
+        type_name="formula",
+        formula="lookup('Link', 'Category')",
+    )
+
+    field_handler.delete_field(user, link_row_field)
+    formula_field.refresh_from_db()
+    assert formula_field.formula_type == "invalid"
+
+    duplicated_database = CoreHandler().duplicate_application(user, database)
+    duplicated_table_1 = duplicated_database.table_set.get(name="Items")
+    duplicated_table_2 = duplicated_database.table_set.get(name="Orders")
+    duplicated_formula = duplicated_table_2.field_set.get(name="Category").specific
+    assert duplicated_formula.formula_type == "invalid"
+
+    field_handler.create_field(
+        user=user,
+        table=duplicated_table_2,
+        type_name="link_row",
+        name="Link",
+        link_row_table=duplicated_table_1,
+    )
+
+    duplicated_formula.refresh_from_db()
+    assert duplicated_formula.formula_type == "array"
+
+
+@pytest.mark.django_db
+def test_can_export_import_database_with_broken_via_dependency_named_as_dependant(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table_1 = data_fixture.create_database_table(database=database, name="Items")
+    data_fixture.create_text_field(table=table_1, name="Name", primary=True)
+    data_fixture.create_text_field(table=table_1, name="Category")
+    table_2 = data_fixture.create_database_table(database=database, name="Orders")
+    data_fixture.create_text_field(table=table_2, name="Name", primary=True)
+
+    field_handler = FieldHandler()
+    link_row_field = field_handler.create_field(
+        user=user,
+        table=table_2,
+        type_name="link_row",
+        name="Link",
+        link_row_table=table_1,
+    )
+    lookup_field = field_handler.create_field(
+        user,
+        table_2,
+        name="Lookup",
+        type_name="formula",
+        formula="lookup('Link', 'Category')",
+    )
+    # A field in the same table, named as the looked up field, depends on the lookup.
+    field_handler.create_field(
+        user,
+        table_2,
+        name="Category",
+        type_name="formula",
+        formula="field('Lookup')",
+    )
+
+    field_handler.delete_field(user, link_row_field)
+    lookup_field.refresh_from_db()
+    assert lookup_field.formula_type == "invalid"
+
+    duplicated_database = CoreHandler().duplicate_application(user, database)
+    duplicated_table_1 = duplicated_database.table_set.get(name="Items")
+    duplicated_table_2 = duplicated_database.table_set.get(name="Orders")
+    duplicated_lookup = duplicated_table_2.field_set.get(name="Lookup").specific
+    assert duplicated_lookup.formula_type == "invalid"
+
+    field_handler.create_field(
+        user=user,
+        table=duplicated_table_2,
+        type_name="link_row",
+        name="Link",
+        link_row_table=duplicated_table_1,
+    )
+
+    duplicated_lookup.refresh_from_db()
+    assert duplicated_lookup.formula_type == "array"
+
+
+@pytest.mark.django_db
 def test_count_formula_for_link_row_field_with_null_values(data_fixture):
     user = data_fixture.create_user()
 

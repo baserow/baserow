@@ -119,8 +119,7 @@ def periodic_check_for_views_with_time_sensitive_filters():
     subscribers that the view results have changed.
     """
 
-    with transaction.atomic():
-        ViewSubscriptionHandler.check_views_with_time_sensitive_filters()
+    ViewSubscriptionHandler.check_views_with_time_sensitive_filters()
 
 
 @app.on_after_finalize.connect

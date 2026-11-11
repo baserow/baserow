@@ -325,14 +325,15 @@
     },
     "premiumFieldType": {
         "ai": "Prompt IA",
-        "aiDescription": "Un campo di sola lettura che contiene il testo generato dall'intelligenza artificiale in base al prompt inserito."
+        "aiDescription": "Un campo di sola lettura che contiene il testo generato dall'intelligenza artificiale in base al prompt inserito.",
+        "aiRichTextDescription": "Un campo di sola lettura che contiene testo generato dall’IA in base al prompt del campo, formattato in Markdown."
     },
     "aiFormulaModal": {
         "title": "Genera una formula usando l'AI",
         "label": "Prompt",
         "labelDescription": "Descrivi la formula che vuoi generare",
         "generate": "Genera",
-        "description": "In alcuni casi la formula generata potrebbe funzionare diversamente da",
+        "description": "Nota che le formule generate potrebbero non funzionare sempre come previsto. Stiamo costruendo un prompt per il modello e carichiamo l’output nell’input della formula. Funziona meglio con un modello a parametri elevati come gpt-4-turbo-preview.",
         "noModels": "La tua istanza e il progetto di Baserow non hanno modelli IA configurati. Vai alla homepage, clicca sul nome del tuo progetto e poi su impostazioni per configurarli."
     },
     "formulaFieldAI": {
@@ -396,7 +397,8 @@
     "chart": {
         "true": "vero",
         "false": "falso",
-        "other": "Altro"
+        "other": "Altro",
+        "empty": "Vuoto"
     },
     "groupedAggregateRowsDataSourceForm": {
         "series": "Serie",
@@ -426,13 +428,21 @@
         "lineChart": "Linee",
         "pieChart": "Torta",
         "doughnutChart": "Ciambella",
-        "polarAreaChart": "Area polare"
+        "polarAreaChart": "Area polare",
+        "seriesColor": "Colore",
+        "automaticColor": "Usa colore automatico"
     },
     "aggregationGroupByForm": {
         "groupByFieldLabel": "Raggruppa",
         "groupByNone": "Nessuno",
         "groupByRowId": "ID riga",
-        "rowIdDisabledTooltip": "Il raggruppamento per ID riga non è al momento disponibile perché il campo primario può contenere più valori."
+        "rowIdDisabledTooltip": "Il raggruppamento per ID riga non è al momento disponibile perché il campo primario può contenere più valori.",
+        "groupedByField": "Raggruppato per {field}",
+        "bucketLimit": "Numero massimo di bucket",
+        "bucketLimitHelp": "Include il bucket Altro. Lascia vuoto per utilizzare il valore massimo del server ({max}).",
+        "modeLabel": "Raggruppa più selezioni",
+        "completeSelection": "Selezione completa",
+        "eachOption": "Ogni opzione selezionata"
     },
     "aggregationSortByForm": {
         "sortByFieldLabel": "Ordina per",
@@ -476,5 +486,8 @@
     "aiProviderModelFeature": {
         "aiFields": "Campi IA",
         "aiFieldsDescription": "Genera valori nei campi IA."
+    },
+    "premiumDashboardShareOptions": {
+        "hideLogo": "Nascondi il logo di Baserow nella dashboard condivisa"
     }
 }

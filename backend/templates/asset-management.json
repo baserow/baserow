@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Asset Management",
+    "description": "Track company assets, assignments, issues and maintenance.",
     "icon": "iconoir-sleeper-chair",
     "keywords": [
         "assets",

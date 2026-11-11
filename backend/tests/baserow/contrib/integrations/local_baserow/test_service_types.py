@@ -14,12 +14,12 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
     LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
-    LocalBaserowFieldsUpdatedServiceType,
+    LocalBaserowFieldsUpdatedTriggerServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
-    LocalBaserowRowsCreatedServiceType,
-    LocalBaserowRowsDeletedServiceType,
-    LocalBaserowRowsUpdatedServiceType,
+    LocalBaserowRowsCreatedTriggerServiceType,
+    LocalBaserowRowsDeletedTriggerServiceType,
+    LocalBaserowRowsUpdatedTriggerServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
     LocalBaserowUpdateRowsServiceType,
@@ -65,10 +65,10 @@ def test_local_baserow_service_type_dispatch_types():
         LocalBaserowDeleteRowServiceType.type: [
             DispatchTypes.ACTION,
         ],
-        LocalBaserowRowsCreatedServiceType.type: [DispatchTypes.EVENT],
-        LocalBaserowRowsUpdatedServiceType.type: [DispatchTypes.EVENT],
-        LocalBaserowRowsDeletedServiceType.type: [DispatchTypes.EVENT],
-        LocalBaserowFieldsUpdatedServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsCreatedTriggerServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowRowsDeletedTriggerServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowFieldsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
         "local_baserow_grouped_aggregate_rows": [DispatchTypes.DATA],
     }
 
@@ -1899,7 +1899,9 @@ def test_local_baserow_table_agg_service_type_get_context_data_excludes_fields(
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_number_field(table=table)
-    serialized_field = field_type_registry.get_serializer(field, FieldSerializer).data
+    serialized_field = field_type_registry.get_serializer(
+        field, FieldSerializer, extra_params={"data_schema": True}
+    ).data
     service = data_fixture.create_local_baserow_aggregate_rows_service(
         table=table, field=field, aggregation_type="sum"
     )
@@ -2119,7 +2121,9 @@ def test_local_baserow_agg_service_type_generate_schema_excludes_fields(data_fix
 def test_local_baserow_rows_created_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowRowsCreatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowRowsCreatedTriggerServiceType.type
+    )
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
@@ -2143,7 +2147,9 @@ def test_local_baserow_rows_created_trigger_service_type_handler(data_fixture):
 def test_local_baserow_rows_updated_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowRowsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowRowsUpdatedTriggerServiceType.type
+    )
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
@@ -2171,7 +2177,9 @@ def test_local_baserow_rows_updated_trigger_service_type_handler(data_fixture):
 def test_local_baserow_rows_deleted_trigger_service_type_handler(data_fixture):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowRowsDeletedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowRowsDeletedTriggerServiceType.type
+    )
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     model = table.get_model()
@@ -2195,7 +2203,9 @@ def test_local_baserow_fields_updated_trigger_fires_when_watched_field_changes(
 ):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     watched_field = data_fixture.create_text_field(user, table=table)
@@ -2224,7 +2234,9 @@ def test_local_baserow_fields_updated_trigger_ignores_other_field_changes(
 ):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     watched_field = data_fixture.create_text_field(user, table=table)
@@ -2254,7 +2266,9 @@ def test_local_baserow_fields_updated_trigger_ignores_when_no_field_configured(
 ):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
@@ -2280,7 +2294,9 @@ def test_local_baserow_fields_updated_trigger_fires_when_any_watched_field_chang
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
     watched_a = data_fixture.create_text_field(user, table=table)
     watched_b = data_fixture.create_text_field(user, table=table)
@@ -2320,7 +2336,9 @@ def test_local_baserow_fields_updated_prepare_values_validates_field_table(
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
     field_in_table = data_fixture.create_text_field(user, table=table)
     other_table = data_fixture.create_database_table(user=user)
@@ -2344,10 +2362,12 @@ def test_local_baserow_fields_updated_prepare_values_resets_field_on_table_chang
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
-    new_table = data_fixture.create_database_table(user=user)
+    new_table = data_fixture.create_database_table(database=table.database, user=user)
     service = data_fixture.create_local_baserow_fields_updated_service(
         table=table, fields=[field]
     )
@@ -2366,7 +2386,9 @@ def test_local_baserow_fields_updated_export_prepared_values_is_json_serializabl
     from baserow.core.encoders import JSONEncoderSupportingDataClasses
 
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
     field_2 = data_fixture.create_text_field(user, table=table)
@@ -2386,7 +2408,9 @@ def test_local_baserow_fields_updated_export_prepared_values_is_json_serializabl
 @pytest.mark.django_db
 def test_local_baserow_fields_updated_generate_schema(data_fixture):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
     watched_a = data_fixture.create_text_field(user, table=table, name="Watched A")
     watched_b = data_fixture.create_text_field(user, table=table, name="Watched B")
@@ -2416,7 +2440,9 @@ def test_local_baserow_fields_updated_serialized_rows_only_include_watched_field
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
     watched_a = data_fixture.create_text_field(user, table=table, name="Watched A")
     watched_b = data_fixture.create_text_field(user, table=table, name="Watched B")
@@ -2456,7 +2482,9 @@ def test_local_baserow_fields_updated_generate_schema_without_field_or_table(
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    service_type = service_type_registry.get(
+        LocalBaserowFieldsUpdatedTriggerServiceType.type
+    )
     table = data_fixture.create_database_table(user=user)
 
     # No table configured at all.

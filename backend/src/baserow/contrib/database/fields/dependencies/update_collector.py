@@ -1,10 +1,22 @@
 import dataclasses
 from collections import defaultdict
 from contextlib import nullcontext
-from typing import Any, Dict, List, Optional, Set, Tuple, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    cast,
+)
 
 from django.conf import settings
-from django.db.models import Expression, Q, Value
+from django.contrib.postgres.expressions import ArraySubquery
+from django.db.models import Expression, F, Q, Value
 
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.models import Field, LinkRowField
@@ -13,11 +25,17 @@ from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.constants import (
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
 )
-from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.table.signals import table_updated
 from baserow.core.db import jit_disabled
+from baserow.core.expressions import EqualsAny
+
+if TYPE_CHECKING:
+    from baserow.contrib.database.views.row_checker import FilteredViewRowChecker
 
 StartingRowIdsType = Optional[List[int]]
+
+NEEDS_VIEW_CHECKS_ANNOTATION = "needs_view_checks"
 
 
 @dataclasses.dataclass
@@ -48,8 +66,111 @@ class DependantRowsUpdate:
     field_ids: List[int]
     # True when the rows are unknown or over the limit: refresh the whole table.
     requires_refresh: bool
+    field_ids_with_unknown_before_values: Set[int] = dataclasses.field(
+        default_factory=set
+    )
     # Serialized pre-cascade state for realtime updates. Empty if requires_refresh=True.
     before_rows: Dict[int, Dict[str, Any]] = dataclasses.field(default_factory=dict)
+    # Per row id, the checked views showing it pre-cascade.
+    before_visible_view_ids: Dict[int, Set[int]] = dataclasses.field(
+        default_factory=dict
+    )
+    before_checked_view_ids: Set[int] = dataclasses.field(default_factory=set)
+    # Reused to check the views again after the cascade.
+    checked_views_row_checker: Optional["FilteredViewRowChecker"] = dataclasses.field(
+        default=None, repr=False, compare=False
+    )
+
+
+@dataclasses.dataclass
+class BeforeRowsSnapshot:
+    """
+    The pre-cascade state of a table's rows; the earliest snapshot of a row wins.
+    """
+
+    # Serialized row per row id.
+    rows: Dict[int, Dict[str, Any]] = dataclasses.field(default_factory=dict)
+    row_ids_updated_without_snapshot: Set[int] = dataclasses.field(default_factory=set)
+    # Per row id, the checked views showing it.
+    visible_view_ids: Dict[int, Set[int]] = dataclasses.field(default_factory=dict)
+    checked_view_ids: Set[int] = dataclasses.field(default_factory=set)
+    row_checker: Optional["FilteredViewRowChecker"] = dataclasses.field(
+        default=None, repr=False
+    )
+    # Changed without an update statement, so a snapshot may show the new value.
+    field_ids_with_unknown_before_values: Set[int] = dataclasses.field(
+        default_factory=set
+    )
+    # None until the first read of the table tells.
+    needs_view_checks: Optional[bool] = None
+    # Past the limit the table is refreshed instead.
+    overflowed: bool = False
+
+    def mark_overflowed(self) -> None:
+        """
+        Drops the captured rows, since the table is refreshed instead.
+        """
+
+        self.overflowed = True
+        self.rows = {}
+        self.row_ids_updated_without_snapshot = set()
+        self.visible_view_ids = {}
+        self.checked_view_ids = set()
+        self.row_checker = None
+
+    def get_row_ids_not_to_snapshot(self) -> Set[int]:
+        """
+        :return: The ids already snapshotted or already changed by the cascade.
+        """
+
+        return self.rows.keys() | self.row_ids_updated_without_snapshot
+
+    def to_dependant_rows_update(
+        self,
+        table: Table,
+        row_ids: List[int],
+        field_ids: List[int],
+        requires_refresh: bool,
+    ) -> DependantRowsUpdate:
+        """
+        Keeps the pre-cascade state of the given rows only.
+
+        :param table: The table of the rows.
+        :param row_ids: The changed row ids.
+        :param field_ids: The changed field ids.
+        :param requires_refresh: Whether the whole table is refreshed instead.
+        :return: The dependant rows update.
+        """
+
+        if requires_refresh:
+            return DependantRowsUpdate(
+                table=table,
+                row_ids=[],
+                field_ids=field_ids,
+                requires_refresh=True,
+                field_ids_with_unknown_before_values=set(
+                    self.field_ids_with_unknown_before_values
+                ),
+            )
+        return DependantRowsUpdate(
+            table=table,
+            row_ids=row_ids,
+            field_ids=field_ids,
+            requires_refresh=False,
+            field_ids_with_unknown_before_values=set(
+                self.field_ids_with_unknown_before_values
+            ),
+            before_rows={
+                row_id: self.rows[row_id] for row_id in row_ids if row_id in self.rows
+            },
+            before_visible_view_ids={
+                row_id: self.visible_view_ids[row_id]
+                for row_id in row_ids
+                if row_id in self.visible_view_ids
+            },
+            before_checked_view_ids=set(self.checked_view_ids),
+            checked_views_row_checker=self.row_checker,
+        )
 
 
 def merge_dependant_rows_updates(
@@ -57,9 +178,12 @@ def merge_dependant_rows_updates(
 ) -> List[DependantRowsUpdate]:
     """
     Merges lists of DependantRowsUpdate into one entry per table, unioning
-    row/field ids, respecting the limit and dropping empty entries.
+    row/field ids, respecting the limit and dropping empty entries. A row keeps
+    the snapshot of the first update listing it, or none: later ones would show
+    the earlier changes.
 
-    :param updates_lists: The lists of dependant rows updates to merge.
+    :param updates_lists: The lists of dependant rows updates to merge, oldest
+        first.
     :return: One update per table with sorted, deduplicated row and field ids.
     """
 
@@ -70,42 +194,46 @@ def merge_dependant_rows_updates(
     tables: Dict[int, Table] = {}
     row_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
     field_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
-    before_rows_per_table: Dict[int, Dict[int, Dict[str, Any]]] = defaultdict(dict)
-    tables_requiring_refresh: Set[int] = set()
+    snapshot_per_table: Dict[int, BeforeRowsSnapshot] = defaultdict(BeforeRowsSnapshot)
 
     for updates in updates_lists:
         for update in updates:
             table_id = update.table.id
             tables[table_id] = update.table
             field_ids_per_table[table_id].update(update.field_ids)
-            if table_id in tables_requiring_refresh:
+            snapshot = snapshot_per_table[table_id]
+            snapshot.field_ids_with_unknown_before_values.update(
+                update.field_ids_with_unknown_before_values
+            )
+            if snapshot.overflowed:
                 continue
             row_ids = row_ids_per_table[table_id]
+            first_listed_row_ids = set(update.row_ids) - row_ids
             row_ids.update(update.row_ids)
-            # Earliest snapshot wins.
-            before_rows = before_rows_per_table[table_id]
-            for row_id, serialized in update.before_rows.items():
-                before_rows.setdefault(row_id, serialized)
+            snapshot.checked_view_ids.update(update.before_checked_view_ids)
+            snapshot.row_checker = (
+                snapshot.row_checker or update.checked_views_row_checker
+            )
+            for row_id in first_listed_row_ids & update.before_rows.keys():
+                snapshot.rows[row_id] = update.before_rows[row_id]
+                if row_id in update.before_visible_view_ids:
+                    snapshot.visible_view_ids[row_id] = update.before_visible_view_ids[
+                        row_id
+                    ]
             if update.requires_refresh or len(row_ids) > limit:
                 # Past the limit only the refresh flag matters; free the ids.
-                tables_requiring_refresh.add(table_id)
                 row_ids.clear()
-                before_rows.clear()
+                snapshot.mark_overflowed()
 
     return [
-        DependantRowsUpdate(
-            table=table,
+        snapshot_per_table[table_id].to_dependant_rows_update(
+            table,
             row_ids=sorted(row_ids_per_table[table_id]),
             field_ids=sorted(field_ids_per_table[table_id]),
-            requires_refresh=table_id in tables_requiring_refresh,
-            before_rows={
-                row_id: before_rows_per_table[table_id][row_id]
-                for row_id in row_ids_per_table[table_id]
-                if row_id in before_rows_per_table[table_id]
-            },
+            requires_refresh=snapshot_per_table[table_id].overflowed,
         )
         for table_id, table in tables.items()
-        if row_ids_per_table[table_id] or table_id in tables_requiring_refresh
+        if row_ids_per_table[table_id] or snapshot_per_table[table_id].overflowed
     ]
 
 
@@ -231,7 +359,8 @@ class PathBasedUpdateStatementCollector:
         result: Optional[Dict[int, Set[int]]] = None,
         overflowed_table_ids: Optional[Set[int]] = None,
         collect_dependant_rows: bool = True,
-        before_rows_result: Optional[Dict[int, Dict[int, Dict[str, Any]]]] = None,
+        before_snapshots: Optional[Dict[int, BeforeRowsSnapshot]] = None,
+        dependant_field_ids_per_table: Optional[Dict[int, Set[int]]] = None,
     ) -> Dict[int, Set[int]]:
         """
         Executes all the pending update statements in the correct order and returns
@@ -258,6 +387,9 @@ class PathBasedUpdateStatementCollector:
         :param collect_dependant_rows: Set to False when no realtime events will be
             sent for this update, to skip the extra queries needed to find the rows
             changed by fields marked as changed without an update statement.
+        :param before_snapshots: Output pre-cascade state per table id.
+        :param dependant_field_ids_per_table: The field ids the cascade will
+            update per table id, None when unknown.
         :return: A dictionary containing a set of updated row ids per table id.
         """
 
@@ -265,8 +397,8 @@ class PathBasedUpdateStatementCollector:
             result = defaultdict(set)
         if overflowed_table_ids is None:
             overflowed_table_ids = set()
-        if before_rows_result is None:
-            before_rows_result = defaultdict(dict)
+        if before_snapshots is None:
+            before_snapshots = defaultdict(BeforeRowsSnapshot)
 
         path_to_starting_table = path_to_starting_table or []
         if self.connection_here is not None:
@@ -279,7 +411,13 @@ class PathBasedUpdateStatementCollector:
                 path_to_starting_table,
                 starting_row_ids,
                 deleted_m2m_rels_per_link_field,
-                before_rows_result,
+                before_snapshots,
+                overflowed_table_ids,
+                (
+                    None
+                    if dependant_field_ids_per_table is None
+                    else dependant_field_ids_per_table.get(self.table.id, set())
+                ),
             )
 
         updated_row_ids = self._execute_pending_update_statements(
@@ -291,6 +429,12 @@ class PathBasedUpdateStatementCollector:
         result[self.table.id].update(updated_row_ids)
 
         if collect_dependant_rows:
+            self._record_rows_updated_without_snapshot(
+                starting_row_ids,
+                updated_row_ids,
+                before_snapshots,
+                overflowed_table_ids,
+            )
             self._collect_changed_only_row_ids(
                 field_cache,
                 path_to_starting_table,
@@ -309,9 +453,58 @@ class PathBasedUpdateStatementCollector:
                 result=result,
                 overflowed_table_ids=overflowed_table_ids,
                 collect_dependant_rows=collect_dependant_rows,
-                before_rows_result=before_rows_result,
+                before_snapshots=before_snapshots,
+                dependant_field_ids_per_table=dependant_field_ids_per_table,
             )
         return result
+
+    def record_field_ids_with_unknown_before_values(
+        self, before_snapshots: Dict[int, BeforeRowsSnapshot]
+    ) -> None:
+        """
+        Records the changed-only fields of this path and its sub paths. Their
+        values are read from other tables at fetch time, so a snapshot may
+        already show the change.
+
+        :param before_snapshots: The snapshots per table id.
+        :return: None, records into `before_snapshots`.
+        """
+
+        if self.changed_only_fields:
+            before_snapshots[self.table.id].field_ids_with_unknown_before_values.update(
+                field.id for field in self.changed_only_fields
+            )
+        for sub_path in self.sub_paths.values():
+            sub_path.record_field_ids_with_unknown_before_values(before_snapshots)
+
+    def _get_snapshot_unless_overflowed(
+        self,
+        before_snapshots: Dict[int, BeforeRowsSnapshot],
+        overflowed_table_ids: Set[int],
+    ) -> Optional[BeforeRowsSnapshot]:
+        """
+        :param before_snapshots: The snapshots per table id.
+        :param overflowed_table_ids: The ids of the tables that overflowed.
+        :return: The table's snapshot, None once the table overflowed.
+        """
+
+        snapshot = before_snapshots[self.table.id]
+        if self.table.id in overflowed_table_ids and not snapshot.overflowed:
+            snapshot.mark_overflowed()
+        return None if snapshot.overflowed else snapshot
+
+    def _mark_table_overflowed(
+        self, snapshot: BeforeRowsSnapshot, overflowed_table_ids: Set[int]
+    ) -> None:
+        """
+        Marks the table to be refreshed instead of snapshotted.
+
+        :param snapshot: The table's snapshot, to drop.
+        :param overflowed_table_ids: The ids of the tables to refresh.
+        """
+
+        snapshot.mark_overflowed()
+        overflowed_table_ids.add(self.table.id)
 
     def _snapshot_before_rows(
         self,
@@ -319,11 +512,15 @@ class PathBasedUpdateStatementCollector:
         path_to_starting_table: List[LinkRowField],
         starting_row_ids: StartingRowIdsType,
         deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
-        before_rows_result: Dict[int, Dict[int, Dict[str, Any]]],
+        before_snapshots: Dict[int, BeforeRowsSnapshot],
+        overflowed_table_ids: Set[int],
+        dependant_field_ids: Optional[Set[int]],
     ) -> None:
         """
         Serializes the pre-update state of the rows this collector is about to
-        update, so realtime listeners get a truthful `rows_before_update`.
+        update, so realtime listeners get a truthful `rows_before_update`. When
+        a checked view can show the change, the rows are locked as read, so no
+        concurrent cascade changes them before this transaction ends.
 
         Only rows updated via a SQL statement are captured; a link row field
         display resolves at serialization time and its upstream value has already
@@ -337,9 +534,12 @@ class PathBasedUpdateStatementCollector:
         :param deleted_m2m_rels_per_link_field: A dictionary per link field of
             rows in the table it links to which have had their connections
             removed.
-        :param before_rows_result: Output dict of serialized before rows per row
-            id per table id, added to with the earliest snapshot winning.
-        :return: None, the outcome is recorded in `before_rows_result`.
+        :param before_snapshots: Output snapshots per table id.
+        :param overflowed_table_ids: The ids of the tables that overflowed,
+            added to.
+        :param dependant_field_ids: The table's field ids the cascade will
+            update, None when unknown.
+        :return: None, the outcome is recorded in `before_snapshots`.
         """
 
         from baserow.contrib.database.api.rows.serializers import (
@@ -354,32 +554,254 @@ class PathBasedUpdateStatementCollector:
         if starting_row_ids is None or not path_to_starting_table:
             # Starting rows and whole-column updates are broadcast elsewhere.
             return
+        snapshot = self._get_snapshot_unless_overflowed(
+            before_snapshots, overflowed_table_ids
+        )
+        if snapshot is None:
+            return
 
         model = field_cache.get_model(self.table)
-        before = before_rows_result[self.table.id]
-        serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
-        )
-        for row_filter in self._filters_for_rows_connected_to_starting_rows(
+        rows: List[GeneratedTableModel] = []
+        for row_filter in self._filters_for_rows_to_snapshot(
+            model,
             path_to_starting_table,
             starting_row_ids,
             deleted_m2m_rels_per_link_field,
-            include_starting_rows=False,
         ):
             # One past the limit is enough to detect the overflow that drops it.
-            cap = limit + 1 - len(before)
-            if cap <= 0:
-                break
-            rows = [
-                row
-                for row in model.objects.filter(row_filter)
-                .enhance_by_fields()
+            cap = limit + 1 - len(snapshot.rows) - len(rows)
+            rows += self._read_rows_to_snapshot(
+                model,
+                row_filter,
+                snapshot.get_row_ids_not_to_snapshot() | {row.id for row in rows},
+                cap,
+                snapshot,
+                dependant_field_ids,
+            )
+            if len(snapshot.rows) + len(rows) > limit:
+                self._mark_table_overflowed(snapshot, overflowed_table_ids)
+                return
+        if not rows:
+            return
+
+        serializer_class = get_row_serializer_class(
+            model, RowSerializer, is_response=True
+        )
+        for row, serialized in zip(rows, serializer_class(rows, many=True).data):
+            snapshot.rows[row.id] = serialized
+        if snapshot.needs_view_checks:
+            self._snapshot_checked_views_visibility(rows, snapshot)
+
+    def _read_rows_to_snapshot(
+        self,
+        model: Type[GeneratedTableModel],
+        row_filter: Q,
+        excluded_row_ids: Set[int],
+        limit: int,
+        snapshot: BeforeRowsSnapshot,
+        dependant_field_ids: Optional[Set[int]],
+    ) -> List[GeneratedTableModel]:
+        """
+        The first read of a table, unlocked, also tells whether locks are needed.
+        Rows are locked in id order, so concurrent cascades wait instead of
+        deadlocking.
+
+        :param model: The table model with all fields.
+        :param row_filter: The rows to read.
+        :param excluded_row_ids: The ids to skip before the limit applies.
+        :param limit: The maximum number of rows; reaching it means overflow.
+        :param snapshot: The table's snapshot, updated with the view checks state.
+        :param dependant_field_ids: The table's field ids the cascade will
+            update, None when unknown.
+        :return: The rows ordered by id, locked if view checks are needed.
+        """
+
+        # Avoids a circular import.
+        from baserow.contrib.database.ws.views.rows.handler import (
+            ViewRealtimeRowsHandler,
+        )
+
+        queryset = (
+            model.objects.filter(row_filter)
+            .exclude(id__in=excluded_row_ids)
+            .enhance_by_fields()
+            .order_by("id")
+        )
+        if snapshot.needs_view_checks is None:
+            handler = ViewRealtimeRowsHandler()
+            needs_view_checks = handler.get_needs_view_checks_expression(
+                self.table,
+                dependant_field_ids,
+                snapshot.field_ids_with_unknown_before_values,
+            )
+            rows = list(
+                queryset.annotate(**{NEEDS_VIEW_CHECKS_ANNOTATION: needs_view_checks})[
+                    :limit
+                ]
+            )
+            if not rows:
+                return rows
+            snapshot.needs_view_checks = getattr(rows[0], NEEDS_VIEW_CHECKS_ANNOTATION)
+            if not snapshot.needs_view_checks or len(rows) >= limit:
+                return rows
+            # Built before locking, to hold the locks shorter.
+            snapshot.row_checker = handler.get_checked_views_row_checker(
+                self.table, model
+            )
+        if snapshot.needs_view_checks:
+            queryset = queryset.select_for_update(of=("self",))
+        return list(queryset[:limit])
+
+    def _filters_for_rows_to_snapshot(
+        self,
+        model: Type[GeneratedTableModel],
+        path_to_starting_table: List[LinkRowField],
+        starting_row_ids: List[int],
+        deleted_m2m_rels_per_link_field: Optional[Dict[int, Set[int]]],
+    ) -> List[Q]:
+        """
+        Matches the rows of `_filters_for_rows_connected_to_starting_rows` minus
+        the starting rows, without joins: a join makes `ORDER BY id LIMIT` walk
+        the whole primary key, and repeats rows a locking read can't deduplicate.
+
+        :param model: The table model with all fields.
+        :param path_to_starting_table: The non-empty link row fields from
+            self.table to the starting table.
+        :param starting_row_ids: The ids of the rows the update started from.
+        :param deleted_m2m_rels_per_link_field: Per link field, the linked rows
+            that lost their connection, so they still match.
+        :return: The filters, one per statement.
+        """
+
+        filters = [
+            self._filter_for_rows_linked_through_path(
+                model, path_to_starting_table, starting_row_ids
+            )
+        ]
+        # Keyed by the starting table's side of the link.
+        deleted_row_ids = (deleted_m2m_rels_per_link_field or {}).get(
+            path_to_starting_table[-1].link_row_related_field_id
+        )
+        if deleted_row_ids:
+            # They are rows of the last hop's table, so that hop is skipped.
+            filters.append(
+                self._filter_for_rows_linked_through_path(
+                    model, path_to_starting_table[:-1], deleted_row_ids
+                )
+            )
+        return filters
+
+    def _filter_for_rows_linked_through_path(
+        self,
+        model: Type[GeneratedTableModel],
+        path: List[LinkRowField],
+        linked_row_ids: Iterable[int],
+    ) -> Q:
+        """
+        Matches what a `<path>__id__in` filter matches, without joins. Each hop is
+        an array, so a row linked twice matches once, and middle tables include
+        trashed rows, as the joins do.
+
+        :param model: The model the path starts from.
+        :param path: The link row fields to the linked rows' table.
+        :param linked_row_ids: The ids of the rows at the end of the path.
+        :return: The filter; the ids themselves for an empty path.
+        """
+
+        if not path:
+            return Q(id__in=linked_row_ids)
+        # Not remote_field.through: lazy related models can resolve the reverse.
+        into_through, out_of_through = model._meta.get_field(
+            path[0].db_column
+        ).path_infos
+        linked_model = out_of_through.to_opts.model
+        linked_id_field_name = out_of_through.join_field.name
+        if len(path) == 1:
+            linked_rows_filter = Q(**{f"{linked_id_field_name}__in": linked_row_ids})
+        else:
+            linked_ids = (
+                linked_model.objects_and_trash.filter(
+                    self._filter_for_rows_linked_through_path(
+                        linked_model, path[1:], linked_row_ids
+                    )
+                )
                 .order_by()
-                .distinct()[:cap]
-                if row.id not in before
-            ]
-            for row, serialized in zip(rows, serializer_class(rows, many=True).data):
-                before[row.id] = serialized
+                .values("id")
+            )
+            linked_rows_filter = Q(
+                EqualsAny(F(linked_id_field_name), ArraySubquery(linked_ids))
+            )
+        ids_linked_through_path = out_of_through.from_opts.model.objects.filter(
+            linked_rows_filter
+        ).values(into_through.join_field.field.name)
+        return Q(EqualsAny(F("id"), ArraySubquery(ids_linked_through_path)))
+
+    def _snapshot_checked_views_visibility(
+        self,
+        rows: List[GeneratedTableModel],
+        snapshot: BeforeRowsSnapshot,
+    ) -> None:
+        """
+        Records the checked views showing each row, to later tell which rows left
+        or entered a view.
+
+        :param rows: The rows just snapshotted.
+        :param snapshot: The table's snapshot.
+        :return: None, records into `snapshot`.
+        """
+
+        if not rows or snapshot.row_checker is None:
+            return
+        row_ids = {row.id for row in rows}
+        views_rows = snapshot.row_checker.get_filtered_views_where_row_ids_are_visible(
+            row_ids, include_views_without_visible_rows=True
+        )
+        if not views_rows:
+            return
+
+        for row_id in row_ids:
+            snapshot.visible_view_ids[row_id] = set()
+        for view_rows in views_rows:
+            snapshot.checked_view_ids.add(view_rows.view.id)
+            visible_row_ids = (
+                row_ids if view_rows.all_allowed() else view_rows.allowed_row_ids
+            )
+            for row_id in visible_row_ids:
+                snapshot.visible_view_ids[row_id].add(view_rows.view.id)
+
+    def _record_rows_updated_without_snapshot(
+        self,
+        starting_row_ids: StartingRowIdsType,
+        updated_row_ids: List[int],
+        before_snapshots: Dict[int, BeforeRowsSnapshot],
+        overflowed_table_ids: Set[int],
+    ) -> None:
+        """
+        Such rows, like one linked after the snapshot read, already show the
+        change, so no later snapshot may capture them.
+
+        :param starting_row_ids: The ids of the rows the update started from.
+        :param updated_row_ids: The ids of the rows just updated.
+        :param before_snapshots: The snapshots per table id.
+        :param overflowed_table_ids: The ids of the tables that overflowed,
+            added to.
+        :return: None, records into `before_snapshots`.
+        """
+
+        limit = settings.DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT
+        if limit <= 0 or starting_row_ids is None:
+            # Nothing is snapshotted in this cascade.
+            return
+        snapshot = self._get_snapshot_unless_overflowed(
+            before_snapshots, overflowed_table_ids
+        )
+        if snapshot is None:
+            return
+        snapshot.row_ids_updated_without_snapshot.update(
+            row_id for row_id in updated_row_ids if row_id not in snapshot.rows
+        )
+        if len(snapshot.row_ids_updated_without_snapshot) > limit:
+            self._mark_table_overflowed(snapshot, overflowed_table_ids)
 
     def _collect_changed_only_row_ids(
         self,
@@ -674,11 +1096,11 @@ class FieldUpdateCollector:
         self._updated_rows_per_table: Dict[int, Set[int]] = defaultdict(set)
         self._overflowed_table_ids: Set[int] = set()
 
-        # Serialized pre-cascade state per row id per table, captured before each
-        # update statement runs and accumulated across apply_updates calls.
-        self._before_rows_per_table: Dict[int, Dict[int, Dict[str, Any]]] = defaultdict(
-            dict
+        # Accumulated across apply_updates calls, the earliest snapshot winning.
+        self._before_snapshots_per_table: Dict[int, BeforeRowsSnapshot] = defaultdict(
+            BeforeRowsSnapshot
         )
+        self._dependant_field_ids_per_table: Optional[Dict[int, Set[int]]] = None
 
         self._starting_row_ids = starting_row_ids
         self._starting_table = starting_table
@@ -763,6 +1185,19 @@ class FieldUpdateCollector:
             field, via_path_to_starting_table
         )
 
+    def set_dependant_fields(self, fields: Iterable[Field]) -> None:
+        """
+        Call before the first `apply_updates`, so tables whose checked views don't
+        filter on these fields skip the locks and view checks.
+
+        :param fields: Every dependant field, at every depth.
+        """
+
+        dependant_field_ids_per_table: Dict[int, Set[int]] = defaultdict(set)
+        for field in fields:
+            dependant_field_ids_per_table[field.table_id].add(field.id)
+        self._dependant_field_ids_per_table = dict(dependant_field_ids_per_table)
+
     def apply_updates(self, field_cache: FieldCache) -> Dict[int, Set[int]]:
         """
         Triggers all update statements to be executed in the correct order in as few
@@ -770,6 +1205,10 @@ class FieldUpdateCollector:
         updated row ids per table id.
         """
 
+        if self.collect_dependant_rows:
+            self._update_statement_collector.record_field_ids_with_unknown_before_values(
+                self._before_snapshots_per_table
+            )
         # Turned off once for all the UPDATEs below, only when there are any.
         with (
             jit_disabled()
@@ -782,7 +1221,8 @@ class FieldUpdateCollector:
                 deleted_m2m_rels_per_link_field=self._deleted_m2m_rels_per_link_field,
                 overflowed_table_ids=self._overflowed_table_ids,
                 collect_dependant_rows=self.collect_dependant_rows,
-                before_rows_result=self._before_rows_per_table,
+                before_snapshots=self._before_snapshots_per_table,
+                dependant_field_ids_per_table=self._dependant_field_ids_per_table,
             )
         self._accumulate_updated_rows(updated_rows_per_table)
         return updated_rows_per_table
@@ -810,6 +1250,7 @@ class FieldUpdateCollector:
                 # Past the limit only the refresh flag matters; free the ids.
                 self._overflowed_table_ids.add(table_id)
                 del self._updated_rows_per_table[table_id]
+                self._before_snapshots_per_table[table_id].mark_overflowed()
 
     def get_dependant_rows_updates(self) -> List[DependantRowsUpdate]:
         """
@@ -833,22 +1274,17 @@ class FieldUpdateCollector:
             requires_refresh = table.id in self._overflowed_table_ids
             if not row_ids and not requires_refresh:
                 continue
-            table_before_rows = self._before_rows_per_table.get(table.id, {})
+            snapshot = self._before_snapshots_per_table.get(
+                table.id, BeforeRowsSnapshot()
+            )
             updates.append(
-                DependantRowsUpdate(
-                    table=table,
-                    row_ids=[] if requires_refresh else sorted(row_ids),
+                snapshot.to_dependant_rows_update(
+                    table,
+                    row_ids=sorted(row_ids),
                     field_ids=[
                         field.id for field in self._all_field_updates.fields(table)
                     ],
                     requires_refresh=requires_refresh,
-                    before_rows={}
-                    if requires_refresh
-                    else {
-                        row_id: table_before_rows[row_id]
-                        for row_id in row_ids
-                        if row_id in table_before_rows
-                    },
                 )
             )
         return updates

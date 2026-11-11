@@ -1,12 +1,49 @@
 from unittest.mock import MagicMock, Mock, PropertyMock
 
 import pytest
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 
+from baserow.api.exceptions import RequestBodyValidationException
+from baserow.core.registries import ImportExportConfig
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
-from baserow.core.services.registries import ServiceType
+from baserow.core.services.registries import ServiceType, service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_premium.integrations.local_baserow.service_types import DispatchResult
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+def test_service_export_redacts_sensitive_scalars(data_fixture, exclude_sensitive_data):
+    """The shared export path redacts SMTP content only when requested."""
+
+    values = {
+        "from_email": "'sender@example.com'",
+        "from_name": "'Billing'",
+        "to_emails": "'recipient@example.com'",
+        "cc_emails": "'cc@example.com'",
+        "bcc_emails": "'bcc@example.com'",
+        "subject": "'Your invoice'",
+        "body": "'Account 1234 is overdue'",
+    }
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None, body_type="plain", **values
+    )
+    exported = ServiceHandler().export_service(
+        service,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False, exclude_sensitive_data=exclude_sensitive_data
+        ),
+    )
+
+    assert exported["type"] == "smtp_email"
+    assert exported["body_type"] == "plain"
+    for prop_name, formula in values.items():
+        if exclude_sensitive_data:
+            assert exported[prop_name] is None
+        else:
+            assert exported[prop_name]["formula"] == formula
+        assert getattr(service, prop_name)["formula"] == formula
 
 
 def test_service_type_is_active_by_default(mocker):
@@ -132,30 +169,15 @@ def test_service_type_prepare_values(data_fixture):
         application=application_a
     )
     instance = Service.objects.create(integration=integration_a)
-    application_b = data_fixture.create_builder_application(user=user)
-    integration_b = data_fixture.create_local_baserow_integration(
-        application=application_b
-    )
     integration_c = data_fixture.create_local_baserow_integration(
         application=application_a
     )
 
     # Unknown integrations throw a validation error.
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(RequestBodyValidationException) as exc:
         service_type_cls().prepare_values({"integration_id": 9999999999999999}, user)
-    assert (
-        exc.value.args[0] == f"The integration with ID 9999999999999999 does not exist."
-    )
-
-    # The PATCHed integration cannot belong to a different
-    # application to the current one.
-    with pytest.raises(ValidationError) as exc:
-        service_type_cls().prepare_values(
-            {"integration_id": integration_b.id}, user, instance
-        )
-    assert (
-        str(exc.value.detail[0]) == f"The integration with ID {integration_b.id} is "
-        f"not related to the given application {application_a.id}."
+    assert exc.value.detail["detail"]["integration_id"][0]["detail"] == (
+        "The integration with ID 9999999999999999 does not exist."
     )
 
     # The PATCHed integration does belong to the same application as the current one.
@@ -283,6 +305,24 @@ def test_dispatch_returns_sample_data_when_simulated():
 
 
 @pytest.mark.django_db
+def test_dispatch_calls_before_dispatch_hook():
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+    service_type.resolve_service_formulas = MagicMock(return_value={})
+    service_type.dispatch_data = MagicMock()
+    service_type.dispatch_transform = MagicMock()
+    service_type.before_dispatch = MagicMock()
+
+    service = MagicMock()
+    dispatch_context = FakeDispatchContext(use_sample_data=False)
+
+    service_type.dispatch(service, dispatch_context)
+
+    service_type.before_dispatch.assert_called_once_with(service, dispatch_context)
+
+
+@pytest.mark.django_db
 def test_dispatch_even_if_simulated_when_updated():
     """
     Ensure that when dispatch_context.is_simulated is True, the cached sample
@@ -374,6 +414,75 @@ def test_dispatch_even_if_simulated_with_error_sample_data():
     assert result.data == {"someother": "data"}
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("keep_sample_data_on_error", [True, False])
+def test_dispatch_failure_when_updating_sample_data(keep_sample_data_on_error):
+    """
+    A failed dispatch that updates the sample data stores the error sentinel,
+    unless the context asks to keep the sample data the service already had.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.resolve_service_formulas = MagicMock(return_value={})
+    service_type.dispatch_data = MagicMock(side_effect=ValueError("Boom"))
+
+    mock_service = MagicMock()
+    mock_service.sample_data = {"data": {"previous": "data"}}
+
+    dispatch_context = FakeDispatchContext(
+        use_sample_data=True,
+        update_sample_data_for=[mock_service],
+        keep_sample_data_on_error=keep_sample_data_on_error,
+    )
+
+    with pytest.raises(ValueError):
+        service_type.dispatch(mock_service, dispatch_context)
+
+    if keep_sample_data_on_error:
+        assert mock_service.sample_data == {"data": {"previous": "data"}}
+        mock_service.save.assert_not_called()
+    else:
+        assert mock_service.sample_data == {"_error": "Boom"}
+        mock_service.save.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_dispatch_keeps_sample_data_when_saving_new_sample_data_fails():
+    """
+    When the new sample data can't be saved and the context asks to keep the
+    previous sample data, the service is left with the sample data it had.
+    """
+
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+
+    service_type.resolve_service_formulas = MagicMock(return_value={})
+    service_type.dispatch_data = MagicMock(return_value={"new": "data"})
+    service_type.dispatch_transform = MagicMock(
+        return_value=DispatchResult(data={"new": "data"})
+    )
+
+    mock_service = MagicMock()
+    mock_service.sample_data = {"data": {"previous": "data"}}
+    mock_service.save.side_effect = ValueError("Rejected")
+
+    dispatch_context = FakeDispatchContext(
+        use_sample_data=True,
+        update_sample_data_for=[mock_service],
+        keep_sample_data_on_error=True,
+    )
+
+    with pytest.raises(ValueError):
+        service_type.dispatch(mock_service, dispatch_context)
+
+    assert mock_service.sample_data == {"data": {"previous": "data"}}
+    mock_service.save.assert_called_once()
+
+
 def test_dispatch_context_actor_defaults_to_none():
     from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -409,3 +518,29 @@ def test_dispatch_context_without_actor_in_own_properties_clones_without_one(
     dispatch_context.actor = data_fixture.create_user()
 
     assert dispatch_context.clone().actor is None
+
+
+@pytest.mark.django_db
+def test_service_type_check_integration(data_fixture):
+    service_type = service_type_registry.get("local_baserow_list_rows")
+    application = data_fixture.create_builder_application()
+    integration = data_fixture.create_local_baserow_integration(application=application)
+    other_application = data_fixture.create_builder_application()
+    other_application_integration = data_fixture.create_local_baserow_integration(
+        application=other_application
+    )
+    other_type_integration = data_fixture.create_smtp_integration(
+        application=application
+    )
+
+    # No integration, or one of the right type in the same application, passes.
+    service_type.check_integration(application, {})
+    service_type.check_integration(application, {"integration": None})
+    service_type.check_integration(application, {"integration": integration})
+
+    for mismatched in [other_application_integration, other_type_integration]:
+        with pytest.raises(RequestBodyValidationException) as exc:
+            service_type.check_integration(application, {"integration": mismatched})
+        assert exc.value.detail["detail"]["integration_id"][0]["code"] == (
+            "invalid_integration"
+        )

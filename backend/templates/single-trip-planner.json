@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Single Trip Planner",
+    "description": "Plan a trip day by day with transport, lodging and expenses.",
     "icon": "iconoir-airplane",
     "keywords": [
         "travel",

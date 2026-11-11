@@ -9,12 +9,12 @@ from loguru import logger
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import Field
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.model_profiles import DOCUMENTATION
 from baserow_enterprise.assistant.models import KnowledgeBaseChunk
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 
 from .handler import KnowledgeBaseHandler
 
@@ -342,4 +342,4 @@ async def _search_user_docs_impl(
 
 
 TOOL_FUNCTIONS = [search_user_docs]
-search_docs_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+search_docs_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)

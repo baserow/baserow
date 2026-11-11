@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 from django.db import IntegrityError
 from django.db.models import QuerySet
@@ -31,7 +31,45 @@ from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
 
-class ChartWidgetType(WidgetType):
+class SeriesConfigMixin:
+    """Keeps the configuration of a chart's series in step with its series."""
+
+    def series_config_for(
+        self, widget: Widget, restyle: bool = False
+    ) -> list[dict[str, Any]]:
+        """
+        One entry for each series of the chart's data source. The chart only
+        draws a series in its own type when the series has an entry. A series
+        that has one keeps its type and color, unless ``restyle`` draws every
+        series as the chart's type. Pass the result as ``series_config`` to an
+        update of the widget.
+
+        :param widget: The chart, with its data source already updated.
+        :param restyle: Whether every series takes the chart's type.
+        :return: The chart's ``series_config``.
+        """
+
+        widget.data_source.refresh_from_db()
+        service = widget.data_source.service.specific
+        existing = {
+            config.series_id: config.series_chart_type
+            for config in widget.series_config.all()
+        }
+        # Without series_color, so the update keeps the color a series has.
+        return [
+            {
+                "series_id": series.id,
+                "series_chart_type": (
+                    existing[series.id]
+                    if series.id in existing and not restyle
+                    else widget.default_series_chart_type
+                ),
+            }
+            for series in service.service_aggregation_series.all()
+        ]
+
+
+class ChartWidgetType(SeriesConfigMixin, WidgetType):
     type = "chart"
     model_class = ChartWidget
     grid_layout = WidgetGridLayout(
@@ -118,6 +156,9 @@ class ChartWidgetType(WidgetType):
                         series_conf["series_id"]
                     )
                     to_update.series_chart_type = series_conf["series_chart_type"]
+                    to_update.series_color = series_conf.get(
+                        "series_color", to_update.series_color
+                    )
                     configs_to_update.append(to_update)
                     used_series_ids.add(series_conf["series_id"])
                 else:
@@ -126,11 +167,12 @@ class ChartWidgetType(WidgetType):
                             widget=updated_widget.widget,
                             series_id=series_conf["series_id"],
                             series_chart_type=series_conf["series_chart_type"],
+                            series_color=series_conf.get("series_color"),
                         )
                     )
 
             ChartSeriesConfig.objects.bulk_update(
-                configs_to_update, fields=["series_chart_type"]
+                configs_to_update, fields=["series_chart_type", "series_color"]
             )
             try:
                 ChartSeriesConfig.objects.bulk_create(configs_to_create)
@@ -225,6 +267,7 @@ class ChartWidgetType(WidgetType):
         self,
         instance: Widget,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -237,6 +280,9 @@ class ChartWidgetType(WidgetType):
                 {
                     "series_id": conf.series_id,
                     "series_chart_type": conf.series_chart_type,
+                    **(
+                        {"series_color": conf.series_color} if conf.series_color else {}
+                    ),
                 }
                 for conf in instance.series_config.all()
             ]
@@ -244,13 +290,14 @@ class ChartWidgetType(WidgetType):
         return super().serialize_property(
             instance,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
         )
 
 
-class PieChartWidgetType(WidgetType):
+class PieChartWidgetType(SeriesConfigMixin, WidgetType):
     type = "pie_chart"
     model_class = PieChartWidget
     grid_layout = WidgetGridLayout(
@@ -337,6 +384,9 @@ class PieChartWidgetType(WidgetType):
                         series_conf["series_id"]
                     )
                     to_update.series_chart_type = series_conf["series_chart_type"]
+                    to_update.series_color = series_conf.get(
+                        "series_color", to_update.series_color
+                    )
                     configs_to_update.append(to_update)
                     used_series_ids.add(series_conf["series_id"])
                 else:
@@ -345,11 +395,12 @@ class PieChartWidgetType(WidgetType):
                             widget=updated_widget.widget,
                             series_id=series_conf["series_id"],
                             series_chart_type=series_conf["series_chart_type"],
+                            series_color=series_conf.get("series_color"),
                         )
                     )
 
             PieChartSeriesConfig.objects.bulk_update(
-                configs_to_update, fields=["series_chart_type"]
+                configs_to_update, fields=["series_chart_type", "series_color"]
             )
             try:
                 PieChartSeriesConfig.objects.bulk_create(configs_to_create)
@@ -444,6 +495,7 @@ class PieChartWidgetType(WidgetType):
         self,
         instance: Widget,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -456,6 +508,9 @@ class PieChartWidgetType(WidgetType):
                 {
                     "series_id": conf.series_id,
                     "series_chart_type": conf.series_chart_type,
+                    **(
+                        {"series_color": conf.series_color} if conf.series_color else {}
+                    ),
                 }
                 for conf in instance.series_config.all()
             ]
@@ -463,6 +518,7 @@ class PieChartWidgetType(WidgetType):
         return super().serialize_property(
             instance,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

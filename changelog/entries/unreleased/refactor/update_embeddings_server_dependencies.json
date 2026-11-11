@@ -1,0 +1,14 @@
+{
+    "type": "refactor",
+    "message": "Update and speed up the embeddings server",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "Helm and Cloudron now use embeddings 1.1.0",
+        "Inference threads follow the CPU limit",
+        "Health checks answer during long requests",
+        "Large requests no longer run out of memory"
+    ],
+    "created_at": "2026-10-14"
+}

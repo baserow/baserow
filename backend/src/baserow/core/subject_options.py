@@ -1,0 +1,94 @@
+from django.db.models import QuerySet
+
+from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
+
+
+class SubjectOptionsHandler:
+    """Builds searchable subject option querysets from registered subject types."""
+
+    @classmethod
+    def get_options(
+        cls,
+        workspace: Workspace | None = None,
+        search: str = "",
+        subject_types: set[str] | None = None,
+        exclude_ids: dict[str, list[int]] | None = None,
+        subject_type_options_kwargs: dict[str, dict] | None = None,
+        order_by: tuple[str, ...] = ("subject_label", "subject_type", "subject_id"),
+    ) -> QuerySet:
+        """Return a unified queryset supplied by listable subject types.
+
+        Permission checks remain with the caller because consumers expose subject
+        options under different capabilities.
+
+        :param order_by: The shared option fields used to order the combined queryset.
+        """
+
+        return cls._get_options(
+            "get_options_queryset",
+            workspace=workspace,
+            search=search,
+            subject_types=subject_types,
+            exclude_ids=exclude_ids,
+            subject_type_options_kwargs=subject_type_options_kwargs,
+            order_by=order_by,
+        )
+
+    @classmethod
+    def get_historical_options(
+        cls,
+        workspace: Workspace | None = None,
+        search: str = "",
+        subject_types: set[str] | None = None,
+        exclude_ids: dict[str, list[int]] | None = None,
+        order_by: tuple[str, ...] = ("subject_label", "subject_type", "subject_id"),
+    ) -> QuerySet:
+        """Return subject options that include subjects retained for historical use."""
+
+        return cls._get_options(
+            "get_historical_options_queryset",
+            workspace=workspace,
+            search=search,
+            subject_types=subject_types,
+            exclude_ids=exclude_ids,
+            order_by=order_by,
+        )
+
+    @classmethod
+    def _get_options(
+        cls,
+        options_queryset_method: str,
+        workspace: Workspace | None = None,
+        search: str = "",
+        subject_types: set[str] | None = None,
+        exclude_ids: dict[str, list[int]] | None = None,
+        subject_type_options_kwargs: dict[str, dict] | None = None,
+        order_by: tuple[str, ...] = ("subject_label", "subject_type", "subject_id"),
+    ) -> QuerySet:
+        """Return options from the named SubjectType queryset method."""
+
+        search = (search or "").strip()
+        exclude_ids = exclude_ids or {}
+        subject_type_options_kwargs = subject_type_options_kwargs or {}
+        requested_types = subject_types or set(subject_type_registry.get_types())
+        option_querysets = []
+        for subject_type in subject_type_registry.get_all():
+            if subject_type.type not in requested_types:
+                continue
+            queryset = getattr(subject_type, options_queryset_method)(
+                workspace=workspace,
+                search=search,
+                exclude_ids=exclude_ids.get(subject_type.type, []),
+                **subject_type_options_kwargs.get(subject_type.type, {}),
+            )
+            if queryset is not None:
+                option_querysets.append(queryset)
+
+        if not option_querysets:
+            raise ValueError("No listable subject types were requested.")
+
+        queryset = option_querysets[0]
+        for option_queryset in option_querysets[1:]:
+            queryset = queryset.union(option_queryset, all=True)
+        return queryset.order_by(*order_by)

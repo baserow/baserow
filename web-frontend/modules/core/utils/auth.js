@@ -122,6 +122,20 @@ export const getToken = async (
   })
 }
 
+/**
+ * Returns the id of the login session a refresh token belongs to. A rotated refresh
+ * token carries it in the `session_id` claim, the first one of a login uses its own
+ * id.
+ */
+export const getRefreshTokenSessionId = (token) => {
+  try {
+    const payload = jwtDecode(token)
+    return payload.session_id || payload.jti || null
+  } catch {
+    return null
+  }
+}
+
 export const getTokenIfEnoughTimeLeft = async (
   appOrContext,
   key = cookieTokenName,
@@ -138,6 +152,33 @@ export const getTokenIfEnoughTimeLeft = async (
   }
   // Return the token if it is still valid for more of the 10% of the lifespan.
   return data && (data.exp - now) / (data.exp - data.iat) > 0.1 ? token : null
+}
+
+/**
+ * Signs the current user back in after they changed their own password, which
+ * ends all of their sessions. When the account has two-factor authentication,
+ * signing in can't finish without the second factor, so the user is sent to the
+ * login page with a message instead.
+ *
+ * @param {object} router The app router, used for the redirect to the login page.
+ * @param {object} store The Vuex store.
+ * @param {string} password The new password.
+ * @returns {Promise<boolean>} Whether the user is still signed in.
+ */
+export const loginAgainAfterPasswordChange = async (
+  router,
+  store,
+  password
+) => {
+  const result = await store.dispatch('auth/login', {
+    email: store.getters['auth/getUsername'],
+    password,
+  })
+  if (result?.two_factor_auth) {
+    await logoutAndRedirectToLogin(router, store, false, true)
+    return false
+  }
+  return true
 }
 
 export const logoutAndRedirectToLogin = async (
@@ -164,4 +205,16 @@ export const logoutAndRedirectToLogin = async (
   }
 
   await store.dispatch('auth/clearAllStoreUserData')
+}
+
+/**
+ * Remembers who is signed in now. The returned function tells whether that user
+ * is still signed in, so that an answer that comes after a logout, or after a
+ * login as someone else, can be left out.
+ */
+export const signedInUserCheck = (store) => {
+  const userId = store.getters['auth/getUserId']
+  return () =>
+    store.getters['auth/isAuthenticated'] &&
+    store.getters['auth/getUserId'] === userId
 }

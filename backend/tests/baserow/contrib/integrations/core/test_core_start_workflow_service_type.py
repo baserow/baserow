@@ -15,7 +15,7 @@ from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import (
     CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
-    LocalBaserowRowsCreatedNodeTriggerType,
+    LocalBaserowRowsCreatedTriggerNodeType,
 )
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
@@ -481,7 +481,7 @@ def test_start_workflow_service_prepare_values_rejects_non_immediate_dispatch_wo
     )
     workflow = data_fixture.create_automation_workflow(
         user=user,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
     AutomationWorkflowHandler().publish(workflow)
@@ -508,7 +508,7 @@ def test_start_workflow_service_dispatch_rejects_non_immediate_dispatch_workflow
     )
     workflow = data_fixture.create_automation_workflow(
         user=user,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
     AutomationWorkflowHandler().publish(workflow)
@@ -685,7 +685,7 @@ def test_start_workflow_service_import_drops_a_remapped_workflow_not_on_demand(
     imported_workflow = _workflow(
         data_fixture,
         user,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
     service = data_fixture.create_core_start_workflow_service(

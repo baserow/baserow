@@ -73,8 +73,9 @@
       v-if="!isRawMode && isFocused && !readOnly"
       ref="formulaInputExplorerContext"
       :node-selected="nodeSelected"
+      :reveal-node="revealNode"
       :loading="loading"
-      :mode="mode"
+      :mode="activeMode"
       :has-value="Boolean(value && value.length)"
       :allow-node-selection="allowNodeSelection"
       :nodes-hierarchy="nodesHierarchy"
@@ -94,6 +95,8 @@
       ref="nodeHelpTooltip"
       :node="hoveredFunctionNode"
       :nodes-hierarchy="nodesHierarchy"
+      @mouseenter="onHelpTooltipEnter"
+      @mouseleave="onHelpTooltipLeave"
     />
 
     <FormulaInputModeChangeModal
@@ -116,7 +119,10 @@ import { ArrowKeyNavigationExtension } from '@baserow/modules/core/components/fo
 import { SmartDeletionExtension } from '@baserow/modules/core/components/formula/extensions/SmartDeletionExtension'
 import { ZWSManagementExtension } from '@baserow/modules/core/components/formula/extensions/ZWSManagementExtension'
 import { FunctionHelpTooltipExtension } from '@baserow/modules/core/components/formula/extensions/FunctionHelpTooltipExtension'
-import { ParenMatchHighlightExtension } from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
+import {
+  ParenMatchHighlightExtension,
+  findFunctionOpener,
+} from '@baserow/modules/core/components/formula/extensions/ParenMatchHighlightExtension'
 import {
   FormulaInsertionExtension,
   FunctionFormulaComponentNode,
@@ -219,6 +225,10 @@ const FORMAT_LABEL_KEYS = {
 const FORMAT_BADGES = {
   [BASEROW_FORMULA_FORMAT_MARKDOWN]: 'M',
 }
+
+// How long the function help tooltip stays open after the mouse leaves the
+// function or the tooltip. Matches the tooltip in the explorer.
+const HELP_TOOLTIP_HIDE_DELAY = 250
 
 export default {
   name: 'FormulaInputField',
@@ -344,6 +354,15 @@ export default {
       errorExpanded: false,
       isFocused: false,
       hoveredFunctionNode: null,
+      // Whether the mouse is over the function help tooltip, which then stays
+      // open so its examples can be read and scrolled.
+      isHelpTooltipHovered: false,
+      helpTooltipHideTimer: null,
+      // The formula node the user last clicked, which the explorer context
+      // reveals by opening its tab and scrolling to it. A new object is set on
+      // every click so clicking the same node twice reveals it again. Cleared
+      // on blur, see the `isFocused` watcher.
+      revealNode: null,
       isHandlingModeChange: false,
       intersectionObserver: null,
       isEditorInitialized: false,
@@ -353,8 +372,24 @@ export default {
     showErrorContext() {
       return this.isFocused && !this.readOnly && this.isFormulaInvalid
     },
+    /**
+     * The mode the editor runs in. A `mode` the parent does not enable falls
+     * back to advanced mode when that one is enabled: advanced mode renders any
+     * formula string as is, so the fallback never changes a value. Simple and
+     * raw mode would turn the formula into a literal, which is why the explorer
+     * asks before switching to them and why they are never fallen back to.
+     */
+    activeMode() {
+      if (
+        !this.enabledModes.includes(this.mode) &&
+        this.enabledModes.includes('advanced')
+      ) {
+        return 'advanced'
+      }
+      return this.mode
+    },
     isRawMode() {
-      return this.mode === 'raw'
+      return this.activeMode === 'raw'
     },
     rawModeToggleTitle() {
       return this.isRawMode
@@ -488,20 +523,25 @@ export default {
           : [
               FunctionHelpTooltipExtension.configure({
                 functionDefinitions: this.formulaRegistry.definitions,
+                // Long enough for the mouse to travel from the function into
+                // the tooltip, which then keeps it open.
+                hideDelay: HELP_TOOLTIP_HIDE_DELAY,
                 onShowTooltip: (el, node) => {
+                  this.cancelHelpTooltipHide()
                   this.hoveredFunctionNode = node
                   this.$refs.nodeHelpTooltip?.show(el, 'bottom', 'right', 6, 10)
                 },
                 onHideTooltip: () => {
-                  this.$refs.nodeHelpTooltip?.hide()
-                  this.hoveredFunctionNode = null
+                  if (!this.isHelpTooltipHovered) {
+                    this.hideHelpTooltip()
+                  }
                 },
               }),
             ]),
         ...this.formulaComponents,
       ]
 
-      if (this.mode === 'advanced') {
+      if (this.activeMode === 'advanced') {
         extensions.push(FunctionFormulaComponentNode)
         extensions.push(FunctionArgumentCommaNode)
         extensions.push(FunctionClosingParenNode)
@@ -538,6 +578,14 @@ export default {
     },
   },
   watch: {
+    // The explorer context only exists while focused and reveals `revealNode`
+    // when it mounts, so a reveal must not outlive the focus. Otherwise every
+    // later focus would reveal the node again, even after it was deleted.
+    isFocused(newValue) {
+      if (!newValue) {
+        this.revealNode = null
+      }
+    },
     // The `input` event only fires for valid formulas, so parents that must
     // block submission on an invalid one need this signal too.
     isFormulaInvalid(newValue) {
@@ -550,7 +598,10 @@ export default {
       this.editor?.setOptions({ editable: !this.disabled && !newValue })
     },
 
-    mode(newMode, oldMode) {
+    mode: 'syncMode',
+    enabledModes: 'syncMode',
+
+    activeMode(newMode, oldMode) {
       // In Vue 3, watchers can fire during the initial render cycle before
       // mounted() completes. Skip if editor hasn't been initialized yet.
       if (!this.isEditorInitialized) {
@@ -600,6 +651,9 @@ export default {
       deep: true,
     },
   },
+  created() {
+    this.syncMode()
+  },
   mounted() {
     if (!this.isRawMode) {
       this.createEditor()
@@ -610,6 +664,7 @@ export default {
     this.setupIntersectionObserver()
   },
   beforeUnmount() {
+    this.cancelHelpTooltipHide()
     this.editor?.destroy()
     this.cleanupIntersectionObserver()
   },
@@ -661,13 +716,14 @@ export default {
           ),
           handlePaste: createPasteHandler({
             toContent: this.toContent.bind(this),
-            getMode: () => this.mode,
+            getMode: () => this.activeMode,
           }),
         },
       })
       this.isEditorInitialized = true
 
       this.editor.on('data-node-clicked', this.dataNodeClicked)
+      this.editor.on('formula-node-clicked', this.formulaNodeClicked)
     },
     recreateEditor(formula = null) {
       const currentFormula =
@@ -803,7 +859,7 @@ export default {
      * function tab (and thus a clickable tooltip) only exists in that mode.
      */
     handleExampleSelected(example) {
-      if (this.mode !== 'advanced') {
+      if (this.activeMode !== 'advanced') {
         return
       }
       const content = this.toContent(example.formula)
@@ -892,9 +948,10 @@ export default {
           false
         )
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
-        const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
-          tree
-        )
+        const result = new ToTipTapVisitor(
+          functionCollection,
+          this.activeMode
+        ).visit(tree)
 
         // Ensure wrapper always starts with a ZWS
         if (result && result.content && result.content[0]) {
@@ -926,7 +983,7 @@ export default {
       try {
         const formula = new FromTipTapVisitor(
           functionCollection,
-          mode || this.mode
+          mode || this.activeMode
         ).visit(content)
 
         return formula
@@ -936,10 +993,59 @@ export default {
     },
     dataNodeClicked(node) {
       this.editor.commands.selectNode(node)
+      this.revealNode = { type: 'data', path: node.attrs.path }
     },
-    handleEditorClick() {
+    /**
+     * Called when a function or operator node is clicked in the editor.
+     * @param {Object} target the `{ type, name }` of the clicked node, where
+     *   `name` is the function name or the operator symbol.
+     */
+    formulaNodeClicked(target) {
+      this.revealNode = { ...target }
+    },
+    onHelpTooltipEnter() {
+      this.isHelpTooltipHovered = true
+      this.cancelHelpTooltipHide()
+    },
+    onHelpTooltipLeave() {
+      this.isHelpTooltipHovered = false
+      this.cancelHelpTooltipHide()
+      this.helpTooltipHideTimer = setTimeout(() => {
+        this.helpTooltipHideTimer = null
+        this.hideHelpTooltip()
+      }, HELP_TOOLTIP_HIDE_DELAY)
+    },
+    cancelHelpTooltipHide() {
+      clearTimeout(this.helpTooltipHideTimer)
+      this.helpTooltipHideTimer = null
+    },
+    hideHelpTooltip() {
+      this.$refs.nodeHelpTooltip?.hide()
+      this.hoveredFunctionNode = null
+    },
+    handleEditorClick(event) {
       if (this.editor && !this.disabled && !this.readOnly) {
         this.editor.commands.showContext()
+        this.revealClickedFunctionPunctuation(event.target)
+      }
+    },
+    /**
+     * Closing parentheses and argument commas are plain nodes without a
+     * component to emit `formula-node-clicked`, so a click on one reveals the
+     * function it belongs to from here.
+     * @param {HTMLElement} target the clicked element.
+     */
+    revealClickedFunctionPunctuation(target) {
+      const punctuation = target?.closest?.(
+        '[data-formula-closing-paren], [data-formula-comma]'
+      )
+      if (!punctuation) {
+        return
+      }
+      const opener = findFunctionOpener(this.editor.view.dom, punctuation)
+      const name = opener?.textContent.trim().match(/^[A-Za-z_]\w*/)?.[0]
+      if (name) {
+        this.formulaNodeClicked({ type: 'function', name })
       }
     },
     /**
@@ -952,9 +1058,19 @@ export default {
       if (this.isRawMode || this.disabled || this.readOnly) return
       this.editor?.commands.focus()
     },
+    /**
+     * Tells the parent when the given mode was replaced by the fallback (see
+     * `activeMode`), so the mode it saves with the next edit is the one the
+     * formula was edited in.
+     */
+    syncMode() {
+      if (this.activeMode !== this.mode) {
+        this.$emit('update:mode', this.activeMode)
+      }
+    },
     handleModeChange(newMode) {
       // If switching from advanced to simple, clear the content
-      if (this.mode === 'advanced' && newMode === 'simple') {
+      if (this.activeMode === 'advanced' && newMode === 'simple') {
         this.isHandlingModeChange = true
         this.editor.commands.clearContent()
         this.$emit('update:mode', newMode)
@@ -968,7 +1084,10 @@ export default {
       } else {
         // Otherwise (simple to advanced), keep the current formula
         // Get the formula BEFORE changing the mode, using the CURRENT mode
-        const currentFormula = this.toFormula(this.wrapperContent, this.mode)
+        const currentFormula = this.toFormula(
+          this.wrapperContent,
+          this.activeMode
+        )
 
         // Set flag to prevent automatic recreation from watcher
         this.isHandlingModeChange = true

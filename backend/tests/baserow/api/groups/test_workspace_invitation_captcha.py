@@ -18,7 +18,6 @@ def invite(api_client, token, workspace, captcha_token=None):
     body = {
         "email": "test@test.nl",
         "permissions": "ADMIN",
-        "base_url": "http://localhost:3000/invite",
     }
 
     if captcha_token is not None:

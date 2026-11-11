@@ -6,6 +6,7 @@ from baserow.contrib.builder.data_sources.exceptions import (
     DataSourceRefinementForbidden,
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.core.exceptions import PermissionException
@@ -27,14 +28,27 @@ class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
     def validate(self, data):
         """
         Responsible for validating the data source dispatch request. Ensures that
-        the dispatched element belongs to the same page as the data source.
+        the dispatched element belongs to the same page as the data source and
+        that the user is allowed to see it.
+
+        The element of the workflow action being dispatched is exempt from the
+        visibility check: the dispatch permission itself decides whether the
+        actor may use that element's actions, and it knows that an after-login
+        action is run by a user who can no longer see the `not-logged` login
+        form that was just submitted.
         """
 
         page = self.context.get("page")
         element = data.get("element")
         if element:
             user = self.context.get("user")
-            if user is not None:
+            workflow_action = self.context.get("workflow_action")
+            is_own_element = (
+                workflow_action is not None and element.id == workflow_action.element_id
+            )
+            if is_own_element:
+                data["element"] = ElementHandler().get_element(element.id)
+            elif user is not None:
                 try:
                     data["element"] = ElementService().get_element(user, element.id)
                 except (ElementDoesNotExist, PermissionException):

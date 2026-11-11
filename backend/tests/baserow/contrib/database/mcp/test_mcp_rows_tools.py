@@ -14,7 +14,8 @@ from baserow.core.mcp import BaserowMCPServer, current_key
 
 
 @pytest.mark.django_db
-def test_call_tool_list_rows(data_fixture):
+@pytest.mark.parametrize("extra_arguments", [{}, {"unknown_argument": True}])
+def test_call_tool_list_rows(data_fixture, extra_arguments):
     endpoint = data_fixture.create_mcp_endpoint()
     database = data_fixture.create_database_application(workspace=endpoint.workspace)
     table = data_fixture.create_database_table(database=database)
@@ -30,7 +31,7 @@ def test_call_tool_list_rows(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    "list_table_rows", {"table_id": table.id}
+                    "list_table_rows", {"table_id": table.id, **extra_arguments}
                 )
                 data = json.loads(result.content[0].text)
                 assert data["count"] == 1
@@ -58,7 +59,7 @@ def test_call_tool_list_rows_cross_workspace_returns_error(data_fixture):
                 result = await client.call_tool(
                     "list_table_rows", {"table_id": other_table.id}
                 )
-                assert "does not exist" in result.content[0].text.lower()
+                assert result.content[0].text == "Not found in this workspace."
 
         with transaction.atomic():
             async_to_sync(inner)()
@@ -133,7 +134,8 @@ def test_call_tool_list_rows_pagination(data_fixture):
 
 
 @pytest.mark.django_db
-def test_call_tool_create_rows(data_fixture):
+@pytest.mark.parametrize("extra_arguments", [{}, {"unknown_argument": True}])
+def test_call_tool_create_rows(data_fixture, extra_arguments):
     endpoint = data_fixture.create_mcp_endpoint()
     database = data_fixture.create_database_application(workspace=endpoint.workspace)
     table = data_fixture.create_database_table(database=database)
@@ -151,6 +153,7 @@ def test_call_tool_create_rows(data_fixture):
                     {
                         "table_id": table.id,
                         "rows": [{"Name": "Alice"}, {"Name": "Bob"}],
+                        **extra_arguments,
                     },
                 )
                 data = json.loads(result.content[0].text)
@@ -181,7 +184,7 @@ def test_call_tool_create_rows_cross_workspace_returns_error(data_fixture):
                     "create_rows",
                     {"table_id": other_table.id, "rows": [{"Name": "Test"}]},
                 )
-                assert "does not exist" in result.content[0].text.lower()
+                assert result.content[0].text == "Not found in this workspace."
 
         with transaction.atomic():
             async_to_sync(inner)()
@@ -216,7 +219,8 @@ def test_call_tool_create_rows_unknown_field_returns_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_call_tool_update_rows(data_fixture):
+@pytest.mark.parametrize("extra_arguments", [{}, {"unknown_argument": True}])
+def test_call_tool_update_rows(data_fixture, extra_arguments):
     endpoint = data_fixture.create_mcp_endpoint()
     database = data_fixture.create_database_application(workspace=endpoint.workspace)
     table = data_fixture.create_database_table(database=database)
@@ -236,6 +240,7 @@ def test_call_tool_update_rows(data_fixture):
                     {
                         "table_id": table.id,
                         "rows": [{"id": row.id, "Name": "Updated"}],
+                        **extra_arguments,
                     },
                 )
                 data = json.loads(result.content[0].text)
@@ -265,7 +270,7 @@ def test_call_tool_update_rows_cross_workspace_returns_error(data_fixture):
                     "update_rows",
                     {"table_id": other_table.id, "rows": [{"id": 1, "Name": "Test"}]},
                 )
-                assert "does not exist" in result.content[0].text.lower()
+                assert result.content[0].text == "Not found in this workspace."
 
         with transaction.atomic():
             async_to_sync(inner)()
@@ -274,7 +279,8 @@ def test_call_tool_update_rows_cross_workspace_returns_error(data_fixture):
 
 
 @pytest.mark.django_db
-def test_call_tool_delete_rows(data_fixture):
+@pytest.mark.parametrize("extra_arguments", [{}, {"unknown_argument": True}])
+def test_call_tool_delete_rows(data_fixture, extra_arguments):
     endpoint = data_fixture.create_mcp_endpoint()
     database = data_fixture.create_database_application(workspace=endpoint.workspace)
     table = data_fixture.create_database_table(database=database)
@@ -292,7 +298,11 @@ def test_call_tool_delete_rows(data_fixture):
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
                     "delete_rows",
-                    {"table_id": table.id, "row_ids": [row1.id, row2.id]},
+                    {
+                        "table_id": table.id,
+                        "row_ids": [row1.id, row2.id],
+                        **extra_arguments,
+                    },
                 )
                 assert result.content[0].text == "Rows successfully deleted."
 
@@ -320,7 +330,7 @@ def test_call_tool_delete_rows_cross_workspace_returns_error(data_fixture):
                     "delete_rows",
                     {"table_id": other_table.id, "row_ids": [1]},
                 )
-                assert "does not exist" in result.content[0].text.lower()
+                assert result.content[0].text == "Not found in this workspace."
 
         with transaction.atomic():
             async_to_sync(inner)()

@@ -17,7 +17,7 @@ def register_code_runner_features():
     )
     from baserow.core.code_runner.registries import code_runner_type_registry
     from baserow.core.services.registries import service_type_registry
-    from baserow_enterprise.automation.nodes.node_types import CoreCodeNodeType
+    from baserow_enterprise.automation.nodes.node_types import CoreCodeActionNodeType
     from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
         CoreCodeActionType,
     )
@@ -29,7 +29,7 @@ def register_code_runner_features():
     code_runner_type_registry.register(WasmtimeQuickJSCodeRunnerType())
     service_type_registry.register(CoreCodeServiceType())
     builder_workflow_action_type_registry.register(CoreCodeActionType())
-    automation_node_type_registry.register(CoreCodeNodeType())
+    automation_node_type_registry.register(CoreCodeActionNodeType())
 
 
 def register_xls_file_reader_features():
@@ -40,7 +40,9 @@ def register_xls_file_reader_features():
         builder_workflow_action_type_registry,
     )
     from baserow.core.services.registries import service_type_registry
-    from baserow_enterprise.automation.nodes.node_types import CoreXLSFileReaderNodeType
+    from baserow_enterprise.automation.nodes.node_types import (
+        CoreXLSFileReaderActionNodeType,
+    )
     from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
         CoreXLSFileReaderActionType,
     )
@@ -50,7 +52,52 @@ def register_xls_file_reader_features():
 
     service_type_registry.register(CoreXLSFileReaderServiceType())
     builder_workflow_action_type_registry.register(CoreXLSFileReaderActionType())
-    automation_node_type_registry.register(CoreXLSFileReaderNodeType())
+    automation_node_type_registry.register(CoreXLSFileReaderActionNodeType())
+
+
+def register_semantic_search_features():
+    from baserow.api.settings.registries import settings_data_registry
+    from baserow.contrib.database.fields.registries import field_extension_registry
+    from baserow.contrib.database.search.registries import search_data_updater_registry
+    from baserow_enterprise.api.semantic_search.settings_data_types import (
+        SemanticSearchSettingsDataType,
+    )
+    from baserow_enterprise.semantic_search.field_extension_types import (
+        SemanticSearchFieldExtensionType,
+    )
+    from baserow_enterprise.semantic_search.registries import (
+        semantic_search_field_type_registry,
+    )
+    from baserow_enterprise.semantic_search.search_data_updater_types import (
+        SemanticSearchDataUpdaterType,
+    )
+    from baserow_enterprise.semantic_search.semantic_search_field_types import (
+        AISemanticSearchFieldType,
+        EmailSemanticSearchFieldType,
+        FormulaSemanticSearchFieldType,
+        LongTextSemanticSearchFieldType,
+        LookupSemanticSearchFieldType,
+        PhoneNumberSemanticSearchFieldType,
+        RollupSemanticSearchFieldType,
+        TextSemanticSearchFieldType,
+        URLSemanticSearchFieldType,
+    )
+
+    semantic_search_field_type_registry.register(TextSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(LongTextSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(URLSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(EmailSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(PhoneNumberSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(FormulaSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(LookupSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(RollupSemanticSearchFieldType())
+    semantic_search_field_type_registry.register(AISemanticSearchFieldType())
+
+    field_extension_registry.register(SemanticSearchFieldExtensionType())
+    search_data_updater_registry.register(SemanticSearchDataUpdaterType())
+    settings_data_registry.register(SemanticSearchSettingsDataType())
+
+    import baserow_enterprise.semantic_search.receivers  # noqa: F401
 
 
 class BaserowEnterpriseConfig(AppConfig):
@@ -71,6 +118,23 @@ class BaserowEnterpriseConfig(AppConfig):
         )
 
         job_type_registry.register(AuditLogExportJobType())
+
+        from baserow.core.mcp.groups import (
+            AuditLogReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow_enterprise.mcp.audit_log.tools import (
+            ListAuditLogMcpTool,
+        )
+        from baserow_enterprise.mcp.builder.user_sources.tools import (
+            SetupUserSourceMcpTool,
+        )
+
+        mcp_tool_group_registry.register(AuditLogReadMCPToolGroup())
+        mcp_tool_registry.register(ListAuditLogMcpTool())
+        mcp_tool_registry.register(SetupUserSourceMcpTool())
+
         job_type_registry.register(DataScanResultExportJobType())
         agent_extension_type_registry.register(EnterpriseAgentExtensionType())
 
@@ -92,7 +156,15 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.operations import (
             ChatAssistantChatOperationType,
         )
-        from baserow_enterprise.role.actions import BatchAssignRoleActionType
+        from baserow_enterprise.role.actions import (
+            BatchAssignRoleActionType,
+            CreateScopedInvitationActionType,
+            CreateScopedInvitationLinkActionType,
+            DeleteScopedInvitationActionType,
+            DeleteScopedInvitationLinkActionType,
+            UpdateScopedInvitationActionType,
+            UpdateScopedInvitationLinkActionType,
+        )
         from baserow_enterprise.scopes import TeamsActionScopeType
         from baserow_enterprise.teams.actions import (
             CreateTeamActionType,
@@ -126,7 +198,10 @@ class BaserowEnterpriseConfig(AppConfig):
             UpdateFieldPermissionsOperationType,
         )
         from .plugins import EnterprisePlugin
-        from .role.member_data_types import EnterpriseRolesDataType
+        from .role.member_data_types import (
+            EnterpriseRoleAssignmentCountDataType,
+            EnterpriseRolesDataType,
+        )
         from .role.operations import (
             AssignRoleWorkspaceOperationType,
             ReadRoleApplicationOperationType,
@@ -159,12 +234,19 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(CreateTeamSubjectActionType())
         action_type_registry.register(DeleteTeamSubjectActionType())
         action_type_registry.register(BatchAssignRoleActionType())
+        action_type_registry.register(CreateScopedInvitationActionType())
+        action_type_registry.register(UpdateScopedInvitationActionType())
+        action_type_registry.register(DeleteScopedInvitationActionType())
+        action_type_registry.register(CreateScopedInvitationLinkActionType())
+        action_type_registry.register(UpdateScopedInvitationLinkActionType())
+        action_type_registry.register(DeleteScopedInvitationLinkActionType())
         action_type_registry.register(UpdateFieldPermissionsActionType())
 
         trash_item_type_registry.register(TeamTrashableItemType())
 
         member_data_registry.register(EnterpriseMemberTeamsDataType())
         member_data_registry.register(EnterpriseRolesDataType())
+        member_data_registry.register(EnterpriseRoleAssignmentCountDataType())
 
         object_scope_type_registry.register(TeamObjectScopeType())
         object_scope_type_registry.register(TeamSubjectObjectScopeType())
@@ -213,6 +295,17 @@ class BaserowEnterpriseConfig(AppConfig):
 
         permission_manager_type_registry.register(FieldPermissionManagerType())
         permission_manager_type_registry.register(RolePermissionManagerType())
+
+        from baserow.core.registries import invitation_link_scope_type_registry
+
+        from .role.constants import ROLE_ASSIGNABLE_OBJECT_MAP
+        from .role.invitation_link_scope_types import RoleInvitationLinkScopeType
+
+        for scope_type_name in ROLE_ASSIGNABLE_OBJECT_MAP:
+            if scope_type_name != "workspace":
+                invitation_link_scope_type_registry.register(
+                    RoleInvitationLinkScopeType(scope_type_name)
+                )
 
         from baserow_enterprise.license_types import (
             AdvancedLicenseType,
@@ -281,6 +374,7 @@ class BaserowEnterpriseConfig(AppConfig):
 
         register_code_runner_features()
         register_xls_file_reader_features()
+        register_semantic_search_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
@@ -425,22 +519,13 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.assistant.tools.automation.tool_types import (
             AutomationToolType,
         )
-        from baserow_enterprise.assistant.tools.builder.assistant_element_types import (
-            ButtonAssistantElementType,
-            ColumnAssistantElementType,
-            FooterAssistantElementType,
-            HeaderAssistantElementType,
-            LinkAssistantElementType,
-            MenuAssistantElementType,
-            TableAssistantElementType,
-        )
-        from baserow_enterprise.assistant.tools.builder.registries import (
-            assistant_element_type_registry,
-        )
         from baserow_enterprise.assistant.tools.builder.tool_types import (
             BuilderToolType,
         )
         from baserow_enterprise.assistant.tools.core.tool_types import CoreToolType
+        from baserow_enterprise.assistant.tools.dashboard.tool_types import (
+            DashboardToolType,
+        )
         from baserow_enterprise.assistant.tools.database.tool_types import (
             DatabaseToolType,
         )
@@ -469,15 +554,9 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(CoreToolType())
         assistant_tool_registry.register(DatabaseToolType())
         assistant_tool_registry.register(AutomationToolType())
+        assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
-        assistant_element_type_registry.register(TableAssistantElementType())
-        assistant_element_type_registry.register(ButtonAssistantElementType())
-        assistant_element_type_registry.register(LinkAssistantElementType())
-        assistant_element_type_registry.register(ColumnAssistantElementType())
-        assistant_element_type_registry.register(MenuAssistantElementType())
-        assistant_element_type_registry.register(HeaderAssistantElementType())
-        assistant_element_type_registry.register(FooterAssistantElementType())
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

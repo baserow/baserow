@@ -55,3 +55,21 @@ describe('WorkspaceRoleSelector', () => {
     expect(wrapper.html()).toMatchSnapshot()
   })
 })
+
+test('uses role metadata for the selected icon and can hide it', async () => {
+  const wrapper = await mountSuspended(WorkspaceRoleSelector, {
+    props: {
+      workspace,
+      modelValue: 'CUSTOM',
+      roles: [{ uid: 'CUSTOM', name: 'Custom role', icon: 'iconoir-star' }],
+      showRoleIcons: true,
+    },
+    global: { mocks: { $registry: { getAll: () => ({}) } } },
+  })
+  expect(wrapper.get('.dropdown__selected-icon').classes()).toContain(
+    'iconoir-star'
+  )
+  await wrapper.setProps({ showRoleIcons: false })
+  expect(wrapper.find('.dropdown__selected-icon').exists()).toBe(false)
+  wrapper.unmount()
+})

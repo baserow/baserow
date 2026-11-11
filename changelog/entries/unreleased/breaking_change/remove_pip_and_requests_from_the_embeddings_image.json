@@ -1,0 +1,14 @@
+{
+    "type": "breaking_change",
+    "message": "Remove pip and requests from the embeddings image",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "transformers is replaced by tokenizers",
+        "Health checks can't import requests anymore",
+        "Use python -m ensurepip --default-pip for pip",
+        "The image moves to Python 3.14 and Debian 13"
+    ],
+    "created_at": "2026-10-14"
+}

@@ -32,53 +32,33 @@ import {
   BarElement,
   PointElement,
   BarController,
-  BubbleController,
   DoughnutController,
   LineController,
   PieController,
-  PolarAreaController,
-  RadarController,
-  ScatterController,
   CategoryScale,
   LinearScale,
-  LogarithmicScale,
-  RadialLinearScale,
-  TimeScale,
-  TimeSeriesScale,
-  Decimation,
-  Filler,
   Legend,
   Title,
   Tooltip,
-  SubTitle,
 } from 'chart.js'
 import { convertChartJsType } from '@baserow_premium/utils/chart'
 
+// Only register what the bar, line, pie and doughnut series need, so that the
+// unused chart.js controllers, scales and plugins can be tree-shaken.
 ChartJS.register(
   ArcElement,
   LineElement,
   BarElement,
   PointElement,
   BarController,
-  BubbleController,
   DoughnutController,
   LineController,
   PieController,
-  PolarAreaController,
-  RadarController,
-  ScatterController,
   CategoryScale,
   LinearScale,
-  LogarithmicScale,
-  RadialLinearScale,
-  TimeScale,
-  TimeSeriesScale,
-  Decimation,
-  Filler,
   Legend,
   Title,
-  Tooltip,
-  SubTitle
+  Tooltip
 )
 
 export default {
@@ -154,8 +134,9 @@ export default {
                         newLabel.text = dataset.label
                       }
                       newLabel.fillStyle =
-                        datasetColors[datasetIndex]?.[label.index % 10] ||
-                        label.fillStyle
+                        datasetColors[datasetIndex]?.[
+                          label.index % datasetColors[datasetIndex].length
+                        ] || label.fillStyle
                       newLabels.push(newLabel)
                     })
                     datasetIndex += 1
@@ -176,6 +157,34 @@ export default {
             },
           },
         },
+        ...(this.chartComponent === 'Bar'
+          ? {
+              scales: {
+                x: {
+                  ticks: {
+                    callback(value) {
+                      const label = String(this.getLabelForValue(value))
+                      const labelCount = Math.max(
+                        this.chart.data.labels.length,
+                        1
+                      )
+                      // Tick labels are measured before chartArea exists on mount.
+                      const chartWidth =
+                        this.chart.chartArea?.width ?? this.chart.width ?? 175
+                      const availableWidth = chartWidth / labelCount
+                      const maxCharacters = Math.max(
+                        4,
+                        Math.min(25, Math.floor(availableWidth / 7))
+                      )
+                      return label.length > maxCharacters
+                        ? `${label.slice(0, maxCharacters - 1)}…`
+                        : label
+                    },
+                  },
+                },
+              },
+            }
+          : {}),
         elements: {
           bar: {
             borderRadius: {

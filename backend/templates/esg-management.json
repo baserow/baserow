@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "ESG Management",
+    "description": "Track ESG targets, initiatives and actions against the UN SDGs.",
     "icon": "iconoir-globe",
     "keywords": [
         "ESG",

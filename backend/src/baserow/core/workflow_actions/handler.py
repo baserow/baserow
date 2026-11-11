@@ -5,6 +5,7 @@ from django.core.files.storage import Storage
 from django.db.models import QuerySet
 
 from baserow.core.db import specific_iterator
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
@@ -139,6 +140,7 @@ class WorkflowActionHandler(ABC):
     def export_workflow_action(
         self,
         workflow_action,
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
@@ -153,5 +155,9 @@ class WorkflowActionHandler(ABC):
         """
 
         return workflow_action.get_type().export_serialized(
-            workflow_action, files_zip=files_zip, storage=storage, cache=cache
+            workflow_action,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )

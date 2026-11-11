@@ -2,6 +2,7 @@ from django.urls import include, path
 
 from drf_spectacular.views import SpectacularRedocView
 
+from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.registries import (
     application_type_registry,
     auth_provider_type_registry,
@@ -15,6 +16,7 @@ from .agents import urls as agents_urls
 from .ai_provider import urls as ai_provider_urls
 from .applications import urls as application_urls
 from .auth_provider import urls as auth_provider_urls
+from .chat_runs import urls as chat_runs_urls
 from .health import urls as health_urls
 from .integrations import urls as integrations_urls
 from .jobs import urls as jobs_urls
@@ -25,6 +27,7 @@ from .search import urls as search_urls
 from .settings import urls as settings_urls
 from .snapshots import urls as snapshots_urls
 from .spectacular.views import CachedSpectacularJSONAPIView
+from .subjects import urls as subjects_urls
 from .templates import urls as templates_urls
 from .trash import urls as trash_urls
 from .two_factor_auth import urls as two_factor_urls
@@ -47,6 +50,7 @@ urlpatterns = (
         path("settings/", include(settings_urls, namespace="settings")),
         path("abuse-reports/", include(abuse_reports_urls, namespace="abuse_reports")),
         path("agents/", include(agents_urls, namespace="agents")),
+        path("chat-runs/", include(chat_runs_urls, namespace="chat_runs")),
         path("auth-provider/", include(auth_provider_urls, namespace="auth_provider")),
         path("two-factor-auth/", include(two_factor_urls, namespace="two_factor_auth")),
         path("user/", include(user_urls, namespace="user")),
@@ -57,6 +61,7 @@ urlpatterns = (
         path("trash/", include(trash_urls, namespace="trash")),
         path("jobs/", include(jobs_urls, namespace="jobs")),
         path("snapshots/", include(snapshots_urls, namespace="snapshots")),
+        path("subjects/", include(subjects_urls, namespace="subjects")),
         path("_health/", include(health_urls, namespace="health")),
         path("notifications/", include(notifications_urls, namespace="notifications")),
         path("search/", include(search_urls, namespace="search")),
@@ -77,4 +82,5 @@ urlpatterns = (
     + auth_provider_type_registry.api_urls
     + plugin_registry.api_urls
     + service_type_registry.api_urls
+    + integration_type_registry.api_urls
 )

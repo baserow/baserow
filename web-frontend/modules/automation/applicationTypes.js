@@ -7,6 +7,7 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 import WorkflowTemplate from '@baserow/modules/automation/components/workflow/WorkflowTemplate.vue'
 import WorkflowTemplateSideBar from '@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue'
+import { integrationsErrorMessage } from '@baserow/modules/core/utils/integration'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -31,6 +32,11 @@ export class AutomationApplicationType extends ApplicationType {
     return i18n.t('applicationType.automations')
   }
 
+  getViewLabel() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('applicationType.viewAutomation')
+  }
+
   getDescription() {
     const { $i18n: i18n } = this.app
     return i18n.t('applicationType.automationDesc')
@@ -47,6 +53,10 @@ export class AutomationApplicationType extends ApplicationType {
 
   getApplicationContextComponent() {
     return ApplicationContext
+  }
+
+  getErrorMessage(application) {
+    return integrationsErrorMessage(this.app, application.integrations)
   }
 
   getApplicationFormComponent() {

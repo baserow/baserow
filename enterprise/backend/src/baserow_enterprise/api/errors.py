@@ -78,8 +78,20 @@ ERROR_CANT_ASSIGN_ROLE_EXCEPTION_TO_ADMIN = (
     "You can't assign a role exception to a scope with ADMIN role.",
 )
 
+ERROR_CANT_ASSIGN_ROLE_TO_SELF = (
+    "ERROR_CANT_ASSIGN_ROLE_TO_SELF",
+    HTTP_400_BAD_REQUEST,
+    "You can't assign a role to yourself. Ask another admin.",
+)
+
 ERROR_LAST_ADMIN_OF_GROUP = (
     "ERROR_LAST_ADMIN_OF_GROUP",
     HTTP_400_BAD_REQUEST,
     "You can't remove the last admin of a workspace.",
+)
+
+ERROR_SCOPED_INVITATION_DOES_NOT_EXIST = (
+    "ERROR_SCOPED_INVITATION_DOES_NOT_EXIST",
+    HTTP_404_NOT_FOUND,
+    "The requested scoped invitation does not exist.",
 )

@@ -17,11 +17,17 @@ export default {
       control: 'text',
       description: 'Icon class name',
     },
+    size: {
+      control: 'select',
+      options: ['regular', 'small'],
+      description: 'Size of the chips',
+    },
   },
   args: {
     active: false,
     disabled: false,
     icon: '',
+    size: 'regular',
   },
 }
 

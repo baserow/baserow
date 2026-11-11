@@ -9,6 +9,7 @@ from asgiref.sync import async_to_sync
 from oauth2_provider.models import AccessToken, RefreshToken
 
 from baserow.core.mcp.auth import resolve_bearer
+from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
     cimd_client,
@@ -67,7 +68,9 @@ def test_list_connections(client, api_client, data_fixture, settings):
 
 
 @pytest.mark.django_db
-def test_list_connections_counts_all_tools_when_unrestricted(api_client, data_fixture):
+def test_list_connections_counts_legacy_tools_when_unrestricted(
+    api_client, data_fixture
+):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     data_fixture.create_mcp_endpoint(
@@ -81,8 +84,8 @@ def test_list_connections_counts_all_tools_when_unrestricted(api_client, data_fi
     assert connection["client_name"] == "Gone client"
     assert connection["verified"] is False
     assert connection["verified_host"] is None
-    assert connection["allowed_tools"] is None
-    assert connection["tool_count"] == len(enabled_tool_names())
+    assert connection["allowed_tools"] == LEGACY_DEFAULT_TOOLS
+    assert connection["tool_count"] == len(LEGACY_DEFAULT_TOOLS)
 
 
 @pytest.mark.django_db
@@ -208,13 +211,11 @@ def test_tool_count_ignores_disabled_tools(client, api_client, data_fixture):
 
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
-    MCPEndpointHandler().grant_oauth_client(
-        user,
-        workspace,
-        cimd_client(client),
-        "c",
-        ["list_tables", "no_longer_registered"],
+    endpoint, _ = MCPEndpointHandler().grant_oauth_client(
+        user, workspace, cimd_client(client), "c", ["list_tables"]
     )
+    endpoint.allowed_tools = ["list_tables", "no_longer_registered"]
+    endpoint.save()
 
     response = api_client.get(reverse(LIST_URL), HTTP_AUTHORIZATION=f"JWT {token}")
 

@@ -41,6 +41,10 @@
   color: $palette-neutral-600;
   font-size: 18px;
 
+  .chips--small & {
+    font-size: 14px;
+  }
+
   .chips--active:not(.chips--disabled) & {
     color: #4653e5;
   }
@@ -53,4 +57,18 @@
 .chips--disabled {
   border-color: $palette-neutral-200;
   color: $palette-neutral-700;
+}
+
+.chips--small {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
+  border-color: $palette-neutral-300;
+  border-radius: 13px;
+
+  &.chips--active:not(.chips--disabled) {
+    color: $palette-blue-600;
+  }
 }

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Book Catalog",
+    "description": "Catalog your books with authors, publishers and reading status.",
     "icon": "iconoir-book",
     "keywords": [
         "book catalog",

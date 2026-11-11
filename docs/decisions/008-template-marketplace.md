@@ -26,8 +26,9 @@ Official templates keep working as they do today.
 | User template      | Created by a user of this instance, who is its author.                                                                                               |
 | Private / public   | Whether a user template is listed. Every user template starts private; making it public is an explicit action.                                       |
 | Template link      | Permanent, non-secret address of a template.                                                                                                         |
-| Private link       | Optional secret, rotatable, login-only link the author can create to share a template. Opening it grants the signed-in user access to that template. |
-| Template workspace | Hidden, memberless workspace holding a user template's content.                                                                                      |
+| Private link       | Optional secret, rotatable link the author can create to share a template. Anyone who opens it can preview that template; installing requires login. |
+| Revision           | One version of a user template's content and details. The first one is created with the template, and every update creates a new one.                |
+| Template workspace | Hidden, memberless workspace holding a revision's content.                                                                                           |
 
 ## Decision
 
@@ -44,6 +45,10 @@ managed independently and never affect each other; repository synchronization on
 manages official templates. For viewers they offer the same functionality: they use the
 same categories and are previewed and installed the same way.
 
+Both kinds are stored as templates, told apart by their type. Every feature that reads
+templates states which kind it serves, so official template features never see user
+templates.
+
 ### 2. The content is a hidden workspace
 
 A user template's content is a hidden, memberless workspace with a copy of the selected
@@ -57,8 +62,9 @@ it, install copies from it, and download exports it.
 - The copy follows the content rules below. Before creating or updating content, the
   author is told which kinds of data the copy removes and that everything else is shared
   as it is.
-- Updating content replaces the copy. The template keeps its identity and links, and a
-  failed or cancelled update leaves the previous content in place.
+- Updating content or details creates a new revision; earlier revisions and their
+  content are not changed. The template keeps its identity and links, and a failed or
+  cancelled update leaves its revisions as they were.
 - The template workspace is migrated like every other workspace, so installs always
   start from current data.
 - A template workspace does not count toward the usage of any workspace, like an
@@ -109,6 +115,7 @@ by its state, the private link and the actor's role:
 | -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------------------------- |
 | Anonymous                              | —                          | preview                    | —                                                             |
 | Signed-in user                         | —                          | preview, install           | —                                                             |
+| Anyone who opened private link         | preview                    | preview                    | —                                                             |
 | Signed-in user who opened private link | preview, install           | preview, install           | —                                                             |
 | Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, submit for review, delete |
 | Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                                    |
@@ -129,7 +136,7 @@ if it does not exist.
   Access gained through it lasts until revoked.
 - Rotating or removing the private link revokes access for everyone who opened it; the
   template link stays the same.
-- Blocking suspends the private link and granted access; leaving block restores them.
+- Blocking suspends the private link and granted access; unblocking restores them.
 - Deactivating the author or scheduling their account deletion does not change their
   templates; deleting the author deletes them (section 7).
 - Access changes take effect immediately.
@@ -141,27 +148,30 @@ if it does not exist.
   template and their name are listed for everyone on the instance. If the instance does
   not require approval, the template becomes public at once.
 - **If the instance requires approval**, the template stays pending until an instance
-  admin approves it (public) or rejects it (private, with a reason). Any edit of a public
-  template sends it back to review; an approval covers only what the admin reviewed. The
-  author can resubmit a rejected template, and an instance admin can still approve it.
+  admin approves it (public) or rejects it (private, with a reason). The author can
+  resubmit a rejected template, and an instance admin can still approve it.
+- **The listing shows the last approved revision.** Editing a public template creates a
+  new revision that goes to review while the approved one stays listed; approving the new
+  revision replaces it in the listing, and rejecting it leaves the listing unchanged. An
+  approval covers only the revision the admin reviewed.
 - **Reject** of a public template is available to instance admins whether or not the
   instance requires approval, to take it out of the listing.
 - **Making private** withdraws the listing; the private link keeps working.
 - **Block** is instance admin moderation, in any state, with a reason. The author can
   view and delete a blocked template, change its details or content, and submit it for
-  review. A blocked template leaves block only through review, whether or not the
-  instance requires approval: an instance admin approves the submitted content and
-  details, or the current ones directly, which returns the template to the state it had
-  before (pending becomes public), or keeps it blocked. Any edit withdraws a submission.
-  Unlike reject, block also suspends the private link.
+  review. **Unblock** is a separate instance admin action that returns the template to
+  the state it had before the block; reviewing a revision of a blocked template does not
+  unblock it. Unlike reject, block also suspends the private link.
 - **Abuse reports** use the existing abuse report flow.
 
 ### 6. Install and download
 
 - Install works the same way as installing an official template, and the installed copy
-  follows section 2.
+  follows section 2. It copies the revision the user opened, even if the author updates
+  the template meanwhile.
 - Download works the same way as downloading a workspace export: a signed archive that
-  another instance can import.
+  another instance can import. A revision's archive is made the first time someone
+  downloads it, and every later download reuses it until Baserow is upgraded.
 - Installed copies are independent: later changes to the template never affect them.
 
 ### 7. Deletion
@@ -177,14 +187,15 @@ permanently later; downloaded archives and installed copies are unaffected.
 | Add viewers as read-only workspace members   | Preview shows up among the user's workspaces, counts toward seats and triggers member notifications.                        |
 | One link as both address and secret          | Rotating a leaked link would also change the address of a public template already shared elsewhere.                         |
 | Store an export archive as the content       | Not migrated with workspaces, so installs start from an outdated copy; needs version-tolerant import.                       |
+| Replace the content in place on update       | A public template would either show unreviewed content or leave the listing while its edit is reviewed.                     |
 | Let the author choose what the copy keeps    | Installers could no longer rely on section 2, and import would need to know what was kept on purpose.                       |
 | Trash with restore                           | Workspace trash does not fit memberless template workspaces, and restore has no current need.                               |
 
 ## Consequences
 
-- Each user template costs a full copy of its tables and files. There are no size or
-  count limits; instance admins can delete templates, and limits are the lever if
-  storage grows.
+- Every revision of a user template keeps its content, which costs storage. There are
+  no size or count limits; instance admins can delete templates, and limits are the lever
+  if storage grows.
 - User template previews cannot demonstrate every behavior (section 3).
 - Installed copies need their credentials, request secrets, data sync connections and
   app user passwords set again, and their custom code and embedded HTML turned on.

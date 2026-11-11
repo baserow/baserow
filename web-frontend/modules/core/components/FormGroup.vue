@@ -7,7 +7,7 @@
         horizontal || horizontalNarrow || horizontalVariable,
       'control--horizontal-narrow': horizontalNarrow,
       'control--horizontal-variable': horizontalVariable,
-      'control--messages': hasMessages,
+      'control--messages': hasMessages(),
       'control--after-input': hasAfterInputSlot,
       'control--error': hasError,
     }"
@@ -30,7 +30,7 @@
           'tooltip__content--expandable',
           'tooltip__content--expandable-plain-text',
         ]"
-        icon="info-empty"
+        icon="iconoir-info-empty"
       />
       <span v-if="hasAfterLabelSlot" class="control__after-label">
         <slot name="after-label" />
@@ -68,18 +68,18 @@
         <slot name="after-input"></slot>
       </div>
 
-      <div v-if="hasMessages" class="control__messages">
-        <p v-if="helperText || hasHelperSlot" class="control__helper-text">
+      <div v-if="hasMessages()" class="control__messages">
+        <p v-if="helperText || hasHelperSlot()" class="control__helper-text">
           {{ helperText }}
-          <slot v-if="hasHelperSlot" name="helper" />
+          <slot v-if="hasHelperSlot()" name="helper" />
         </p>
 
         <p v-if="hasError" class="control__messages--error">
-          <slot v-if="hasErrorSlot" name="error" />
+          <slot v-if="hasErrorSlot()" name="error" />
           <template v-else-if="errorMessage">{{ errorMessage }}</template>
         </p>
 
-        <p v-if="hasWarningSlot" class="control__messages--warning">
+        <p v-if="hasWarningSlot()" class="control__messages--warning">
           <slot name="warning" />
         </p>
       </div>
@@ -157,22 +157,18 @@ const hasError = computed(
   () => Boolean(props.error) || Boolean(props.errorMessage)
 )
 
-const hasErrorSlot = computed(() => Boolean(slots.error))
+// Slots aren't reactive, so these are read on every render instead of cached.
+const hasErrorSlot = () => Boolean(slots.error)
 const hasLabelSlot = computed(() => Boolean(slots.label))
 const hasAfterLabelSlot = computed(() => Boolean(slots['after-label']))
-const hasWarningSlot = computed(() => Boolean(slots.warning))
-const hasHelperSlot = computed(() => Boolean(slots.helper))
+const hasWarningSlot = () => Boolean(slots.warning)
+const hasHelperSlot = () => Boolean(slots.helper)
 const hasAfterInputSlot = computed(() =>
   Object.prototype.hasOwnProperty.call(slots, 'after-input')
 )
 
-const hasMessages = computed(
-  () =>
-    hasError.value ||
-    props.helperText ||
-    hasWarningSlot.value ||
-    hasHelperSlot.value
-)
+const hasMessages = () =>
+  hasError.value || props.helperText || hasWarningSlot() || hasHelperSlot()
 
 // Methods
 function enableProtectedEdit() {

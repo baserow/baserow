@@ -28,6 +28,13 @@ export class SlackBotIntegrationType extends IntegrationType {
     return this.app.$i18n.t('slackBotIntegrationType.slackBotSummary')
   }
 
+  getErrorMessage(integration) {
+    if (!integration.has_token) {
+      return this.app.$i18n.t('slackBotIntegrationType.errorNoToken')
+    }
+    return super.getErrorMessage(integration)
+  }
+
   get formComponent() {
     return SlackBotForm
   }

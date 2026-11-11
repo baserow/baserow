@@ -48,6 +48,45 @@ def test_dashboard_export_serialized(data_fixture):
 
 
 @pytest.mark.django_db
+def test_dashboard_export_serialized_passes_config_to_integrations(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    data_fixture.create_smtp_integration(
+        application=dashboard,
+        host="smtp.example.com",
+        port=587,
+        username="username",
+        password="password",
+    )
+
+    sanitized_export = DashboardApplicationType().export_serialized(
+        dashboard,
+        ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=True,
+        ),
+    )
+    normal_export = DashboardApplicationType().export_serialized(
+        dashboard,
+        ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=False,
+        ),
+    )
+
+    sanitized_integration = sanitized_export["integrations"][0]
+    normal_integration = normal_export["integrations"][0]
+
+    assert sanitized_integration["host"] is None
+    assert sanitized_integration["port"] is None
+    assert sanitized_integration["username"] is None
+    assert sanitized_integration["password"] is None
+    assert normal_integration["host"] == "smtp.example.com"
+    assert normal_integration["port"] == 587
+    assert normal_integration["username"] == "username"
+    assert normal_integration["password"] == "password"
+
+
+@pytest.mark.django_db
 def test_dashboard_export_serialized_with_widgets(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -86,7 +125,11 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
     integration = Integration.objects.filter(application=dashboard).first()
 
     serialized = DashboardApplicationType().export_serialized(
-        dashboard, ImportExportConfig(include_permission_data=True)
+        dashboard,
+        ImportExportConfig(
+            include_permission_data=True,
+            exclude_sensitive_data=False,
+        ),
     )
 
     serialized = json.loads(json.dumps(serialized))
@@ -98,7 +141,8 @@ def test_dashboard_export_serialized_with_widgets(data_fixture):
         "type": "dashboard",
         "integrations": [
             {
-                "authorized_user": user.email,
+                "authorized_subject_type": "auth.User",
+                "authorized_subject_id": user.id,
                 "id": integration.id,
                 "name": "",
                 "order": "1.00000000000000000000",
@@ -249,6 +293,31 @@ def test_dashboard_import_serialized(data_fixture):
 
 
 @pytest.mark.django_db()
+def test_dashboard_import_without_integrations_clears_service_reference(data_fixture):
+    source = data_fixture.create_dashboard_application()
+    source_data_source = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            dashboard=source
+        )
+    )
+    config = ImportExportConfig(include_permission_data=False)
+    serialized = DashboardApplicationType().export_serialized(source, config)
+    serialized["integrations"] = []
+    id_mapping = {}
+
+    imported_dashboard = DashboardApplicationType().import_serialized(
+        source.workspace, serialized, config, id_mapping
+    )
+
+    imported_data_source = DashboardDataSource.objects.get(dashboard=imported_dashboard)
+    assert imported_data_source.service.integration_id is None
+    assert (
+        id_mapping["dashboard_data_sources"][source_data_source.id]
+        == imported_data_source.id
+    )
+
+
+@pytest.mark.django_db()
 def test_dashboard_import_serialized_with_legacy_widgets(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -271,7 +340,8 @@ def test_dashboard_import_serialized_with_legacy_widgets(data_fixture):
         "type": "dashboard",
         "integrations": [
             {
-                "authorized_user": user.email,
+                "authorized_subject_type": "auth.User",
+                "authorized_subject_id": user.id,
                 "id": 1,
                 "name": "IntegrationName",
                 "order": "1.00000000000000000000",
@@ -358,7 +428,7 @@ def test_dashboard_import_serialized_with_legacy_widgets(data_fixture):
     assert integration.content_type == ContentType.objects.get_for_model(
         LocalBaserowIntegration
     )
-    assert integration.authorized_user.id == user.id
+    assert integration.authorized_subject == user
     assert integration.name == "IntegrationName"
     assert integration.order == Decimal("1.0")
 
@@ -459,3 +529,57 @@ def test_dashboard_permanently_delete(data_fixture, settings):
     TrashHandler.permanently_delete_marked_trash()
 
     assert Dashboard.objects_and_trash.count() == 0
+
+
+@pytest.mark.django_db
+def test_dashboard_export_import_does_not_carry_the_sharing_state(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard = data_fixture.create_dashboard_application(
+        workspace=workspace, name="Dashboard 1", public=True, show_logo=False
+    )
+    dashboard.set_password("secret-password")
+    dashboard.save()
+    config = ImportExportConfig(include_permission_data=True)
+
+    serialized = DashboardApplicationType().export_serialized(dashboard, config)
+    serialized = json.loads(json.dumps(serialized))
+
+    for key in ("public", "slug", "public_password", "show_logo"):
+        assert key not in serialized
+
+    imported = DashboardApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    imported = Dashboard.objects.get(id=imported.id)
+    assert imported.public is False
+    assert imported.slug
+    assert imported.slug != dashboard.slug
+    assert imported.public_password == ""
+    assert imported.show_logo is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+def test_dashboard_export_passes_config_to_widgets(
+    data_fixture, monkeypatch, exclude_sensitive_data
+):
+    """Widget types can redact their configuration during a Dashboard export."""
+
+    widget = data_fixture.create_summary_widget(title="Private")
+    monkeypatch.setattr(widget.get_type(), "sensitive_fields", ["title"])
+
+    exported = DashboardApplicationType().export_serialized(
+        widget.dashboard,
+        ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=exclude_sensitive_data,
+        ),
+    )
+
+    assert exported["widgets"][0]["title"] == (
+        None if exclude_sensitive_data else "Private"
+    )
+    widget.refresh_from_db()
+    assert widget.title == "Private"

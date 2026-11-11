@@ -10,7 +10,13 @@
     <i v-if="loading" class="button-text__spinner"></i>
     <span v-if="$slots.default" class="button-text__label"><slot /></span>
   </a>
-  <button v-else class="button-text" :class="classes" v-bind="customBind">
+  <button
+    v-else
+    class="button-text"
+    :class="classes"
+    :type="buttonType"
+    v-bind="customBind"
+  >
     <i v-if="icon && !loading" class="button-text__icon" :class="icon" />
     <img v-else-if="image" alt="" :src="image" class="button-text__image" />
     <i v-if="loading" class="button-text__spinner"></i>
@@ -53,6 +59,17 @@ export default {
       default: 'primary',
       validator(value) {
         return ['primary', 'secondary'].includes(value)
+      },
+    },
+    /**
+     * The native type attribute when rendering a button element.
+     */
+    buttonType: {
+      required: false,
+      type: String,
+      default: null,
+      validator(value) {
+        return ['button', 'submit', 'reset'].includes(value)
       },
     },
     /**

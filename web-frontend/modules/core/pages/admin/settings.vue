@@ -77,6 +77,30 @@
             >
           </div>
         </div>
+        <div
+          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
+          class="admin-settings__item"
+        >
+          <div class="admin-settings__label">
+            <div class="admin-settings__name">
+              {{ $t('settings.settingUserTemplatesRequireApprovalName') }}
+            </div>
+            <div class="admin-settings__description">
+              {{
+                $t('settings.settingUserTemplatesRequireApprovalDescription')
+              }}
+            </div>
+          </div>
+          <div class="admin-settings__control">
+            <SwitchInput
+              :value="settings.user_templates_require_approval"
+              @input="
+                updateSettings({ user_templates_require_approval: $event })
+              "
+              >{{ $t('settings.enabled') }}</SwitchInput
+            >
+          </div>
+        </div>
       </div>
       <div class="admin-settings__group">
         <h2 class="admin-settings__group-title">
@@ -107,11 +131,7 @@
               }}
             </div>
             <div class="admin-settings__description">
-              {{
-                $t(
-                  'settings.settingAllowSignupsViaWorkspaceInvitationDescription'
-                )
-              }}
+              {{ allowSignupsViaWorkspaceInvitationsDescription }}
             </div>
           </div>
           <div class="admin-settings__control">
@@ -279,13 +299,18 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
+import {
+  FF_RBAC_IMPROVEMENTS,
+  FF_USER_TEMPLATES,
+} from '@baserow/modules/core/plugins/featureFlags'
 
 definePageMeta({
   layout: 'app',
   middleware: 'staff',
 })
 
-const { $registry, $client, $baserowVersion, $i18n } = useNuxtApp()
+const { $registry, $client, $baserowVersion, $i18n, $featureFlagIsEnabled } =
+  useNuxtApp()
 const { t: $t } = useI18n()
 const store = useStore()
 
@@ -298,6 +323,13 @@ const values = reactive({
 })
 
 const settings = computed(() => store.getters['settings/get'])
+// Invite links are still behind a feature flag, so they're only mentioned
+// when the flag is enabled.
+const allowSignupsViaWorkspaceInvitationsDescription = computed(() =>
+  $featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)
+    ? $t('settings.settingAllowSignupsViaWorkspaceInvitationOrLinkDescription')
+    : $t('settings.settingAllowSignupsViaWorkspaceInvitationDescription')
+)
 
 const emailVerificationOptions = computed(() => [
   {

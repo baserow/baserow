@@ -71,7 +71,7 @@
             selectedWorkspace.id
           )
         "
-        v-slot="{ href, navigate, isExactActive, prefetch, shouldPrefetch }"
+        v-slot="{ href, navigate, prefetch, shouldPrefetch }"
         custom
         prefetch-on="interaction"
         :to="{
@@ -84,7 +84,7 @@
         <li
           class="tree__item"
           :class="{
-            active: isExactActive,
+            active: isManagementPage,
           }"
           data-highlight="members"
         >
@@ -96,17 +96,14 @@
               @pointerenter="shouldPrefetch('interaction') && prefetch()"
               @focus="shouldPrefetch('interaction') && prefetch()"
             >
-              <i class="tree__icon iconoir-group"></i>
+              <i class="tree__icon baserow-icon-team"></i>
               <span class="tree__link-text">
                 <span class="sidebar__item-name">{{
                   $t('sidebar.members')
                 }}</span>
               </span>
-              <span
-                v-if="selectedWorkspace.users.length"
-                class="sidebar__item-count"
-              >
-                {{ selectedWorkspace.users.length }}</span
+              <span v-if="membersCount" class="sidebar__item-count">
+                {{ membersCount }}</span
               >
             </a>
           </div>
@@ -134,11 +131,7 @@
           </a>
         </div>
 
-        <InviteModal
-          ref="inviteModal"
-          :workspace="selectedWorkspace"
-          @invite-submitted="handleInvite"
-        />
+        <InviteModal ref="inviteModal" :workspace="selectedWorkspace" />
       </li>
       <component
         :is="component"
@@ -167,6 +160,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import { getWorkspaceMembersCount } from '@baserow/modules/core/utils/workspace'
 
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import NotificationPanel from '@baserow/modules/core/components/NotificationPanel'
@@ -196,6 +190,21 @@ export default {
   },
   emits: ['open-workspace-search'],
   computed: {
+    membersCount() {
+      return getWorkspaceMembersCount(
+        this.selectedWorkspace,
+        this.$hasPermission(
+          'workspace.list_agents',
+          this.selectedWorkspace,
+          this.selectedWorkspace.id
+        )
+      )
+    },
+    isManagementPage() {
+      return ['settings-members', 'settings-teams', 'settings-agents'].includes(
+        this.$route.name
+      )
+    },
     sidebarWorkspaceComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .flatMap((plugin) =>
@@ -210,17 +219,6 @@ export default {
   methods: {
     openWorkspaceSearch() {
       this.$emit('open-workspace-search')
-    },
-
-    handleInvite(event) {
-      if (this.$route.name !== 'settings-invites') {
-        this.$router.push({
-          name: 'settings-invites',
-          params: {
-            workspaceId: this.selectedWorkspace.id,
-          },
-        })
-      }
     },
   },
 }

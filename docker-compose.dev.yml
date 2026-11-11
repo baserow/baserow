@@ -348,7 +348,7 @@ services:
           "CMD",
           "python",
           "-c",
-          "import requests; requests.get('http://localhost/health').raise_for_status()",
+          "import urllib.request; urllib.request.urlopen('http://localhost/health', timeout=5)",
         ]
       interval: 1m30s
       timeout: 10s

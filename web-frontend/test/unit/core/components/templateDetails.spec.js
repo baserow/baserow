@@ -1,38 +1,24 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import {
+  mockTemplateApplications,
+  template,
+} from '@baserow/test/fixtures/templates'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
-
-const template = {
-  id: 5,
-  slug: 'project-tracker',
-  name: 'Project Tracker',
-  workspace_id: 10,
-  open_application: null,
-}
-
-const database = (id, name, order) => ({
-  id,
-  name,
-  order,
-  type: 'database',
-  workspace: { id: 10 },
-  tables: [{ id: id * 10, name: `${name} table`, order: 1, database_id: id }],
-})
+import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 
 describe('TemplateDetails', () => {
   let testApp = null
 
   beforeEach(() => {
     testApp = new TestApp()
-    // Returned out of order, so the sidebar must sort them by `order`.
-    testApp.mock
-      .onGet(`/applications/workspace/${template.workspace_id}/`)
-      .reply(200, [database(1, 'Second', 2), database(2, 'First', 1)])
+    mockTemplateApplications(testApp.mock)
   })
 
   afterEach(async () => {
+    vi.unstubAllGlobals()
     await testApp.afterEach()
   })
 
@@ -69,6 +55,18 @@ describe('TemplateDetails', () => {
     expect(wrapper.find('.template-install').exists()).toBe(true)
   })
 
+  test('shows the description only when the template has one', async () => {
+    let wrapper = await mountComponent({
+      template: { ...template, description: 'Track projects.' },
+    })
+    expect(wrapper.find('.template-details__description').text()).toBe(
+      'Track projects.'
+    )
+
+    wrapper = await mountComponent()
+    expect(wrapper.find('.template-details__description').exists()).toBe(false)
+  })
+
   test('lists the applications by order and switches the selection', async () => {
     const wrapper = await mountComponent()
 
@@ -79,6 +77,208 @@ describe('TemplateDetails', () => {
     await wrapper.findAll('.tree__link')[0].trigger('click')
 
     expect(selectedTables(wrapper)).toEqual(['First table'])
+  })
+
+  test('installs a user template', async () => {
+    const wrapper = await mountComponent({
+      template: { ...template, type: 'user' },
+    })
+
+    expect(wrapper.find('.template-details__foot').exists()).toBe(true)
+    expect(wrapper.find('.template-install').exists()).toBe(true)
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links).toHaveLength(2)
+    expect(links[0].text()).toContain('templateInstall.copyLink')
+  })
+
+  test('adds the owner actions to the install menu of an own template', async () => {
+    const userTemplate = { ...template, type: 'user' }
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      ownerActions: true,
+    })
+    expect(wrapper.find('.template-install__use').exists()).toBe(true)
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text())).toStrictEqual([
+      'templateDetails.editDetails',
+      'templateDetails.updateContent',
+      'templateInstall.download',
+      'templateDetails.delete',
+    ])
+
+    await links[0].trigger('click')
+    await links[1].trigger('click')
+
+    expect(wrapper.emitted('edit')).toStrictEqual([['details'], ['content']])
+
+    const items = wrapper.findAll('.context__menu-item')
+    const last = items[items.length - 1]
+    expect(last.classes()).toContain('context__menu-item--with-separator')
+    const link = last.find('.context__menu-item-link--delete')
+    expect(link.find('i').classes()).toContain('iconoir-bin')
+
+    await link.trigger('click')
+
+    expect(wrapper.emitted('delete')).toStrictEqual([[userTemplate]])
+  })
+
+  test.each([
+    ['private', 'templateDetails.makePublic', 'make-public'],
+    ['public', 'templateDetails.makePrivate', 'make-private'],
+  ])(
+    'offers the visibility change of a %s own template',
+    async (state, label, event) => {
+      const userTemplate = {
+        ...template,
+        type: 'user',
+        state,
+        can_make_public: event === 'make-public',
+      }
+      const wrapper = await mountComponent({
+        template: userTemplate,
+        ownerActions: true,
+      })
+
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      const links = wrapper.findAll('.context__menu-item-link')
+      expect(links.map((link) => link.text())).toStrictEqual([
+        'templateDetails.editDetails',
+        'templateDetails.updateContent',
+        label,
+        'templateInstall.download',
+        'templateDetails.delete',
+      ])
+      await links[2].trigger('click')
+      expect(wrapper.emitted(event)).toStrictEqual([[userTemplate]])
+    }
+  )
+
+  test.each([
+    ['private', true],
+    ['blocked', false],
+  ])(
+    'copies the private link of a %s own template: %s',
+    async (state, copied) => {
+      vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+      const token = 'a'.repeat(64)
+      const wrapper = await mountComponent({
+        template: {
+          ...template,
+          type: 'user',
+          state,
+          private_link_token: token,
+        },
+        ownerActions: true,
+      })
+
+      await wrapper
+        .find('.template-install__actions .button-icon')
+        .trigger('click')
+      const link = wrapper
+        .findAll('.context__menu-item-link')
+        .find((item) => item.text().includes('templateInstall.copyLink'))
+      expect(link !== undefined).toBe(copied)
+      if (copied) {
+        await link.trigger('click')
+        const [url] = navigator.clipboard.writeText.mock.calls[0]
+        expect(new URL(url).pathname).toBe(
+          `/template/project-tracker/private-link/${token}`
+        )
+      }
+    }
+  )
+
+  test('shows "You" as author of an own template, by the server', async () => {
+    const shown = { ...template, type: 'user', author_name: 'Ada' }
+    const own = await mountComponent({
+      template: { ...shown, is_own: true, state: 'private' },
+    })
+    expect(own.find('.template-details__author-name').text()).toBe(
+      'templateDetails.you'
+    )
+
+    const other = await mountComponent({ template: { ...shown, state: null } })
+    expect(other.find('.template-details__author-name').text()).toBe('Ada')
+  })
+
+  test.each([
+    ['in_review', false, true],
+    ['in_review', true, false],
+  ])(
+    'tells the owner of a %s template (listed: %s) that only they see it: %s',
+    async (state, listed, shown) => {
+      const wrapper = await mountComponent({
+        template: {
+          ...template,
+          type: 'user',
+          author_name: 'Ada',
+          is_own: true,
+          state,
+          listed,
+        },
+      })
+
+      expect(wrapper.find('.template-details__private').exists()).toBe(shown)
+    }
+  )
+
+  test('offers to submit a listed rejected own template for review again', async () => {
+    const userTemplate = {
+      ...template,
+      type: 'user',
+      state: 'rejected',
+      can_make_public: true,
+      make_public_needs_review: true,
+      listed: true,
+    }
+    const wrapper = await mountComponent({
+      template: userTemplate,
+      ownerActions: true,
+    })
+
+    await wrapper
+      .find('.template-install__actions .button-icon')
+      .trigger('click')
+    const links = wrapper.findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text()).slice(2, 4)).toStrictEqual([
+      'templateDetails.submitForReviewAgain',
+      'templateDetails.makePrivate',
+    ])
+
+    await links[2].trigger('click')
+    await links[3].trigger('click')
+
+    expect(wrapper.emitted('make-public')).toStrictEqual([[userTemplate]])
+    expect(wrapper.emitted('make-private')).toStrictEqual([[userTemplate]])
+  })
+
+  test('installs the latest revision only of an own template', async () => {
+    const userTemplate = { ...template, type: 'user' }
+    const other = await mountComponent({ template: userTemplate })
+    expect(other.findComponent(TemplateInstall).props('latest')).toBe(false)
+
+    const own = await mountComponent({
+      template: userTemplate,
+      ownerActions: true,
+    })
+    expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
+  })
+
+  test('installs the latest revision of an own template opened by its link', async () => {
+    const own = await mountComponent({
+      template: { ...template, type: 'user', is_own: true, listed: true },
+    })
+    expect(own.findComponent(TemplateInstall).props('latest')).toBe(true)
   })
 
   test('shows the back link only when asked and emits back', async () => {

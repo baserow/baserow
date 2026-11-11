@@ -55,6 +55,18 @@ class JobType(
     A number of max jobs count for the same type for a given user.
     """
 
+    lock_on_cancel: bool = False
+
+    """
+    Whether a cancellation locks the row of the job and asks `is_cancellable`
+    first. A job that commits its work before it ends can lock the row with
+    `JobHandler.lock_job` and check for a cancellation in the same transaction, so
+    that a cancellation is either noticed before the commit or refused after it.
+    The job must then save its row with `update_fields`, so that it doesn't write
+    its in-memory state over a cancellation, like `run_async_job` does when the job
+    starts.
+    """
+
     def can_schedule_or_raise(self, job: Job) -> None:
         """
         Checks whether ``job`` can be scheduled for the given user. Splits into
@@ -172,6 +184,17 @@ class JobType(
         """
 
         raise NotImplementedError("The run method must be implemented.")
+
+    def is_cancellable(self, job: AnyJob) -> bool:
+        """
+        Whether the job can still be cancelled. Only called with the locked job of
+        a type that sets `lock_on_cancel`, and only while it hasn't ended.
+
+        :param job: The specific job, as it is in the database.
+        :return: False if the cancellation must be refused.
+        """
+
+        return True
 
     def before_delete(self, job: AnyJob):
         """

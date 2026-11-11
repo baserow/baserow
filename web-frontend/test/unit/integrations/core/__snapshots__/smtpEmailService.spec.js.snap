@@ -198,7 +198,6 @@ exports[`Core SMTP email service form > defaults to instance SMTP settings when 
   >
     
     <div
-      enabled-modes="raw,simple,advanced"
       modelvalue="[object Object]"
       placeholder="smtpEmailForm.bodyPlaceholder"
       textarea=""
@@ -405,7 +404,6 @@ exports[`Core SMTP email service form > defaults to instance SMTP settings when 
   >
     
     <div
-      enabled-modes="raw,simple,advanced"
       modelvalue="[object Object]"
       placeholder="smtpEmailForm.bodyPlaceholder"
       textarea=""
@@ -612,7 +610,6 @@ exports[`Core SMTP email service form > defaults to instance SMTP settings when 
   >
     
     <div
-      enabled-modes="raw,simple,advanced"
       modelvalue="[object Object]"
       placeholder="smtpEmailForm.bodyPlaceholder"
       textarea=""
@@ -820,7 +817,6 @@ exports[`Core SMTP email service form > does not default to instance SMTP settin
   >
     
     <div
-      enabled-modes="raw,simple,advanced"
       modelvalue="[object Object]"
       placeholder="smtpEmailForm.bodyPlaceholder"
       textarea=""
@@ -1027,7 +1023,6 @@ exports[`Core SMTP email service form > shows custom SMTP fields when instance S
   >
     
     <div
-      enabled-modes="raw,simple,advanced"
       modelvalue="[object Object]"
       placeholder="smtpEmailForm.bodyPlaceholder"
       textarea=""

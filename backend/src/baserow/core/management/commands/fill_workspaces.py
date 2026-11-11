@@ -94,7 +94,7 @@ class Command(BaseCommand):
                     permissions=WORKSPACE_USER_PERMISSION_ADMIN,
                 )
 
-                for template in Template.objects.all():
+                for template in Template.objects.official():
                     CoreHandler().install_template(
                         user=user, workspace=workspace, template=template
                     )

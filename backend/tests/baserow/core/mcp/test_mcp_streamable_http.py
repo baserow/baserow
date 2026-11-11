@@ -8,7 +8,13 @@ import pytest
 from asgiref.sync import async_to_sync
 from httpx import ASGITransport, AsyncClient
 
-from baserow.core.mcp import BaserowMCPServer, current_endpoint, current_key
+from baserow.core.mcp import (
+    BaserowMCPServer,
+    connection_properties,
+    current_endpoint,
+    current_key,
+)
+from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import enabled_tool_names, obtain_tokens
 
@@ -121,8 +127,15 @@ def test_endpoint_key_lists_tools(data_fixture):
     assert _post(INIT, endpoint.key).status_code == 200
     response = _post(LIST, endpoint.key)
     assert response.status_code == 200
-    names = [t["name"] for t in response.json()["result"]["tools"]]
-    assert "list_tables" in names
+    tools = {t["name"]: t for t in response.json()["result"]["tools"]}
+    assert "list_tables" in tools
+    # OpenAI's app review requires all three hints to be sent explicitly.
+    assert tools["list_tables"]["annotations"] == {
+        "title": "List tables",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "openWorldHint": False,
+    }
 
 
 @pytest.mark.django_db(transaction=True)
@@ -206,14 +219,14 @@ def test_endpoint_key_honours_allowed_tools(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_endpoint_without_allowed_tools_gets_all_enabled_tools(data_fixture):
+def test_endpoint_without_allowed_tools_gets_legacy_default_tools(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     endpoint = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
     assert endpoint.allowed_tools is None
     response = _post(LIST, endpoint.key)
     names = [t["name"] for t in response.json()["result"]["tools"]]
-    assert names == enabled_tool_names()
+    assert set(names) == set(LEGACY_DEFAULT_TOOLS)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -557,6 +570,76 @@ def test_initialize_is_captured_as_connected(data_fixture):
     mock_capture.assert_called_once_with(
         endpoint.user,
         "mcp_connected",
-        {"endpoint_id": endpoint.id},
+        {
+            "endpoint_id": endpoint.id,
+            "transport": "streamable_http",
+            "auth": "key_header",
+        },
         workspace=endpoint.workspace,
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_oauth_calls_are_captured_with_the_app(client, api_client, data_fixture):
+    from unittest.mock import patch
+
+    from tests.baserow.core.mcp.oauth.helpers import cimd_client
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = cimd_client(client, client_name="Claude")
+    tokens = obtain_tokens(client, api_client, token, workspace, client_id=client_id)
+
+    with patch("baserow.core.posthog.capture_user_event") as mock_capture:
+        _post(INIT, tokens["access_token"])
+        _post(_call("list_databases"), tokens["access_token"])
+
+    oauth = {
+        "endpoint_id": tokens["endpoint_id"],
+        "transport": "streamable_http",
+        "auth": "oauth",
+        "client_name": "Claude",
+        "client_host": "claude.ai",
+    }
+    assert [(c.args[1], c.args[2]) for c in mock_capture.call_args_list] == [
+        ("mcp_connected", oauth),
+        ("mcp_tool_called", {**oauth, "tool": "list_databases", "success": True}),
+    ]
+
+
+@pytest.mark.django_db
+def test_connection_properties_tell_transport_auth_and_app_apart(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    key = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    cimd = data_fixture.create_mcp_endpoint(
+        user=user,
+        workspace=workspace,
+        name="Claude",
+        oauth_client_id="https://claude.ai/oauth/client.json",
+    )
+    dcr = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, name="Cursor", oauth_client_id="a1b2c3"
+    )
+
+    def over_mcp(endpoint):
+        ctx = current_endpoint.set(endpoint)
+        try:
+            return connection_properties(endpoint)
+        finally:
+            current_endpoint.reset(ctx)
+
+    assert connection_properties(key) == {"transport": "sse", "auth": "key_url"}
+    assert over_mcp(key) == {"transport": "streamable_http", "auth": "key_header"}
+    assert over_mcp(cimd) == {
+        "transport": "streamable_http",
+        "auth": "oauth",
+        "client_name": "Claude",
+        "client_host": "claude.ai",
+    }
+    assert over_mcp(dcr) == {
+        "transport": "streamable_http",
+        "auth": "oauth",
+        "client_name": "Cursor",
+        "client_host": None,
+    }

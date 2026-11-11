@@ -1,16 +1,25 @@
 from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.contrib.integrations.mcp.models import MCPServerIntegration
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.integrations.registries import integration_type_registry
 
 
 class IntegrationFixtures:
     def create_local_baserow_integration(self, **kwargs):
-        if not kwargs.get("authorized_user", None):
-            if not kwargs.get("user", None):
-                kwargs["user"] = self.create_user()
+        authorized_agent = kwargs.pop("authorized_agent", None)
+        authorized_user = kwargs.pop("authorized_user", None)
+        if authorized_agent is not None:
+            kwargs["authorized_subject_type"] = "core.Agent"
+            kwargs["authorized_subject_id"] = authorized_agent.id
+        else:
+            if authorized_user is None:
+                if not kwargs.get("user", None):
+                    kwargs["user"] = self.create_user()
 
-            kwargs["authorized_user"] = kwargs["user"]
+                authorized_user = kwargs["user"]
+            kwargs["authorized_subject_type"] = "auth.User"
+            kwargs["authorized_subject_id"] = authorized_user.id
 
         integration = self.create_integration(LocalBaserowIntegration, **kwargs)
         return integration
@@ -32,6 +41,15 @@ class IntegrationFixtures:
 
         integration = self.create_integration(SlackBotIntegration, **kwargs)
         return integration
+
+    def create_mcp_server_integration(self, **kwargs):
+        kwargs.setdefault("name", "Docs")
+        kwargs.setdefault("url", "https://mcp.example.com/mcp")
+        if "application" not in kwargs:
+            kwargs["application"] = self.create_agent_application(
+                user=kwargs.pop("user", None)
+            )
+        return self.create_integration(MCPServerIntegration, **kwargs)
 
     def create_integration_with_first_type(self, **kwargs):
         first_type = list(integration_type_registry.get_all())[0]

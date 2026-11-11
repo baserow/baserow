@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, List, Optional, Type
 
 from django.db import models, transaction
 
@@ -279,26 +279,33 @@ class BaseGraphHandler(ABC):
             del point_info["children"]
 
     @abstractmethod
-    def get_point_map(self) -> Dict[int, GraphPoint]:
+    def get_all_points(self) -> Iterable[GraphPoint]:
         """
-        Must be implemented by child classes. This method should return an object
-        mapping, where the key is the graph point's ID, and the value is the model
-        instance.
+        Return all point instances belonging to this graph's container.
         """
         ...
+
+    @classmethod
+    def generate_point_map_cache_key(cls, instance) -> str:
+        return f"graph_point_map_{instance._meta.label}_{instance.id}"
 
     def get_point(self, point_id: str | int) -> GraphPoint:
         """
         Given a graph point, return the corresponding model instance from the point map.
+        The map is cached locally and invalidated alongside the point collection.
 
         :param point_id: The ID of the graph point to retrieve.
         :return: The model instance corresponding to the given graph point ID.
         """
 
-        if int(point_id) not in self.get_point_map():
-            raise self.does_not_exist_exception(point_id)
-
-        return self.get_point_map()[int(point_id)]
+        point_map = local_cache.get(
+            self.generate_point_map_cache_key(self.instance),
+            lambda: {point.id: point for point in self.get_all_points()},
+        )
+        try:
+            return point_map[int(point_id)]
+        except KeyError:
+            raise self.does_not_exist_exception(point_id) from None
 
     def get_point_at_position(
         self,
@@ -727,6 +734,41 @@ class BaseGraphHandler(ABC):
                 stack.extend(int(child_id) for child_id in child_ids)
 
         return result
+
+    def get_ordered_point_ids(
+        self, edge_order: Optional[Callable[[str], Any]] = None
+    ) -> List[int]:
+        """
+        Returns the ids of the points the root reaches, depth first: each point,
+        then its children edge by edge, then the points after it on the default
+        output. Other outputs are not followed. A pure walk of the serialized graph
+        with a seen set, so it terminates on a corrupted graph.
+
+        :param edge_order: Sort key for a point's children edges. Defaults to the
+            edge key itself.
+        :return: The point ids in order.
+        """
+
+        graph = self.graph
+        root = graph.get(self.GRAPH_ROOT_KEY)
+        stack: List[str | int] = [root] if root is not None else []
+        ordered: List[int] = []
+        seen: set[int] = set()
+        while stack:
+            current = int(stack.pop())
+            if current in seen:
+                continue
+            seen.add(current)
+            ordered.append(current)
+            info = graph.get(str(current))
+            if not isinstance(info, dict):
+                continue
+            children = self._get_children_dict_from_info(info)
+            following = [*info.get("next", {}).get("", [])]
+            for edge in reversed(sorted(children, key=edge_order)):
+                following = [*children[edge], *following]
+            stack.extend(reversed(following))
+        return ordered
 
     def _has_incoming_references(self, point_id: int) -> bool:
         """

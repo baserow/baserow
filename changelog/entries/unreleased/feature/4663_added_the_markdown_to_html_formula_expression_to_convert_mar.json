@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added the markdown_to_html() formula expression to convert markdown to HTML.",
+    "issue_origin": "github",
+    "issue_number": 4663,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-13"
+}

@@ -1,10 +1,12 @@
 import contextvars
 import json
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
 from loguru import logger
 
+from baserow.core.mcp.exceptions import INTERNAL_ERROR_MESSAGE, to_mcp_error
 from baserow.core.mcp.sse import DjangoChannelsSseServerTransport
 
 if TYPE_CHECKING:
@@ -113,7 +115,7 @@ class BaserowMCPServer:
                 content=[TextContent(type="text", text="Endpoint not found.")],
                 isError=True,
             )
-        tool = mcp_tool_registry.get_allowed_tool(endpoint, name)
+        tool = await sync_to_async(mcp_tool_registry.get_allowed_tool)(endpoint, name)
         if not tool:
             return CallToolResult(
                 content=[TextContent(type="text", text=f"Tool '{name}' not found.")],
@@ -122,12 +124,15 @@ class BaserowMCPServer:
         try:
             result = await tool.call(endpoint, arguments)
         except Exception as e:
-            logger.exception("Unhandled exception in MCP tool '{}'", name)
+            message = to_mcp_error(e)
+            if message is None:
+                logger.exception("Unhandled exception in MCP tool '{}'", name)
+                message = INTERNAL_ERROR_MESSAGE
             self.capture_event(
                 endpoint, "mcp_tool_called", {"tool": name, "success": False}
             )
             return CallToolResult(
-                content=[TextContent(type="text", text=f"Error: {e}")],
+                content=[TextContent(type="text", text=message)],
                 isError=True,
             )
         self.capture_event(endpoint, "mcp_tool_called", {"tool": name, "success": True})
@@ -144,7 +149,11 @@ class BaserowMCPServer:
         capture_user_event(
             endpoint.user,
             event,
-            {"endpoint_id": endpoint.id, **properties},
+            {
+                "endpoint_id": endpoint.id,
+                **connection_properties(endpoint),
+                **properties,
+            },
             workspace=endpoint.workspace,
         )
 
@@ -367,6 +376,44 @@ class BaserowMCPServer:
         # The redirect would point clients to an http:// URL behind a TLS proxy.
         app.router.redirect_slashes = False
         return app
+
+
+def oauth_client_properties(client_id: str, client_name: str) -> dict:
+    """
+    PostHog properties naming the OAuth app behind a grant. `client_host` is the host
+    of a CIMD client id, and None for DCR clients, whose name isn't verified.
+    """
+
+    from oauth2_provider.cimd import is_cimd_client_id
+
+    host = urlparse(client_id).hostname if is_cimd_client_id(client_id) else None
+    return {"client_name": client_name, "client_host": host}
+
+
+def connection_properties(endpoint: "MCPEndpoint") -> dict:
+    """
+    PostHog properties telling how the current request reached the endpoint: the
+    transport, how it authenticated, and for OAuth grants which app it is. `/mcp`
+    sets `current_endpoint`; the SSE transport only sets `current_key`. This is the
+    same check `get_endpoint` uses to pick the endpoint, so the two can't disagree.
+    """
+
+    streamable_http = current_endpoint.get(None) is not None
+    if endpoint.oauth_client_id:
+        auth = "oauth"
+    elif streamable_http:
+        auth = "key_header"
+    else:
+        auth = "key_url"
+    properties = {
+        "transport": "streamable_http" if streamable_http else "sse",
+        "auth": auth,
+    }
+    if endpoint.oauth_client_id:
+        properties.update(
+            oauth_client_properties(endpoint.oauth_client_id, endpoint.name)
+        )
+    return properties
 
 
 def _is_initialize(body: bytes) -> bool:

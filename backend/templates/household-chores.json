@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Household Chores",
+    "description": "Share chores among family members and log what got done.",
     "icon": "iconoir-numbered-list-left",
     "keywords": [
         "household chores",

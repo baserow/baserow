@@ -8,6 +8,7 @@ import pytest
 from oauth2_provider.exceptions import FatalClientError
 from oauthlib.oauth2.rfc6749.errors import MismatchingRedirectURIError
 
+from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.models import MCPEndpoint
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
@@ -174,6 +175,24 @@ def test_consent_returns_the_existing_grant_tools(client, api_client, data_fixtu
     )
 
     assert response.json()["grants"] == {str(workspace.id): ["list_tables"]}
+
+
+@pytest.mark.django_db
+def test_consent_lists_legacy_tools_for_a_null_grant(client, api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    client_id = cimd_client(client)
+    obtain_tokens(client, api_client, token, workspace, client_id=client_id)
+    MCPEndpoint.objects.filter(oauth_client_id=client_id).update(allowed_tools=None)
+    _, challenge = pkce_pair()
+
+    response = api_client.get(
+        reverse(URL),
+        {"query": authorize_query(client_id, challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.json()["grants"] == {str(workspace.id): list(LEGACY_DEFAULT_TOOLS)}
 
 
 @pytest.mark.django_db

@@ -270,7 +270,7 @@ caddy:
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
 | `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
 | `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.4.1`                |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.4.2`                |
 | `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
 | `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
 | `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |
@@ -476,12 +476,13 @@ caddy:
 
 ### Baserow Celery export worker Configuration
 
-| Name                                            | Description                                                            | Value                     |
-| ----------------------------------------------- | ---------------------------------------------------------------------- | ------------------------- |
-| `baserow-celery-export-worker.image.repository` | Docker image repository for the Celery export worker.                  | `backend`                 |
-| `baserow-celery-export-worker.args`             | Arguments passed to the Celery export worker.                          | `["celery-exportworker"]` |
-| `baserow-celery-export-worker.replicaCount`     | Number of replicas for the Celery export worker.                       | `1`                       |
-| `baserow-celery-export-worker.service.create`   | Set to false to disable creating a service for the Celery beat worker. | `false`                   |
+| Name                                                         | Description                                                                             | Value                     |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ------------------------- |
+| `baserow-celery-export-worker.image.repository`              | Docker image repository for the Celery export worker.                                   | `backend`                 |
+| `baserow-celery-export-worker.args`                          | Arguments passed to the Celery export worker.                                           | `["celery-exportworker"]` |
+| `baserow-celery-export-worker.replicaCount`                  | Number of replicas for the Celery export worker.                                        | `1`                       |
+| `baserow-celery-export-worker.service.create`                | Set to false to disable creating a service for the Celery beat worker.                  | `false`                   |
+| `baserow-celery-export-worker.terminationGracePeriodSeconds` | Seconds the export worker gets to finish running tasks, such as Kuma runs, on shutdown. | `120`                     |
 
 ### Baserow Celery worker Configuration
 
@@ -519,7 +520,7 @@ caddy:
 | --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------- |
 | `baserow-embeddings.enabled`                                    | Set to true to enable the Baserow Embeddings service.           | `false`                    |
 | `baserow-embeddings.image.repository`                           | Docker image repository for the Embeddings service.             | `embeddings`               |
-| `baserow-embeddings.image.tag`                                  | Docker image tag for the Embeddings service, which is versioned separately from Baserow. | `1.0.0`                    |
+| `baserow-embeddings.image.tag`                                  | Docker image tag for the Embeddings service, which is versioned separately from Baserow. | `1.1.0`                    |
 | `baserow-embeddings.workingDir`                                 | Working directory for the container, empty to use the image's own.                       | `""`                       |
 | `baserow-embeddings.resources`                                  | Resource requests and limits for the Embeddings service.        |                            |
 | `baserow-embeddings.autoscaling.enabled`                        | Enable autoscaling for the Embeddings service.                  | `false`                    |

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Iterable, List
 
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -21,8 +21,8 @@ class PageGraphHandler(BaseGraphHandler):
     instance_id_mapping = "builder_page_elements"
     does_not_exist_exception = ElementDoesNotExist
 
-    def get_point_map(self) -> Dict[int, Element]:
-        return {e.id: e for e in ElementHandler().get_elements(self.instance)}
+    def get_all_points(self) -> Iterable[Element]:
+        return ElementHandler().get_elements(self.instance)
 
     @classmethod
     def find_non_default_next_edge_pairs(

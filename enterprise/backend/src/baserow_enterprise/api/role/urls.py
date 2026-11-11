@@ -1,6 +1,15 @@
 from django.urls import re_path
 
-from .views import BatchRoleAssignmentsView, RoleAssignmentsView
+from .views import (
+    BatchRoleAssignmentsView,
+    EffectiveAccessView,
+    RoleAssignmentsView,
+    ScopedInvitationLinksView,
+    ScopedInvitationLinkView,
+    ScopedInvitationsView,
+    ScopedInvitationView,
+    SubjectRoleAssignmentsView,
+)
 
 app_name = "baserow_enterprise.api.role"
 
@@ -14,5 +23,35 @@ urlpatterns = [
         r"^(?P<workspace_id>[0-9]+)/batch/$",
         BatchRoleAssignmentsView.as_view(),
         name="batch",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/effective-access/$",
+        EffectiveAccessView.as_view(),
+        name="effective_access",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/subject-role-assignments/$",
+        SubjectRoleAssignmentsView.as_view(),
+        name="subject_role_assignments",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/invitations/$",
+        ScopedInvitationsView.as_view(),
+        name="scoped_invitations",
+    ),
+    re_path(
+        r"^invitations/(?P<scoped_invitation_id>[0-9]+)/$",
+        ScopedInvitationView.as_view(),
+        name="scoped_invitation",
+    ),
+    re_path(
+        r"^(?P<workspace_id>[0-9]+)/invitation-links/$",
+        ScopedInvitationLinksView.as_view(),
+        name="scoped_invitation_links",
+    ),
+    re_path(
+        r"^invitation-links/(?P<invitation_link_id>[0-9]+)/$",
+        ScopedInvitationLinkView.as_view(),
+        name="scoped_invitation_link",
     ),
 ]

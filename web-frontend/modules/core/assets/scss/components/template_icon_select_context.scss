@@ -1,0 +1,38 @@
+.template-icon-select-context {
+  width: 272px;
+}
+
+.template-icon-select-context__icons {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  max-height: 200px;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.template-icon-select-context__icon {
+  @include center-text(32px, 16px);
+
+  border: none;
+  background: none;
+  color: $palette-neutral-1200;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: $palette-neutral-100;
+  }
+
+  &.template-icon-select-context__icon--active {
+    background-color: $palette-blue-50;
+    color: $palette-blue-500;
+  }
+}
+
+.template-icon-select-context__empty {
+  padding: 16px;
+  text-align: center;
+  color: $palette-neutral-700;
+}

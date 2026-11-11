@@ -124,3 +124,40 @@ def test_widget_grid_layout_backfill_resumes_after_a_failed_batch(
     assert large_widgets.first().grid_y == 0
     assert large_widgets.last().grid_y == 3_996
     assert not large_widgets.filter(grid_layout_initialized=False).exists()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_dashboard_sharing_fields_give_every_existing_dashboard_its_own_slug(
+    migrator,
+):
+    migrate_from = [("dashboard", "0005_populate_widget_grid_layout")]
+    migrate_to = [("dashboard", "0006_dashboard_sharing")]
+    old_state = migrator.migrate(migrate_from)
+
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Dashboard = old_state.apps.get_model("dashboard", "Dashboard")
+
+    workspace = Workspace.objects.create(name="Workspace")
+    dashboard_content_type = ContentType.objects.get_for_model(Dashboard)
+    dashboard_ids = [
+        Dashboard.objects.create(
+            workspace=workspace,
+            order=index,
+            name=f"Dashboard {index}",
+            content_type=dashboard_content_type,
+        ).id
+        for index in range(3)
+    ]
+
+    new_state = migrator.migrate(migrate_to)
+
+    Dashboard = new_state.apps.get_model("dashboard", "Dashboard")
+    dashboards = list(Dashboard.objects.filter(id__in=dashboard_ids).order_by("id"))
+    slugs = [dashboard.slug for dashboard in dashboards]
+    assert all(slugs)
+    assert len(set(slugs)) == len(dashboard_ids)
+    for dashboard in dashboards:
+        assert dashboard.public is False
+        assert dashboard.public_password == ""
+        assert dashboard.show_logo is True

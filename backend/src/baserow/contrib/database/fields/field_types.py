@@ -93,6 +93,7 @@ from baserow.contrib.database.api.fields.serializers import (
     IntegerOrStringField,
     LimitListSerializer,
     LinkRowFieldSerializerMixin,
+    LinkRowGroupByValueSerializer,
     LinkRowRequestSerializer,
     LinkRowValueSerializer,
     ListOrStringField,
@@ -556,6 +557,7 @@ class LongTextFieldType(CollationSortMixin, FieldType):
     model_class = LongTextField
     allowed_fields = ["long_text_enable_rich_text"]
     serializer_field_names = ["long_text_enable_rich_text"]
+    public_serializer_field_names = serializer_field_names
     api_exceptions_map = {
         RichTextImageLimitExceeded: ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
     }
@@ -1199,6 +1201,13 @@ class NumberFieldType(FieldType):
         "number_separator",
         "number_default",
     ]
+    public_serializer_field_names = [
+        "number_decimal_places",
+        "number_negative",
+        "number_prefix",
+        "number_suffix",
+        "number_separator",
+    ]
     serializer_field_overrides = {
         "number_type": MustBeEmptyField(
             "The number_type option has been removed and can no longer be provided. "
@@ -1507,6 +1516,7 @@ class RatingFieldType(FieldType):
     model_class = RatingField
     allowed_fields = ["max_value", "color", "style"]
     serializer_field_names = ["max_value", "color", "style"]
+    public_serializer_field_names = serializer_field_names
     _can_group_by = True
     _db_column_fields = []
     _can_have_db_index = True
@@ -1736,6 +1746,7 @@ class DateFieldType(FieldType):
         "date_show_tzinfo",
         "date_force_timezone",
     ]
+    public_serializer_field_names = serializer_field_names
     request_serializer_field_names = serializer_field_names + [
         "date_force_timezone_offset",
     ]
@@ -2154,23 +2165,97 @@ class DateFieldType(FieldType):
             value = value.replace(second=0, microsecond=0)
         return value
 
+    def get_group_by_expression(self, field, field_name, base_queryset):
+        """Use the same minute precision for date-time groups on every surface."""
+        # Ignore seconds and microseconds so grouped-data keys match the per-row
+        # metadata and drilling into a group matches its rows. Gate on the field,
+        # not a concrete value: grouped-data queries build this expression without
+        # one. Date-only fields have no time component to truncate.
+        if field.date_include_time:
+            return self._get_truncated_utc_expression(field_name, "minute")
+        return super().get_group_by_expression(field, field_name, base_queryset)
+
+    def _get_truncated_utc_expression(
+        self, field_name: str, precision: str
+    ) -> Expression:
+        """
+        Truncate UTC wall time so PostgreSQL can index the immutable expression,
+        then restore the timezone-aware type used by group keys and filter values.
+
+        :param field_name: The timestamp column to truncate.
+        :param precision: The truncation unit, such as day or minute.
+        :return: The truncated timezone-aware UTC expression.
+        """
+
+        utc_timestamp = models.Func(
+            Value("UTC"),
+            F(field_name),
+            function="timezone",
+            output_field=models.DateTimeField(null=True),
+        )
+        return models.Func(
+            Value("UTC"),
+            DateTrunc(
+                precision,
+                utc_timestamp,
+                output_field=models.DateTimeField(null=True),
+            ),
+            function="timezone",
+            output_field=models.DateTimeField(null=True),
+        )
+
+    def get_group_by_sort_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Rows sort by their group key, not the raw value, so the rows of a group
+        stay together and line up with the group's row offset and count.
+        """
+
+        return self._order_by_group_key(
+            self.get_group_by_expression(field, field_name, None), order_direction
+        )
+
+    def get_group_by_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+        group_by_expression: Optional[Expression] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Grouped queries already hold the group key in the field column, so the
+        groups sort by that column as is.
+        """
+
+        if group_by_expression is None:
+            group_by_expression = F(field_name)
+        return self._order_by_group_key(group_by_expression, order_direction)
+
+    def _order_by_group_key(
+        self, group_key: Expression, order_direction: str
+    ) -> OptionallyAnnotatedOrderBy:
+        if order_direction == "ASC":
+            return OptionallyAnnotatedOrderBy(
+                order=group_key.asc(nulls_first=True), can_be_indexed=True
+            )
+        return OptionallyAnnotatedOrderBy(
+            order=group_key.desc(nulls_last=True), can_be_indexed=True
+        )
+
     def get_group_by_field_filters_and_annotations(
         self, field, field_name, base_queryset, value, cte, rows
     ):
-        filters = {field_name: value}
-        annotations = {}
-
-        # Shadow the column with a minute-truncated annotation so seconds and
-        # microseconds are ignored when grouping. Gate on the field, not the value,
-        # so the grouped-data query (which builds the shadow without a concrete
-        # value) truncates group keys the same way the per-row metadata query does;
-        # otherwise datetime groups key on the raw timestamp and drilling into them
-        # matches no rows. Date-only fields have no time component to truncate.
-        if field.date_include_time:
-            annotations[field_name] = DateTrunc(
-                "minute", field_name, output_field=models.DateTimeField(null=True)
-            )
-        return filters, annotations
+        return {field_name: value}, {
+            field_name: self.get_group_by_expression(field, field_name, base_queryset)
+        }
 
 
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
@@ -2195,6 +2280,60 @@ class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
         kwargs["db_index"] = instance.db_index
         kwargs.update(self.model_field_kwargs)
         return self.model_field_class(**kwargs)
+
+    def get_order(
+        self,
+        field: Field,
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """Ignore hidden times when sorting date-only audit values."""
+
+        if field.date_include_time:
+            return super().get_order(
+                field, field_name, order_direction, sort_type, table_model=table_model
+            )
+        return self._order_by_group_key(
+            self.get_group_by_expression(field, field_name, None), order_direction
+        )
+
+    def get_value_for_filter(self, row: "GeneratedTableModel", field: Field) -> Any:
+        """Match the SQL ordering precision while preserving full timed values."""
+
+        value = super().get_value_for_filter(row, field)
+        if field.date_include_time:
+            return value
+        return self.get_group_by_field_unique_value(field, field.db_column, value)
+
+    def get_group_by_expression(
+        self, field: Field, field_name: str, base_queryset: Optional[QuerySet]
+    ) -> Expression:
+        """
+        Date-only values are still stored as timestamps, so they group by the UTC
+        day the API and the frontend show.
+        """
+
+        if field.date_include_time:
+            return super().get_group_by_expression(field, field_name, base_queryset)
+        return self._get_truncated_utc_expression(field_name, "day")
+
+    def get_group_by_field_unique_value(
+        self, field: Field, field_name: str, value: Any
+    ) -> Any:
+        if field.date_include_time or not isinstance(value, datetime):
+            return super().get_group_by_field_unique_value(field, field_name, value)
+        return value.astimezone(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+    def get_group_by_label(self, value: Any, field_object: "FieldObject") -> str:
+        """Keep date-only UTC group labels independent of a retained timezone."""
+
+        if not field_object["field"].date_include_time and isinstance(value, datetime):
+            value = value.astimezone(timezone.utc).date()
+        return super().get_group_by_label(value, field_object)
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
         """
@@ -2299,6 +2438,10 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
             db_constraint=False,
             **kwargs,
         )
+
+    def get_group_by_label(self, value, field_object):
+        """Show the user's name rather than their email in group labels."""
+        return value.first_name if value is not None else ""
 
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
@@ -2526,6 +2669,10 @@ class CreatedByFieldType(ReadOnlyFieldType):
             **kwargs,
         )
 
+    def get_group_by_label(self, value, field_object):
+        """Show the user's name rather than their email in group labels."""
+        return value.first_name if value is not None else ""
+
     def get_serializer_field(self, instance, **kwargs):
         return CollaboratorSerializer(required=False, **kwargs)
 
@@ -2726,6 +2873,7 @@ class DurationFieldType(FieldType):
     model_class = DurationField
     allowed_fields = ["duration_format"]
     serializer_field_names = ["duration_format"]
+    public_serializer_field_names = serializer_field_names
     _can_group_by = True
     _db_column_fields = []
     can_upsert = True
@@ -3075,6 +3223,15 @@ class LinkRowFieldType(
         )
         return related_primary_field_type.get_value_for_filter(
             row, related_primary_field
+        )
+
+    def get_individual_group_by_sort_expression(
+        self, field, field_name, sort_type, table_model=None
+    ):
+        """Use the linked primary field's sorting semantics for each linked row."""
+        primary = self._get_related_table_primary_field(field, table_model).specific
+        return primary.get_type().get_sortable_column_expression(
+            primary, f"{field_name}__{primary.db_column}", sort_type
         )
 
     def get_order(
@@ -3496,6 +3653,18 @@ class LinkRowFieldType(
             )
         )
 
+    def get_group_by_label(self, value, field_object):
+        """Delegate linked labels to the primary field's display-safe group hook."""
+
+        def map_to_group_label(inner_value, inner_field_object):
+            return inner_field_object["type"].get_group_by_label(
+                inner_value, inner_field_object
+            )
+
+        return ", ".join(
+            self._get_and_map_pk_values(field_object, value, map_to_group_label)
+        )
+
     def _get_related_model_and_primary_field(self, instance):
         """
         Returns related model and primary field.
@@ -3610,6 +3779,22 @@ class LinkRowFieldType(
 
         return LimitListSerializer(
             child=inner_serializer(),
+            **{
+                "required": False,
+                "limit": kwargs.pop("limit_linked_items", None),
+                **kwargs,
+            },
+        )
+
+    def get_group_by_response_serializer_field(self, instance, **kwargs):
+        """
+        Grouped results render linked rows with the display-safe group label of
+        the related primary field instead of its human-readable value, so the
+        e-mail addresses of user-valued primaries do not leak through `str(row)`.
+        """
+
+        return LimitListSerializer(
+            child=LinkRowGroupByValueSerializer(),
             **{
                 "required": False,
                 "limit": kwargs.pop("limit_linked_items", None),
@@ -4756,6 +4941,8 @@ class SelectOptionBaseFieldType(FieldType):
     can_have_select_options = True
     allowed_fields = ["select_options"]
     serializer_field_names = ["select_options"]
+    # The defaults of the select field types stay private.
+    public_serializer_field_names = ["select_options"]
     serializer_field_overrides = {
         "select_options": SelectOptionSerializer(many=True, required=False),
     }
@@ -6015,6 +6202,13 @@ class MultipleSelectFieldType(
             for value in raw_values
         ]
 
+    def get_individual_group_by_sort_expression(
+        self, field, field_name, sort_type, table_model=None
+    ):
+        """Order individual select options by their requested option attribute."""
+        attribute = self._get_through_sort_expression(field, field_name, sort_type)
+        return F(f"{field_name}__{attribute}")
+
     def _get_through_sort_expression(self, field, field_name, sort_type):
         """
         Returns the expression to aggregate inside a through-table subquery,
@@ -6278,6 +6472,25 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
     serializer_field_names = (
         BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + CORE_FORMULA_FIELDS
     )
+    private_serializer_field_names = [
+        "formula",
+        "error",
+        "nullable",
+        "available_collaborators",
+    ]
+    """
+    The serializer field names anonymous visitors never get. The other ones are
+    the formatting attributes of the formula's result type.
+    """
+
+    @property
+    def public_serializer_field_names(self):
+        private_field_names = set(self.private_serializer_field_names)
+        return [
+            name
+            for name in self.serializer_field_names
+            if name not in private_field_names
+        ]
 
     @property
     def serializer_field_overrides(self):
@@ -6937,6 +7150,9 @@ class CountFieldType(FormulaFieldType):
         "through_field_id",
         "formula_type",
     ]
+    private_serializer_field_names = FormulaFieldType.private_serializer_field_names + [
+        "through_field_id"
+    ]
     serializer_field_overrides = {
         "through_field_id": serializers.IntegerField(
             required=False,
@@ -7119,6 +7335,11 @@ class RollupFieldType(FormulaFieldType):
         "target_field_id",
         "rollup_function",
         "formula_type",
+    ]
+    private_serializer_field_names = FormulaFieldType.private_serializer_field_names + [
+        "through_field_id",
+        "target_field_id",
+        "rollup_function",
     ]
     request_serializer_field_overrides = {
         "through_field_id": serializers.IntegerField(
@@ -7349,6 +7570,12 @@ class LookupFieldType(FormulaFieldType):
         "target_field_id",
         "target_field_name",
         "formula_type",
+    ]
+    private_serializer_field_names = FormulaFieldType.private_serializer_field_names + [
+        "through_field_id",
+        "through_field_name",
+        "target_field_id",
+        "target_field_name",
     ]
     request_serializer_field_overrides = {
         "through_field_name": serializers.CharField(
@@ -7811,6 +8038,12 @@ class MultipleCollaboratorsFieldType(
         if len(export_value) == 0:
             return ""
         return ", ".join(export_value)
+
+    def get_group_by_label(self, value, field_object):
+        """Use collaborator names without exposing email addresses in group labels."""
+        if hasattr(value, "all"):
+            value = value.all()
+        return ", ".join(user.first_name for user in (value or []))
 
     def serialize_metadata_for_row_history(
         self,

@@ -1,0 +1,125 @@
+/**
+ Share dashboard context. `share-link` is the not yet shared state, `shared-link`
+ the state with a public link.
+ */
+
+.dashboard-sharing {
+  max-height: inherit;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-sharing__share-link {
+  padding: 48px 80px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  text-align: center;
+}
+
+.dashboard-sharing__share-link-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.dashboard-sharing__share-link-description {
+  font-size: 12px;
+  font-weight: normal;
+  margin: 0;
+  padding: 0;
+  color: $palette-neutral-900;
+}
+
+.dashboard-sharing__shared-link {
+  padding: 20px;
+  text-align: left;
+  max-width: 624px;
+  color: $palette-neutral-900;
+}
+
+.dashboard-sharing__shared-link-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  margin-bottom: 8px;
+  color: $palette-neutral-1200;
+}
+
+.dashboard-sharing__shared-link-description {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+  margin-bottom: 8px;
+}
+
+.dashboard-sharing__shared-link-content {
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-sharing__shared-link-box {
+  @extend %ellipsis;
+
+  background-color: $palette-neutral-100;
+  line-height: 32px;
+  padding: 0 8px;
+  font-family: monospace;
+  font-size: 10px;
+  width: 516px;
+  height: 32px;
+  margin: 8px 0;
+  border: solid 1px $palette-neutral-400;
+
+  @include rounded($rounded);
+}
+
+.dashboard-sharing__shared-link-action {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  margin-left: 4px;
+  line-height: 32px;
+  font-size: 14px;
+  text-align: center;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded);
+
+  &:hover {
+    background-color: $palette-neutral-100;
+  }
+}
+
+.dashboard-sharing__shared-link-options {
+  margin-top: 14px;
+}
+
+.dashboard-sharing__option {
+  margin-top: 14px;
+
+  @include flex-align-items(4px);
+
+  &--disabled {
+    cursor: pointer;
+    color: $palette-neutral-500;
+  }
+}
+
+.dashboard-sharing__option-icon {
+  font-size: 14px;
+}
+
+.dashboard-sharing__option-change-password {
+  margin-left: 8px;
+  font-size: 14px;
+  color: $palette-neutral-900;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1200;
+  }
+}

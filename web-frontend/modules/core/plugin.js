@@ -5,6 +5,8 @@ import { Registry } from '@baserow/modules/core/registry'
 import { PasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import {
   CreateSnapshotJobType,
+  CreateUserTemplateJobType,
+  DownloadUserTemplateJobType,
   DuplicateApplicationJobType,
   ExportApplicationsJobType,
   ImportApplicationsJobType,
@@ -43,6 +45,7 @@ import {
   DashboardAdminType,
   UsersAdminType,
   WorkspacesAdminType,
+  TemplatesAdminType,
   HealthCheckAdminType,
   SettingsAdminType,
 } from '@baserow/modules/core/adminTypes'
@@ -58,7 +61,6 @@ import {
 
 import {
   MembersWorkspaceSettingsPageType,
-  InvitesWorkspaceSettingsPageType,
   AgentsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
@@ -80,12 +82,14 @@ import {
 } from '@baserow/modules/core/agentSettingsTypes'
 import {
   AgentSubjectType,
+  AnonymousUserSubjectType,
   UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+} from '@baserow/modules/core/subjectTypes.jsx'
 import {
   EmailInvitationRouteType,
   LinkInvitationRouteType,
 } from '@baserow/modules/core/invitationRouteTypes'
+import { WorkspaceInvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
 
 import {
   RuntimeAdd,
@@ -138,6 +142,7 @@ import {
   RuntimeStrip,
   RuntimeEncodeUri,
   RuntimeEncodeUriComponent,
+  RuntimeMarkdownToHtml,
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
@@ -148,10 +153,7 @@ import {
   RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
-import {
-  AdminRoleType,
-  MemberRoleType,
-} from '@baserow/modules/database/roleTypes'
+import { AdminRoleType, MemberRoleType } from '@baserow/modules/core/roleTypes'
 
 export default defineNuxtPlugin({
   name: 'core',
@@ -160,6 +162,8 @@ export default defineNuxtPlugin({
     const registry = nuxtApp.$registry
 
     registry.registerNamespace('plugin')
+    registry.registerNamespace('chatRunType')
+    registry.registerNamespace('toolPresentation')
     registry.registerNamespace('permissionManager')
     registry.registerNamespace('application')
     registry.registerNamespace('authProvider')
@@ -192,14 +196,20 @@ export default defineNuxtPlugin({
     registry.registerNamespace('twoFactorAuth')
     registry.registerNamespace('captchaProvider')
     registry.registerNamespace('invitationRoute')
+    registry.registerNamespace('invitationTarget')
 
     const context = { app: nuxtApp }
 
     registry.register('subject', new UserSubjectType(context))
+    registry.register('subject', new AnonymousUserSubjectType(context))
     registry.register('subject', new AgentSubjectType(context))
 
     registry.register('invitationRoute', new EmailInvitationRouteType(context))
     registry.register('invitationRoute', new LinkInvitationRouteType(context))
+    registry.register(
+      'invitationTarget',
+      new WorkspaceInvitationTargetType(context)
+    )
 
     registry.register('agentSettings', new GeneralAgentSettingsType(context))
     registry.register('agentSettings', new McpServerAgentSettingsType(context))
@@ -265,6 +275,7 @@ export default defineNuxtPlugin({
     registry.register('admin', new DashboardAdminType(context))
     registry.register('admin', new UsersAdminType(context))
     registry.register('admin', new WorkspacesAdminType(context))
+    registry.register('admin', new TemplatesAdminType(context))
     registry.register('admin', new AIProvidersAdminType(context))
     registry.register('admin', new SettingsAdminType(context))
     registry.register('admin', new HealthCheckAdminType(context))
@@ -273,6 +284,8 @@ export default defineNuxtPlugin({
 
     registry.register('job', new DuplicateApplicationJobType(context))
     registry.register('job', new InstallTemplateJobType(context))
+    registry.register('job', new CreateUserTemplateJobType(context))
+    registry.register('job', new DownloadUserTemplateJobType(context))
     registry.register('job', new CreateSnapshotJobType(context))
     registry.register('job', new RestoreSnapshotJobType(context))
     registry.register('job', new ExportApplicationsJobType(context))
@@ -281,10 +294,6 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new MembersWorkspaceSettingsPageType(context)
-    )
-    registry.register(
-      'workspaceSettingsPage',
-      new InvitesWorkspaceSettingsPageType(context)
     )
     registry.register(
       'workspaceSettingsPage',
@@ -351,6 +360,10 @@ export default defineNuxtPlugin({
     registry.register(
       'runtimeFormulaFunction',
       new RuntimeEncodeUriComponent(context)
+    )
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeMarkdownToHtml(context)
     )
     registry.register('runtimeFormulaFunction', new RuntimeSum(context))
     registry.register('runtimeFormulaFunction', new RuntimeAvg(context))

@@ -256,7 +256,7 @@ def test_handle_webhook_payload_discards_unknown_token():
 @pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_accepts_and_deduplicates(data_fixture):
-    node = data_fixture.create_inbound_email_trigger_node(
+    node = data_fixture.create_core_inbound_email_trigger_node(
         service_kwargs={"token": TOKEN}
     )
 
@@ -282,7 +282,7 @@ def test_handle_webhook_payload_accepts_and_deduplicates(data_fixture):
 @pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_skips_dedupe_without_message_id(data_fixture):
-    data_fixture.create_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
+    data_fixture.create_core_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
 
     from baserow.core.services.registries import service_type_registry
 
@@ -300,7 +300,7 @@ def test_handle_webhook_payload_skips_dedupe_without_message_id(data_fixture):
 @pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN=INBOUND_DOMAIN)
 def test_handle_webhook_payload_removes_dedupe_entry_on_error(data_fixture):
-    data_fixture.create_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
+    data_fixture.create_core_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
 
     from baserow.core.services.registries import service_type_registry
 
@@ -377,7 +377,7 @@ def test_handle_webhook_payload_logs_unknown_token(inbound_email_logs):
 def test_handle_webhook_payload_logs_accepted_and_duplicate(
     data_fixture, inbound_email_logs
 ):
-    data_fixture.create_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
+    data_fixture.create_core_inbound_email_trigger_node(service_kwargs={"token": TOKEN})
 
     from baserow.core.services.registries import service_type_registry
 

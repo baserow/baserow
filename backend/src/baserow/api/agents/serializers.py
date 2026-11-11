@@ -11,7 +11,7 @@ from baserow.core.models import Agent
 class AgentSubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Agent
-        fields = ("id", "name")
+        fields = ("id", "name", "trashed")
 
 
 class AgentSerializer(serializers.ModelSerializer):
@@ -34,6 +34,19 @@ class AgentSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
         )
+
+
+class AgentListSerializer(AgentSerializer):
+    """
+    An agent of the list of agents, for the API documentation, with the fields the
+    agent extensions add to every agent of a list response.
+    """
+
+    def get_fields(self):
+        fields = super().get_fields()
+        for extension in agent_extension_type_registry.get_all():
+            fields.update(deepcopy(extension.list_response_fields))
+        return fields
 
 
 class AgentRequestSerializer(

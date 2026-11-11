@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
 
     from baserow.core.models import Workspace
+    from baserow.core.tools import ToolContext
     from baserow_enterprise.assistant.model_profiles import (
         ResolvedAssistantModelProfile,
     )
@@ -25,6 +26,7 @@ class AgentMode(str, Enum):
     DATABASE = "database"
     APPLICATION = "application"
     AUTOMATION = "automation"
+    DASHBOARD = "dashboard"
     EXPLAIN = "explain"
 
 
@@ -155,3 +157,22 @@ class AssistantDeps:
         """
 
         self.sources.extend(s for s in new_sources if s not in self.sources)
+
+    def tool_context(self) -> "ToolContext":
+        """The context for calling a tool shared with the other clients."""
+
+        from baserow.core.tools import ToolContext
+
+        tool_helpers = self.tool_helpers
+
+        # Shared tools report status between steps, so a cancelled chat stops there.
+        def update_status(message: str) -> None:
+            tool_helpers.raise_if_cancelled()
+            tool_helpers.update_status(message)
+
+        return ToolContext(
+            user=self.user,
+            workspace=self.workspace,
+            update_status=update_status,
+            timezone=self.user.profile.timezone,
+        )

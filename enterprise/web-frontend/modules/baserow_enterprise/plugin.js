@@ -26,9 +26,14 @@ import {
   SamlAuthProviderType,
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
-import { EnterpriseTeamsAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
+import {
+  EnterpriseRolesAgentExtensionType,
+  EnterpriseTeamsAgentExtensionType,
+} from '@baserow_enterprise/agentExtensionTypes'
 import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
-import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
+import { TeamSubjectType } from '@baserow_enterprise/subjectTypes.jsx'
+import { ScopeInvitationTargetType } from '@baserow_enterprise/invitationTargetTypes'
+import { MemberInvitationRouteType } from '@baserow_enterprise/invitationRouteTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -90,6 +95,7 @@ import {
   RBACPaidFeature,
   SSOPaidFeature,
   SupportPaidFeature,
+  SemanticSearchPaidFeature,
   XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
@@ -111,16 +117,29 @@ import {
   CoreXLSFileReaderWorkflowActionType,
 } from '@baserow_enterprise/builder/workflowActionTypes'
 import {
-  CoreCodeNodeType,
-  CoreXLSFileReaderNodeType,
+  CoreCodeActionNodeType,
+  CoreXLSFileReaderActionNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
+import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
+import {
+  AISemanticSearchFieldType,
+  EmailSemanticSearchFieldType,
+  FormulaSemanticSearchFieldType,
+  LongTextSemanticSearchFieldType,
+  LookupSemanticSearchFieldType,
+  PhoneNumberSemanticSearchFieldType,
+  RollupSemanticSearchFieldType,
+  TextSemanticSearchFieldType,
+  URLSemanticSearchFieldType,
+} from '@baserow_enterprise/semanticSearchFieldTypes'
 import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
+import { FF_SEMANTIC_SEARCH } from '@baserow/modules/core/plugins/featureFlags'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
-  dependsOn: ['premium', 'registry'],
+  dependsOn: ['premium', 'registry', 'feature-flags'],
   setup(nuxtApp) {
-    const { $config, $registry, $store } = nuxtApp
+    const { $config, $registry, $store, $featureFlagIsEnabled } = nuxtApp
 
     const context = { app: nuxtApp }
 
@@ -176,10 +195,22 @@ export default defineNuxtPlugin({
       new EnterpriseTeamsAgentExtensionType(context)
     )
     $registry.register(
+      'agentExtension',
+      new EnterpriseRolesAgentExtensionType(context)
+    )
+    $registry.register(
       'agentSettings',
       new EnterpriseTeamsAgentSettingsType(context)
     )
     $registry.register('subject', new TeamSubjectType(context))
+    $registry.register(
+      'invitationTarget',
+      new ScopeInvitationTargetType(context)
+    )
+    $registry.register(
+      'invitationRoute',
+      new MemberInvitationRouteType(context)
+    )
 
     $registry.register('job', new AuditLogExportJobType(context))
     $registry.register('job', new DataScanResultExportJobType(context))
@@ -198,14 +229,38 @@ export default defineNuxtPlugin({
         'workflowAction',
         new CoreCodeWorkflowActionType(context)
       )
-      $registry.register('node', new CoreCodeNodeType(context))
+      $registry.register('node', new CoreCodeActionNodeType(context))
     }
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
     $registry.register(
       'workflowAction',
       new CoreXLSFileReaderWorkflowActionType(context)
     )
-    $registry.register('node', new CoreXLSFileReaderNodeType(context))
+    $registry.register('node', new CoreXLSFileReaderActionNodeType(context))
+
+    $registry.registerNamespace('semanticSearchFieldType')
+    for (const SemanticSearchFieldType of [
+      TextSemanticSearchFieldType,
+      LongTextSemanticSearchFieldType,
+      URLSemanticSearchFieldType,
+      EmailSemanticSearchFieldType,
+      PhoneNumberSemanticSearchFieldType,
+      FormulaSemanticSearchFieldType,
+      LookupSemanticSearchFieldType,
+      RollupSemanticSearchFieldType,
+      AISemanticSearchFieldType,
+    ]) {
+      $registry.register(
+        'semanticSearchFieldType',
+        new SemanticSearchFieldType(context)
+      )
+    }
+    if ($featureFlagIsEnabled(FF_SEMANTIC_SEARCH)) {
+      $registry.register(
+        'fieldFormAdvancedSetting',
+        new SemanticSearchFieldFormAdvancedSettingType(context)
+      )
+    }
 
     $registry.register(
       'appAuthProvider',
@@ -293,6 +348,9 @@ export default defineNuxtPlugin({
     )
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
+    if ($featureFlagIsEnabled(FF_SEMANTIC_SEARCH)) {
+      $registry.register('paidFeature', new SemanticSearchPaidFeature(context))
+    }
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))

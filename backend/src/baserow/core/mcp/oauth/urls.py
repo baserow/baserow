@@ -4,7 +4,11 @@ from oauth2_provider import urls as oauth2_urls
 
 from .registration import MCPRegistrationView, RegistrationManagementNotOffered
 from .token_view import MCPRevokeTokenView, MCPTokenView
-from .views import MCPAuthorizeRedirectView, MCPProtectedResourceMetadataView
+from .views import (
+    MCPAuthorizeRedirectView,
+    MCPProtectedResourceMetadataView,
+    openai_apps_challenge,
+)
 
 oauth_patterns = [
     path("authorize/", MCPAuthorizeRedirectView.as_view(), name="authorize"),
@@ -50,5 +54,10 @@ urlpatterns = [
                 "oauth2_provider",
             )
         ),
+    ),
+    path(
+        ".well-known/openai-apps-challenge",
+        openai_apps_challenge,
+        name="mcp-openai-apps-challenge",
     ),
 ]

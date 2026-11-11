@@ -16,7 +16,12 @@ def test_update_form_view_as_editor_fails(enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = enterprise_data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the
+    # admin role on every table in it.
+    table = enterprise_data_fixture.create_database_table()
+    enterprise_data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="EDITOR"
+    )
     form = enterprise_data_fixture.create_form_view(table=table)
     editor_role = RoleAssignmentHandler().get_role_by_uid("EDITOR")
     RoleAssignmentHandler().assign_role(
@@ -36,7 +41,12 @@ def test_update_form_view_notification_as_editor_succeeds(enterprise_data_fixtur
     user, token = enterprise_data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = enterprise_data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the
+    # admin role on every table in it.
+    table = enterprise_data_fixture.create_database_table()
+    enterprise_data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="EDITOR"
+    )
     form = enterprise_data_fixture.create_form_view(table=table)
     editor_role = RoleAssignmentHandler().get_role_by_uid("EDITOR")
     RoleAssignmentHandler().assign_role(
@@ -55,7 +65,12 @@ def test_update_form_view_and_notification_as_editor_fails(enterprise_data_fixtu
     user, token = enterprise_data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"
     )
-    table = enterprise_data_fixture.create_database_table(user)
+    # The table belongs to someone else: an admin of the workspace keeps the
+    # admin role on every table in it.
+    table = enterprise_data_fixture.create_database_table()
+    enterprise_data_fixture.create_user_workspace(
+        workspace=table.database.workspace, user=user, permissions="EDITOR"
+    )
     form = enterprise_data_fixture.create_form_view(table=table)
     editor_role = RoleAssignmentHandler().get_role_by_uid("EDITOR")
     RoleAssignmentHandler().assign_role(

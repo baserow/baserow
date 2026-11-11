@@ -113,6 +113,7 @@ from baserow.core.formula.validator import (
     ensure_numeric,
     ensure_string_or_integer,
 )
+from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
 from baserow.core.registry import Instance, T
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_files.handler import UserFileHandler
@@ -792,10 +793,8 @@ class RecordSelectorElementType(
                 else ([] if value is None or value == "" else [value])
             )
             record_ids = set(service_type.prepare_record_ids(raw_record_ids))
-            record_names = service_type.get_record_names(
-                service.specific,
-                record_ids,
-                dispatch_context,
+            record_names = DataSourceHandler().get_record_names(
+                data_source, record_ids, dispatch_context
             )
             available_record_ids = set(record_names.keys())
         except (ValidationError, DRFValidationError) as err:
@@ -1376,6 +1375,7 @@ class ImageElementType(ElementType):
         self,
         element: Element,
         prop_name: BaserowFormula,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1386,7 +1386,12 @@ class ImageElementType(ElementType):
             )
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(
@@ -1844,6 +1849,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         "placeholder",
         "multiple",
         "show_as_dropdown",
+        "show_search",
         "option_type",
         "formula_value",
         "formula_name",
@@ -1856,6 +1862,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         "options",
         "multiple",
         "show_as_dropdown",
+        "show_search",
         "option_type",
         "formula_value",
         "formula_name",
@@ -1868,6 +1875,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         "options",
         "multiple",
         "show_as_dropdown",
+        "show_search",
         "option_type",
         "formula_value",
         "formula_name",
@@ -1888,6 +1896,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         options: List
         multiple: bool
         show_as_dropdown: bool
+        show_search: bool
         option_type: str
         formula_value: BaserowFormulaObject
         formula_name: BaserowFormulaObject
@@ -1934,6 +1943,11 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
                 default=True,
                 required=False,
             ),
+            "show_search": serializers.BooleanField(
+                help_text=ChoiceElement._meta.get_field("show_search").help_text,
+                default=False,
+                required=False,
+            ),
             "option_type": serializers.ChoiceField(
                 choices=ChoiceElement.OPTION_TYPE.choices,
                 help_text=ChoiceElement._meta.get_field("option_type").help_text,
@@ -1971,6 +1985,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         self,
         element: ChoiceElement,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1982,7 +1997,12 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ]
 
         return super().serialize_property(
-            element, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            element,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_serialized(
@@ -2064,6 +2084,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ),
             "multiple": False,
             "show_as_dropdown": True,
+            "show_search": False,
             "option_type": ChoiceElement.OPTION_TYPE.MANUAL,
             "formula_value": BaserowFormulaObject(
                 formula="",
@@ -2154,7 +2175,15 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         return value
 
 
-class IFrameElementType(ElementType):
+class IFrameElementType(UntrustedContentTypeMixin, ElementType):
+    def get_import_report_entry(self, instance):
+        return {
+            "type": "iframe",
+            "id": instance.id,
+            "page_id": instance.page_id,
+            "page_name": instance.page.name,
+        }
+
     display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
@@ -2631,6 +2660,7 @@ class MenuElementType(ElementType):
         self,
         element: MenuElement,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2645,6 +2675,7 @@ class MenuElementType(ElementType):
         return super().serialize_property(
             element,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

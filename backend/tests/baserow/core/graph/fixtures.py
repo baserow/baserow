@@ -1,12 +1,13 @@
-from typing import Dict
+from typing import Iterable
 
+from baserow.core.cache import local_cache
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.models import GraphPointMixin
 
 
 class MockGraphHandler(BaseGraphHandler):
-    def get_point_map(self) -> Dict[int, "MockGraphPoint"]:
-        return self.instance.points
+    def get_all_points(self) -> Iterable["MockGraphPoint"]:
+        return self.instance.points.values()
 
 
 class MockGraphModel:
@@ -17,6 +18,7 @@ class MockGraphModel:
         self.id = 1
         self.graph = graph
         self.points = {}
+        local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(self))
 
     def get_graph_handler(self):
         return MockGraphHandler
@@ -46,6 +48,7 @@ def make_point(pid: int, model: MockGraphModel) -> MockGraphPoint:
     """Create a MockGraphPoint, register it on the model, and return it."""
     p = MockGraphPoint(pid, model)
     model.points[pid] = p
+    local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(model))
     return p
 
 

@@ -1,4 +1,9 @@
-import { colorPalette, getBaseColors } from '@baserow/modules/core/utils/colors'
+import {
+  colorPalette,
+  convertHexToRgb,
+  convertRgbToHex,
+  getBaseColors,
+} from '@baserow/modules/core/utils/colors'
 
 import { convertChartJsType } from '@baserow_premium/utils/chart'
 
@@ -91,9 +96,27 @@ function getGroupByValue({
     return $t('chart.other')
   }
 
+  if (value === null || value === undefined) {
+    return $t('chart.empty')
+  }
+
   if ($registry.exists('chartFieldFormatting', fieldType)) {
     const fieldFormatter = $registry.get('chartFieldFormatting', fieldType)
     return fieldFormatter.formatGroupByFieldValue(serializedField, value)
+  }
+
+  if (
+    $registry.get('field', fieldType).isEmptyForGrouping(serializedField, value)
+  ) {
+    return $t('chart.empty')
+  }
+
+  if (
+    Array.isArray(value) &&
+    ['link_row', 'multiple_collaborators'].includes(fieldType)
+  ) {
+    const serviceType = getServiceType({ dataSource, $registry })
+    return serviceType.getRecordName(dataSource, item)
   }
 
   if (value === true) {
@@ -134,7 +157,40 @@ function getValuesColors() {
   })
 }
 
-function getChartColorsSeriesOrValues({ colorSeries, seriesIndex }) {
+/** Build alternating darker/lighter shades while preserving the base and alpha. */
+function getCustomSliceColors(color, count) {
+  const base = convertHexToRgb(color)
+  return Array.from({ length: count }, (_, index) => {
+    if (index === 0) return color
+    const lighter = index % 2 === 0
+    const steps = Math.ceil((count - 1) / 2)
+    const amount = (Math.ceil(index / 2) / steps) * 0.65
+    const target = lighter ? 1 : 0
+    return convertRgbToHex({
+      r: base.r + (target - base.r) * amount,
+      g: base.g + (target - base.g) * amount,
+      b: base.b + (target - base.b) * amount,
+      a: base.a,
+    })
+  })
+}
+
+function getChartColorsSeriesOrValues({
+  colorSeries,
+  seriesIndex,
+  color,
+  valueCount = 1,
+}) {
+  if (color) {
+    if (!colorSeries) {
+      return { backgroundColor: getCustomSliceColors(color, valueCount) }
+    }
+    return {
+      backgroundColor: color,
+      borderColor: color,
+      hoverBackgroundColor: color,
+    }
+  }
   if (colorSeries) {
     return getSeriesColors()[seriesIndex]
   } else {
@@ -219,7 +275,12 @@ function getChartDataGrouping({
         convertChartJsType(individualSeriesConfig.series_chart_type) || 'bar',
       data: seriesData,
       label,
-      ...getChartColorsSeriesOrValues({ colorSeries, seriesIndex: index }),
+      ...getChartColorsSeriesOrValues({
+        colorSeries,
+        seriesIndex: index,
+        color: individualSeriesConfig.series_color,
+        valueCount: results.length,
+      }),
     })
   }
   return {
@@ -240,6 +301,7 @@ function getChartDataNoGrouping({
   if (['pie', 'doughnut'].includes(firstChartType)) {
     const labels = []
     const data = []
+    const colors = []
     for (const series of getChartSeries(dataSource)) {
       const technicalResultFieldName = `${series.fieldName}_${series.aggregationType}`
       const resultFieldName = getResultPropertyName({
@@ -247,6 +309,10 @@ function getChartDataNoGrouping({
         $registry,
         propertyName: technicalResultFieldName,
       })
+      colors.push(
+        getIndividualSeriesConfig(seriesConfig, series.id).series_color ||
+          getValuesColors()[0][colors.length % getValuesColors()[0].length]
+      )
       labels.push(getLabel({ dataSource, $registry, series }))
       data.push(
         getResultValue({
@@ -262,7 +328,7 @@ function getChartDataNoGrouping({
         {
           type: firstChartType,
           data,
-          backgroundColor: getValuesColors()[0],
+          backgroundColor: colors,
         },
       ],
     }
@@ -294,7 +360,11 @@ function getChartDataNoGrouping({
         convertChartJsType(individualSeriesConfig.series_chart_type) || 'bar',
       data: seriesData,
       label,
-      ...getSeriesColors()[index],
+      ...getChartColorsSeriesOrValues({
+        colorSeries: true,
+        seriesIndex: index,
+        color: individualSeriesConfig.series_color,
+      }),
     })
   }
   return {

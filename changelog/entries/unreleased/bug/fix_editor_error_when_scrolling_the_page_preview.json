@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix an error in the application editor when the page preview is scrolled above the viewport.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-16"
+}

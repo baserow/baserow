@@ -37,7 +37,6 @@ def test_notification_creation_on_creating_group_invitation(
             {
                 "email": "test2@test.nl",
                 "permissions": "ADMIN",
-                "base_url": "http://localhost:3000/invite",
             },
             format="json",
             HTTP_AUTHORIZATION=f"JWT {token_1}",
@@ -98,7 +97,7 @@ def test_notification_creation_on_accepting_group_invitation(
     mocked_notification_created, api_client, data_fixture
 ):
     user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
-    user_2 = data_fixture.create_user(email="test2@test.nl")
+    user_2 = data_fixture.create_user(email="test2@test.nl", email_verified=True)
     workspace_1 = data_fixture.create_workspace(user=user_1)
     invitation = data_fixture.create_workspace_invitation(
         invited_by=user_1,
@@ -171,7 +170,7 @@ def test_notification_creation_on_rejecting_group_invitation(
     mocked_notification_created, api_client, data_fixture
 ):
     user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
-    user_2 = data_fixture.create_user(email="test2@test.nl")
+    user_2 = data_fixture.create_user(email="test2@test.nl", email_verified=True)
     workspace_1 = data_fixture.create_workspace(user=user_1)
     invitation = data_fixture.create_workspace_invitation(
         invited_by=user_1,

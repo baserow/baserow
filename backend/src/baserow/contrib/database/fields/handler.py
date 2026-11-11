@@ -16,7 +16,7 @@ from typing import (
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.db import DEFAULT_DB_ALIAS, connection
+from django.db import DEFAULT_DB_ALIAS, connection, transaction
 from django.db.models import Prefetch, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
@@ -54,6 +54,7 @@ from baserow.contrib.database.fields.utils.field_constraint import (
 )
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry, User
@@ -95,7 +96,11 @@ from .exceptions import (
 )
 from .field_cache import FieldCache
 from .models import Field, FieldConstraint, SelectOption, SpecificFieldForUpdate
-from .registries import field_converter_registry, field_type_registry
+from .registries import (
+    field_converter_registry,
+    field_extension_registry,
+    field_type_registry,
+)
 from .signals import (
     before_field_deleted,
     field_created,
@@ -207,7 +212,7 @@ class FieldHandler:
         :return: A queryset with select and prefetch related fields set.
         """
 
-        return Field.objects.select_related(
+        queryset = Field.objects.select_related(
             "content_type", "table__database__workspace"
         ).prefetch_related(
             Prefetch(
@@ -220,6 +225,7 @@ class FieldHandler:
             "select_options",
             "field_constraints",
         )
+        return field_extension_registry.enhance_fields_queryset(queryset)
 
     def get_fields(
         self,
@@ -443,6 +449,8 @@ class FieldHandler:
             field_cache,
             skip_search_updates,
         )
+        for extension in field_extension_registry.get_all():
+            extension.after_create(user, instance, extension.extract_values(kwargs))
         SearchHandler.schedule_update_search_data(table, fields=[instance])
 
         field_created.send(
@@ -498,6 +506,7 @@ class FieldHandler:
 
         return updated_fields
 
+    @transaction.atomic
     def update_field(
         self,
         user: AbstractUser,
@@ -512,6 +521,9 @@ class FieldHandler:
     ) -> Union[SpecificFieldForUpdate, Tuple[SpecificFieldForUpdate, List[Field]]]:
         """
         Updates the values and/or type of the given field.
+
+        Index cleanup and schema changes share a transaction so the table lock
+        prevents background index rebuilds until the new column type is ready.
 
         :param user: The user on whose behalf the table is updated.
         :param field: The field instance that needs to be updated.
@@ -670,6 +682,14 @@ class FieldHandler:
         from_model_field = from_model._meta.get_field(field.db_column)
         to_model_field = to_model._meta.get_field(field.db_column)
 
+        if not baserow_field_type_changed and from_model_field.db_type(
+            connection
+        ) != to_model_field.db_type(connection):
+            # Settings such as a date field's Include time also change the column
+            # type. Remove expression indexes before PostgreSQL rebuilds them
+            # against a type their functions may not accept.
+            ViewHandler().before_field_type_change(old_field)
+
         update_collector = FieldUpdateCollector(field.table)
 
         # If the field type or the database representation changes it could be
@@ -795,6 +815,10 @@ class FieldHandler:
                 using=DEFAULT_DB_ALIAS
             )
 
+        # Write-only fields can't have view default values.
+        if baserow_field_type_changed and to_field_type.write_only:
+            ViewDefaultValue.objects.filter(field_id=field.id).delete()
+
         to_field_type.after_update(
             old_field,
             field,
@@ -834,6 +858,10 @@ class FieldHandler:
             field, old_field, update_collector, field_cache
         )
 
+        for extension in field_extension_registry.get_all():
+            extension.after_update(
+                user, field, old_field, extension.extract_values(kwargs)
+            )
         ViewHandler().field_updated(field)
         if needs_to_update_search_data:
             SearchHandler.schedule_update_search_data(field.table, fields=[field])
@@ -942,6 +970,9 @@ class FieldHandler:
         specific_field = field.specific
         field_type = field_type_registry.get_by_model(specific_field)
         serialized_field = field_type.export_serialized(specific_field)
+        # The extensions copy their own values in `after_duplicate`, because unlike
+        # creating a field, duplicating one must not validate them again.
+        serialized_field.pop("extensions", None)
         progress.increment()
 
         new_name = self.find_next_unused_field_name(
@@ -979,6 +1010,13 @@ class FieldHandler:
 
         if duplicate_data and field_type.keep_data_on_duplication:
             FieldDataBackupHandler.duplicate_field_data(field, new_field)
+        for extension in field_extension_registry.get_all():
+            extension.after_duplicate(
+                user,
+                specific_field,
+                new_field,
+                duplicate_data and field_type.keep_data_on_duplication,
+            )
         progress.increment()
 
         return new_field, updated_fields

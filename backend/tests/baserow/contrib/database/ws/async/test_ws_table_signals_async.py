@@ -7,6 +7,8 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
 from tests.baserow.contrib.database.utils import received_message
 
+pytestmark = pytest.mark.usefixtures("fake_async_redis")
+
 
 @pytest.fixture(autouse=True)
 def use_async_event_loop_here(async_event_loop):

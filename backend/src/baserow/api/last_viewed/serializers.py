@@ -99,8 +99,8 @@ class LastViewedItemWorkspaceSerializer(serializers.Serializer):
 class LastViewedItemSerializer(serializers.Serializer):
     """
     Serializes a `LastViewedListItem`. The nested `item` is produced by the
-    serializer class of the registered type, because the four leaf models share no
-    common base.
+    serializer class of the registered type, because the leaf models share no common
+    base.
     """
 
     type = serializers.CharField(source="item_type.type")

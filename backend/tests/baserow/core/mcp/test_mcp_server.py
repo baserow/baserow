@@ -474,10 +474,10 @@ def test_call_tool_exception_returns_is_error_true(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.call_tool(
-                    "update_rows", {"table_id": 999999, "rows": []}
+                    "update_rows", {"table_id": 999999, "rows": [{"id": 1}]}
                 )
                 assert result.isError is True
-                assert "Error:" in result.content[0].text
+                assert result.content[0].text == "Not found in this workspace."
 
         with transaction.atomic():
             async_to_sync(inner)()
@@ -498,7 +498,9 @@ def test_call_tool_captures_analytics_event(mock_capture, data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 await client.call_tool("list_databases", {})
-                await client.call_tool("update_rows", {"table_id": 999999, "rows": []})
+                await client.call_tool(
+                    "update_rows", {"table_id": 999999, "rows": [{"id": 1}]}
+                )
                 await client.call_tool("nonexistent_tool", {})
 
         with transaction.atomic():
@@ -508,8 +510,20 @@ def test_call_tool_captures_analytics_event(mock_capture, data_fixture):
 
     # The unknown tool is not captured.
     assert [c.args[2] for c in mock_capture.call_args_list] == [
-        {"endpoint_id": endpoint.id, "tool": "list_databases", "success": True},
-        {"endpoint_id": endpoint.id, "tool": "update_rows", "success": False},
+        {
+            "endpoint_id": endpoint.id,
+            "transport": "sse",
+            "auth": "key_url",
+            "tool": "list_databases",
+            "success": True,
+        },
+        {
+            "endpoint_id": endpoint.id,
+            "transport": "sse",
+            "auth": "key_url",
+            "tool": "update_rows",
+            "success": False,
+        },
     ]
     for call in mock_capture.call_args_list:
         assert call.args[0] == endpoint.user
@@ -576,7 +590,7 @@ def test_handle_sse_captures_connected_event(mock_capture, data_fixture):
     mock_capture.assert_called_once_with(
         endpoint.user,
         "mcp_connected",
-        {"endpoint_id": endpoint.id},
+        {"endpoint_id": endpoint.id, "transport": "sse", "auth": "key_url"},
         workspace=endpoint.workspace,
     )
 
@@ -608,7 +622,13 @@ def test_call_tool_with_invalid_arguments_is_captured_as_failed(
     mock_capture.assert_called_once_with(
         endpoint.user,
         "mcp_tool_called",
-        {"endpoint_id": endpoint.id, "tool": "update_rows", "success": False},
+        {
+            "endpoint_id": endpoint.id,
+            "transport": "sse",
+            "auth": "key_url",
+            "tool": "update_rows",
+            "success": False,
+        },
         workspace=endpoint.workspace,
     )
 

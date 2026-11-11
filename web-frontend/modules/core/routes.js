@@ -123,6 +123,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
       },
       {
+        name: 'admin-templates',
+        path: '/admin/templates',
+        file: path.resolve(__dirname, 'pages/admin/templates.vue'),
+      },
+      {
         name: 'settings',
         path: '/workspace/:workspaceId/settings',
         file: path.resolve(__dirname, 'pages/settings.vue'),
@@ -132,10 +137,12 @@ export const routes = [
             path: 'members',
             file: path.resolve(__dirname, 'pages/settings/members.vue'),
           },
+          // Pending invitations are managed from the invite modal on the members
+          // page now, this keeps old links to the invites page working.
           {
-            name: 'settings-invites',
+            name: 'settings-invites-redirect',
             path: 'invites',
-            file: path.resolve(__dirname, 'pages/settings/invites.vue'),
+            redirect: { name: 'settings-members' },
           },
           {
             name: 'settings-agents',
@@ -153,11 +160,24 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/workspaceInvitation.vue'),
     meta: { preventPageViewTracking: true },
   },
+  {
+    name: 'invitation-link',
+    // Only the characters a link code can have, the same as the backend URL.
+    path: '/invite/:slug([-\\w]+)',
+    file: path.resolve(__dirname, 'pages/invitationLink.vue'),
+    meta: { preventPageViewTracking: true },
+  },
 
   {
     name: 'template',
     path: '/template/:slug',
     file: path.resolve(__dirname, 'pages/template.vue'),
+  },
+  {
+    name: 'template-private-link',
+    path: '/template/:slug/private-link/:token([0-9a-f]{64})',
+    file: path.resolve(__dirname, 'pages/templatePrivateLink.vue'),
+    meta: { preventPageViewTracking: true },
   },
   {
     name: 'health-check',

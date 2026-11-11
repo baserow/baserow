@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 from zipfile import ZipFile
 
@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
-from django.db.models import OuterRef, Q, QuerySet, Subquery
+from django.db.models import Exists, OuterRef, Q, QuerySet, Subquery
 from django.utils import timezone
 
 from celery.canvas import Signature, chain
@@ -27,6 +27,9 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import Automation
+from baserow.contrib.automation.nodes.constants import (
+    AUTOMATION_PENDING_NODE_STALE_SECONDS,
+)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.signals import automation_node_updated
@@ -35,6 +38,9 @@ from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
+    STALLED_RUN_CANCELLED_ERROR,
+    STALLED_RUN_ERROR,
+    STALLED_RUN_SWEEP_BATCH_SIZE,
     WORKFLOW_DIRTY_CACHE_KEY,
     WorkflowState,
 )
@@ -48,6 +54,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_before_run,
+    automation_workflow_dispatch_done,
     automation_workflow_dispatch_started,
     automation_workflow_updated,
 )
@@ -57,8 +64,11 @@ from baserow.contrib.automation.workflows.tasks import (
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
 from baserow.core.cache import global_cache, local_cache
-from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.deferred_callbacks import deferred_callback_context
+from baserow.core.exceptions import IdDoesNotExist, UntrustedContentCannotBePublished
+from baserow.core.import_export.untrusted_content import defer_untrusted_content_update
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.services.deferred_deletion import deferred_service_deletion_context
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.subjects import UserSubjectType
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
@@ -83,6 +93,7 @@ tracer = trace.get_tracer(__name__)
 @baserow_trace_handler
 class AutomationWorkflowHandler:
     allowed_fields = [
+        "untrusted_content",
         "name",
         "allow_test_run_until",
         "state",
@@ -164,6 +175,43 @@ class AutomationWorkflowHandler:
 
         return _get_published_workflow(workflow)
 
+    def get_published_workflow_for_update(
+        self, workflow: AutomationWorkflow
+    ) -> Optional[AutomationWorkflow]:
+        """
+        Locks the workflow, then returns its published version. Publishing holds the
+        same lock, so this waits for a publication in progress and returns what it
+        left live. Call it inside a transaction.
+
+        :param workflow: The draft workflow.
+        :return: The published workflow, if it exists.
+        """
+
+        self.get_workflow(workflow.id, for_update=True)
+        return self.get_published_workflow(workflow, with_cache=False)
+
+    def get_state(
+        self, workflow: AutomationWorkflow, with_cache: bool = True
+    ) -> WorkflowState:
+        """
+        The state of a workflow as the API reports it: the state of its published
+        version, or draft when it has none.
+
+        :param workflow: The draft workflow. One from
+            `annotate_published_workflow_data` runs no query.
+        :param with_cache: Whether a cached published workflow may be used.
+        :return: The state.
+        """
+
+        try:
+            state = workflow.published_workflow_state
+        except AttributeError:
+            published_workflow = self.get_published_workflow(
+                workflow, with_cache=with_cache
+            )
+            state = published_workflow.state if published_workflow else None
+        return WorkflowState(state if state is not None else WorkflowState.DRAFT)
+
     def annotate_published_workflow_data(
         self, queryset: QuerySet[AutomationWorkflow]
     ) -> QuerySet[AutomationWorkflow]:
@@ -189,7 +237,13 @@ class AutomationWorkflowHandler:
             published_workflow_state=Subquery(published_workflows.values("state")[:1]),
         )
 
-    def _invalidate_workflow_caches(self, workflow: AutomationWorkflow) -> None:
+    def _invalidate_publication_caches(self, workflow: AutomationWorkflow) -> None:
+        """
+        Forget the cached live copy and run rate limit of a workflow. The draft's
+        dirty flag is left alone: it tracks the test clone, which publishing doesn't
+        replace, and an edit made during the publication must still set it.
+        """
+
         original_workflow = workflow.get_original()
 
         global_cache.invalidate(
@@ -198,7 +252,6 @@ class AutomationWorkflowHandler:
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )
-        global_cache.invalidate(WORKFLOW_DIRTY_CACHE_KEY.format(original_workflow.id))
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -296,9 +349,12 @@ class AutomationWorkflowHandler:
         # published workflow, if available.
         state = allowed_values.pop("state", None)
         if state is not None:
-            if published_workflow := self.get_published_workflow(workflow):
-                published_workflow.state = WorkflowState(state)
-                published_workflow.save(update_fields=["state"])
+            with transaction.atomic():
+                if published_workflow := self.get_published_workflow_for_update(
+                    workflow
+                ):
+                    published_workflow.state = WorkflowState(state)
+                    published_workflow.save(update_fields=["state"])
 
         previous_allow_test_run_until = workflow.allow_test_run_until
         for key, value in extract_allowed(allowed_values, attr_fields).items():
@@ -435,6 +491,15 @@ class AutomationWorkflowHandler:
             [proposed_name], existing_workflow_names, max_length=WORKFLOW_NAME_MAX_LEN
         )
 
+    @staticmethod
+    def _is_external_import_export(config: Optional[ImportExportConfig]) -> bool:
+        """Whether the workflow crosses the instance's trust boundary."""
+
+        return not any(
+            getattr(config, flag, False)
+            for flag in ("is_duplicate", "is_publishing", "is_template")
+        )
+
     def export_workflow(
         self,
         workflow: AutomationWorkflow,
@@ -457,12 +522,16 @@ class AutomationWorkflowHandler:
 
         serialized_nodes = [
             AutomationNodeHandler().export_node(
-                n, files_zip=files_zip, storage=storage, cache=cache
+                n,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
             for n in AutomationNodeHandler().get_nodes(workflow=workflow)
         ]
 
-        return AutomationWorkflowDict(
+        serialized = AutomationWorkflowDict(
             id=workflow.id,
             name=workflow.name,
             order=workflow.order,
@@ -480,6 +549,12 @@ class AutomationWorkflowHandler:
                 )
             ),
         )
+        # Internal copies keep the restriction. An external import detects it again
+        # from the imported content, and official templates are exported externally
+        # but installed as internal copies, so a file must never carry it.
+        if not self._is_external_import_export(import_export_config):
+            serialized["untrusted_content"] = workflow.untrusted_content
+        return serialized
 
     def _ops_count_for_import_workflow(
         self,
@@ -533,6 +608,7 @@ class AutomationWorkflowHandler:
 
         return imported_nodes
 
+    @deferred_callback_context()
     def import_workflows(
         self,
         automation: Automation,
@@ -559,6 +635,9 @@ class AutomationWorkflowHandler:
         :return: the newly created instances.
         """
 
+        if import_export_config is None:
+            import_export_config = ImportExportConfig(include_permission_data=False)
+
         if cache is None:
             cache = {}
 
@@ -569,18 +648,31 @@ class AutomationWorkflowHandler:
 
         imported_workflows = []
         for serialized_workflow in serialized_workflows:
+            workflow_cache = {**cache, "import_report": []}
+            workflow_values = {**serialized_workflow}
+            if self._is_external_import_export(import_export_config):
+                workflow_values["untrusted_content"] = True
             workflow_instance = self.import_workflow_only(
                 automation,
-                serialized_workflow,
+                workflow_values,
                 id_mapping,
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
                 cache=cache,
             )
-            imported_workflows.append([workflow_instance, serialized_workflow])
+            defer_untrusted_content_update(
+                workflow_instance, workflow_cache, import_export_config
+            )
+            imported_workflows.append(
+                [workflow_instance, serialized_workflow, workflow_cache]
+            )
 
-        for workflow_instance, serialized_workflow in imported_workflows:
+        for (
+            workflow_instance,
+            serialized_workflow,
+            workflow_cache,
+        ) in imported_workflows:
             self.import_nodes(
                 workflow_instance,
                 serialized_workflow["nodes"],
@@ -589,7 +681,7 @@ class AutomationWorkflowHandler:
                 files_zip=files_zip,
                 storage=storage,
                 progress=progress,
-                cache=cache,
+                cache=workflow_cache,
             )
 
             workflow_instance.get_graph().migrate_graph(id_mapping)
@@ -643,11 +735,14 @@ class AutomationWorkflowHandler:
         progress: Optional[ChildProgressBuilder] = None,
         **kwargs: Any,
     ):
+        """Create a workflow with its serialized trust state before importing nodes."""
+
         if "automation_workflows" not in id_mapping:
             id_mapping["automation_workflows"] = {}
 
         workflow_instance = AutomationWorkflow.objects.create(
             automation=automation,
+            untrusted_content=serialized_workflow.get("untrusted_content", False),
             name=serialized_workflow["name"],
             order=serialized_workflow["order"],
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
@@ -675,25 +770,14 @@ class AutomationWorkflowHandler:
     def clean_up_previously_published_automations(
         self, workflow: AutomationWorkflow
     ) -> None:
-        published_automations = list(
-            Automation.objects.filter(published_from=workflow).order_by("id")
-        )
-        if not published_automations:
-            return
+        """
+        Disables the live versions of the workflow. The versions it replaces are
+        removed later by `clear_old_history`: deleting them can take many seconds for
+        a large workflow, so it doesn't happen when publishing.
 
-        if len(published_automations) > 1:
-            # Delete all but the last published automation
-            if ids_to_delete := [
-                a.id
-                for a in published_automations[:-1]
-                # Exclude any automations that have any history entries
-                if not AutomationWorkflowHistory.objects.filter(
-                    workflow__automation=a
-                ).exists()
-            ]:
-                Automation.objects.filter(id__in=ids_to_delete).delete()
+        :param workflow: The workflow being published.
+        """
 
-        # Disable any live workflows
         AutomationWorkflow.objects.filter(
             automation__published_from=workflow,
             state=WorkflowState.LIVE,
@@ -773,21 +857,33 @@ class AutomationWorkflowHandler:
 
         :param workflow: The workflow to be published.
         :param progress: An object to track the publishing progress.
-        :return: The published workflow.
+        :return: The published workflow. Its `draft_node_ids` maps the id of each
+            of its nodes to the id of the draft node it was copied from.
         """
 
         # Make sure we are the only process to update the automation workflow
         # to prevent race conditions.
         workflow = self.get_workflow(workflow.id, for_update=True)
+        if workflow.untrusted_content:
+            raise UntrustedContentCannotBePublished()
+
         self.clean_up_previously_published_automations(workflow)
 
         cloned_automation, id_mapping = self._clone_workflow(
             workflow, WorkflowState.LIVE, progress
         )
 
-        self._invalidate_workflow_caches(workflow)
+        # After the commit, so a publication rolled back leaves the cached live copy.
+        transaction.on_commit(lambda: self._invalidate_publication_caches(workflow))
 
-        return cloned_automation.workflows.first()
+        published_workflow = cloned_automation.workflows.first()
+        published_workflow.draft_node_ids = {
+            published_id: draft_id
+            for draft_id, published_id in id_mapping.get(
+                "automation_workflow_nodes", {}
+            ).items()
+        }
+        return published_workflow
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """
@@ -796,12 +892,17 @@ class AutomationWorkflowHandler:
 
         original_workflow = workflow.get_original()
 
-        # The two workflows are always different because we call it only for published
-        # workflows
-        workflow.state = WorkflowState.DISABLED
-        workflow.save(update_fields=["state"])
-        original_workflow.state = WorkflowState.DISABLED
-        original_workflow.save(update_fields=["state"])
+        with transaction.atomic():
+            # The draft is locked first, like publishing and pausing do, so a
+            # concurrent pause waits instead of deadlocking.
+            self.get_workflow(original_workflow.id, for_update=True)
+
+            # The two workflows are always different because we call it only for
+            # published workflows
+            workflow.state = WorkflowState.DISABLED
+            workflow.save(update_fields=["state"])
+            original_workflow.state = WorkflowState.DISABLED
+            original_workflow.save(update_fields=["state"])
 
         if workflow != original_workflow:
             from baserow.contrib.automation.notification_types import (
@@ -1034,16 +1135,22 @@ class AutomationWorkflowHandler:
             )
         )
 
-        # Exclude any automation that is currently the active published workflow
+        # Keep the newest published copy of each workflow whatever its state, so a
+        # paused or disabled workflow keeps the version it was paused or disabled with.
         active_published_ids = list(
             AutomationWorkflow.objects.filter(
-                state=WorkflowState.LIVE,
-            ).values_list("automation_id", flat=True)
+                automation__published_from__isnull=False,
+            )
+            .exclude(state=WorkflowState.TEST_CLONE)
+            .order_by("automation__published_from_id", "-automation_id")
+            .distinct("automation__published_from_id")
+            .values_list("automation_id", flat=True)
         )
         if active_published_ids:
             empty_published = empty_published.exclude(id__in=active_published_ids)
 
-        empty_published.delete()
+        with deferred_service_deletion_context():
+            empty_published.delete()
 
     @baserow_trace(tracer)
     def mark_failure_for_timed_out_history(self) -> None:
@@ -1100,13 +1207,191 @@ class AutomationWorkflowHandler:
             completed_on=now,
         )
 
+        # A waiting node belongs to a run that is still going, so it times out
+        # with it; its resume task finds the run resolved and leaves it alone.
         AutomationNodeHistory.objects.filter(
             workflow_history_id__in=workflow_history_ids,
-            status=HistoryStatusChoices.STARTED,
+            status__in=(HistoryStatusChoices.STARTED, HistoryStatusChoices.WAITING),
         ).update(
             status=HistoryStatusChoices.ERROR,
             message=error,
             completed_on=now,
+        )
+
+    def _get_stall_candidates(
+        self, now: datetime, threshold: datetime
+    ) -> QuerySet[AutomationWorkflowHistory]:
+        """
+        Returns the `STARTED` runs that look dead: the run is still open, but
+        its last sign of activity is older than `threshold`.
+
+        The last sign of activity is the latest of these timestamps: when the
+        run started, when any of its nodes started, and when any of its nodes
+        completed. A completed node does not make the run finished, it only
+        shows the run was alive at that moment. The next node should start
+        right after, so a run whose last node completed long ago and that has
+        no newer node is stuck between two nodes.
+
+        A node that is still running has no `completed_on` yet, so only its
+        `started_on` counts. That is what catches a parent node waiting on a
+        deferred child whose result never arrived.
+
+        A run with a waiting node is left alone while that node's resume is not
+        overdue by more than the grace: a Wait node can idle for hours by design,
+        and the recovery of a lost resume which runs in the periodic cleanup,
+        gets two tries inside the grace. A run whose resume keeps failing after
+        that is stalled like any other.
+
+        :param now: The current time, from which the waiting grace is computed.
+        :param threshold: Runs with progress at or after this time are excluded.
+        :return: The stalled runs. Callers that need a specific order set it.
+        """
+
+        # A lost resume is re-queued by the periodic cleanup once the node is
+        # `AUTOMATION_PENDING_NODE_STALE_SECONDS` overdue. The cleanup only runs
+        # once per interval, so its first try can land up to one interval later
+        # and its second try one interval after that. Two intervals give the
+        # recovery two tries before the run counts as stalled: 75 + 2 * 60 = 195
+        # minutes with the defaults.
+        waiting_grace = timedelta(
+            seconds=AUTOMATION_PENDING_NODE_STALE_SECONDS
+        ) + 2 * timedelta(
+            minutes=settings.AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES
+        )
+        # Written as an `Exists` so that both conditions apply to the same node
+        # row: an `exclude()` across the multi-valued relation would not tie
+        # them together.
+        has_waiting_node_in_grace = Exists(
+            AutomationNodeHistory.objects.filter(
+                workflow_history=OuterRef("pk"),
+                status=HistoryStatusChoices.WAITING,
+                resume_at__gte=now - waiting_grace,
+            )
+        )
+
+        # `exclude()` across the relation means "has no node row matching",
+        # and does not match a NULL `completed_on`.
+        return (
+            AutomationWorkflowHistory.objects.filter(
+                status=HistoryStatusChoices.STARTED,
+                started_on__lt=threshold,
+            )
+            .exclude(node_histories__started_on__gte=threshold)
+            .exclude(node_histories__completed_on__gte=threshold)
+            .filter(~has_waiting_node_in_grace)
+        )
+
+    @baserow_trace(tracer)
+    def mark_failure_for_stalled_history(self) -> int:
+        """
+        Resolves the runs that stopped making progress for longer than
+        `AUTOMATION_RUN_STALL_TIMEOUT_MINUTES`. The runner moves from one node to
+        the next by publishing a Celery task, and nothing records that handoff:
+        if the publish is lost or the worker dies after receiving the task, the
+        run would stay `started` until the run timeout labels it as too long.
+
+        Nothing is re-run, since a node can have side effects. A run that was
+        only delayed, not lost, finds itself resolved when its next task is
+        picked up and stops there.
+
+        At most `STALLED_RUN_SWEEP_BATCH_SIZE` runs are resolved per call, the
+        oldest first; the next call takes the rest.
+
+        :return: The number of runs this call resolved.
+        """
+
+        now = timezone.now()
+        threshold = now - timedelta(
+            minutes=settings.AUTOMATION_RUN_STALL_TIMEOUT_MINUTES
+        )
+
+        workflow_history_ids = list(
+            self._get_stall_candidates(now, threshold)
+            .order_by("started_on", "id")
+            .values_list("id", flat=True)[:STALLED_RUN_SWEEP_BATCH_SIZE]
+        )
+        if not workflow_history_ids:
+            return 0
+
+        # The writes go through a flat queryset on the ids read above, each
+        # guarded on the run still being `STARTED`, so a run resolved between
+        # the read and the write (dispatch-done handler, runner-side
+        # cancellation) is left alone. The cancellation flag is re-read at write
+        # time, so a request that lands after the read is honoured.
+        still_started_histories = AutomationWorkflowHistory.objects.filter(
+            id__in=workflow_history_ids,
+            status=HistoryStatusChoices.STARTED,
+        )
+        still_started_histories.filter(cancellation_requested_on__isnull=False).update(
+            status=HistoryStatusChoices.CANCELLED,
+            message=STALLED_RUN_CANCELLED_ERROR,
+            completed_on=now,
+        )
+        still_started_histories.filter(cancellation_requested_on__isnull=True).update(
+            status=HistoryStatusChoices.ERROR,
+            message=STALLED_RUN_ERROR,
+            completed_on=now,
+        )
+
+        # Only the runs this call changed: a run that finished on its own in the
+        # meantime already sent its own event.
+        resolved_histories = list(
+            AutomationWorkflowHistory.objects.filter(
+                id__in=workflow_history_ids,
+                completed_on=now,
+                message__in=(STALLED_RUN_ERROR, STALLED_RUN_CANCELLED_ERROR),
+            ).select_related("original_workflow__automation")
+        )
+        if not resolved_histories:
+            return 0
+
+        # Closes the half-open row of a parent waiting on a lost deferred child,
+        # and an overdue waiting node, whose resume task then finds the run
+        # resolved and leaves it alone.
+        AutomationNodeHistory.objects.filter(
+            workflow_history_id__in=[history.id for history in resolved_histories],
+            status__in=(HistoryStatusChoices.STARTED, HistoryStatusChoices.WAITING),
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=STALLED_RUN_ERROR,
+            completed_on=now,
+        )
+
+        # No default response is created: every response waiter (an HTTP
+        # trigger waiting for a response, a parent waiting on a child run) gives
+        # up within seconds, long before a run counts as stalled.
+        for history in resolved_histories:
+            automation_workflow_dispatch_done.send(
+                sender=None,
+                workflow_history=history,
+            )
+
+        return len(resolved_histories)
+
+    @baserow_trace(tracer)
+    def count_runs_newly_stalled(self) -> int:
+        """
+        Counts the `STARTED` runs whose last progress became older than
+        `AUTOMATION_RUN_STALL_WARNING_MINUTES` during the last stall sweep
+        interval, so each run is counted once, by one sweep. Used to tell a
+        backed-up queue apart from a lost task: nothing is resolved.
+
+        :return: The number of runs that newly crossed the warning threshold.
+        """
+
+        now = timezone.now()
+        threshold = now - timedelta(
+            minutes=settings.AUTOMATION_RUN_STALL_WARNING_MINUTES
+        )
+        previous_threshold = threshold - timedelta(
+            minutes=settings.AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES
+        )
+        return (
+            self._get_stall_candidates(now, threshold)
+            .exclude(
+                id__in=self._get_stall_candidates(now, previous_threshold).values("id")
+            )
+            .count()
         )
 
     def _ensure_published_for_run(
@@ -1165,6 +1450,11 @@ class AutomationWorkflowHandler:
         smaller window is evaluated in Python to avoid issuing one COUNT query per
         configured rate limit.
 
+        A run counts in a window when it started inside it, or when it is still
+        unfinished. A run whose node is waiting (a Wait node) is unfinished for as
+        long as the wait lasts, but it is not using a worker, so it only counts by
+        its start time: otherwise ten waiting runs would refuse every new event.
+
         Raises AutomationWorkflowRateLimited when the workflow exceeds one of the
         configured rate limits.
         """
@@ -1184,16 +1474,25 @@ class AutomationWorkflowHandler:
                 Q(started_on__gte=oldest_start_window)
                 | Q(status=HistoryStatusChoices.STARTED)
             )
+            .annotate(
+                is_waiting=Exists(
+                    AutomationNodeHistory.objects.filter(
+                        workflow_history=OuterRef("pk"),
+                        status=HistoryStatusChoices.WAITING,
+                    )
+                )
+            )
             .order_by()
-            .values_list("started_on", "status")
+            .values_list("started_on", "status", "is_waiting")
         )
 
         for max_runs, window_seconds in rate_limits:
             start_window = now - timedelta(seconds=window_seconds)
             if (
                 sum(
-                    started_on >= start_window or status == HistoryStatusChoices.STARTED
-                    for started_on, status in history_windows
+                    started_on >= start_window
+                    or (status == HistoryStatusChoices.STARTED and not is_waiting)
+                    for started_on, status, is_waiting in history_windows
                 )
                 >= max_runs
             ):

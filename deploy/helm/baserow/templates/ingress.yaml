@@ -22,7 +22,7 @@ spec:
     - host: {{ $backendDomain | quote }}
       http:
         paths:
-          {{- range list "/ws/" "/mcp" "/assistant/" }}
+          {{- range list "/ws/" "/mcp" "/assistant/" "/api/chat-runs/" }}
           - path: {{ . }}
             pathType: Prefix
             backend:
@@ -50,7 +50,8 @@ spec:
                 name: {{ $asgi }}
                 port:
                   number: 80
-          {{- range list "/ws/" "/mcp/" "/assistant/" }}
+          {{- /* Keep before /api/: the bundled Caddy matches paths in listed order. */}}
+          {{- range list "/ws/" "/mcp/" "/assistant/" "/api/chat-runs/" }}
           - path: {{ . }}
             pathType: Prefix
             backend:

@@ -38,7 +38,6 @@ describe('RowEditFieldDuration', () => {
 
     await input.trigger('focus')
     await input.setValue('14:30')
-    await input.trigger('keyup')
 
     expect(wrapper.text()).not.toContain('error.requiredField')
 
@@ -59,7 +58,6 @@ describe('RowEditFieldDuration', () => {
 
     await input.trigger('focus')
     await input.setValue('14:')
-    await input.trigger('keyup')
 
     expect(wrapper.text()).toContain('fieldErrors.invalidDuration')
     expect(wrapper.text()).not.toContain('error.requiredField')

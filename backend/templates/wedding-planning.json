@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Wedding Planning",
+    "description": "Plan your wedding with venues, guests, seating and vendors.",
     "icon": "iconoir-list-select",
     "keywords": [
         "wedding",

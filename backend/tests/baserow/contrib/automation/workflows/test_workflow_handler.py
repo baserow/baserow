@@ -1,4 +1,5 @@
 import datetime
+import re
 from unittest.mock import MagicMock, patch
 
 from django.db import connection
@@ -18,10 +19,11 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
     CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
-    LocalBaserowRowsCreatedNodeTriggerType,
+    LocalBaserowRowsCreatedTriggerNodeType,
 )
 from baserow.contrib.automation.workflows.actions import (
     UpdateAutomationWorkflowActionType,
@@ -39,10 +41,17 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.integrations.core.models import (
+    HTTPFormData,
+    HTTPHeader,
+    HTTPQueryParam,
+)
 from baserow.core.action.handler import ActionHandler
 from baserow.core.cache import global_cache, local_cache
+from baserow.core.models import Agent
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.models import Service
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from tests.baserow.contrib.automation.history.utils import assert_history
@@ -171,6 +180,62 @@ def test_export_workflow_with_manual_trigger(data_fixture):
 
     assert exported_workflow["nodes"][0]["type"] == CoreManualTriggerNodeType.type
     assert exported_workflow["nodes"][0]["service"]["type"] == "manual"
+
+
+@pytest.mark.django_db
+def test_export_workflow_passes_sensitive_data_config_to_node_service(data_fixture):
+    workflow = data_fixture.create_automation_workflow(create_trigger=False)
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="http_request",
+        service_kwargs={
+            "url": "https://example.com/endpoint",
+            "body_content": "secret",
+        },
+    )
+    HTTPHeader.objects.create(
+        service=node.service,
+        key="Authorization",
+        value="Bearer secret",
+    )
+    HTTPQueryParam.objects.create(
+        service=node.service,
+        key="api_key",
+        value="secret",
+    )
+    HTTPFormData.objects.create(
+        service=node.service,
+        key="token",
+        value="secret",
+    )
+
+    sanitized_export = AutomationWorkflowHandler().export_workflow(
+        workflow,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=True,
+        ),
+    )
+    normal_export = AutomationWorkflowHandler().export_workflow(
+        workflow,
+        import_export_config=ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=False,
+        ),
+    )
+
+    sanitized_service = sanitized_export["nodes"][0]["service"]
+    normal_service = normal_export["nodes"][0]["service"]
+
+    assert sanitized_service["url"] == normal_service["url"]
+    assert sanitized_service["headers"] == [{"key": "Authorization", "value": None}]
+    assert sanitized_service["query_params"] == [{"key": "api_key", "value": None}]
+    assert sanitized_service["form_data"] == [{"key": "token", "value": None}]
+    assert sanitized_service["body_content"] is None
+    assert normal_service["headers"]
+    assert normal_service["query_params"]
+    assert normal_service["form_data"]
+    assert normal_service["body_content"] == node.service.body_content
 
 
 @pytest.mark.django_db
@@ -429,6 +494,7 @@ def test_export_prepared_values(data_fixture):
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
+        "untrusted_content": False,
     }
 
 
@@ -452,7 +518,45 @@ def test_publish_returns_published_workflow(data_fixture):
 
 
 @pytest.mark.django_db
-def test_publish_cleans_up_old_workflows(data_fixture):
+def test_publish_preserves_local_baserow_authorized_subject(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, create_trigger=False
+    )
+    agent = Agent.objects.create(workspace=workspace, name="Automation agent")
+    data_fixture.create_local_baserow_integration(
+        application=automation,
+        authorized_user=user,
+        authorized_agent=agent,
+    )
+
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+
+    published_integration = published_workflow.automation.integrations.get().specific
+    assert published_integration.authorized_subject == agent
+
+
+@pytest.mark.django_db
+def test_publish_disables_older_copies_and_leaves_them_to_the_cleanup(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+    published_3 = handler.publish(workflow)
+
+    published_1.refresh_from_db()
+    published_2.refresh_from_db()
+    assert published_1.state == WorkflowState.DISABLED
+    assert published_2.state == WorkflowState.DISABLED
+    assert published_3.state == WorkflowState.LIVE
+    assert handler.get_published_workflow(workflow, with_cache=False) == published_3
+
+
+@pytest.mark.django_db
+def test_clear_old_history_deletes_the_copies_a_publish_replaced(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()
 
@@ -465,29 +569,48 @@ def test_publish_cleans_up_old_workflows(data_fixture):
         workflow=test_clone_workflow,
         status=HistoryStatusChoices.SUCCESS,
     )
-
     published_1 = handler.publish(workflow)
     published_2 = handler.publish(workflow)
     published_3 = handler.publish(workflow)
-    published_4 = handler.publish(workflow)
 
-    # The first two published workflows should no longer exist
-    assert AutomationWorkflow.objects_and_trash.filter(id=published_1.id).count() == 0
-    assert AutomationWorkflow.objects_and_trash.filter(id=published_2.id).count() == 0
+    handler.clear_old_history()
 
-    # The 3rd workflow should exist but in a disabled state
-    published_3.refresh_from_db()
-    assert published_3.is_published is False
-
-    # The latest published workflow should be active
-    assert published_4.is_published is True
-
-    # The test clone should still exist and the state should still be correct
-    test_clone_workflow.refresh_from_db()
-    assert AutomationWorkflow.objects_and_trash.filter(
-        id=test_clone_workflow.id
+    assert not AutomationWorkflow.objects_and_trash.filter(
+        id__in=[published_1.id, published_2.id]
     ).exists()
+    assert handler.get_published_workflow(workflow, with_cache=False) == published_3
+    # A test clone with history is kept.
+    test_clone_workflow.refresh_from_db()
     assert test_clone_workflow.state == WorkflowState.TEST_CLONE
+
+
+@pytest.mark.django_db
+def test_clear_old_history_leaves_no_service_of_a_deleted_copy(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_local_baserow_rows_created_trigger_node(workflow=workflow)
+    data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+    handler = AutomationWorkflowHandler()
+    published_1 = handler.publish(workflow)
+    published_2 = handler.publish(workflow)
+
+    def service_ids(published):
+        return list(
+            AutomationNode.objects.filter(workflow=published).values_list(
+                "service_id", flat=True
+            )
+        )
+
+    old_service_ids = service_ids(published_1)
+    kept_service_ids = service_ids(published_2)
+    assert len(old_service_ids) == len(kept_service_ids) >= 2
+
+    handler.clear_old_history()
+
+    assert not Service.objects_and_trash.filter(id__in=old_service_ids).exists()
+    assert Service.objects.filter(id__in=kept_service_ids).count() == len(
+        kept_service_ids
+    )
 
 
 @pytest.mark.django_db
@@ -684,6 +807,7 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
+        "untrusted_content": False,
     }
     assert updated.new_values == {
         "name": "foo",
@@ -691,6 +815,7 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
         # The original workflow should indeed be unaffected
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
+        "untrusted_content": False,
     }
 
     published_workflow.refresh_from_db()
@@ -912,6 +1037,126 @@ def test_check_is_rate_limited_uses_a_single_query_for_multiple_windows(data_fix
     assert len(queries) == 1
 
 
+def _create_unfinished_run(data_fixture, workflow, node_status, original_workflow=None):
+    """
+    Creates a `started` run of the workflow whose single node history has the given
+    status: `waiting` for a run paused by a Wait node, `started` for a working run.
+    """
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        original_workflow=original_workflow or workflow,
+        status=HistoryStatusChoices.STARTED,
+    )
+    data_fixture.create_automation_node_history(
+        workflow_history=workflow_history,
+        node=data_fixture.create_automation_node(workflow=workflow),
+        status=node_status,
+    )
+    return workflow_history
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((10, 5), (30, 300), (100, 3600)),
+)
+@pytest.mark.django_db
+def test_check_is_rate_limited_ignores_unfinished_runs_that_are_waiting(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(12):
+            _create_unfinished_run(
+                data_fixture, original_workflow, HistoryStatusChoices.WAITING
+            )
+
+    # Outside the 5 s window, the waiting runs only count by their start time, so
+    # they stay below the 30 / 300 s and 100 / 3600 s limits.
+    with freeze_time("2025-08-01 14:00:10"):
+        assert (
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+            is False
+        )
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((10, 5), (30, 300), (100, 3600)),
+)
+@pytest.mark.django_db
+def test_check_is_rate_limited_still_counts_unfinished_runs_that_are_working(
+    data_fixture,
+):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(10):
+            _create_unfinished_run(
+                data_fixture, original_workflow, HistoryStatusChoices.STARTED
+            )
+        # A waiting run next to them changes nothing for the working ones.
+        _create_unfinished_run(
+            data_fixture, original_workflow, HistoryStatusChoices.WAITING
+        )
+
+    with freeze_time("2025-08-01 14:00:10"):
+        with pytest.raises(AutomationWorkflowRateLimited) as exc:
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+
+    assert str(exc.value) == (
+        "The workflow was rate limited due to too many recent or unfinished "
+        "runs. Limit exceeded: 10 runs in 5 seconds."
+    )
+
+
+@pytest.mark.django_db
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((10, 5), (30, 300), (100, 3600)),
+)
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_events_are_accepted_while_more_than_ten_runs_are_waiting(
+    mock_celery_task, data_fixture, django_capture_on_commit_callbacks
+):
+    with freeze_time("2026-01-26 12:59:00"):
+        user = data_fixture.create_user()
+        original_workflow = data_fixture.create_automation_workflow(user=user)
+        published_workflow = data_fixture.create_automation_workflow(
+            state=WorkflowState.LIVE, user=user
+        )
+        published_workflow.automation.published_from = original_workflow
+        published_workflow.automation.save()
+
+    with freeze_time("2026-01-26 13:00:00"):
+        for _ in range(11):
+            _create_unfinished_run(
+                data_fixture,
+                published_workflow,
+                HistoryStatusChoices.WAITING,
+                original_workflow=original_workflow,
+            )
+
+    # Seven events, 6 s apart: before the fix each one was refused as rate limited,
+    # and the seventh disabled the workflow for too many consecutive errors.
+    handler = AutomationWorkflowHandler()
+    for index in range(7):
+        with freeze_time(f"2026-01-26 13:01:{index * 6:02d}"):
+            with django_capture_on_commit_callbacks(execute=True):
+                history = handler.async_start_workflow(published_workflow)
+
+            assert history.status == HistoryStatusChoices.STARTED
+            assert history.message == ""
+
+    assert mock_celery_task.delay.call_count == 7
+    assert (
+        not AutomationHistoryHandler()
+        .get_workflow_histories(original_workflow)
+        .filter(status__in=[HistoryStatusChoices.ERROR, HistoryStatusChoices.DISABLED])
+        .exists()
+    )
+    published_workflow.refresh_from_db()
+    original_workflow.refresh_from_db()
+    assert published_workflow.state == WorkflowState.LIVE
+    assert original_workflow.state != WorkflowState.DISABLED
+
+
 @pytest.mark.django_db
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 5),),
@@ -1034,6 +1279,42 @@ def test_disable_workflow_disables_published_workflow(data_fixture):
     # Ensure both published and original workflows are disabled
     assert published_workflow.state == WorkflowState.DISABLED
     assert original_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+def test_disable_workflow_locks_the_draft_before_writing_the_published_one(
+    data_fixture,
+):
+    # Publishing and pausing lock the draft and then write the published workflow.
+    # Disabling in the other order would deadlock with a concurrent pause.
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    with CaptureQueriesContext(connection) as queries:
+        AutomationWorkflowHandler().disable_workflow(published_workflow)
+
+    statements = [query["sql"] for query in queries.captured_queries]
+
+    def on_workflow(sql, workflow):
+        return re.search(
+            rf'"automation_automationworkflow"\."id" = {workflow.id}\b', sql
+        )
+
+    draft_lock = next(
+        i
+        for i, sql in enumerate(statements)
+        if "FOR UPDATE" in sql and on_workflow(sql, original_workflow)
+    )
+    published_write = next(
+        i
+        for i, sql in enumerate(statements)
+        if sql.startswith("UPDATE") and on_workflow(sql, published_workflow)
+    )
+    assert draft_lock < published_write
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1332,7 +1613,7 @@ def test_toggle_test_mode_on(
     mock_async_start_workflow, mock_automation_workflow_updated, data_fixture
 ):
     workflow = data_fixture.create_automation_workflow(
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
 
     frozen_time = "2025-06-04 11:00"
@@ -1383,7 +1664,7 @@ def test_toggle_test_mode_off(
 ):
     workflow = data_fixture.create_automation_workflow(
         allow_test_run_until=datetime.datetime.now(),
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
     )
 
     AutomationWorkflowHandler().toggle_test_run(workflow, None)
@@ -1404,7 +1685,7 @@ def test_toggle_simulate_mode_on(
     mock_async_start_workflow, mock_automation_workflow_updated, data_fixture
 ):
     workflow = data_fixture.create_automation_workflow(
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
 
     AutomationWorkflowHandler().toggle_test_run(
@@ -1427,7 +1708,7 @@ def test_toggle_simulate_mode_off(
     mock_async_start_workflow, mock_automation_workflow_updated, data_fixture
 ):
     workflow = data_fixture.create_automation_workflow(
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
     trigger = workflow.get_trigger()
 
@@ -1779,6 +2060,44 @@ def test_mark_failure_for_timed_out_history(data_fixture):
 
 @override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
 @pytest.mark.django_db
+def test_mark_failure_for_timed_out_history_times_out_waiting_nodes(data_fixture):
+    """
+    A node that waits belongs to a run that is still going: when the run times
+    out, the waiting node times out with it.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-16 12:00:00"):
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+        node_history = AutomationNodeHistory.objects.create(
+            workflow_history=timed_out_history,
+            node=workflow.get_trigger(),
+            started_on=timed_out_history.started_on,
+            status=HistoryStatusChoices.WAITING,
+            resume_at=timezone.now() + datetime.timedelta(hours=6),
+            resume_state={"state": {"seconds": 21600}, "current_iterations": None},
+        )
+
+    with freeze_time("2026-04-16 13:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
+
+    error_message = "This workflow took too long and was timed out."
+
+    timed_out_history.refresh_from_db()
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == error_message
+    assert node_history.completed_on == timed_out_history.completed_on
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
 def test_mark_failure_for_timed_out_history_with_cancellation_requested(
     data_fixture,
 ):
@@ -2066,7 +2385,9 @@ def test_ensure_published_for_run_ignores_published_workflow_states(data_fixture
 
 
 @pytest.mark.django_db
-def test_publish_preserves_old_live_automation_with_history(data_fixture):
+def test_clear_old_history_preserves_old_live_automation_with_history(
+    data_fixture,
+):
     """
     When re-publishing, old live automations that have history entries
     pointing at them should not be deleted.
@@ -2085,9 +2406,9 @@ def test_publish_preserves_old_live_automation_with_history(data_fixture):
         status=HistoryStatusChoices.SUCCESS,
     )
 
-    # Publish twice. Normally, this would deleted the oldest published entry.
     handler.publish(workflow)
     handler.publish(workflow)
+    handler.clear_old_history()
 
     # The first automation shouldn't be deleted because it has history entries
     assert Automation.objects.filter(id=published_automation.id).exists()
@@ -2154,6 +2475,59 @@ def test_clear_old_history_keeps_live_published_automation_when_newer_test_clone
 
     assert Automation.objects.filter(id=published_workflow.automation_id).exists()
     assert not Automation.objects.filter(id=test_clone_workflow.automation_id).exists()
+
+
+@pytest.mark.django_db
+def test_clear_old_history_keeps_a_paused_published_automation(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published = handler.publish(workflow)
+    handler.update_workflow(workflow, state=WorkflowState.PAUSED)
+
+    handler.clear_old_history()
+
+    assert Automation.objects.filter(id=published.automation_id).exists()
+    assert (
+        handler.get_published_workflow(workflow, with_cache=False).state
+        == WorkflowState.PAUSED
+    )
+
+
+@pytest.mark.django_db
+def test_clear_old_history_keeps_the_paused_copy_over_an_older_one_with_history(
+    data_fixture,
+):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    first = handler.publish(workflow)
+    data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=first,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+    second = handler.publish(workflow)
+    handler.update_workflow(workflow, state=WorkflowState.PAUSED)
+
+    handler.clear_old_history()
+
+    assert Automation.objects.filter(id=second.automation_id).exists()
+    current = handler.get_published_workflow(workflow, with_cache=False)
+    assert current.id == second.id
+    assert current.state == WorkflowState.PAUSED
+
+
+@pytest.mark.django_db
+def test_clear_old_history_keeps_a_disabled_current_copy(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    published = handler.publish(workflow)
+    AutomationWorkflow.objects.filter(id=published.id).update(
+        state=WorkflowState.DISABLED
+    )
+
+    handler.clear_old_history()
+
+    assert Automation.objects.filter(id=published.automation_id).exists()
 
 
 @pytest.mark.django_db
@@ -2235,7 +2609,10 @@ def test_a_test_run_waiting_for_its_event_records_who_started_it(data_fixture):
     table = data_fixture.create_database_table(user=user)
     workflow = data_fixture.create_automation_workflow(
         user,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        automation=data_fixture.create_automation_application(
+            workspace=table.database.workspace
+        ),
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
 
@@ -2262,7 +2639,10 @@ def test_a_simulation_waiting_for_its_event_records_who_started_it(data_fixture)
     table = data_fixture.create_database_table(user=user)
     workflow = data_fixture.create_automation_workflow(
         user,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        automation=data_fixture.create_automation_application(
+            workspace=table.database.workspace
+        ),
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
 
@@ -2287,7 +2667,7 @@ def test_a_simulation_waiting_for_its_event_records_who_started_it(data_fixture)
 def test_cancelling_a_waiting_test_run_forgets_who_started_it(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(
-        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        user, trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
     handler = AutomationWorkflowHandler()
 
@@ -2306,7 +2686,7 @@ def test_a_waiting_test_run_whose_starter_was_deleted_records_nobody(data_fixtur
     user = data_fixture.create_user()
     starter = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(
-        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        user, trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
 
     AutomationWorkflowHandler().toggle_test_run(
@@ -2326,11 +2706,13 @@ def test_opening_the_test_run_window_through_an_update_records_who_opened_it(
     workspace = data_fixture.create_workspace(user=first)
     second = data_fixture.create_user(workspace=workspace)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    table = data_fixture.create_database_table(user=first)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=workspace)
+    )
     workflow = data_fixture.create_automation_workflow(
         first,
         automation=automation,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
         trigger_service_kwargs={"table": table},
     )
 
@@ -2356,7 +2738,7 @@ def test_opening_the_test_run_window_through_an_update_records_who_opened_it(
 def test_resetting_temporary_states_forgets_the_starter_type(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(
-        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        user, trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
     workflow.test_run_triggered_by_id = 1
     workflow.test_run_triggered_by_type = "core.Token"
@@ -2375,7 +2757,7 @@ def test_scheduling_a_test_run_without_a_starter_forgets_an_earlier_one(
 ):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(
-        user, trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type
+        user, trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type
     )
     handler = AutomationWorkflowHandler()
     workflow.test_run_triggered_by_id = user.id
@@ -2398,7 +2780,7 @@ def test_undoing_an_unrelated_update_keeps_the_test_run_starter(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         first,
         automation=automation,
-        trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
+        trigger_type=LocalBaserowRowsCreatedTriggerNodeType.type,
     )
     AutomationWorkflowHandler().toggle_test_run(
         workflow, simulate_until_node=None, triggered_by=first
@@ -2412,3 +2794,84 @@ def test_undoing_an_unrelated_update_keeps_the_test_run_starter(data_fixture):
     workflow.refresh_from_db()
     assert workflow.name != "Renamed"
     assert workflow.test_run_triggered_by_id == first.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publishing_leaves_the_draft_dirty_flag_alone(data_fixture):
+    from django.db import transaction
+
+    workflow = data_fixture.create_automation_workflow()
+    dirty_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+    global_cache.update(dirty_key, lambda _: True)
+
+    with pytest.raises(RuntimeError):
+        with transaction.atomic():
+            AutomationWorkflowHandler().publish(workflow)
+            raise RuntimeError("refused")
+
+    assert global_cache.get(dirty_key, default=False) is True
+
+    with transaction.atomic():
+        AutomationWorkflowHandler().publish(workflow)
+
+    # Publishing doesn't make a test clone, so the draft stays dirty for it.
+    assert global_cache.get(dirty_key, default=False) is True
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_draft_edit_during_a_publication_gives_the_next_test_run_a_new_clone(
+    data_fixture,
+):
+    from django.db import transaction
+
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+    old_clone = handler._ensure_published_for_run(workflow)
+
+    with transaction.atomic():
+        handler.publish(workflow)
+        # A draft edit from another request lands after the live copy was made,
+        # before the publication commits.
+        global_cache.update(
+            WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id), lambda _: True
+        )
+
+    assert handler._ensure_published_for_run(workflow).id != old_clone.id
+
+
+@pytest.mark.django_db
+def test_a_state_change_waits_for_a_publication_in_progress(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    AutomationWorkflowHandler().publish(workflow)
+
+    with CaptureQueriesContext(connection) as queries:
+        AutomationWorkflowHandler().update_workflow(
+            workflow, state=WorkflowState.PAUSED
+        )
+
+    # Publishing locks the same row, so the change waits for it.
+    locks = [
+        query["sql"]
+        for query in queries.captured_queries
+        if "FOR UPDATE" in query["sql"]
+    ]
+    assert len(locks) == 1
+    assert f'"automation_automationworkflow"."id" = {workflow.id}' in locks[0]
+    assert AutomationWorkflowHandler().get_state(workflow, with_cache=False) == (
+        WorkflowState.PAUSED
+    )
+
+
+@pytest.mark.django_db
+def test_get_state_reports_draft_without_a_published_version(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    assert handler.get_state(workflow) == WorkflowState.DRAFT
+
+    annotated = handler.annotate_published_workflow_data(
+        AutomationWorkflow.objects.filter(id=workflow.id)
+    ).get()
+    with CaptureQueriesContext(connection) as queries:
+        assert handler.get_state(annotated) == WorkflowState.DRAFT
+    assert len(queries) == 0

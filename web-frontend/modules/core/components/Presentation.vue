@@ -12,7 +12,13 @@
     </div>
     <div class="presentation__content">
       <div class="presentation__title">{{ title }}</div>
-      <div v-if="subtitle" class="presentation__subtitle">{{ subtitle }}</div>
+      <div
+        v-if="subtitle"
+        class="presentation__subtitle"
+        :class="{ 'presentation__subtitle--error': subtitleError }"
+      >
+        {{ subtitle }}
+      </div>
     </div>
   </div>
 </template>
@@ -59,6 +65,11 @@ export default {
       type: String,
       required: false,
       default: '',
+    },
+    subtitleError: {
+      type: Boolean,
+      required: false,
+      default: false,
     },
   },
   emits: ['click'],

@@ -27,6 +27,8 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "completed_on",
             "message",
             "status",
+            "attempt",
+            "resume_at",
             "workflow_history",
             "node",
             "node_type",
@@ -59,19 +61,30 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
         results = obj.node_results.all()
         return results[0] if results else None
 
+    def _get_iteration_path(self, obj):
+        """
+        The node history's own iteration path, set at creation. Entries created
+        before that field existed have "", so fall back to the first result row.
+        Returns None when neither is known (no path and no result row).
+        """
+
+        if obj.iteration_path:
+            return obj.iteration_path
+        result = self._get_first_node_result(obj)
+        return result.iteration_path if result else None
+
     @extend_schema_field(OpenApiTypes.INT)
     def get_iteration(self, obj):
-        result = self._get_first_node_result(obj)
-        if result is None:
+        iteration_path = self._get_iteration_path(obj)
+        if iteration_path is None:
             return None
-        if result.iteration_path:
-            return int(result.iteration_path.rsplit(".", 1)[-1])
+        if iteration_path:
+            return int(iteration_path.rsplit(".", 1)[-1])
         return 0
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_iteration_path(self, obj):
-        result = self._get_first_node_result(obj)
-        return result.iteration_path if result else ""
+        return self._get_iteration_path(obj) or ""
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_edge_label(self, obj):

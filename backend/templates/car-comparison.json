@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Car Comparison",
+    "description": "Compare cars on price, horsepower and fuel economy.",
     "icon": "iconoir-car",
     "keywords": [
         "car",

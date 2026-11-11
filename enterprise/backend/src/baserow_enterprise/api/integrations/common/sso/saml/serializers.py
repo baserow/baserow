@@ -2,6 +2,9 @@ from urllib.parse import parse_qsl, urlparse
 
 from rest_framework import serializers
 
+from baserow_enterprise.api.sso.utils import is_sso_callback_param
+from baserow_enterprise.sso.saml.exceptions import InvalidSamlResponse
+
 
 class CommonSAMLResponseSerializer(serializers.Serializer):
     SAMLResponse = serializers.CharField(
@@ -19,8 +22,16 @@ class CommonSAMLResponseSerializer(serializers.Serializer):
         # as additional data for the user login request
         relay_state = data["RelayState"]
         data["saml_request_data"] = {}
-        parsed_relay_state = urlparse(relay_state)
-        query_params = dict(parse_qsl(parsed_relay_state.query))
+        try:
+            parsed_relay_state = urlparse(relay_state)
+        except ValueError as exc:
+            raise InvalidSamlResponse("Invalid RelayState.") from exc
+        # The view adds these to the redirect url next to the real token.
+        query_params = {
+            name: value
+            for name, value in parse_qsl(parsed_relay_state.query)
+            if not is_sso_callback_param(name)
+        }
         if query_params:
             data["saml_request_data"] = query_params
 

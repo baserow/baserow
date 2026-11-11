@@ -26,7 +26,12 @@ from baserow_enterprise.role.models import Role
 def test_cannot_get_field_permissions(api_client, enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token()
     ext_user, ext_token = enterprise_data_fixture.create_user_and_token()
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
 
@@ -90,7 +95,12 @@ def test_cannot_get_field_permissions(api_client, enterprise_data_fixture):
 def test_cannot_update_field_permissions(api_client, enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token()
     ext_user, ext_token = enterprise_data_fixture.create_user_and_token()
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
 
@@ -193,7 +203,12 @@ def test_cannot_update_field_permissions(api_client, enterprise_data_fixture):
 def test_builders_can_get_field_permissions(api_client, enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token()
     ext_user, ext_token = enterprise_data_fixture.create_user_and_token()
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
     enterprise_data_fixture.enable_enterprise()
@@ -247,7 +262,12 @@ def test_builders_can_get_field_permissions(api_client, enterprise_data_fixture)
 def test_builders_can_update_field_permissions(api_client, enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token()
     ext_user, ext_token = enterprise_data_fixture.create_user_and_token()
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
     enterprise_data_fixture.enable_enterprise()
@@ -467,7 +487,12 @@ def test_can_search_paginated_field_permission_subject_options(
         first_name="Person B", email="second@else.test"
     )
     outsider = enterprise_data_fixture.create_user(first_name="Person Outside")
-    database = enterprise_data_fixture.create_database_application(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        user=enterprise_data_fixture.create_user(),
+        custom_permissions=[(user, "VIEWER")],
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
     workspace = database.workspace
     for member in [first_user, second_user]:
         enterprise_data_fixture.create_user_workspace(

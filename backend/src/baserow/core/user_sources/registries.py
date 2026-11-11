@@ -11,9 +11,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from baserow.api.exceptions import RequestBodyValidationException
 from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
-from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.integrations.models import Integration
+from baserow.core.integrations.mixins import IntegrationConsumerMixin
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
@@ -37,6 +35,7 @@ class UserSourceCount(NamedTuple):
 
 
 class UserSourceType(
+    IntegrationConsumerMixin,
     ModelInstanceMixin[UserSource],
     EasyImportExportMixin[UserSourceSubClass],
     CustomFieldsInstanceMixin,
@@ -81,29 +80,7 @@ class UserSourceType(
         :return: The updated values.
         """
 
-        # We load the actual integration object
-        if "integration_id" in values:
-            integration_id = values.pop("integration_id")
-            if integration_id is not None:
-                try:
-                    integration = IntegrationHandler().get_integration(integration_id)
-                except IntegrationDoesNotExist:
-                    # The integration may be trashed rather than truly gone: undoing
-                    # a user source update can restore an integration_id whose
-                    # integration is still trashed (a later undo step un-trashes it).
-                    # Resolve it from the full set so the FK can still be set; the
-                    # user source stays misconfigured until the integration is
-                    # restored. A genuinely non-existent id re-raises.
-                    integration = IntegrationHandler().get_integration(
-                        integration_id,
-                        base_queryset=Integration.objects_and_trash.all(),
-                        specific=False,
-                    )
-                values["integration"] = integration
-            else:
-                values["integration"] = None
-
-        return values
+        return self.prepare_integration_values(values)
 
     def after_create(self, user, user_source, values):
         """
@@ -176,6 +153,7 @@ class UserSourceType(
         self,
         instance: UserSource,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -185,8 +163,12 @@ class UserSourceType(
 
         if prop_name == "auth_providers":
             return [
-                ap.get_type().export_serialized(
-                    ap, files_zip=files_zip, storage=storage, cache=cache
+                AppAuthProviderHandler.export_app_auth_provider(
+                    ap,
+                    import_export_config=import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                    cache=cache,
                 )
                 for ap in AppAuthProviderHandler.list_app_auth_providers_for_user_source(
                     instance
@@ -194,7 +176,12 @@ class UserSourceType(
             ]
 
         return super().serialize_property(
-            instance, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            instance,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(

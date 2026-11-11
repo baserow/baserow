@@ -2,11 +2,13 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import {
   actions,
+  getters,
   mutations,
   prioritizeDataSources,
   state as createState,
 } from '@baserow/modules/dashboard/store/dashboardApplication'
 import DataSourceService from '@baserow/modules/dashboard/services/dataSource'
+import PublicDashboardService from '@baserow/modules/dashboard/services/publicDashboard'
 import WidgetService from '@baserow/modules/dashboard/services/widget'
 
 vi.mock('@baserow/modules/dashboard/services/dataSource', () => ({
@@ -15,6 +17,21 @@ vi.mock('@baserow/modules/dashboard/services/dataSource', () => ({
 
 vi.mock('@baserow/modules/dashboard/services/widget', () => ({
   default: vi.fn(),
+}))
+
+vi.mock('@baserow/modules/dashboard/services/publicDashboard', () => ({
+  default: vi.fn(),
+}))
+
+const { getToken, setToken } = vi.hoisted(() => ({
+  getToken: vi.fn(),
+  setToken: vi.fn(),
+}))
+
+vi.mock('@baserow/modules/core/utils/auth', async (importOriginal) => ({
+  ...(await importOriginal()),
+  getToken,
+  setToken,
 }))
 
 const deferred = () => {
@@ -1034,5 +1051,175 @@ describe('Dashboard application store', () => {
     })
 
     expect(state.widgets).toEqual([{ id: 1, title: 'Existing widget' }])
+  })
+})
+
+describe('Dashboard application store public mode', () => {
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const openPublicDashboard = (dashboardState, values = {}) => {
+    const commit = applyCommit(dashboardState)
+    actions.openPublicDashboard(
+      { commit },
+      {
+        slug: 'public-slug',
+        authToken: 'public-token',
+        dashboardId: 42,
+        widgets: [],
+        dataSources: [],
+        ...values,
+      }
+    )
+    return commit
+  }
+
+  test('openPublicDashboard stores the public payload without fetching', () => {
+    const dashboardState = createState()
+    const widgets = [{ id: 1, data_source_id: 7, grid_x: 0, grid_y: 0 }]
+    const dataSources = [{ id: 7, type: 'local_baserow_aggregate_rows' }]
+
+    openPublicDashboard(dashboardState, { widgets, dataSources })
+
+    expect(dashboardState.dashboardId).toBe(42)
+    expect(dashboardState.widgets).toEqual(widgets)
+    expect(dashboardState.dataSources).toEqual(dataSources)
+    expect(dashboardState.loading).toBe(false)
+    expect(getters.isPublic(dashboardState)).toBe(true)
+    expect(getters.getPublicSlug(dashboardState)).toBe('public-slug')
+    expect(getters.getPublicAuthToken(dashboardState)).toBe('public-token')
+    expect(WidgetService).not.toHaveBeenCalled()
+    expect(DataSourceService).not.toHaveBeenCalled()
+  })
+
+  test('dispatchDataSources dispatches the data sources of the top widgets first', async () => {
+    const dashboardState = createState()
+    openPublicDashboard(dashboardState, {
+      widgets: [
+        { id: 1, data_source_id: 8, grid_x: 0, grid_y: 4 },
+        { id: 2, data_source_id: 7, grid_x: 0, grid_y: 0 },
+      ],
+      dataSources: [{ id: 7 }, { id: 8 }, { id: 9 }],
+    })
+    const dispatch = vi.fn().mockResolvedValue()
+
+    await actions.dispatchDataSources({ state: dashboardState, dispatch })
+
+    expect(
+      dispatch.mock.calls.map(([action, payload]) => [
+        action,
+        payload.dataSourceId,
+        payload.priority,
+      ])
+    ).toEqual([
+      ['dispatchDataSource', 7, 0],
+      ['dispatchDataSource', 8, 1],
+      ['dispatchDataSource', 9, 2],
+    ])
+    expect(dispatch).toHaveBeenCalledWith(
+      'dispatchDataSource',
+      expect.objectContaining({ dashboardId: 42 })
+    )
+  })
+
+  test('dispatchDataSource uses the public endpoint of the slug', async () => {
+    const dashboardState = createState()
+    const commit = openPublicDashboard(dashboardState, {
+      dataSources: [{ id: 7 }],
+    })
+    const publicDispatch = vi.fn().mockResolvedValue({ data: { result: '60' } })
+    PublicDashboardService.mockReturnValue({ dispatch: publicDispatch })
+    const privateDispatch = vi.fn()
+    DataSourceService.mockReturnValue({ dispatch: privateDispatch })
+
+    await actions.dispatchDataSource.call(
+      { $client: {} },
+      { state: dashboardState, commit },
+      { dataSourceId: 7 }
+    )
+
+    expect(publicDispatch).toHaveBeenCalledWith(
+      'public-slug',
+      7,
+      'public-token'
+    )
+    expect(privateDispatch).not.toHaveBeenCalled()
+    expect(dashboardState.data).toEqual({ 7: { result: '60' } })
+  })
+
+  test('fetchInitial leaves the public mode', async () => {
+    const dashboardState = createState()
+    const commit = openPublicDashboard(dashboardState)
+    const dispatch = vi.fn().mockResolvedValue([])
+
+    await actions.fetchInitial.call(
+      { $client: {} },
+      { state: dashboardState, commit, dispatch },
+      { dashboardId: 43, forEditing: false }
+    )
+
+    expect(getters.isPublic(dashboardState)).toBe(false)
+    expect(getters.getPublicAuthToken(dashboardState)).toBe(null)
+    expect(dashboardState.dashboardId).toBe(43)
+  })
+
+  test('setPublicAuthToken remembers the token in a cookie keyed by the slug', async () => {
+    const dashboardState = createState()
+    const commit = applyCommit(dashboardState)
+    const app = { name: 'nuxt app' }
+
+    await actions.setPublicAuthToken.call(
+      { app },
+      { commit },
+      { slug: 'public-slug', token: 'public-token' }
+    )
+
+    expect(setToken).toHaveBeenCalledWith(app, 'public-token', 'public-slug')
+    expect(getters.getPublicSlug(dashboardState)).toBe('public-slug')
+    expect(getters.getPublicAuthToken(dashboardState)).toBe('public-token')
+  })
+
+  test('restorePublicAuthToken returns the token that was just entered', async () => {
+    const dashboardState = createState()
+    openPublicDashboard(dashboardState)
+
+    const token = await actions.restorePublicAuthToken.call(
+      { app: {} },
+      { state: dashboardState },
+      { slug: 'public-slug' }
+    )
+
+    expect(token).toBe('public-token')
+    expect(getToken).not.toHaveBeenCalled()
+  })
+
+  test('restorePublicAuthToken reads the cookie of another slug', async () => {
+    const dashboardState = createState()
+    openPublicDashboard(dashboardState)
+    const app = { name: 'nuxt app' }
+    getToken.mockResolvedValue('cookie-token')
+
+    const token = await actions.restorePublicAuthToken.call(
+      { app },
+      { state: dashboardState },
+      { slug: 'other-slug' }
+    )
+
+    expect(token).toBe('cookie-token')
+    expect(getToken).toHaveBeenCalledWith(app, 'other-slug')
+  })
+
+  test('restorePublicAuthToken returns null without a cookie', async () => {
+    const dashboardState = createState()
+    getToken.mockResolvedValue(undefined)
+
+    const token = await actions.restorePublicAuthToken.call(
+      { app: {} },
+      { state: dashboardState },
+      { slug: 'public-slug' }
+    )
+
+    expect(token).toBe(null)
   })
 })

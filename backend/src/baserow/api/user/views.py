@@ -29,7 +29,6 @@ from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import (
     BAD_TOKEN_SIGNATURE,
-    ERROR_HOSTNAME_IS_NOT_ALLOWED,
     ERROR_RESET_PASSWORD_TOKEN_USED,
     EXPIRED_TOKEN_SIGNATURE,
 )
@@ -39,6 +38,9 @@ from baserow.api.sessions import (
     set_user_session_data_from_request,
 )
 from baserow.api.user.registries import user_data_registry
+from baserow.api.workspaces.invitation_links.errors import (
+    ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
+)
 from baserow.api.workspaces.invitations.errors import (
     ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
     ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
@@ -53,13 +55,14 @@ from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
 from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
-    BaseURLHostnameNotAllowed,
     LockConflict,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkDoesNotExist,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Template, WorkspaceInvitation
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.user.actions import (
     ChangeEmailActionType,
     ChangeUserPasswordActionType,
@@ -90,6 +93,7 @@ from baserow.core.user.exceptions import (
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import generate_session_tokens_for_user
 from baserow.core.utils import get_user_remote_ip_address_from_request
+from baserow.throttling.handler import AnonymousEmailRateThrottle
 
 from .errors import (
     ERROR_ALREADY_EXISTS,
@@ -113,8 +117,8 @@ from .errors import (
 )
 from .exceptions import ClientSessionIdHeaderNotSetException
 from .schemas import (
-    authenticate_user_schema,
     authenticated_user_response_schema,
+    token_refresh_response_schema,
     verify_user_schema,
 )
 from .serializers import (
@@ -136,6 +140,7 @@ from .serializers import (
     UserPreferencesSerializer,
     UserSerializer,
     VerifyEmailAddressSerializer,
+    check_user_can_log_in_with_password,
     log_in_user,
 )
 
@@ -194,10 +199,13 @@ class RefreshJSONWebToken(TokenRefreshView):
         operation_id="token_refresh",
         description=(
             "Generate a new access_token that can be used to continue operating on Baserow "
-            "starting from a valid refresh token."
+            "starting from a valid refresh token. Unless refresh token rotation is "
+            "disabled, the response also contains a new refresh_token that must be "
+            "used for the next refresh. The provided refresh token stops working "
+            "after 30 seconds, and using it after that signs the session off."
         ),
         responses={
-            200: authenticate_user_schema,
+            200: token_refresh_response_schema,
             401: get_error_schema(
                 ["ERROR_INVALID_REFRESH_TOKEN", "ERROR_EMAIL_VERIFICATION_REQUIRED"]
             ),
@@ -207,6 +215,7 @@ class RefreshJSONWebToken(TokenRefreshView):
     @map_exceptions(
         {
             InvalidToken: ERROR_INVALID_REFRESH_TOKEN,
+            RefreshTokenAlreadyBlacklisted: ERROR_INVALID_REFRESH_TOKEN,
             EmailVerificationRequired: ERROR_EMAIL_VERIFICATION_REQUIRED,
         }
     )
@@ -246,6 +255,8 @@ class BlacklistJSONWebToken(TokenBlacklistView):
     permission_classes = ()
     authentication_classes = ()
     token_class = RefreshToken
+    # A client may hold an older token of the session than the latest rotated one.
+    revoke_session = True
 
     @extend_schema(
         tags=["User"],
@@ -269,7 +280,10 @@ class BlacklistJSONWebToken(TokenBlacklistView):
     @validate_body(TokenBlacklistSerializer)
     def post(self, request, data):
         refresh_token = data["refresh_token"]
-        expires_at = datetime_from_epoch(self.token_class(refresh_token)["exp"])
+        token = self.token_class(refresh_token)
+        if self.revoke_session:
+            UserHandler().revoke_refresh_token_session(token)
+        expires_at = datetime_from_epoch(token["exp"])
         UserHandler().blacklist_refresh_token(refresh_token, expires_at)
         return Response(status=204)
 
@@ -297,7 +311,13 @@ class UserView(APIView):
                     "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
-            404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_GROUP_INVITATION_DOES_NOT_EXIST",
+                    "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST",
+                ]
+            ),
         },
         auth=[],
     )
@@ -309,6 +329,9 @@ class UserView(APIView):
             BadSignature: BAD_TOKEN_SIGNATURE,
             WorkspaceInvitationDoesNotExist: ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
             WorkspaceInvitationEmailMismatch: ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationLinkDoesNotExist: (
+                ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST
+            ),
             DisabledSignupError: ERROR_DISABLED_SIGNUP,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
             CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
@@ -328,7 +351,7 @@ class UserView(APIView):
         )
 
         template = (
-            Template.objects.get(pk=data["template_id"])
+            Template.objects.official().get(pk=data["template_id"])
             if data["template_id"]
             else None
         )
@@ -340,16 +363,18 @@ class UserView(APIView):
             language=data["language"],
             workspace_invitation_token=data.get("workspace_invitation_token"),
             template=template,
+            workspace_invitation_link_slug=data.get("workspace_invitation_link_slug"),
         )
 
         response = {"user": UserSerializer(user).data}
 
         settings = CoreHandler().get_settings()
 
-        if (
-            data["authenticate"]
-            and settings.email_verification
-            != Settings.EmailVerificationOptions.ENFORCED
+        # Signing up with the token from an invitation email verifies the email
+        # address, so the user can be signed in even if verification is enforced.
+        if data["authenticate"] and (
+            settings.email_verification != Settings.EmailVerificationOptions.ENFORCED
+            or user.profile.email_verified
         ):
             response |= {
                 **generate_session_tokens_for_user(
@@ -366,6 +391,14 @@ class UserView(APIView):
 class SendResetPasswordEmailView(APIView):
     permission_classes = (AllowAny,)
 
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        # Every call counts per IP, also for unknown addresses, on top of the
+        # per recipient limit applied when the email is sent.
+        if self.request.method == "POST":
+            throttles.append(AnonymousEmailRateThrottle())
+        return throttles
+
     @extend_schema(
         tags=["User"],
         request=SendResetPasswordEmailBodyValidationSerializer,
@@ -380,9 +413,8 @@ class SendResetPasswordEmailView(APIView):
         ),
         responses={
             204: None,
-            400: get_error_schema(
-                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_HOSTNAME_IS_NOT_ALLOWED"]
-            ),
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            429: None,
         },
         auth=[],
     )
@@ -390,7 +422,6 @@ class SendResetPasswordEmailView(APIView):
     @validate_body(SendResetPasswordEmailBodyValidationSerializer)
     @map_exceptions(
         {
-            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
             ResetPasswordDisabledError: ERROR_DISABLED_RESET_PASSWORD,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
         }
@@ -409,9 +440,7 @@ class SendResetPasswordEmailView(APIView):
                 raise AuthProviderDisabled()
 
             set_user_session_data_from_request(user, request)
-            action_type_registry.get(SendResetUserPasswordActionType.type).do(
-                user, data["base_url"]
-            )
+            action_type_registry.get(SendResetUserPasswordActionType.type).do(user)
         except UserNotFound:
             pass
 
@@ -526,7 +555,6 @@ class SendChangeEmailConfirmationView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
-                    "ERROR_HOSTNAME_IS_NOT_ALLOWED",
                     "ERROR_INVALID_OLD_PASSWORD",
                     "ERROR_ALREADY_EXISTS",
                     "ERROR_CHANGE_EMAIL_NOT_ALLOWED",
@@ -538,7 +566,6 @@ class SendChangeEmailConfirmationView(APIView):
     @transaction.atomic
     @map_exceptions(
         {
-            BaseURLHostnameNotAllowed: ERROR_HOSTNAME_IS_NOT_ALLOWED,
             InvalidPassword: ERROR_INVALID_OLD_PASSWORD,
             UserAlreadyExist: ERROR_ALREADY_EXISTS,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
@@ -552,7 +579,7 @@ class SendChangeEmailConfirmationView(APIView):
         """
 
         action_type_registry.get(SendChangeEmailConfirmationActionType.type).do(
-            request.user, data["new_email"], data["password"], data["base_url"]
+            request.user, data["new_email"], data["password"]
         )
 
         return Response(status=204)
@@ -661,6 +688,14 @@ class UserPreferencesView(APIView):
 class SendVerifyEmailView(APIView):
     permission_classes = (AllowAny,)
 
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        # Every call counts per IP, also for unknown addresses, on top of the
+        # per recipient limit applied when the email is sent.
+        if self.request.method == "POST":
+            throttles.append(AnonymousEmailRateThrottle())
+        return throttles
+
     @extend_schema(
         tags=["User"],
         operation_id="send_verify_email",
@@ -671,6 +706,7 @@ class SendVerifyEmailView(APIView):
         ),
         responses={
             204: None,
+            429: None,
         },
     )
     @transaction.atomic
@@ -741,6 +777,11 @@ class VerifyEmailAddressView(APIView):
         )
 
         if request.user.is_anonymous:
+            # Users with two-factor authentication must sign in through the regular
+            # login flow, so they are not signed in automatically here.
+            if TwoFactorAuthHandler().get_enabled_provider(user):
+                check_user_can_log_in_with_password(user)
+                return Response(status=200, data={"email": user.email})
             data = log_in_user(request, user)
             return Response(status=200, data=data)
         else:

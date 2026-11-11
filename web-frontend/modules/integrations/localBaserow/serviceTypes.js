@@ -90,6 +90,10 @@ export class LocalBaserowTableServiceType extends ServiceType {
           return this.app.$i18n.t('serviceType.errorMisconfiguredIntegration')
         }
       }
+      const inheritedError = super.getErrorMessage({ service, application })
+      if (inheritedError) {
+        return inheritedError
+      }
       if (!service.table_id) {
         return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
@@ -465,7 +469,7 @@ export class LocalBaserowAggregateRowsServiceType extends DataSourceLocalBaserow
   }
 }
 
-export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+export class LocalBaserowCreateRowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
   static getType() {
@@ -501,7 +505,7 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
-export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+export class LocalBaserowUpsertRowsServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
   supportedTables(tables) {
@@ -530,7 +534,7 @@ export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionSer
   }
 }
 
-export class LocalBaserowCreateRowsWorkflowServiceType extends LocalBaserowUpsertRowsWorkflowServiceType {
+export class LocalBaserowCreateRowsServiceType extends LocalBaserowUpsertRowsServiceType {
   static getType() {
     return 'local_baserow_create_rows'
   }
@@ -548,7 +552,7 @@ export class LocalBaserowCreateRowsWorkflowServiceType extends LocalBaserowUpser
   }
 }
 
-export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+export class LocalBaserowUpdateRowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
   static getType() {
@@ -587,7 +591,7 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
-export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowUpsertRowsWorkflowServiceType {
+export class LocalBaserowUpdateRowsServiceType extends LocalBaserowUpsertRowsServiceType {
   static getType() {
     return 'local_baserow_update_rows'
   }
@@ -605,7 +609,7 @@ export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowUpser
   }
 }
 
-export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+export class LocalBaserowDeleteRowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
   static getType() {
@@ -641,7 +645,7 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
-export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
+export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
   get returnsList() {
@@ -658,7 +662,7 @@ export class LocalBaserowTriggerServiceType extends TriggerServiceTypeMixin(
   }
 }
 
-export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowTriggerServiceType {
+export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
     return 'rows_created'
   }
@@ -680,7 +684,7 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowTrigg
   }
 }
 
-export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
+export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
     return 'rows_updated'
   }
@@ -702,7 +706,7 @@ export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowTrigg
   }
 }
 
-export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTriggerServiceType {
+export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
     return 'rows_deleted'
   }
@@ -724,7 +728,7 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTrigg
   }
 }
 
-export class LocalBaserowFieldsUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
+export class LocalBaserowFieldsUpdatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
     return 'fields_updated'
   }

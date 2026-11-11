@@ -64,7 +64,7 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormulaObject,
 )
-from baserow.core.integrations.models import Integration
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.registry import Instance
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.mixins import ServiceBackedTypeMixin
@@ -331,6 +331,7 @@ class BuilderWorkflowServiceActionType(
         self,
         workflow_action: WorkflowAction,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -343,12 +344,17 @@ class BuilderWorkflowServiceActionType(
         if prop_name == "service":
             service = workflow_action.service.specific
             return service.get_type().export_serialized(
-                service, files_zip=files_zip, storage=storage, cache=cache
+                service,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
 
         return super().serialize_property(
             workflow_action,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
@@ -376,35 +382,12 @@ class BuilderWorkflowServiceActionType(
         """
 
         if prop_name == "service" and value:
-            integration = None
             serialized_service = value
-            integration_id = serialized_service.get("integration_id", None)
-            if integration_id:
-                integration_id = id_mapping["integrations"].get(
-                    integration_id, integration_id
-                )
-                # Use the trash-inclusive manager: the service may reference an
-                # integration that has since been trashed (e.g. duplicating a page
-                # whose data source's integration was deleted). We keep the FK so
-                # the service is restored intact when the integration is. A
-                # genuinely missing integration falls back to `None` (the service
-                # becomes misconfigured) rather than crashing the import.
-                try:
-                    integration = Integration.objects_and_trash.get(id=integration_id)
-                except Integration.DoesNotExist:
-                    integration = None
-                else:
-                    # Never reference an integration outside the target application.
-                    # On a cross-application import a trashed integration is not part
-                    # of the export (so it is absent from `id_mapping`), and the
-                    # unmapped id would otherwise resolve to an unrelated integration
-                    # in another application. Same-builder duplication is unaffected.
-                    target_builder_id = kwargs.get("target_builder_id")
-                    if (
-                        target_builder_id is not None
-                        and integration.application_id != target_builder_id
-                    ):
-                        integration = None
+            integration = IntegrationHandler().get_integration_for_import(
+                serialized_service.get("integration_id", None),
+                id_mapping,
+                application_id=kwargs.get("target_builder_id"),
+            )
 
             return ServiceHandler().import_service(
                 integration,
@@ -459,6 +442,8 @@ class BuilderWorkflowServiceActionType(
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
+        page = values.get("page") or instance.page
+        service_type.check_integration(page.builder, prepared_service_values)
 
         # Update the service instance with any prepared service values.
         ServiceHandler().update_service(
@@ -506,7 +491,9 @@ class BuilderWorkflowServiceActionType(
         self, workflow_action: WorkflowAction, dispatch_context: BuilderDispatchContext
     ) -> DispatchResult:
         return ServiceHandler().dispatch_service(
-            workflow_action.service.specific, dispatch_context
+            workflow_action.service.specific,
+            dispatch_context,
+            application_id=dispatch_context.page.builder_id,
         )
 
 

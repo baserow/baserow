@@ -46,7 +46,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 2.4.1
+      tag: 2.4.2
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -585,12 +585,14 @@ baserow-celery-beat-worker:
 ## @param baserow-celery-export-worker.args Arguments passed to the Celery export worker.
 ## @param baserow-celery-export-worker.replicaCount Number of replicas for the Celery export worker.
 ## @param baserow-celery-export-worker.service.create Set to false to disable creating a service for the Celery beat worker.
+## @param baserow-celery-export-worker.terminationGracePeriodSeconds Seconds the export worker gets to finish running tasks, such as Kuma runs, on shutdown.
 baserow-celery-export-worker:
   image:
     repository: backend
   args:
     - celery-exportworker
   replicaCount: 1
+  terminationGracePeriodSeconds: 120
   service:
     create: false
 
@@ -686,7 +688,7 @@ baserow-embeddings:
   enabled: false
   image:
     repository: embeddings
-    tag: "1.0.0"
+    tag: "1.1.0"
   workingDir: ""
   resources:
     requests:

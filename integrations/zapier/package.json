@@ -13,5 +13,14 @@
     "jest": "^26.6.3",
     "zapier-platform-cli": "^12.0.3"
   },
-  "private": true
+  "private": true,
+  "resolutions": {
+    "lodash": "^4.18.1",
+    "zapier-platform-core/form-data": "^4.0.6",
+    "zapier-platform-core/node-fetch": "^2.7.0",
+    "zapier-platform-cli/node-fetch": "^2.7.0",
+    "zapier-platform-core/semver": "^7.5.4",
+    "zapier-platform-cli/semver": "^7.5.4",
+    "**/request/form-data": "^2.5.5"
+  }
 }

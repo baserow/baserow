@@ -154,6 +154,10 @@ export default {
       type: String,
       required: true,
     },
+    applicationTypes: {
+      type: Array,
+      required: true,
+    },
     selectedTypes: {
       type: Array,
       required: true,
@@ -186,9 +190,6 @@ export default {
     },
     searchActive() {
       return this.search.trim() !== ''
-    },
-    applicationTypes() {
-      return this.$registry.getOrderedList('application')
     },
     modifierKey() {
       return isMac() ? '⌘' : 'Ctrl'

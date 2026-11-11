@@ -2,15 +2,35 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
-from django.db.models import Q, QuerySet, UniqueConstraint
+from django.db.models import (
+    Case,
+    Exists,
+    ExpressionWrapper,
+    F,
+    OuterRef,
+    Q,
+    QuerySet,
+    Subquery,
+    UniqueConstraint,
+    Value,
+    When,
+)
+from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
+from django.utils.crypto import get_random_string
 
+from baserow.core.context import PRIVATE_LINK_TOKEN_PATTERN
+from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -26,6 +46,7 @@ from .ai_provider.models import (
     AIProviderFeatureSetting,
     AIProviderModel,
 )
+from .chat_runs.models import ChatRun
 from .integrations.models import Integration
 from .last_viewed.models import UserLastViewedItem
 from .mixins import (
@@ -41,11 +62,13 @@ from .notifications.models import Notification
 from .services.models import Service
 
 __all__ = [
+    "ChatRun",
     "Settings",
     "UserLastViewedItem",
     "Workspace",
     "WorkspaceUser",
     "WorkspaceInvitation",
+    "WorkspaceInvitationLink",
     "Agent",
     "Application",
     "TemplateCategory",
@@ -88,6 +111,10 @@ WORKSPACE_USER_PERMISSION_MEMBER = "MEMBER"
 
 def get_default_application_content_type():
     return ContentType.objects.get_for_model(Application)
+
+
+def get_default_invitation_link_slug():
+    return get_random_string(settings.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH)
 
 
 class Operation(models.Model):
@@ -180,6 +207,12 @@ class Settings(models.Model):
         db_default=True,
         help_text="Indicates whether anonymous visitors can report publicly shared "
         "resources, like views and forms, for abuse.",
+    )
+    user_templates_require_approval = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="Indicates whether a user template must be approved by an admin "
+        "before it's publicly listed.",
     )
 
 
@@ -286,6 +319,38 @@ class BlacklistedToken(CreatedAndUpdatedOnMixin, models.Model):
     expires_at = models.DateTimeField()
 
 
+class _WorkspaceTemplatesCacheKey:
+    """
+    Caches the template types of a workspace by its id and `updated_on`, and holds
+    the instance, so that its prefetched `template_set` is used on a miss. The
+    cache keeps the key of a miss, so the instance is dropped after it.
+    """
+
+    __slots__ = ("key", "workspace")
+
+    def __init__(self, workspace: "Workspace"):
+        self.workspace = workspace
+        self.key = (workspace.id, workspace.updated_on)
+
+    def __hash__(self):
+        return hash(self.key)
+
+    def __eq__(self, other):
+        return isinstance(other, _WorkspaceTemplatesCacheKey) and self.key == other.key
+
+
+@lru_cache
+def _get_workspace_template_types(key: _WorkspaceTemplatesCacheKey) -> frozenset[str]:
+    # Iterates `all()`, so that a prefetched `template_set` is used. A null `type`
+    # means official.
+    template_types = frozenset(
+        template.type or Template.Type.OFFICIAL
+        for template in key.workspace.template_set.all()
+    )
+    key.workspace = None
+    return template_types
+
+
 class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOnMixin):
     name = models.CharField(max_length=165)
     users = models.ManyToManyField(User, through="WorkspaceUser")
@@ -315,9 +380,68 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
         return self.application_set(manager="objects_and_trash")
 
-    @lru_cache
     def has_template(self):
-        return len(self.template_set.all()) > 0
+        return len(self.get_template_types()) > 0
+
+    def get_template_types(self) -> frozenset[str]:
+        """
+        The types of the templates in this workspace. Cached in the process, because
+        the type of a template never changes. A workspace can get its first template
+        after it was checked, so creating a user template updates `updated_on`, which
+        is part of the cache key.
+        """
+
+        return _get_workspace_template_types(_WorkspaceTemplatesCacheKey(self))
+
+    def has_openable_template(
+        self,
+        actor,
+        *,
+        private_link_token: str | None = None,
+        allow_instance_admin: bool = False,
+    ) -> bool:
+        """
+        Whether the actor can open this workspace as a template: official, own,
+        public, with the token of its private link or, for an instance admin, in the
+        review queue. Prefetch `template_set__root` to check many workspaces without a
+        query each, except the review queue and the private link queries.
+
+        :param actor: The user or anonymous user who opens the template.
+        :param private_link_token: The token of the private link the actor opened
+            the template through, if any.
+        :param allow_instance_admin: Whether an instance admin opens every user
+            template, see `TemplateQuerySet.openable`.
+        :return: Whether the actor can open the workspace as a template.
+        """
+
+        template_types = self.get_template_types()
+        if Template.Type.OFFICIAL in template_types:
+            return True
+        if Template.Type.USER not in template_types or not feature_flag_is_enabled(
+            FF_USER_TEMPLATES
+        ):
+            return False
+        # Not cached, because the state of a user template changes. The roots of the
+        # revisions are selected along when the templates aren't prefetched.
+        templates = self.template_set.all()
+        if "template_set" not in getattr(self, "_prefetched_objects_cache", {}):
+            templates = templates.select_related("root")
+        if any(template.is_openable_outside_review_by(actor) for template in templates):
+            return True
+        if is_instance_admin(actor):
+            if allow_instance_admin:
+                return any(
+                    template.get_root().marked_for_deletion_at is None
+                    for template in templates
+                )
+            if Template.objects.review_queue().filter(workspace=self).exists():
+                return True
+        return (
+            private_link_token is not None
+            and Template.objects.filter(workspace=self)
+            .openable(actor, private_link_token=private_link_token)
+            .exists()
+        )
 
     def get_workspace_user(
         self, user: User, include_trash: bool = False
@@ -454,6 +578,73 @@ class WorkspaceInvitation(
         unique_together = [["workspace", "email"]]
 
 
+class WorkspaceInvitationLink(
+    HierarchicalModelMixin,
+    CreatedAndUpdatedOnMixin,
+    models.Model,
+):
+    """
+    A permanent link that anyone can use to join the workspace with the role of the
+    link. It can be used any number of times and stops working once it's deleted.
+    A link can also target one object of the workspace, like a table, in which case
+    the role of the link is given on that object instead of on the workspace.
+    """
+
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="invitation_links",
+        help_text="The workspace that people join through the link.",
+    )
+    created_by = models.ForeignKey(
+        User,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="The user that created the link.",
+    )
+    name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="A name that reminds the admins what the link is for.",
+    )
+    slug = models.SlugField(
+        # BASEROW_WORKSPACE_INVITATION_LINK_LENGTH is capped at this length.
+        max_length=50,
+        default=get_default_invitation_link_slug,
+        unique=True,
+        help_text="The unique slug of the public link URL.",
+    )
+    permissions = models.CharField(
+        default=WORKSPACE_USER_PERMISSION_MEMBER,
+        max_length=32,
+        help_text="The permissions that people get within the workspace when they "
+        "join through the link, or on the scope of the link if it has one.",
+    )
+    scope = GenericForeignKey("scope_type", "scope_id")
+    scope_type = models.ForeignKey(
+        ContentType,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+        help_text="The type of the object the link gives a role on, if it targets "
+        "an object of the workspace instead of the workspace itself.",
+    )
+    scope_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="The id of the object the link gives a role on.",
+    )
+
+    def get_parent(self):
+        return self.workspace
+
+    class Meta:
+        ordering = ("id",)
+
+
 class Application(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -500,6 +691,17 @@ class Application(
             )
         return self.workspace
 
+    def get_workspace(self) -> Workspace | None:
+        """
+        Returns the workspace the application belongs to. A type with published
+        copies, which have no workspace of their own, returns the workspace of the
+        application it's published from.
+
+        :return: The workspace, if any.
+        """
+
+        return self.workspace
+
 
 class TemplateCategory(models.Model):
     name = models.CharField(max_length=32)
@@ -508,11 +710,376 @@ class TemplateCategory(models.Model):
         ordering = ("name",)
 
 
+def template_archive_upload_to(instance, filename):
+    """
+    Stores the archive of a template revision in its own directory, separate from
+    the temporary export files that are cleaned up.
+    """
+
+    return f"template-revisions/{uuid.uuid4().hex}.zip"
+
+
+def _official_template_q() -> Q:
+    # TODO ZDM: `type` is null for rows inserted by the previous version during
+    # the deploy. Drop the null check once `type` is not nullable.
+    return Q(type__isnull=True) | Q(type=Template.Type.OFFICIAL)
+
+
+def _get_user_id(actor) -> int | None:
+    return actor.id if isinstance(actor, User) else None
+
+
+class UserTemplateState(models.TextChoices):
+    PRIVATE = "private", "Private"
+    IN_REVIEW = "in_review", "In review"
+    REJECTED = "rejected", "Rejected"
+    BLOCKED = "blocked", "Blocked"
+    PUBLIC = "public", "Public"
+
+
+def is_instance_admin(actor: Any) -> bool:
+    """
+    Whether the actor is an instance admin: an active staff user.
+
+    :param actor: A user, an anonymous user or another actor.
+    :return: True for an instance admin.
+    """
+
+    return isinstance(actor, User) and actor.is_active and actor.is_staff
+
+
+def _root_q(**lookups) -> Q:
+    """
+    Matches the rows whose root matches the lookups: the root itself, which also
+    holds revision 1, and every later revision pointing at it.
+    """
+
+    return Q(root__isnull=True, **lookups) | Q(
+        root__isnull=False,
+        **{f"root__{lookup}": value for lookup, value in lookups.items()},
+    )
+
+
+def template_state_expression() -> Case:
+    """
+    The `UserTemplateState` of every row, see `with_template_state`.
+
+    :return: The expression.
+    """
+
+    return Case(
+        When(_root_q(blocked_at__isnull=False), then=Value(UserTemplateState.BLOCKED)),
+        When(
+            last_submitted_state=Template.ReviewState.PENDING,
+            then=Value(UserTemplateState.IN_REVIEW),
+        ),
+        When(
+            last_submitted_state=Template.ReviewState.REJECTED,
+            then=Value(UserTemplateState.REJECTED),
+        ),
+        When(
+            _root_q(public_revision__isnull=False),
+            then=Value(UserTemplateState.PUBLIC),
+        ),
+        default=Value(UserTemplateState.PRIVATE),
+    )
+
+
+def _later_revisions() -> QuerySet:
+    """
+    The revisions after the outer row in its template, by `family_id`.
+
+    :return: The later revisions.
+    """
+
+    return Template.objects.filter(
+        root_id=OuterRef("family_id"), version__gt=OuterRef("version")
+    )
+
+
+class TemplateQuerySet(QuerySet):
+    def official(self):
+        return self.filter(_official_template_q())
+
+    def user(self):
+        return self.filter(type=Template.Type.USER)
+
+    def latest_revisions(self):
+        """
+        The latest revision of every template in this queryset: the row with the
+        highest `version` among the rows of the template in this queryset. A
+        revision filtered out, like one the actor can't open, is skipped. The root is
+        selected too, because it holds the fields of the template as a whole.
+        """
+
+        newer_revision = self.filter(
+            root_id=OuterRef("family_id"), version__gt=OuterRef("version")
+        )
+        return (
+            self.alias(family_id=Coalesce("root_id", "id"))
+            .filter(~Exists(newer_revision))
+            .select_related("root")
+        )
+
+    def public_revisions(self):
+        """
+        The public revision of every template in this queryset that isn't blocked.
+        The root is selected too, like in `latest_revisions`.
+        """
+
+        return self.filter(
+            _root_q(public_revision=F("id"), blocked_at__isnull=True)
+        ).select_related("root")
+
+    def listed(self):
+        """
+        The listed rows: every official template, and the public revision of every
+        user template that isn't blocked, see `official` and `public_revisions`.
+        Only what everybody can open after `openable`, which leaves out the
+        templates marked for deletion, and the user templates while their feature
+        flag is off. The root is selected too, like in `latest_revisions`.
+        """
+
+        return (self.official() | self.public_revisions()).select_related("root")
+
+    def filter_by_root(self, **lookups):
+        """
+        The rows of the templates whose root matches the lookups: the root itself
+        and every later revision pointing at it.
+        """
+
+        return self.filter(_root_q(**lookups))
+
+    def with_template_state(self) -> "TemplateQuerySet":
+        """
+        Annotates every row with the state of its template, from the reviews of
+        all its revisions.
+
+        :return: The rows, annotated.
+        """
+
+        revisions = Template.objects.filter(
+            Q(id=OuterRef("family_id")) | Q(root_id=OuterRef("family_id"))
+        ).order_by("-version")
+        submitted = revisions.exclude(review_state=Template.ReviewState.NOT_SUBMITTED)
+        # A rejection stays open until an approval, also when resubmitted or withdrawn.
+        last_decision_is_rejection = (
+            revisions.filter(
+                Q(review_state=Template.ReviewState.APPROVED) | ~Q(reject_reason="")
+            )
+            .annotate(
+                is_rejection=ExpressionWrapper(
+                    ~Q(review_state=Template.ReviewState.APPROVED),
+                    output_field=models.BooleanField(),
+                )
+            )
+            .values("is_rejection")[:1]
+        )
+        return (
+            self.alias(family_id=Coalesce("root_id", "id"))
+            .annotate(
+                last_submitted_state=Subquery(submitted.values("review_state")[:1]),
+                last_submitted_reason=Subquery(submitted.values("reject_reason")[:1]),
+                has_open_rejection=Coalesce(
+                    Subquery(last_decision_is_rejection), Value(False)
+                ),
+            )
+            .annotate(template_state=template_state_expression())
+        )
+
+    def open_reviews(self) -> "TemplateQuerySet":
+        """
+        The latest submitted revision of every template, if pending or rejected.
+
+        :return: Those revisions.
+        """
+
+        return (
+            self.user()
+            .filter(
+                review_state__in=[
+                    Template.ReviewState.PENDING,
+                    Template.ReviewState.REJECTED,
+                ]
+            )
+            .alias(family_id=Coalesce("root_id", "id"))
+            .filter(
+                ~Exists(
+                    _later_revisions().exclude(
+                        review_state=Template.ReviewState.NOT_SUBMITTED
+                    )
+                )
+            )
+        )
+
+    def review_queue(self) -> "TemplateQuerySet":
+        """
+        The open reviews of templates not blocked nor marked for deletion.
+
+        :return: Those revisions.
+        """
+
+        return self.open_reviews().filter_by_root(
+            blocked_at__isnull=True, marked_for_deletion_at__isnull=True
+        )
+
+    def with_can_approve(self) -> "TemplateQuerySet":
+        """
+        Annotates the rows with `edited_since_submitted` and `can_approve`.
+
+        :return: The rows, annotated.
+        """
+
+        return (
+            self.alias(family_id=Coalesce("root_id", "id"))
+            .annotate(edited_since_submitted=Exists(_later_revisions()))
+            .annotate(
+                can_approve=ExpressionWrapper(
+                    Q(
+                        workspace__isnull=False,
+                        pruned_at__isnull=True,
+                        edited_since_submitted=False,
+                    ),
+                    output_field=models.BooleanField(),
+                )
+            )
+        )
+
+    def approvable(self) -> "TemplateQuerySet":
+        """
+        The rows of the review queue that an admin can approve.
+
+        :return: Those rows.
+        """
+
+        return self.with_can_approve().filter(can_approve=True)
+
+    def official_owned_or_linked(
+        self, actor: Any, private_link_token: str | None = None
+    ):
+        """
+        The official templates and every revision of the user templates owned by
+        the actor or of the one whose private link has the token.
+
+        :param actor: The user or anonymous user.
+        :param private_link_token: The token of the private link of the request.
+        :return: Those templates.
+        """
+
+        q = _official_template_q()
+        if (user_id := _get_user_id(actor)) is not None:
+            q |= Q(type=Template.Type.USER) & _root_q(owner_id=user_id)
+        if private_link_token is not None:
+            q |= Q(type=Template.Type.USER) & _root_q(
+                private_link_token=private_link_token
+            )
+        return self.filter(q)
+
+    def openable(
+        self,
+        actor: Any,
+        *,
+        private_link_token: str | None = None,
+        allow_instance_admin: bool = False,
+    ) -> "TemplateQuerySet":
+        """
+        The templates the actor can open. With the token of a private link, any
+        actor, also a signed out one, opens the latest revision of the private
+        template whose link has the token, unless it's blocked or marked for
+        deletion. With `allow_instance_admin`, an instance admin opens every
+        revision of every user template not marked for deletion; without it, the
+        admin review queue is left out. Lists pass neither, so that these templates
+        aren't listed.
+
+        :param actor: The user or anonymous user.
+        :param private_link_token: The token of the private link of the request.
+        :param allow_instance_admin: Whether an instance admin opens every user
+            template, only for the checks of a single template.
+        :return: Those templates.
+        """
+
+        official = _official_template_q()
+        if not feature_flag_is_enabled(FF_USER_TEMPLATES):
+            return self.filter(official)
+
+        visible = _root_q(
+            public_revision=F("id"),
+            blocked_at__isnull=True,
+            marked_for_deletion_at__isnull=True,
+        )
+        if (user_id := _get_user_id(actor)) is not None:
+            visible |= _root_q(owner_id=user_id, marked_for_deletion_at__isnull=True)
+        queryset = self
+        if private_link_token is not None:
+            queryset = queryset.alias(family_id=Coalesce("root_id", "id"))
+            visible |= _root_q(
+                private_link_token=private_link_token,
+                public_revision__isnull=True,
+                blocked_at__isnull=True,
+                marked_for_deletion_at__isnull=True,
+            ) & ~Q(Exists(_later_revisions()))
+        if allow_instance_admin and is_instance_admin(actor):
+            visible |= _root_q(marked_for_deletion_at__isnull=True)
+        return queryset.filter(official | Q(type=Template.Type.USER) & visible)
+
+
 class Template(models.Model):
+    """
+    An official or user template revision. A root row (`root` is null) is the
+    template itself and also holds revision 1. Every later revision is a new row
+    pointing directly at the root. The fields describing the template as a whole
+    are only set on the root.
+    """
+
+    class Type(models.TextChoices):
+        OFFICIAL = "official", "Official"
+        USER = "user", "User"
+
+    class ReviewState(models.TextChoices):
+        NOT_SUBMITTED = "not_submitted", "Not submitted"
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    # TODO ZDM: make this field not nullable in the next version, after re-running
+    # both steps of migration 0129 for rows inserted by the previous version during
+    # the deploy: set `type` to official, then mark official roots approved and
+    # their own public revision.
+    type = models.CharField(
+        max_length=16,
+        null=True,
+        choices=Type.choices,
+        help_text="Whether this is an official or a user template. Null means "
+        "official. Revisions have the same type as their root.",
+    )
+    root = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="revisions",
+        help_text="The template this revision belongs to. Null for the template "
+        "itself, which also holds revision 1.",
+    )
+    version = models.PositiveIntegerField(
+        default=1,
+        db_default=1,
+        help_text="The revision number. 1 for the root, 2 or higher for later "
+        "revisions.",
+    )
     name = models.CharField(max_length=64)
     slug = models.SlugField(
-        help_text="The template slug that is used to match the template with the JSON "
-        "file name."
+        blank=True,
+        help_text="The permanent address of the template, unique among roots. For "
+        "official templates it also matches the JSON file name. Empty for "
+        "revisions.",
+    )
+    description = models.TextField(
+        default="",
+        db_default="",
+        blank=True,
+        help_text="The description of this revision.",
     )
     icon = models.CharField(
         max_length=32,
@@ -525,7 +1092,15 @@ class Template(models.Model):
         null=True,
         help_text="The group containing the applications related to the template. The "
         "read endpoints related to that group are publicly accessible for "
-        "preview purposes.",
+        "preview purposes. Revisions of the same template that only differ in "
+        "their details share it.",
+    )
+    archive = models.FileField(
+        upload_to=template_archive_upload_to,
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="The downloadable file of this revision, shared like `workspace`.",
     )
     export_hash = models.CharField(
         max_length=64,
@@ -543,12 +1118,309 @@ class Template(models.Model):
         help_text="The application ID that must be opened when the template is "
         "previewed. If null, then the first will automatically be chosen.",
     )
+    owner = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="owned_template_roots",
+        help_text="The user who controls a user template. Only set on user roots.",
+    )
+    author = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="authored_template_roots",
+        help_text="The user who created a user template. Only set on user roots.",
+    )
+    public_revision = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="published_by_roots",
+        help_text="The approved revision that is publicly listed. Null means not "
+        "listed. Only set on roots, pointing at the root or one of its revisions.",
+    )
+    shared_revision = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="shared_by_roots",
+        help_text="The revision shared through the private link. Only set on roots, "
+        "pointing at the root or one of its revisions.",
+    )
+    private_link_token = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        unique=True,
+        validators=[RegexValidator(PRIVATE_LINK_TOKEN_PATTERN)],
+        help_text="The secret token of the private link. Null disables the link. "
+        "Only set on user roots and never returned in ordinary responses.",
+    )
+    blocked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When an admin blocked the template. Only set on user roots.",
+    )
+    blocked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="blocked_template_roots",
+        help_text="The admin who blocked the template.",
+    )
+    blocked_reason = models.TextField(
+        default="",
+        db_default="",
+        blank=True,
+        help_text="Why the template was blocked, shown to its author.",
+    )
+    marked_for_deletion_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the template was deleted. It's unavailable from then on and "
+        "removed permanently later.",
+    )
+    install_count = models.PositiveBigIntegerField(
+        default=0,
+        db_default=0,
+        help_text="How many times any revision of the template was installed. Only "
+        "counted on roots.",
+    )
+    metadata = models.JSONField(
+        default=dict,
+        blank=True,
+        db_default={},
+        help_text="Private, owner-only revision metadata.",
+    )
+    review_state = models.CharField(
+        max_length=16,
+        choices=ReviewState.choices,
+        default=ReviewState.NOT_SUBMITTED,
+        db_default=ReviewState.NOT_SUBMITTED,
+        help_text="The review state of this revision. Approval alone doesn't list "
+        "it, the root's `public_revision` does.",
+    )
+    submitted_on = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this revision was last submitted for review.",
+    )
+    reviewed_on = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this revision was last approved or rejected.",
+    )
+    reviewed_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_template_revisions",
+        help_text="The admin who last approved or rejected this revision.",
+    )
+    reject_reason = models.TextField(
+        default="",
+        db_default="",
+        blank=True,
+        help_text="Why an admin rejected this revision, shown to the template "
+        "author. Kept when it's resubmitted or withdrawn: the rejection stays open "
+        "until a revision is approved.",
+    )
+    pruned_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the workspace and archive of this revision were removed to "
+        "save space. The row itself is kept.",
+    )
+    created_on = models.DateTimeField(
+        auto_now_add=True,
+        null=True,
+        help_text="Null for templates created before this field existed.",
+    )
+    updated_on = models.DateTimeField(
+        auto_now=True,
+        null=True,
+        help_text="Null for templates not saved since this field existed.",
+    )
+
+    objects = TemplateQuerySet.as_manager()
 
     class Meta:
         ordering = ("name",)
+        indexes = [
+            models.Index(fields=["type"], name="core_template_type_idx"),
+            models.Index(
+                fields=["review_state", "submitted_on"],
+                name="core_template_review_idx",
+            ),
+        ]
+        constraints = [
+            # The root holds the fields of the template as a whole, revisions keep
+            # them empty.
+            models.CheckConstraint(
+                name="core_template_row_role",
+                condition=(
+                    Q(root__isnull=True, version=1)
+                    | Q(
+                        root__isnull=False,
+                        version__gte=2,
+                        slug="",
+                        owner__isnull=True,
+                        author__isnull=True,
+                        public_revision__isnull=True,
+                        shared_revision__isnull=True,
+                        private_link_token__isnull=True,
+                        blocked_at__isnull=True,
+                        blocked_by__isnull=True,
+                        blocked_reason="",
+                        marked_for_deletion_at__isnull=True,
+                        install_count=0,
+                    )
+                ),
+            ),
+            models.CheckConstraint(
+                name="core_template_root_slug",
+                condition=Q(root__isnull=False) | ~Q(slug=""),
+            ),
+            models.CheckConstraint(
+                name="core_template_valid_type",
+                condition=Q(type__in=["official", "user"]),
+            ),
+            # Null `type` means official, so it must be checked explicitly. A
+            # `type = 'user'` comparison is null for it, which passes a check.
+            models.CheckConstraint(
+                name="core_template_official_no_owner",
+                condition=(
+                    (Q(type__isnull=False) & Q(type="user"))
+                    | Q(owner__isnull=True, author__isnull=True)
+                ),
+            ),
+            models.CheckConstraint(
+                name="core_template_user_owner",
+                condition=(
+                    Q(root__isnull=False)
+                    | Q(type__isnull=True)
+                    | Q(type="official")
+                    | Q(owner__isnull=False)
+                    | Q(marked_for_deletion_at__isnull=False)
+                ),
+            ),
+            models.CheckConstraint(
+                name="core_template_nonempty_token",
+                condition=Q(private_link_token__isnull=True)
+                | ~Q(private_link_token=""),
+            ),
+            models.UniqueConstraint(
+                fields=["root", "version"],
+                name="core_template_root_version",
+            ),
+            models.UniqueConstraint(
+                fields=["slug"],
+                condition=Q(root__isnull=True),
+                name="core_template_unique_root_slug",
+            ),
+        ]
 
     def __str__(self):
         return self.name
+
+    @property
+    def family_id(self):
+        return self.root_id if self.root_id is not None else self.pk
+
+    def get_root(self):
+        return self.root if self.root_id is not None else self
+
+    @property
+    def has_content(self) -> bool:
+        """
+        Whether this revision still has the workspace holding its content, which
+        is removed when the revision is pruned. Doesn't query the database.
+        """
+
+        return self.workspace_id is not None and not self.pruned_at
+
+    def is_openable_outside_review_by(self, actor: Any) -> bool:
+        """
+        Whether the actor can open this template, official, own or public,
+        without a query.
+
+        :param actor: The user or anonymous user.
+        :return: True if the actor can open it without the review queue.
+        """
+
+        if self.type in (None, Template.Type.OFFICIAL):
+            return True
+        root = self.get_root()
+        if root.marked_for_deletion_at is not None or not feature_flag_is_enabled(
+            FF_USER_TEMPLATES
+        ):
+            return False
+        if root.public_revision_id == self.id and root.blocked_at is None:
+            return True
+        user_id = _get_user_id(actor)
+        return user_id is not None and root.owner_id == user_id
+
+    def clean(self):
+        """
+        Validates the rules that span multiple rows. `save()` doesn't call this, so
+        handlers changing these fields must check them too.
+        """
+
+        super().clean()
+        errors = {}
+        templates = Template.objects.using(self._state.db)
+
+        if self.root_id is not None:
+            root = templates.filter(pk=self.root_id).first()
+            if root is None or root.root_id is not None:
+                errors["root"] = "A revision must point directly at a root."
+            elif self.type != root.type:
+                errors["type"] = "A revision must have the same type as its root."
+
+        # Only the revisions of one template share their content.
+        if self.workspace_id is not None:
+            others = templates.filter(workspace_id=self.workspace_id)
+            if self.family_id is not None:
+                others = others.exclude(
+                    Q(pk=self.family_id) | Q(root_id=self.family_id)
+                )
+            if others.exists():
+                errors["workspace"] = "The workspace belongs to another template."
+
+        for field_name in ("public_revision", "shared_revision"):
+            revision_id = getattr(self, f"{field_name}_id")
+            if revision_id is None:
+                continue
+            if self.root_id is not None or self.pk is None:
+                errors[field_name] = "Only a saved root can select a revision."
+                continue
+
+            revision = (
+                self
+                if revision_id == self.pk
+                else templates.filter(pk=revision_id).first()
+            )
+            if revision is None or self.pk not in (revision.pk, revision.root_id):
+                errors[field_name] = "The selected revision must belong to this root."
+            elif revision.type != self.type:
+                errors[field_name] = "The selected revision must have the root's type."
+            elif not revision.has_content:
+                errors[field_name] = "The selected revision must have content."
+            elif (
+                field_name == "public_revision"
+                and revision.review_state != self.ReviewState.APPROVED
+            ):
+                errors[field_name] = "A public revision must be approved."
+
+        if errors:
+            raise ValidationError(errors)
 
 
 class UserLogEntry(models.Model):

@@ -20,6 +20,45 @@ describe('ButtonText.vue', () => {
     expect(wrapper.element.tagName).toBe('A')
   })
 
+  it('keeps the native button type unset by default', async () => {
+    const wrapper = await mountSuspended(ButtonText)
+    expect(wrapper.attributes('type')).toBeUndefined()
+  })
+
+  it('only submits the enclosing form when configured as a submit button', async () => {
+    const form = document.createElement('form')
+    const submit = vi.fn((event) => event.preventDefault())
+    form.addEventListener('submit', submit)
+    document.body.appendChild(form)
+    const wrapper = await mountSuspended(ButtonText, {
+      props: { buttonType: 'button' },
+      attachTo: form,
+    })
+
+    try {
+      wrapper.element.click()
+      expect(submit).not.toHaveBeenCalled()
+
+      await wrapper.setProps({ buttonType: 'submit' })
+      wrapper.element.click()
+      expect(submit).toHaveBeenCalledOnce()
+    } finally {
+      wrapper.unmount()
+      form.remove()
+    }
+  })
+
+  it.each([{ tag: 'a' }, { href: 'https://example.com' }])(
+    'does not forward the native button type to a link with props %o',
+    async (props) => {
+      const wrapper = await mountSuspended(ButtonText, {
+        props: { ...props, buttonType: 'button' },
+      })
+      expect(wrapper.element.tagName).toBe('A')
+      expect(wrapper.attributes('type')).toBeUndefined()
+    }
+  )
+
   it('emits the click event when clicked', async () => {
     const wrapper = await mountSuspended(ButtonText)
     wrapper.vm.$emit('click')

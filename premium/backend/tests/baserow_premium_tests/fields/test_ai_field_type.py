@@ -8,6 +8,8 @@ import pytest
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
+from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.api.fields.serializers import serialize_public_field
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.field_cache import FieldCache
@@ -2216,3 +2218,31 @@ def test_restoring_referenced_field_clears_ai_field_error(
     # The generated cell value must survive the delete/restore round trip.
     row.refresh_from_db()
     assert getattr(row, f"field_{ai_field.id}") == "generated"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_field_type_public_serialization_never_exposes_the_prompt(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_ai_field(
+        table=table, name="Summary", ai_prompt="'Summarize the secret'"
+    )
+
+    serialized = serialize_public_field(field)
+
+    assert serialized == {
+        "id": field.id,
+        "table_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+        "name": "Summary",
+        "type": "ai",
+        "primary": False,
+        "read_only": False,
+        "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+        "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+        "select_options": [],
+        "ai_output_type": "text",
+        "long_text_enable_rich_text": False,
+    }

@@ -1,6 +1,6 @@
-"""Kuma-automation eval dataset: Automation workflow creation.
+"""Kuma-automation eval dataset: creating workflows and changing existing ones.
 
-All 7 cases run in ``AgentMode.DATABASE`` — the legacy tests never set
+All cases run in ``AgentMode.DATABASE`` — the legacy tests never set
 ``deps.mode`` before running automation prompts, so the agent operated in
 DATABASE mode even while doing automation work. That is preserved here
 unchanged rather than "fixed", since fixing it would change agent behaviour
@@ -10,13 +10,21 @@ and invalidate any existing baseline.
 from __future__ import annotations
 
 from collections.abc import Callable
+from uuid import uuid4
 
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.core.cache import local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BaserowFormulaObject,
+)
 from baserow.core.formula.validator import ensure_boolean
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.harness import tool_called
@@ -75,6 +83,28 @@ PROMPT_CREATES_EMAIL_NOTIFICATION_WORKFLOW = (
     "triggers when a row is created in '{table_name}'. "
     "Send an email to admin@example.com with subject 'New Order' "
     "and body 'A new order has been placed'."
+)
+
+PROMPT_EDITS_EMAIL_SUBJECT = (
+    "In automation '{automation_name}', change the subject of the email in "
+    "workflow '{workflow_name}' to 'New order from ' followed by the order's "
+    "Customer name."
+)
+
+PROMPT_ADDS_SLACK_TO_ROUTER_BRANCH = (
+    "In automation '{automation_name}', workflow '{workflow_name}': add a step on "
+    "the router's High branch that sends a Slack message to #urgent saying "
+    "'High priority ticket'."
+)
+
+PROMPT_CHANGES_ROUTER_CONDITION = (
+    "In automation '{automation_name}', workflow '{workflow_name}': change the "
+    "router's High branch so it also matches tickets whose Priority is 'Urgent'."
+)
+
+PROMPT_DELETES_NODE = (
+    "In automation '{automation_name}', remove the Slack step from workflow "
+    "'{workflow_name}'. Keep the email."
 )
 
 # ---------------------------------------------------------------------------
@@ -683,6 +713,425 @@ register_case(
         ),
         scenario="automation-creates-email-notification-workflow",
         checks=_check_creates_email_notification_workflow,
+        max_iters=20,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Changing existing workflows. Each scenario builds the workflow the prompt
+# names through the node service, the way the editor does.
+# ---------------------------------------------------------------------------
+
+
+def _create_node(user, workflow, node_type: str, **kwargs) -> AutomationNode:
+    return AutomationNodeService().create_node(
+        user, automation_node_type_registry.get(node_type), workflow, **kwargs
+    )
+
+
+def _orders_workflow(fx: Fixtures, workflow_name: str) -> dict:
+    """An Orders table and a workflow that emails the team on a new order."""
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace)
+    table = fx.create_database_table(database=database, name="Orders")
+    fx.create_text_field(table=table, name="Order ID", primary=True)
+    fx.create_text_field(table=table, name="Customer")
+    automation = fx.create_automation_application(
+        workspace=workspace, name="Order Notifications"
+    )
+    workflow = AutomationWorkflowService().create_workflow(
+        user, automation.id, workflow_name
+    )
+    trigger = _create_node(
+        user,
+        workflow,
+        "local_baserow_rows_created",
+        label="Order created",
+        service={"table_id": table.id},
+    )
+    email = _create_node(
+        user,
+        workflow,
+        "smtp_email",
+        label="Notify team",
+        reference_node_id=trigger.id,
+        service={
+            "to_emails": "'team@example.com'",
+            "subject": "'New order'",
+            "body": "'A new order arrived'",
+        },
+    )
+    return {
+        "user": user,
+        "workspace": workspace,
+        "database": database,
+        "table": table,
+        "automation": automation,
+        "workflow": workflow,
+        "trigger": trigger,
+        "email": email,
+    }
+
+
+def _tickets_workflow(fx: Fixtures, workflow_name: str, with_slack: bool) -> dict:
+    """A Tickets table and a workflow whose router splits on Priority."""
+
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace)
+    table = fx.create_database_table(database=database, name="Tickets")
+    fx.create_text_field(table=table, name="Title", primary=True)
+    priority = fx.create_single_select_field(table=table, name="Priority")
+    for order, value in enumerate(("High", "Low", "Urgent")):
+        fx.create_select_option(field=priority, value=value, order=order)
+    automation = fx.create_automation_application(
+        workspace=workspace, name="Ticket Router"
+    )
+    workflow = AutomationWorkflowService().create_workflow(
+        user, automation.id, workflow_name
+    )
+    trigger = _create_node(
+        user,
+        workflow,
+        "local_baserow_rows_created",
+        label="Ticket created",
+        service={"table_id": table.id},
+    )
+    path = f"previous_node.{trigger.id}.0.{priority.db_column}.value"
+    edges = [
+        {
+            "uid": str(uuid4()),
+            "label": value,
+            "condition": BaserowFormulaObject.create(
+                f"equal(get('{path}'), '{value}')", BASEROW_FORMULA_MODE_ADVANCED
+            ),
+        }
+        for value in ("High", "Low")
+    ]
+    router = _create_node(
+        user,
+        workflow,
+        "router",
+        label="Route by priority",
+        reference_node_id=trigger.id,
+        service={"edges": edges},
+    )
+    slack = None
+    if with_slack:
+        slack = _create_node(
+            user,
+            workflow,
+            "slack_write_message",
+            label="Alert on-call",
+            reference_node_id=router.id,
+            output=edges[0]["uid"],
+            service={"channel": "urgent", "text": "'High priority ticket'"},
+        )
+    return {
+        "user": user,
+        "workspace": workspace,
+        "database": database,
+        "table": table,
+        "automation": automation,
+        "workflow": workflow,
+        "trigger": trigger,
+        "router": router,
+        "slack": slack,
+        "priority": priority,
+    }
+
+
+def _scenario(refs: dict) -> EvalScenario:
+    return EvalScenario(
+        user=refs["user"],
+        workspace=refs["workspace"],
+        ui_context=build_database_ui_context(
+            refs["user"], refs["workspace"], refs["database"], refs["table"]
+        ),
+        refs=refs,
+    )
+
+
+def _select_row(priority, value: str) -> dict:
+    option = priority.select_options.get(value=value)
+    return {
+        "id": 1,
+        priority.db_column: {
+            "id": option.id,
+            "value": option.value,
+            "color": option.color,
+        },
+    }
+
+
+def _branch_taken(router, trigger, row) -> str | None:
+    """The uid of the branch the router takes for a trigger row, as at runtime."""
+
+    edges = list(router.service.specific.edges.all())
+    resolved = [_resolve_saved_formula(edge.condition, trigger, row) for edge in edges]
+    if any(result is _UNRESOLVED for result in resolved):
+        return None
+    return next(
+        (
+            str(edge.uid)
+            for edge, result in zip(edges, resolved)
+            if ensure_boolean(result, False)
+        ),
+        "",
+    )
+
+
+def _follows(node, previous) -> bool:
+    """Whether the saved workflow runs ``node`` right after ``previous``."""
+
+    with local_cache.context():
+        previous = AutomationNode.objects.filter(id=previous.id).first()
+        return previous is not None and any(
+            point.id == node.id for point in previous.get_next_points()
+        )
+
+
+# ---------------------------------------------------------------------------
+# Edits an email subject (list_nodes + update_nodes, formula from the trigger)
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("automation-edits-email-subject")
+def _edits_email_subject_scenario(fx: Fixtures) -> EvalScenario:
+    return _scenario(_orders_workflow(fx, "New order"))
+
+
+def _check_edits_email_subject(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    customer = refs["table"].field_set.get(name="Customer")
+    email = AutomationNode.objects.filter(id=refs["email"].id).first()
+    service = email.service.specific if email else None
+    subjects = [
+        _resolve_saved_formula(
+            service.subject, refs["trigger"], {"id": 1, customer.db_column: name}
+        )
+        if service
+        else None
+        for name in ("Ada Lovelace", "Grace Hopper")
+    ]
+    return [
+        CheckResult("called update_nodes", bool(tool_called(output, "update_nodes"))),
+        CheckResult("the email node is kept", service is not None),
+        CheckResult(
+            "the email still runs after the trigger",
+            _follows(refs["email"], refs["trigger"]),
+        ),
+        CheckResult(
+            "saved subject follows the trigger's Customer",
+            subjects == ["New order from Ada Lovelace", "New order from Grace Hopper"],
+            hint=f"resolved subjects: {subjects}",
+        ),
+        CheckResult(
+            "recipient and body are unchanged",
+            service is not None
+            and _resolve_saved_formula(service.to_emails) == "team@example.com"
+            and _resolve_saved_formula(service.body) == "A new order arrived",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="automation/edits-email-subject",
+        dataset="kuma-automation",
+        prompt=PROMPT_EDITS_EMAIL_SUBJECT.format(
+            automation_name="Order Notifications", workflow_name="New order"
+        ),
+        scenario="automation-edits-email-subject",
+        checks=_check_edits_email_subject,
+        max_iters=20,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Adds a Slack step on a router branch (add_nodes with router_edge_label)
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("automation-adds-slack-to-router-branch")
+def _adds_slack_to_router_branch_scenario(fx: Fixtures) -> EvalScenario:
+    return _scenario(_tickets_workflow(fx, "Ticket triage", with_slack=False))
+
+
+def _check_adds_slack_to_router_branch(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    with local_cache.context():
+        router = AutomationNode.objects.filter(id=refs["router"].id).first()
+        edges = (
+            {edge.label: str(edge.uid) for edge in router.service.specific.edges.all()}
+            if router
+            else {}
+        )
+        high = router.get_next_points(edges["High"]) if "High" in edges else []
+        low = router.get_next_points(edges["Low"]) if "Low" in edges else []
+    return [
+        CheckResult("called add_nodes", bool(tool_called(output, "add_nodes"))),
+        CheckResult(
+            "the router keeps its branches",
+            router is not None and set(edges) == {"High", "Low"},
+        ),
+        CheckResult(
+            "saved High branch sends the requested Slack message",
+            any(
+                node.service.get_type().type == "slack_write_message"
+                and node.service.specific.channel.lstrip("#") == "urgent"
+                and _resolve_saved_formula(node.service.specific.text)
+                == "High priority ticket"
+                for node in high
+            ),
+        ),
+        CheckResult("Low branch still does nothing", not low),
+        CheckResult(
+            "no second workflow",
+            AutomationWorkflow.objects.filter(automation=refs["automation"]).count()
+            == 1,
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="automation/adds-slack-to-router-branch",
+        dataset="kuma-automation",
+        prompt=PROMPT_ADDS_SLACK_TO_ROUTER_BRANCH.format(
+            automation_name="Ticket Router", workflow_name="Ticket triage"
+        ),
+        scenario="automation-adds-slack-to-router-branch",
+        checks=_check_adds_slack_to_router_branch,
+        max_iters=20,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Changes a router condition (update_nodes edges)
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("automation-changes-router-condition")
+def _changes_router_condition_scenario(fx: Fixtures) -> EvalScenario:
+    return _scenario(_tickets_workflow(fx, "Ticket triage", with_slack=True))
+
+
+def _check_changes_router_condition(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    priority = refs["priority"]
+    with local_cache.context():
+        router = AutomationNode.objects.filter(id=refs["router"].id).first()
+        edges = (
+            {edge.label: str(edge.uid) for edge in router.service.specific.edges.all()}
+            if router
+            else {}
+        )
+        taken = (
+            {
+                value: _branch_taken(
+                    router, refs["trigger"], _select_row(priority, value)
+                )
+                for value in ("High", "Urgent", "Low")
+            }
+            if router
+            else {}
+        )
+        slack = AutomationNode.objects.filter(id=refs["slack"].id).first()
+        high_nodes = router.get_next_points(edges["High"]) if "High" in edges else []
+    return [
+        CheckResult("called update_nodes", bool(tool_called(output, "update_nodes"))),
+        CheckResult(
+            "the router keeps its branches",
+            router is not None and set(edges) == {"High", "Low"},
+        ),
+        CheckResult(
+            "High and Urgent tickets take the High branch, Low the Low branch",
+            bool(edges)
+            and taken.get("High") == edges["High"]
+            and taken.get("Urgent") == edges["High"]
+            and taken.get("Low") == edges["Low"],
+            hint=f"branches taken: {taken}, branches: {edges}",
+        ),
+        CheckResult(
+            "the Slack step stays on the High branch",
+            slack is not None and any(node.id == slack.id for node in high_nodes),
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="automation/changes-router-condition",
+        dataset="kuma-automation",
+        prompt=PROMPT_CHANGES_ROUTER_CONDITION.format(
+            automation_name="Ticket Router", workflow_name="Ticket triage"
+        ),
+        scenario="automation-changes-router-condition",
+        checks=_check_changes_router_condition,
+        max_iters=20,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Deletes a node (delete_nodes)
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("automation-deletes-node")
+def _deletes_node_scenario(fx: Fixtures) -> EvalScenario:
+    refs = _orders_workflow(fx, "Order flow")
+    refs["slack"] = _create_node(
+        refs["user"],
+        refs["workflow"],
+        "slack_write_message",
+        label="Post to #orders",
+        reference_node_id=refs["email"].id,
+        service={"channel": "orders", "text": "'New order'"},
+    )
+    return _scenario(refs)
+
+
+def _check_deletes_node(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    remaining = set(
+        AutomationNode.objects.filter(workflow=refs["workflow"]).values_list(
+            "id", flat=True
+        )
+    )
+    return [
+        CheckResult("called delete_nodes", bool(tool_called(output, "delete_nodes"))),
+        CheckResult("the Slack step is deleted", refs["slack"].id not in remaining),
+        CheckResult(
+            "the trigger and the email are kept",
+            {refs["trigger"].id, refs["email"].id} <= remaining,
+        ),
+        CheckResult(
+            "the email still runs after the trigger",
+            _follows(refs["email"], refs["trigger"]),
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="automation/deletes-node",
+        dataset="kuma-automation",
+        prompt=PROMPT_DELETES_NODE.format(
+            automation_name="Order Notifications", workflow_name="Order flow"
+        ),
+        scenario="automation-deletes-node",
+        checks=_check_deletes_node,
         max_iters=20,
     )
 )

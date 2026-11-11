@@ -1,14 +1,14 @@
-import { CoreGotoNodeType } from '@baserow/modules/automation/nodeTypes'
+import { CoreGotoActionNodeType } from '@baserow/modules/automation/nodeTypes'
 import { CoreGotoServiceType } from '@baserow/modules/integrations/core/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
-describe('CoreGotoNodeType', () => {
+describe('CoreGotoActionNodeType', () => {
   test('getType is goto_node', () => {
-    expect(CoreGotoNodeType.getType()).toBe('goto')
+    expect(CoreGotoActionNodeType.getType()).toBe('goto')
   })
 
   test('name comes from the i18n label', () => {
-    const nodeType = new CoreGotoNodeType({
+    const nodeType = new CoreGotoActionNodeType({
       app: { $i18n: { t: (key) => key } },
     })
     expect(nodeType.name).toBe('nodeType.gotoNodeLabel')
@@ -40,7 +40,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('falls back to the name when there is no destination', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       const node = { workflow: 10, service: {} }
       expect(nodeType.getDefaultLabel({ automation, node })).toBe(
         'nodeType.gotoNodeLabel'
@@ -48,7 +48,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('falls back to the name when the destination cannot be resolved', () => {
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ destinationNode: null }),
       })
       const node = { workflow: 10, service: { destination_service_id: 5 } }
@@ -58,7 +58,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('appends the destination node label once a destination is set', () => {
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({
           destinationNode: { id: 5, type: 'create_row' },
           destinationLabel: 'List rows',
@@ -95,7 +95,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('prefers the destination label resolved by the backend', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(
         nodeType.getHistoryLabel({
           nodeHistory: {
@@ -110,7 +110,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('falls back to the destination node type name when it has no label', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(
         nodeType.getHistoryLabel({
           nodeHistory: {
@@ -127,7 +127,7 @@ describe('CoreGotoNodeType', () => {
     test('omits the destination when the jump was skipped', () => {
       // The condition resolved to false, so no jump was followed and the
       // configured destination must not be presented as if it had been.
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(
         nodeType.getHistoryLabel({
           nodeHistory: {
@@ -141,7 +141,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('omits the destination when none was recorded', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(
         nodeType.getHistoryLabel({
           nodeHistory: {
@@ -157,7 +157,7 @@ describe('CoreGotoNodeType', () => {
       // The enterprise `code` node type is only registered when the code runner
       // is configured, so a history entry recorded while it was enabled can
       // outlive its registration and reference a type this build doesn't have.
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(
         nodeType.getHistoryLabel({
           nodeHistory: {
@@ -203,13 +203,13 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('returns no connection when there is no destination', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       const node = { ...goto, service: {} }
       expect(nodeType.getConnections({ workflow, node })).toEqual([])
     })
 
     test('returns no connection when the destination cannot be resolved', () => {
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ destinationNode: null }),
       })
       const node = { ...goto, service: { destination_service_id: 2 } }
@@ -219,7 +219,7 @@ describe('CoreGotoNodeType', () => {
     test('returns no connection when the jump is invalid', () => {
       // `sibling` shares the goto's level but does not run before it, so it is
       // not a valid jump.
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ destinationNode: sibling }),
       })
       const node = { ...goto, service: { destination_service_id: 5 } }
@@ -227,7 +227,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('returns the destination connection for a backward jump', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       const node = { ...goto, service: { destination_service_id: 2 } }
       expect(nodeType.getConnections({ workflow, node })).toEqual([
         { destinationNodeId: 2 },
@@ -236,7 +236,7 @@ describe('CoreGotoNodeType', () => {
 
     test('returns no connection for a forward jump', () => {
       // `after` runs after the goto node; forward jumps are not allowed.
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ destinationNode: after }),
       })
       const node = { ...goto, service: { destination_service_id: 4 } }
@@ -283,7 +283,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('lists the destinations in the order they appear in the editor', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(
         nodeType.getDestinations({ workflow, node: goto, automation })
       ).toEqual([
@@ -326,7 +326,7 @@ describe('CoreGotoNodeType', () => {
 
     test('clears a link whose destination left the Go to node path', () => {
       // The destination no longer runs before the Go to node.
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ 2: [trigger], 3: [trigger] }),
       })
       expect(nodeType.afterMove({ workflow, node: makeGoto() })).toEqual({
@@ -335,7 +335,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('clears a link whose destination is gone from the workflow', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       expect(nodeType.afterMove({ workflow, node: makeGoto(999) })).toEqual({
         service: { condition: {}, destination_service_id: null },
       })
@@ -343,7 +343,7 @@ describe('CoreGotoNodeType', () => {
 
     test('keeps a valid backward jump untouched', () => {
       // The destination still runs before the Go to node.
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ 2: [trigger], 3: [trigger, destination] }),
       })
       expect(nodeType.afterMove({ workflow, node: makeGoto() })).toBeNull()
@@ -352,7 +352,7 @@ describe('CoreGotoNodeType', () => {
     test('clears a link that became a forward jump', () => {
       // The destination now runs after the Go to node - a forward jump, which
       // is not allowed.
-      const nodeType = new CoreGotoNodeType({
+      const nodeType = new CoreGotoActionNodeType({
         app: makeApp({ 2: [trigger, { id: 3 }], 3: [trigger] }),
       })
       expect(nodeType.afterMove({ workflow, node: makeGoto() })).toEqual({
@@ -361,7 +361,7 @@ describe('CoreGotoNodeType', () => {
     })
 
     test('does nothing when no destination is set', () => {
-      const nodeType = new CoreGotoNodeType({ app: makeApp() })
+      const nodeType = new CoreGotoActionNodeType({ app: makeApp() })
       const node = { id: 3, type: 'goto', service: {} }
       expect(nodeType.afterMove({ workflow, node })).toBeNull()
     })

@@ -5,6 +5,7 @@ from baserow.api.user_sources.views import (
     UserSourceObtainJSONWebToken,
     UserSourceTokenRefreshView,
 )
+from baserow.contrib.builder.api.data_sources.views import GetRecordNamesView
 from baserow.contrib.builder.api.domains.public_views import (
     PublicBuilderByIdView,
     PublicBuilderWorkflowActionsView,
@@ -88,6 +89,15 @@ urlpatterns = [
             schema=None,
         ),
         name="dispatch_data_source",
+    ),
+    re_path(
+        r"(?P<builder_id>[0-9]+)/data-sources/"
+        r"(?P<data_source_id>[0-9]+)/record-names/$",
+        GetRecordNamesView.as_view(
+            authentication_classes=PREVIEW_AUTHENTICATION_CLASSES,
+            schema=None,
+        ),
+        name="record_names",
     ),
     re_path(
         r"(?P<builder_id>[0-9]+)/pages/(?P<page_id>[0-9]+)/"

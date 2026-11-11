@@ -67,4 +67,4 @@ def test_can_restore_a_snapshot_with_integration(data_fixture):
     )
     snapshot_restored = SnapshotHandler().perform_restore(snapshot, Progress(total=100))
 
-    assert snapshot_restored.integrations.all()[0].specific.authorized_user == user
+    assert snapshot_restored.integrations.all()[0].specific.authorized_subject == user

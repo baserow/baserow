@@ -71,6 +71,8 @@ def test_create_workflow(api_client, data_fixture):
         "simulate_until_node_id": None,
         "graph": {},
         "immediate_dispatch": False,
+        "import_report": [],
+        "untrusted_content": False,
     }
 
     workflow = automation.workflows.get(id=response_json["id"])
@@ -160,6 +162,8 @@ def test_read_workflow(api_client, data_fixture):
         "graph": {"0": trigger.id, str(trigger.id): {}},
         "notification_recipient_ids": [],
         "immediate_dispatch": False,
+        "import_report": [],
+        "untrusted_content": False,
     }
 
 
@@ -450,6 +454,8 @@ def test_duplicate_workflow(api_client, data_fixture):
             "simulate_until_node_id": None,
             "graph": {"0": trigger.id, str(trigger.id): {}},
             "immediate_dispatch": False,
+            "import_report": [],
+            "untrusted_content": False,
         },
         "progress_percentage": 0,
         "state": "pending",
@@ -529,17 +535,29 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
     original_workflow = data_fixture.create_automation_workflow(user=user)
     table_1, fields_1, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=original_workflow.automation.workspace
+        ),
         user=user,
         columns=[("Name", "text"), ("Color", "text")],
         rows=[["BMW", "Blue"]],
     )
-    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+    workflow = data_fixture.create_automation_workflow(
+        user=user,
+        create_trigger=False,
+        automation=data_fixture.create_automation_application(
+            workspace=original_workflow.automation.workspace
+        ),
+    )
     workflow.automation.published_from = original_workflow
     workflow.automation.save()
 
     trigger_service = data_fixture.create_local_baserow_rows_created_service(
         table=table_1,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=workflow.automation,
+            user=user,
+        ),
     )
     trigger_node = data_fixture.create_automation_node(
         user=user,
@@ -550,13 +568,17 @@ def test_run_workflow_in_test_mode(api_client, data_fixture):
 
     # Next create an action node
     table_2, fields_2, _ = data_fixture.build_table(
+        database=table_1.database,
         user=user,
         columns=[("Name", "text")],
         rows=[],
     )
     action_service = data_fixture.create_local_baserow_upsert_row_service(
         table=table_2,
-        integration=data_fixture.create_local_baserow_integration(user=user),
+        integration=data_fixture.create_local_baserow_integration(
+            application=workflow.automation,
+            user=user,
+        ),
     )
     action_service.field_mappings.create(
         field=fields_2[0],
@@ -863,3 +885,41 @@ def test_get_workflow_histories_has_success_and_fail_counts(api_client, data_fix
     assert data["count"] == 3
     assert data["success_count"] == 2
     assert data["fail_count"] == 1
+
+
+@pytest.mark.django_db
+def test_trust_is_scoped_to_one_workflow(api_client, data_fixture):
+    """Trusting one workflow neither trusts a sibling nor bypasses update permissions."""
+
+    user, token = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation,
+        untrusted_content=True,
+        import_report=[{"type": "automation_code_node", "id": 123}],
+    )
+    sibling = data_fixture.create_automation_workflow(
+        automation=automation, untrusted_content=True
+    )
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    assert (
+        api_client.patch(url, {"untrusted_content": False}, format="json").status_code
+        == 401
+    )
+    workflow.refresh_from_db()
+    assert workflow.untrusted_content is True
+
+    response = api_client.patch(
+        url,
+        {"untrusted_content": False, "import_report": []},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200
+    assert response.json()["untrusted_content"] is False
+    workflow.refresh_from_db()
+    sibling.refresh_from_db()
+    assert workflow.untrusted_content is False
+    assert sibling.untrusted_content is True
+
+    assert workflow.import_report == [{"type": "automation_code_node", "id": 123}]

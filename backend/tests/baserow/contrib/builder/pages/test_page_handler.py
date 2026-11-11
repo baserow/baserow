@@ -14,6 +14,7 @@ from baserow.contrib.builder.pages.constants import ILLEGAL_PATH_SAMPLE_CHARACTE
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidPagePath,
     InvalidQueryParamName,
     PageDoesNotExist,
     PageNotInBuilder,
@@ -110,6 +111,34 @@ def test_update_page_with_query_params(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_page_refuses_a_query_param_named_like_a_path_param(data_fixture):
+    builder = data_fixture.create_builder_application()
+
+    with pytest.raises(DuplicatePageParams):
+        PageHandler().create_page(
+            builder,
+            name="test",
+            path="/test/:id",
+            path_params=[{"name": "id", "type": "text"}],
+            query_params=[{"name": "id", "type": "text"}],
+        )
+
+
+@pytest.mark.django_db
+def test_update_page_path_refuses_a_path_param_named_like_a_query_param(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page(
+        path="/products", query_params=[{"name": "id", "type": "text"}]
+    )
+
+    with pytest.raises(DuplicatePageParams):
+        PageHandler().update_page(
+            page, path="/products/:id", path_params=[{"name": "id", "type": "text"}]
+        )
+
+
+@pytest.mark.django_db
 def test_create_page_duplicate_params_in_path(data_fixture):
     builder = data_fixture.create_builder_application()
 
@@ -173,11 +202,53 @@ def test_update_page_page_name_not_unique(data_fixture):
 
 @pytest.mark.django_db
 def test_update_page_page_path_not_unique(data_fixture):
-    page = data_fixture.create_builder_page()
-    page_two = data_fixture.create_builder_page(builder=page.builder)
+    page = data_fixture.create_builder_page(path="/one")
+    page_two = data_fixture.create_builder_page(builder=page.builder, path="/two")
 
     with pytest.raises(PagePathNotUnique):
         PageHandler().update_page(page_two, path=page.path)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["products", "/my products", ""])
+def test_create_page_refuses_an_invalid_path(data_fixture, path):
+    builder = data_fixture.create_builder_application()
+
+    with pytest.raises(InvalidPagePath):
+        PageHandler().create_page(builder, "Products", path)
+
+    assert not Page.objects_without_shared.filter(builder=builder).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["products", "/my products", ""])
+def test_update_page_refuses_an_invalid_path(data_fixture, path):
+    page = data_fixture.create_builder_page(path="/products")
+
+    with pytest.raises(InvalidPagePath):
+        PageHandler().update_page(page, path=path)
+
+    page.refresh_from_db()
+    assert page.path == "/products"
+
+
+@pytest.mark.django_db
+def test_create_page_sets_visibility_and_roles(data_fixture):
+    builder = data_fixture.create_builder_application()
+
+    page = PageHandler().create_page(
+        builder,
+        "Members",
+        "/members",
+        visibility=Page.VISIBILITY_TYPES.LOGGED_IN,
+        role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+        roles=["Admin"],
+    )
+
+    page.refresh_from_db()
+    assert page.visibility == Page.VISIBILITY_TYPES.LOGGED_IN
+    assert page.role_type == Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT
+    assert page.roles == ["Admin"]
 
 
 @pytest.mark.django_db
@@ -534,6 +605,28 @@ def test_is_page_path_unique_with_trashed_page(data_fixture):
     TrashHandler.trash(user, builder.workspace, builder, trashed_page)
 
     assert PageHandler().is_page_path_unique(builder, "/test") is False
+
+
+@pytest.mark.django_db
+def test_get_page_with_clashing_path(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_builder_page(builder=builder, path="/")
+    product = data_fixture.create_builder_page(builder=builder, path="/product/:id")
+    trashed = data_fixture.create_builder_page(builder=builder, path="/old")
+    TrashHandler.trash(user, builder.workspace, builder, trashed)
+    handler = PageHandler()
+
+    assert handler.get_page_with_clashing_path(builder, "/product/:id") == product
+    assert handler.get_page_with_clashing_path(builder, "/product/:slug") == product
+    assert handler.get_page_with_clashing_path(builder, "/old") == trashed
+    assert handler.get_page_with_clashing_path(builder, "/new") is None
+    assert (
+        handler.get_page_with_clashing_path(
+            builder, "/old", base_queryset=Page.objects.all()
+        )
+        is None
+    )
 
 
 @pytest.mark.django_db
@@ -1001,3 +1094,12 @@ def test_import_elements_folds_two_non_default_outputs_sharing_a_head(
         str(imported_first.id): {"next": {"": [imported_second.id]}},
         str(imported_second.id): {},
     }
+
+
+def test_get_path_param_names():
+    assert PageHandler().get_path_param_names("/item/:id/:slug/:id") == [
+        "id",
+        "slug",
+        "id",
+    ]
+    assert PageHandler().get_path_param_names("/about") == []

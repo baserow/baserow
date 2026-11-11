@@ -2,9 +2,12 @@ from collections import defaultdict
 from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import Storage
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
+
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.compat.graph_migrator import (
     ElementToMigrate,
@@ -28,6 +31,7 @@ from baserow.contrib.builder.pages.constants import (
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidPagePath,
     InvalidQueryParamName,
     PageDoesNotExist,
     PageNotInBuilder,
@@ -42,6 +46,7 @@ from baserow.contrib.builder.pages.types import (
     PageQueryParam,
     PageQueryParams,
 )
+from baserow.contrib.builder.pages.validators import path_validation
 from baserow.contrib.builder.types import PageDict
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -127,6 +132,7 @@ class PageHandler:
         path_params: PagePathParams = None,
         query_params: PageQueryParam = None,
         shared: bool = False,
+        **kwargs,
     ) -> Page:
         """
         Creates a new page.
@@ -138,6 +144,10 @@ class PageHandler:
         :param query_params: The query params of the page provided
         :param shared: If this is the shared page. They should be only one shared page
           per builder application.
+        :param kwargs: Other page fields, such as `visibility`, `role_type` and
+          `roles`.
+        :raises InvalidPagePath: When the path of a page other than the shared page
+          is not a valid URL path.
         :return: The newly created page instance
         """
 
@@ -145,8 +155,11 @@ class PageHandler:
         path_params = path_params or []
         query_params = query_params or []
 
+        if not shared:
+            self.raise_if_invalid_path(path)
         self.is_page_path_valid(path, path_params, raises=True)
         self.is_page_path_unique(builder, path, raises=True)
+        self.validate_query_params(path, path_params, query_params)
 
         try:
             page = Page.objects.create(
@@ -158,6 +171,7 @@ class PageHandler:
                 query_params=query_params,
                 shared=shared,
                 graph={},
+                **kwargs,
             )
         except IntegrityError as e:
             if "unique constraint" in e.args[0] and "path" in e.args[0]:
@@ -178,9 +192,11 @@ class PageHandler:
         if page.shared:
             raise SharedPageIsReadOnly()
 
+        page_id = page.id
         page.delete()
 
         self.invalidate_page_cache(page)
+        transaction.on_commit(lambda: self.invalidate_page_public_cache(page_id))
 
     def update_page(self, page: Page, **kwargs) -> Page:
         """
@@ -194,6 +210,8 @@ class PageHandler:
         if page.shared:
             raise SharedPageIsReadOnly()
 
+        if "path" in kwargs:
+            self.raise_if_invalid_path(kwargs["path"])
         if "path" in kwargs or "path_params" in kwargs:
             path = kwargs.get("path", page.path)
             path_params = kwargs.get("path_params", page.path_params)
@@ -207,12 +225,12 @@ class PageHandler:
                 ),  # We don't want to conflict with the current page
                 raises=True,
             )
-        if "query_params" in kwargs:
-            query_params = kwargs.get("query_params")
+        # New path params can clash with the query params the page keeps.
+        if "query_params" in kwargs or "path_params" in kwargs:
             self.validate_query_params(
                 kwargs.get("path", page.path),
                 kwargs.get("path_params", page.path_params),
-                query_params,
+                kwargs.get("query_params", page.query_params),
             )
 
         for key, value in kwargs.items():
@@ -261,6 +279,9 @@ class PageHandler:
         Generates the cache key used by the public elements, data sources and workflow
         actions endpoints. Anonymous and authenticated visitors always get separate
         cache keys, and authenticated visitors are further separated by role.
+        Callers must authorize authenticated actors against the page before reading
+        this cache; role-based sharing is only valid among actors allowed to access
+        that page.
 
         Authenticated visitors without a role must not share a key with anonymous
         visitors: they see different records (e.g. elements restricted to logged-in
@@ -283,6 +304,31 @@ class PageHandler:
             auth = f"_auth_{getattr(user, 'role', '')}"
         return f"ab_public_page_{page_id}{auth}_{record_name}_records"
 
+    @classmethod
+    def get_page_public_cache_invalidate_key(cls, page_id: int) -> str:
+        """
+        Returns the key invalidating every public cache of a published page: whether
+        it's published and its records for every audience.
+
+        :param page_id: the ID of the public page.
+        :return: the invalidation key.
+        """
+
+        return f"ab_public_page_{page_id}_public_cache"
+
+    @classmethod
+    def invalidate_page_public_cache(cls, page_id: int):
+        """
+        Invalidates every public cache of a published page, so that the next public
+        request reads the page from the database again.
+
+        :param page_id: the ID of the public page.
+        """
+
+        global_cache.invalidate(
+            invalidate_key=cls.get_page_public_cache_invalidate_key(page_id)
+        )
+
     def is_published_page(self, public_page_id: int) -> bool:
         """
         Returns whether this public page ID points to a published domain
@@ -295,6 +341,7 @@ class PageHandler:
         return global_cache.get(
             f"ab_public_page_{public_page_id}_published",
             default=lambda: self._is_published_application_page(public_page_id),
+            invalidate_key=self.get_page_public_cache_invalidate_key(public_page_id),
             timeout=BUILDER_PAGE_IS_PUBLISHED_CACHE_TTL_SECONDS,
         )
 
@@ -414,6 +461,101 @@ class PageHandler:
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
 
+    def raise_if_page_links_outside_builder(
+        self, builder: Builder, values: Any, instance: Any = None
+    ):
+        """
+        Check that every `navigate_to_page_id` in the values of an element or
+        workflow action, nested ones such as menu items and table columns included,
+        names a page of the builder other than its shared page.
+
+        :param builder: The builder the element or workflow action is in.
+        :param values: The values it's created or updated with.
+        :param instance: The element or workflow action being updated. Its saved
+            link fills in whichever of `navigation_type` and `navigate_to_page_id`
+            the values leave out.
+        :raises ValidationError: When one names a page of another builder or the
+            shared page.
+        """
+
+        if instance is not None and (
+            "navigation_type" in values or "navigate_to_page_id" in values
+        ):
+            values = {
+                "navigation_type": getattr(instance, "navigation_type", None),
+                "navigate_to_page_id": getattr(instance, "navigate_to_page_id", None),
+                **values,
+            }
+
+        page_ids = set()
+
+        def add(page_id: Any) -> None:
+            try:
+                page_ids.add(int(page_id))
+            except (TypeError, ValueError):
+                raise DRFValidationError(
+                    f"{page_id!r} is not a page id.", code="invalid_page_id"
+                )
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                page_id = value.get("navigate_to_page_id")
+                # A link to a custom URL keeps a page id it doesn't use.
+                if page_id not in (None, "") and value.get("navigation_type") != (
+                    "custom"
+                ):
+                    add(page_id)
+                for item in value.values():
+                    collect(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    collect(item)
+
+        collect(values)
+        if not page_ids:
+            return
+        # The editor sends links to a trashed page back. The shared page isn't a
+        # page a link can open.
+        found = set(
+            Page.objects_and_trash.filter(
+                builder=builder, id__in=page_ids, shared=False
+            ).values_list("id", flat=True)
+        )
+        missing = page_ids - found
+        if missing:
+            raise DRFValidationError(
+                f"The page with id {min(missing)} doesn't exist.",
+                code="invalid_page_id",
+            )
+
+    def get_path_param_names(self, path: str) -> List[str]:
+        """
+        The names of the parameters in a path, in order and with repeats.
+
+        :param path: A page path, such as `/products/:id`.
+        :return: The parameter names, such as `["id"]`.
+        """
+
+        return [
+            token.removeprefix(PAGE_PATH_PARAM_PREFIX)
+            for token in PATH_PARAM_REGEX.findall(path)
+        ]
+
+    def raise_if_invalid_path(self, path: str):
+        """
+        Checks that a page path is a valid URL path starting with '/', as the REST
+        API does. The published site routes on the path after its first character,
+        so a path like 'products' would otherwise answer at '/roducts'.
+
+        :param path: The path to check.
+        :raises InvalidPagePath: When the path is not valid.
+        """
+
+        try:
+            path_validation(path)
+        except DjangoValidationError as exc:
+            raise InvalidPagePath(path, " ".join(exc.messages)) from exc
+
     def is_page_path_valid(
         self, path: str, path_params: PagePathParams, raises: bool = False
     ) -> bool:
@@ -520,17 +662,36 @@ class PageHandler:
         :return: If the path is unique
         """
 
-        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
+        if self.get_page_with_clashing_path(builder, path, base_queryset) is None:
+            return True
+        if raises:
+            raise PagePathNotUnique(path=path, builder_id=builder.id)
+        return False
 
-        existing_paths = queryset.filter(builder=builder).values_list("path", flat=True)
+    def get_page_with_clashing_path(
+        self,
+        builder: Builder,
+        path: str,
+        base_queryset: QuerySet | None = None,
+    ) -> Page | None:
+        """
+        Finds the page whose path clashes with the given path. Paths clash when
+        they only differ in the names of their parameters.
+
+        :param builder: The builder that the page belongs to.
+        :param path: The path to look for.
+        :param base_queryset: The pages to search, trashed ones included by default.
+        :return: The clashing page, or None if the path is free.
+        """
+
+        queryset = Page.objects_and_trash if base_queryset is None else base_queryset
+        pages = queryset.filter(builder=builder).only("id", "name", "path", "trashed")
 
         path_generalised = self.generalise_path(path)
-        for existing_path in existing_paths:
-            if self.generalise_path(existing_path) == path_generalised:
-                if raises:
-                    raise PagePathNotUnique(path=path, builder_id=builder.id)
-                return False
-        return True
+        for page in pages:
+            if self.generalise_path(page.path) == path_generalised:
+                return page
+        return None
 
     def generalise_path(self, path: str) -> str:
         """
@@ -562,6 +723,7 @@ class PageHandler:
     def export_page(
         self,
         page: Page,
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -578,7 +740,11 @@ class PageHandler:
         # Get serialized version of all elements of the current page
         serialized_elements = [
             ElementHandler().export_element(
-                e, files_zip=files_zip, storage=storage, cache=cache
+                e,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
             for e in ElementHandler().get_elements(page=page)
         ]
@@ -586,7 +752,11 @@ class PageHandler:
         # Get serialized versions of all workflow actions of the current page
         serialized_workflow_actions = [
             BuilderWorkflowActionHandler().export_workflow_action(
-                wa, files_zip=files_zip, storage=storage, cache=cache
+                wa,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
             for wa in BuilderWorkflowActionHandler().get_workflow_actions(page=page)
         ]
@@ -594,7 +764,11 @@ class PageHandler:
         # Get serialized version of all data_sources for the current page
         serialized_data_sources = [
             DataSourceHandler().export_data_source(
-                ds, files_zip=files_zip, storage=storage, cache=cache
+                ds,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             )
             for ds in DataSourceHandler().get_data_sources(page=page)
         ]

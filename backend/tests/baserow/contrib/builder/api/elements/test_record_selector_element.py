@@ -56,7 +56,12 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
         rows=[["Peter"], ["Afonso"], ["Tsering"], ["Jérémie"]],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    page = data_fixture.create_builder_page(user=user)
+    page = data_fixture.create_builder_page(
+        user=user,
+        builder=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=page.builder
     )

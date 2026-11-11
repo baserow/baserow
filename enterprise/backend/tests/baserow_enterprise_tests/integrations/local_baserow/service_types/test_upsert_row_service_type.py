@@ -59,8 +59,9 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_protected_table_fie
 
     builder_user = enterprise_data_fixture.create_user()
     admin_user = enterprise_data_fixture.create_user()
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
     workspace = enterprise_data_fixture.create_workspace(
-        users=[builder_user, admin_user]
+        users=[admin_user], custom_permissions=[(builder_user, "BUILDER")]
     )
 
     builder = enterprise_data_fixture.create_builder_application(workspace=workspace)
@@ -127,7 +128,10 @@ def test_a_click_writing_only_writable_fields_succeeds(
 ):
     admin_user = enterprise_data_fixture.create_user()
     clicker = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(users=[admin_user, clicker])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[admin_user], custom_permissions=[(clicker, "VIEWER")]
+    )
 
     table, writable_field, _ = _table_with_a_protected_field(
         enterprise_data_fixture, workspace, admin_user, admin_user
@@ -160,7 +164,10 @@ def test_a_click_writing_an_unwritable_field_fails(
 
     admin_user = enterprise_data_fixture.create_user()
     clicker = enterprise_data_fixture.create_user()
-    workspace = enterprise_data_fixture.create_workspace(users=[admin_user, clicker])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = enterprise_data_fixture.create_workspace(
+        users=[admin_user], custom_permissions=[(clicker, "VIEWER")]
+    )
 
     table, writable_field, protected_field = _table_with_a_protected_field(
         enterprise_data_fixture, workspace, admin_user, admin_user

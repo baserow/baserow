@@ -62,13 +62,19 @@ describe('AgentsTable', () => {
     })
 
     const wrapper = await testApp.mount(AgentsTable, {
+      global: {
+        mocks: {
+          $t: (key, params) =>
+            key === 'identities.title' ? `${params.count} agents` : key,
+        },
+      },
       props: {
         workspace: { id: 1, name: 'Workspace', _: { roles: [] } },
       },
     })
     await flushPromises()
 
-    expect(wrapper.vm.count).toBe(250)
+    expect(wrapper.get('h1').text()).toBe('250 agents')
   })
 
   test('passes realtime updates to the selected editor through its agent prop', async () => {
@@ -154,7 +160,7 @@ describe('AgentsTable', () => {
               template: `
                 <div>
                   <slot name="empty" />
-                  <slot name="header-right-side" />
+                  <slot name="primary-action" />
                   <span class="column-count">{{ columns.length }}</span>
                   <button class="open-row" @click="$emit('row-context', { row: agent, target: $el })">Open row</button>
                   <slot name="menus" />
@@ -180,14 +186,14 @@ describe('AgentsTable', () => {
       expect(
         wrapper
           .findAll('button')
-          .filter((button) => button.text() === 'agents.create')
+          .filter((button) => button.text() === 'identities.create')
       ).toHaveLength(createButtonCount)
       expect(wrapper.find('.column-count').text()).toBe(String(columnCount))
 
       await wrapper.find('.open-row').trigger('click')
       await flushPromises()
-      expect(wrapper.text().includes('agents.edit')).toBe(showsEdit)
-      expect(wrapper.text().includes('agents.delete')).toBe(showsDelete)
+      expect(wrapper.text().includes('identities.edit')).toBe(showsEdit)
+      expect(wrapper.text().includes('identities.delete')).toBe(showsDelete)
       expect(
         wrapper
           .findAll('.agent-modal')

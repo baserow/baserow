@@ -3,7 +3,10 @@ import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { getValueAtPath } from '@baserow/modules/core/utils/object'
 
 import { defaultValueForParameterType } from '@baserow/modules/builder/utils/params'
-import { DEFAULT_USER_ROLE_PREFIX } from '@baserow/modules/builder/constants'
+import {
+  DATA_SCOPES,
+  DEFAULT_USER_ROLE_PREFIX,
+} from '@baserow/modules/builder/constants'
 import {
   PAGE_PARAM_TYPE_VALIDATION_FUNCTIONS,
   QUERY_PARAM_TYPE_HANDLER_FUNCTIONS,
@@ -455,7 +458,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   getActionDispatchContext(applicationContext) {
     return {
       record_id: applicationContext.recordId,
-      index: applicationContext.recordIndexPath.at(-1),
+      index_path: applicationContext.recordIndexPath,
     }
   }
 
@@ -492,12 +495,17 @@ export class CurrentRecordDataProviderType extends DataProviderType {
       : schema.properties
   }
 
+  /**
+   * The data scope independently controls whether the target collection supplies
+   * its own data_source_id and whether its schema_property is followed. A property
+   * selector includes the target to find its data source, but must not follow the
+   * schema property that the user is still choosing.
+   */
   getDataSourceAndSchemaPath(
     builder,
     page,
     element,
-    allowSameElement,
-    followSameElementSchemaProperties
+    dataScope = DATA_SCOPES.EXCLUDE_TARGET_SUBTREE
   ) {
     const pages = [page, this.app.$store.getters['page/getSharedPage'](builder)]
 
@@ -508,7 +516,7 @@ export class CurrentRecordDataProviderType extends DataProviderType {
     const collectionAncestors = elementType.getCollectionAncestry({
       page,
       element,
-      allowSameElement,
+      dataScope,
     })
 
     if (collectionAncestors.length === 0) {
@@ -527,7 +535,8 @@ export class CurrentRecordDataProviderType extends DataProviderType {
       .filter(
         (ancestor) =>
           ancestor.schema_property &&
-          (followSameElementSchemaProperties || ancestor.id !== element.id)
+          (dataScope.includeTargetSchemaProperties ||
+            ancestor.id !== element.id)
       )
       .map(({ schema_property: schemaProperty }) => schemaProperty)
 
@@ -535,26 +544,13 @@ export class CurrentRecordDataProviderType extends DataProviderType {
   }
 
   getDataSchema(applicationContext) {
-    // `allowSameElement` is set if we want to consider the current element in the
-    // collection ancestry list. If so it will be used to get the data source id if
-    // it's the first collection element.
-    // `followSameElementSchemaProperties` can be passed in the `applicationContext`
-    // to control whether we wish to fetch schema property for the current element
-    // or not.
-    const {
-      builder,
-      page,
-      element,
-      allowSameElement = false,
-      followSameElementSchemaProperties = true,
-    } = applicationContext
+    const { builder, page, element, dataScope } = applicationContext
 
     const [dataSource, schemaProperties] = this.getDataSourceAndSchemaPath(
       builder,
       page,
       element,
-      allowSameElement,
-      followSameElementSchemaProperties
+      dataScope
     )
 
     if (dataSource === null) {
@@ -586,20 +582,13 @@ export class CurrentRecordDataProviderType extends DataProviderType {
 
   getPathTitle(applicationContext, pathParts) {
     if (pathParts.length === 1) {
-      const {
-        builder,
-        page,
-        element,
-        allowSameElement = false,
-        followSameElementSchemaProperties = true,
-      } = applicationContext
+      const { builder, page, element, dataScope } = applicationContext
 
       const [dataSource, schemaProperties] = this.getDataSourceAndSchemaPath(
         builder,
         page,
         element,
-        allowSameElement,
-        followSameElementSchemaProperties
+        dataScope
       )
 
       // We have no data source. Let's just return the part.
@@ -741,7 +730,8 @@ export class FormDataProviderType extends DataProviderType {
    * @returns {Array} The filtered array of form elements in the same namespace as the target.
    */
   formElementsInNamespacePath(applicationContext, targetElement) {
-    const { page } = applicationContext
+    const { page, dataScope = DATA_SCOPES.INCLUDE_TARGET_ELEMENT } =
+      applicationContext
 
     const targetNamespacePath =
       this.app.$store.getters['element/getElementNamespacePath'](
@@ -754,7 +744,7 @@ export class FormDataProviderType extends DataProviderType {
     // formulas, including a form container's submit event, retain access to the
     // target's inputs.
     const unavailableElementIds = new Set(
-      applicationContext.dataScope?.includeTargetDescendants === false
+      !dataScope.includeTargetDescendants
         ? [
             targetElement.id,
             ...this.app.$store.getters['element/getDescendants'](

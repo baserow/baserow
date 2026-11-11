@@ -5,34 +5,59 @@ export default {
   component: SegmentControl,
   tags: ['autodocs'],
   argTypes: {
-    modelValue: {
-      control: 'text',
-    },
-    options: {
+    segments: {
       control: 'object',
-      description: 'Array of objects with label and value',
+      description: 'Array of objects with a label and an optional icon',
     },
-    disabled: {
+    initialActiveIndex: {
+      control: 'number',
+    },
+    type: {
+      control: {
+        type: 'select',
+        options: ['regular', 'rounded', 'pills'],
+      },
+    },
+    size: {
+      control: {
+        type: 'select',
+        options: ['regular', 'small', 'large'],
+      },
+    },
+    transparent: {
+      control: 'boolean',
+    },
+    iconsOnly: {
       control: 'boolean',
     },
   },
   args: {
-    modelValue: 'daily',
-    options: [
-      { label: 'Daily', value: 'daily' },
-      { label: 'Weekly', value: 'weekly' },
-      { label: 'Monthly', value: 'monthly' },
-    ],
-    disabled: false,
+    segments: [{ label: 'Daily' }, { label: 'Weekly' }, { label: 'Monthly' }],
+    initialActiveIndex: 0,
+    type: 'regular',
+    size: 'regular',
+    transparent: false,
+    iconsOnly: false,
   },
 }
 
-export const Default = {
-  render: (args) => ({
-    components: { SegmentControl },
-    setup() {
-      return { args }
-    },
-    template: '<SegmentControl v-bind="args" />',
-  }),
+const render = (args) => ({
+  components: { SegmentControl },
+  setup() {
+    return { args }
+  },
+  template: '<SegmentControl v-bind="args" />',
+})
+
+export const Default = { render }
+
+export const Pills = {
+  render,
+  args: {
+    type: 'pills',
+    segments: [
+      { label: 'Official templates', icon: 'baserow-icon-templates' },
+      { label: 'Your templates', icon: 'iconoir-box' },
+    ],
+  },
 }

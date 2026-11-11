@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix the untranslated description of disabled image constraint options in the Application builder theme settings.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-20"
+}

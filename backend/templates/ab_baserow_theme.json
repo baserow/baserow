@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Baserow Theme",
+  "description": "Light application theme in Baserow's own blue and cyan.",
   "icon": "",
   "keywords": [
     "application",

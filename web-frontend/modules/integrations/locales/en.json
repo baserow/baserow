@@ -11,8 +11,10 @@
   },
   "localBaserowIntegrationType": {
     "localBaserowSummary": "Local Baserow - {name}, {username}",
+    "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
-    "localBaserowWarning": "Authorizing your account gives everyone who has edit permissions to the application full access to the data you have access to. It's possible to create a second user, give the right permissions and use that one."
+    "errorTrashedIdentity": "The authorized identity has been trashed",
+    "errorNoUser": "No user or identity has authorized this integration."
   },
   "aiIntegrationType": {
     "inheritingWorkspace": "Inheriting workspace AI settings",
@@ -25,6 +27,7 @@
   "slackBotIntegrationType": {
     "slackBotSummary": "Slack Bot",
     "slackBotNoToken": "Slack Bot - Not configured",
+    "errorNoToken": "No bot token has been set.",
     "slackBotWarning": "Anyone who can build in this application can send messages through this bot, and can replace its token. Use a bot whose access you are happy to share."
   },
   "serviceType": {
@@ -67,11 +70,14 @@
     "coreRouterEdgeConditionRequired": "A branch condition is required.",
     "coreRouterDescription": "Routes the workflow to the next branch based on a condition.",
     "coreGoto": "Go to",
-    "coreGotoDescription": "Jumps to another point in the workflow when a condition is true.",
+    "coreGotoDescription": "Jumps back to an earlier node while a condition is true, to repeat or retry steps.",
     "coreGotoDestinationRequired": "A destination is required.",
+    "coreWait": "Wait",
+    "coreWaitDescription": "Pauses the workflow for a number of seconds before the next node runs.",
+    "coreWaitSecondsRequired": "The number of seconds to wait is required.",
     "coreSMTPEmailDescription": "Sends an email using SMTP configuration.",
     "coreIteration": "Iterator",
-    "coreIterationDescription": "Iterate on items.",
+    "coreIterationDescription": "Loops over each item of a list and runs its child nodes once per item.",
     "coreCSVFileReader": "Read a CSV file",
     "coreCSVFileReaderDescription": "Reads rows from a CSV file.",
     "coreStartWorkflow": "Start workflow",
@@ -118,8 +124,12 @@
     "localBaserow": "Baserow table authentication"
   },
   "localBaserowForm": {
-    "user": "User",
-    "userMessage": "By creating this connection, you're authorizing the application to use your account to make changes in your local Baserow workspace."
+    "subject": "Authenticate as",
+    "currentUser": "My user account",
+    "currentUserDescription": "Warning: using your account gives everyone who has edit permissions to the application full access to the data you have access to.",
+    "identityRole": "Workspace role: {role}",
+    "noIdentities": "You do not have any identities yet",
+    "subjectMessage": "Actions use the permissions of the selected user or identity. Identity actions are identified as such in the audit log."
   },
   "aiForm": {
     "description": "Configure AI provider settings for this integration. By default, workspace AI settings are inherited.",
@@ -127,7 +137,8 @@
     "workspaceSettingsDescription": "This integration inherits AI provider settings from your workspace by default. A provider override is self-contained: include its own credentials or host, because connection fields are never combined with inherited credentials.",
     "overrideWorkspaceSettings": "Override workspace settings for this provider",
     "inherited": "Inherited",
-    "overridden": "Overridden"
+    "overridden": "Overridden",
+    "apiKeyKeepPlaceholder": "Leave blank to keep the saved API key"
   },
   "aiAgentServiceForm": {
     "integrationLabel": "Integration",
@@ -269,6 +280,11 @@
     "destinationDescription": "The node to jump to when the condition is true.",
     "destinationPlaceholder": "Choose a destination node..."
   },
+  "coreWaitServiceForm": {
+    "secondsLabel": "Seconds",
+    "secondsDescription": "The workflow pauses for this many whole seconds before the next node runs. Maximum {max} seconds.",
+    "secondsPlaceholder": "Number of seconds, e.g. 60"
+  },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",
     "tokenPlaceholder": "xoxb-1234-...",
@@ -307,7 +323,8 @@
     "twoWayDataSyncedTableDescription": "Two-way synced"
   },
   "smtpIntegrationType": {
-    "smtpSummary": "SMTP - {host}:{port}"
+    "smtpSummary": "SMTP - {host}:{port}",
+    "errorNoHost": "No SMTP host has been set."
   },
   "smtpForm": {
     "host": "SMTP Host",

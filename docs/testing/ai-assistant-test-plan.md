@@ -7,11 +7,20 @@
 Run the unit test suite (no LLM needed):
 
 ```bash
-just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ -v
+just b test -n auto \
+  ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
+  ../enterprise/backend/tests/baserow_enterprise_tests/builder/tools/ \
+  tests/baserow/contrib/builder/tools/ \
+  tests/baserow/core/tools/ \
+  tests/baserow/contrib/database/tools/ \
+  tests/baserow/contrib/automation/tools/ \
+  tests/baserow/contrib/dashboard/tools/ -v
 ```
 
-All tests must pass. These cover: assistant orchestrator, all tool modules,
-telemetry event emission, history compaction, and streaming.
+All tests must pass. The `assistant/` folder covers the assistant orchestrator,
+Kuma's tool adapters, telemetry event emission, history compaction, and
+streaming. The other folders cover the shared tools Kuma and the MCP server both
+call.
 
 ### 2. Automated tests (evals, optional)
 
@@ -37,8 +46,15 @@ prompts:
 | Tool | Prompt |
 |------|--------|
 | `navigate` | "Go to the Customers table" |
-| `list_builders` | "What builders do I have?" |
-| `create_builders` | "Create a new application called Test App" |
+| `list_builders` | "What applications do I have?" |
+| `create_database` | "Create a new database called Test Data" |
+| `update_database` | "Rename the Test Data database to Team Data" |
+| `create_builder` | "Create a new application called Test App" |
+| `update_builder` | "Rename the Test App application to Team App" |
+| `create_automation` | "Create an empty automation called Test Flows" |
+| `update_automation` | "Rename the Test Flows automation to Team Flows" |
+| `create_dashboard` | "Create an empty dashboard called Test Figures" |
+| `update_dashboard` | "Rename the Test Figures dashboard to Team Figures" |
 | `list_tables` | "What tables are in my database?" |
 | `get_tables_schema` | "Show me the schema of the Customers table" |
 | `list_rows` | "Show me the first rows of the Customers table" |
@@ -62,6 +78,14 @@ prompts:
 | `search_user_docs` | "How do I create a lookup field?"* |
 
 * Make sure you synced the knowledge base first, look at [ai-assistant.md](../installation/ai-assistant.md) for more info.
+
+#### A bare request to create an application
+
+Send in a new chat: "create a new application website".
+
+Expected: the assistant calls `create_builder` without asking first, and a new
+application builder shows in the sidebar. No database, automation or dashboard
+is created. The same prompt is the eval case `core/creates-application`.
 
 ### 4. Manual: Feedback
 

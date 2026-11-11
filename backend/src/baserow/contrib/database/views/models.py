@@ -827,22 +827,30 @@ class FormView(View):
         help_text="The users that must be notified when the form is submitted.",
     )
 
-    @property
-    def active_field_options(self):
+    @staticmethod
+    def active_field_options_in(workspace):
+        """
+        The enabled field options of every form view in the workspace, without the
+        fields that can't be used in a form because of permissions.
+        """
+
         from baserow.contrib.database.views.handler import CoreHandler
 
-        # Filter out fields that cannot be used in the form view due to permissions.
         field_qs = CoreHandler().filter_queryset(
             AnonymousUser(),
             SubmitAnonymousFieldValuesOperationType.type,
             Field.objects.all(),
-            self.table.database.workspace,
+            workspace,
+        )
+        return FormViewFieldOptions.objects.filter(
+            enabled=True, field__read_only=False, field__in=field_qs
         )
 
+    @property
+    def active_field_options(self):
         return (
-            FormViewFieldOptions.objects.filter(
-                form_view=self, enabled=True, field__read_only=False, field__in=field_qs
-            )
+            self.active_field_options_in(self.table.database.workspace)
+            .filter(form_view=self)
             .prefetch_related(
                 "conditions",
                 "condition_groups",

@@ -1,5 +1,6 @@
 import { clone } from '@baserow/modules/core/utils/object'
 import {
+  filterVisibleFieldsFunction,
   getRowSortFunction,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
@@ -32,6 +33,28 @@ export function resolveBeforeRow(row, getBufferedRow) {
   return bufferedRow !== undefined
     ? Object.assign(clone(bufferedRow), clone(row))
     : clone(row)
+}
+
+/** False when the payload omits a visible value that decides where the row was counted. */
+export function canTellIfDeletedRowWasCounted({
+  row,
+  view,
+  fields,
+  fieldOptions,
+  checkSortAndGroupBy = false,
+}) {
+  const filters = view.filters_disabled ? [] : (view.filters ?? [])
+  const decidingItems = checkSortAndGroupBy
+    ? [...filters, ...(view.sortings ?? []), ...(view.group_bys ?? [])]
+    : filters
+  const isVisible = filterVisibleFieldsFunction(fieldOptions)
+  return decidingItems.every(({ field: fieldId }) => {
+    if (row[`field_${fieldId}`] !== undefined) {
+      return true
+    }
+    const field = fields.find((f) => f.id === fieldId)
+    return field === undefined || !isVisible(field)
+  })
 }
 
 /**
@@ -375,5 +398,31 @@ export function computeRowInsertPosition(
     sortedIndex,
     isFirst: sortedIndex === 0,
     isLast: sortedIndex === sorted.length - 1,
+  }
+}
+
+/**
+ * Applies the rows of a `rows_updated` event to the view stores and row modals.
+ */
+export async function applyRowsUpdated(registry, store, data) {
+  const beforeById = Object.fromEntries(
+    (data.rows_before_update || []).map((row) => [row.id, row])
+  )
+  for (const viewType of Object.values(registry.getAll('view'))) {
+    for (const row of data.rows) {
+      await viewType.rowUpdated(
+        { store },
+        data.table_id,
+        store.getters['field/getAll'],
+        beforeById[row.id] || { id: row.id },
+        row,
+        data.metadata[row.id],
+        data.updated_field_ids,
+        'page/'
+      )
+    }
+  }
+  for (const row of data.rows) {
+    store.dispatch('rowModal/updated', { tableId: data.table_id, values: row })
   }
 }

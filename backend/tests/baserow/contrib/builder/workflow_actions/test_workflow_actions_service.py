@@ -1,5 +1,6 @@
 import uuid
 
+from django.contrib.auth.models import AnonymousUser
 from django.http import HttpRequest
 
 import pytest
@@ -7,6 +8,7 @@ import pytest
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
     InvalidWorkflowActionEvent,
@@ -15,6 +17,9 @@ from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     EventTypes,
 )
+from baserow.contrib.builder.workflow_actions.registries import (
+    builder_workflow_action_type_registry,
+)
 from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
@@ -22,7 +27,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     CreateRowWorkflowActionType,
     NotificationWorkflowActionType,
 )
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 
 
 @pytest.mark.django_db
@@ -435,3 +440,83 @@ def test_update_workflow_action_with_invalid_event(data_fixture):
 
     workflow_action.refresh_from_db()
     assert workflow_action.event == EventTypes.CLICK
+
+
+@pytest.mark.django_db
+def test_dispatch_action_checks_element_visibility_whatever_the_managers_order(
+    data_fixture, settings
+):
+    """
+    The visibility of the action's element is enforced by the service itself, so
+    a hidden element's action can't be dispatched even when `element_visibility`
+    runs after `allow_public_builder`, which allows any public dispatch.
+    """
+
+    managers = list(settings.PERMISSION_MANAGERS)
+    managers.remove("element_visibility")
+    managers.insert(managers.index("allow_public_builder") + 1, "element_visibility")
+    settings.PERMISSION_MANAGERS = managers
+
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(), published_to=builder
+    )
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(
+        page=page, visibility=Element.VISIBILITY_TYPES.LOGGED_IN
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK
+    )
+
+    dispatch_context = BuilderDispatchContext(HttpRequest(), page)
+    with pytest.raises(PermissionDenied):
+        BuilderWorkflowActionService().dispatch_action(
+            AnonymousUser(), workflow_action, dispatch_context
+        )
+
+
+@pytest.mark.django_db
+def test_open_page_action_refuses_another_builders_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    button = data_fixture.create_builder_button_element(page=page)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    open_page = builder_workflow_action_type_registry.get("open_page")
+
+    with pytest.raises(ValidationError):
+        BuilderWorkflowActionService().create_workflow_action(
+            user,
+            open_page,
+            page=page,
+            element=button,
+            event="click",
+            navigation_type="page",
+            navigate_to_page_id=elsewhere.id,
+        )
+
+
+@pytest.mark.django_db
+def test_open_page_action_refuses_to_turn_on_another_builders_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    button = data_fixture.create_builder_button_element(page=page)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    workflow_action = BuilderWorkflowActionService().create_workflow_action(
+        user,
+        builder_workflow_action_type_registry.get("open_page"),
+        page=page,
+        element=button,
+        event="click",
+        navigation_type="custom",
+        navigate_to_page_id=elsewhere.id,
+    )
+
+    with pytest.raises(ValidationError):
+        BuilderWorkflowActionService().update_workflow_action(
+            user, workflow_action, navigation_type="page"
+        )

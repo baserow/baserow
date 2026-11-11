@@ -45,6 +45,11 @@ class AutomationDispatchContext(DispatchContext):
         self.history = history
         self.simulate_until_node = simulate_until_node
         self.current_iterations: Dict[int, int] = {}
+        # Set by the runner only while it evaluates a node's retry condition,
+        # so the `current_node` data provider can read the result of the node
+        # being dispatched. Everywhere else the node has no result yet.
+        self.current_node: Optional[AutomationActionNode] = None
+        self.current_node_result: Optional[Dict] = None
 
         if current_iterations:
             # The keys are strings due to JSON serialization by Celery. We need
@@ -74,6 +79,8 @@ class AutomationDispatchContext(DispatchContext):
     def clone(self, **kwargs):
         new_context = super().clone(**kwargs)
         new_context.current_iterations = {**self.current_iterations}
+        new_context.current_node = self.current_node
+        new_context.current_node_result = self.current_node_result
         return new_context
 
     def get_iteration_path(self, node):

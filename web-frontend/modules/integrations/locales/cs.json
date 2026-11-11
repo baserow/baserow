@@ -53,7 +53,7 @@
         "coreHTTPTrigger": "Přijmout požadavek HTTP",
         "coreHTTPTriggerDescription": "Spustí se po přijetí požadavku HTTP.",
         "coreIteration": "Iterátor",
-        "coreIterationDescription": "Iteruje položky.",
+        "coreIterationDescription": "Prochází jednotlivé položky seznamu a pro každou z nich jednou spustí podřízené uzly.",
         "errorIterationSourceMissing": "Chybí vlastnost zdroje",
         "aiAgent": "Výzva AI",
         "aiAgentDescription": "Spouští prompty AI pomocí nakonfigurovaných generativních modelů AI.",
@@ -85,15 +85,26 @@
         "errorNoWorkflowSelected": "Není vybrán žádný pracovní postup",
         "errorWorkflowNotImmediateDispatch": "Vybraný pracovní postup musí používat spouštěč, který se může spustit okamžitě.",
         "coreGoto": "Přejít na",
-        "coreGotoDescription": "Přeskočí na jiné místo pracovního postupu, když je podmínka pravdivá.",
-        "coreGotoDestinationRequired": "Cíl je povinný."
+        "coreGotoDescription": "Přeskočí zpět na dřívější uzel, dokud je podmínka pravdivá, aby kroky zopakoval nebo se o ně pokusil znovu.",
+        "coreGotoDestinationRequired": "Cíl je povinný.",
+        "inboundEmailTrigger": "E-mailový spouštěč",
+        "inboundEmailTriggerDescription": "Spustí se po přijetí e-mailu na vygenerovanou e-mailovou adresu.",
+        "coreResponse": "Odpověď",
+        "coreResponseDescription": "Vrátí odpověď pracovního postupu pouze tehdy, když spouštěč podporuje čekání na odpovědi a čekání je povoleno.",
+        "errorMisconfiguredIntegration": "Integrace chybí nebo byla přesunuta do koše",
+        "errorNoRowIdSelected": "Není vybráno ID řádku",
+        "errorAIModelUnavailable": "Vybraný model AI je zakázán nebo už není k dispozici",
+        "errorResponseBodyMissing": "Tělo odpovědi JSON nesmí být prázdné."
     },
     "userSourceType": {
         "localBaserow": "Ověřování pomocí tabulky Baserow"
     },
     "localBaserowForm": {
         "userMessage": "Vytvořením tohoto připojení opravňujete aplikaci používat váš účet k provádění změn v místním pracovním prostoru Baserow.",
-        "user": "Uživatel"
+        "user": "Uživatel",
+        "subject": "Autorizovat jako",
+        "currentUser": "Můj uživatelský účet",
+        "subjectMessage": "Akce používají oprávnění vybraného uživatele nebo agenta. Akce agentů jsou jako takové označeny v protokolu auditu."
     },
     "localBaserowGetRowForm": {
         "rowFieldLabel": "ID řádku",
@@ -146,7 +157,10 @@
     "localBaserowIntegrationType": {
         "localBaserowSummary": "Místní Baserow – {name}, {username}",
         "localBaserowNoUser": "Místní Baserow – nenakonfigurováno",
-        "localBaserowWarning": "Oprávnění vašeho účtu poskytne všem s oprávněním k úpravám aplikace úplný přístup k datům, k nimž máte přístup. Je možné vytvořit druhého uživatele, udělit mu správná oprávnění a použít jej."
+        "localBaserowWarning": "Oprávnění vašeho účtu poskytne všem s oprávněním k úpravám aplikace úplný přístup k datům, k nimž máte přístup. Je možné vytvořit druhého uživatele, udělit mu správná oprávnění a použít jej.",
+        "localBaserowSubjectSummary": "Místní Baserow - {type}: {name}",
+        "errorTrashedAgent": "Autorizovaný agent byl přesunut do koše",
+        "errorNoUser": "Žádný uživatel ani agent tuto integraci neautorizoval."
     },
     "integrationsCommon": {
         "singleRow": "jeden řádek",
@@ -182,7 +196,8 @@
         "timeout": "Časový limit"
     },
     "smtpIntegrationType": {
-        "smtpSummary": "SMTP – {host}:{port}"
+        "smtpSummary": "SMTP – {host}:{port}",
+        "errorNoHost": "Není nastaven žádný hostitel SMTP."
     },
     "smtpForm": {
         "host": "Hostitel SMTP",
@@ -193,7 +208,13 @@
         "username": "Uživatelské jméno",
         "usernamePlaceholder": "vas-e-mail{'@'}example.com",
         "password": "Heslo",
-        "passwordPlaceholder": "vase-heslo"
+        "passwordPlaceholder": "vase-heslo",
+        "passwordConfigured": "Heslo je uloženo. Chcete-li je zachovat, nechte prázdné.",
+        "passwordKeepPlaceholder": "Chcete-li zachovat uložené heslo, nechte prázdné",
+        "security": "Zabezpečení",
+        "securityStartTls": "STARTTLS (obvykle port 587)",
+        "securitySsl": "SSL/TLS (obvykle port 465)",
+        "securityNone": "Žádné"
     },
     "smtpEmailForm": {
         "fromEmail": "E-mail odesílatele",
@@ -224,7 +245,9 @@
         "searchFieldPlaceHolder": "Zadejte hledaný výraz...",
         "noTableChosenForFiltering": "Chcete-li začít používat filtry zdroje dat, vyberte tabulku.",
         "noTableChosenForSorting": "Chcete-li začít používat řazení zdroje dat, vyberte tabulku.",
-        "refinements": "Upřesnění"
+        "refinements": "Upřesnění",
+        "groupTabTitle": "Seskupit podle | 1 skupina | {count} skupin",
+        "noTableChosenForGrouping": "Chcete-li začít používat skupiny zdrojů dat, vyberte tabulku."
     },
     "routerForm": {
         "defaultEdgeLabelLabel": "Popisek výchozí větve",
@@ -258,14 +281,16 @@
         "minuteFrequencyPlaceholder": "15",
         "dayOfMonthPlaceholder": "1–31",
         "minuteHelper": "Tento pracovní postup se spustí každých zadaných minut",
-        "hourHelper": "Tento pracovní postup se spustí každou hodinu v zadané minutě ve vašem místním časovém pásmu ({timezone})",
-        "dayHelper": "Tento pracovní postup se spustí každý den v zadaný čas ve vašem místním časovém pásmu ({timezone})",
-        "weekHelper": "Tento pracovní postup se spustí každý týden v zadaný den a čas ve vašem místním časovém pásmu ({timezone})",
-        "monthHelper": "Tento pracovní postup se spustí každý měsíc v zadaný den a čas ve vašem místním časovém pásmu ({timezone})",
+        "hourHelper": "Tento pracovní postup se spustí každou hodinu v zadané minutě",
+        "dayHelper": "Tento pracovní postup se spustí každý den v zadaný čas",
+        "weekHelper": "Tento pracovní postup se spustí každý týden v zadaný den a čas",
+        "monthHelper": "Tento pracovní postup se spustí každý měsíc v zadaný den a čas",
         "deactivatedTitle": "Pravidelný spouštěč byl deaktivován",
         "deactivatedText": "Tento pravidelný spouštěč byl automaticky deaktivován kvůli opakovaným selháním.",
         "everyMinuteDefault": "Každých zadaných minut",
-        "minuteFrequency": "Každých minut"
+        "minuteFrequency": "Každých minut",
+        "timezone": "Časové pásmo",
+        "timezoneHelper": "Plán při změně času zachová tento místní čas"
     },
     "aiIntegrationType": {
         "inheritingWorkspace": "Dědí nastavení AI pracovního prostoru",
@@ -274,10 +299,11 @@
     "aiForm": {
         "description": "Nakonfigurujte pro toto připojení nastavení poskytovatele AI. Ve výchozím nastavení se dědí nastavení AI pracovního prostoru.",
         "workspaceSettingsTitle": "Nastavení AI pracovního prostoru",
-        "workspaceSettingsDescription": "Toto připojení ve výchozím nastavení dědí nastavení poskytovatele AI z pracovního prostoru. Níže můžete přepsat konkrétní poskytovatele.",
+        "workspaceSettingsDescription": "Tato integrace ve výchozím nastavení dědí nastavení poskytovatele AI z pracovního prostoru. Přepsání poskytovatele je samostatné: uveďte vlastní přihlašovací údaje nebo hostitele, protože připojovací pole se nikdy nekombinují se zděděnými přihlašovacími údaji.",
         "overrideWorkspaceSettings": "Přepsat nastavení pracovního prostoru pro tohoto poskytovatele",
         "inherited": "Zděděno",
-        "overridden": "Přepsáno"
+        "overridden": "Přepsáno",
+        "apiKeyKeepPlaceholder": "Chcete-li zachovat uložený klíč API, nechte prázdné"
     },
     "aiAgentServiceForm": {
         "integrationLabel": "Připojení",
@@ -305,7 +331,9 @@
     },
     "slackBotIntegrationType": {
         "slackBotSummary": "Bot Slacku",
-        "slackBotNoToken": "Bot Slacku – nenakonfigurováno"
+        "slackBotNoToken": "Bot Slacku – nenakonfigurováno",
+        "slackBotWarning": "Kdokoli, kdo může v této aplikaci vytvářet, může prostřednictvím tohoto bota odesílat zprávy a nahradit jeho token. Použijte bota, k jehož sdílení přístupu jste ochotni.",
+        "errorNoToken": "Není nastaven žádný token bota."
     },
     "slackBotForm": {
         "tokenLabel": "Token uživatele bota",
@@ -323,7 +351,9 @@
         "supportPairingStep1": "Je-li vaše aplikace nová, přejděte na „Settings“ > „Install App“. Kliknutím na zelené tlačítko nainstalujte aplikaci do pracovního prostoru.",
         "supportPairingStep2": "Zkopírujte token „Bot User OAuth Token“ a uložte jej do pole „Bot User Token“ v tomto formuláři.",
         "supportPairingStep3": "Nakonec, je-li vaše aplikace nová, pozvěte ji ve Slacku do vybraného kanálu pomocí {command}",
-        "supportSetupStep1Link": "stránku aplikací"
+        "supportSetupStep1Link": "stránku aplikací",
+        "tokenKeepPlaceholder": "Chcete-li zachovat uložený token, nechte prázdné",
+        "tokenConfigured": "Token je uložen. Chcete-li jej zachovat, nechte prázdné."
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Tato akce musí být spárována s aplikací Slacku. Začněte podle průvodce ve vyskakovacím okně připojení.",
@@ -348,7 +378,8 @@
         "fieldMappingPlaceholderDecimal": "Vyberte desetinnou hodnotu, např. 3,14",
         "fieldMappingPlaceholderDuration": "Vyberte hodnotu trvání, např. 1:23:40",
         "noTableSelectedMessage": "Chcete-li začít konfigurovat pole, vyberte tabulku.",
-        "noWritableFields": "Tato tabulka neobsahuje žádná zapisovatelná pole."
+        "noWritableFields": "Tato tabulka neobsahuje žádná zapisovatelná pole.",
+        "noTableAccess": "K této tabulce nemáte přístup, proto zde nelze zobrazit její pole."
     },
     "localBaserowFieldsUpdatedForm": {
         "fieldLabel": "Pole",
@@ -376,7 +407,7 @@
     "coreStartWorkflowServiceForm": {
         "automation": "Automatizace",
         "workflow": "Pracovní postup",
-        "workflowHelperText": "Spustit lze pouze publikované pracovní postupy s ručním spouštěčem. Má-li tento pracovní postup nepublikované změny, spustí se poslední publikovaná verze."
+        "workflowHelperText": "Spustit lze pouze publikované pracovní postupy, jejichž spouštěč lze aktivovat na požádání, například ruční nebo pravidelný spouštěč. Má-li tento pracovní postup nepublikované změny, spustí se poslední publikovaná verze."
     },
     "localBaserowDeleteRowServiceForm": {
         "rowIdLabel": "ID řádků",
@@ -400,5 +431,9 @@
         "destinationLabel": "Cílový uzel",
         "destinationDescription": "Uzel, na který se přejde, když je podmínka pravdivá.",
         "destinationPlaceholder": "Vyberte cílový uzel..."
+    },
+    "aiProviderModelFeature": {
+        "aiAgent": "Agent AI",
+        "aiAgentDescription": "Spouštějte akce agenta AI v pracovních postupech automatizace a Builderu aplikací."
     }
 }

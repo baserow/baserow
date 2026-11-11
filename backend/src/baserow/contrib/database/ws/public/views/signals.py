@@ -8,19 +8,23 @@ from baserow.contrib.database.fields.registries import (
 )
 from baserow.contrib.database.views import signals as view_signals
 from baserow.contrib.database.views.registries import view_type_registry
+from baserow.contrib.database.ws.public.rows.view_realtime_rows import (
+    PublicViewRealtimeRowsType,
+)
+from baserow.contrib.database.ws.views.rows.registries import (
+    view_realtime_rows_registry,
+)
 from baserow.core.db import specific_iterator
 from baserow.ws.registries import page_registry
 
 
 def _send_force_rows_refresh_if_view_public(view):
-    view_page_type = page_registry.get("view")
     if view.public:
+        realtime_rows_type = view_realtime_rows_registry.get(
+            PublicViewRealtimeRowsType.type
+        )
         transaction.on_commit(
-            lambda: view_page_type.broadcast(
-                {"type": "force_view_rows_refresh", "view_id": view.slug},
-                None,
-                slug=view.slug,
-            )
+            lambda: realtime_rows_type.broadcast_force_rows_refresh(view)
         )
 
 

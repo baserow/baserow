@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Job Interviews",
+    "description": "Run job interviews with prepared questions, answers and ratings.",
     "icon": "iconoir-shield-question",
     "keywords": [
         "job interviews",

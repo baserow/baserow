@@ -63,7 +63,7 @@ if [ -z "${E2E_BARRIER_STUB_URL:-}" ] && [ "${BASEROW_INTEGRATIONS_ALLOW_PRIVATE
     docker run -d --name e2e-local-barrier \
         -p "${BARRIER_PORT}:8080" \
         -v "$(cd "$(dirname "$0")" && pwd)/stubs/barrier:/stub:ro" \
-        node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 \
+        node:24.22.1-alpine@sha256:6a1c190e17215d844926b0677f4bf87273ff7d5e54db06d3b5b5863ab0b09a3d \
         node /stub/server.mjs >/dev/null
     started_containers+=(e2e-local-barrier)
     export E2E_BARRIER_STUB_URL="http://localhost:${BARRIER_PORT}"

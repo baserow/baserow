@@ -70,6 +70,7 @@ from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
     InvalidContextDispatchException,
     PermissionDeniedDispatchException,
+    RemoteRefusedDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     TriggerServiceNotDispatchable,
     UnexpectedDispatchException,
@@ -1019,8 +1020,13 @@ class DatabaseWorkflowActionService:
                     if exc is not None:
                         if on_action_failed:
                             on_action_failed(positions[workflow_action.id])
-                        names_an_address = is_external and isinstance(
-                            exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS
+                        names_an_address = (
+                            is_external
+                            and isinstance(exc, ADDRESS_BEARING_DISPATCH_EXCEPTIONS)
+                            # A refusal by the remote is written for the
+                            # clicker even when it is also a runtime failure,
+                            # as a rate limit is.
+                            and not isinstance(exc, RemoteRefusedDispatchException)
                         )
                         if is_external:
                             # Decided by where the action reaches rather than

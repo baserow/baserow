@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Personal Finance Manager",
+    "description": "Compare estimated and actual income and expenses per period.",
     "icon": "iconoir-bank",
     "keywords": [
         "personal finance manager",

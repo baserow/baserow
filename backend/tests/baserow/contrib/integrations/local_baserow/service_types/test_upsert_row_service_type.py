@@ -20,10 +20,12 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowUpsertRowServiceType,
 )
+from baserow.core.action.models import Action
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -36,12 +38,18 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
 @pytest.mark.django_db
-def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
+def test_local_baserow_create_rows_service_dispatch_data(
+    data_fixture, django_capture_on_commit_callbacks
+):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
+    agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
+    integration.authorized_subject_type = "core.Agent"
+    integration.authorized_subject_id = agent.id
+    integration.save(update_fields=["authorized_subject_type", "authorized_subject_id"])
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
     )
@@ -68,9 +76,14 @@ def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    dispatch_data = service_type.dispatch_data(
-        service, dispatch_values, dispatch_context
-    )
+    with (
+        patch("baserow.ws.registries.PageType.broadcast"),
+        patch("baserow.ws.registries.PageType.broadcast_many"),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        dispatch_data = service_type.dispatch_data(
+            service, dispatch_values, dispatch_context
+        )
 
     assert [getattr(row, ingredient.db_column) for row in dispatch_data["data"]] == [
         "Bread",
@@ -81,6 +94,7 @@ def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
 
     assert dispatch_result.data["results"][0]["Ingredient"] == "Bread"
     assert dispatch_result.data["results"][1]["Ingredient"] == "Butter"
+    assert not Action.objects.filter(type="create_rows").exists()
 
 
 @pytest.mark.django_db
@@ -92,7 +106,12 @@ def test_local_baserow_create_rows_service_dispatch_data_reports_invalid_row(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     data_fixture.create_text_field(table=table, name="Name")
     data_fixture.create_email_field(table=table, name="Email")
 
@@ -134,7 +153,12 @@ def test_local_baserow_create_rows_service_rejects_too_many_rows(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     data_fixture.create_text_field(table=table, name="Ingredient")
     service = data_fixture.create_local_baserow_create_rows_service(
         integration=integration,
@@ -434,7 +458,12 @@ def test_local_baserow_update_rows_service_dispatch_data_reports_invalid_row(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     name_field = data_fixture.create_text_field(table=table, name="Name")
     email_field = data_fixture.create_email_field(table=table, name="Email")
     model = table.get_model()
@@ -486,7 +515,12 @@ def test_local_baserow_update_rows_service_rejects_too_many_rows(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Ingredient")
     model = table.get_model()
     row_1 = model.objects.create(**{field.db_column: "Flour"})
@@ -646,13 +680,14 @@ def test_local_baserow_update_rows_service_dispatch_data_rejects_duplicate_ids(
 
 
 @pytest.mark.django_db
-def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
+def test_local_baserow_upsert_row_service_dispatch_data_with_published_agent(
     data_fixture,
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
+    agent = Agent.objects.create(workspace=page.builder.workspace, name="Row writer")
     integration = data_fixture.create_local_baserow_integration(
-        application=page.builder, user=user
+        application=page.builder, user=user, authorized_agent=agent
     )
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
@@ -671,6 +706,16 @@ def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
         integration=integration,
         table=table,
     )
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=page.builder.workspace
+        ),
+        published_to=page.builder,
+    )
+    page.builder.workspace = None
+    page.builder.save(update_fields=["workspace"])
+    service.refresh_from_db()
+    assert service.integration.application.workspace is None
     service_type = service.get_type()
     service.field_mappings.create(field=ingredient, value='get("page_parameter.id")')
 
@@ -678,9 +723,10 @@ def test_local_baserow_upsert_row_service_dispatch_data_without_row_id(
     dispatch_context = FakeDispatchContext(context=formula_context)
 
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    dispatch_data = service_type.dispatch_data(
-        service, dispatch_values, dispatch_context
-    )
+    with override_settings(PERMISSION_MANAGERS=["write_field_values", "basic"]):
+        dispatch_data = service_type.dispatch_data(
+            service, dispatch_values, dispatch_context
+        )
 
     assert getattr(dispatch_data["data"], ingredient.db_column) == str(
         formula_context["page_parameter"]["id"]
@@ -947,7 +993,12 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_unknown_row_id(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_local_baserow_upsert_row_service(
         table=table,
         row_id="'9999999999999'",
@@ -970,7 +1021,12 @@ def test_local_baserow_upsert_row_service_dispatch_data_with_row_id_zero(
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     service = data_fixture.create_local_baserow_upsert_row_service(
         table=table,
         row_id="'0'",
@@ -2066,3 +2122,35 @@ def test_a_serialized_mapping_says_whether_its_field_is_trashed(data_fixture):
     assert LocalBaserowTableServiceFieldMappingSerializer(mapping).data["trashed"] is (
         True
     )
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_field_mappings_with(data_fixture):
+    table = data_fixture.create_database_table()
+    name = data_fixture.create_text_field(table=table)
+    price = data_fixture.create_number_field(table=table)
+    trashed = data_fixture.create_text_field(table=table, trashed=True)
+    new = data_fixture.create_text_field(table=table)
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=name, value="'a'", enabled=False)
+    service.field_mappings.create(field=price, value="'1'")
+    service.field_mappings.create(field=trashed, value="'t'")
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    def by_field(mappings):
+        return {m["field_id"]: (m["enabled"], m["value"]) for m in mappings}
+
+    kept = by_field(service_type.field_mappings_with(service, {name.id: "'b'"}))
+    assert kept[name.id] == (False, "'b'")
+    assert kept[price.id][0] is True
+    # A mapping on a trashed field stays, so restoring the field brings it back.
+    assert trashed.id in kept
+
+    enabled = by_field(
+        service_type.field_mappings_with(
+            service, {name.id: "'b'", new.id: "'n'"}, enable=True
+        )
+    )
+    assert enabled[name.id] == (True, "'b'")
+    assert enabled[new.id] == (True, "'n'")
+    assert list(enabled)[-1] == new.id

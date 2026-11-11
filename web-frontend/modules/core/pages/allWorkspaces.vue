@@ -17,6 +17,7 @@
         v-model:selected-types="selectedTypes"
         v-model:view-mode="viewMode"
         v-model:sort-by="sortBy"
+        :application-types="filterableApplicationTypes"
         @collapse-all="collapseAll"
         @expand-all="expandAll"
       ></AllWorkspacesHeader>
@@ -211,12 +212,15 @@ const search = ref('')
 const query = computed(() => search.value.trim())
 const searchActive = computed(() => query.value !== '')
 
-const applicationTypeCount = $registry.getOrderedList('application').length
+// A type that can't be created, like one behind a disabled flag, isn't offered.
+const filterableApplicationTypes = $registry
+  .getOrderedList('application')
+  .filter((applicationType) => applicationType.canBeCreated())
 // Starting with nothing selected means "no filtering", which makes toggling
 // the first type on feel nicer than having to deselect all the others.
 const selectedTypes = ref([])
 const typeFilterActive = computed(() =>
-  isTypeFilterActive(selectedTypes.value, applicationTypeCount)
+  isTypeFilterActive(selectedTypes.value, filterableApplicationTypes.length)
 )
 
 const collapsedIds = ref(new Set())

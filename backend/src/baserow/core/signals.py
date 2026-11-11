@@ -29,6 +29,8 @@ before_user_deleted = Signal()
 
 before_workspace_deleted = Signal()
 
+settings_updated = Signal()
+
 user_updated = Signal()
 user_deleted = Signal()
 user_restored = Signal()
@@ -49,9 +51,11 @@ application_updated = Signal()
 application_deleted = Signal()
 application_imported = Signal()
 applications_reordered = Signal()
+application_pending_count_updated = Signal()
 
 permissions_updated = Signal()
 
 workspace_invitation_updated_or_created = Signal()
 workspace_invitation_accepted = Signal()
 workspace_invitation_rejected = Signal()
+workspace_user_joined_via_invitation_link = Signal()

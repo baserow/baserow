@@ -17,8 +17,10 @@ from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
+    RemoteBusyDispatchException,
     RemoteRefusedDispatchException,
     ResponseTooLargeDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -104,8 +106,10 @@ class SlackWriteMessageServiceType(ServiceType):
         :return: A dictionary containing the response data from the Slack API.
         :raises ServiceImproperlyConfiguredDispatchException: If the integration is
             not a Slack bot, or is one with no token.
+        :raises RuntimeDispatchException: If the request to Slack failed on the way.
         :raises UnexpectedDispatchException: If there's an error after the HTTP request.
         :raises RemoteRefusedDispatchException: If Slack refused the message.
+        :raises RemoteBusyDispatchException: If Slack asked for it to be sent later.
         """
 
         # Both refused before the request, so the click is not charged for them.
@@ -156,7 +160,7 @@ class SlackWriteMessageServiceType(ServiceType):
             # Not `str(e)`: it can repeat back what was sent, and this
             # request carries the resolved message. Also catches requests' own
             # ConnectionError, which is not the builtin.
-            raise UnexpectedDispatchException(
+            raise RuntimeDispatchException(
                 f"The request to {settings.INTEGRATIONS_SLACK_API_URL} failed: "
                 f"{type(e).__name__}."
             ) from e
@@ -208,6 +212,10 @@ class SlackWriteMessageServiceType(ServiceType):
                 error_code, misconfigured_service_error_codes["default"]
             ).format(channel=service.channel, error_code=error_code)
             # The post was made, so the click is charged for it.
+            if error_code == "rate_limited":
+                # Slack asks for the message to be sent again later, so the
+                # automation runner may retry it.
+                raise RemoteBusyDispatchException(misconfigured_service_message)
             raise RemoteRefusedDispatchException(misconfigured_service_message)
         return {"data": response_data}
 

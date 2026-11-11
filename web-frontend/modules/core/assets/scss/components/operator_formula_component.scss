@@ -18,4 +18,9 @@
   vertical-align: top;
 
   @include rounded;
+
+  // Matches the ring functions get from the paren match highlight on hover.
+  &:hover {
+    box-shadow: inset 0 0 0 1.5px $palette-green-800;
+  }
 }

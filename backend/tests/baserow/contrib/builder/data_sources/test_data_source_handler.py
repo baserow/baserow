@@ -271,7 +271,9 @@ def test_dispatch_data_source(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -315,7 +317,9 @@ def test_dispatch_data_sources(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -525,6 +529,7 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(workspace=workspace),
         user=user,
         columns=[
             ("Food", "text"),
@@ -581,9 +586,16 @@ def test_dispatch_data_source_doesnt_return_formula_field_names(
         ],
     )
 
+    published_from_workspace = builder.workspace
+
     builder.workspace = None
     builder.save()
-    data_fixture.create_builder_custom_domain(published_to=builder)
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=published_from_workspace
+        ),
+        published_to=builder,
+    )
 
     fake_request = api_request_factory.post(
         reverse("api:builder:domains:public_dispatch_all", kwargs={"page_id": page.id}),

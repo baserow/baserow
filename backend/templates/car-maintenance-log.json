@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Car Maintenance Log",
+    "description": "Keep your car's service history, repairs and accidents in one log.",
     "icon": "iconoir-ecology-book",
     "keywords": [
         "car maintenance",

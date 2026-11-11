@@ -67,3 +67,15 @@
   color: $palette-neutral-600;
   cursor: pointer;
 }
+
+.node-explorer-content__content--revealed {
+  animation: node-explorer-content-revealed 1.5s ease-out;
+}
+
+// No end keyframe, so the row fades back to its own (e.g. selected) colour.
+@keyframes node-explorer-content-revealed {
+  0%,
+  40% {
+    background-color: $palette-yellow-100;
+  }
+}

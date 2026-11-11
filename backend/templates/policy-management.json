@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Policy Management",
+    "description": "Write, version and approve policies and share them with employees.",
     "icon": "iconoir-open-book",
     "keywords": [
         "policies",

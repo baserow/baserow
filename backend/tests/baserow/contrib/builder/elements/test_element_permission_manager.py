@@ -11,7 +11,10 @@ from baserow.contrib.builder.elements.permission_manager import (
     ElementVisibilityPermissionManager,
 )
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
@@ -1218,3 +1221,73 @@ def test_page_visibility_applied_to_workflow_actions_queryset(
         BuilderWorkflowAction.objects.all(),
     )
     assert len(actions) == expected_count
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "page_visibility,expected",
+    [
+        (Page.VISIBILITY_TYPES.ALL, None),
+        (Page.VISIBILITY_TYPES.LOGGED_IN, False),
+    ],
+)
+def test_element_visibility_permission_manager_page_level_workflow_action(
+    data_fixture, page_visibility, expected
+):
+    """An action bound to the page itself follows the page visibility."""
+
+    page = data_fixture.create_builder_page(visibility=page_visibility)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=None
+    )
+    check = PermissionCheck(
+        AnonymousUser(),
+        DispatchBuilderWorkflowActionOperationType.type,
+        workflow_action,
+    )
+
+    result = ElementVisibilityPermissionManager().check_multiple_permissions([check])
+
+    assert result.get(check) is expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "event,element_visibility,authenticated,expected",
+    [
+        (EventTypes.CLICK, Element.VISIBILITY_TYPES.NOT_LOGGED, True, False),
+        (EventTypes.AFTER_LOGIN, Element.VISIBILITY_TYPES.NOT_LOGGED, True, None),
+        (EventTypes.AFTER_LOGIN, Element.VISIBILITY_TYPES.LOGGED_IN, True, None),
+        (EventTypes.AFTER_LOGIN, Element.VISIBILITY_TYPES.LOGGED_IN, False, False),
+    ],
+)
+def test_element_visibility_permission_manager_after_login_workflow_action(
+    data_fixture, event, element_visibility, authenticated, expected
+):
+    """
+    An after-login action is dispatched by the user who has just logged in, but
+    its login form was submitted before that login, so the element only has to
+    be visible to a logged-out visitor or to that user.
+    """
+
+    builder = data_fixture.create_builder_application(workspace=None)
+    page = data_fixture.create_builder_page(builder=builder)
+    user_source = data_fixture.create_user_source_with_first_type(application=builder)
+    element = data_fixture.create_builder_button_element(
+        page=page, visibility=element_visibility
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=event
+    )
+    actor = (
+        UserSourceUser(user_source, None, 1, "US public", "e@ma.il")
+        if authenticated
+        else AnonymousUser()
+    )
+    check = PermissionCheck(
+        actor, DispatchBuilderWorkflowActionOperationType.type, workflow_action
+    )
+
+    result = ElementVisibilityPermissionManager().check_multiple_permissions([check])
+
+    assert result.get(check) is expected

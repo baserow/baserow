@@ -19,8 +19,10 @@ from baserow.core.handler import CoreHandler
 from baserow.core.mcp.actions import (
     ConnectMCPOAuthClientActionType,
     DisconnectMCPOAuthClientActionType,
+    UpdateMCPEndpointToolsActionType,
 )
-from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist
+from baserow.core.mcp.exceptions import MCPEndpointDoesNotExist, MCPToolsNotAvailable
+from baserow.core.mcp.groups import mcp_tool_group_registry
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.oauth.authorize import (
@@ -38,8 +40,9 @@ from baserow.core.mcp.registries import mcp_tool_registry
 from baserow.core.models import WorkspaceUser
 from baserow.core.registries import application_type_registry
 
-from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST
+from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST, ERROR_MCP_TOOLS_NOT_AVAILABLE
 from .oauth_serializers import ConsentSerializer
+from .serializers import UpdateAllowedToolsSerializer
 
 
 def _require_oauth_enabled():
@@ -105,6 +108,32 @@ def _client_info(credentials: dict) -> dict:
     }
 
 
+def _serialize_tool(tool) -> dict:
+    return {
+        "name": tool.name,
+        "title": tool.display_title,
+        "read_only": tool.read_only,
+        "destructive": tool.destructive,
+        "group": tool.group,
+    }
+
+
+def _serialize_groups(tools) -> list[dict]:
+    """The groups of the given tools, in display order."""
+
+    used = {tool.group for tool in tools}
+    return [
+        {
+            "type": group.type,
+            "title": group.title,
+            "area": group.area,
+            "read_only_preset": group.read_only_preset,
+        }
+        for group in mcp_tool_group_registry.get_ordered()
+        if group.type in used
+    ]
+
+
 class MCPOAuthConsentView(APIView):
     permission_classes = (IsAuthenticated,)
     throttle_classes = (*APIView.throttle_classes, MCPOAuthConsentRateThrottle)
@@ -135,13 +164,14 @@ class MCPOAuthConsentView(APIView):
             )
         ]
         grants = {
-            str(endpoint.workspace_id): endpoint.allowed_tools
+            str(endpoint.workspace_id): mcp_tool_registry.get_allowed_names(endpoint)
             for endpoint in MCPEndpoint.objects.filter(
                 user=request.user,
                 oauth_client_id=credentials["client_id"],
                 workspace_id__in=[wu.workspace_id for wu in workspace_users],
             )
         }
+        tools = mcp_tool_registry.get_enabled_tools()
         database_model = application_type_registry.get("database").model_class
         database_counts = dict(
             database_model.objects.filter(
@@ -163,15 +193,8 @@ class MCPOAuthConsentView(APIView):
                     for wu in workspace_users
                 ],
                 "grants": grants,
-                "tools": [
-                    {
-                        "name": tool.name,
-                        "title": tool.display_title,
-                        "read_only": tool.read_only,
-                        "destructive": tool.destructive,
-                    }
-                    for tool in mcp_tool_registry.get_enabled_tools()
-                ],
+                "tools": [_serialize_tool(tool) for tool in tools],
+                "groups": _serialize_groups(tools),
             }
         )
 
@@ -179,6 +202,7 @@ class MCPOAuthConsentView(APIView):
         {
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            MCPToolsNotAvailable: ERROR_MCP_TOOLS_NOT_AVAILABLE,
         }
     )
     @validate_body(ConsentSerializer)
@@ -219,6 +243,21 @@ class MCPOAuthConsentView(APIView):
         return Response({"redirect_url": redirect_url})
 
 
+def _serialize_connection(endpoint, application, expired: bool) -> dict:
+    return {
+        "id": endpoint.id,
+        "client_name": (application and application.name) or endpoint.name,
+        **_verification(application),
+        "workspace_id": endpoint.workspace_id,
+        "workspace_name": endpoint.workspace.name,
+        "allowed_tools": mcp_tool_registry.get_allowed_names(endpoint),
+        "tool_count": len(mcp_tool_registry.get_allowed_tools(endpoint)),
+        "created": endpoint.created,
+        # The app has to sign in again before it can use the grant.
+        "expired": expired,
+    }
+
+
 class MCPOAuthConnectionsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -239,7 +278,7 @@ class MCPOAuthConnectionsView(APIView):
                 user=request.user,
                 oauth_client_id__isnull=False,
                 workspace__workspaceuser__user=request.user,
-            ).select_related("workspace")
+            ).select_related("workspace", "user")
         )
         Application = get_application_model()
         applications = Application.objects.in_bulk(
@@ -247,34 +286,63 @@ class MCPOAuthConnectionsView(APIView):
             field_name="client_id",
         )
         live = endpoint_ids_with_live_refresh_token(request.user)
-        connections = []
-        for endpoint in endpoints:
-            application = applications.get(endpoint.oauth_client_id)
-            connections.append(
-                {
-                    "id": endpoint.id,
-                    "client_name": (application and application.name) or endpoint.name,
-                    **_verification(application),
-                    "workspace_id": endpoint.workspace_id,
-                    "workspace_name": endpoint.workspace.name,
-                    "allowed_tools": endpoint.allowed_tools,
-                    "tool_count": len(mcp_tool_registry.get_allowed_tools(endpoint)),
-                    "created": endpoint.created,
-                    # The app has to sign in again before it can use the grant.
-                    "expired": endpoint.id not in live,
-                }
-            )
+        tools = mcp_tool_registry.get_enabled_tools()
         return Response(
             {
                 "oauth_enabled": True,
                 "mcp_url": settings.MCP_RESOURCE_URL,
-                "connections": connections,
+                "connections": [
+                    _serialize_connection(
+                        endpoint,
+                        applications.get(endpoint.oauth_client_id),
+                        expired=endpoint.id not in live,
+                    )
+                    for endpoint in endpoints
+                ],
+                "tools": [_serialize_tool(tool) for tool in tools],
+                "groups": _serialize_groups(tools),
             }
         )
 
 
 class MCPOAuthConnectionView(APIView):
     permission_classes = (IsAuthenticated,)
+
+    @transaction.atomic
+    @map_exceptions(
+        {
+            MCPEndpointDoesNotExist: ERROR_MCP_ENDPOINT_DOES_NOT_EXIST,
+            MCPToolsNotAvailable: ERROR_MCP_TOOLS_NOT_AVAILABLE,
+        }
+    )
+    @validate_body(UpdateAllowedToolsSerializer)
+    def patch(self, request, data, connection_id):
+        """
+        Changes the tools an OAuth client may use. The client keeps its tokens and
+        gets the new tools on its next request.
+        """
+
+        _require_oauth_enabled()
+        endpoint = MCPEndpointHandler().get_oauth_grant(
+            request.user,
+            connection_id,
+            base_queryset=MCPEndpoint.objects.select_for_update(of=("self",)),
+        )
+        endpoint = UpdateMCPEndpointToolsActionType.do(
+            request.user, endpoint, data["allowed_tools"]
+        )
+        Application = get_application_model()
+        application = Application.objects.filter(
+            client_id=endpoint.oauth_client_id
+        ).first()
+        live = endpoint_ids_with_live_refresh_token(request.user)
+        return Response(
+            _serialize_connection(
+                endpoint,
+                application,
+                expired=endpoint.id not in live,
+            )
+        )
 
     @transaction.atomic
     @map_exceptions(

@@ -23,7 +23,7 @@ export default {
       required: false,
       default: null,
       validator(value) {
-        return ['blue', 'green', 'magenta', 'yellow'].includes(value)
+        return ['blue', 'green', 'magenta', 'purple', 'yellow'].includes(value)
       },
     },
     loading: {

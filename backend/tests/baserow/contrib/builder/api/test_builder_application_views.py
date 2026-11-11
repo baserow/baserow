@@ -234,3 +234,34 @@ def test_list_builder_applications(api_client, data_fixture):
     ]
     assert response_json[0]["login_page_id"] is None
     assert response_json[0]["type"] == "builder"
+
+
+@pytest.mark.django_db
+def test_application_content_can_be_explicitly_trusted(api_client, data_fixture):
+    """Only an authorized application editor can enable imported active content."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(
+        workspace=workspace,
+        untrusted_content=True,
+        import_report=[{"type": "custom_js"}],
+    )
+    url = reverse("api:applications:item", kwargs={"application_id": builder.id})
+    response = api_client.patch(url, {"untrusted_content": False}, format="json")
+    assert response.status_code == 401
+    builder.refresh_from_db()
+    assert builder.untrusted_content is True
+
+    response = api_client.patch(
+        url,
+        {"untrusted_content": False, "import_report": []},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200
+    assert response.json()["untrusted_content"] is False
+    builder.refresh_from_db()
+    assert builder.untrusted_content is False
+
+    assert builder.import_report == [{"type": "custom_js"}]

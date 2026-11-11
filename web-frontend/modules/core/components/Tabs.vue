@@ -30,12 +30,25 @@
       >
         <a
           :href="getHref(index)"
+          :tabindex="getTabindex(index)"
           class="tabs__link"
           :class="{ 'tabs__link--disabled': tab.disabled }"
           @click.prevent
+          @keydown.enter="selectWithKeyboard($event, index)"
         >
           <i v-if="tab.icon" :class="tab.icon"></i>
           {{ tab.title }}
+          <DevelopmentBadge
+            v-if="tab.developmentStage"
+            :stage="tab.developmentStage"
+          />
+          <Badge
+            v-else-if="tab.badge"
+            color="cyan"
+            size="small"
+            class="margin-left-1"
+            >{{ tab.badge }}</Badge
+          >
           <i v-if="tab.appendIcon" :class="tab.appendIcon"></i>
         </a>
       </li>
@@ -46,8 +59,11 @@
 </template>
 
 <script>
+import DevelopmentBadge from '@baserow/modules/core/components/DevelopmentBadge'
+
 export default {
   name: 'Tabs',
+  components: { DevelopmentBadge },
   provide() {
     return {
       tabsProvider: {
@@ -209,6 +225,20 @@ export default {
         return !tab.disabled ? router.resolve(tab.to).path : null
       }
       return null
+    },
+    getTabindex(i) {
+      return this.route || this.tabs[i].disabled ? null : 0
+    },
+    selectWithKeyboard(event, i) {
+      if (this.route) {
+        return
+      }
+      event.preventDefault()
+      if (this.tabs[i].disabled) {
+        this.$emit('click-disabled', i)
+      } else {
+        this.selectTab(i)
+      }
     },
     selectTab(i) {
       if (this.route) {

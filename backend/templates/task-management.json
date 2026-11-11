@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Task Management",
+    "description": "Manage projects and tasks across departments, staff and equipment.",
     "icon": "iconoir-task-list",
     "keywords": [
         "task management",

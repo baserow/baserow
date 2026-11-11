@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Standard Operating Procedures",
+    "description": "Document procedures step by step and collect suggestions.",
     "icon": "iconoir-cpu",
     "keywords": [
         "SOP",

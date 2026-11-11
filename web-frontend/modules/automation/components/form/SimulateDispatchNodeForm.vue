@@ -128,6 +128,7 @@ const sampleDataHtml = computed(() =>
 const cantBeTestedReason = computed(() => {
   if (
     nodeType.value.isInError({
+      workflow: workflow.value,
       service: props.node.service,
       workspace: workspace.value,
       application: automation.value,
@@ -148,6 +149,7 @@ const cantBeTestedReason = computed(() => {
     })
     if (
       previousNodeType.isInError({
+        workflow: workflow.value,
         service: previousNode.service,
         workspace: workspace.value,
         application: automation.value,

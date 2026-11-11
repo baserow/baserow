@@ -14,6 +14,7 @@ import {
   ROLE_TYPE_DISALLOW_EXCEPT,
   VISIBILITY_ALL,
   ROLE_TYPE_ALLOW_ALL,
+  DATA_SCOPES,
 } from '@baserow/modules/builder/constants'
 import {
   CHOICE_OPTION_TYPES,
@@ -82,6 +83,119 @@ describe('elementTypes tests', () => {
       expect(tableElementType.hasCollectionAncestor(page, tableElement)).toBe(
         true
       )
+    })
+
+    test('uses the data scope to include a repeat in its record index path', () => {
+      const page = { id: 123 }
+      const repeat = { id: 111, type: 'repeat', page_id: page.id }
+      page.graph = { 0: 111, 111: {} }
+      page.elementMap = { 111: repeat }
+      const elementType = testApp.$registry.get('element', repeat.type)
+      const applicationContext = {
+        builder: { id: 1 },
+        page,
+        recordIndexPath: [3],
+      }
+
+      expect(
+        elementType.uniqueElementId({ element: repeat, applicationContext })
+      ).toBe('111')
+      expect(
+        elementType.uniqueElementId({
+          element: repeat,
+          applicationContext: {
+            ...applicationContext,
+            dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+          },
+        })
+      ).toBe('111.3')
+    })
+
+    test('table and menu events resolve formulas against their selected records', async () => {
+      const tableElementType = testApp.$registry.get('element', 'table')
+      const menuElementType = testApp.$registry.get('element', 'menu')
+      const table = {
+        id: 11,
+        type: 'table',
+        page_id: 1,
+        data_source_id: 1,
+        fields: [{ type: 'button', uid: 'table-button', name: 'Table button' }],
+        _: { content: [{ name: 'First cell' }, { name: 'Second cell' }] },
+      }
+      const repeat = {
+        id: 12,
+        type: 'repeat',
+        page_id: 1,
+        data_source_id: 2,
+        _: { content: [{ name: 'First row' }, { name: 'Second row' }] },
+      }
+      const menu = {
+        id: 13,
+        type: 'menu',
+        page_id: 1,
+        menu_items: [
+          { type: 'button', uid: 'menu-button', name: 'Menu button' },
+        ],
+      }
+      const page = {
+        id: 1,
+        dataSources: [
+          { id: 1, type: 'csv_file_reader' },
+          { id: 2, type: 'csv_file_reader' },
+        ],
+        elementMap: { 11: table, 12: repeat, 13: menu },
+        graph: {
+          0: 11,
+          11: { next: { '': [12] } },
+          12: { children: { '': [13] } },
+          13: {},
+        },
+      }
+      const builder = { id: 1, pages: [page, { id: 2, shared: true }] }
+      const resolvedValues = []
+      const workflowAction = { id: 1, type: 'test' }
+      const workflowActionType = {
+        execute: ({ resolveFormula }) => {
+          resolvedValues.push(
+            resolveFormula({
+              formula: "get('current_record.name')",
+              mode: 'advanced',
+            })
+          )
+        },
+      }
+      const app = {
+        $registry: {
+          get: (registryName, type) =>
+            registryName === 'workflowAction'
+              ? workflowActionType
+              : testApp.$registry.get(registryName, type),
+          getAll: (...args) => testApp.$registry.getAll(...args),
+        },
+        $store: {
+          getters: { 'page/getSharedPage': () => builder.pages[1] },
+          dispatch: vi.fn(),
+        },
+        $i18n: testApp.$i18n,
+      }
+
+      for (const [event, element, expected] of [
+        [tableElementType.getEvents(table)[0], table, 'Second cell'],
+        [menuElementType.getEvents(menu)[0], menu, 'Second row'],
+      ]) {
+        event.app = app
+        await event.fire({
+          workflowActions: [workflowAction],
+          applicationContext: {
+            builder,
+            page,
+            element,
+            recordIndexPath: [1],
+            dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+          },
+        })
+        expect(resolvedValues.at(-1)).toBe(expected)
+      }
     })
 
     test('hasSourceOfData', () => {
@@ -805,6 +919,22 @@ describe('elementTypes tests', () => {
       const element = { required: false, multiple: false, data_source_id: 1 }
       expect(elementType.isValid(element, 1, {})).toBe(true)
     })
+    test.each([
+      [true, undefined, false],
+      [true, null, false],
+      [true, [], false],
+      [true, [1], true],
+      [false, undefined, false],
+      [false, null, false],
+      [false, 1, true],
+    ])(
+      'RecordSelectorElementType | required | multiple=%s, value=%j',
+      (multiple, value, expected) => {
+        const elementType = new RecordSelectorElementType()
+        const element = { required: true, multiple, data_source_id: 1 }
+        expect(elementType.isValid(element, value, {})).toBe(expected)
+      }
+    )
     test.each([
       [false, '', null],
       [false, null, null],
@@ -2587,4 +2717,19 @@ describe('elementTypes tests', () => {
       ).not.toBeNull()
     })
   })
+})
+
+test('blocked iframes show a trust error before their configuration is evaluated', () => {
+  const type = useNuxtApp().$registry.get('element', 'iframe')
+  const context = { builder: { untrusted_content: true } }
+  expect(type.getErrorMessage({}, context)).toBe(
+    'builderUntrustedContent.warning'
+  )
+  context.builder.untrusted_content = false
+  expect(
+    type.getErrorMessage(
+      { source_type: IFRAME_SOURCE_TYPES.URL, url: { formula: '' } },
+      context
+    )
+  ).toBe('elementType.errorIframeUrlMissing')
 })

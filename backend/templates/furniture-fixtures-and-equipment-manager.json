@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Furniture, Fixtures, and Equipment Manager",
+    "description": "Track furniture and equipment with costs and replacement dates.",
     "icon": "iconoir-sleeper-chair",
     "keywords": [
         "asset management",

@@ -2,8 +2,11 @@ import { useRuntimeConfig } from '#imports'
 
 const FF_ENABLE_ALL = '*'
 export const FF_AGENTS = 'agents'
+export const FF_AGENT_BUILDER = 'agent-builder'
 export const FF_RBAC_IMPROVEMENTS = 'rbac_improvements'
+export const FF_APPLICATION_IN_ERROR = 'application_in_error'
 export const FF_USER_TEMPLATES = 'user_templates'
+export const FF_SEMANTIC_SEARCH = 'semantic_search'
 
 function getFeatureFlags(env) {
   return (env.FEATURE_FLAGS || '')
@@ -19,17 +22,21 @@ function featureFlagIsEnabled(featureFlags, flag) {
   }
 }
 
-export default defineNuxtPlugin(() => {
-  const runtimeConfig = useRuntimeConfig()
-  const featureFlagsValue = runtimeConfig.public.featureFlags
-  const FEATURE_FLAGS = getFeatureFlags({
-    ...runtimeConfig.public,
-    FEATURE_FLAGS: featureFlagsValue,
-  })
+export default defineNuxtPlugin({
+  name: 'feature-flags',
+  setup() {
+    const runtimeConfig = useRuntimeConfig()
+    const featureFlagsValue = runtimeConfig.public.featureFlags
+    const FEATURE_FLAGS = getFeatureFlags({
+      ...runtimeConfig.public,
+      FEATURE_FLAGS: featureFlagsValue,
+    })
 
-  return {
-    provide: {
-      featureFlagIsEnabled: (flag) => featureFlagIsEnabled(FEATURE_FLAGS, flag),
-    },
-  }
+    return {
+      provide: {
+        featureFlagIsEnabled: (flag) =>
+          featureFlagIsEnabled(FEATURE_FLAGS, flag),
+      },
+    }
+  },
 })

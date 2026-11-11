@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Ocean Theme",
+  "description": "Light application theme in ocean blue and teal.",
   "icon": "",
   "keywords": [
     "application",

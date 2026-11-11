@@ -46,6 +46,7 @@ from baserow.core.user.utils import (
     IMPERSONATED_BY_CLAIM,
     generate_session_tokens_for_user,
     normalize_email_address,
+    prepare_user_tokens_payload,
 )
 
 User = get_user_model()
@@ -204,13 +205,19 @@ class RegisterSerializer(serializers.Serializer):
         help_text="If provided and valid, the user accepts the workspace invitation and "
         "will have access to the workspace after signing up.",
     )
+    workspace_invitation_link_slug = serializers.CharField(
+        required=False,
+        help_text="If provided and valid, the user joins the workspace of the "
+        "invitation link after signing up. Can't be combined with "
+        "`workspace_invitation_token`.",
+    )
     template_id = serializers.PrimaryKeyRelatedField(
         required=False,
         default=None,
-        queryset=Template.objects.all(),
+        queryset=Template.objects.official(),
         help_text="The id of the template that must be installed after creating the "
-        "account. This only works if the `workspace_invitation_token` param is not "
-        "provided.",
+        "account. This only works if the `workspace_invitation_token` and "
+        "`workspace_invitation_link_slug` params are not provided.",
     )
     captcha_token = serializers.CharField(
         required=False,
@@ -218,6 +225,15 @@ class RegisterSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="The captcha response token, required when captcha is enabled.",
     )
+
+    def validate(self, data):
+        if data.get("workspace_invitation_token") and data.get(
+            "workspace_invitation_link_slug"
+        ):
+            raise serializers.ValidationError(
+                "A workspace invitation token and invitation link can't be combined."
+            )
+        return data
 
 
 class AccountSerializer(serializers.Serializer):
@@ -280,11 +296,6 @@ class SendResetPasswordEmailBodyValidationSerializer(serializers.Serializer):
     email = serializers.EmailField(
         help_text="The email address of the user that has requested a password reset."
     )
-    base_url = serializers.URLField(
-        help_text="The base URL where the user can reset his password. The reset "
-        "token is going to be appended to the base_url (base_url "
-        "'/token')."
-    )
 
 
 class ResetPasswordBodyValidationSerializer(serializers.Serializer):
@@ -301,11 +312,6 @@ class SendChangeEmailConfirmationSerializer(serializers.Serializer):
     new_email = serializers.EmailField(help_text="The new email address to change to.")
     password = serializers.CharField(
         help_text="The current password of the user for verification."
-    )
-    base_url = serializers.URLField(
-        help_text="The base URL where the user can confirm the email change. The "
-        "confirmation token is going to be appended to the base_url "
-        "(base_url '/token')."
     )
 
 
@@ -346,12 +352,27 @@ def get_all_user_data_serialized(
     }
 
 
-def log_in_user(request, user):
+def check_user_can_log_in_with_password(user):
+    """
+    Raises if the user isn't allowed to sign in with the password provider.
+
+    :param user: The user that wants to sign in.
+    :raises AuthProviderDisabled: When the password provider is disabled and the
+        user isn't staff.
+    :raises DeactivatedUserException: When the user is deactivated.
+    :return: The password provider.
+    """
+
     password_provider = PasswordProviderHandler.get()
     if not password_provider.enabled and user.is_staff is False:
         raise AuthProviderDisabled()
     if not user.is_active:
         raise DeactivatedUserException()
+    return password_provider
+
+
+def log_in_user(request, user):
+    password_provider = check_user_can_log_in_with_password(user)
 
     settings = CoreHandler().get_settings()
     if (
@@ -409,18 +430,16 @@ class TokenObtainPairWithUserSerializer(TokenObtainPairSerializer):
 
         super().validate(attrs)
 
-        twofa_provider = TwoFactorAuthHandler().get_provider(self.user)
+        twofa_provider = TwoFactorAuthHandler().get_enabled_provider(self.user)
         if twofa_provider:
-            provider_type = twofa_provider.get_type()
-            if provider_type.is_enabled(twofa_provider):
-                token = TwoFactorAccessToken.for_user(self.user)
-                token.set_exp(lifetime=timedelta(minutes=2))
-                return TwoFactorAuthRequiredSerializer(
-                    {
-                        "two_factor_auth": provider_type.type,
-                        "token": str(token),
-                    }
-                ).data
+            token = TwoFactorAccessToken.for_user(self.user)
+            token.set_exp(lifetime=timedelta(minutes=2))
+            return TwoFactorAuthRequiredSerializer(
+                {
+                    "two_factor_auth": twofa_provider.get_type().type,
+                    "token": str(token),
+                }
+            ).data
 
         return log_in_user(self.context["request"], self.user)
 
@@ -440,14 +459,19 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         attrs["refresh"] = attrs.pop("refresh_token", attrs.get("token"))
         super().validate(attrs)
 
+        # A rotated token stays usable for a short while, so the rotation itself
+        # checks the blacklist.
         user = get_user_from_token(
-            attrs["refresh"], RefreshToken, check_if_refresh_token_is_blacklisted=True
+            attrs["refresh"],
+            RefreshToken,
+            check_if_refresh_token_is_blacklisted=not settings.ROTATE_REFRESH_TOKENS,
         )
 
         token = RefreshToken(attrs["refresh"])
-        settings = CoreHandler().get_settings()
+        instance_settings = CoreHandler().get_settings()
         if (
-            settings.email_verification == Settings.EmailVerificationOptions.ENFORCED
+            instance_settings.email_verification
+            == Settings.EmailVerificationOptions.ENFORCED
             and not user.profile.email_verified
             and not user.is_staff
             and token.get("verified_email_claim")
@@ -458,6 +482,11 @@ class TokenRefreshWithUserSerializer(TokenRefreshSerializer):
         data = generate_session_tokens_for_user(
             user, impersonated_by_user_id=token.get(IMPERSONATED_BY_CLAIM)
         )
+        if settings.ROTATE_REFRESH_TOKENS:
+            refresh_token = UserHandler().rotate_refresh_token(attrs["refresh"])
+            data = prepare_user_tokens_payload(
+                user.id, data["access_token"], refresh_token
+            )
         data.update(**get_all_user_data_serialized(user, self.context["request"]))
         token_refreshes_counter.add(1)
         return data

@@ -15,6 +15,12 @@
 import baseConfig from './nuxt.config.base.ts'
 export default {
   ...baseConfig,
+  nitro: {
+    ...baseConfig.nitro,
+    // Precompress the static assets at build time, so that they're served with
+    // brotli or gzip even when no compressing reverse proxy is in front.
+    compressPublicAssets: { gzip: true, brotli: true },
+  },
   sourcemap: {
     server: true,
     client: true,

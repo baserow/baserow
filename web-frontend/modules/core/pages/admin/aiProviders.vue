@@ -83,7 +83,7 @@
         @hidden="modelFormOpen = false"
         @saved="modelFormOpen = false"
       />
-      <AIProviderConfirmModal
+      <ConfirmModal
         v-if="pendingAction"
         ref="confirmModal"
         :title="pendingAction.title"
@@ -103,7 +103,7 @@ import { useHead } from '#imports'
 import { useNuxtApp } from '#app'
 
 import AIProviderAdminSkeleton from '@baserow/modules/core/components/ai/AIProviderAdminSkeleton'
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderFeatureSettings from '@baserow/modules/core/components/ai/AIProviderFeatureSettings'
 import AIProviderFormModal from '@baserow/modules/core/components/ai/AIProviderFormModal'
 import AIProviderItem from '@baserow/modules/core/components/ai/AIProviderItem'
@@ -111,11 +111,16 @@ import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProv
 import aiProviderModelUsage from '@baserow/modules/core/mixins/aiProviderModelUsage'
 import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 
+definePageMeta({
+  layout: 'app',
+  middleware: ['staff'],
+})
+
 export default {
   name: 'AdminAIProviders',
   components: {
     AIProviderAdminSkeleton,
-    AIProviderConfirmModal,
+    ConfirmModal,
     AIProviderFeatureSettings,
     AIProviderFormModal,
     AIProviderItem,
@@ -123,12 +128,6 @@ export default {
   },
   mixins: [aiProviderModelUsage],
   setup() {
-    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
-    // `layout` and `middleware` component options.
-    definePageMeta({
-      layout: 'app',
-      middleware: ['staff'],
-    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('aiProviderAdmin.title') })
   },

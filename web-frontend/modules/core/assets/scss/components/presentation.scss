@@ -29,3 +29,7 @@
 
   @extend %ellipsis;
 }
+
+.presentation__subtitle--error {
+  color: $palette-red-700;
+}

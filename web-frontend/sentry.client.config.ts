@@ -4,6 +4,11 @@ import {
   SILENCED_API_ERRORS,
   SILENCED_ERROR_PATTERNS,
 } from './modules/core/utils/sentryErrors'
+import {
+  addReplayOutsidePrivateLinks,
+  redactPrivateLinkTokens,
+} from './modules/core/utils/templatePrivateLink'
+import { dropRouteParams } from './modules/core/utils/sentryTransactions'
 import * as Sentry from '@sentry/nuxt'
 
 const config = useRuntimeConfig()
@@ -23,10 +28,6 @@ if (dsn && dsn !== '') {
     integrations: [
       Sentry.browserTracingIntegration({
         router: useRouter(),
-      }),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
       }),
     ],
     // Sample rate for performance tracing, configurable via the
@@ -62,9 +63,11 @@ if (dsn && dsn !== '') {
         console.error('[Sentry captured error]', `${err}`)
         return null
       } else {
-        return event
+        return redactPrivateLinkTokens(event)
       }
     },
+    beforeSendTransaction: (event) =>
+      redactPrivateLinkTokens(dropRouteParams(event)),
   }
 
   // Merge with user-provided configuration from app config
@@ -86,4 +89,16 @@ if (dsn && dsn !== '') {
   }
 
   Sentry.init(finalConfig)
+
+  // Session replay is large, so it's only downloaded when replays are recorded,
+  // and loaded after init so that it doesn't block the page.
+  if (finalConfig.replaysOnErrorSampleRate > 0) {
+    addReplayOutsidePrivateLinks({
+      router: useRouter(),
+      loadReplayIntegration: () =>
+        import('@sentry/replay').then((module) => module.replayIntegration),
+      addIntegration: Sentry.addIntegration,
+      replayOptions: { maskAllText: true, blockAllMedia: true },
+    })
+  }
 }

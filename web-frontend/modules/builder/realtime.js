@@ -28,7 +28,45 @@ const getApplicationContext = (store, applicationId) => {
   return { application }
 }
 
+const redispatchForAuthorizedAgent = (store, { workspaceId, agentId }) => {
+  store.getters['application/getAll']
+    .filter(
+      (application) =>
+        application.type === 'builder' &&
+        application.workspace?.id === workspaceId
+    )
+    .forEach((builder) => {
+      builder.integrations
+        .filter(
+          (integration) =>
+            integration.type === 'local_baserow' &&
+            integration.authorized_subject?.type === 'core.Agent' &&
+            integration.authorized_subject.id === agentId
+        )
+        .forEach((integration) => {
+          store.dispatch('dataSource/redispatchForIntegration', {
+            builder,
+            integrationId: integration.id,
+          })
+        })
+    })
+}
+
 export const registerRealtimeEvents = (realtime) => {
+  realtime.registerEvent('agent_created', ({ store }, data) => {
+    redispatchForAuthorizedAgent(store, {
+      workspaceId: data.workspace_id,
+      agentId: data.agent.id,
+    })
+  })
+
+  realtime.registerEvent('agent_deleted', ({ store }, data) => {
+    redispatchForAuthorizedAgent(store, {
+      workspaceId: data.workspace_id,
+      agentId: data.agent_id,
+    })
+  })
+
   // Page events
   realtime.registerEvent('page_created', ({ store }, data) => {
     const builder = store.getters['application/get'](data.page.builder_id)

@@ -7,9 +7,25 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.serializers import NaturalKeyRelatedField
-from baserow.core.registries import object_scope_type_registry, subject_type_registry
+from baserow.contrib.database.views.registries import view_type_registry
+from baserow.core.models import WorkspaceInvitationLink
+from baserow.core.registries import (
+    application_type_registry,
+    object_scope_type_registry,
+    subject_type_registry,
+)
 from baserow_enterprise.exceptions import RoleNotExist, ScopeNotExist, SubjectNotExist
-from baserow_enterprise.models import Role, RoleAssignment, Team
+from baserow_enterprise.models import (
+    Role,
+    RoleAssignment,
+    Team,
+    WorkspaceScopedInvitation,
+)
+from baserow_enterprise.role.constants import ALLOWED_SUBJECT_TYPE_BY_PRIORITY
+from baserow_enterprise.role.handler import (
+    RoleAssignmentHandler,
+    get_assignable_scope_type,
+)
 
 
 class SubjectTeamSerializer(serializers.ModelSerializer):
@@ -32,7 +48,7 @@ class SubjectTeamSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_subject_count(self, obj):
-        return obj.subject_count if hasattr(obj, "subject_count") else 0
+        return obj.subject_count
 
 
 class SubjectField(serializers.Serializer):
@@ -227,3 +243,330 @@ class GetRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
         except ObjectDoesNotExist:
             raise ScopeNotExist()
         return result
+
+
+class ScopedInvitationSerializer(serializers.ModelSerializer):
+    """
+    Serializer of a pending invitation that grants a role on one scope, used for
+    managing them.
+    """
+
+    email = serializers.EmailField(source="invitation.email", read_only=True)
+    invitation_id = serializers.IntegerField(read_only=True)
+    role = RoleField(
+        model=Role,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    class Meta:
+        model = WorkspaceScopedInvitation
+        fields = (
+            "id",
+            "invitation_id",
+            "email",
+            "role",
+            "scope_id",
+            "scope_type",
+            "created_on",
+        )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "created_on": {"read_only": True},
+        }
+
+
+class CreateScopedInvitationSerializer(serializers.Serializer):
+    email = serializers.EmailField(
+        help_text="The email address of the person that is invited to the scope."
+    )
+    role = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+    scope_id = serializers.IntegerField(
+        min_value=1,
+        help_text="The ID of the scope object the role is granted on.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+    captcha_token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The captcha token proving the request comes from a person, only "
+        "required if a captcha provider is enabled for workspace invitations.",
+    )
+
+    def to_internal_value(self, data):
+        """
+        Populate the scope with the actual object.
+        """
+
+        try:
+            result = super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+        try:
+            result["scope"] = result["scope_type"].get_object_for_this_type(
+                id=result["scope_id"]
+            )
+        except ObjectDoesNotExist:
+            raise ScopeNotExist()
+        return result
+
+
+class UpdateScopedInvitationSerializer(serializers.Serializer):
+    role = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role granted on the scope once the invitation is "
+        "accepted.",
+    )
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+
+
+class ScopedInvitationLinkSerializer(serializers.ModelSerializer):
+    """
+    Serializer of a permanent invitation link that gives a role on one scope, used
+    for managing them.
+    """
+
+    permissions = serializers.CharField(
+        read_only=True,
+        help_text="The uid of the role people get on the scope when they join "
+        "through the link.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    class Meta:
+        model = WorkspaceInvitationLink
+        fields = (
+            "id",
+            "workspace",
+            "name",
+            "slug",
+            "permissions",
+            "scope_id",
+            "scope_type",
+            "created_on",
+        )
+        read_only_fields = fields
+
+
+class CreateScopedInvitationLinkSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        help_text="A name that reminds the admins what the link is for.",
+    )
+    permissions = RoleField(
+        model=Role,
+        required=True,
+        help_text="The uid of the role people get on the scope when they join "
+        "through the link.",
+    )
+    scope_id = serializers.IntegerField(
+        min_value=1,
+        help_text="The ID of the scope object the link gives a role on.",
+    )
+    scope_type = ScopeTypeField(
+        help_text="The scope object type.",
+        choices=lazy(object_scope_type_registry.get_types, list)(),
+    )
+
+    def to_internal_value(self, data):
+        """
+        Populate the scope with the actual object.
+        """
+
+        try:
+            result = super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+        try:
+            result["scope"] = result["scope_type"].get_object_for_this_type(
+                id=result["scope_id"]
+            )
+        except ObjectDoesNotExist:
+            raise ScopeNotExist()
+        return result
+
+
+class UpdateScopedInvitationLinkSerializer(serializers.Serializer):
+    name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        help_text="A name that reminds the admins what the link is for.",
+    )
+    permissions = RoleField(
+        model=Role,
+        required=False,
+        help_text="The uid of the role people get on the scope when they join "
+        "through the link.",
+    )
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except Role.DoesNotExist:
+            raise RoleNotExist()
+
+
+class EffectiveAccessTeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Team
+        fields = ("id", "name")
+
+
+class EffectiveAccessSerializer(serializers.Serializer):
+    """
+    Serializes an `EffectiveAccess`. The teams are limited to the ones whose
+    members the requesting user may list, given as `visible_team_ids` in the
+    context, while `through_teams` still tells that the role comes from a team.
+    """
+
+    subject_type = serializers.SerializerMethodField(
+        help_text="The type of the subject: a user or an agent."
+    )
+    subject_id = serializers.SerializerMethodField(help_text="The subject's id.")
+    role = serializers.SerializerMethodField(
+        help_text="The uid of the role the subject effectively holds on the scope."
+    )
+    source_scope_type = serializers.SerializerMethodField(
+        help_text="The type of the scope the role comes from: the requested scope "
+        "or one above it."
+    )
+    source_scope_id = serializers.SerializerMethodField(
+        help_text="The id of the scope the role comes from."
+    )
+    through_teams = serializers.SerializerMethodField(
+        help_text="Whether the subject holds the role through their teams rather "
+        "than themselves."
+    )
+    teams = serializers.SerializerMethodField(
+        help_text="The teams the subject holds the role through, limited to the "
+        "teams whose members the requesting user may list."
+    )
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_subject_type(self, obj):
+        return subject_type_registry.get_by_model(obj.subject).type
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_subject_id(self, obj):
+        return obj.subject.id
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_role(self, obj):
+        return obj.role.uid
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_source_scope_type(self, obj):
+        return object_scope_type_registry.get_by_model(obj.source_scope).type
+
+    @extend_schema_field(OpenApiTypes.INT)
+    def get_source_scope_id(self, obj):
+        return obj.source_scope.id
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_through_teams(self, obj):
+        return len(obj.teams) > 0
+
+    @extend_schema_field(EffectiveAccessTeamSerializer(many=True))
+    def get_teams(self, obj):
+        visible_team_ids = self.context.get("visible_team_ids", set())
+        return EffectiveAccessTeamSerializer(
+            [team for team in obj.teams if team.id in visible_team_ids], many=True
+        ).data
+
+
+class SubjectRoleAssignmentScopeSerializer(serializers.Serializer):
+    scope_type = serializers.SerializerMethodField(
+        help_text="The type of the object: an application, a table or a view."
+    )
+    scope_id = serializers.IntegerField(source="id", help_text="The object's id.")
+    name = serializers.CharField(help_text="The object's name.")
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_scope_type(self, obj):
+        return get_assignable_scope_type(obj).type
+
+
+class SubjectRoleAssignmentSerializer(serializers.Serializer):
+    """
+    Serializes a `SubjectRoleAssignment`: a role a subject holds on a database,
+    table or view, with where that object is and what makes the role inert.
+    """
+
+    scope_type = serializers.SerializerMethodField(
+        help_text="The type of the object: an application, a table or a view."
+    )
+    scope_id = serializers.IntegerField(source="scope.id", help_text="The object's id.")
+    name = serializers.CharField(source="scope.name", help_text="The object's name.")
+    type = serializers.SerializerMethodField(
+        help_text="The application type of an application or the view type of a "
+        "view, to tell what kind of object it is. Null for a table."
+    )
+    parents = SubjectRoleAssignmentScopeSerializer(
+        source="parent_scopes",
+        many=True,
+        help_text="The objects the object is in, from the outermost in, without the "
+        "workspace.",
+    )
+    role = serializers.SerializerMethodField(
+        help_text="The uid of the role held on the object."
+    )
+    locked_by = serializers.SerializerMethodField(
+        help_text="The workspace, or the application or table the object is in, on "
+        "which the subject holds the admin role themselves, which makes this role "
+        "have no effect. Null when the role applies."
+    )
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_scope_type(self, obj):
+        return get_assignable_scope_type(obj.scope).type
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_role(self, obj):
+        return RoleAssignmentHandler().get_role_by_id(obj.role_assignment.role_id).uid
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_type(self, obj):
+        scope_type = get_assignable_scope_type(obj.scope).type
+        if scope_type == "application":
+            return application_type_registry.get_by_model(obj.scope.specific_class).type
+        if scope_type == "database_view":
+            return view_type_registry.get_by_model(obj.scope.specific_class).type
+        return None
+
+    @extend_schema_field(SubjectRoleAssignmentScopeSerializer(allow_null=True))
+    def get_locked_by(self, obj):
+        if obj.locked_by is None:
+            return None
+        return SubjectRoleAssignmentScopeSerializer(obj.locked_by).data
+
+
+class SubjectRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
+    subject_type = serializers.ChoiceField(
+        choices=lazy(lambda: ALLOWED_SUBJECT_TYPE_BY_PRIORITY, list)(),
+        help_text="The type of the subject: a user, an agent or a team.",
+    )
+    subject_id = serializers.IntegerField(min_value=1, help_text="The subject's id.")

@@ -23,7 +23,19 @@ export const mutations = {
   },
   REMOVE(state, toast) {
     const index = state.items.indexOf(toast)
-    state.items.splice(index, 1)
+    // A toast can already be gone, for example removed by another handler.
+    if (index !== -1) {
+      state.items.splice(index, 1)
+    }
+  },
+  REMOVE_TYPE(state, type) {
+    state.items = state.items.filter((toast) => toast.type !== type)
+  },
+  UPDATE(state, { toast, data }) {
+    const item = state.items.find((t) => t.id === toast.id)
+    if (item) {
+      item.data = { ...item.data, ...data }
+    }
   },
   SET_FAILED_CONNECTING(state, value) {
     state.failedConnecting = value
@@ -93,6 +105,18 @@ export const actions = {
   },
   remove({ commit }, toast) {
     commit('REMOVE', toast)
+  },
+  /**
+   * Removes every shown toast of the given type.
+   */
+  removeType({ commit }, type) {
+    commit('REMOVE_TYPE', type)
+  },
+  /**
+   * Merges the given values into the data of a shown toast.
+   */
+  update({ commit }, { toast, data }) {
+    commit('UPDATE', { toast, data })
   },
   setFailedConnecting({ commit }, value) {
     if (value) {

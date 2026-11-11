@@ -74,6 +74,7 @@ class CoreConfig(AppConfig):
             RuntimeLessThan,
             RuntimeLessThanOrEqual,
             RuntimeLower,
+            RuntimeMarkdownToHtml,
             RuntimeMinus,
             RuntimeMinute,
             RuntimeMonth,
@@ -149,6 +150,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeStrip())
         formula_runtime_function_registry.register(RuntimeEncodeUri())
         formula_runtime_function_registry.register(RuntimeEncodeUriComponent())
+        formula_runtime_function_registry.register(RuntimeMarkdownToHtml())
         formula_runtime_function_registry.register(RuntimeSum())
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())
@@ -201,6 +203,7 @@ class CoreConfig(AppConfig):
         from .object_scopes import (
             ApplicationObjectScopeType,
             CoreObjectScopeType,
+            WorkspaceInvitationLinkObjectScopeType,
             WorkspaceInvitationObjectScopeType,
             WorkspaceObjectScopeType,
             WorkspaceUserObjectScopeType,
@@ -211,6 +214,7 @@ class CoreConfig(AppConfig):
         object_scope_type_registry.register(ApplicationObjectScopeType())
         object_scope_type_registry.register(WorkspaceObjectScopeType())
         object_scope_type_registry.register(WorkspaceInvitationObjectScopeType())
+        object_scope_type_registry.register(WorkspaceInvitationLinkObjectScopeType())
         object_scope_type_registry.register(SnapshotObjectScopeType())
         object_scope_type_registry.register(WorkspaceUserObjectScopeType())
 
@@ -239,15 +243,18 @@ class CoreConfig(AppConfig):
         )
         from .operations import (
             CreateApplicationsWorkspaceOperationType,
+            CreateInvitationLinkWorkspaceOperationType,
             CreateInvitationsWorkspaceOperationType,
             CreateWorkspaceOperationType,
             DeleteApplicationOperationType,
+            DeleteWorkspaceInvitationLinkOperationType,
             DeleteWorkspaceInvitationOperationType,
             DeleteWorkspaceOperationType,
             DeleteWorkspaceUserOperationType,
             DuplicateApplicationOperationType,
             ExportWorkspaceOperationType,
             ListApplicationsWorkspaceOperationType,
+            ListInvitationLinksWorkspaceOperationType,
             ListInvitationsWorkspaceOperationType,
             ListWorkspacesOperationType,
             ListWorkspaceUsersWorkspaceOperationType,
@@ -259,6 +266,7 @@ class CoreConfig(AppConfig):
             RestoreWorkspaceOperationType,
             UpdateApplicationOperationType,
             UpdateSettingsOperationType,
+            UpdateWorkspaceInvitationLinkOperationType,
             UpdateWorkspaceInvitationType,
             UpdateWorkspaceOperationType,
             UpdateWorkspaceUserOperationType,
@@ -289,6 +297,10 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ReadInvitationWorkspaceOperationType())
         operation_type_registry.register(ListWorkspacesOperationType())
         operation_type_registry.register(UpdateWorkspaceInvitationType())
+        operation_type_registry.register(ListInvitationLinksWorkspaceOperationType())
+        operation_type_registry.register(CreateInvitationLinkWorkspaceOperationType())
+        operation_type_registry.register(UpdateWorkspaceInvitationLinkOperationType())
+        operation_type_registry.register(DeleteWorkspaceInvitationLinkOperationType())
         operation_type_registry.register(ReadWorkspaceOperationType())
         operation_type_registry.register(ExportWorkspaceOperationType())
         operation_type_registry.register(UpdateWorkspaceOperationType())
@@ -323,20 +335,25 @@ class CoreConfig(AppConfig):
             CreateInitialWorkspaceActionType,
             CreateWorkspaceActionType,
             CreateWorkspaceInvitationActionType,
+            CreateWorkspaceInvitationLinkActionType,
             DeleteApplicationActionType,
             DeleteWorkspaceActionType,
             DeleteWorkspaceInvitationActionType,
+            DeleteWorkspaceInvitationLinkActionType,
             DuplicateApplicationActionType,
             ExportApplicationsActionType,
             ImportApplicationsActionType,
             InstallTemplateActionType,
+            JoinWorkspaceViaInvitationLinkActionType,
             LeaveWorkspaceActionType,
             OrderApplicationsActionType,
             OrderWorkspacesActionType,
             RejectWorkspaceInvitationActionType,
+            UpdateAdminSettingsActionType,
             UpdateApplicationActionType,
             UpdateWorkspaceActionType,
             UpdateWorkspaceInvitationActionType,
+            UpdateWorkspaceInvitationLinkActionType,
         )
 
         action_type_registry.register(CreateWorkspaceActionType())
@@ -352,12 +369,17 @@ class CoreConfig(AppConfig):
         action_type_registry.register(CreateWorkspaceInvitationActionType())
         action_type_registry.register(DeleteWorkspaceInvitationActionType())
         action_type_registry.register(AcceptWorkspaceInvitationActionType())
+        action_type_registry.register(CreateWorkspaceInvitationLinkActionType())
+        action_type_registry.register(UpdateWorkspaceInvitationLinkActionType())
+        action_type_registry.register(DeleteWorkspaceInvitationLinkActionType())
+        action_type_registry.register(JoinWorkspaceViaInvitationLinkActionType())
         action_type_registry.register(RejectWorkspaceInvitationActionType())
         action_type_registry.register(UpdateWorkspaceInvitationActionType())
         action_type_registry.register(LeaveWorkspaceActionType())
         action_type_registry.register(CreateInitialWorkspaceActionType())
         action_type_registry.register(ExportApplicationsActionType())
         action_type_registry.register(ImportApplicationsActionType())
+        action_type_registry.register(UpdateAdminSettingsActionType())
 
         from baserow.core.snapshots.actions import (
             CreateSnapshotActionType,
@@ -368,6 +390,26 @@ class CoreConfig(AppConfig):
         action_type_registry.register(CreateSnapshotActionType())
         action_type_registry.register(DeleteSnapshotActionType())
         action_type_registry.register(RestoreSnapshotActionType())
+
+        from baserow.core.user_templates.actions import (
+            ApproveUserTemplateAdminActionType,
+            CreateUserTemplateActionType,
+            DeleteUserTemplateActionType,
+            RejectUserTemplateAdminActionType,
+            RotateUserTemplatePrivateLinkActionType,
+            UpdateUserTemplateActionType,
+            UpdateUserTemplatePrivateLinkActionType,
+            UpdateUserTemplateVisibilityActionType,
+        )
+
+        action_type_registry.register(CreateUserTemplateActionType())
+        action_type_registry.register(UpdateUserTemplateActionType())
+        action_type_registry.register(DeleteUserTemplateActionType())
+        action_type_registry.register(UpdateUserTemplateVisibilityActionType())
+        action_type_registry.register(ApproveUserTemplateAdminActionType())
+        action_type_registry.register(RejectUserTemplateAdminActionType())
+        action_type_registry.register(UpdateUserTemplatePrivateLinkActionType())
+        action_type_registry.register(RotateUserTemplatePrivateLinkActionType())
 
         from baserow.core.trash.actions import (
             EmptyTrashActionType,
@@ -390,10 +432,21 @@ class CoreConfig(AppConfig):
             DeleteMCPEndpointActionType,
             DisconnectMCPOAuthClientActionType,
             UpdateMCPEndpointActionType,
+            UpdateMCPEndpointToolsActionType,
         )
+        from baserow.core.mcp.groups import (
+            WorkspaceReadMCPToolGroup,
+            mcp_tool_group_registry,
+        )
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow.core.mcp.search.tools import SearchWorkspaceMcpTool
+
+        mcp_tool_group_registry.register(WorkspaceReadMCPToolGroup())
+        mcp_tool_registry.register(SearchWorkspaceMcpTool())
 
         action_type_registry.register(CreateMCPEndpointActionType())
         action_type_registry.register(UpdateMCPEndpointActionType())
+        action_type_registry.register(UpdateMCPEndpointToolsActionType())
         action_type_registry.register(DeleteMCPEndpointActionType())
         action_type_registry.register(ConnectMCPOAuthClientActionType())
         action_type_registry.register(DisconnectMCPOAuthClientActionType())
@@ -459,6 +512,10 @@ class CoreConfig(AppConfig):
             InstallTemplateJobType,
         )
         from .snapshots.job_types import CreateSnapshotJobType, RestoreSnapshotJobType
+        from .user_templates.job_types import (
+            CreateUserTemplateJobType,
+            DownloadUserTemplateJobType,
+        )
 
         job_type_registry.register(DuplicateApplicationJobType())
         job_type_registry.register(InstallTemplateJobType())
@@ -466,6 +523,8 @@ class CoreConfig(AppConfig):
         job_type_registry.register(RestoreSnapshotJobType())
         job_type_registry.register(ExportApplicationsJobType())
         job_type_registry.register(ImportApplicationsJobType())
+        job_type_registry.register(CreateUserTemplateJobType())
+        job_type_registry.register(DownloadUserTemplateJobType())
 
         from baserow.api.notifications.user_data_types import (
             UnreadUserNotificationsCountPermissionsDataType,
@@ -583,6 +642,15 @@ class CoreConfig(AppConfig):
         # Create all operations from registry
         post_migrate.connect(sync_operations_after_migrate, sender=self)
 
+        from baserow.core.user_templates.archive import clear_template_archive_stamp
+
+        # The archives of user templates built before a migration are stale.
+        post_migrate.connect(
+            clear_template_archive_stamp,
+            sender=self,
+            dispatch_uid="baserow_core_user_template_archive_stamp",
+        )
+
         if settings.CACHALOT_ENABLED:
             pre_migrate.connect(lambda *a, **kw: clear_cachalot_cache(), sender=self)
 
@@ -594,6 +662,7 @@ class CoreConfig(AppConfig):
         import baserow.core.last_viewed.receivers  # noqa: F401
         import baserow.core.mcp.receivers  # noqa: F401
         import baserow.core.receivers  # noqa: F401
+        import baserow.core.user_templates.receivers  # noqa: F401
         from baserow.core.telemetry.telemetry import setup_logging
 
         setup_logging()
@@ -716,6 +785,15 @@ class CoreConfig(AppConfig):
         if getattr(settings, "HEROKU_ENABLED", False):
             plugin_dir.register(HerokuExternalFileStorageConfiguredHealthCheck)
         plugin_dir.register(DefaultFileStorageHealthCheck)
+
+        from baserow.config.streaming import register_async_stream_path
+        from baserow.core.chat_runs.health_checks import ChatRunsHealthCheck
+        from baserow.core.chat_runs.pages import ChatRunsPageType
+        from baserow.ws.registries import page_registry
+
+        plugin_dir.register(ChatRunsHealthCheck)
+        page_registry.register(ChatRunsPageType())
+        register_async_stream_path("api:chat_runs:stream", methods=("GET",))
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401

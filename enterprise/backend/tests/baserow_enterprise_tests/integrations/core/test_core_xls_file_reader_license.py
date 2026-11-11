@@ -21,7 +21,9 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.registries import service_type_registry
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
-from baserow_enterprise.automation.nodes.node_types import CoreXLSFileReaderNodeType
+from baserow_enterprise.automation.nodes.node_types import (
+    CoreXLSFileReaderActionNodeType,
+)
 from baserow_enterprise.builder.workflow_actions.models import (
     CoreXLSFileReaderWorkflowAction,
 )
@@ -190,7 +192,7 @@ def test_core_xls_file_reader_automation_node_requires_enterprise_license(
 ):
     user = enterprise_data_fixture.create_user()
     workflow = enterprise_data_fixture.create_automation_workflow(user)
-    node_type = CoreXLSFileReaderNodeType()
+    node_type = CoreXLSFileReaderActionNodeType()
 
     enterprise_data_fixture.delete_all_licenses()
 
@@ -220,7 +222,7 @@ def test_core_xls_file_reader_automation_node_dispatch_requires_enterprise_licen
     service = enterprise_data_fixture.create_enterprise_core_xls_file_reader_service()
     node = enterprise_data_fixture.create_automation_node(
         workflow=workflow,
-        type=CoreXLSFileReaderNodeType.type,
+        type=CoreXLSFileReaderActionNodeType.type,
         service=service,
     )
 

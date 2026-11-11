@@ -1,6 +1,9 @@
 import json
 from unittest.mock import MagicMock
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
@@ -245,6 +248,7 @@ def test_dispatch_workflow_action_doesnt_trigger_formula_recursion(data_fixture)
     database = data_fixture.create_database_application(workspace=workspace)
     builder = data_fixture.create_builder_application(workspace=workspace)
     table, fields, rows = data_fixture.build_table(
+        database=database,
         user=user,
         columns=[
             ("Name", "text"),
@@ -297,3 +301,32 @@ def test_dispatch_workflow_action_doesnt_trigger_formula_recursion(data_fixture)
         "Name": "AudiOrange",
         "My Color": None,
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("as_base", [True, False])
+def test_get_workflow_action_for_update_locks_the_service_of_any_instance(
+    data_fixture, as_base
+):
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_button_element(page=page)
+    service = data_fixture.create_local_baserow_upsert_row_service()
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK.value, service=service
+    )
+    given = (
+        BuilderWorkflowAction.objects.get(id=workflow_action.id)
+        if as_base
+        else workflow_action
+    )
+
+    with CaptureQueriesContext(connection) as queries:
+        fresh = BuilderWorkflowActionHandler().get_workflow_action_for_update(given)
+
+    service_locks = [
+        query["sql"]
+        for query in queries.captured_queries
+        if "FOR UPDATE" in query["sql"] and '"core_service"' in query["sql"]
+    ]
+    assert len(service_locks) == 1
+    assert fresh.service_id == service.id

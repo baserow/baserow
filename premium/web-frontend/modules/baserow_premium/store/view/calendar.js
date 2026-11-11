@@ -18,6 +18,7 @@ import {
   getUserTimeZone,
 } from '@baserow/modules/core/utils/date'
 import {
+  canTellIfDeletedRowWasCounted,
   extractChangedFields,
   getRowMetadata,
   resolveBeforeRow,
@@ -687,8 +688,29 @@ export const actions = {
     { dispatch, commit, getters },
     { view, row, fields }
   ) {
+    const current = getters.findStackIdAndIndex(row.id)
+    if (current !== undefined) {
+      const currentStackId = current[0]
+      const currentIndex = current[1]
+      const currentRow = current[2]
+      commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
+      commit('DECREASE_COUNT', { stackId: currentStackId })
+      return currentRow
+    }
+
     row = clone(row)
     populateRow(row)
+
+    const canTellIfCounted = canTellIfDeletedRowWasCounted({
+      row,
+      view,
+      fields,
+      fieldOptions: getters.getAllFieldOptions,
+    })
+    if (!canTellIfCounted) {
+      return
+    }
+
     dispatch('updateSearchMatchesForRow', { row, fields })
 
     const matchesFilters = await dispatch('rowMatchesFilters', {
@@ -707,15 +729,7 @@ export const actions = {
       ? moment.tz(value, timezone).format('YYYY-MM-DD')
       : null
     const stack = getters.getDateStack(stackId)
-    const current = getters.findStackIdAndIndex(row.id)
-    if (current !== undefined) {
-      const currentStackId = current[0]
-      const currentIndex = current[1]
-      const currentRow = current[2]
-      commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
-      commit('DECREASE_COUNT', { stackId: currentStackId })
-      return currentRow
-    } else if (stack) {
+    if (stack) {
       commit('DECREASE_COUNT', { stackId })
     }
 

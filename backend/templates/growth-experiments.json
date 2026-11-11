@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Growth Experiments",
+    "description": "Run growth experiments with partners and measure the results.",
     "icon": "iconoir-user-scan",
     "keywords": [
         "growth experiment",

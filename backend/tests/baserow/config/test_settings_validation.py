@@ -37,3 +37,59 @@ def test_non_positive_realtime_replay_retention_is_rejected(retention_hours: str
         "BASEROW_REALTIME_REPLAY_RETENTION_HOURS must be a positive integer"
         in result.stderr
     )
+
+
+@pytest.mark.parametrize(
+    "configured,expected", [(None, "None"), ("", "None"), ("0", "None"), ("10", "10")]
+)
+def test_agent_workspace_reply_limit_is_optional(configured: str | None, expected: str):
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+    name = "BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE"
+    if configured is None:
+        env.pop(name, None)
+    else:
+        env[name] = configured
+
+    result = subprocess.run(  # noqa: S603 - only the current interpreter runs fixed code.
+        [
+            sys.executable,
+            "-c",
+            "from baserow.config.settings import base; "
+            "print(base.BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE)",
+        ],
+        check=False,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    "configured_length,expected_length",
+    [("", "12"), ("3", "7"), ("20", "20"), ("50", "50"), ("60", "50")],
+)
+def test_workspace_invitation_link_length_defaults_to_12_between_7_and_50(
+    configured_length: str, expected_length: str
+):
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join(sys.path),
+        "BASEROW_WORKSPACE_INVITATION_LINK_LENGTH": configured_length,
+    }
+    result = subprocess.run(  # noqa: S603 - only the current interpreter runs fixed code.
+        [
+            sys.executable,
+            "-c",
+            "from baserow.config.settings import base; "
+            "print(base.BASEROW_WORKSPACE_INVITATION_LINK_LENGTH)",
+        ],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+    assert result.stdout.strip().splitlines()[-1] == expected_length

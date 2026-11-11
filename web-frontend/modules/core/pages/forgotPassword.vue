@@ -178,8 +178,7 @@ const sendLink = async () => {
   hideError()
 
   try {
-    const resetUrl = `${config.public.baserowEmbeddedShareUrl}/reset-password`
-    await AuthService(client).sendResetPasswordEmail(formData.email, resetUrl)
+    await AuthService(client).sendResetPasswordEmail(formData.email)
     success.value = true
     loading.value = false
   } catch (err) {

@@ -24,10 +24,22 @@ export async function getTokenAuth(
   return {
     name: response.data.user.first_name,
     email: response.data.user.username,
+    password: String(password),
     language: response.data.user.language,
     accessToken: response.data.access_token,
     refreshToken: response.data.refresh_token,
   };
+}
+
+export async function getBrowserRefreshToken(user: User): Promise<string> {
+  /**
+   * Returns a new refresh token to log the browser in with. Refreshing rotates
+   * the refresh token, so one the browser already used stops working.
+   */
+  if (!user.password) {
+    return user.refreshToken;
+  }
+  return (await getTokenAuth(user.email, user.password)).refreshToken;
 }
 
 export async function getStaffUser(): Promise<User> {

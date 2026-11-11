@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes sensitive data filtering in Dashboard exports and missing integrations during imports",
+    "issue_origin": "github",
+    "issue_number": 6330,
+    "domain": "dashboard",
+    "bullet_points": [],
+    "created_at": "2026-10-20"
+}

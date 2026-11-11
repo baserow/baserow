@@ -15,11 +15,13 @@ from baserow.core.mcp.actions import (
     CreateMCPEndpointActionType,
     DeleteMCPEndpointActionType,
     UpdateMCPEndpointActionType,
+    UpdateMCPEndpointToolsActionType,
 )
 from baserow.core.mcp.exceptions import (
     MaximumUniqueEndpointTriesError,
     MCPEndpointDoesNotBelongToUser,
     MCPEndpointDoesNotExist,
+    MCPToolsNotAvailable,
 )
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.models import MCPEndpoint
@@ -28,6 +30,7 @@ from .errors import (
     ERROR_MAXIMUM_UNIQUE_ENDPOINT_TRIES,
     ERROR_MCP_ENDPOINT_DOES_NOT_BELONG_TO_USER,
     ERROR_MCP_ENDPOINT_DOES_NOT_EXIST,
+    ERROR_MCP_TOOLS_NOT_AVAILABLE,
 )
 from .serializers import (
     CreateMCPEndpointSerializer,
@@ -121,7 +124,10 @@ class MCPEndpointView(APIView):
     @extend_schema(
         tags=["MCP endpoints"],
         operation_id="update_mcp_endpoint",
-        description="Updates the MCP endpoint if the authorized user has access to it.",
+        description=(
+            "Updates the name or the tools of the MCP endpoint if the authorized "
+            "user has access to it."
+        ),
         request=UpdateMCPEndpointSerializer,
         responses={
             200: MCPEndpointSerializer,
@@ -129,6 +135,7 @@ class MCPEndpointView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_MCP_ENDPOINT_DOES_NOT_BELONG_TO_USER",
+                    "ERROR_MCP_TOOLS_NOT_AVAILABLE",
                 ]
             ),
             404: get_error_schema(["ERROR_MCP_ENDPOINT_DOES_NOT_EXIST"]),
@@ -140,6 +147,7 @@ class MCPEndpointView(APIView):
             MCPEndpointDoesNotExist: ERROR_MCP_ENDPOINT_DOES_NOT_EXIST,
             MCPEndpointDoesNotBelongToUser: ERROR_MCP_ENDPOINT_DOES_NOT_BELONG_TO_USER,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            MCPToolsNotAvailable: ERROR_MCP_TOOLS_NOT_AVAILABLE,
         }
     )
     @transaction.atomic
@@ -152,9 +160,14 @@ class MCPEndpointView(APIView):
             base_queryset=MCPEndpoint.objects.select_for_update(of=("self",)),
         )
 
-        endpoint = action_type_registry.get(UpdateMCPEndpointActionType.type).do(
-            request.user, endpoint, data["name"]
-        )
+        if "name" in data:
+            endpoint = action_type_registry.get(UpdateMCPEndpointActionType.type).do(
+                request.user, endpoint, data["name"]
+            )
+        if "allowed_tools" in data:
+            endpoint = UpdateMCPEndpointToolsActionType.do(
+                request.user, endpoint, data["allowed_tools"]
+            )
         serializer = MCPEndpointSerializer(endpoint)
         return Response(serializer.data)
 

@@ -361,10 +361,11 @@ export class FieldType extends Registerable {
    * Indicates whether this field type is compatible with the default values
    * feature. By default all writable field types are compatible. Override and
    * return `false` for field types whose row-edit component or write behaviour
-   * is incompatible with default value setting (e.g. the AI field).
+   * is incompatible with default value setting (e.g. the AI field). Write-only
+   * field types are never compatible.
    */
   canBeDefaultValue() {
-    return true
+    return !this.isWriteOnlyField()
   }
 
   /**
@@ -426,6 +427,19 @@ export class FieldType extends Registerable {
    */
   getDefaultValueFieldName() {
     return null
+  }
+
+  /**
+   * Group labels differ from required-input validation: false and zero identify
+   * real groups, while only missing values and empty selections have no label.
+   */
+  isEmptyForGrouping(field, value) {
+    return (
+      value === null ||
+      value === undefined ||
+      value === '' ||
+      (Array.isArray(value) && value.length === 0)
+    )
   }
 
   /**
@@ -928,9 +942,8 @@ export class FieldType extends Registerable {
 
   /**
    * Is called for each field in the row when a row has moved to another position.
-   * Optionally, a different value can be returned here for that field. This is for
-   * example used by the last modified field type to update the last modified value
-   * in real time when a row has moved.
+   * Optionally, a different value can be returned here for fields whose values
+   * depend on the row order.
    */
   onRowMove(row, order, oldOrder, currentField, currentFieldValue) {
     return currentFieldValue
@@ -2547,6 +2560,24 @@ class BaseDateFieldType extends FieldType {
     return RowHistoryFieldDate
   }
 
+  getGroupValueFromRowValue(field, value) {
+    // Date formulas delegate here, but their backend groups keep full timestamps.
+    if (value == null || !field.date_include_time || field.type !== this.type) {
+      return value
+    }
+    return moment.utc(value).startOf('minute').format()
+  }
+
+  getGroupBySort(name, order, field, sortType) {
+    const sort = super.getGroupBySort(name, order, field, sortType)
+    // Equal minute groups fall through to the next group-by or view sort.
+    return (a, b) =>
+      sort(
+        { [name]: this.getGroupValueFromRowValue(field, a[name]) },
+        { [name]: this.getGroupValueFromRowValue(field, b[name]) }
+      )
+  }
+
   getSort(name, order) {
     return (a, b) => {
       if (moment.isMoment(a[name]) && moment.isMoment(b[name])) {
@@ -2910,8 +2941,8 @@ export class CreatedOnLastModifiedBaseFieldType extends BaseDateFieldType {
    * The "new row" value for the new row in the case of LastModified or CreatedOn Fields
    * is simply the current time.
    */
-  getNewRowValue() {
-    return moment().local().format()
+  getNewRowValue(field) {
+    return this.formatValue(field, moment())
   }
 
   shouldFetchDataWhenAdded() {
@@ -2964,16 +2995,8 @@ export class LastModifiedFieldType extends CreatedOnLastModifiedBaseFieldType {
     )
   }
 
-  _onRowChangeOrMove() {
-    return moment().utc().format()
-  }
-
   onRowChange(row, currentField, currentFieldValue) {
-    return this._onRowChangeOrMove()
-  }
-
-  onRowMove(row, order, oldOrder, currentField, currentFieldValue) {
-    return this._onRowChangeOrMove()
+    return this.formatValue(currentField, moment())
   }
 }
 
@@ -4960,7 +4983,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   static getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   parseFromLinkedRowItemValue(field, value) {

@@ -9,7 +9,7 @@
   >
     <template v-if="isUpdate" #sidebar>
       <div class="modal-sidebar__title">
-        {{ $t('agents.updateTitle') }}
+        {{ $t('identities.updateTitle') }}
       </div>
       <ul class="modal-sidebar__nav">
         <li v-for="setting in registeredSettings" :key="setting.getType()">
@@ -30,11 +30,11 @@
     </template>
     <template #content>
       <h2 class="box__title">
-        {{ isUpdate ? selectedSetting?.name : $t('agents.createTitle') }}
+        {{ isUpdate ? selectedSetting?.name : $t('identities.createTitle') }}
       </h2>
       <Error :error="error" />
       <Alert v-if="success" type="success">
-        <template #title>{{ $t('agents.saved') }}</template>
+        <template #title>{{ $t('identities.saved') }}</template>
       </Alert>
       <form @submit.prevent="submit">
         <component
@@ -56,9 +56,9 @@
             type="primary"
             button-type="submit"
             :loading="loading"
-            :disabled="loading || (isUpdate ? !hasChanges : !values.name)"
+            :disabled="loading || (isUpdate ? !hasChanges : !hasValidName)"
           >
-            {{ isUpdate ? $t('agents.save') : $t('agents.create') }}
+            {{ isUpdate ? $t('identities.save') : $t('identities.create') }}
           </Button>
         </div>
       </form>
@@ -132,6 +132,9 @@ export default {
     hasChanges() {
       return Object.keys(this.changedValues).length > 0
     },
+    hasValidName() {
+      return this.values.name.trim().length > 0
+    },
     createSettings() {
       return this.registeredSettings.filter((setting) => setting.showInCreate)
     },
@@ -186,7 +189,12 @@ export default {
     },
     /** Submit only the active page while editing, or every page when creating. */
     async submit() {
-      if (this.loading || (this.isUpdate && !this.hasChanges)) return
+      if (
+        this.loading ||
+        (this.isUpdate && !this.hasChanges) ||
+        (!this.isUpdate && !this.hasValidName)
+      )
+        return
       const openingGeneration = this.openingGeneration
       this.loading = true
       this.success = false
@@ -223,7 +231,7 @@ export default {
           this.handleError(error, 'agent', null, {
             name: {
               invalid_name: new ResponseErrorMessage(
-                this.$t('agents.invalidNameTitle'),
+                this.$t('identities.invalidNameTitle'),
                 this.$t('error.nameContainsUrl')
               ),
             },

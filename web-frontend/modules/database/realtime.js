@@ -2,6 +2,7 @@ import { retryRealtimeRecovery } from '@baserow/modules/core/plugins/realtimePro
 import { clone } from '@baserow/modules/core/utils/object'
 import { anyFieldsNeedFetch } from '@baserow/modules/database/store/field'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import { applyRowsUpdated } from '@baserow/modules/database/utils/row'
 import {
   forceUpdateViewConfiguration,
   getRefreshFlags,
@@ -224,35 +225,9 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
-  realtime.registerEvent('rows_updated', async (context, data) => {
-    const { app, store } = context
-    const beforeById = Object.fromEntries(
-      (data.rows_before_update || []).map((r) => [r.id, r])
-    )
-    for (const viewType of Object.values(app.$registry.getAll('view'))) {
-      for (let i = 0; i < data.rows.length; i++) {
-        const row = data.rows[i]
-        const rowBeforeUpdate = beforeById[row.id] || { id: row.id }
-
-        await viewType.rowUpdated(
-          context,
-          data.table_id,
-          store.getters['field/getAll'],
-          rowBeforeUpdate,
-          row,
-          data.metadata[row.id],
-          data.updated_field_ids,
-          'page/'
-        )
-      }
-    }
-    for (let i = 0; i < data.rows.length; i++) {
-      store.dispatch('rowModal/updated', {
-        tableId: data.table_id,
-        values: data.rows[i],
-      })
-    }
-  })
+  realtime.registerEvent('rows_updated', ({ app, store }, data) =>
+    applyRowsUpdated(app.$registry, store, data)
+  )
 
   realtime.registerEvent(
     'rows_ai_values_generation_error',

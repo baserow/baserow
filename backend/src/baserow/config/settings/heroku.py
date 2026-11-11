@@ -52,13 +52,14 @@ if REDIS_PROTOCOL == "rediss" or "rediss" in REDIS_TLS_URL:  # noqa: F405
         "password": parsed_redis_url.password,
         "connection_class": CustomSSLConnection,
         "ssl_context": ssl_context,
+        "socket_timeout": CHANNELS_REDIS_SOCKET_TIMEOUT,  # noqa: F405
     }
     CHANNEL_LAYERS["default"]["CONFIG"]["hosts"] = [CHANNELS_REDIS_HOST]  # noqa: F405
 
     # The built in healthcheck does not handle customizing ssl_cert_reqs...
     INSTALLED_APPS.remove("health_check.contrib.redis")  # noqa: F405
     for CACHE in CACHES.values():  # noqa: F405
-        CACHE["OPTIONS"]["CONNECTION_POOL_KWARGS"] = {"ssl_cert_reqs": None}
+        CACHE["OPTIONS"]["CONNECTION_POOL_KWARGS"]["ssl_cert_reqs"] = None
 
 # Set the limit of the connection pool based on the amount of workers that must be
 # started with a limit of 10, which is the default value. This is needed because the

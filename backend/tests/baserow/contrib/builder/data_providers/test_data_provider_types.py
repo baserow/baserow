@@ -31,6 +31,7 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.cache import local_cache
 from baserow.core.formula.exceptions import (
     InvalidFormulaContext,
@@ -175,7 +176,9 @@ def test_data_source_data_provider_get_data_chunk(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -220,7 +223,9 @@ def test_data_source_data_provider_get_data_chunk_with_list_data_source(data_fix
             ["Volkswagen", "Green"],
         ],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -282,7 +287,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula(data_fixture):
         ],
     )
     view = data_fixture.create_grid_view(user, table=table)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -341,6 +348,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -353,7 +361,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_datasource(
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -422,6 +432,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -434,7 +445,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_list_dataso
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -646,6 +659,7 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_another_dat
     )
     view = data_fixture.create_grid_view(user, table=table)
     table2, fields2, rows2 = data_fixture.build_table(
+        database=table.database,
         user=user,
         columns=[
             ("Id", "text"),
@@ -658,7 +672,9 @@ def test_data_source_data_provider_get_data_chunk_with_formula_using_another_dat
         ],
     )
     view2 = data_fixture.create_grid_view(user, table=table2)
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )
@@ -1430,6 +1446,18 @@ def test_user_data_provider_get_data_chunk(data_fixture):
     )
 
 
+def test_user_data_provider_refuses_a_property_the_user_does_not_have():
+    from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
+
+    provider = UserDataProviderType()
+    for name in UserDataProviderType.PROPERTIES:
+        assert provider.is_valid([name])
+    assert provider.is_valid([])
+
+    with pytest.raises(BaserowFormulaSyntaxError, match="'first_name'"):
+        provider.is_valid(["first_name"])
+
+
 @pytest.mark.django_db
 def test_translate_default_user_role_returns_same_role(data_fixture):
     """
@@ -1501,7 +1529,7 @@ def test_translate_default_user_role_returns_translated_role(data_fixture):
 
 
 @pytest.mark.django_db
-def test_current_record_provider_get_data_chunk_without_record_index(data_fixture):
+def test_current_record_provider_get_data_chunk_without_index_path(data_fixture):
     current_record_provider = CurrentRecordDataProviderType()
 
     user, token = data_fixture.create_user_and_token()
@@ -1518,12 +1546,18 @@ def test_current_record_provider_get_data_chunk_without_record_index(data_fixtur
     dispatch_context = BuilderDispatchContext(fake_request, page, workflow_action)
     assert current_record_provider.get_data_chunk(dispatch_context, ["path"]) is None
 
+    fake_request.data = {"metadata": json.dumps({"current_record": {"index": 1}})}
+    dispatch_context = BuilderDispatchContext(fake_request, page, workflow_action)
+    assert current_record_provider.get_data_chunk(dispatch_context, ["__idx__"]) is None
+
 
 def test_current_record_provider_get_data_chunk_for_idx():
     current_record_provider = CurrentRecordDataProviderType()
     fake_request = HttpRequest()
     fake_request.data = {
-        "metadata": json.dumps({"current_record": {"index": 123, "record_id": 123}})
+        "metadata": json.dumps(
+            {"current_record": {"index_path": [2, 123], "record_id": 123}}
+        )
     }
     dispatch_context = BuilderDispatchContext(
         fake_request, Mock(builder=Mock(get_workspace=Mock(return_value=Mock(id=-1))))
@@ -1547,7 +1581,9 @@ def test_current_record_provider_get_data_chunk(data_fixture):
         ],
     )
     field = table.field_set.get(name="Animal")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
@@ -1570,7 +1606,7 @@ def test_current_record_provider_get_data_chunk(data_fixture):
     fake_request.user = user
     fake_request.data = {
         "metadata": json.dumps(
-            {"current_record": {"index": 0, "record_id": rows[0].id}}
+            {"current_record": {"index_path": [0], "record_id": rows[0].id}}
         )
     }
 
@@ -1587,6 +1623,65 @@ def test_current_record_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
+def test_current_record_provider_for_table_bound_to_parent_property(data_fixture):
+    user, _ = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    options_field = data_fixture.create_multiple_select_field(table=table)
+    first_option = data_fixture.create_select_option(field=options_field, value="Green")
+    second_option = data_fixture.create_select_option(field=options_field, value="Blue")
+    parent_row = RowHandler().create_row(
+        user=user,
+        table=table,
+        values={options_field.db_column: [first_option.id, second_option.id]},
+    )
+
+    page = data_fixture.create_builder_page(
+        user=user,
+        builder=data_fixture.create_builder_application(
+            workspace=table.database.workspace
+        ),
+    )
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        page=page, table=table, integration_args={"authorized_user": user}
+    )
+    repeat = data_fixture.create_builder_repeat_element(
+        page=page, data_source=data_source
+    )
+    property_table = data_fixture.create_builder_table_element(
+        page=page,
+        data_source=None,
+        schema_property=options_field.db_column,
+        reference_element=repeat,
+        position=GraphPointPosition.CHILD,
+        fields=[{"name": "Open", "type": "button", "config": {"label": "'Open'"}}],
+    )
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=property_table, event=EventTypes.CLICK, user=user
+    )
+    request = HttpRequest()
+    request.user = user
+    request.data = {
+        "metadata": json.dumps(
+            {
+                "current_record": {
+                    "index_path": [0, 1],
+                    "record_id": parent_row.id,
+                },
+                "data_source": {},
+            }
+        )
+    }
+    dispatch_context = BuilderDispatchContext(
+        request, page, workflow_action, only_expose_public_allowed_properties=False
+    )
+
+    assert (
+        CurrentRecordDataProviderType().get_data_chunk(dispatch_context, ["value"])
+        == "Blue"
+    )
+
+
+@pytest.mark.django_db
 def test_current_record_provider_with_element_created_after_it(data_fixture):
     user, token = data_fixture.create_user_and_token()
 
@@ -1596,7 +1691,9 @@ def test_current_record_provider_with_element_created_after_it(data_fixture):
         rows=[["Apple"], ["Banana"], ["Cherry"]],
     )
     field = table.field_set.get(name="Fruit")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
 
     data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
@@ -1622,7 +1719,7 @@ def test_current_record_provider_with_element_created_after_it(data_fixture):
     fake_request.user = user
     fake_request.data = {
         "metadata": json.dumps(
-            {"current_record": {"index": 0, "record_id": rows[0].id}}
+            {"current_record": {"index_path": [0], "record_id": rows[0].id}}
         )
     }
 

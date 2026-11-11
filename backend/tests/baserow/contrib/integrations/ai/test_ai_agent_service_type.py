@@ -9,6 +9,7 @@ import pytest
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -35,8 +36,8 @@ from baserow.core.generative_ai.registries import (
 )
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.services.exceptions import (
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
-    UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.trash.handler import TrashHandler
@@ -731,7 +732,9 @@ def test_ai_agent_service_dispatch_ai_error(data_fixture, settings):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
-    with pytest.raises(UnexpectedDispatchException) as exc_info:
+    # A provider that fails to answer, e.g. because it is overloaded or rate
+    # limited, may answer a later attempt: the automation runner may retry.
+    with pytest.raises(RuntimeDispatchException) as exc_info:
         with mock_ai_prompt(should_fail=True):
             service_type.dispatch(service, dispatch_context)
 
@@ -785,6 +788,44 @@ def test_ai_agent_service_dispatch_with_integration_settings(data_fixture, setti
         call_kwargs = mock_prompt.call_args[1]
         assert "settings_override" in call_kwargs
         assert call_kwargs["settings_override"]["api_key"] == "sk-integration-key"
+
+
+@pytest.mark.django_db
+def test_ai_agent_service_dispatch_uses_api_key_kept_on_update(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = IntegrationService().create_integration(
+        user,
+        AIIntegrationType(),
+        application=application,
+        ai_settings={"openai": {"api_key": "sk-integration-key", "models": ["gpt-4"]}},
+    )
+    integration = (
+        IntegrationService()
+        .update_integration(
+            user, integration, ai_settings={"openai": {"models": ["gpt-4o"]}}
+        )
+        .integration
+    )
+
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-4o",
+        ai_output_type="text",
+        ai_prompt="'Test'",
+    )
+
+    with patch(
+        "baserow.core.generative_ai.generative_ai_model_types.OpenAIGenerativeAIModelType.prompt"
+    ) as mock_prompt:
+        mock_prompt.return_value = "Response"
+        service.get_type().dispatch(service, FakeDispatchContext())
+
+    settings_override = mock_prompt.call_args[1]["settings_override"]
+    assert settings_override["api_key"] == "sk-integration-key"
+    assert settings_override["models"] == ["gpt-4o"]
 
 
 @pytest.mark.django_db
@@ -1301,7 +1342,7 @@ def test_prepare_values_rejects_nonexistent_integration(data_fixture):
     integration_id = integration.id
     integration.delete()
 
-    with pytest.raises(DRFValidationError, match="integration.*does not exist"):
+    with pytest.raises(RequestBodyValidationException) as exc:
         AIAgentServiceType().prepare_values(
             {
                 "integration_id": integration_id,
@@ -1310,6 +1351,9 @@ def test_prepare_values_rejects_nonexistent_integration(data_fixture):
             },
             user,
         )
+    assert exc.value.detail["detail"]["integration_id"][0]["code"] == (
+        "invalid_integration"
+    )
 
 
 @pytest.mark.django_db

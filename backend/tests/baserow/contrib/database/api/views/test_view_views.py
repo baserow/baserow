@@ -28,6 +28,7 @@ from baserow.contrib.database.views.models import (
     GridView,
     GridViewFieldOptions,
     View,
+    ViewDefaultValue,
 )
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
@@ -103,7 +104,6 @@ def test_list_views(api_client, data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
     data_fixture.create_template(workspace=table_1.database.workspace)
-    table_1.database.workspace.has_template.cache_clear()
     url = reverse("api:database:views:list", kwargs={"table_id": table_1.id})
     response = api_client.get(url)
     assert response.status_code == HTTP_200_OK
@@ -559,7 +559,6 @@ def test_get_view_field_options_as_template(api_client, data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
     data_fixture.create_template(workspace=grid.table.database.workspace)
-    grid.table.database.workspace.has_template.cache_clear()
     url = reverse("api:database:views:field_options", kwargs={"view_id": grid.id})
     response = api_client.get(url)
     assert response.status_code == HTTP_200_OK
@@ -1636,7 +1635,7 @@ def test_patch_default_values_with_interesting_table(api_client, data_fixture):
         field_type = field_object["type"]
         field_name = f"field_{field.id}"
 
-        if field.read_only or field_type.read_only:
+        if field.read_only or field_type.read_only or field_type.write_only:
             continue
 
         if field_name not in row_data:
@@ -1715,7 +1714,7 @@ def test_default_values_stored_in_request_format(api_client, data_fixture):
         field_type = field_object["type"]
         field_name = f"field_{field.id}"
 
-        if field.read_only or field_type.read_only:
+        if field.read_only or field_type.read_only or field_type.write_only:
             continue
 
         if field_name not in row_data:
@@ -1766,6 +1765,25 @@ def test_default_values_stored_in_request_format(api_client, data_fixture):
         assert stored_value == sent_value, (
             f"field_{field_id}: stored value {stored_value!r} != sent value {sent_value!r}"
         )
+
+
+@pytest.mark.django_db
+def test_patch_default_values_password_field(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    password_field = data_fixture.create_password_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [{"field": password_field.id, "enabled": True, "value": "secret"}],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
 
 
 @pytest.mark.django_db

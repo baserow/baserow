@@ -27,6 +27,7 @@ class Command(BaseCommand):
         template_json = {
             "baserow_template_version": 1,
             "name": template_file_name,
+            "description": "",
             "icon": "iconoir-user",
             "keywords": ["Template"],
             "categories": ["Test category 1"],

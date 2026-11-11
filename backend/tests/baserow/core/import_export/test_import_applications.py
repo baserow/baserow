@@ -8,7 +8,9 @@ from django.core.exceptions import SuspiciousOperation
 import pytest
 
 from baserow.core.deferred_callbacks import register_deferred_callback
-from baserow.core.import_export.exceptions import ImportExportResourceInvalidFile
+from baserow.core.import_export.exceptions import (
+    ImportExportResourceInvalidFile,
+)
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import Application
 from baserow.core.storage import get_default_storage

@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 
 from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
 from baserow.core.cache import local_cache
+from baserow.core.context import get_private_link_token
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
     ListIntegrationsApplicationOperationType,
@@ -18,6 +19,7 @@ from baserow.core.notifications.operations import (
 from baserow.core.user_sources.operations import (
     ListUserSourcesApplicationOperationType,
     LoginUserSourceOperationType,
+    ReadUserSourceOperationType,
 )
 
 from .agents.operations import (
@@ -34,18 +36,23 @@ from .exceptions import (
     UserNotInWorkspace,
 )
 from .operations import (
+    CreateInvitationLinkWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
     CreateWorkspaceOperationType,
+    DeleteWorkspaceInvitationLinkOperationType,
     DeleteWorkspaceInvitationOperationType,
     DeleteWorkspaceOperationType,
     DeleteWorkspaceUserOperationType,
     ListApplicationsWorkspaceOperationType,
+    ListInvitationLinksWorkspaceOperationType,
     ListInvitationsWorkspaceOperationType,
     ListWorkspacesOperationType,
     ListWorkspaceUsersWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
     ReadWorkspaceOperationType,
+    RestoreWorkspaceOperationType,
     UpdateSettingsOperationType,
+    UpdateWorkspaceInvitationLinkOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
@@ -57,6 +64,7 @@ from .registries import (
     subject_type_registry,
 )
 from .subjects import AnonymousUserSubjectType, UserSubjectType
+from .trash.operations import EmptyWorkspaceTrashOperationType
 
 User = get_user_model()
 
@@ -152,7 +160,9 @@ class StaffOnlyPermissionManagerType(PermissionManagerType):
 
 class AllowIfTemplatePermissionManagerType(PermissionManagerType):
     """
-    Allows read operation on templates.
+    Allows read operations on the templates the actor can open, see
+    `Workspace.has_openable_template`, and the one whose private link the request
+    was made with, see `get_private_link_token`.
     """
 
     type = "allow_if_template"
@@ -163,31 +173,50 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         ListApplicationsWorkspaceOperationType.type,
         ListIntegrationsApplicationOperationType.type,
         ListUserSourcesApplicationOperationType.type,
+        ReadUserSourceOperationType.type,
         LoginUserSourceOperationType.type,
         ReadFieldRuleOperationType.type,
     ]
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
+        allowed_checks = [
+            check
+            for check in checks
+            if check.operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
+        ]
+        if not allowed_checks or not workspace:
+            return {}
+
+        # Checked once per actor, because it can need a query for a user template.
+        openable_by = {}
         result = {}
-
-        def has_template():
-            return workspace and workspace.has_template()
-
-        for check in checks:
-            if (
-                check.operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
-                and has_template()
-            ):
+        for check in allowed_checks:
+            if check.actor not in openable_by:
+                openable_by[check.actor] = workspace.has_openable_template(
+                    check.actor,
+                    private_link_token=get_private_link_token(),
+                    allow_instance_admin=True,
+                )
+            if openable_by[check.actor]:
                 result[check] = True
-
         return result
 
     def get_permissions_object(self, actor, workspace=None):
+        # Not every template the actor can open, so that the list doesn't grow with
+        # the public templates of other users. Revisions can share a workspace, so
+        # it's listed once. The ordering is cleared, because it would otherwise be
+        # part of the distinct.
+        token = get_private_link_token()
+        workspace_template_ids = (
+            Template.objects.official_owned_or_linked(actor, private_link_token=token)
+            .openable(actor, private_link_token=token)
+            .order_by()
+            .values_list("workspace_id", flat=True)
+            .distinct()
+        )
         return {
             "allowed_operations_on_templates": self.OPERATION_ALLOWED_ON_TEMPLATES,
-            "workspace_template_ids": list(
-                Template.objects.values_list("workspace_id", flat=True)
-            ),
+            "workspace_template_ids": list(workspace_template_ids),
         }
 
     def filter_queryset(
@@ -197,10 +226,17 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         queryset,
         workspace=None,
     ):
-        def has_template():
-            return workspace and workspace.has_template()
+        def has_openable_template():
+            return workspace and workspace.has_openable_template(
+                actor,
+                private_link_token=get_private_link_token(),
+                allow_instance_admin=True,
+            )
 
-        if operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES and has_template():
+        if (
+            operation_name in self.OPERATION_ALLOWED_ON_TEMPLATES
+            and has_openable_template()
+        ):
             return queryset, True
 
     def filter_queryset_for_workspaces(
@@ -212,7 +248,11 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         return {
             workspace.id: WORKSPACE_FILTER_ALLOW_ALL
             for workspace in workspaces
-            if workspace.has_template()
+            if workspace.has_openable_template(
+                actor,
+                private_link_token=get_private_link_token(),
+                allow_instance_admin=True,
+            )
         }
 
 
@@ -379,9 +419,15 @@ class BasicPermissionManagerType(PermissionManagerType):
         ReadInvitationWorkspaceOperationType.type,
         UpdateWorkspaceInvitationType.type,
         DeleteWorkspaceInvitationOperationType.type,
+        ListInvitationLinksWorkspaceOperationType.type,
+        CreateInvitationLinkWorkspaceOperationType.type,
+        UpdateWorkspaceInvitationLinkOperationType.type,
+        DeleteWorkspaceInvitationLinkOperationType.type,
         ListWorkspaceUsersWorkspaceOperationType.type,
         UpdateWorkspaceOperationType.type,
         DeleteWorkspaceOperationType.type,
+        RestoreWorkspaceOperationType.type,
+        EmptyWorkspaceTrashOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
         CreateAgentOperationType.type,

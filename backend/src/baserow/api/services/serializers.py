@@ -64,7 +64,9 @@ class ServiceSerializer(serializers.ModelSerializer):
 class PublicServiceSerializer(serializers.ModelSerializer):
     """
     Basic service serializer mostly for public returned values.
-    Don't add sensitive data here.
+    Don't add sensitive data here. The schema and the context data come from the
+    public variants of the service type, so that a service type can leave out
+    what anonymous visitors must not see.
     """
 
     type = serializers.SerializerMethodField(help_text="The type of the service.")
@@ -76,13 +78,13 @@ class PublicServiceSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_context_data(self, instance):
-        return instance.get_type().get_context_data(
+        return instance.get_type().get_public_context_data(
             instance.specific, allowed_fields=self.context.get("allowed_fields")
         )
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_schema(self, instance):
-        return instance.get_type().generate_schema(
+        return instance.get_type().generate_public_schema(
             instance.specific, allowed_fields=self.context.get("allowed_fields")
         )
 

@@ -545,7 +545,9 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
     model = table.get_model()
     first_row = model.objects.all()[0]
     file_field = table.field_set.get(name="File")
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     button_element = data_fixture.create_builder_button_element(page=page)
     file_input_element = data_fixture.create_builder_element(

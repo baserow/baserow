@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Employee Directory",
+    "description": "Look up employees by department, unit and office location.",
     "icon": "iconoir-user-square",
     "keywords": [
         "employees",

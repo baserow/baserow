@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Call Center Log",
+    "description": "Log support calls with issue codes, solutions, customers and agents.",
     "icon": "iconoir-phone-add",
     "keywords": [
         "calls",

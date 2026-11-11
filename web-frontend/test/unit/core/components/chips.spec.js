@@ -21,6 +21,13 @@ describe('Chips.vue', () => {
 
     expect(wrapper.classes()).not.toContain('chips--active')
   })
+
+  it('renders the small size', () => {
+    const wrapper = shallowMount(Chips, { propsData: { size: 'small' } })
+    expect(wrapper.classes()).toContain('chips--small')
+    expect(shallowMount(Chips).classes()).not.toContain('chips--small')
+  })
+
   it('renders chips text in slot', () => {
     const text = 'Click me'
     const wrapper = shallowMount(Chips, {

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Build password reset, email change, invitation and notification links from BASEROW_EMBEDDED_SHARE_URL. The base_url request field of these endpoints is now ignored.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

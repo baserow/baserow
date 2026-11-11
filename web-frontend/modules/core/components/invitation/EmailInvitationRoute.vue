@@ -2,119 +2,235 @@
   <div>
     <h2 class="box__title">{{ $t('inviteModal.emailTitle') }}</h2>
     <Error :error="error"></Error>
-    <WorkspaceInviteForm
-      ref="inviteForm"
+    <InviteInput
+      ref="input"
       :workspace="workspace"
-      @submitted="inviteSubmitted"
+      :roles="roles"
+      :options="options"
+      :disabled="inviting"
+      @add="invite"
     >
-      <template #default>
-        <CaptchaWidget
-          ref="captchaWidget"
-          class="col col-12 margin-top-2"
-          context="workspace_invitation"
-          @token="onCaptchaToken"
-        />
-        <div class="col col-12 align-right margin-top-2">
-          <Button
-            type="primary"
-            :loading="inviteLoading"
-            :disabled="inviteLoading"
-          >
-            {{ $t('membersSettings.membersInviteModal.submit') }}
-          </Button>
-        </div>
-      </template>
-      <template #roleSelectorLabel>
-        <HelpIcon
-          class="margin-right-1"
-          :tooltip="$t('membersSettings.membersInviteModal.helpIconText')"
-        />
-      </template>
-    </WorkspaceInviteForm>
+      <CaptchaWidget
+        ref="captchaWidget"
+        class="margin-top-2"
+        context="workspace_invitation"
+        @token="onCaptchaToken"
+      />
+      <h3 class="invite-list__title">{{ $t('inviteModal.pendingTitle') }}</h3>
+      <div v-if="loading" class="loading"></div>
+      <ScopeAccessList
+        v-else
+        :items="accessItems"
+        :roles="roles"
+        :workspace="workspace"
+        :empty-title="$t('inviteModal.pendingEmptyTitle')"
+        :empty-description="$t('inviteModal.pendingEmptyDescription')"
+        @role-updated="updateItemRole"
+      />
+    </InviteInput>
   </div>
 </template>
 
 <script>
-import error from '@baserow/modules/core/mixins/error'
-import WorkspaceInviteForm from '@baserow/modules/core/components/workspace/WorkspaceInviteForm'
 import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
+import InviteInput from '@baserow/modules/core/components/invitation/InviteInput'
+import ScopeAccessList from '@baserow/modules/core/components/invitation/ScopeAccessList'
+import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
+import error from '@baserow/modules/core/mixins/error'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
-import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
+/**
+ * Invites people into the workspace by email and manages the pending
+ * invitations. One input takes any number of addresses, typed or pasted, and
+ * every address gets its own invitation with the chosen role. Once sent they
+ * join the pending invitations listed below the input, where their role can be
+ * changed or the invitation cancelled; after a failure the addresses that were
+ * not invited yet stay in the input. The members of the workspace and the
+ * pending invitations are known to the input by address only, as a reason not
+ * to invite them again.
+ */
 export default {
   name: 'EmailInvitationRoute',
-  components: { WorkspaceInviteForm, CaptchaWidget },
-  mixins: [error],
+  components: { CaptchaWidget, ScopeAccessList, InviteInput },
+  mixins: [error, emailInvitations],
   props: {
     workspace: {
       type: Object,
       required: true,
     },
+    target: {
+      type: Object,
+      required: true,
+    },
+    targetType: {
+      type: Object,
+      required: true,
+    },
   },
-  emits: ['submitted'],
   data() {
     return {
-      inviteLoading: false,
-      captchaToken: '',
+      inviting: false,
+      loading: true,
+      invitations: [],
+      updatingInvitationIds: [],
+    }
+  },
+  computed: {
+    roles() {
+      return this.targetType.getRoles(this.workspace, this.target)
+    },
+    pendingEmails() {
+      return this.invitations.map(({ email }) => email)
+    },
+    /**
+     * Workspace invitations use the same rows as scoped access. Editing and
+     * cancellation are independent capabilities on each invitation; cancelling
+     * here removes the whole invitation, including any pending scoped grants.
+     */
+    accessItems() {
+      return this.invitations.map((invitation) => {
+        const canUpdate = this.$hasPermission(
+          'invitation.update',
+          invitation,
+          this.workspace.id
+        )
+        const canRemove = this.$hasPermission(
+          'invitation.delete',
+          invitation,
+          this.workspace.id
+        )
+        return {
+          key: `invitation:${invitation.id}`,
+          name: invitation.email,
+          subtitle:
+            this.workspace._.roles.find(
+              (role) => role.uid === invitation.permissions
+            )?.invitationSubtitle ?? null,
+          icon: 'iconoir-mail',
+          color: 'neutral',
+          roleUid: invitation.permissions,
+          roles: canUpdate ? this.roles : [],
+          allowRemovingRole: canRemove,
+          disabled:
+            this.inviting ||
+            this.updatingInvitationIds.includes(invitation.id) ||
+            (!canUpdate && !canRemove),
+          invitation,
+        }
+      })
+    },
+    /**
+     * Nothing here can be picked: the modal invites by address, and these are
+     * the addresses that already belong to someone.
+     */
+    options() {
+      const userType = this.$registry.get('subject', 'auth.User')
+      return [
+        ...(this.workspace.users || []).map((user) => ({
+          ...userType.getInviteOption(user),
+          // Only the address matters when inviting by email.
+          search: user.email,
+          disabledReason: this.$t('inviteInput.alreadyMember'),
+          disabledHint: this.$t('inviteInput.memberHint'),
+        })),
+        ...this.pendingEmails.map((email) => ({
+          key: `invitation:${email}`,
+          type: 'email',
+          email,
+          name: email,
+          search: email,
+          initials: '',
+          icon: 'iconoir-mail',
+          color: 'neutral',
+          disabledReason: this.$t('inviteInput.alreadyInvited'),
+          disabledHint: this.$t('inviteInput.invitedHint'),
+        })),
+      ]
+    },
+  },
+  async mounted() {
+    try {
+      const { data } = await WorkspaceService(this.$client).fetchAllInvitations(
+        this.workspace.id
+      )
+      this.invitations = data
+    } catch (error) {
+      notifyIf(error, 'workspace')
+    } finally {
+      this.loading = false
     }
   },
   methods: {
-    async inviteSubmitted(values) {
-      this.inviteLoading = true
+    /**
+     * Updates a workspace invitation or cancels it entirely. Keep the row until
+     * the request succeeds so a failure preserves both the role and the pending
+     * address. The busy row prevents overlapping changes to the same invitation.
+     */
+    async updateItemRole(item, roleUid) {
+      const invitation = this.invitations.find(
+        ({ id }) => id === item.invitation.id
+      )
+      if (
+        !invitation ||
+        this.updatingInvitationIds.includes(invitation.id) ||
+        !this.$hasPermission(
+          roleUid === null ? 'invitation.delete' : 'invitation.update',
+          invitation,
+          this.workspace.id
+        )
+      ) {
+        return
+      }
+      this.updatingInvitationIds.push(invitation.id)
+      try {
+        const service = WorkspaceService(this.$client)
+        if (roleUid === null) {
+          await service.deleteInvitation(invitation.id)
+          this.invitations = this.invitations.filter(
+            ({ id }) => id !== invitation.id
+          )
+          this.$bus.$emit('invite-deleted', invitation)
+        } else {
+          const { data } = await service.updateInvitation(invitation.id, {
+            permissions: roleUid,
+          })
+          const index = this.invitations.findIndex(
+            ({ id }) => id === invitation.id
+          )
+          this.invitations.splice(index, 1, data)
+          this.$bus.$emit('invite-updated', data)
+        }
+      } catch (error) {
+        notifyIf(error, 'workspace')
+      } finally {
+        this.updatingInvitationIds = this.updatingInvitationIds.filter(
+          (id) => id !== invitation.id
+        )
+      }
+    },
+    async invite(picks, roleUid) {
+      this.inviting = true
       this.hideError()
 
       try {
-        // The public accept url is the page where the user can publicly navigate too,
-        // to accept the workspace invitation.
-        const acceptUrl = `${this.$config.public.baserowEmbeddedShareUrl}/workspace-invitation`
-        const { data } = await WorkspaceService(this.$client).sendInvitation(
-          this.workspace.id,
-          acceptUrl,
-          { ...values, captchaToken: this.captchaToken }
-        )
-        this.$emit('submitted', data)
-      } catch (error) {
-        // The captcha token can only be used once, so a new one must be solved
-        // before the invitation can be sent again.
-        if (this.$refs.captchaWidget) {
-          this.$refs.captchaWidget.reset()
-        }
-        // The backend responds with a generic throttled error, so it can't be
-        // matched on an error code like the ones below.
-        if (error.handler?.isTooManyRequests()) {
-          this.showError(
-            this.$t(
-              'membersSettings.membersInviteModal.errors.tooManyInvitations.title'
-            ),
-            this.$t(
-              'membersSettings.membersInviteModal.errors.tooManyInvitations.text'
-            )
+        await this.sendInvitations(picks, roleUid, (pick, invitation) => {
+          this.$refs.input.remove(pick)
+          const index = this.invitations.findIndex(
+            ({ id }) => id === invitation.id
           )
-          error.handler.handled()
-          this.inviteLoading = false
-          return
-        }
-
-        this.handleError(error, 'workspace', {
-          ERROR_GROUP_USER_ALREADY_EXISTS: new ResponseErrorMessage(
-            this.$t(
-              'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.title'
-            ),
-            this.$t(
-              'membersSettings.membersInviteModal.errors.userAlreadyInWorkspace.text'
-            )
-          ),
-          ERROR_CAPTCHA_VERIFICATION_FAILED: new ResponseErrorMessage(
-            this.$t('error.captchaVerificationFailedTitle'),
-            this.$t('error.captchaVerificationFailedMessage')
-          ),
+          if (index === -1) {
+            this.invitations.push(invitation)
+          } else {
+            this.invitations[index] = invitation
+          }
         })
+        this.$refs.input.reset()
+      } catch (error) {
+        this.handleInvitationError(error)
+      } finally {
+        this.inviting = false
       }
-
-      this.inviteLoading = false
-    },
-    onCaptchaToken(token) {
-      this.captchaToken = token
     },
   },
 }

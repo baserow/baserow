@@ -1,5 +1,6 @@
 import pytest
 
+from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
@@ -22,6 +23,22 @@ def test_create_node(data_fixture):
     node = AutomationNodeHandler().create_node(node_type, **prepared_values)
 
     assert isinstance(node, LocalBaserowRowsCreatedTriggerNode)
+
+
+@pytest.mark.django_db
+def test_workflow_point_map_is_invalidated_after_node_creation(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(create_trigger=False)
+    node_type = automation_node_type_registry.get("local_baserow_rows_created")
+
+    with local_cache.context():
+        graph = workflow.get_graph()
+        with pytest.raises(AutomationNodeDoesNotExist):
+            graph.get_point(0)
+        node = AutomationNodeHandler().create_node(
+            node_type, **node_type.prepare_values({"workflow": workflow}, user)
+        )
+        assert graph.get_point(node.id) == node
 
 
 @pytest.mark.django_db
@@ -99,6 +116,9 @@ def test_export_prepared_values(data_fixture):
 
     assert values == {
         "label": "My node",
+        "on_failure": "stop",
+        "max_retries": 2,
+        "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
         "service": AnyDict(),
         "workflow": node.workflow_id,
     }
@@ -127,6 +147,9 @@ def test_export_node(data_fixture):
     assert result == {
         "id": node.id,
         "label": node.label,
+        "on_failure": "stop",
+        "max_retries": 2,
+        "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
         "service": AnyDict(),
         "type": "local_baserow_create_row",
         "workflow_id": node.workflow.id,
@@ -224,3 +247,159 @@ def test_import_node_only_ignores_integration_from_another_application(data_fixt
     )
 
     assert imported_node.service.specific.integration_id is None
+
+
+@pytest.mark.django_db
+def test_update_node_error_policy(data_fixture):
+    node = data_fixture.create_automation_node()
+
+    updated_node = AutomationNodeHandler().update_node(
+        node,
+        on_failure="retry",
+        max_retries=5,
+        retry_condition="get('current_node.status_code') = 429",
+    )
+
+    assert updated_node.on_failure == "retry"
+    node.refresh_from_db()
+    assert node.on_failure == "retry"
+    assert node.max_retries == 5
+    assert node.retry_condition["formula"] == "get('current_node.status_code') = 429"
+
+
+@pytest.mark.django_db
+def test_update_node_ignores_error_policy_on_triggers(data_fixture):
+    """
+    The node type decides what can be updated: a trigger does not list the
+    error policy fields, so they are dropped.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+
+    updated_node = AutomationNodeHandler().update_node(
+        trigger, label="Rows", on_failure="retry", max_retries=5
+    )
+
+    assert updated_node.label == "Rows"
+    trigger.refresh_from_db()
+    assert trigger.label == "Rows"
+    assert trigger.on_failure == "stop"
+    assert trigger.max_retries == 2
+
+
+@pytest.mark.parametrize(
+    "node_type", ["wait", "iterator", "router", "goto", "response"]
+)
+def test_action_nodes_that_cannot_benefit_from_a_retry_have_no_error_policy(
+    node_type,
+):
+    """
+    These nodes only fail on values computed from the data of earlier nodes,
+    which a retry evaluates the same way, so they do not accept the error policy
+    fields and the update drops them, like for a trigger.
+    """
+
+    automation_node_type = automation_node_type_registry.get(node_type)
+
+    assert automation_node_type.is_workflow_action
+    assert not automation_node_type.has_error_policy
+    assert not set(ERROR_POLICY_FIELDS) & set(automation_node_type.allowed_fields)
+
+
+@pytest.mark.parametrize(
+    "node_type", ["http_request", "local_baserow_create_row", "smtp_email"]
+)
+def test_action_nodes_that_can_fail_transiently_have_an_error_policy(node_type):
+    automation_node_type = automation_node_type_registry.get(node_type)
+
+    assert automation_node_type.has_error_policy
+    assert set(ERROR_POLICY_FIELDS) <= set(automation_node_type.allowed_fields)
+
+
+@pytest.mark.django_db
+def test_import_node_keeps_the_error_policy(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    retry_condition = {
+        "formula": "get('current_node.id') = 1",
+        "mode": "advanced",
+        "version": "0.1",
+    }
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        on_failure="retry",
+        max_retries=4,
+        retry_condition=retry_condition,
+    )
+
+    exported_node = AutomationNodeHandler().export_node(node)
+    assert exported_node["on_failure"] == "retry"
+    assert exported_node["max_retries"] == 4
+    assert exported_node["retry_condition"] == retry_condition
+
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported_node = AutomationNodeHandler().import_node(
+        workflow, exported_node, id_mapping
+    )
+
+    assert imported_node.id != node.id
+    imported_node.refresh_from_db()
+    assert imported_node.on_failure == "retry"
+    assert imported_node.max_retries == 4
+    assert imported_node.retry_condition == retry_condition
+
+
+@pytest.mark.django_db
+def test_import_node_remaps_the_retry_condition(data_fixture):
+    """
+    The condition reads the node's own result through `current_node`, whose
+    path carries no node id: its field ids are remapped against the imported
+    node's service.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        on_failure="retry",
+        retry_condition="get('current_node.field_1') = 'done'",
+    )
+
+    exported_node = AutomationNodeHandler().export_node(node)
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+        "database_fields": {1: 2},
+    }
+    imported_node = AutomationNodeHandler().import_nodes(
+        workflow, [exported_node], id_mapping
+    )[0]
+
+    imported_node.refresh_from_db()
+    assert "current_node.field_2" in imported_node.retry_condition["formula"]
+    assert "field_1" not in imported_node.retry_condition["formula"]
+
+    # The source node is left as it was.
+    node.refresh_from_db()
+    assert "current_node.field_1" in node.retry_condition["formula"]
+
+
+@pytest.mark.django_db
+def test_duplicate_node_keeps_the_error_policy(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow,
+        label="test",
+        on_failure="retry",
+        max_retries=3,
+        retry_condition="get('current_node.id') = 1",
+    )
+
+    duplicated_node = AutomationNodeHandler().duplicate_node(action)
+
+    assert duplicated_node.id != action.id
+    assert duplicated_node.on_failure == "retry"
+    assert duplicated_node.max_retries == 3
+    assert "current_node.id" in duplicated_node.retry_condition["formula"]

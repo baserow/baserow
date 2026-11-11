@@ -50,7 +50,7 @@ describe('teamSubjects', () => {
     expect(getTeamSubjectKey(user)).not.toBe(getTeamSubjectKey(agent))
   })
 
-  test('shows agents in the member selector with purple initials', async () => {
+  test('shows agents in the member selector with their avatar component', async () => {
     const agent = makeTeamSubject(
       { id: 1, name: 'Writer' },
       agentSubjectType,

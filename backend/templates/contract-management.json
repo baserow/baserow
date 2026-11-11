@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Contract Management",
+    "description": "Track contracts from signing to expiration, with parties and owners.",
     "icon": "iconoir-edit-pencil",
     "keywords": [
         "contract",

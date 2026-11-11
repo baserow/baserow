@@ -137,6 +137,10 @@ import WorkspaceService from '@baserow/modules/core/services/workspace'
 import error from '@baserow/modules/core/mixins/error'
 import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 
+definePageMeta({
+  middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
+})
+
 export default {
   components: { Toasts, CircleProgressBar },
   mixins: [error, jobProgress],
@@ -144,10 +148,6 @@ export default {
     const { t } = useI18n()
     useHead({
       title: t('onboarding.title'),
-    })
-
-    definePageMeta({
-      middleware: ['settings', 'authenticated', 'redirectCompletedOnboarding'],
     })
   },
   data() {

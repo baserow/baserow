@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "App Pitch Planner",
+    "description": "Outline an app pitch section by section, with timing and key points.",
     "icon": "iconoir-learning",
     "keywords": [
         "keynote",

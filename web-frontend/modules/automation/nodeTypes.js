@@ -2,15 +2,15 @@ import { Registerable } from '@baserow/modules/core/registry'
 import {
   ActionNodeTypeMixin,
   TriggerNodeTypeMixin,
-  UtilityNodeMixin,
-  containerNodeTypeMixin,
+  UtilityNodeTypeMixin,
+  ContainerNodeTypeMixin,
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
-  LocalBaserowCreateRowWorkflowServiceType,
-  LocalBaserowCreateRowsWorkflowServiceType,
-  LocalBaserowUpdateRowWorkflowServiceType,
-  LocalBaserowUpdateRowsWorkflowServiceType,
-  LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowCreateRowServiceType,
+  LocalBaserowCreateRowsServiceType,
+  LocalBaserowUpdateRowServiceType,
+  LocalBaserowUpdateRowsServiceType,
+  LocalBaserowDeleteRowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
@@ -26,6 +26,7 @@ import {
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreGotoServiceType,
+  CoreWaitServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -39,6 +40,7 @@ import {
   isValidGotoDestination,
 } from '@baserow/modules/automation/utils/gotoNode'
 import { uuid } from '@baserow/modules/core/utils/string'
+import { parseAliases } from '@baserow/modules/automation/utils/aliases'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
 
 export class NodeType extends Registerable {
@@ -147,6 +149,15 @@ export class NodeType extends Registerable {
    */
   get description() {
     return this.serviceType.description
+  }
+
+  /**
+   * Extra terms the add-node menu search matches for this node type, besides
+   * its name and description. Derived from the service type's aliases.
+   * @returns {string[]}
+   */
+  get aliases() {
+    return this.serviceType.aliases
   }
 
   /**
@@ -454,7 +465,7 @@ export class LocalBaserowNodeType extends NodeType {
   }
 }
 
-export class LocalBaserowSignalTriggerType extends LocalBaserowNodeType {
+export class LocalBaserowSignalTriggerNodeType extends LocalBaserowNodeType {
   /**
    * All Local Baserow signal triggers return an array of rows,
    * so we override the `dataType` method to return 'array'.
@@ -466,7 +477,7 @@ export class LocalBaserowSignalTriggerType extends LocalBaserowNodeType {
 }
 
 export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowSignalTriggerType
+  LocalBaserowSignalTriggerNodeType
 ) {
   static getType() {
     return 'local_baserow_rows_created'
@@ -489,7 +500,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowSignalTriggerType
+  LocalBaserowSignalTriggerNodeType
 ) {
   static getType() {
     return 'local_baserow_rows_updated'
@@ -512,7 +523,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
 }
 
 export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowSignalTriggerType
+  LocalBaserowSignalTriggerNodeType
 ) {
   static getType() {
     return 'local_baserow_fields_updated'
@@ -576,7 +587,7 @@ export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMix
 }
 
 export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowSignalTriggerType
+  LocalBaserowSignalTriggerNodeType
 ) {
   static getType() {
     return 'local_baserow_rows_deleted'
@@ -758,7 +769,7 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowCreateRowWorkflowServiceType.getType()
+      LocalBaserowCreateRowServiceType.getType()
     )
   }
 }
@@ -781,7 +792,7 @@ export class LocalBaserowCreateRowsActionNodeType extends ActionNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowCreateRowsWorkflowServiceType.getType()
+      LocalBaserowCreateRowsServiceType.getType()
     )
   }
 }
@@ -804,7 +815,7 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowUpdateRowWorkflowServiceType.getType()
+      LocalBaserowUpdateRowServiceType.getType()
     )
   }
 }
@@ -827,7 +838,7 @@ export class LocalBaserowUpdateRowsActionNodeType extends ActionNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowUpdateRowsWorkflowServiceType.getType()
+      LocalBaserowUpdateRowsServiceType.getType()
     )
   }
 }
@@ -850,7 +861,7 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowDeleteRowWorkflowServiceType.getType()
+      LocalBaserowDeleteRowServiceType.getType()
     )
   }
 }
@@ -928,7 +939,9 @@ export class LocalBaserowAggregateRowsActionNodeType extends ActionNodeTypeMixin
   }
 }
 
-export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreHTTPRequestActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'http_request'
   }
@@ -949,7 +962,10 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreResponseNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreResponseActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  // It only fails on its formulas, which a retry evaluates the same way.
+  hasErrorPolicy = false
+
   static getType() {
     return 'response'
   }
@@ -967,9 +983,13 @@ export class CoreResponseNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreIteratorNodeType extends containerNodeTypeMixin(
-  ActionNodeTypeMixin(UtilityNodeMixin(NodeType))
+export class CoreIteratorActionNodeType extends ContainerNodeTypeMixin(
+  ActionNodeTypeMixin(UtilityNodeTypeMixin(NodeType))
 ) {
+  // It only fails when its source is not a list, which a retry evaluates the
+  // same way.
+  hasErrorPolicy = false
+
   static getType() {
     return 'iterator'
   }
@@ -980,6 +1000,10 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
 
   get name() {
     return this.app.$i18n.t('nodeType.iterationLabel')
+  }
+
+  get aliases() {
+    return parseAliases(this.app.$i18n.t('nodeType.iteratorAliases'))
   }
 
   get serviceType() {
@@ -1042,7 +1066,9 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
   }
 }
 
-export class CoreCSVFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreCSVFileReaderActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'csv_file_reader'
   }
@@ -1067,7 +1093,9 @@ export class CoreCSVFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreStartWorkflowNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreStartWorkflowActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'start_workflow'
   }
@@ -1110,7 +1138,7 @@ export class CoreStartWorkflowNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreSMTPEmailActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'smtp_email'
   }
@@ -1128,9 +1156,12 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreRouterNodeType extends ActionNodeTypeMixin(
-  UtilityNodeMixin(NodeType)
+export class CoreRouterActionNodeType extends ActionNodeTypeMixin(
+  UtilityNodeTypeMixin(NodeType)
 ) {
+  // Its conditions only read earlier nodes' data, which a retry sees unchanged.
+  hasErrorPolicy = false
+
   static getType() {
     return 'router'
   }
@@ -1279,9 +1310,12 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
   }
 }
 
-export class CoreGotoNodeType extends ActionNodeTypeMixin(
-  UtilityNodeMixin(NodeType)
+export class CoreGotoActionNodeType extends ActionNodeTypeMixin(
+  UtilityNodeTypeMixin(NodeType)
 ) {
+  // Its condition only reads earlier nodes' data, which a retry sees unchanged.
+  hasErrorPolicy = false
+
   static getType() {
     return 'goto'
   }
@@ -1292,6 +1326,10 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
 
   get name() {
     return this.app.$i18n.t('nodeType.gotoNodeLabel')
+  }
+
+  get aliases() {
+    return parseAliases(this.app.$i18n.t('nodeType.gotoAliases'))
   }
 
   get serviceType() {
@@ -1479,6 +1517,31 @@ export class CoreGotoNodeType extends ActionNodeTypeMixin(
   }
 }
 
+export class CoreWaitActionNodeType extends ActionNodeTypeMixin(NodeType) {
+  // A wait only fails on its duration, which a retry evaluates the same way.
+  hasErrorPolicy = false
+
+  static getType() {
+    return 'wait'
+  }
+
+  getOrder() {
+    return 12
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.waitNodeLabel')
+  }
+
+  get aliases() {
+    return parseAliases(this.app.$i18n.t('nodeType.waitAliases'))
+  }
+
+  get serviceType() {
+    return this.app.$registry.get('service', CoreWaitServiceType.getType())
+  }
+}
+
 export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'ai_agent'
@@ -1501,7 +1564,9 @@ export class AIAgentActionNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
+export class SlackWriteMessageActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'slack_write_message'
   }

@@ -2,6 +2,7 @@ import { ref, computed, watch, unref } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp } from '#app'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
 import _ from 'lodash'
 import { useElement } from './useElement'
@@ -78,9 +79,10 @@ export function useCollectionElement(props) {
   })
 
   const elementContent = computed(() => {
-    const content = unref(elementType).getElementCurrentContent(
-      unref(applicationContext)
-    )
+    const content = unref(elementType).getElementCurrentContent({
+      ...unref(applicationContext),
+      dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+    })
     return Array.isArray(content) ? content : []
   })
 
@@ -214,6 +216,7 @@ export function useCollectionElement(props) {
     const newApplicationContext = {
       ...baseContext,
       recordIndexPath: [...baseContext.recordIndexPath, rowIndex],
+      ...(field ? { dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT } : {}),
       ...rest,
     }
     if (field) {

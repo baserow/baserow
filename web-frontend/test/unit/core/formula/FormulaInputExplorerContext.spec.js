@@ -1,7 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import FormulaInputExplorerContext from '@baserow/modules/core/components/formula/FormulaInputExplorerContext.vue'
 
-describe('FormulaInputExplorerContext format picker', () => {
+describe('FormulaInputExplorerContext', () => {
   let testApp = null
 
   beforeEach(() => {
@@ -27,86 +27,121 @@ describe('FormulaInputExplorerContext format picker', () => {
     return wrapper
   }
 
+  const footer = (wrapper) =>
+    wrapper.find('.formula-input-explorer-context__footer')
+
   const segments = (wrapper) =>
     wrapper.findAll(
       '.formula-input-explorer-context__format .segment-control__button'
     )
 
-  it('renders no footer without the advanced mode nor a format to pick', async () => {
+  it('renders no footer without the mode toggle nor a format to pick', async () => {
     const wrapper = await mountContext()
 
-    expect(
-      wrapper.find('.formula-input-explorer-context__footer').exists()
-    ).toBe(false)
+    expect(footer(wrapper).exists()).toBe(false)
   })
 
-  it('renders the format picker on its own', async () => {
-    const wrapper = await mountContext({ formatOptions })
+  describe('mode toggle', () => {
+    it('offers the mode toggle when both modes are enabled', async () => {
+      const wrapper = await mountContext({
+        mode: 'advanced',
+        enabledModes: ['simple', 'advanced'],
+      })
 
-    const picker = wrapper.find('.formula-input-explorer-context__format')
-    expect(picker.attributes('aria-label')).toBe(
-      'formulaInputExplorerContext.formatLabel'
-    )
-    expect(segments(wrapper).map((segment) => segment.text())).toEqual([
-      'Plain text',
-      'Markdown',
-    ])
-    expect(wrapper.text()).not.toContain(
-      'formulaInputExplorerContext.useAdvancedInput'
-    )
-  })
-
-  it('renders no format picker with a single format', async () => {
-    const wrapper = await mountContext({
-      enabledModes: ['simple', 'advanced'],
-      formatOptions: [formatOptions[0]],
+      expect(footer(wrapper).exists()).toBe(true)
+      expect(footer(wrapper).text()).toContain(
+        'formulaInputExplorerContext.useSimpleInput'
+      )
     })
 
-    expect(
-      wrapper.find('.formula-input-explorer-context__footer').exists()
-    ).toBe(true)
-    expect(
-      wrapper.find('.formula-input-explorer-context__format').exists()
-    ).toBe(false)
+    it('switches to the other mode', async () => {
+      const wrapper = await mountContext({
+        mode: 'advanced',
+        enabledModes: ['simple', 'advanced'],
+      })
+
+      await footer(wrapper).find('.button-text').trigger('click')
+
+      expect(wrapper.emitted('mode-changed')).toEqual([['simple']])
+    })
+
+    it.each([['advanced'], ['simple']])(
+      'has nothing to switch to when only %s is enabled',
+      async (mode) => {
+        const wrapper = await mountContext({ mode, enabledModes: [mode] })
+
+        expect(footer(wrapper).exists()).toBe(false)
+      }
+    )
   })
 
-  it('marks the current format as active', async () => {
-    const wrapper = await mountContext({ formatOptions, format: 'markdown' })
+  describe('format picker', () => {
+    it('renders the format picker on its own', async () => {
+      const wrapper = await mountContext({ formatOptions })
 
-    expect(
-      wrapper
-        .find(
-          '.formula-input-explorer-context__format .segment-control__button--active'
-        )
-        .text()
-    ).toBe('Markdown')
-  })
+      const picker = wrapper.find('.formula-input-explorer-context__format')
+      expect(picker.attributes('aria-label')).toBe(
+        'formulaInputExplorerContext.formatLabel'
+      )
+      expect(segments(wrapper).map((segment) => segment.text())).toEqual([
+        'Plain text',
+        'Markdown',
+      ])
+      expect(wrapper.text()).not.toContain(
+        'formulaInputExplorerContext.useAdvancedInput'
+      )
+    })
 
-  it('falls back to the first format when the current one is unknown', async () => {
-    const wrapper = await mountContext({ formatOptions, format: 'html' })
+    it('renders no format picker with a single format', async () => {
+      const wrapper = await mountContext({
+        enabledModes: ['simple', 'advanced'],
+        formatOptions: [formatOptions[0]],
+      })
 
-    expect(
-      wrapper
-        .find(
-          '.formula-input-explorer-context__format .segment-control__button--active'
-        )
-        .text()
-    ).toBe('Plain text')
-  })
+      expect(footer(wrapper).exists()).toBe(true)
+      expect(
+        wrapper.find('.formula-input-explorer-context__format').exists()
+      ).toBe(false)
+    })
 
-  it('emits the picked format', async () => {
-    const wrapper = await mountContext({ formatOptions })
+    it('marks the current format as active', async () => {
+      const wrapper = await mountContext({ formatOptions, format: 'markdown' })
 
-    await segments(wrapper).at(1).trigger('click')
+      expect(
+        wrapper
+          .find(
+            '.formula-input-explorer-context__format .segment-control__button--active'
+          )
+          .text()
+      ).toBe('Markdown')
+    })
 
-    expect(wrapper.emitted('format-changed')).toEqual([['markdown']])
-  })
+    it('falls back to the first format when the current one is unknown', async () => {
+      const wrapper = await mountContext({ formatOptions, format: 'html' })
 
-  it('emits nothing when the active format is picked again', async () => {
-    const wrapper = await mountContext({ formatOptions, format: 'markdown' })
+      expect(
+        wrapper
+          .find(
+            '.formula-input-explorer-context__format .segment-control__button--active'
+          )
+          .text()
+      ).toBe('Plain text')
+    })
 
-    await segments(wrapper).at(1).trigger('click')
+    it('emits the picked format', async () => {
+      const wrapper = await mountContext({ formatOptions })
 
-    expect(wrapper.emitted('format-changed')).toBeUndefined()
+      await segments(wrapper).at(1).trigger('click')
+
+      expect(wrapper.emitted('format-changed')).toEqual([['markdown']])
+    })
+
+    it('emits nothing when the active format is picked again', async () => {
+      const wrapper = await mountContext({ formatOptions, format: 'markdown' })
+
+      await segments(wrapper).at(1).trigger('click')
+
+      expect(wrapper.emitted('format-changed')).toBeUndefined()
+    })
   })
 })

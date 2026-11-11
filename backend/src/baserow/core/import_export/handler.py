@@ -484,9 +484,44 @@ class ImportExportHandler:
         file_name = resource.get_archive_name()
 
         storage = storage or get_default_storage()
-        applications = applications or []
-
         export_file_path = self.get_export_storage_path(file_name)
+
+        progress = ChildProgressBuilder.build(progress_builder, child_total=100)
+        self.write_applications_archive(
+            applications or [],
+            import_export_config,
+            export_file_path,
+            storage,
+            progress.create_child_builder(represents_progress=90),
+        )
+
+        resource.size = storage.size(export_file_path)
+        resource.is_valid = True
+        resource.save()
+
+        progress.set_progress(100)
+        return resource
+
+    def write_applications_archive(
+        self,
+        applications: List[Application],
+        import_export_config: ImportExportConfig,
+        file_path: str,
+        storage: Storage,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> None:
+        """
+        Writes a zip file with the exported applications, its manifest and the
+        signature of the manifest to the storage, and validates its manifest. The
+        file can be imported with `import_workspace_applications`.
+
+        :param applications: A list of Application instances that will be exported.
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
+        :param file_path: The path of the zip file in the storage.
+        :param storage: The storage where the zip file is written.
+        :param progress_builder: A progress builder that allows for publishing progress.
+        """
 
         zip_file = ExportZipFile(
             compress_level=BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
@@ -499,7 +534,7 @@ class ImportExportHandler:
             zip_file,
             import_export_config,
             storage,
-            progress.create_child_builder(represents_progress=90),
+            progress.create_child_builder(represents_progress=100),
         )
 
         manifest_data = self.create_manifest(
@@ -508,23 +543,16 @@ class ImportExportHandler:
 
         self.create_manifest_signature(manifest_data, zip_file)
 
-        progress.set_progress(90, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
+        progress.set_progress(100, state=EXPORT_WORKSPACE_CREATE_ARCHIVE)
         with _create_storage_dir_if_missing_and_open(
-            export_file_path, storage
+            file_path, storage
         ) as files_buffer:
             for chunk in zip_file:
                 files_buffer.write(chunk)
 
-        with storage.open(export_file_path, "rb") as zip_file_handle:
+        with storage.open(file_path, "rb") as zip_file_handle:
             with ZipFile(zip_file_handle, "r") as zip_file:
                 self.validate_manifest(zip_file)
-
-        resource.size = storage.size(export_file_path)
-        resource.is_valid = True
-        resource.save()
-
-        progress.set_progress(100)
-        return resource
 
     def list_exports(self, performed_by: AbstractUser, workspace_id: int) -> QuerySet:
         """
@@ -1037,6 +1065,57 @@ class ImportExportHandler:
 
             progress.increment()
 
+    def _extract_and_validate_zip(
+        self,
+        resource: ImportExportResource,
+        zip_file: ZipFile,
+        import_tmp_path: str,
+        storage: Storage,
+        progress_builder: Optional[ChildProgressBuilder] = None,
+    ) -> Dict:
+        """
+        Validates the manifest of an import file, extracts its files and checks
+        their checksums. On failure, the extracted files are removed and the
+        resource is marked invalid.
+
+        :param resource: The resource the import file belongs to.
+        :param zip_file: The opened import file.
+        :param import_tmp_path: Where the files are extracted to.
+        :param storage: The storage instance to use for file operations.
+        :param progress_builder: A progress builder that allows for publishing
+            progress.
+        :raises ImportExportResourceInvalidFile: If the file contains invalid paths.
+        :return: The manifest data.
+        """
+
+        try:
+            manifest_data = self.validate_manifest(zip_file)
+        except Exception:
+            self.mark_resource_invalid(resource)
+            raise
+
+        try:
+            self.extract_files_from_zip(
+                import_tmp_path,
+                zip_file,
+                storage,
+                allowed_files=self._build_allowed_files(manifest_data),
+                progress_builder=progress_builder,
+            )
+            self.validate_checksums(manifest_data, import_tmp_path, storage)
+        except SuspiciousOperation:
+            self.clean_storage(import_tmp_path, storage)
+            self.mark_resource_invalid(resource)
+            raise ImportExportResourceInvalidFile(
+                "The import file contains invalid file paths."
+            )
+        except Exception:
+            self.clean_storage(import_tmp_path, storage)
+            self.mark_resource_invalid(resource)
+            raise
+
+        return manifest_data
+
     def import_workspace_applications(
         self,
         user: AbstractUser,
@@ -1100,45 +1179,13 @@ class ImportExportHandler:
 
         with storage.open(import_file_path, "rb") as zip_file_handle:
             with ZipFile(zip_file_handle, "r") as zip_file:
-                try:
-                    manifest_data = self.validate_manifest(zip_file)
-                except Exception as e:  # noqa
-                    self.mark_resource_invalid(resource)
-                    raise
-
-                try:
-                    self.extract_files_from_zip(
-                        import_tmp_path,
-                        zip_file,
-                        storage,
-                        allowed_files=self._build_allowed_files(manifest_data),
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=10
-                        ),
-                    )
-                except SuspiciousOperation:
-                    self.clean_storage(import_tmp_path, storage)
-                    self.mark_resource_invalid(resource)
-                    raise ImportExportResourceInvalidFile(
-                        "The import file contains invalid file paths."
-                    )
-                except Exception:
-                    self.clean_storage(import_tmp_path, storage)
-                    self.mark_resource_invalid(resource)
-                    raise
-
-                try:
-                    self.validate_checksums(manifest_data, import_tmp_path, storage)
-                except SuspiciousOperation:
-                    self.clean_storage(import_tmp_path, storage)
-                    self.mark_resource_invalid(resource)
-                    raise ImportExportResourceInvalidFile(
-                        "The import file contains invalid file paths."
-                    )
-                except Exception as e:  # noqa
-                    self.clean_storage(import_tmp_path, storage)
-                    self.mark_resource_invalid(resource)
-                    raise
+                manifest_data = self._extract_and_validate_zip(
+                    resource,
+                    zip_file,
+                    import_tmp_path,
+                    storage,
+                    progress.create_child_builder(represents_progress=10),
+                )
 
                 only_structure = manifest_data["configuration"].get(
                     "only_structure", False

@@ -91,7 +91,7 @@ export function isValidGotoDestination({
  * renders. `value` is the destination's service id, which is what the goto
  * node's `destination_service_id` points at.
  *
- * This lives here so the `CoreGotoNodeType.getDestinations` hook can compute it
+ * This lives here so the `CoreGotoActionNodeType.getDestinations` hook can compute it
  * and the automation `NodeSidePanel` can pass it into the integrations service
  * form as a prop.
  *

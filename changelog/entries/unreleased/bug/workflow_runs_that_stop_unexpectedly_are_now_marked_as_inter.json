@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Workflow runs that stop unexpectedly are now marked as interrupted after about an hour, not a day.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-10"
+}

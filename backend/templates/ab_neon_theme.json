@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Neon Theme",
+  "description": "Dark application theme with bright cyan and pink accents.",
   "icon": "",
   "keywords": [
     "application",

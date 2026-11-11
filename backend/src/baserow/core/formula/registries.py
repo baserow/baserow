@@ -178,11 +178,17 @@ class DataProviderType(
 
         return path
 
-    def is_valid(self, path: List[str]) -> bool:
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
-        Allows to hook into the path validation process. Not currently implemented.
+        Allows to hook into the path validation process. Nothing is refused by
+        default.
 
         :param path: the list of path strings after the provider name.
+        :param validation_context: What the caller knows about where the formula is
+            read, like the page it is on. Empty when the caller knows nothing.
+        :raises BaserowFormulaException: When the path can't be read.
         """
 
     def extract_properties(

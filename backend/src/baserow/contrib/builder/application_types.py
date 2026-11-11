@@ -33,7 +33,9 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.handler import ThemeHandler
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.types import BuilderDict
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.handler import CoreHandler
+from baserow.core.import_export.untrusted_content import defer_untrusted_content_update
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Application, Workspace
@@ -66,11 +68,14 @@ class BuilderApplicationType(ApplicationType):
     supports_integrations = True
     supports_user_sources = True
     allowed_fields = [
+        "untrusted_content",
         "favicon_file",
         "login_page_id",
         "breakpoints",
     ]
     serializer_field_names = [
+        "import_report",
+        "untrusted_content",
         "favicon_file",
         "login_page_id",
         "breakpoints",
@@ -78,6 +83,7 @@ class BuilderApplicationType(ApplicationType):
         "theme",
     ]
     public_serializer_field_names = [
+        "untrusted_content",
         "favicon_file",
         "login_page_id",
         "breakpoints",
@@ -86,6 +92,7 @@ class BuilderApplicationType(ApplicationType):
         "user_sources",
     ]
     request_serializer_field_names = [
+        "untrusted_content",
         "favicon_file",
         "login_page_id",
         "breakpoints",
@@ -138,6 +145,27 @@ class BuilderApplicationType(ApplicationType):
                 ),
             ),
         }
+
+    def prepare_value_for_db(self, values: dict, instance: "Builder | None" = None):
+        """
+        A builder's login page must be one of its own pages, and not its shared
+        page. A new builder has no pages yet.
+
+        :raises ValidationError: When the login page is another builder's page.
+        """
+
+        login_page_id = values.get("login_page_id")
+        if login_page_id is not None and (
+            instance is None
+            or not Page.objects_without_shared.filter(
+                builder=instance, id=login_page_id
+            ).exists()
+        ):
+            raise serializers.ValidationError(
+                detail=f"The login page with id {login_page_id} doesn't exist.",
+                code="invalid_login_page_id",
+            )
+        return values
 
     def get_api_urls(self):
         from .api import urls as api_urls
@@ -203,13 +231,15 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> BuilderDict:
         """
         Exports the builder application type to a serialized format that can later
         be imported via the `import_serialized`.
         """
 
-        self.cache = {}
+        if cache is None:
+            cache = {}
 
         serialized_integrations = [
             IntegrationHandler().export_integration(
@@ -217,7 +247,7 @@ class BuilderApplicationType(ApplicationType):
                 import_export_config,
                 files_zip=files_zip,
                 storage=storage,
-                cache=self.cache,
+                cache=cache,
             )
             for i in IntegrationHandler().get_integrations(builder)
         ]
@@ -225,9 +255,10 @@ class BuilderApplicationType(ApplicationType):
         serialized_user_sources = [
             UserSourceHandler().export_user_source(
                 us,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
-                cache=self.cache,
+                cache=cache,
             )
             for us in UserSourceHandler().get_user_sources(builder)
         ]
@@ -242,18 +273,20 @@ class BuilderApplicationType(ApplicationType):
         serialized_pages = [
             PageHandler().export_page(
                 p,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
-                cache=self.cache,
+                cache=cache,
             )
             for p in pages
         ]
 
         serialized_theme = ThemeHandler().export_theme(
             builder,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
-            cache=self.cache,
+            cache=cache,
         )
 
         serialized_favicon_file = UserFileHandler().export_user_file(
@@ -274,12 +307,13 @@ class BuilderApplicationType(ApplicationType):
         if builder.login_page:
             serialized_login_page = PageHandler().export_page(
                 builder.login_page,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
-                cache=self.cache,
+                cache=cache,
             )
 
-        return BuilderDict(
+        serialized = BuilderDict(
             pages=serialized_pages,
             integrations=serialized_integrations,
             theme=serialized_theme,
@@ -289,6 +323,12 @@ class BuilderApplicationType(ApplicationType):
             breakpoints=builder.breakpoints,
             **serialized_builder,
         )
+        # Internal copies keep the restriction. An external import detects it again
+        # from the imported content, and official templates are exported externally
+        # but installed as internal copies, so a file must never carry it.
+        if not self._is_external_import_export(import_export_config):
+            serialized["untrusted_content"] = builder.untrusted_content
+        return serialized
 
     def import_integrations_serialized(
         self,
@@ -298,6 +338,8 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> List[Integration]:
         """
         Import integrations to builder. This method has to be compatible with the output
@@ -312,6 +354,9 @@ class BuilderApplicationType(ApplicationType):
         :return: The created integration instances.
         """
 
+        if cache is None:
+            cache = {}
+
         progress = ChildProgressBuilder.build(
             progress_builder, child_total=len(serialized_integrations)
         )
@@ -323,7 +368,8 @@ class BuilderApplicationType(ApplicationType):
                 builder,
                 serialized_integration,
                 id_mapping,
-                cache=self.cache,
+                import_export_config=import_export_config,
+                cache=cache,
                 files_zip=files_zip,
                 storage=storage,
             )
@@ -341,6 +387,7 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> List[Page]:
         """
         Import user sources to builder.
@@ -354,6 +401,9 @@ class BuilderApplicationType(ApplicationType):
         :return: The created user sources instances.
         """
 
+        if cache is None:
+            cache = {}
+
         progress = ChildProgressBuilder.build(
             progress_builder, child_total=len(serialized_user_sources)
         )
@@ -365,7 +415,7 @@ class BuilderApplicationType(ApplicationType):
                 builder,
                 serialized_user_source,
                 id_mapping,
-                cache=self.cache,
+                cache=cache,
                 files_zip=files_zip,
                 storage=storage,
             )
@@ -375,6 +425,13 @@ class BuilderApplicationType(ApplicationType):
 
         return imported_user_sources
 
+    @staticmethod
+    def _is_external_import_export(config: ImportExportConfig) -> bool:
+        """Portable copies require trust; internal copies retain their restriction."""
+
+        return not (config.is_duplicate or config.is_publishing or config.is_template)
+
+    @deferred_callback_context()
     def import_serialized(
         self,
         workspace: Workspace,
@@ -384,13 +441,19 @@ class BuilderApplicationType(ApplicationType):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> Application:
         """
         Imports a builder application exported by the `export_serialized` method.
         """
 
-        self.cache = {}
+        if cache is None:
+            cache = {}
 
+        untrusted_content = serialized_values.pop("untrusted_content", False)
+        if self._is_external_import_export(import_export_config):
+            # Keep partial imports blocked until deferred content detection finishes.
+            untrusted_content = True
         serialized_pages = serialized_values.pop("pages")
         serialized_integrations = serialized_values.pop("integrations")
         serialized_user_sources = serialized_values.pop("user_sources")
@@ -430,7 +493,9 @@ class BuilderApplicationType(ApplicationType):
         # export without them is therefore a legacy configuration, not a newly
         # created builder application that should receive the new defaults.
         builder.breakpoints = breakpoints
-        builder.save(update_fields=["breakpoints"])
+        builder.untrusted_content = untrusted_content
+        builder.save(update_fields=["breakpoints", "untrusted_content"])
+        defer_untrusted_content_update(builder, cache, import_export_config)
 
         # Always initialize the integrations mapping, even when the export
         # contains none (e.g. they were all trashed). Downstream importers
@@ -451,6 +516,8 @@ class BuilderApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=integration_progress),
+                import_export_config=import_export_config,
+                cache=cache,
             )
 
         if not serialized_user_sources:
@@ -465,6 +532,7 @@ class BuilderApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 progress.create_child_builder(represents_progress=user_source_progress),
+                cache=cache,
             )
 
         if not serialized_pages:
@@ -478,6 +546,7 @@ class BuilderApplicationType(ApplicationType):
                 storage,
                 progress.create_child_builder(represents_progress=page_progress),
                 import_export_config=import_export_config,
+                cache=cache,
             )
 
         if serialized_favicon_file := serialized_values.pop("favicon_file", None):

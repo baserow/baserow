@@ -1,6 +1,40 @@
 import { Event } from '@baserow/modules/builder/eventTypes'
+import { FormContainerElementType } from '@baserow/modules/builder/elementTypes'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 describe('Builder event types', () => {
+  test('submit actions receive the form subtree scope', async () => {
+    const execute = vi.fn().mockResolvedValue(null)
+    const app = {
+      $i18n: { t: (key) => key },
+      $registry: {
+        get: (name) =>
+          name === 'element'
+            ? { uniqueElementId: () => 'form-1' }
+            : { execute },
+      },
+      $store: {
+        dispatch: vi.fn(),
+        getters: { 'page/getSharedPage': () => ({ id: 2 }) },
+      },
+    }
+    const event = FormContainerElementType.prototype.getEvents.call({ app })[0]
+
+    await event.fire({
+      workflowActions: [{ id: 1, type: 'test' }],
+      applicationContext: {
+        builder: {},
+        page: { id: 1 },
+        element: { id: 1, type: 'form_container' },
+        dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+      },
+    })
+
+    expect(execute.mock.calls[0][0].applicationContext.dataScope).toBe(
+      DATA_SCOPES.INCLUDE_TARGET_ELEMENT
+    )
+  })
+
   test('handles a workflow action whose data source no longer exists', async () => {
     const page = { id: 1, elements: [] }
     const sharedPage = { id: 2, elements: [] }

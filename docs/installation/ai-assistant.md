@@ -182,7 +182,7 @@ service and point Baserow at it.
 ### Run the embeddings container
 
 ```bash
-docker run -d --name baserow-embeddings -p 80:80 baserow/embeddings:latest
+docker run -d --name baserow-embeddings -p 80:80 baserow/embeddings:1.1.0
 ```
 
 ### Point Baserow to it

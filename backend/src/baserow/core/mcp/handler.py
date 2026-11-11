@@ -5,10 +5,12 @@ from baserow.core.handler import CoreHandler
 from baserow.core.utils import random_string
 
 from ..models import Workspace, WorkspaceUser
+from .constants import LEGACY_DEFAULT_TOOLS
 from .exceptions import (
     MaximumUniqueEndpointTriesError,
     MCPEndpointDoesNotBelongToUser,
     MCPEndpointDoesNotExist,
+    MCPToolsNotAvailable,
 )
 from .models import MCPEndpoint
 from .operations import (
@@ -17,6 +19,7 @@ from .operations import (
     ReadMCPEndpointOperationType,
     UpdateMCPEndpointOperationType,
 )
+from .registries import mcp_tool_registry
 
 
 class MCPEndpointHandler:
@@ -90,6 +93,20 @@ class MCPEndpointHandler:
             if not MCPEndpoint.objects.filter(key=key).exists():
                 return key
 
+    def get_default_tools(self) -> list[str]:
+        """
+        The tools a new endpoint key starts with: every read-only tool that isn't
+        off by default, plus the tools endpoint keys always had. The user can change
+        them afterwards.
+        """
+
+        return [
+            tool.name
+            for tool in mcp_tool_registry.get_enabled_tools()
+            if (tool.read_only and not tool.off_by_default)
+            or tool.name in LEGACY_DEFAULT_TOOLS
+        ]
+
     def create_endpoint(
         self,
         user: AbstractUser,
@@ -121,6 +138,7 @@ class MCPEndpointHandler:
             key=self.generate_unique_key(),
             user=user,
             workspace=workspace,
+            allowed_tools=self.get_default_tools(),
         )
 
         return endpoint
@@ -135,13 +153,14 @@ class MCPEndpointHandler:
     ) -> tuple[MCPEndpoint, bool]:
         """
         Returns the grant backing an OAuth client's access to a workspace, creating
-        it on first consent and replacing its allowed tools afterwards.
+        it on first consent and replacing its name and allowed tools afterwards.
 
         :param user: The user giving consent.
         :param workspace: The workspace the client gets access to.
         :param client_id: The OAuth client id.
-        :param name: The client name, used as the grant name when creating.
+        :param name: The client name, stored as the grant name.
         :param allowed_tools: The tool names the client may use.
+        :raises MCPToolsNotAvailable: When a name isn't an enabled tool.
         :return: The created or updated grant, and whether it was created.
         """
 
@@ -157,6 +176,7 @@ class MCPEndpointHandler:
             workspace=workspace,
             context=workspace,
         )
+        allowed_tools = self._check_tools(allowed_tools)
         # get_or_create retries the lookup when a parallel consent created the row
         # first, so the unique constraint never surfaces as an error.
         endpoint, created = MCPEndpoint.objects.get_or_create(
@@ -172,8 +192,10 @@ class MCPEndpointHandler:
                 workspace=workspace,
                 context=endpoint,
             )
+            # The client may have been renamed since the first consent.
+            endpoint.name = name
             endpoint.allowed_tools = allowed_tools
-            endpoint.save(update_fields=["allowed_tools"])
+            endpoint.save(update_fields=["name", "allowed_tools"])
         return endpoint, created
 
     def update_endpoint(
@@ -208,6 +230,60 @@ class MCPEndpointHandler:
 
         return endpoint
 
+    def update_allowed_tools(
+        self, user: AbstractUser, endpoint: MCPEndpoint, names: list[str]
+    ) -> MCPEndpoint:
+        """
+        Replaces the tools an endpoint key or OAuth grant may use. Takes effect on
+        the next MCP request, so a connected app doesn't need to sign in again.
+
+        Removing tools needs no permission, like disconnecting an app. Stored names
+        of tools that are currently disabled are kept, because the user can't see
+        them to choose.
+
+        :param user: The user on whose behalf the tools are changed.
+        :param endpoint: The endpoint or grant to change.
+        :param names: The tool names the endpoint may use from now on.
+        :raises MCPEndpointDoesNotBelongToUser: When the endpoint isn't the user's.
+        :raises MCPToolsNotAvailable: When a name isn't an enabled tool.
+        :return: The updated endpoint.
+        """
+
+        if not user.id == endpoint.user_id:
+            raise MCPEndpointDoesNotBelongToUser(
+                "The user is not authorized to update the endpoint."
+            )
+
+        stored = mcp_tool_registry.get_allowed_names(endpoint)
+        if set(names) - set(stored):
+            CoreHandler().check_permissions(
+                user,
+                UpdateMCPEndpointOperationType.type,
+                workspace=endpoint.workspace,
+                context=endpoint,
+            )
+
+        enabled = {tool.name for tool in mcp_tool_registry.get_enabled_tools()}
+        hidden = [name for name in stored if name not in enabled]
+        endpoint.allowed_tools = self._check_tools(names) + hidden
+        endpoint.save(update_fields=["allowed_tools"])
+        return endpoint
+
+    def _check_tools(self, names: list[str]) -> list[str]:
+        """
+        Returns the names in registry order, so the result doesn't depend on the
+        request's order.
+
+        :raises MCPToolsNotAvailable: When a name isn't an enabled tool.
+        """
+
+        requested = set(names)
+        enabled = [t.name for t in mcp_tool_registry.get_enabled_tools()]
+        unknown = sorted(requested - set(enabled))
+        if unknown:
+            raise MCPToolsNotAvailable(unknown)
+        return [name for name in enabled if name in requested]
+
     def delete_endpoint(self, user: AbstractUser, endpoint: MCPEndpoint):
         """
         Deletes an existing MCP endpoint
@@ -232,16 +308,23 @@ class MCPEndpointHandler:
 
         endpoint.delete()
 
-    def get_oauth_grant(self, user: AbstractUser, grant_id: int) -> MCPEndpoint:
+    def get_oauth_grant(
+        self, user: AbstractUser, grant_id: int, base_queryset: QuerySet = None
+    ) -> MCPEndpoint:
         """
         Fetches one of the user's OAuth grants. There is no permission check: a
         user can always see and disconnect what they connected.
 
+        :param base_queryset: The queryset to select the grant from, for example
+            to lock it.
         :raises MCPEndpointDoesNotExist: When the user has no grant with that id.
         """
 
+        if base_queryset is None:
+            base_queryset = MCPEndpoint.objects
+
         try:
-            return MCPEndpoint.objects.select_related("workspace").get(
+            return base_queryset.select_related("workspace").get(
                 id=grant_id, user=user, oauth_client_id__isnull=False
             )
         except MCPEndpoint.DoesNotExist:

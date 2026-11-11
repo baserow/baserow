@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Kuma's application builder tools now reject changes to pages, elements, data sources or actions that belong to another workspace.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-21"
+}

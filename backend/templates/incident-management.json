@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Incident Management",
+    "description": "Report incidents, investigate causes and plan responses.",
     "icon": "iconoir-shield-alert",
     "keywords": [
         "incidents",

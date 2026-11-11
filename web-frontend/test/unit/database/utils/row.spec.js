@@ -6,6 +6,7 @@ import {
   computeRowMatchFlags,
   buildNewRowDefaults,
   computeRowInsertPosition,
+  canTellIfDeletedRowWasCounted,
 } from '@baserow/modules/database/utils/row'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -774,6 +775,44 @@ describe('Row utilities', () => {
         isFirst: true,
         isLast: false,
       })
+    })
+  })
+
+  describe('canTellIfDeletedRowWasCounted', () => {
+    const fields = [
+      { id: 1, type: 'text' },
+      { id: 2, type: 'text' },
+    ]
+    const fieldOptions = { 1: { hidden: false }, 2: { hidden: true } }
+    const on = (key, field) => ({ [key]: [{ field }] })
+
+    test.each([
+      ['nothing decides the position', {}, {}, true, true],
+      ['filtered field missing', on('filters', 1), {}, false, false],
+      ['filtered field null', on('filters', 1), { field_1: null }, false, true],
+      ['filtered field hidden', on('filters', 2), {}, false, true],
+      ['filtered field deleted', on('filters', 9), {}, false, true],
+      [
+        'filters disabled',
+        { ...on('filters', 1), filters_disabled: true },
+        {},
+        false,
+        true,
+      ],
+      ['sorted field missing', on('sortings', 1), {}, true, false],
+      ['grouped field missing', on('group_bys', 1), {}, true, false],
+      ['filter checked with sortings', on('filters', 1), {}, true, false],
+      ['sorted field not checked', on('sortings', 1), {}, false, true],
+    ])('%s', (_, view, row, checkSortAndGroupBy, expected) => {
+      expect(
+        canTellIfDeletedRowWasCounted({
+          row: { id: 9, ...row },
+          view,
+          fields,
+          fieldOptions,
+          checkSortAndGroupBy,
+        })
+      ).toBe(expected)
     })
   })
 

@@ -54,9 +54,9 @@ class LastViewedItemsView(APIView):
         tags=["Last viewed"],
         operation_id="list_last_viewed_items",
         description=(
-            "Lists the views, application pages, dashboards and automation workflows "
-            "the authenticated user opened most recently, newest first. Only items "
-            "the user can still access are returned."
+            "Lists the views, application pages, dashboards, automation workflows and "
+            "agents the authenticated user opened most recently, newest first. Only "
+            "items the user can still access are returned."
         ),
         responses={
             200: LastViewedItemsResponseSerializer,

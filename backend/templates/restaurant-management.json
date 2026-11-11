@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Restaurant Management",
+    "description": "Run a restaurant's staff, shifts, suppliers, inventory and menu.",
     "icon": "iconoir-clutery",
     "keywords": [
         "restaurant",

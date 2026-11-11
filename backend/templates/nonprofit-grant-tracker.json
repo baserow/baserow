@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Nonprofit Grant Tracker",
+    "description": "Track grant applications, funders, programs and the team.",
     "icon": "iconoir-receive-dollars",
     "keywords": [
         "grants",

@@ -138,7 +138,11 @@ class OAuth2LoginView(APIView):
         # so the auth form can render the error inline instead of a full page error.
         error_url = get_valid_frontend_url(
             request.GET.get("original"),
-            {f"oidc_error__{user_source.id}": error_raised["code"].value},
+            {
+                self.AUTH_PROVIDER_TYPE.get_callback_error_query_param_name(
+                    user_source.id
+                ): error_raised["code"].value
+            },
             default_frontend_urls=application_urls,
             allow_any_path=False,
         )
@@ -199,7 +203,7 @@ class OAuth2CallbackView(APIView):
         in.
         """
 
-        auth_provider_id = request.session.pop("oauth_2_provider_id", None)
+        auth_provider_id = request.session.get("oauth_2_provider_id", None)
         if not auth_provider_id:
             raise AuthProviderModelNotFound("Missing auth provider id.")
 
@@ -239,6 +243,12 @@ class OAuth2CallbackView(APIView):
             },
             on_error=on_error,
         ):
+            provider.get_type().consume_oauth_state_or_raise(
+                provider, request.session, request.query_params.get("state", None)
+            )
+            # Kept until here so that a stale tab can't fail the login of another one.
+            del request.session["oauth_2_provider_id"]
+
             code = request.query_params.get("code", None)
 
             user_info, original_url = provider.get_type().get_user_info(
@@ -252,7 +262,9 @@ class OAuth2CallbackView(APIView):
 
             # Adds the refresh token to the query params of redirect URL
             query_params = {
-                f"user_source_oidc_token__{user.user_source.id}": user.get_refresh_token()
+                self.AUTH_PROVIDER_TYPE.get_callback_token_query_param_name(
+                    user.user_source.id
+                ): user.get_refresh_token()
             }
 
             # Otherwise it's a success, we redirect to the login page
@@ -270,7 +282,11 @@ class OAuth2CallbackView(APIView):
         # and the plain email/password login flow) instead of a full page error.
         error_url = get_valid_frontend_url(
             original_url,
-            {f"oidc_error__{provider.user_source.id}": error_raised["code"].value},
+            {
+                self.AUTH_PROVIDER_TYPE.get_callback_error_query_param_name(
+                    provider.user_source.id
+                ): error_raised["code"].value
+            },
             default_frontend_urls=application_urls,
             allow_any_path=False,
         )

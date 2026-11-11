@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import NamedTuple, NewType, Optional, TypedDict, TypeVar
 
 from baserow.core.formula.runtime_formula_context import RuntimeFormulaContext
@@ -28,6 +29,24 @@ class ServiceSortDict(TypedDict):
 
 
 @dataclass
+class PendingDispatch:
+    """
+    Returned inside a `DispatchResult` by a service whose work is not finished
+    when `dispatch_data()` returns, e.g. a service that waits for a point in
+    time. The consumer that owns the run (the automation runner) persists the
+    node, frees the worker and calls `ServiceType.resume_dispatch()` once
+    `resume_at` has passed. The builder and dashboard dispatchers do not
+    support it.
+    """
+
+    # When to resume. None is reserved for waiters resumed by an external
+    # event, which no consumer supports yet: the automation runner refuses it.
+    resume_at: Optional[datetime] = None
+    # JSON-serialisable state handed back to `resume_dispatch()`.
+    state: dict = field(default_factory=dict)
+
+
+@dataclass
 class DispatchResult:
     data: dict = field(default_factory=dict)
     status: int = 200
@@ -45,6 +64,11 @@ class DispatchResult:
         default=None, metadata={"exclude_from_sample_data": True}
     )
     deferred_timeout_seconds: Optional[int] = field(
+        default=None, metadata={"exclude_from_sample_data": True}
+    )
+    # When set, the service has not finished its work: the automation runner
+    # suspends the node and resumes it later. Internal, never sample data.
+    pending: Optional[PendingDispatch] = field(
         default=None, metadata={"exclude_from_sample_data": True}
     )
 

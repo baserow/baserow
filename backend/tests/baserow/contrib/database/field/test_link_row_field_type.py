@@ -3330,3 +3330,36 @@ def test_duplicate_link_row_no_multiple_relationships(data_fixture):
         field=link_row_field, user=user, duplicate_data=True
     )
     assert dup_field.link_row_multiple_relationships is False
+
+
+@pytest.mark.django_db
+def test_link_row_group_by_response_serializer_uses_display_safe_labels(
+    data_fixture,
+):
+    """Grouped link row values render the related primary's group label."""
+    user = data_fixture.create_user(first_name="Alice")
+    people = data_fixture.create_database_table(user=user)
+    member = data_fixture.create_multiple_collaborators_field(
+        table=people, primary=True
+    )
+    person = RowHandler().create_row(
+        user, people, values={member.db_column: [{"id": user.id}]}
+    )
+    tasks = data_fixture.create_database_table(user=user, database=people.database)
+    owner = data_fixture.create_link_row_field(
+        table=tasks, link_row_table=people, name="Owner"
+    )
+    linked_rows = people.get_model().objects.filter(id=person.id)
+    field_type = field_type_registry.get_by_model(owner)
+
+    default = field_type.get_response_serializer_field(owner).to_representation(
+        linked_rows
+    )
+    safe = field_type.get_group_by_response_serializer_field(owner).to_representation(
+        linked_rows
+    )
+
+    assert default[0]["value"] == f"Alice <{user.email}>"
+    assert safe[0]["id"] == person.id
+    assert safe[0]["value"] == "Alice"
+    assert user.email not in str(safe)

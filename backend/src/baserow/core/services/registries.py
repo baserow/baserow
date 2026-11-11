@@ -19,10 +19,9 @@ from baserow.core.formula.exceptions import (
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.validator import ensure_integer
-from baserow.core.integrations.exceptions import IntegrationDoesNotExist
-from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.integrations.models import Integration
+from baserow.core.integrations.mixins import IntegrationConsumerMixin
 from baserow.core.models import Workspace
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import (
     APIUrlsInstanceMixin,
     APIUrlsRegistryMixin,
@@ -38,6 +37,7 @@ from baserow.core.registry import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
+from baserow.core.services.utils import sanitize_sample_data
 
 from .exceptions import (
     DispatchException,
@@ -62,6 +62,7 @@ class DispatchTypes(str, Enum):
 
 
 class ServiceType(
+    IntegrationConsumerMixin,
     APIUrlsInstanceMixin,
     InstanceWithFormulaMixin,
     EasyImportExportMixin[ServiceSubClass],
@@ -75,13 +76,56 @@ class ServiceType(
     A service type describe a specific service of an external integration.
     """
 
-    integration_type = None
-
     SerializedDict: Type[ServiceDictSubClass]
     parent_property_name = "integration"
     id_mapping_name = "services"
 
     default_serializer_field_names = ["sample_data"]
+
+    def export_serialized(
+        self,
+        instance: ServiceSubClass,
+        import_export_config: Optional[ImportExportConfig] = None,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ) -> Dict[str, Any]:
+        """Redact sensitive settings and sanitize samples for external exports."""
+
+        serialized = {
+            key: self.serialize_property(
+                instance,
+                key,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+            )
+            for key in self.get_property_names()
+        }
+        if getattr(import_export_config, "exclude_sensitive_data", False):
+            for prop_name in self.sensitive_fields:
+                if prop_name not in serialized:
+                    continue
+                value = serialized[prop_name]
+                serialized[prop_name] = (
+                    [
+                        {**row, "value": None} if isinstance(row, dict) else row
+                        for row in value
+                    ]
+                    if isinstance(value, list)
+                    else None
+                )
+        if getattr(import_export_config, "is_user_template", False) or getattr(
+            import_export_config, "exclude_sensitive_data", False
+        ):
+            sample_data = serialized.get("sample_data")
+            serialized["sample_data"] = (
+                None
+                if isinstance(sample_data, dict) and "_error" in sample_data
+                else sanitize_sample_data(sample_data)
+            )
+        return serialized
 
     # Does this service return a list of record?
     returns_list = False
@@ -100,9 +144,13 @@ class ServiceType(
     # used across modules.
     dispatch_types: List[DispatchTypes] = []
 
-    # By default all service data should be hidden
+    # By default all service data should be hidden. The serializer mixins are
+    # excluded as well because the filterable and sortable mixins add the service
+    # `filters`, `filter_groups` and `sortings` in `to_representation`, regardless
+    # of the field names.
     public_serializer_field_names = []
     public_serializer_field_overrides = {}
+    public_serializer_mixins = []
 
     def is_deactivated(self, workspace: Workspace) -> bool:
         """Return whether this service type is unavailable in the workspace."""
@@ -188,48 +236,7 @@ class ServiceType(
         :return: The updated values.
         """
 
-        # We load the actual integration object
-        if "integration_id" in values:
-            integration_id = values.pop("integration_id")
-            if integration_id is not None:
-                try:
-                    integration = IntegrationHandler().get_integration(integration_id)
-                except IntegrationDoesNotExist:
-                    # The integration may be trashed rather than truly gone: undoing
-                    # a data source update can restore an integration_id whose
-                    # integration is still trashed (a later undo step un-trashes it).
-                    # Resolve it from the full set so the FK can still be set; the
-                    # data source stays misconfigured until the integration is
-                    # restored. A genuinely non-existent id still raises.
-                    try:
-                        integration = IntegrationHandler().get_integration(
-                            integration_id,
-                            base_queryset=Integration.objects_and_trash.all(),
-                            specific=False,
-                        )
-                    except IntegrationDoesNotExist:
-                        raise DRFValidationError(
-                            f"The integration with ID {integration_id} does not exist."
-                        )
-
-                # `integration` cannot belong to a different application than the one
-                # that `instance.integration` points to. Skipped when the current
-                # integration has been trashed (it can no longer be resolved, so
-                # `instance.integration` is None).
-                if instance and instance.integration_id and instance.integration:
-                    current_integration_id = instance.integration.application_id
-                    if integration.application_id != current_integration_id:
-                        raise DRFValidationError(
-                            detail=f"The integration with ID {integration_id} is not "
-                            f"related to the given application {current_integration_id}.",
-                            code="invalid_integration",
-                        )
-
-                values["integration"] = integration
-            else:
-                values["integration"] = None
-
-        return values
+        return self.prepare_integration_values(values)
 
     def export_prepared_values(self, instance: Service):
         """
@@ -286,6 +293,22 @@ class ServiceType(
         """
 
         return None
+
+    def get_public_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ):
+        """
+        Return the context data of this service for anonymous visitors, for
+        example of a publicly shared dashboard or a published application. It
+        defaults to the regular context data, service types whose context data
+        includes something visitors must not see, like the configuration of a
+        field, override it.
+
+        :param service: The service we want the public context data for.
+        :param allowed_fields: The properties which are allowed to be included.
+        """
+
+        return self.get_context_data(service, allowed_fields=allowed_fields)
 
     def get_sample_data(
         self, service: ServiceSubClass, dispatch_context: DispatchContext
@@ -451,6 +474,13 @@ class ServiceType(
         data = self.dispatch_data(service, resolved_values, dispatch_context)
         return self.dispatch_transform(data)
 
+    def before_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """Hook called immediately before a service executes."""
+
     def after_dispatch(
         self,
         service: ServiceSubClass,
@@ -497,6 +527,8 @@ class ServiceType(
         ):
             return DispatchResult(**sample_data)
 
+        self.before_dispatch(service, dispatch_context)
+
         # Formula resolution always runs inside this savepoint. `dispatch_data`
         # and `dispatch_transform` run inside it too, unless the service is
         # external and the dispatch context says its caller sends outside a
@@ -529,9 +561,13 @@ class ServiceType(
                     service, resolved_values, dispatch_context
                 )
         except Exception as e:
-            if dispatch_context.use_sample_data and (
-                dispatch_context.update_sample_data_for is None
-                or service in dispatch_context.update_sample_data_for
+            if (
+                dispatch_context.use_sample_data
+                and not dispatch_context.keep_sample_data_on_error
+                and (
+                    dispatch_context.update_sample_data_for is None
+                    or service in dispatch_context.update_sample_data_for
+                )
             ):
                 service.sample_data = {"_error": str(e)}
                 service.save()
@@ -556,16 +592,45 @@ class ServiceType(
                 # data (PostgreSQL refuses a NUL character in a json column,
                 # for one), the caller's transaction must stay usable so it can
                 # record the failure, and the sentinel is stored the same way
-                # it is for a failed dispatch.
+                # it is for a failed dispatch, unless the context asks to keep
+                # the sample data the service already had.
+                previous_sample_data = service.sample_data
                 service.sample_data = sample_data
                 try:
                     with transaction.atomic():
                         service.save()
                 except Exception as e:
-                    service.sample_data = {"_error": str(e)}
-                    service.save()
+                    if dispatch_context.keep_sample_data_on_error:
+                        service.sample_data = previous_sample_data
+                    else:
+                        service.sample_data = {"_error": str(e)}
+                        service.save()
                     raise
             return serialized_data
+
+    def resume_dispatch(
+        self,
+        service: ServiceSubClass,
+        state: dict,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Finishes a dispatch that returned a `PendingDispatch`. The consumer that
+        suspended the dispatch calls this once the wait is over, with the `state`
+        the service stored on the pending result. Returns the final result,
+        exactly as `dispatch()` would have.
+
+        :param service: The service instance whose dispatch is resumed.
+        :param state: The state the service stored when it suspended.
+        :param dispatch_context: The context used for the dispatch.
+        :raises NotImplementedError: If the service type never suspends.
+        :return: The final dispatch result.
+        """
+
+        raise NotImplementedError(
+            f"The {self.type} service type returned a pending dispatch but does "
+            "not implement resume_dispatch()."
+        )
 
     def remove_unused_field_names(
         self,
@@ -624,6 +689,23 @@ class ServiceType(
         """
 
         return None
+
+    def generate_public_schema(
+        self, service: Service, allowed_fields: Optional[List[str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        The JSON Schema of this service for anonymous visitors, for example of a
+        publicly shared dashboard or a published application. It defaults to the
+        regular schema, service types whose schema embeds something visitors must
+        not see override it.
+
+        :param service: The service we want to generate the public schema for.
+        :param allowed_fields: A list of fields that are allowed to be included in the
+            schema.
+        :return: None, or a dictionary representing the schema.
+        """
+
+        return self.generate_schema(service, allowed_fields=allowed_fields)
 
     def enhance_queryset(self, queryset):
         """

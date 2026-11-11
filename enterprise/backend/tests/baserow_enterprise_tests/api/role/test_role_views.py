@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.core.models import WorkspaceUser
 from baserow.core.subjects import UserSubjectType
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -295,32 +296,10 @@ def test_create_role_assignment_invalid_requests(api_client, data_fixture):
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
     )
 
+    # The last admin can't demote themselves, like nobody can change their own
+    # role, so the self assignment guard answers before the last admin check.
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_LAST_ADMIN_OF_GROUP"
-
-
-@pytest.mark.django_db
-def test_assign_last_admin_the_admin_role_works(data_fixture, api_client):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    admin_role = Role.objects.get(uid="ADMIN")
-
-    url = reverse("api:enterprise:role:list", kwargs={"workspace_id": workspace.id})
-
-    response = api_client.post(
-        url,
-        {
-            "scope_id": workspace.id,
-            "scope_type": "workspace",
-            "subject_id": user.id,
-            "subject_type": UserSubjectType.type,
-            "role": admin_role.uid,
-        },
-        format="json",
-        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
-    )
-
-    assert response.status_code == HTTP_200_OK
+    assert response.json()["error"] == "ERROR_CANT_ASSIGN_ROLE_TO_SELF"
 
 
 @pytest.mark.django_db
@@ -645,7 +624,7 @@ def test_batch_assign_role_duplicates(data_fixture, api_client):
 
 
 @pytest.mark.django_db
-def test_batch_assign_role_is_undoable(api_client, data_fixture):
+def test_batch_assign_role_is_not_undoable(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     user_2 = data_fixture.create_user()
     user_3 = data_fixture.create_user()
@@ -654,17 +633,6 @@ def test_batch_assign_role_is_undoable(api_client, data_fixture):
     session_id = "TEST"
 
     url = reverse("api:enterprise:role:batch", kwargs={"workspace_id": workspace.id})
-
-    initial_role_user_2 = (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_2, workspace=workspace)
-        .role
-    )
-    initial_role_user_3 = (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_3, workspace=workspace)
-        .role
-    )
 
     role_assignments = [
         {
@@ -683,47 +651,70 @@ def test_batch_assign_role_is_undoable(api_client, data_fixture):
         },
     ]
 
-    api_client.post(
+    response = api_client.post(
         url,
         {"items": role_assignments},
         format="json",
         **{"HTTP_AUTHORIZATION": f"JWT {token}"},
         HTTP_CLIENTSESSIONID=session_id,
     )
+    assert response.status_code == HTTP_200_OK
 
-    assert (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_2, workspace=workspace)
-        .role
-        == role
-    )
-    assert (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_3, workspace=workspace)
-        .role
-        == role
-    )
-
-    api_client.patch(
+    response = api_client.patch(
         reverse("api:user:undo"),
         {"scopes": {"root": True, "workspace": workspace.id}},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
         HTTP_CLIENTSESSIONID=session_id,
     )
+    assert response.json()["actions"] == []
+
+    for subject in [user_2, user_3]:
+        assert (
+            RoleAssignmentHandler()
+            .get_current_role_assignment(subject, workspace=workspace)
+            .role
+            == role
+        )
+
+
+@pytest.mark.django_db
+def test_assign_role_is_not_undoable(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    user_2 = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user, members=[user_2])
+    role = Role.objects.get(uid="ADMIN")
+    session_id = "TEST"
+
+    response = api_client.post(
+        reverse("api:enterprise:role:list", kwargs={"workspace_id": workspace.id}),
+        {
+            "scope_id": workspace.id,
+            "scope_type": "workspace",
+            "subject_id": user_2.id,
+            "subject_type": UserSubjectType.type,
+            "role": role.uid,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.status_code == HTTP_200_OK
+
+    response = api_client.patch(
+        reverse("api:user:undo"),
+        {"scopes": {"root": True, "workspace": workspace.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=session_id,
+    )
+    assert response.json()["actions"] == []
 
     assert (
         RoleAssignmentHandler()
         .get_current_role_assignment(user_2, workspace=workspace)
         .role
-        == initial_role_user_2
-    )
-
-    assert (
-        RoleAssignmentHandler()
-        .get_current_role_assignment(user_3, workspace=workspace)
-        .role
-        == initial_role_user_3
+        == role
     )
 
 
@@ -779,3 +770,58 @@ def test_list_roles_endpoint_returns_expected_data(
             "roles": sorted(roles),
         }
     ]
+
+
+@pytest.mark.django_db
+def test_assign_role_to_yourself_is_rejected(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    other_admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=user, custom_permissions=[(other_admin, "ADMIN")]
+    )
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    viewer_role = Role.objects.get(uid="VIEWER")
+
+    item = {
+        "scope_id": table.id,
+        "scope_type": "database_table",
+        "subject_id": user.id,
+        "subject_type": UserSubjectType.type,
+        "role": viewer_role.uid,
+    }
+
+    response = api_client.post(
+        reverse("api:enterprise:role:list", kwargs={"workspace_id": workspace.id}),
+        item,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANT_ASSIGN_ROLE_TO_SELF"
+
+    response = api_client.post(
+        reverse("api:enterprise:role:batch", kwargs={"workspace_id": workspace.id}),
+        {"items": [item]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANT_ASSIGN_ROLE_TO_SELF"
+    assert RoleAssignment.objects.count() == 0
+
+    # The workspace role is covered too, so an admin can't demote themselves.
+    response = api_client.post(
+        reverse("api:enterprise:role:list", kwargs={"workspace_id": workspace.id}),
+        {**item, "scope_id": workspace.id, "scope_type": "workspace"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANT_ASSIGN_ROLE_TO_SELF"
+    assert WorkspaceUser.objects.get(user=user, workspace=workspace).permissions == (
+        "ADMIN"
+    )

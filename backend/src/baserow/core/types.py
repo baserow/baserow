@@ -37,9 +37,12 @@ class PermissionCheck(NamedTuple):
 
     @property
     def actor(self) -> Actor:
+        if self.original_actor:
+            return self.original_actor
+
         from django.contrib.auth.models import AnonymousUser  # noqa: F401,F811
 
-        return self.original_actor or AnonymousUser
+        return AnonymousUser
 
 
 class PermissionObjectResult(TypedDict):

@@ -2,21 +2,25 @@ import os
 from unittest.mock import patch
 
 from django.conf import settings
+from django.db import connection
 from django.shortcuts import reverse
 from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_202_ACCEPTED,
     HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
 )
 
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Application, Template
+from baserow.core.models import Application, InstallTemplateJob, Template
+from tests.baserow.core.user_templates.utils import create_template
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
 
@@ -29,6 +33,7 @@ def test_list_templates(api_client, data_fixture):
 
     template_1 = data_fixture.create_template(
         name="Template 1",
+        description="Plan projects.",
         icon="document",
         category=category_1,
         keywords="test1,test2",
@@ -56,13 +61,17 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_1.id,
+                    "revision_id": template_1.id,
+                    "type": "official",
                     "name": "Template 1",
                     "slug": template_1.slug,
+                    "description": "Plan projects.",
                     "icon": "document",
                     "keywords": "test1,test2",
                     "workspace_id": template_1.workspace_id,
                     "is_default": True,
                     "open_application": None,
+                    "author_name": None,
                 }
             ],
         },
@@ -72,23 +81,31 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_2.id,
+                    "revision_id": template_2.id,
+                    "type": "official",
                     "name": "Template 2",
                     "slug": template_2.slug,
+                    "description": "",
                     "icon": "document",
                     "keywords": "",
                     "workspace_id": template_2.workspace_id,
                     "is_default": False,
                     "open_application": 1,
+                    "author_name": None,
                 },
                 {
                     "id": template_3.id,
+                    "revision_id": template_3.id,
+                    "type": "official",
                     "name": "Template 3",
                     "slug": template_3.slug,
+                    "description": "",
                     "icon": "document",
                     "keywords": "",
                     "workspace_id": template_3.workspace_id,
                     "is_default": False,
                     "open_application": None,
+                    "author_name": None,
                 },
             ],
         },
@@ -98,13 +115,17 @@ def test_list_templates(api_client, data_fixture):
             "templates": [
                 {
                     "id": template_3.id,
+                    "revision_id": template_3.id,
+                    "type": "official",
                     "name": "Template 3",
                     "slug": template_3.slug,
+                    "description": "",
                     "icon": "document",
                     "keywords": "",
                     "workspace_id": template_3.workspace_id,
                     "is_default": False,
                     "open_application": None,
+                    "author_name": None,
                 }
             ],
         },
@@ -314,3 +335,365 @@ def test_async_install_template_serializer(api_client, data_fixture):
     assert installed_app["order"] == 1
     assert installed_app["workspace"]["id"] == workspace.id
     assert installed_app["type"] == "database"
+
+
+@pytest.mark.django_db
+def test_list_templates_without_user_templates(api_client, data_fixture):
+    category = data_fixture.create_template_category(name="Official")
+    user_category = data_fixture.create_template_category(name="User")
+    official = data_fixture.create_template(category=category)
+    legacy = data_fixture.create_template(type=None, category=category)
+    user_template = data_fixture.create_user_template(
+        categories=[category, user_category]
+    )
+    data_fixture.create_user_template_revision(user_template, category=category)
+
+    response = api_client.get(reverse("api:templates:list"))
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+
+    assert [c["id"] for c in response_json] == [category.id]
+    assert {t["id"] for t in response_json[0]["templates"]} == {official.id, legacy.id}
+
+
+@pytest.mark.django_db
+def test_list_templates_keeps_category_without_templates(api_client, data_fixture):
+    # A pattern sync moving a template to another category leaves the old one
+    # without templates until the next full sync. Official listing is unchanged.
+    empty = data_fixture.create_template_category(name="Empty")
+    category = data_fixture.create_template_category(name="Official")
+    data_fixture.create_template(category=category)
+
+    response = api_client.get(reverse("api:templates:list"))
+    assert response.status_code == HTTP_200_OK
+    assert [c["id"] for c in response.json()] == [empty.id, category.id]
+
+
+@pytest.mark.django_db
+def test_get_template_ignores_user_templates_with_flag_off(
+    api_client, data_fixture, settings
+):
+    settings.FEATURE_FLAGS = []
+    official = data_fixture.create_template(type=None)
+    user_template = data_fixture.create_user_template()
+
+    response = api_client.get(
+        reverse("api:templates:item", kwargs={"slug": official.slug})
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["id"] == official.id
+
+    response = api_client.get(
+        reverse("api:templates:item", kwargs={"slug": user_template.slug})
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_install_template_ignores_user_templates(api_client, data_fixture):
+    owner, owner_token = data_fixture.create_user_and_token()
+    staff, staff_token = data_fixture.create_user_and_token(is_staff=True)
+    other, other_token = data_fixture.create_user_and_token()
+    # The slug matches a template file, which the official path would install.
+    user_template = create_template(
+        data_fixture, owner, "public", slug="example-template-2"
+    )
+    revision = data_fixture.create_user_template_revision(
+        user_template, workspace=user_template.workspace
+    )
+
+    for user, token in [
+        (owner, owner_token),
+        (staff, staff_token),
+        (other, other_token),
+    ]:
+        workspace = data_fixture.create_workspace(user=user)
+        for template in [user_template, revision]:
+            response = api_client.post(
+                reverse(
+                    "api:templates:install",
+                    kwargs={"workspace_id": workspace.id, "template_id": template.id},
+                ),
+                HTTP_AUTHORIZATION=f"JWT {token}",
+            )
+            assert response.status_code == HTTP_404_NOT_FOUND
+            assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+        assert not Application.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "actor,state,expected_status,expected_error",
+    [
+        ("owner", "private", HTTP_202_ACCEPTED, None),
+        ("owner", "blocked", HTTP_400_BAD_REQUEST, "ERROR_TEMPLATE_BLOCKED"),
+        ("staff", "private", HTTP_202_ACCEPTED, None),
+        ("staff", "blocked", HTTP_202_ACCEPTED, None),
+        ("staff", "marked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+        ("other", "private", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+        ("other", "public", HTTP_202_ACCEPTED, None),
+        (
+            "other",
+            "public_blocked",
+            HTTP_404_NOT_FOUND,
+            "ERROR_TEMPLATE_DOES_NOT_EXIST",
+        ),
+        ("other", "marked", HTTP_404_NOT_FOUND, "ERROR_TEMPLATE_DOES_NOT_EXIST"),
+    ],
+)
+def test_async_install_user_template_access(
+    api_client,
+    data_fixture,
+    actor,
+    state,
+    expected_status,
+    expected_error,
+):
+    owner, owner_token = data_fixture.create_user_and_token()
+    user_template = create_template(data_fixture, owner, state)
+    if actor == "owner":
+        user, token = owner, owner_token
+    else:
+        user, token = data_fixture.create_user_and_token(is_staff=actor == "staff")
+    workspace = data_fixture.create_workspace(user=user)
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == expected_status, response.json()
+    jobs = InstallTemplateJob.objects.filter(workspace=workspace)
+    if expected_error is None:
+        job = jobs.get()
+        assert job.template_id == user_template.id
+        assert response.json()["template"]["id"] == user_template.id
+    else:
+        assert response.json()["error"] == expected_error
+        assert not jobs.exists()
+
+
+@pytest.mark.django_db
+def test_async_install_user_template_anonymous(api_client, data_fixture):
+    owner = data_fixture.create_user()
+    user_template = create_template(data_fixture, owner, "public")
+    workspace = data_fixture.create_workspace(user=owner)
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+        ),
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert not InstallTemplateJob.objects.exists()
+
+
+@pytest.mark.django_db
+def test_async_install_user_template_with_flag_off(api_client, data_fixture, settings):
+    owner, token = data_fixture.create_user_and_token()
+    user_template = create_template(data_fixture, owner, "public")
+    workspace = data_fixture.create_workspace(user=owner)
+    # The client still shows the template when the feature is switched off.
+    settings.FEATURE_FLAGS = []
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+    assert not InstallTemplateJob.objects.exists()
+
+
+@pytest.mark.django_db
+def test_async_install_user_template_checks_the_workspace_first(
+    api_client, data_fixture
+):
+    owner, token = data_fixture.create_user_and_token()
+    # Blocked, so that a template check before the workspace check would show.
+    user_template = create_template(data_fixture, owner, "blocked")
+    workspace = data_fixture.create_workspace()
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+    assert not InstallTemplateJob.objects.exists()
+
+
+@pytest.mark.django_db
+def test_generic_jobs_endpoint_install_user_template_access(api_client, data_fixture):
+    owner, owner_token = data_fixture.create_user_and_token()
+    other, other_token = data_fixture.create_user_and_token()
+    user_template = create_template(data_fixture, owner, "private")
+
+    other_workspace = data_fixture.create_workspace(user=other)
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {
+            "type": "install_template",
+            "workspace_id": other_workspace.id,
+            "template_id": user_template.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {other_token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND, response.json()
+    assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+    assert not InstallTemplateJob.objects.exists()
+
+    owner_workspace = data_fixture.create_workspace(user=owner)
+    response = api_client.post(
+        reverse("api:jobs:list"),
+        {
+            "type": "install_template",
+            "workspace_id": owner_workspace.id,
+            "template_id": user_template.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {owner_token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert InstallTemplateJob.objects.get().template_id == user_template.id
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+@pytest.mark.parametrize(
+    "case,expected_error",
+    [
+        # Another revision was made public after the user opened the template.
+        ("public_changed", "ERROR_TEMPLATE_UPDATED"),
+        # The owner made a revision that isn't public yet.
+        ("public_unchanged", None),
+        # The owner updated the template in another tab.
+        ("owner_updated", "ERROR_TEMPLATE_UPDATED"),
+        # The frontend sends the revision of an official template too.
+        ("official", None),
+    ],
+)
+def test_async_install_user_template_revision_id(
+    api_client, data_fixture, case, expected_error
+):
+    owner, owner_token = data_fixture.create_user_and_token()
+    viewer, viewer_token = data_fixture.create_user_and_token()
+    user, token = (
+        (owner, owner_token) if case == "owner_updated" else (viewer, viewer_token)
+    )
+    target = data_fixture.create_workspace(user=user)
+
+    if case == "official":
+        CoreHandler().sync_templates()
+        template = Template.objects.get(slug="example-template")
+    else:
+        template = create_template(data_fixture, owner, "public")
+
+    # The revision the user is shown: the preview, or "Your templates" for the
+    # owner, who installs the latest revision from there.
+    latest = case == "owner_updated"
+    if latest:
+        response = api_client.get(
+            reverse("api:templates:list"),
+            {"view": "flat", "type": "user", "owned": "true"},
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        shown = response.json()["results"][0]
+    else:
+        response = api_client.get(
+            reverse("api:templates:item", kwargs={"slug": template.slug}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+        shown = response.json()
+    assert shown["id"] == template.id
+
+    if case != "official":
+        revision = data_fixture.create_user_template_revision(template)
+        data_fixture.create_database_application(workspace=revision.workspace)
+        if case == "public_changed":
+            data_fixture.set_user_template_state(template, "public", revision)
+
+    response = api_client.post(
+        reverse(
+            "api:templates:install_async",
+            kwargs={"workspace_id": target.id, "template_id": template.id},
+        )
+        + f"?latest={latest}&revision_id={shown['revision_id']}",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    jobs = InstallTemplateJob.objects.filter(workspace=target)
+    if expected_error is None:
+        assert response.status_code == HTTP_202_ACCEPTED, response.json()
+        assert jobs.get().template_id == shown["revision_id"]
+    else:
+        assert response.status_code == HTTP_400_BAD_REQUEST, response.json()
+        assert response.json()["error"] == expected_error
+        assert not jobs.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("actor,latest", [("owner", True), ("other", False)])
+def test_async_install_user_template_query_count_is_constant(
+    api_client, data_fixture, actor, latest
+):
+    owner, owner_token = data_fixture.create_user_and_token()
+    user_template = create_template(data_fixture, owner, "public")
+    if actor == "owner":
+        user, token = owner, owner_token
+    else:
+        user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    url = reverse(
+        "api:templates:install_async",
+        kwargs={"workspace_id": workspace.id, "template_id": user_template.id},
+    ) + ("?latest=true" if latest else "")
+
+    def install():
+        # Only one install job of a user can run at a time.
+        InstallTemplateJob.objects.all().delete()
+        with CaptureQueriesContext(connection) as queries:
+            response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_202_ACCEPTED, response.json()
+        return response.json(), queries
+
+    # The first request fills the caches that the others find filled.
+    install()
+    response_json, one_revision = install()
+    assert response_json["template"]["id"] == user_template.id
+
+    revisions = [
+        data_fixture.create_user_template_revision(
+            user_template, workspace=user_template.workspace
+        )
+        for _ in range(3)
+    ]
+    # The owner pins the latest revision when asked to, otherwise everyone pins
+    # the public one.
+    data_fixture.set_user_template_state(user_template, "public", revisions[1])
+    expected_pin = revisions[-1] if latest else revisions[1]
+
+    response_json, four_revisions = install()
+    assert InstallTemplateJob.objects.get().template_id == expected_pin.id
+    assert response_json["template"]["id"] == user_template.id
+    assert response_json["template"]["slug"] == user_template.slug
+
+    assert len(four_revisions.captured_queries) == len(one_revision.captured_queries)

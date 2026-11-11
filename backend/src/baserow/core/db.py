@@ -26,6 +26,7 @@ from django.db import (
     DEFAULT_DB_ALIAS,
     OperationalError,
     connection,
+    connections,
     transaction,
 )
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
@@ -49,6 +50,40 @@ EXACT_COUNT_MAX_COST = 200_000
 
 # Where the Postgres `integer` behind Django's `AutoField` and `IntegerField` stops.
 MAX_INT_FIELD_VALUE = 2**31 - 1
+
+
+def with_usable_db_connection(function: Callable[..., Any]) -> Callable[..., Any]:
+    """
+    Refresh a synchronous worker's database connections before and after its work.
+
+    Request-style cleanup allows persistent connections to be health checked on
+    their next query and drops failed or expired connections. A transaction opened
+    by the caller owns its connection until it exits, so leave it untouched. The
+    work is never retried: a failed connection can leave a write's outcome unknown.
+
+    :param function: Synchronous database work on the connection's owning thread.
+    :return: The wrapped function.
+    """
+
+    def close_old_connections_outside_transactions() -> None:
+        for db_connection in connections.all(initialized_only=True):
+            if db_connection.in_atomic_block or (
+                db_connection.connection is not None
+                and not db_connection.get_autocommit()
+            ):
+                continue
+            db_connection.close_if_unusable_or_obsolete()
+
+    @wraps(function)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        close_old_connections_outside_transactions()
+        try:
+            return function(*args, **kwargs)
+        finally:
+            close_old_connections_outside_transactions()
+
+    wrapper._uses_usable_db_connection = True
+    return wrapper
 
 
 def parse_int_field_value(value: Optional[str]) -> Optional[int]:
@@ -273,6 +308,10 @@ def specific_iterator(
                         select_related_key,
                         getattr(item, select_related_key),
                     )
+                elif select_related_key in item._state.fields_cache:
+                    # A reverse one-to-one relation without an object is cached as
+                    # None, but `hasattr` is False for it.
+                    specific_object._state.fields_cache[select_related_key] = None
 
         # If the original item has the `_prefetched_objects_cache` object, it means that
         # the `prefetch_related` was used and fetched on the base queryset. By

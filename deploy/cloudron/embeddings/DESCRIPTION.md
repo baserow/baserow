@@ -1,5 +1,5 @@
 ```
-cloudron install -l embeddings.{YOUR_DOMAIN} --image baserow/embeddings:1.0.0
+cloudron install -l embeddings.{YOUR_DOMAIN} --image baserow/embeddings:1.1.0
 ```
 
 In the Baserow app in Cloudron do:

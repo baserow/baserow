@@ -1,16 +1,21 @@
+import json
 import os
+import shutil
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 from django.core.files.storage import FileSystemStorage
 from django.db import OperationalError, transaction
+from django.test import override_settings
 
 import pytest
 from itsdangerous.exc import BadSignature
 
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.models import (
     BooleanField,
@@ -24,7 +29,7 @@ from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
     ApplicationTypeDoesNotExist,
-    BaseURLHostnameNotAllowed,
+    CannotChangeYourOwnWorkspaceRole,
     DuplicateApplicationMaxLocksExceededException,
     IsNotAdminError,
     LastAdminOfWorkspace,
@@ -54,6 +59,7 @@ from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, plugin_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.models import UserFile
+from baserow.test_utils.helpers import stale_cached_settings
 
 
 @pytest.mark.django_db
@@ -72,15 +78,31 @@ def test_update_settings(data_fixture):
     with pytest.raises(IsNotAdminError):
         CoreHandler().update_settings(user_2, allow_new_signups=False)
 
-    settings = CoreHandler().update_settings(
+    settings, changed = CoreHandler().update_settings(
         user_1, allow_new_signups=False, instance_id="test"
     )
     assert settings.allow_new_signups is False
     assert settings.instance_id != "test"
+    assert changed == {"allow_new_signups": False}
 
     settings = Settings.objects.all().first()
     assert settings.instance_id != "test"
     assert settings.allow_new_signups is False
+
+
+@pytest.mark.django_db
+def test_update_settings_saves_only_the_received_settings(data_fixture):
+    admin = data_fixture.create_user(is_staff=True)
+
+    with stale_cached_settings(user_templates_require_approval=True):
+        updated, _ = CoreHandler().update_settings(admin, allow_new_signups=False)
+
+    stored = Settings.objects.get()
+    for instance in [updated, stored]:
+        assert (
+            instance.allow_new_signups,
+            instance.user_templates_require_approval,
+        ) == (False, True)
 
 
 @pytest.mark.django_db
@@ -138,7 +160,7 @@ def test_update_workspace_user(send_mock, data_fixture):
     user_2 = data_fixture.create_user()
     user_3 = data_fixture.create_user()
     workspace_1 = data_fixture.create_workspace()
-    data_fixture.create_user_workspace(
+    workspace_user_1 = data_fixture.create_user_workspace(
         user=user_1, workspace=workspace_1, permissions="ADMIN"
     )
     workspace_user_2 = data_fixture.create_user_workspace(
@@ -152,6 +174,14 @@ def test_update_workspace_user(send_mock, data_fixture):
 
     with pytest.raises(UserInvalidWorkspacePermissionsError):
         handler.update_workspace_user(user=user_2, workspace_user=workspace_user_2)
+
+    # Nobody can change their own role, not even an admin.
+    with pytest.raises(CannotChangeYourOwnWorkspaceRole):
+        handler.update_workspace_user(
+            user=user_1, workspace_user=workspace_user_1, permissions="MEMBER"
+        )
+    workspace_user_1.refresh_from_db()
+    assert workspace_user_1.permissions == "ADMIN"
 
     tmp = handler.update_workspace_user(
         user=user_1, workspace_user=workspace_user_2, permissions="ADMIN"
@@ -541,15 +571,9 @@ def test_send_workspace_invitation_email(data_fixture, mailoutbox):
     )
     handler = CoreHandler()
 
-    with pytest.raises(BaseURLHostnameNotAllowed):
-        handler.send_workspace_invitation_email(
-            invitation=workspace_invitation, base_url="http://test.nl/workspace-invite"
-        )
-
     signer = handler.get_workspace_invitation_signer()
     handler.send_workspace_invitation_email(
         invitation=workspace_invitation,
-        base_url="http://localhost:3000/workspace-invite",
     )
 
     assert len(mailoutbox) == 1
@@ -571,7 +595,7 @@ def test_send_workspace_invitation_email(data_fixture, mailoutbox):
     )
     assert "Nikolas" in email.body
     assert "(inviter@example.\u200bcom)" in email.body
-    search_url = "http://localhost:3000/workspace-invite/"
+    search_url = "http://localhost:3000/workspace-invitation/"
     start_url_index = html_body.index(search_url)
 
     assert start_url_index != -1
@@ -596,7 +620,6 @@ def test_send_workspace_invitation_email_in_different_language(
     handler = CoreHandler()
     handler.send_workspace_invitation_email(
         invitation=workspace_invitation,
-        base_url="http://localhost:3000/workspace-invite",
     )
 
     assert len(mailoutbox) == 1
@@ -618,7 +641,6 @@ def test_send_workspace_invitation_email_truncates_long_names(data_fixture, mail
 
     CoreHandler().send_workspace_invitation_email(
         invitation=workspace_invitation,
-        base_url="http://localhost:3000/workspace-invite",
     )
 
     assert len(mailoutbox) == 1
@@ -647,7 +669,6 @@ def test_send_workspace_invitation_email_prevents_domain_linkification(
 
     CoreHandler().send_workspace_invitation_email(
         invitation=workspace_invitation,
-        base_url="http://localhost:3000/workspace-invite",
     )
 
     assert len(mailoutbox) == 1
@@ -683,7 +704,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
             workspace=workspace,
             email="test@test.nl",
             permissions="ADMIN",
-            base_url="http://localhost:3000/invite",
         )
 
     with pytest.raises(UserInvalidWorkspacePermissionsError):
@@ -692,7 +712,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
             workspace=workspace,
             email="test@test.nl",
             permissions="ADMIN",
-            base_url="http://localhost:3000/invite",
         )
 
     with pytest.raises(WorkspaceUserAlreadyExists):
@@ -701,7 +720,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
             workspace=workspace,
             email=user_3.email,
             permissions="ADMIN",
-            base_url="http://localhost:3000/invite",
         )
 
     invitation = handler.create_workspace_invitation(
@@ -709,7 +727,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
         workspace=workspace,
         email="test@test.nl",
         permissions="ADMIN",
-        base_url="http://localhost:3000/invite",
     )
     assert invitation.invited_by_id == user.id
     assert invitation.workspace_id == workspace.id
@@ -719,7 +736,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
 
     mock_send_email.assert_called_once()
     assert mock_send_email.call_args[0][0].id == invitation.id
-    assert mock_send_email.call_args[0][1] == "http://localhost:3000/invite"
 
     # Because there already is an invitation for this email and workspace, it must be
     # updated instead of having duplicates.
@@ -728,7 +744,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
         workspace=workspace,
         email="test@test.nl",
         permissions="MEMBER",
-        base_url="http://localhost:3000/invite",
     )
     assert invitation.invited_by_id == user.id
     assert invitation.workspace_id == workspace.id
@@ -741,7 +756,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
         workspace=workspace,
         email="test2@test.nl",
         permissions="ADMIN",
-        base_url="http://localhost:3000/invite",
     )
     assert invitation.invited_by_id == user.id
     assert invitation.workspace_id == workspace.id
@@ -754,7 +768,6 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
         workspace=workspace,
         email="test3@test.nl",
         permissions="ADMIN",
-        base_url="http://localhost:3000/invite",
     )
     assert invitation.invited_by_id == user.id
     assert invitation.workspace_id == workspace.id
@@ -776,7 +789,6 @@ def test_create_workspace_invitation_emits_per_user_metric_observation(
         workspace=user_workspace.workspace,
         email="test@example.com",
         permissions="MEMBER",
-        base_url="http://localhost:3000/invite",
     )
 
     mock_start_span.assert_called_once_with(
@@ -859,7 +871,7 @@ def test_accept_workspace_invitation(data_fixture):
     workspace_invitation = data_fixture.create_workspace_invitation(
         email="test@test.nl", permissions="MEMBER", workspace=workspace
     )
-    user_1 = data_fixture.create_user(email="test@test.nl")
+    user_1 = data_fixture.create_user(email="test@test.nl", email_verified=True)
     user_2 = data_fixture.create_user(email="test2@test.nl")
 
     handler = CoreHandler()
@@ -907,7 +919,7 @@ def test_accept_workspace_invitation(data_fixture):
 def test_accept_workspace_invitation_does_not_downgrade_last_admin(data_fixture):
     # Accepting a stale MEMBER invitation must not demote an existing admin.
     workspace = data_fixture.create_workspace()
-    user = data_fixture.create_user(email="admin@test.nl")
+    user = data_fixture.create_user(email="admin@test.nl", email_verified=True)
     data_fixture.create_user_workspace(
         workspace=workspace, user=user, permissions="ADMIN"
     )
@@ -950,6 +962,42 @@ def test_get_application(data_fixture):
     )
     assert database_1_copy.id == application_1.id
     assert isinstance(database_1_copy, Database)
+
+
+@pytest.mark.django_db
+def test_pending_counts_ask_each_type_once_for_all_signed_in_users(data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    dashboard = data_fixture.create_dashboard_application(workspace=database.workspace)
+
+    with (
+        patch.object(
+            DatabaseApplicationType,
+            "get_pending_counts",
+            return_value={user.id: {database.id: 2}},
+        ) as database_counts,
+        patch.object(
+            DashboardApplicationType,
+            "get_pending_counts",
+            return_value={user.id: {dashboard.id: 1}, other_user.id: {dashboard.id: 3}},
+        ) as dashboard_counts,
+    ):
+        assert CoreHandler().get_pending_counts_per_user_and_application(
+            [user, other_user, AnonymousUser()], [database, dashboard]
+        ) == {
+            user.id: {database.id: 2, dashboard.id: 1},
+            other_user.id: {dashboard.id: 3},
+        }
+        assert (
+            CoreHandler().get_pending_counts_per_user_and_application(
+                [AnonymousUser()], [database]
+            )
+            == {}
+        )
+
+    database_counts.assert_called_once_with([user, other_user], [database])
+    dashboard_counts.assert_called_once_with([user, other_user], [dashboard])
 
 
 @pytest.mark.django_db
@@ -1379,6 +1427,7 @@ def test_sync_templates(data_fixture, tmpdir):
         == "7d86876e8fa061bb0deec179ce2a1b24a220f5cd4eb6ddacbdccf036160c7bf3"
     )
     assert refreshed_template_2.keywords == "Example,Template,For,Search"
+    assert refreshed_template_2.description == "An example template used by the tests."
     assert refreshed_template_2.categories.all().first().id == categories[0].id
     assert template_2.workspace_id != refreshed_template_2.workspace_id
     assert refreshed_template_2.workspace.name == "Example template"
@@ -1386,6 +1435,8 @@ def test_sync_templates(data_fixture, tmpdir):
 
     refreshed_template_3 = Template.objects.get(id=template_3.id)
     assert template_3.workspace_id == refreshed_template_3.workspace_id
+    # `example-template-2.json` has no description key.
+    assert refreshed_template_3.description == ""
     # We expect the workspace count to be zero because the export hash matches and
     # nothing was updated.
     assert refreshed_template_3.workspace.application_set.count() == 0
@@ -1400,6 +1451,166 @@ def test_sync_templates(data_fixture, tmpdir):
     assert file_path.open().read() == "Hello World"
 
     settings.APPLICATION_TEMPLATES_DIR = old_templates
+
+
+TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_creates_listed_official_templates(data_fixture, tmpdir):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    CoreHandler().sync_templates(storage=storage)
+
+    templates = Template.objects.all()
+    assert len(templates) == 3
+    for template in templates:
+        assert template.type == Template.Type.OFFICIAL
+        assert template.review_state == Template.ReviewState.APPROVED
+        assert template.public_revision_id == template.id
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_updates_template_without_type(data_fixture, tmpdir):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    template = data_fixture.create_template(
+        type=None, slug="example-template", export_hash="IS_NOT_GOING_MATCH"
+    )
+
+    CoreHandler().sync_templates(storage=storage)
+
+    template.refresh_from_db()
+    assert template.type == Template.Type.OFFICIAL
+    assert template.name == "Example template"
+    assert Template.objects.filter(slug="example-template").count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_ignores_user_templates(data_fixture, tmpdir):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    user_category = data_fixture.create_template_category(name="User category")
+    user_template = data_fixture.create_user_template(
+        name="User template", slug="user-template-abc123", category=user_category
+    )
+    revision = data_fixture.create_user_template_revision(
+        user_template, category=user_category
+    )
+
+    CoreHandler().sync_templates(storage=storage)
+
+    assert set(Template.objects.user()) == {user_template, revision}
+    user_template.refresh_from_db()
+    assert user_template.name == "User template"
+    assert user_template.workspace.trashed is False
+    assert TemplateCategory.objects.filter(id=user_category.id).exists()
+    assert Template.objects.official().count() == 3
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_deletes_listed_official_template(data_fixture, tmpdir):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    template = data_fixture.create_template(
+        slug="is-going-to-be-deleted", review_state=Template.ReviewState.APPROVED
+    )
+    template.public_revision = template
+    template.save()
+    workspace_id = template.workspace_id
+
+    CoreHandler().sync_templates(storage=storage)
+
+    assert not Template.objects.filter(id=template.id).exists()
+    assert not Workspace.objects.filter(id=workspace_id).exists()
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_keeps_install_count_changed_during_sync(data_fixture, tmpdir):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    template = data_fixture.create_template(
+        slug="example-template", export_hash="IS_NOT_GOING_MATCH"
+    )
+    import_applications_to_workspace = CoreHandler.import_applications_to_workspace
+
+    def install_while_importing(self, *args, **kwargs):
+        # The template was loaded before, so this simulates an install finishing
+        # before the sync saves it.
+        Template.objects.filter(id=template.id).update(install_count=1)
+        return import_applications_to_workspace(self, *args, **kwargs)
+
+    with patch.object(
+        CoreHandler, "import_applications_to_workspace", install_while_importing
+    ):
+        CoreHandler().sync_templates(storage=storage, pattern="^example-template$")
+
+    template.refresh_from_db()
+    assert template.name == "Example template"
+    assert template.install_count == 1
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_keeps_revisions_of_synced_official_template(
+    data_fixture, tmpdir
+):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    root = data_fixture.create_template(
+        slug="example-template", review_state=Template.ReviewState.APPROVED
+    )
+    revision = data_fixture.create_template(
+        type=Template.Type.OFFICIAL, root=root, slug="", version=2
+    )
+
+    CoreHandler().sync_templates(storage=storage)
+
+    assert Template.objects.filter(id=revision.id, root_id=root.id).exists()
+    assert Workspace.objects.filter(id=revision.workspace_id).exists()
+
+
+@pytest.mark.django_db
+@override_settings(APPLICATION_TEMPLATES_DIR=TEST_TEMPLATES_DIR)
+def test_sync_templates_update_sets_updated_on(data_fixture, tmpdir):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    template = data_fixture.create_template(
+        slug="example-template", export_hash="IS_NOT_GOING_MATCH"
+    )
+    # Rows backfilled by the migration have no timestamps.
+    Template.objects.filter(id=template.id).update(created_on=None, updated_on=None)
+
+    CoreHandler().sync_templates(storage=storage, pattern="^example-template$")
+
+    template.refresh_from_db()
+    assert template.name == "Example template"
+    assert template.updated_on is not None
+
+
+@pytest.mark.django_db
+def test_sync_templates_description_change_keeps_workspace(data_fixture, tmpdir):
+    templates_dir = tmpdir.mkdir("templates")
+    template_path = Path(templates_dir) / "example-template.json"
+    shutil.copy(Path(TEST_TEMPLATES_DIR) / "example-template.json", template_path)
+    shutil.copy(
+        Path(TEST_TEMPLATES_DIR) / "example-template.zip",
+        Path(templates_dir) / "example-template.zip",
+    )
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    with override_settings(APPLICATION_TEMPLATES_DIR=str(templates_dir)):
+        CoreHandler().sync_templates(storage=storage)
+        template = Template.objects.get(slug="example-template")
+
+        template_json = json.loads(template_path.read_text())
+        template_json["description"] = "Changed description."
+        template_path.write_text(json.dumps(template_json))
+        CoreHandler().sync_templates(storage=storage)
+
+    refreshed_template = Template.objects.get(id=template.id)
+    assert refreshed_template.description == "Changed description."
+    assert refreshed_template.export_hash == template.export_hash
+    assert refreshed_template.workspace_id == template.workspace_id
 
 
 @pytest.mark.django_db

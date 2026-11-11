@@ -5,9 +5,22 @@ import {
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
 
-export class CoreCodeNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreCodeActionNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'code'
+  }
+
+  isInError(context) {
+    return (
+      Boolean(context.workflow?.untrusted_content) || super.isInError(context)
+    )
+  }
+
+  getErrorMessage(context) {
+    if (context.workflow?.untrusted_content) {
+      return this.app.$i18n.t('automationHeader.untrustedContentWarning')
+    }
+    return super.getErrorMessage(context)
   }
 
   getOrder() {
@@ -23,7 +36,9 @@ export class CoreCodeNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 }
 
-export class CoreXLSFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
+export class CoreXLSFileReaderActionNodeType extends ActionNodeTypeMixin(
+  NodeType
+) {
   static getType() {
     return 'xls_file_reader'
   }

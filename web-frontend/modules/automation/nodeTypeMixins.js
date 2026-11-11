@@ -29,14 +29,18 @@ export const TriggerNodeTypeMixin = (Base) =>
 export const ActionNodeTypeMixin = (Base) =>
   class extends Base {
     isWorkflowAction = true
+    // Whether the node shows the error handling form (fail or retry). A type
+    // whose dispatch can only fail the same way again sets it to false, like
+    // the backend's `has_error_policy`.
+    hasErrorPolicy = true
   }
 
-export const UtilityNodeMixin = (Base) =>
+export const UtilityNodeTypeMixin = (Base) =>
   class extends Base {
     isUtilityNode = true
   }
 
-export const containerNodeTypeMixin = (Base) =>
+export const ContainerNodeTypeMixin = (Base) =>
   class extends Base {
     isContainer = true
   }

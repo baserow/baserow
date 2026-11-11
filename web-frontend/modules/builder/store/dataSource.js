@@ -73,6 +73,9 @@ const mutations = {
   SET_LOADING(state, { page, value }) {
     page._.dataSourceLoading = value
   },
+  SET_FETCHED(state, { page }) {
+    page._.dataSourceFetched = true
+  },
 }
 
 const actions = {
@@ -160,6 +163,25 @@ const actions = {
     }
   },
 
+  /**
+   * Dispatches the data source and stores the result as its sample data. The
+   * data source is then updated with the response, which includes the schema
+   * built from that sample data.
+   */
+  async simulateDispatch(
+    { commit, getters },
+    { page, dataSourceId, dispatchContext }
+  ) {
+    const { $client } = this
+    const dataSource = getters.getPageDataSourceById(page, dataSourceId)
+
+    const { data } = await DataSourceService($client).simulateDispatch(
+      dataSourceId,
+      dispatchContext
+    )
+    commit('FULL_UPDATE_ITEM', { page, dataSource, values: data })
+    return data
+  },
   async debouncedUpdate(
     { dispatch, getters, commit },
     { page, dataSourceId, values }
@@ -388,6 +410,7 @@ const actions = {
         dispatch('forceCreate', { page, dataSource })
       )
     )
+    commit('SET_FETCHED', { page })
     commit('SET_LOADING', { page, value: false })
 
     return dataSources
@@ -412,6 +435,7 @@ const actions = {
         dispatch('forceCreate', { page, dataSource })
       )
     )
+    commit('SET_FETCHED', { page })
     commit('SET_LOADING', { page, value: false })
 
     return dataSources
@@ -465,6 +489,9 @@ const getters = {
   },
   getLoading: (state) => (page) => {
     return page._.dataSourceLoading
+  },
+  getFetched: (state) => (page) => {
+    return page._.dataSourceFetched === true
   },
 }
 

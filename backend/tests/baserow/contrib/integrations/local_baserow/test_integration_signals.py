@@ -46,7 +46,10 @@ def test_local_baserow_upsert_row_send_action_done_signal_when_creating_row(
     user, _ = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(workspace=workspace),
+        user=user,
+    )
     table = TableHandler().create_table_and_fields(
         user=user,
         database=database,
@@ -85,7 +88,10 @@ def test_local_baserow_upsert_row_send_action_done_signal_when_updating_row(
     user, _ = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(workspace=workspace),
+        user=user,
+    )
     table = TableHandler().create_table_and_fields(
         user=user,
         database=database,
@@ -125,7 +131,10 @@ def test_local_baserow_upsert_row_send_action_done_signal_when_deleting_row(
     user, _ = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    integration = data_fixture.create_local_baserow_integration(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(workspace=workspace),
+        user=user,
+    )
     table = TableHandler().create_table_and_fields(
         user=user,
         database=database,

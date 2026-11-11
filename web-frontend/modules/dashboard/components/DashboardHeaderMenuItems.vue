@@ -8,12 +8,18 @@
         }}</span>
       </a>
     </li>
+    <li v-if="canEdit" class="header__filter-item">
+      <ShareDashboardLink :dashboard="dashboard" />
+    </li>
   </div>
 </template>
 
 <script>
+import ShareDashboardLink from '@baserow/modules/dashboard/components/sharing/ShareDashboardLink'
+
 export default {
   name: 'DashboardHeaderMenuItems',
+  components: { ShareDashboardLink },
   props: {
     dashboard: {
       type: Object,

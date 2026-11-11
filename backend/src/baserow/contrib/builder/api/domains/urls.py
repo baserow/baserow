@@ -1,5 +1,7 @@
 from django.urls import re_path
 
+from baserow.api.user_sources.authentication import UserSourceJSONWebTokenAuthentication
+from baserow.contrib.builder.api.data_sources.views import GetRecordNamesView
 from baserow.contrib.builder.api.domains.public_views import (
     PublicBuilderByDomainNameView,
     PublicBuilderByIdView,
@@ -69,6 +71,14 @@ urlpatterns_without_builder_id = [
         r"published/data-source/(?P<data_source_id>[0-9]+)/dispatch/$",
         PublicDispatchDataSourceView.as_view(),
         name="public_dispatch",
+    ),
+    re_path(
+        r"published/data-source/(?P<data_source_id>[0-9]+)/record-names/$",
+        GetRecordNamesView.as_view(
+            authentication_classes=(UserSourceJSONWebTokenAuthentication,),
+            schema=None,
+        ),
+        name="public_record_names",
     ),
     re_path(
         r"published/page/(?P<page_id>[0-9]+)/dispatch-data-sources/$",

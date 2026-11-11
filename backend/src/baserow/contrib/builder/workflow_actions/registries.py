@@ -61,6 +61,13 @@ class BuilderWorkflowActionType(
         instance: BuilderWorkflowAction = None,
     ):
         from baserow.contrib.builder.elements.handler import ElementHandler
+        from baserow.contrib.builder.pages.handler import PageHandler
+
+        page = values.get("page") or (instance.page if instance else None)
+        if page is not None:
+            PageHandler().raise_if_page_links_outside_builder(
+                page.builder, values, instance=instance
+            )
 
         if "element_id" in values:
             values["element"] = ElementHandler().get_element(values["element_id"])

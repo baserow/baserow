@@ -1,3 +1,6 @@
+from copy import deepcopy
+from unittest.mock import patch
+
 from django.db import DatabaseError, connections, transaction
 from django.db.models import QuerySet
 from django.http import HttpRequest
@@ -14,11 +17,14 @@ from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHa
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
+from baserow.core.utils import MirrorDict
 
 
 @pytest.mark.django_db
@@ -45,6 +51,89 @@ def test_get_data_source(data_fixture, django_assert_num_queries):
 def test_get_data_source_does_not_exist(data_fixture):
     with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceHandler().get_data_source(data_source_id=999)
+
+
+@pytest.mark.django_db
+def test_export_data_source_passes_config_to_service(data_fixture):
+    data_source = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source()
+    )
+    config = ImportExportConfig(
+        include_permission_data=False,
+        exclude_sensitive_data=True,
+    )
+
+    with patch.object(
+        ServiceHandler,
+        "export_service",
+        return_value={"type": "local_baserow_aggregate_rows"},
+    ) as export_service:
+        DashboardDataSourceHandler().export_data_source(
+            data_source,
+            import_export_config=config,
+        )
+
+    export_service.assert_called_once_with(
+        data_source.service,
+        import_export_config=config,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    )
+
+
+@pytest.mark.django_db
+def test_import_data_source_drops_unmapped_integration(data_fixture):
+    source_dashboard = data_fixture.create_dashboard_application()
+    source_data_source = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            dashboard=source_dashboard
+        )
+    )
+    target_dashboard = data_fixture.create_dashboard_application()
+
+    serialized_data_source = DashboardDataSourceHandler().export_data_source(
+        source_data_source
+    )
+
+    imported_data_source = DashboardDataSourceHandler().import_data_source(
+        target_dashboard,
+        deepcopy(serialized_data_source),
+        {"integrations": {}, "dashboard_data_sources": {}},
+    )
+
+    assert imported_data_source.service.integration_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("preserve_integrations", [False, True])
+def test_import_data_source_same_dashboard_integration_mapping(
+    data_fixture, preserve_integrations
+):
+    dashboard = data_fixture.create_dashboard_application()
+    data_source = (
+        data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+            dashboard=dashboard
+        )
+    )
+
+    serialized_data_source = DashboardDataSourceHandler().export_data_source(
+        data_source
+    )
+    serialized_data_source["name"] = "Copied data source"
+
+    imported_data_source = DashboardDataSourceHandler().import_data_source(
+        dashboard,
+        deepcopy(serialized_data_source),
+        {
+            "integrations": MirrorDict() if preserve_integrations else {},
+            "dashboard_data_sources": {},
+        },
+    )
+
+    assert imported_data_source.service.integration_id == (
+        data_source.service.integration_id if preserve_integrations else None
+    )
 
 
 @pytest.mark.django_db

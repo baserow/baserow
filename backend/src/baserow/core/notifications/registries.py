@@ -1,8 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from typing import Optional
-from urllib.parse import urljoin
-
-from django.conf import settings
 
 from baserow.core.exceptions import (
     InstanceTypeAlreadyRegistered,
@@ -15,6 +12,7 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     Registry,
 )
+from baserow.core.utils import get_embedded_share_url
 
 from .models import Notification
 
@@ -71,11 +69,10 @@ class EmailNotificationTypeMixin(metaclass=ABCMeta):
         if not self.has_web_frontend_route:
             return None
 
-        base_url = settings.BASEROW_EMBEDDED_SHARE_URL
         # This path must match the one defined in web-frontend/modules/core/routes.js
-        path = f"/notification/{notification.workspace_id}/{notification.id}"
-
-        return urljoin(base_url, path)
+        return get_embedded_share_url(
+            f"notification/{notification.workspace_id}/{notification.id}"
+        )
 
 
 class CliNotificationTypeMixin(metaclass=ABCMeta):

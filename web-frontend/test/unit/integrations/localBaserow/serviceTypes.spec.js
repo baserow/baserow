@@ -2,8 +2,8 @@ import {
   LocalBaserowListRowsServiceType,
   LocalBaserowGetRowServiceType,
   LocalBaserowTableServiceType,
-  LocalBaserowCreateRowWorkflowServiceType,
-  LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowCreateRowServiceType,
+  LocalBaserowDeleteRowServiceType,
   LocalBaserowFieldsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -224,9 +224,9 @@ describe('Local baserow service types', () => {
     expect(result.length).toBe(3)
   })
 
-  test('LocalBaserowCreateRowWorkflowServiceType supportedTables returns non data-synced tables or two-way data-synced tables.', () => {
+  test('LocalBaserowCreateRowServiceType supportedTables returns non data-synced tables or two-way data-synced tables.', () => {
     const fakeApp = {}
-    const serviceType = new LocalBaserowCreateRowWorkflowServiceType(fakeApp)
+    const serviceType = new LocalBaserowCreateRowServiceType(fakeApp)
 
     const tables = [
       {
@@ -267,9 +267,9 @@ describe('Local baserow service types', () => {
     expect(result.length).toBe(2)
   })
 
-  test('LocalBaserowDeleteRowWorkflowServiceType supportedTables returns non data-synced tables or two-way data-synced tables', () => {
+  test('LocalBaserowDeleteRowServiceType supportedTables returns non data-synced tables or two-way data-synced tables', () => {
     const fakeApp = {}
-    const serviceType = new LocalBaserowDeleteRowWorkflowServiceType(fakeApp)
+    const serviceType = new LocalBaserowDeleteRowServiceType(fakeApp)
 
     const tables = [
       {
@@ -338,6 +338,9 @@ describe('Local baserow service types', () => {
             id === 5 ? { id: 5, type: 'local_baserow' } : undefined,
         },
       },
+      $registry: {
+        get: () => ({ getErrorMessage: () => null }),
+      },
       $i18n: { t: (key) => key },
     }
     const serviceType = new LocalBaserowGetRowServiceType({ app: fakeApp })
@@ -375,6 +378,46 @@ describe('Local baserow service types', () => {
         application,
       })
     ).toBe(null)
+  })
+
+  test('a trashed integration agent marks the integration and service as in error', () => {
+    const integration = {
+      id: 5,
+      type: 'local_baserow',
+      authorized_subject: {
+        id: 9,
+        type: 'core.Agent',
+        name: 'Writer',
+        trashed: true,
+      },
+    }
+    const application = { id: 1, integrations: [integration] }
+    const registry = testApp.getRegistry()
+    const integrationType = registry.get('integration', 'local_baserow')
+    const serviceType = registry.get('service', 'local_baserow_get_row')
+
+    expect(integrationType.isInError(integration)).toBe(true)
+    expect(integrationType.getSummary(integration)).toBe(
+      'localBaserowIntegrationType.localBaserowNoUser'
+    )
+    expect(
+      integrationType.getSummary({
+        ...integration,
+        authorized_subject: {
+          ...integration.authorized_subject,
+          trashed: false,
+        },
+      })
+    ).toBe('localBaserowIntegrationType.localBaserowSubjectSummary')
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 5, table_id: 99 },
+        application,
+      })
+    ).toBe('localBaserowIntegrationType.errorTrashedIdentity')
+    expect(en.localBaserowIntegrationType.errorTrashedIdentity).toBe(
+      'The authorized identity has been trashed'
+    )
   })
 
   test('the update row service is in error without a row ID, the create row service is not', () => {

@@ -20,6 +20,7 @@ import { useHead, useNuxtApp } from '#app'
 import PageContent from '@baserow/modules/builder/components/page/PageContent'
 
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
 import _ from 'lodash'
@@ -101,6 +102,7 @@ const applicationContext = computed(() => ({
   builder: props.builder,
   pageParamsValue: props.params,
   mode: props.mode,
+  dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
 }))
 
 const dispatchContext = computed(() =>

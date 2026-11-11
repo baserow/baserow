@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Corporate Theme",
+  "description": "Clean light application theme in navy and sky blue.",
   "icon": "",
   "keywords": [
     "application",

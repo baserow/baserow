@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Commercial Property Management",
+    "description": "Manage commercial units, leases, tenants and service requests.",
     "icon": "iconoir-city",
     "keywords": [
         "property management",

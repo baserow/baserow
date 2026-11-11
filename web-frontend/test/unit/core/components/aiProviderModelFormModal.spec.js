@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import AIProviderModelFormModal from '@baserow/modules/core/components/ai/AIProviderModelFormModal'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -71,7 +71,7 @@ describe('AIProviderModelFormModal', () => {
       'aiProvider/updateModel',
       expect.anything()
     )
-    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     expect(confirmModal.props('title')).toBe(
       'aiProviderAdmin.modelFeaturesRemovedTitle'
     )
@@ -103,7 +103,7 @@ describe('AIProviderModelFormModal', () => {
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(wrapper.findComponent(ConfirmModal).exists()).toBe(false)
     expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
       modelId: 2,
       values: {
@@ -158,7 +158,7 @@ describe('AIProviderModelFormModal', () => {
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(true)
+    expect(wrapper.findComponent(ConfirmModal).exists()).toBe(true)
     expect(dispatch).not.toHaveBeenCalledWith(
       'aiProvider/updateModel',
       expect.anything()
@@ -182,7 +182,7 @@ describe('AIProviderModelFormModal', () => {
       'aiProvider/updateModel',
       expect.anything()
     )
-    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     expect(confirmModal.props('title')).toBe(
       'aiProviderAdmin.modelIdentifierRenamedTitle'
     )
@@ -212,7 +212,7 @@ describe('AIProviderModelFormModal', () => {
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
-    expect(wrapper.findComponent(AIProviderConfirmModal).exists()).toBe(false)
+    expect(wrapper.findComponent(ConfirmModal).exists()).toBe(false)
     expect(dispatch).toHaveBeenCalledWith('aiProvider/updateModel', {
       modelId: 2,
       values: {
@@ -230,7 +230,7 @@ describe('AIProviderModelFormModal', () => {
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
-    const confirmModal = wrapper.findComponent(AIProviderConfirmModal)
+    const confirmModal = wrapper.findComponent(ConfirmModal)
     const uid = confirmModal.vm.$.uid
     expect(confirmModal.vm.$refs.modal.open).toBe(true)
 
@@ -239,7 +239,7 @@ describe('AIProviderModelFormModal', () => {
     wrapper.vm.loading = false
     await flushPromises()
 
-    const reRendered = wrapper.findComponent(AIProviderConfirmModal)
+    const reRendered = wrapper.findComponent(ConfirmModal)
     expect(reRendered.vm.$.uid).toBe(uid)
     expect(reRendered.vm.$refs.modal.open).toBe(true)
 

@@ -11,17 +11,26 @@ import pytest
 from rest_framework.status import (
     HTTP_200_OK,
     HTTP_204_NO_CONTENT,
+    HTTP_404_NOT_FOUND,
     HTTP_405_METHOD_NOT_ALLOWED,
+    HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+    HTTP_429_TOO_MANY_REQUESTS,
 )
+from rest_framework.throttling import BaseThrottle
 
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.integrations.core.api.webhooks.throttling import (
+    CoreHTTPTriggerRateThrottle,
+)
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.core.services.registries import service_type_registry
+from baserow.throttling.handler import _get_redis_cli
+from baserow.throttling.types import RateLimit
 
 
 def get_url(uid):
@@ -52,7 +61,7 @@ def post_webhook(api_client, uid, body, content_type):
 )
 @pytest.mark.django_db
 def test_rejects_disallowed_methods(api_client, data_fixture, http_method):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     url = get_url(node.service.uid)
     resp = getattr(api_client, http_method)(url)
@@ -64,7 +73,7 @@ def test_rejects_disallowed_methods(api_client, data_fixture, http_method):
 def test_rejects_http_get_if_service_excludes_get(
     api_client, data_fixture, django_assert_num_queries
 ):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
     node.service.exclude_get = True
     node.service.save()
 
@@ -82,7 +91,7 @@ def test_rejects_http_get_if_service_excludes_get(
     ["get", "post", "put", "patch", "delete"],
 )
 def test_allows_valid_http_methods(api_client, data_fixture, http_method):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     url = get_url(node.service.uid) + "?test=true"
     resp = getattr(api_client, http_method)(url)
@@ -92,7 +101,7 @@ def test_allows_valid_http_methods(api_client, data_fixture, http_method):
 
 @pytest.mark.django_db
 def test_non_utf8_json_body_triggers_with_replaced_raw_body(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client,
@@ -108,7 +117,7 @@ def test_non_utf8_json_body_triggers_with_replaced_raw_body(api_client, data_fix
 
 @pytest.mark.django_db
 def test_declared_charset_is_used_to_decode_the_body(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client,
@@ -124,7 +133,7 @@ def test_declared_charset_is_used_to_decode_the_body(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_invalid_declared_charset_falls_back_to_utf8(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client,
@@ -139,7 +148,7 @@ def test_invalid_declared_charset_falls_back_to_utf8(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_binary_body_triggers(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client,
@@ -157,7 +166,7 @@ def test_binary_body_triggers(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_plain_text_body_triggers_with_raw_body(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client, node.service.uid, b"hello world", "text/plain"
@@ -170,7 +179,7 @@ def test_plain_text_body_triggers_with_raw_body(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_malformed_json_body_falls_back_to_empty_body(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client, node.service.uid, b'{"name": ', "application/json"
@@ -183,7 +192,7 @@ def test_malformed_json_body_falls_back_to_empty_body(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_valid_json_body_is_parsed(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client,
@@ -199,7 +208,7 @@ def test_valid_json_body_is_parsed(api_client, data_fixture):
 
 @pytest.mark.django_db
 def test_form_urlencoded_body_preserves_multi_value_fields(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     resp, request_data = post_webhook(
         api_client,
@@ -214,7 +223,7 @@ def test_form_urlencoded_body_preserves_multi_value_fields(api_client, data_fixt
 
 @pytest.mark.django_db
 def test_multipart_body_keeps_only_serializable_form_fields(api_client, data_fixture):
-    node = data_fixture.create_http_trigger_node()
+    node = data_fixture.create_core_http_trigger_node()
 
     with patch.object(
         service_type_registry.get("http_trigger"), "on_event"
@@ -242,7 +251,7 @@ def test_multipart_body_keeps_only_serializable_form_fields(api_client, data_fix
 def test_http_trigger_with_response_node_returns_workflow_response(
     api_client, data_fixture
 ):
-    trigger = data_fixture.create_http_trigger_node(
+    trigger = data_fixture.create_core_http_trigger_node(
         service_kwargs={
             "wait_for_response": True,
             "response_timeout_seconds": 1,
@@ -343,7 +352,7 @@ def test_workflow_response_strips_shared_origin_state_headers(header_name):
 def test_http_trigger_does_not_wait_for_response_when_disabled(
     api_client, data_fixture
 ):
-    trigger = data_fixture.create_http_trigger_node()
+    trigger = data_fixture.create_core_http_trigger_node()
     workflow = trigger.workflow
     workflow.state = WorkflowState.LIVE
     workflow.allow_test_run_until = timezone.now()
@@ -386,7 +395,7 @@ def test_http_trigger_does_not_wait_for_node_simulation(api_request_factory):
 def test_http_trigger_rolls_back_mutations_before_waiting(api_client, data_fixture):
     """A mutation failure rolls back history and discards deferred scheduling."""
 
-    trigger = data_fixture.create_http_trigger_node(
+    trigger = data_fixture.create_core_http_trigger_node(
         service_kwargs={"wait_for_response": True}
     )
     workflow = trigger.workflow
@@ -410,3 +419,160 @@ def test_http_trigger_rolls_back_mutations_before_waiting(api_client, data_fixtu
 
     assert AutomationWorkflowHistory.objects.count() == 0
     mock_delay.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "header_name", ["Authorization", "Cookie", "Proxy-Authorization", "COOKIE"]
+)
+def test_caller_credential_headers_are_not_passed_to_the_workflow(
+    api_client, data_fixture, header_name
+):
+    node = data_fixture.create_core_http_trigger_node()
+
+    with patch.object(
+        service_type_registry.get("http_trigger"), "on_event"
+    ) as mock_on_event:
+        resp = api_client.generic(
+            "POST",
+            get_url(node.service.uid) + "?test=true",
+            data=b"{}",
+            content_type="application/json",
+            headers={header_name: "secret", "X-Signature": "abc"},
+        )
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
+    headers = mock_on_event.call_args[0][1]["headers"]
+    assert "secret" not in headers.values()
+    assert {key.lower() for key in headers}.isdisjoint(
+        {"authorization", "cookie", "proxy-authorization"}
+    )
+    assert headers["X-Signature"] == "abc"
+
+
+@pytest.mark.django_db
+def test_accepts_body_at_the_size_cap(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    node = data_fixture.create_core_http_trigger_node()
+
+    resp, request_data = post_webhook(
+        api_client, node.service.uid, "x" * 10, "text/plain"
+    )
+
+    assert resp.status_code == HTTP_204_NO_CONTENT
+    assert request_data["raw_body"] == "x" * 10
+
+
+@pytest.mark.django_db
+def test_rejects_body_over_the_size_cap(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    node = data_fixture.create_core_http_trigger_node()
+
+    resp, request_data = post_webhook(
+        api_client, node.service.uid, "x" * 11, "text/plain"
+    )
+
+    assert resp.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert resp.json()["error"] == "ERROR_CORE_HTTP_TRIGGER_REQUEST_BODY_TOO_LARGE"
+    assert request_data is None
+    assert not AutomationWorkflowHistory.objects.exists()
+
+
+@pytest.mark.django_db
+def test_rejects_declared_content_length_over_the_size_cap(
+    api_client, data_fixture, settings
+):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    node = data_fixture.create_core_http_trigger_node()
+
+    with patch.object(
+        service_type_registry.get("http_trigger"), "process_webhook_request"
+    ) as mock_process:
+        resp = api_client.generic(
+            "POST",
+            get_url(node.service.uid),
+            data="x",
+            content_type="text/plain",
+            CONTENT_LENGTH="1000",
+        )
+
+    assert resp.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    mock_process.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_rate_limits_calls_per_http_trigger(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    node = data_fixture.create_core_http_trigger_node()
+    other_node = data_fixture.create_core_http_trigger_node()
+
+    first, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
+    second, request_data = post_webhook(
+        api_client, node.service.uid, "{}", "application/json"
+    )
+    other, _ = post_webhook(
+        api_client, other_node.service.uid, "{}", "application/json"
+    )
+
+    assert first.status_code == HTTP_204_NO_CONTENT
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert request_data is None
+    assert other.status_code == HTTP_204_NO_CONTENT
+
+
+@pytest.mark.django_db
+def test_rate_limits_can_be_switched_off(api_client, data_fixture, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = ()
+    node = data_fixture.create_core_http_trigger_node()
+
+    for _ in range(3):
+        resp, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
+        assert resp.status_code == HTTP_204_NO_CONTENT
+
+
+def test_http_trigger_keeps_the_default_throttles():
+    class DefaultThrottle(BaseThrottle):
+        pass
+
+    view = CoreHTTPTriggerView()
+
+    with patch.object(CoreHTTPTriggerView, "throttle_classes", (DefaultThrottle,)):
+        throttles = view.get_throttles()
+
+    assert [type(throttle) for throttle in throttles] == [
+        DefaultThrottle,
+        CoreHTTPTriggerRateThrottle,
+    ]
+
+
+@pytest.mark.django_db
+def test_unknown_http_trigger_keeps_no_rate_limit_state(api_client, settings):
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    uid = uuid.uuid4()
+
+    for _ in range(2):
+        resp = api_client.post(get_url(uid), {}, format="json")
+        assert resp.status_code == HTTP_404_NOT_FOUND
+
+    assert not _get_redis_cli().exists(f"baserow_rate_limit:core_http_trigger:{uid}")
+
+
+@pytest.mark.django_db
+def test_oversized_body_counts_towards_the_rate_limit(
+    api_client, data_fixture, settings
+):
+    settings.AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = 10
+    settings.AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = (
+        RateLimit(period_in_seconds=60, number_of_calls=1),
+    )
+    node = data_fixture.create_core_http_trigger_node()
+
+    too_large, _ = post_webhook(api_client, node.service.uid, "x" * 11, "text/plain")
+    second, _ = post_webhook(api_client, node.service.uid, "{}", "application/json")
+
+    assert too_large.status_code == HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    assert second.status_code == HTTP_429_TOO_MANY_REQUESTS

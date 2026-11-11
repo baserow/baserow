@@ -231,15 +231,14 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import ActiveUsers from '@baserow/modules/core/components/admin/dashboard/charts/ActiveUsers'
 import AdminDashboardService from '@baserow/modules/core/services/admin/dashboard'
 
+definePageMeta({
+  layout: 'app',
+  middleware: 'staff',
+})
+
 export default {
   components: { ActiveUsers },
   setup() {
-    // Must be declared via `definePageMeta` because Nuxt ignores the legacy
-    // `layout` and `middleware` component options.
-    definePageMeta({
-      layout: 'app',
-      middleware: 'staff',
-    })
     const { $i18n } = useNuxtApp()
     useHead({ title: $i18n.t('adminDashboard.title') })
   },

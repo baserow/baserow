@@ -2,6 +2,7 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -11,19 +12,29 @@ from django.test.utils import override_settings
 import pytest
 from asgiref.sync import async_to_sync
 from pydantic_ai import ModelRetry
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UsageLimitExceeded
 from pydantic_ai.messages import (
     ModelMessage,
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
+    PartDeltaEvent,
     PartStartEvent,
     RetryPromptPart,
     TextPart,
+    TextPartDelta,
+    ThinkingPart,
+    ThinkingPartDelta,
     ToolCallPart,
     ToolReturnPart,
     UserPromptPart,
 )
-from pydantic_ai.models.function import AgentInfo, DeltaToolCall, FunctionModel
+from pydantic_ai.models.function import (
+    AgentInfo,
+    DeltaThinkingPart,
+    DeltaToolCall,
+    FunctionModel,
+)
 from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.toolsets import FunctionToolset
 
@@ -539,8 +550,8 @@ class TestCompactMessageHistory:
             ModelResponse(
                 parts=[
                     ToolCallPart(
-                        tool_name="create_builders",
-                        args={"builders": [{"name": "Restaurant"}]},
+                        tool_name="create_database",
+                        args={"name": "Restaurant"},
                         tool_call_id="failed-1",
                     )
                 ]
@@ -548,7 +559,7 @@ class TestCompactMessageHistory:
             ModelRequest(
                 parts=[
                     ToolReturnPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         content={
                             "created_builders": [],
                             "error": "Permission denied",
@@ -817,8 +828,8 @@ class TestCompactMessageHistory:
                     ModelResponse(
                         parts=[
                             ToolCallPart(
-                                tool_name="create_builders",
-                                args={"builders": [{"name": f"DB {index}"}]},
+                                tool_name="create_database",
+                                args={"name": f"DB {index}"},
                                 tool_call_id=call_id,
                             )
                         ]
@@ -826,7 +837,7 @@ class TestCompactMessageHistory:
                     ModelRequest(
                         parts=[
                             ToolReturnPart(
-                                tool_name="create_builders",
+                                tool_name="create_database",
                                 content={"created_builders": [{"id": index + 1}]},
                                 tool_call_id=call_id,
                             )
@@ -843,7 +854,6 @@ class TestCompactMessageHistory:
         assert outcomes[-1]["result"] == {"created_builders": [{"id": 20}]}
 
     def test_action_fingerprints_use_complete_arguments(self):
-        shared = [{"name": f"Shared {index}"} for index in range(12)]
         messages = []
         for index, final_name in enumerate(("First", "Second")):
             call_id = f"large-{index}"
@@ -853,8 +863,8 @@ class TestCompactMessageHistory:
                     ModelResponse(
                         parts=[
                             ToolCallPart(
-                                tool_name="create_builders",
-                                args={"builders": [*shared, {"name": final_name}]},
+                                tool_name="create_database",
+                                args={"name": "x" * 5000 + final_name},
                                 tool_call_id=call_id,
                             )
                         ]
@@ -862,7 +872,7 @@ class TestCompactMessageHistory:
                     ModelRequest(
                         parts=[
                             ToolReturnPart(
-                                tool_name="create_builders",
+                                tool_name="create_database",
                                 content={"created_builders": [{"id": index + 1}]},
                                 tool_call_id=call_id,
                             )
@@ -991,11 +1001,11 @@ class TestCompactMessageHistory:
         assert evidence == []
 
     def test_identical_reused_retry_keeps_created_outcome(self):
-        arguments = {"builders": [{"name": "Restaurant", "type": "database"}]}
+        arguments = {"name": "Restaurant"}
         created = [
             ModelRequest(parts=[UserPromptPart(content="create Restaurant")]),
             *_mutation_messages(
-                "create_builders",
+                "create_database",
                 arguments,
                 {
                     "created_builders": [
@@ -1008,8 +1018,8 @@ class TestCompactMessageHistory:
             ModelResponse(parts=[TextPart(content="Done")]),
             ModelRequest(parts=[UserPromptPart(content="create Inventory")]),
             *_mutation_messages(
-                "create_builders",
-                {"builders": [{"name": "Inventory", "type": "database"}]},
+                "create_database",
+                {"name": "Inventory"},
                 {
                     "created_builders": [
                         {"id": 2, "name": "Inventory", "type": "database"}
@@ -1027,7 +1037,7 @@ class TestCompactMessageHistory:
             ModelResponse(
                 parts=[
                     ToolCallPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         args=arguments,
                         tool_call_id="reused-builder",
                     )
@@ -1036,7 +1046,7 @@ class TestCompactMessageHistory:
             ModelRequest(
                 parts=[
                     ToolReturnPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         content={
                             "created_builders": [],
                             "reused_builders": [
@@ -1221,7 +1231,7 @@ class TestAssistantLicenseTier:
     def test_verified_outcomes_are_injected_as_facts_not_completion(self):
         ctx = MagicMock()
         ctx.deps.verified_tool_outcomes = [
-            {"tool": "create_builders", "result": {"id": 42}}
+            {"tool": "create_database", "result": {"id": 42}}
         ]
 
         rendered = dynamic_verified_tool_outcomes(ctx)
@@ -1476,6 +1486,14 @@ class TestAssistantStreaming:
         assert len(ai_messages) == 1
         assert ai_messages[0].content == "Hello world"
         assert ai_messages[0].id is not None
+        saved = AssistantChatMessage.objects.get(id=ai_messages[0].id)
+        assert ai_messages[0].timestamp == saved.created_on
+        reloaded = next(
+            message
+            for message in assistant.list_chat_messages()
+            if message.id == saved.id
+        )
+        assert reloaded.timestamp == ai_messages[0].timestamp
 
         # Should also have AiMessageChunk(s)
         chunks = [
@@ -1642,8 +1660,130 @@ def test_stream_agent_run_drives_the_real_pydantic_ai_stream(enterprise_data_fix
     assert run_result.all_messages_json()
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("include_thinking", [False, True])
+async def test_answer_candidates_stream_separately_from_native_thinking(
+    include_thinking,
+):
+    assistant = Assistant.__new__(Assistant)
+    assistant._deps = SimpleNamespace(sources=[])
+    queue = asyncio.Queue()
+    result = MagicMock(output="Final answer")
+
+    async def events():
+        if include_thinking:
+            yield PartStartEvent(index=0, part=ThinkingPart(content="Plan "))
+            yield PartDeltaEvent(
+                index=0, delta=ThinkingPartDelta(content_delta="first")
+            )
+        text_index = int(include_thinking)
+        yield PartStartEvent(index=text_index, part=TextPart(content="Final "))
+        yield PartDeltaEvent(
+            index=text_index, delta=TextPartDelta(content_delta="answer")
+        )
+        # Candidates must reach the UI before the accepted result arrives.
+        assert queue.qsize() == (4 if include_thinking else 2)
+        yield AgentRunResultEvent(result=result)
+
+    assert await assistant._consume_agent_events(events(), queue) == (
+        "Final answer",
+        result,
+    )
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    expected = [("ai/message", "Final "), ("ai/message", "Final answer")]
+    if include_thinking:
+        expected = [
+            ("ai/reasoning", "Plan "),
+            ("ai/reasoning", "Plan first"),
+            *expected,
+        ]
+    assert [(message.type, message.content) for message in messages] == expected
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "next_part",
+    [
+        pytest.param(ThinkingPart(content=""), id="empty-thinking"),
+        pytest.param(
+            ToolCallPart(tool_name="list_builders", args={}, tool_call_id="next"),
+            id="tool-call",
+        ),
+    ],
+)
+async def test_new_model_responses_clear_the_previous_answer_candidate(next_part):
+    assistant = Assistant.__new__(Assistant)
+    assistant._deps = SimpleNamespace(sources=[])
+    queue = asyncio.Queue()
+
+    async def events():
+        yield PartStartEvent(index=0, part=TextPart(content="Rejected candidate"))
+        # A validator retry can begin without any text to replace the old answer.
+        yield PartStartEvent(index=0, part=next_part)
+
+    assert await assistant._consume_agent_events(events(), queue) is None
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    assert [(message.type, message.content) for message in messages] == [
+        ("ai/message", "Rejected candidate"),
+        ("ai/reasoning", ""),
+    ]
+
+
 @pytest.mark.django_db
-def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fixture):
+def test_tool_prefaces_become_reasoning_without_entering_the_final_answer(
+    enterprise_data_fixture,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="Chat")
+    assistant = Assistant(chat)
+    queue = asyncio.Queue()
+    preface = "I will inspect the builders."
+    answer = "Here are the builders."
+
+    async def stream(messages, info):
+        if not any(
+            isinstance(part, ToolReturnPart)
+            for message in messages
+            if isinstance(message, ModelRequest)
+            for part in message.parts
+        ):
+            yield preface
+            # Tool events in a batch all arrive before any of their results. The
+            # preface is reclassified once, including when the first thought is empty.
+            yield {
+                index: DeltaToolCall(
+                    name="list_builders",
+                    json_args=json.dumps({"builder_types": None, "thought": thought}),
+                    tool_call_id=f"call-{index}",
+                )
+                for index, thought in enumerate(["", "Check available builders"])
+            }
+        else:
+            yield "Here are "
+            yield "the builders."
+
+    with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
+        result = async_to_sync(assistant._stream_agent_run)(
+            "list builders", None, queue
+        )
+
+    assert result[0] == answer
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    assert (messages[0].type, messages[0].content) == ("ai/message", preface)
+    reasoning = [m.content for m in messages if isinstance(m, AiReasoningChunk)]
+    assert preface in reasoning
+    assert any("Check available builders" in content for content in reasoning)
+    assert all(content.count(preface) <= 1 for content in reasoning)
+    assert not any(answer in content for content in reasoning)
+    assert isinstance(messages[-1], AiMessageChunk)
+    assert messages[-1].content == answer
+
+
+@pytest.mark.django_db
+def test_rejected_answer_candidate_is_cleared_before_retry_thinking(
+    enterprise_data_fixture,
+):
     user = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=user)
     chat = AssistantChat.objects.create(user=user, workspace=workspace, title="Chat")
@@ -1658,7 +1798,11 @@ def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fi
             if isinstance(message, ModelRequest)
             for part in message.parts
         )
-        yield "Which table should I add the rows to?" if retried else rejected
+        if retried:
+            yield {0: DeltaThinkingPart(content="Try again")}
+            yield "Which table should I add the rows to?"
+        else:
+            yield rejected
 
     async def run():
         return await assistant._stream_agent_run("add rows", None, queue)
@@ -1666,13 +1810,13 @@ def test_rejected_answer_is_cleared_from_the_reasoning_bubble(enterprise_data_fi
     with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
         async_to_sync(run)()
 
-    reasoning = []
-    while not queue.empty():
-        message = queue.get_nowait().message
-        if isinstance(message, AiReasoningChunk):
-            reasoning.append(message.content)
-    assert "" in reasoning
-    assert not any(rejected in chunk and "Which table" in chunk for chunk in reasoning)
+    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    assert [(message.type, message.content) for message in messages] == [
+        ("ai/message", rejected),
+        ("ai/reasoning", ""),
+        ("ai/reasoning", "Try again"),
+        ("ai/message", "Which table should I add the rows to?"),
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2188,7 +2332,7 @@ class TestFinalAnswerValidation:
             ("update_builder", {"id": 3, "name": "Storefront", "changed": False}),
             ("update_builder", {"error": "Permission denied"}),
             (
-                "create_builders",
+                "create_database",
                 {"created_builders": [], "reused_builders": [{"id": 3}]},
             ),
         ],
@@ -2255,14 +2399,14 @@ class TestFinalAnswerValidation:
         model_calls = []
         mutations = []
 
-        def create_builders():
+        def create_builder():
             mutations.append("Customer Portal")
             return {"created_builders": [{"id": 3, "name": "Customer Portal"}]}
 
         def model(messages, info):
             model_calls.append(messages)
             if len(model_calls) == 2:
-                return ModelResponse(parts=[ToolCallPart("create_builders", {})])
+                return ModelResponse(parts=[ToolCallPart("create_builder", {})])
             return ModelResponse(parts=[TextPart(content=claim)])
 
         deps = AssistantDeps(
@@ -2275,7 +2419,7 @@ class TestFinalAnswerValidation:
             deps=deps,
             model=FunctionModel(model),
             message_history=history,
-            toolsets=[FunctionToolset(tools=[create_builders])],
+            toolsets=[FunctionToolset(tools=[create_builder])],
         )
 
         assert len(model_calls) == 3
@@ -2659,8 +2803,8 @@ class TestFinalAnswerValidation:
         ctx = MagicMock()
         ctx.messages = [
             *_mutation_messages(
-                "create_builders",
-                {"builders": [{"name": "Restaurant", "type": "database"}]},
+                "create_database",
+                {"name": "Restaurant"},
                 {"created_builders": [{"id": 1, "type": "database"}]},
                 "database",
             ),
@@ -2688,7 +2832,7 @@ class TestFinalAnswerValidation:
                 parts=[
                     ToolCallPart(
                         tool_name="update_builder",
-                        args={"builder_id": 1, "update": {}},
+                        args={"builder_id": 1},
                         tool_call_id="update",
                     )
                 ]
@@ -2727,8 +2871,8 @@ class TestFinalAnswerValidation:
             ModelResponse(
                 parts=[
                     ToolCallPart(
-                        tool_name="create_builders",
-                        args={"builders": [{"name": "Restaurant", "type": "database"}]},
+                        tool_name="create_database",
+                        args={"name": "Restaurant"},
                         tool_call_id="reuse-builder",
                     )
                 ]
@@ -2736,7 +2880,7 @@ class TestFinalAnswerValidation:
             ModelRequest(
                 parts=[
                     ToolReturnPart(
-                        tool_name="create_builders",
+                        tool_name="create_database",
                         content={
                             "created_builders": [],
                             "reused_builders": [
@@ -3027,3 +3171,245 @@ class TestFinalAnswerValidation:
         confirmation = "Would you like me to delete the old field? It cannot be undone."
 
         assert validate_final_answer(ctx, confirmation) == confirmation
+
+
+def _run_chat(chat, workspace, user, content="Question"):
+    assistant = Assistant(chat)
+    ui_context = UIContext(
+        workspace=WorkspaceUIContext(id=workspace.id, name=workspace.name),
+        user=UserUIContext(id=user.id, name=user.first_name, email=user.email),
+    )
+
+    async def consume_stream():
+        human_message = HumanMessage(content=content, ui_context=ui_context)
+        return [msg async for msg in assistant.astream_messages(human_message)]
+
+    return async_to_sync(consume_stream)()
+
+
+def _captured_trace(mock_get_client):
+    return next(
+        call.kwargs["properties"]
+        for call in mock_get_client.return_value.capture.call_args_list
+        if call.kwargs["event"] == "$ai_trace"
+    )
+
+
+@pytest.mark.django_db
+class TestAssistantRunFailures:
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_failed_run_is_reported_to_sentry_and_posthog(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        error = RuntimeError("connection already closed")
+        mock_run_stream_events.side_effect = error
+
+        with pytest.raises(RuntimeError, match="connection already closed"):
+            _run_chat(chat, workspace, user)
+
+        mock_exception_capturer.assert_called_once_with(error)
+        trace = _captured_trace(mock_get_client)
+        assert trace["assistant_outcome"] == "error"
+        assert trace["$ai_error"] == "connection already closed"
+        assert trace["$ai_error_type"] == "RuntimeError"
+
+    @pytest.mark.parametrize(
+        "error, reported",
+        [
+            (ModelHTTPError(status_code=400, model_name="m", body="bad"), True),
+            (ModelHTTPError(status_code=429, model_name="m", body="slow"), False),
+            (ModelHTTPError(status_code=503, model_name="m", body="down"), False),
+            (ModelHTTPError(status_code=529, model_name="m", body="busy"), False),
+            (ModelAPIError(model_name="m", message="read timed out"), False),
+            (UsageLimitExceeded("request_limit of 200"), True),
+        ],
+    )
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_provider_outages_are_not_reported_to_sentry(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        error,
+        reported,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = error
+
+        with pytest.raises(type(error)):
+            _run_chat(chat, workspace, user)
+
+        assert mock_exception_capturer.called is reported
+        assert (
+            _captured_trace(mock_get_client)["$ai_error_type"] == type(error).__name__
+        )
+
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_provider_error_body_is_not_recorded(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = ModelHTTPError(
+            status_code=400,
+            model_name="m",
+            body={"error": {"failed_generation": "private user data"}},
+        )
+
+        with pytest.raises(ModelHTTPError):
+            _run_chat(chat, workspace, user)
+
+        trace = _captured_trace(mock_get_client)
+        assert trace["$ai_error"] == "status_code: 400, model_name: m"
+        assert "private user data" not in json.dumps(trace["$ai_output_state"])
+
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_run_without_an_accepted_answer_keeps_the_model_output_out(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = UnexpectedModelBehavior(
+            "Model token limit (16384) exceeded before any response was generated.",
+            body='{"content": "private user data"}',
+        )
+
+        messages = _run_chat(chat, workspace, user)
+
+        assert any(isinstance(msg, AiMessage) for msg in messages)
+        mock_exception_capturer.assert_not_called()
+        trace = _captured_trace(mock_get_client)
+        assert trace["assistant_outcome"] == "error"
+        assert trace["$ai_error_type"] == "UnexpectedModelBehavior"
+        assert "token limit" in trace["$ai_error"]
+        assert "private user data" not in trace["$ai_error"]
+        assert "private user data" not in json.dumps(trace["$ai_output_state"])
+
+    @patch("baserow_enterprise.assistant.assistant.exception_capturer")
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    @patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+    def test_content_filter_refusal_is_not_recorded(
+        self,
+        mock_run_stream_events,
+        mock_get_client,
+        mock_exception_capturer,
+        enterprise_data_fixture,
+        scoped_assistant_model,
+    ):
+        from pydantic_ai.exceptions import ContentFilterError
+
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Chat"
+        )
+        mock_run_stream_events.side_effect = ContentFilterError(
+            "Content filter triggered. Refusal: 'private user data'"
+        )
+
+        _run_chat(chat, workspace, user)
+
+        trace = _captured_trace(mock_get_client)
+        assert trace["$ai_error"] == "Content filter triggered"
+        assert "private user data" not in json.dumps(trace["$ai_output_state"])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "generated, expected",
+    [
+        ("Greeting", "Greeting"),
+        ('"Quarterly sales report"\n', "Quarterly sales report"),
+        (
+            "# Inventory cleanup\n\nI'll start by listing the tables in your "
+            "workspace and then remove the duplicate rows.",
+            "Inventory cleanup",
+        ),
+        (
+            "Plan the migration of every customer record from the legacy CRM "
+            "into the new database",
+            "Plan the migration of every customer record from…",
+        ),
+        (
+            "<think>\nThe user wants a title.\n</think>\nInventory cleanup",
+            "Inventory cleanup",
+        ),
+        ("Title:\nQuarterly report", "Quarterly report"),
+        ("Title: Quarterly report", "Quarterly report"),
+        ('Title: "Quarterly report"', "Quarterly report"),
+        ("**Title:** Quarterly report", "Quarterly report"),
+        ("**Title**: Quarterly report", "Quarterly report"),
+        ("Title:", "Question"),
+        ('""', "Question"),
+        ("**Quarterly report**", "Quarterly report"),
+        ("Learn C#", "Learn C#"),
+        ("#1 priority tasks", "#1 priority tasks"),
+        ('"Quarterly" report', '"Quarterly" report'),
+        ('"Sales" and "Marketing"', '"Sales" and "Marketing"'),
+        ("'Q3' vs 'Q4'", "'Q3' vs 'Q4'"),
+        ("**kwargs explained", "**kwargs explained"),
+        ("**Title:** **Plan**", "Plan"),
+        ("#\nQuarterly report", "Quarterly report"),
+        ('"\nQuarterly report', "Quarterly report"),
+    ],
+)
+@patch("baserow_enterprise.assistant.agents.title_agent.run")
+@patch("baserow_enterprise.assistant.agents.main_agent.run_stream_events")
+def test_chat_title_is_one_short_line(
+    mock_run_stream_events,
+    mock_title_run,
+    generated,
+    expected,
+    enterprise_data_fixture,
+    scoped_assistant_model,
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    chat = AssistantChat.objects.create(user=user, workspace=workspace, title="")
+    mock_run_stream_events.side_effect = make_mock_run_stream_events_side_effect("Hi")
+    mock_title_run.return_value = MagicMock(output=generated)
+
+    _run_chat(chat, workspace, user)
+
+    chat.refresh_from_db()
+    assert chat.title == expected

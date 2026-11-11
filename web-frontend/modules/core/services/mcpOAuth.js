@@ -9,6 +9,11 @@ export default (client) => {
     fetchConnections() {
       return client.get('/mcp/oauth/connections/')
     },
+    updateTools(connectionId, allowedTools) {
+      return client.patch(`/mcp/oauth/connections/${connectionId}/`, {
+        allowed_tools: allowedTools,
+      })
+    },
     disconnect(connectionId) {
       return client.delete(`/mcp/oauth/connections/${connectionId}/`)
     },

@@ -6,16 +6,25 @@ from dataclasses import dataclass, replace
 from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 import jsonschema
 from loguru import logger
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
+from rest_framework.exceptions import APIException
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from typing_extensions import Self
 
 from baserow.core.exceptions import PermissionException, UserNotInWorkspace
+from baserow.core.tools.errors import tool_error_message
 from baserow_enterprise.assistant.deps import AgentMode
 
-from .shared.errors import ToolInputError, permission_denied_result
+from .shared.errors import (
+    ToolInputError,
+    permission_denied_result,
+    validation_messages,
+)
 from .toolset import LENIENT_ARGS_VALIDATOR
 
 if TYPE_CHECKING:
@@ -75,20 +84,29 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     from .builder.tools import TOOL_FUNCTIONS as application_tools
     from .core.tools import (
         ask_user,
-        create_builders,
+        create_automation,
+        create_builder,
+        create_dashboard,
+        create_database,
+        list_audit_log,
         list_builders,
+        search_workspace,
         switch_mode,
+        update_automation,
         update_builder,
+        update_dashboard,
+        update_database,
     )
+    from .dashboard.tools import TOOL_FUNCTIONS as dashboard_tools
     from .database.tools import TOOL_FUNCTIONS as database_tools
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
 
     all_modes = frozenset(AgentMode)
-    domain_modes = all_modes - {AgentMode.EXPLAIN}
     database_mode = frozenset({AgentMode.DATABASE})
     application_mode = frozenset({AgentMode.APPLICATION})
     automation_mode = frozenset({AgentMode.AUTOMATION})
+    dashboard_mode = frozenset({AgentMode.DASHBOARD})
     explain_mode = frozenset({AgentMode.EXPLAIN})
 
     database_reads = [
@@ -99,6 +117,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     ]
     automation_reads = [
         tool for tool in automation_tools if tool.__name__.startswith("list_")
+    ]
+    dashboard_reads = [
+        tool for tool in dashboard_tools if tool.__name__.startswith(("list_", "get_"))
     ]
 
     return {
@@ -116,13 +137,37 @@ def _tool_routes() -> dict[str, _ToolRoute]:
             AgentMode.AUTOMATION,
             automation_mode | explain_mode,
         ),
+        **_routes_for(dashboard_tools, AgentMode.DASHBOARD, dashboard_mode),
         **_routes_for(
-            (navigate, switch_mode, list_builders, ask_user),
+            dashboard_reads,
+            AgentMode.DASHBOARD,
+            dashboard_mode | explain_mode,
+        ),
+        **_routes_for(
+            (
+                navigate,
+                switch_mode,
+                list_builders,
+                search_workspace,
+                list_audit_log,
+                ask_user,
+            ),
             AgentMode.DATABASE,
             all_modes,
         ),
         **_routes_for(
-            (create_builders, update_builder), AgentMode.DATABASE, domain_modes
+            (create_database, update_database), AgentMode.DATABASE, database_mode
+        ),
+        **_routes_for(
+            (create_builder, update_builder), AgentMode.APPLICATION, application_mode
+        ),
+        **_routes_for(
+            (create_automation, update_automation),
+            AgentMode.AUTOMATION,
+            automation_mode,
+        ),
+        **_routes_for(
+            (create_dashboard, update_dashboard), AgentMode.DASHBOARD, dashboard_mode
         ),
         # Docs questions arrive in any mode; a deferred tool needs a tool search first.
         **_routes_for((search_user_docs,), AgentMode.EXPLAIN, all_modes),
@@ -297,7 +342,12 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
         try:
             return await self._inner.call_tool(name, tool_args, ctx, tool)
         except ToolInputError as exc:
+            if exc.hint:
+                return {"error": str(exc), "next_steps": exc.hint}
             return {"error": str(exc)}
+        except DRFValidationError as exc:
+            # A module refused the values the tool was called with.
+            return {"error": validation_messages(exc)}
         except UserNotInWorkspace:
             return {
                 "error": (
@@ -308,6 +358,13 @@ class ModeAwareToolset(AbstractToolset[AgentDepsT]):
             }
         except PermissionException:
             return permission_denied_result(name)
+        except (DjangoValidationError, APIException) as exc:
+            # What the shared tools raise for the model to act on, like a feature
+            # that needs a licence. A server error has no message and is raised.
+            message = tool_error_message(exc)
+            if message is None:
+                raise
+            return {"error": message}
         except Exception as exc:
             if not type(exc).__name__.endswith("DoesNotExist"):
                 raise

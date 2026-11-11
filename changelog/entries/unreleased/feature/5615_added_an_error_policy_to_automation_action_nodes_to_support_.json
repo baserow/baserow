@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Allow retrying an Automation node execution on failure.",
+    "issue_origin": "github",
+    "issue_number": 5615,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-10-08"
+}

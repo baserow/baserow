@@ -30,9 +30,15 @@ from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationTyp
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.service import TableService
+from baserow.contrib.integrations.local_baserow.integration_types import (
+    LocalBaserowIntegrationType,
+)
 from baserow.core.app_auth_providers.handler import AppAuthProviderHandler
+from baserow.core.exceptions import PermissionException
 from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
@@ -49,6 +55,7 @@ from baserow_enterprise.integrations.local_baserow.models import (
 class LocalBaserowUserSourceType(UserSourceType):
     type = "local_baserow"
     model_class = LocalBaserowUserSource
+    integration_type = LocalBaserowIntegrationType.type
     field_types_allowed_as_name = [
         EmailFieldType.type,
         TextFieldType.type,
@@ -147,8 +154,13 @@ class LocalBaserowUserSourceType(UserSourceType):
             table_id = values.pop("table_id")
             if table_id is not None:
                 try:
-                    table = TableHandler().get_table(table_id)
-                except TableDoesNotExist as exc:
+                    # `get_table` checks that `user` can read the table, so a user
+                    # source can't be pointed at a table the editor has no access to
+                    # (e.g. another workspace's, or one RBAC restricts). A missing
+                    # table and a forbidden one return the same error, so neither
+                    # reveals whether the table exists.
+                    table = TableService().get_table(user, table_id)
+                except (TableDoesNotExist, PermissionException) as exc:
                     raise RequestBodyValidationException(
                         {
                             "table_id": [
@@ -170,8 +182,9 @@ class LocalBaserowUserSourceType(UserSourceType):
 
                 if (
                     not integration_to_check
-                    or table.database.workspace_id
-                    != integration_to_check.application.workspace_id
+                    or not IntegrationHandler().is_integration_usable(
+                        integration_to_check, workspace_id=table.database.workspace_id
+                    )
                 ):
                     raise RequestBodyValidationException(
                         {
@@ -490,7 +503,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         )
 
         CoreHandler().check_permissions(
-            integration.authorized_user,
+            integration.authorized_subject,
             ReadDatabaseRowOperationType.type,
             workspace=table.database.workspace,
             context=table,
@@ -520,6 +533,14 @@ class LocalBaserowUserSourceType(UserSourceType):
                     field == "table"  # We need to check the hierarchy only for table
                     and TrashHandler.item_has_a_trashed_parent(
                         related_instance, check_item_also=True
+                    )
+                )
+                or (
+                    # The users are read through the integration, which must belong
+                    # to the user source's application.
+                    field == "integration"
+                    and not IntegrationHandler().is_integration_usable(
+                        related_instance, application_id=user_source.application_id
                     )
                 )
                 or related_instance.trashed
@@ -709,7 +730,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         try:
             # Use the action to keep track on what's going on
             (user,) = CreateRowsActionType.do(
-                user=integration.authorized_user,
+                user=integration.authorized_subject,
                 table=user_source.table,
                 rows_values=[values],
                 model=model,

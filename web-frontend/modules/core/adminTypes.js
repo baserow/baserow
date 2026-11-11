@@ -1,4 +1,5 @@
 import { Registerable } from '@baserow/modules/core/registry'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 
 /**
  * An admin type is visible in the sidebar under the admin menu item. All
@@ -93,6 +94,19 @@ export class AdminType extends Registerable {
   getDeactivatedModal() {
     return null
   }
+
+  /**
+   * The number shown in a badge next to the admin type in the sidebar, which
+   * hides it when it's null or 0.
+   */
+  getBadgeCount() {
+    return null
+  }
+
+  /**
+   * Loads what `getBadgeCount` returns, when the sidebar item is shown.
+   */
+  loadBadgeCount() {}
 }
 
 export class DashboardAdminType extends AdminType {
@@ -124,7 +138,7 @@ export class UsersAdminType extends AdminType {
   }
 
   getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   getName() {
@@ -171,6 +185,49 @@ export class WorkspacesAdminType extends AdminType {
 
   getOrder() {
     return 3
+  }
+}
+
+export class TemplatesAdminType extends AdminType {
+  static getType() {
+    return 'templates'
+  }
+
+  getIconClass() {
+    return 'iconoir-box'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('adminType.templates')
+  }
+
+  getCategory() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('sidebar.adminContentCategory')
+  }
+
+  getRouteName() {
+    return 'admin-templates'
+  }
+
+  getOrder() {
+    return 45
+  }
+
+  isVisible() {
+    return this.app.$featureFlagIsEnabled(FF_USER_TEMPLATES)
+  }
+
+  /**
+   * The number of templates waiting for a review.
+   */
+  getBadgeCount() {
+    return this.app.$store.getters['templatesAdmin/inReviewCount']
+  }
+
+  loadBadgeCount() {
+    return this.app.$store.dispatch('templatesAdmin/ensureCounts')
   }
 }
 

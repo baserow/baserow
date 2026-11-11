@@ -10,7 +10,6 @@ from baserow.contrib.automation.models import (
 )
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
-    WorkflowState,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
@@ -26,6 +25,8 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "untrusted_content",
+            "import_report",
             "order",
             "automation_id",
             "allow_test_run_until",
@@ -56,12 +57,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_state(self, obj):
-        try:
-            state = obj.published_workflow_state
-        except AttributeError:
-            published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-            state = published_workflow.state if published_workflow else None
-        return WorkflowState(state if state is not None else WorkflowState.DRAFT).value
+        return AutomationWorkflowHandler().get_state(obj).value
 
     @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
     def get_notification_recipient_ids(self, obj):
@@ -103,6 +99,7 @@ class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
         model = AutomationWorkflow
         fields = (
             "name",
+            "untrusted_content",
             "allow_test_run",
             "state",
             "notification_recipient_ids",

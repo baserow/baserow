@@ -9,4 +9,11 @@
 
   @include flex-align-items(0, inline-flex);
   @include rounded($rounded);
+
+  // When the badge is the icon itself (`<i class="deactivated-label iconoir-lock">`)
+  // the iconoir glyph is a `1em` wide flex item: don't shrink it into the padding
+  // box, its mask is anchored left and would be cropped on the right.
+  &::before {
+    flex-shrink: 0;
+  }
 }

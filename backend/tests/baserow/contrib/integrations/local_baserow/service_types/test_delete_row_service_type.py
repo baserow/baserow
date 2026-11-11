@@ -9,6 +9,7 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowDelete
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
 )
+from baserow.core.models import Agent, TrashEntry
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
@@ -21,7 +22,9 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext
 def test_create_local_baserow_delete_row_service(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    page = data_fixture.create_builder_page(user=user)
+    page = data_fixture.create_builder_page(
+        user=user, builder=data_fixture.create_builder_application(workspace=workspace)
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     integration = data_fixture.create_local_baserow_integration(
@@ -77,7 +80,12 @@ def test_update_local_baserow_delete_row_service(data_fixture):
 def test_local_baserow_delete_row_service_dispatch_data_with_no_row_id(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     model = table.get_model()
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -100,7 +108,12 @@ def test_local_baserow_delete_row_service_dispatch_data_with_no_row_id(data_fixt
 def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     model = table.get_model()
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -124,7 +137,12 @@ def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixtu
 def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Name")
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -161,7 +179,12 @@ def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
 def test_local_baserow_delete_row_service_dispatch_data_with_multiple_ids(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Name")
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -191,11 +214,49 @@ def test_local_baserow_delete_row_service_dispatch_data_with_multiple_ids(data_f
 
 
 @pytest.mark.django_db
+def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(database=database)
+    agent = Agent.objects.create(
+        workspace=page.builder.workspace,
+        name="Row deleter",
+        role_uid="ADMIN",
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder,
+        user=user,
+        authorized_agent=agent,
+    )
+    model = table.get_model()
+    row = model.objects.create()
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration,
+        table=table,
+        row_id=str(row.id),
+    )
+
+    ServiceHandler().dispatch_service(service, FakeDispatchContext())
+
+    assert not model.objects.filter(id=row.id).exists()
+    trash_entry = TrashEntry.objects.get(trash_item_type="rows")
+    assert trash_entry.user_who_trashed is None
+
+
+@pytest.mark.django_db
 @override_settings(INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT=1)
 def test_local_baserow_delete_row_service_rejects_too_many_ids(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
@@ -223,7 +284,12 @@ def test_local_baserow_delete_row_service_dispatch_data_with_json_text_ids(
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    table = data_fixture.create_database_table(user=user)
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
+        user=user,
+    )
     field = data_fixture.create_text_field(table=table, name="Name")
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user

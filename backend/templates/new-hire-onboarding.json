@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "New Hire Onboarding",
+    "description": "Onboard new hires with task checklists per department.",
     "icon": "iconoir-home-user",
     "keywords": [
         "employee onboarding",

@@ -1244,31 +1244,64 @@ class DatabaseConfig(AppConfig):
         )
         from baserow.contrib.database.mcp.table.tools import (
             CreateDatabaseMcpTool,
-            CreateTableMcpTool,
+            CreateTablesMcpTool,
             DeleteTableMcpTool,
             GetTableSchemaMcpTool,
+            ListApplicationsMcpTool,
             ListDatabasesMcpTool,
             ListTablesMcpTool,
+            UpdateDatabaseMcpTool,
             UpdateTableMcpTool,
+        )
+        from baserow.contrib.database.mcp.views.tools import (
+            AddRowColoursMcpTool,
+            CreateViewFiltersMcpTool,
+            CreateViewsMcpTool,
+            DeleteRowColoursMcpTool,
+            DeleteViewFiltersMcpTool,
+            DeleteViewsMcpTool,
+            ListViewsMcpTool,
+            SetFieldVisibilityMcpTool,
+            SetViewSortsMcpTool,
+        )
+        from baserow.core.mcp.groups import (
+            DatabaseDeleteMCPToolGroup,
+            DatabaseEditMCPToolGroup,
+            DatabaseReadMCPToolGroup,
+            mcp_tool_group_registry,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
 
+        mcp_tool_group_registry.register(DatabaseReadMCPToolGroup())
+        mcp_tool_group_registry.register(DatabaseEditMCPToolGroup())
+        mcp_tool_group_registry.register(DatabaseDeleteMCPToolGroup())
         mcp_tool_registry.register(ListDatabasesMcpTool())
+        mcp_tool_registry.register(ListApplicationsMcpTool())
         mcp_tool_registry.register(ListTablesMcpTool())
         mcp_tool_registry.register(GetTableSchemaMcpTool())
         mcp_tool_registry.register(ListRowsMcpTool())
         mcp_tool_registry.register(CreateRowsMcpTool())
         mcp_tool_registry.register(UpdateRowsMcpTool())
         mcp_tool_registry.register(DeleteRowsMcpTool())
-        # Disabled (enabled=False) until users can control tool
-        # availability through the UI.
+        mcp_tool_registry.register(ListViewsMcpTool())
         mcp_tool_registry.register(CreateDatabaseMcpTool())
-        mcp_tool_registry.register(CreateTableMcpTool())
-        mcp_tool_registry.register(UpdateTableMcpTool())
-        mcp_tool_registry.register(DeleteTableMcpTool())
+        mcp_tool_registry.register(UpdateDatabaseMcpTool())
+        mcp_tool_registry.register(CreateTablesMcpTool())
         mcp_tool_registry.register(CreateFieldsMcpTool())
         mcp_tool_registry.register(UpdateFieldsMcpTool())
         mcp_tool_registry.register(DeleteFieldsMcpTool())
+        mcp_tool_registry.register(CreateViewsMcpTool())
+        mcp_tool_registry.register(CreateViewFiltersMcpTool())
+        mcp_tool_registry.register(SetViewSortsMcpTool())
+        mcp_tool_registry.register(SetFieldVisibilityMcpTool())
+        mcp_tool_registry.register(AddRowColoursMcpTool())
+        mcp_tool_registry.register(DeleteViewsMcpTool())
+        mcp_tool_registry.register(DeleteViewFiltersMcpTool())
+        mcp_tool_registry.register(DeleteRowColoursMcpTool())
+        # Disabled (enabled=False) until users can control tool
+        # availability through the UI.
+        mcp_tool_registry.register(UpdateTableMcpTool())
+        mcp_tool_registry.register(DeleteTableMcpTool())
 
         from baserow.contrib.database.rows.history_providers import (
             CreateRowHistoryProvider,
@@ -1302,6 +1335,11 @@ class DatabaseConfig(AppConfig):
         workspace_search_registry.register(FieldDefinitionSearchType())
         workspace_search_registry.register(RowSearchType())
         workspace_search_registry.register(TableSearchType())
+
+        from .search.registries import search_data_updater_registry
+        from .search.search_data_updater_types import FullTextSearchDataUpdaterType
+
+        search_data_updater_registry.register(FullTextSearchDataUpdaterType())
 
         from baserow.contrib.database.fields.field_constraints import (
             RatingTypeUniqueWithEmptyConstraint,

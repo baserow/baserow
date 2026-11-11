@@ -104,7 +104,7 @@
               :disabled="constraintDisabled(name)"
               :description="
                 constraintDisabled(name)
-                  ? $t(`imageThemeConfigBlock.imageConstraint${name}Disabled`)
+                  ? imageConstraintDisabledDescriptions[name]
                   : ''
               "
               :name="label"
@@ -290,6 +290,14 @@ export default {
           label: this.$t('imageThemeConfigBlock.imageConstraintFullWidth'),
         },
       ]
+    },
+    imageConstraintDisabledDescriptions() {
+      return {
+        cover: this.$t('imageThemeConfigBlock.imageConstraintCoverDisabled'),
+        contain: this.$t(
+          'imageThemeConfigBlock.imageConstraintContainDisabled'
+        ),
+      }
     },
   },
   methods: {

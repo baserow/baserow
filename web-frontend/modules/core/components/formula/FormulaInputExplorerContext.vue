@@ -9,6 +9,7 @@
   >
     <NodeExplorer
       :node-selected="nodeSelected"
+      :reveal-node="revealNode"
       :mode="mode"
       :nodes-hierarchy="nodesHierarchy"
       :allow-node-selection="allowNodeSelection"
@@ -19,7 +20,7 @@
     />
     <div v-if="showFooter" class="formula-input-explorer-context__footer">
       <ButtonText
-        v-if="advancedModeEnabled"
+        v-if="modeToggleEnabled"
         type="primary"
         icon="iconoir-input-field"
         size="small"
@@ -81,6 +82,15 @@ export default {
   props: {
     nodeSelected: {
       type: String,
+      required: false,
+      default: null,
+    },
+    /**
+     * The `{ type, name }` or `{ type: 'data', path }` of a formula node the
+     * explorer should reveal, see `NodeExplorer`.
+     */
+    revealNode: {
+      type: Object,
       required: false,
       default: null,
     },
@@ -160,8 +170,16 @@ export default {
     }
   },
   computed: {
-    advancedModeEnabled() {
-      return this.enabledModes.includes('advanced')
+    /**
+     * The footer button switches between the simple and advanced modes, so it
+     * is only shown when both are enabled. An input restricted to one mode
+     * has nothing to switch to.
+     */
+    modeToggleEnabled() {
+      return (
+        this.enabledModes.includes('simple') &&
+        this.enabledModes.includes('advanced')
+      )
     },
     isAdvancedMode() {
       return this.mode === 'advanced'
@@ -170,7 +188,7 @@ export default {
       return this.formatOptions.length > 1
     },
     showFooter() {
-      return this.advancedModeEnabled || this.formatPickerEnabled
+      return this.modeToggleEnabled || this.formatPickerEnabled
     },
     formatSegments() {
       return this.formatOptions.map(({ name }) => ({ label: name }))

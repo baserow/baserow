@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 from urllib.parse import urlparse
 
@@ -84,6 +85,47 @@ def drop_expected_asyncio_disconnect_events(
         return None
 
     return event
+
+
+_TOKEN_IN_URL_RE = re.compile(
+    r"(private-link(?:/|%(?:25)*2F))(?:[0-9a-f]|%(?:25)*[0-9a-f]{2}){64}",
+    re.IGNORECASE | re.ASCII,
+)
+
+
+def _redact_private_link_tokens(value: Any) -> Any:
+    if isinstance(value, str):
+        return _TOKEN_IN_URL_RE.sub(r"\1[Filtered]", value)
+    if isinstance(value, dict):
+        return {key: _redact_private_link_tokens(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_private_link_tokens(item) for item in value]
+    return value
+
+
+def redact_private_link_tokens(
+    event: dict[str, Any], hint: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    Sentry hook that replaces the token of every private link URL in the event or
+    transaction, like in the Referer header, the request URL or a breadcrumb, with
+    `[Filtered]`.
+    """
+
+    return _redact_private_link_tokens(event)
+
+
+def before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    Sentry before_send hook: drops the expected client-disconnect noise, see
+    `drop_expected_asyncio_disconnect_events`, and redacts the private link tokens
+    of the other events, see `redact_private_link_tokens`.
+    """
+
+    event = drop_expected_asyncio_disconnect_events(event, hint)
+    if event is None:
+        return None
+    return redact_private_link_tokens(event, hint)
 
 
 def setup_user_in_sentry(user):

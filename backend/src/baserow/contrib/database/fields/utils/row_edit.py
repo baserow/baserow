@@ -4,6 +4,8 @@ from django.conf import settings
 
 from itsdangerous import BadSignature, URLSafeSerializer
 
+from baserow.core.utils import get_embedded_share_url
+
 if TYPE_CHECKING:
     from baserow.contrib.database.views.models import FormView
 
@@ -39,8 +41,7 @@ def build_row_edit_url(cell_uuid: str, form_view: "FormView", field_id: int) -> 
     """
 
     token = generate_row_edit_token(form_view.slug, field_id, cell_uuid)
-    base = getattr(settings, "PUBLIC_WEB_FRONTEND_URL", "").rstrip("/")
-    return f"{base}/form/{form_view.slug}/?edit_token={token}"
+    return get_embedded_share_url(f"form/{form_view.slug}/?edit_token={token}")
 
 
 def verify_and_decode_edit_token(token: str) -> Optional[Dict[str, str]]:

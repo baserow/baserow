@@ -16,7 +16,7 @@ from baserow.core.services.exceptions import (
 )
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 from baserow_enterprise.apps import register_code_runner_features
-from baserow_enterprise.automation.nodes.node_types import CoreCodeNodeType
+from baserow_enterprise.automation.nodes.node_types import CoreCodeActionNodeType
 from baserow_enterprise.builder.workflow_actions.models import CoreCodeWorkflowAction
 from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
     CoreCodeActionType,
@@ -88,7 +88,7 @@ def test_core_code_automation_node_requires_enterprise_license(
 ):
     user = enterprise_data_fixture.create_user()
     workflow = enterprise_data_fixture.create_automation_workflow(user)
-    node_type = CoreCodeNodeType()
+    node_type = CoreCodeActionNodeType()
 
     enterprise_data_fixture.delete_all_licenses()
 
@@ -143,7 +143,7 @@ def test_core_code_automation_node_dispatch_requires_enterprise_license(
     service = enterprise_data_fixture.create_enterprise_core_code_service()
     node = enterprise_data_fixture.create_automation_node(
         workflow=workflow,
-        type=CoreCodeNodeType.type,
+        type=CoreCodeActionNodeType.type,
         service=service,
     )
 

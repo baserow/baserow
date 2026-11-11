@@ -4,15 +4,9 @@ from typing import Annotated, Literal, Optional
 
 from django.utils.translation import gettext as _
 
-from pydantic import BaseModel as PydanticBaseModel
-from pydantic import ConfigDict, Field
+from pydantic import Field
 
-
-class BaseModel(PydanticBaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        coerce_numbers_to_str=True,
-    )
+from baserow.core.tools.types import BaseModel
 
 
 class WorkspaceUIContext(BaseModel):
@@ -246,12 +240,24 @@ class BuilderPageNavigationType(BaseModel):
         return _("page %(page_name)s") % {"page_name": self.page_name}
 
 
+class DashboardNavigationType(BaseModel):
+    type: Literal["dashboard"]
+    dashboard_id: int
+    dashboard_name: str
+
+    def to_localized_string(self):
+        return _("dashboard %(dashboard_name)s") % {
+            "dashboard_name": self.dashboard_name
+        }
+
+
 AnyNavigationType = Annotated[
     TableNavigationType
     | WorkspaceNavigationType
     | ViewNavigationType
     | WorkflowNavigationType
-    | BuilderPageNavigationType,
+    | BuilderPageNavigationType
+    | DashboardNavigationType,
     Field(discriminator="type"),
 ]
 

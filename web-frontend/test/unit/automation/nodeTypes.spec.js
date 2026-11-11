@@ -1,8 +1,11 @@
 import {
   NodeType,
-  CoreRouterNodeType,
+  CoreRouterActionNodeType,
   CoreInboundEmailTriggerNodeType,
+  CoreIteratorActionNodeType,
+  CoreGotoActionNodeType,
 } from '@baserow/modules/automation/nodeTypes'
+import { ServiceType } from '@baserow/modules/core/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
 describe('NodeType.getHistoryLabel', () => {
@@ -71,7 +74,7 @@ describe('NodeType service validation context', () => {
   })
 })
 
-describe('CoreRouterNodeType.getHistoryLabel', () => {
+describe('CoreRouterActionNodeType.getHistoryLabel', () => {
   const makeApp = () => ({
     $i18n: {
       t: (key, values) => (values ? `${key}:${JSON.stringify(values)}` : key),
@@ -80,7 +83,7 @@ describe('CoreRouterNodeType.getHistoryLabel', () => {
   })
 
   test('appends the branch that was taken', () => {
-    const nodeType = new CoreRouterNodeType({ app: makeApp() })
+    const nodeType = new CoreRouterActionNodeType({ app: makeApp() })
     expect(
       nodeType.getHistoryLabel({
         nodeHistory: { node_label: 'My router', edge_label: 'Yes' },
@@ -89,7 +92,7 @@ describe('CoreRouterNodeType.getHistoryLabel', () => {
   })
 
   test('appends the fallback edge label when no branch was recorded', () => {
-    const nodeType = new CoreRouterNodeType({ app: makeApp() })
+    const nodeType = new CoreRouterActionNodeType({ app: makeApp() })
     expect(
       nodeType.getHistoryLabel({
         nodeHistory: { node_label: 'My router', edge_label: '' },
@@ -100,7 +103,7 @@ describe('CoreRouterNodeType.getHistoryLabel', () => {
   })
 
   test('falls back to the node type name when the node has no label', () => {
-    const nodeType = new CoreRouterNodeType({ app: makeApp() })
+    const nodeType = new CoreRouterActionNodeType({ app: makeApp() })
     expect(
       nodeType.getHistoryLabel({
         nodeHistory: { node_label: '', edge_label: 'Yes' },
@@ -147,6 +150,7 @@ describe('Automation node types', () => {
       'csv_file_reader',
       'xls_file_reader',
       'goto',
+      'wait',
       'slack_write_message',
     ])
   })
@@ -175,10 +179,29 @@ describe('Automation node types', () => {
     const registry = testApp.getRegistry()
 
     expect(
-      ['start_workflow', 'iterator', 'router'].map(
+      ['start_workflow', 'response', 'iterator', 'router', 'goto'].map(
         (type) => registry.get('node', type).group.id
       )
-    ).toEqual(['workflow', 'workflow', 'workflow'])
+    ).toEqual(['workflow', 'workflow', 'workflow', 'workflow', 'workflow'])
+  })
+
+  test('exposes search aliases for the Iterator and Go to nodes', () => {
+    const registry = testApp.getRegistry()
+
+    // The i18n mock returns the key, so this pins the locale keys the two
+    // node types read their alias lists from; other nodes have none.
+    expect(
+      Object.fromEntries(
+        ['iterator', 'goto', 'router', 'local_baserow_create_row'].map(
+          (type) => [type, registry.get('node', type).aliases]
+        )
+      )
+    ).toEqual({
+      iterator: ['nodeType.iteratorAliases'],
+      goto: ['nodeType.gotoAliases'],
+      router: [],
+      local_baserow_create_row: [],
+    })
   })
 
   test('uses service-specific icons and images for workflow action nodes', () => {
@@ -204,6 +227,29 @@ describe('Automation node types', () => {
     expect(slack.iconColor).toBe('darker-pink')
     expect(slack.image).toBeUndefined()
   })
+
+  test('only action nodes that can benefit from a retry have an error policy', () => {
+    const withoutErrorPolicy = testApp
+      .getRegistry()
+      .getOrderedList('node')
+      .filter((nodeType) => !nodeType.hasErrorPolicy)
+      .map((nodeType) => nodeType.getType())
+
+    // Triggers never fail during a run. The other nodes only fail on values
+    // computed from earlier nodes' data, which a retry evaluates the same way.
+    expect(withoutErrorPolicy).toEqual(
+      expect.arrayContaining([
+        'http_trigger',
+        'wait',
+        'iterator',
+        'router',
+        'goto',
+        'response',
+      ])
+    )
+    expect(withoutErrorPolicy).not.toContain('http_request')
+    expect(withoutErrorPolicy).not.toContain('local_baserow_create_row')
+  })
 })
 
 describe('NodeType.isEnabled', () => {
@@ -228,5 +274,46 @@ describe('NodeType.isEnabled', () => {
     // Settings not loaded yet, or an older backend without the flag.
     expect(makeType({}).isEnabled()).toBe(false)
     expect(makeType(null).isEnabled()).toBe(false)
+  })
+})
+
+describe('NodeType.aliases', () => {
+  const makeApp = (translations = {}) => ({
+    $i18n: { t: (key) => translations[key] ?? key },
+  })
+
+  test('service types have no aliases by default', () => {
+    expect(new ServiceType({ app: {} }).aliases).toEqual([])
+  })
+
+  test('node types take their aliases from their service type', () => {
+    class AliasedNodeType extends NodeType {
+      static getType() {
+        return 'aliased'
+      }
+
+      get serviceType() {
+        return { aliases: ['jump'] }
+      }
+    }
+
+    expect(new AliasedNodeType({ app: {} }).aliases).toEqual(['jump'])
+  })
+
+  test('the Iterator and Go to nodes parse one translatable alias string', () => {
+    const app = makeApp({
+      'nodeType.iteratorAliases': 'loop, for loop, repeat',
+      'nodeType.gotoAliases': 'while loop,retry',
+    })
+
+    expect(new CoreIteratorActionNodeType({ app }).aliases).toEqual([
+      'loop',
+      'for loop',
+      'repeat',
+    ])
+    expect(new CoreGotoActionNodeType({ app }).aliases).toEqual([
+      'while loop',
+      'retry',
+    ])
   })
 })

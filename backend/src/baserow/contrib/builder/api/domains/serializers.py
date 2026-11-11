@@ -252,6 +252,7 @@ class PublicBuilderSerializer(BuilderSerializer):
     )
 
     workspace = serializers.SerializerMethodField()
+    untrusted_content = serializers.BooleanField(read_only=True)
 
     class Meta:
         ref_name = "PublicBuilderApplication"

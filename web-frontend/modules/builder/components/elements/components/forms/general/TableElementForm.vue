@@ -168,9 +168,7 @@
                 :element="element"
                 :default-values="field"
                 :base-theme="collectionFieldBaseTheme"
-                :application-context-additions="{
-                  allowSameElement: true,
-                }"
+                :application-context-additions="fieldFormulaContext"
                 @values-changed="updateField(field, $event)"
               />
             </template>
@@ -274,6 +272,7 @@ import ServiceSchemaPropertySelector from '@baserow/modules/core/components/serv
 import DataSourceDropdown from '@baserow/modules/builder/components/dataSource/DataSourceDropdown'
 import PropertyOptionForm from '@baserow/modules/builder/components/elements/components/forms/general/settings/PropertyOptionForm'
 import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 export default {
   name: 'TableElementForm',
@@ -293,6 +292,9 @@ export default {
   },
   data() {
     return {
+      fieldFormulaContext: {
+        dataScope: DATA_SCOPES.INCLUDE_TARGET_ELEMENT,
+      },
       allowedValues: [
         'data_source_id',
         'schema_property',

@@ -27,6 +27,7 @@
       <input
         :id="forInput"
         ref="input"
+        v-pre-hydration-input
         class="form-input__input"
         :class="{
           'form-input__input--text-invisible': textInvisible,
@@ -74,6 +75,7 @@
 
 <script setup>
 import { computed, ref, inject } from 'vue'
+import vPreHydrationInput from '@baserow/modules/core/directives/preHydrationInput'
 
 const props = defineProps({
   error: Boolean,

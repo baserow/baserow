@@ -19,7 +19,7 @@ class DeferredFieldImporter:
         self.deferred_field_imports = {}
         self.field_import_callback_mapping = {}
 
-    def _unique_field_name(self, table_id: int, field_name: str) -> str:
+    def _unique_field_name(self, table_id: int | str, field_name: str) -> str:
         return f"{table_id}:{field_name}"
 
     def add_deferred_field_import(
@@ -74,10 +74,10 @@ class DeferredFieldImporter:
                         dep_table_id = link_row_field.link_row_table_id
                     except KeyError:
                         # If the `via_field_name` does not exist, then there is a
-                        # broken dependency. In that case, it's okay to use the
-                        # `table.id` as `dep_table_id` because it does not matter how
-                        # it's grouped later.
-                        dep_table_id = table.id
+                        # broken dependency. Point it to a node that can't match a real
+                        # field, otherwise a same-table field with the target name
+                        # could create a false cycle.
+                        dep_table_id = f"broken:{table.id}:{via_field_name}"
                 else:
                     # The target field is in the same table
                     dep_table_id = table.id

@@ -1,18 +1,18 @@
 <template>
-  <span v-if="isReadOnly">
-    {{ roleName(column.additionalProps.roles, row) }}
-  </span>
-  <a v-else class="member-role-field__link" @click.prevent="onClick">
-    <span>
-      {{ roleName(column.additionalProps.roles, row) }}
-    </span>
-    <i class="iconoir-nav-arrow-down"></i>
-  </a>
+  <RoleSelectorButton
+    :icon="selectedRole?.icon"
+    :role-name="selectedRole?.name || ''"
+    :read-only="isReadOnly"
+    @click="onClick"
+  />
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 export default {
   name: 'MemberRoleField',
+  components: { RoleSelectorButton },
   props: {
     row: {
       type: Object,
@@ -25,6 +25,12 @@ export default {
   },
   emits: ['edit-role-context'],
   computed: {
+    selectedRole() {
+      const permissions = this.row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'
+      return this.column.additionalProps.roles.find(
+        (role) => role.uid === permissions
+      )
+    },
     isReadOnly() {
       const { additionalProps } = this.column
       return (
@@ -38,11 +44,6 @@ export default {
     },
   },
   methods: {
-    roleName(roles, row) {
-      const permissions = row.permissions === 'ADMIN' ? 'ADMIN' : 'MEMBER'
-      const role = roles.find((r) => r.uid === permissions)
-      return role?.name || ''
-    },
     onClick(event) {
       this.$emit('edit-role-context', {
         row: this.row,

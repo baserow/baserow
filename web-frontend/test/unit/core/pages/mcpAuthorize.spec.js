@@ -23,24 +23,48 @@ describe('MCP authorize page', () => {
         title: 'List tables',
         read_only: true,
         destructive: false,
+        group: 'database_read',
       },
       {
         name: 'create_rows',
         title: 'Create rows',
         read_only: false,
         destructive: false,
+        group: 'database_edit',
       },
       {
         name: 'delete_rows',
         title: 'Delete rows',
         read_only: false,
         destructive: true,
+        group: 'database_delete',
       },
       {
         name: 'update_rows',
         title: 'Update rows',
         read_only: false,
         destructive: true,
+        group: 'database_edit',
+      },
+    ],
+    groups: [
+      {
+        type: 'database_read',
+        title: 'Read databases',
+        area: 'database',
+        read_only_preset: true,
+      },
+      {
+        type: 'database_edit',
+        title: 'Edit databases',
+        area: 'database',
+        read_only_preset: false,
+      },
+      {
+        type: 'database_delete',
+        title: 'Delete in databases',
+        area: 'database',
+        read_only_preset: false,
       },
     ],
   }
@@ -71,12 +95,18 @@ describe('MCP authorize page', () => {
     await testApp.afterEach()
   })
 
+  // Nuxt's prefetch scheduler resolves each navigation against `location.href`.
+  function stubLocation() {
+    const assign = vi.fn()
+    vi.stubGlobal('location', { href: window.location.href, assign })
+    return assign
+  }
+
   async function mountWithConsent() {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
-    const assign = vi.fn()
-    vi.stubGlobal('location', { assign })
+    const assign = stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
     return { wrapper, assign }
@@ -93,19 +123,19 @@ describe('MCP authorize page', () => {
   }
 
   function toolCheckbox(wrapper, name) {
-    return wrapper.find(`[data-test="mcp-authorize-tool-${name}"] input`)
+    return wrapper.find(`[data-test="mcp-tool-picker-tool-${name}"] input`)
   }
 
   test('shows workspaces and tools grouped, with only reading ticked', async () => {
     const { wrapper } = await mountWithConsent()
     // The test i18n returns message keys, so only API values are visible.
     expect(wrapper.text()).toContain('Other')
-    const read = wrapper.find('[data-test="mcp-authorize-tools-read"]')
-    const change = wrapper.find('[data-test="mcp-authorize-tools-change"]')
-    expect(read.text()).toContain('List tables')
-    expect(read.text()).not.toContain('Create rows')
-    expect(change.text()).toContain('Create rows')
-    expect(change.text()).toContain('Delete rows')
+    const group = (type) =>
+      wrapper.find(`[data-test="mcp-tool-picker-group-${type}"]`)
+    expect(group('database_read').text()).toContain('List tables')
+    expect(group('database_read').text()).not.toContain('Create rows')
+    expect(group('database_edit').text()).toContain('Create rows')
+    expect(group('database_delete').text()).toContain('Delete rows')
     // Changing data is opt-in on a first connection.
     for (const name of allTools) {
       expect(toolCheckbox(wrapper, name).element.checked).toBe(
@@ -125,7 +155,7 @@ describe('MCP authorize page', () => {
       .reply(200, { redirect_url: 'https://claude.ai/cb?code=v' })
     const { wrapper, assign } = await mountWithConsent()
     const checkbox = (name) =>
-      wrapper.find(`[data-test="mcp-authorize-tool-${name}"]`)
+      wrapper.find(`[data-test="mcp-tool-picker-tool-${name}"]`)
     expect(checkbox('list_tables').classes()).toContain('checkbox--checked')
     expect(checkbox('create_rows').classes()).not.toContain('checkbox--checked')
     await toolCheckbox(wrapper, 'create_rows').setValue(true)
@@ -151,7 +181,7 @@ describe('MCP authorize page', () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, consent)
-    vi.stubGlobal('location', { assign: vi.fn() })
+    stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
     // Any host can publish a metadata document with any name, so the host
@@ -169,7 +199,7 @@ describe('MCP authorize page', () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, { ...consent, verified: false, verified_host: null })
-    vi.stubGlobal('location', { assign: vi.fn() })
+    stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
 
@@ -187,7 +217,7 @@ describe('MCP authorize page', () => {
         verified_host: null,
         registration_source: 'dcr',
       })
-    vi.stubGlobal('location', { assign: vi.fn() })
+    stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route, ...withParams })
     await flushPromises()
 
@@ -210,17 +240,6 @@ describe('MCP authorize page', () => {
     expect(descriptions).toHaveLength(2)
   })
 
-  test('destructive tools get a Deletes or Overwrites badge', async () => {
-    const { wrapper } = await mountWithConsent()
-    const badge = (name) =>
-      wrapper.find(`[data-test="mcp-authorize-badge-${name}"]`)
-    expect(badge('delete_rows').text()).toBe('mcpAuthorize.deletes')
-    expect(badge('delete_rows').classes()).toContain('badge--red')
-    expect(badge('update_rows').text()).toBe('mcpAuthorize.overwrites')
-    expect(badge('update_rows').classes()).toContain('badge--yellow')
-    expect(badge('create_rows').exists()).toBe(false)
-  })
-
   test('refuses to show the consent form inside a frame', async () => {
     vi.stubGlobal('top', {})
     const { wrapper } = await mountWithConsent()
@@ -237,25 +256,28 @@ describe('MCP authorize page', () => {
     expect(consentCalls).toHaveLength(0)
   })
 
-  test('none and select all are keyboard reachable buttons', async () => {
-    const { wrapper } = await mountWithConsent()
-    for (const key of ['select-all', 'select-none']) {
-      const button = wrapper.find(`[data-test="mcp-authorize-${key}"]`)
-      expect(button.element.tagName).toBe('BUTTON')
-      expect(button.attributes('type')).toBe('button')
-    }
-  })
-
-  test('none and select all toggle every tool', async () => {
+  test('the read only preset ticks only the read tools', async () => {
     const { wrapper } = await mountWithConsent()
     await wrapper
-      .find('[data-test="mcp-authorize-select-none"]')
+      .find('[data-test="mcp-tool-picker-full-access"]')
       .trigger('click')
+    await wrapper
+      .find('[data-test="mcp-tool-picker-read-only"]')
+      .trigger('click')
+    const checked = allTools.filter(
+      (name) => toolCheckbox(wrapper, name).element.checked
+    )
+    expect(checked).toEqual(['list_tables'])
+  })
+
+  test('none and full access toggle every tool', async () => {
+    const { wrapper } = await mountWithConsent()
+    await wrapper.find('[data-test="mcp-tool-picker-none"]').trigger('click')
     for (const name of allTools) {
       expect(toolCheckbox(wrapper, name).element.checked).toBe(false)
     }
     await wrapper
-      .find('[data-test="mcp-authorize-select-all"]')
+      .find('[data-test="mcp-tool-picker-full-access"]')
       .trigger('click')
     for (const name of allTools) {
       expect(toolCheckbox(wrapper, name).element.checked).toBe(true)
@@ -280,8 +302,7 @@ describe('MCP authorize page', () => {
           database_count: 0,
         })),
       })
-    const assign = vi.fn()
-    vi.stubGlobal('location', { assign })
+    const assign = stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
     await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
@@ -319,7 +340,7 @@ describe('MCP authorize page', () => {
       .reply(200, { redirect_url: 'https://claude.ai/cb?code=y' })
     const { wrapper, assign } = await mountWithConsent()
     await wrapper
-      .find('[data-test="mcp-authorize-select-all"]')
+      .find('[data-test="mcp-tool-picker-full-access"]')
       .trigger('click')
     await toolCheckbox(wrapper, 'create_rows').setValue(false)
     await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
@@ -341,7 +362,7 @@ describe('MCP authorize page', () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, { ...consent, grants: { 2: ['list_tables'] } })
-    vi.stubGlobal('location', { assign: vi.fn() })
+    stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
 
@@ -351,53 +372,33 @@ describe('MCP authorize page', () => {
     expect(checked).toEqual(['list_tables'])
   })
 
-  test('keeps every tool ticked for a grant that allows all tools', async () => {
+  test('reconnecting preselects the granted workspace and its tools', async () => {
+    // Workspace 2 has databases, but the client is connected to workspace 1.
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
-      .reply(200, { ...consent, grants: { 2: null } })
-    vi.stubGlobal('location', { assign: vi.fn() })
+      .reply(200, { ...consent, grants: { 1: ['list_tables'] } })
+    testApp.mock
+      .onPost('/mcp/oauth/consent/', {
+        query,
+        allow: true,
+        workspace_id: 1,
+        tools: ['list_tables'],
+      })
+      .reply(200, { redirect_url: 'https://claude.ai/cb?code=g' })
+    const assign = stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
 
-    for (const name of allTools) {
-      expect(toolCheckbox(wrapper, name).element.checked).toBe(true)
-    }
+    await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
+    await flushPromises()
+    expect(assign).toHaveBeenCalledWith('https://claude.ai/cb?code=g')
   })
-
-  test.each([
-    ['a tool list', ['list_tables'], ['list_tables']],
-    ['every tool', null, allTools],
-  ])(
-    'reconnecting preselects the granted workspace with %s',
-    async (_, grant, tools) => {
-      // Workspace 2 has databases, but the client is connected to workspace 1.
-      testApp.mock
-        .onGet('/mcp/oauth/consent/', { params: { query } })
-        .reply(200, { ...consent, grants: { 1: grant } })
-      testApp.mock
-        .onPost('/mcp/oauth/consent/', {
-          query,
-          allow: true,
-          workspace_id: 1,
-          tools,
-        })
-        .reply(200, { redirect_url: 'https://claude.ai/cb?code=g' })
-      const assign = vi.fn()
-      vi.stubGlobal('location', { assign })
-      const wrapper = await testApp.mount(MCPAuthorize, { route })
-      await flushPromises()
-
-      await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
-      await flushPromises()
-      expect(assign).toHaveBeenCalledWith('https://claude.ai/cb?code=g')
-    }
-  )
 
   test('warns when the client only redirects to loopback', async () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, { ...consent, loopback_only: true })
-    vi.stubGlobal('location', { assign: vi.fn() })
+    stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
 
@@ -410,7 +411,7 @@ describe('MCP authorize page', () => {
     testApp.mock
       .onGet('/mcp/oauth/consent/', { params: { query } })
       .reply(200, { ...consent, workspaces: [] })
-    vi.stubGlobal('location', { assign: vi.fn() })
+    stubLocation()
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await flushPromises()
 
@@ -429,8 +430,7 @@ describe('MCP authorize page', () => {
     testApp.mock
       .onPost('/mcp/oauth/consent/', { query, allow: false })
       .reply(200, { redirect_url: 'https://claude.ai/cb?error=access_denied' })
-    const assign = vi.fn()
-    vi.stubGlobal('location', { assign })
+    const assign = stubLocation()
 
     const wrapper = await testApp.mount(MCPAuthorize, { route })
     await wrapper.find('[data-test="mcp-authorize-deny"]').trigger('click')

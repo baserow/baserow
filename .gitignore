@@ -99,6 +99,9 @@ venv/
 .venv/
 .profiles/
 
+# Model downloaded by a local run of the embeddings server
+embeddings/model/
+
 # Media files
 backend/media/
 

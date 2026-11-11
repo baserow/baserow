@@ -82,12 +82,11 @@
           :attributes="[]"
         >
           <template #left-side="{ item }">
-            <Avatar
-              rounded
+            <component
+              :is="getSubjectAvatarComponent(item)"
+              :subject="item"
               size="medium"
-              :color="getSubjectAvatarColor(item)"
-              :initials="nameAbbreviation(item.name)"
-            ></Avatar>
+            />
             <span class="margin-left-1">
               {{ item.name }}
             </span>
@@ -133,7 +132,6 @@ import { required, maxLength, minLength, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 
 export default {
   name: 'ManageTeamForm',
@@ -231,9 +229,8 @@ export default {
     this.$refs.name.focus()
   },
   methods: {
-    nameAbbreviation,
-    getSubjectAvatarColor(subject) {
-      return this.$registry.get('subject', subject.subject_type).avatarColor
+    getSubjectAvatarComponent(subject) {
+      return this.$registry.get('subject', subject.subject_type).avatarComponent
     },
   },
 }

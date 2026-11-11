@@ -29,6 +29,7 @@ from baserow.contrib.builder.models import (
 )
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.handler import ThemeHandler
+from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
@@ -41,6 +42,10 @@ from baserow.core.db import specific_iterator
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.handler import CoreHandler
+from baserow.core.management.commands.export_workspace_applications import (
+    cli_import_export_config,
+)
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
@@ -627,7 +632,8 @@ def test_builder_application_export(data_fixture):
         ],
         "integrations": [
             {
-                "authorized_user": None,
+                "authorized_subject_type": None,
+                "authorized_subject_id": None,
                 "id": integration.id,
                 "name": "test",
                 "order": "1.00000000000000000000",
@@ -1142,7 +1148,7 @@ def test_builder_application_import(data_fixture):
 
     assert builder.integrations.count() == 1
     first_integration = builder.integrations.first().specific
-    assert first_integration.authorized_user.id == user.id
+    assert first_integration.authorized_subject == user
 
     assert builder.user_sources.count() == 1
 
@@ -1995,6 +2001,34 @@ def test_builder_application_imports_login_page(data_fixture):
 
 
 @pytest.mark.django_db
+def test_builder_application_passes_export_config_to_login_page(data_fixture):
+    builder = data_fixture.create_builder_application()
+    login_page = data_fixture.create_builder_page(builder=builder)
+    builder.login_page = login_page
+    builder.save()
+    config = ImportExportConfig(
+        include_permission_data=False,
+        exclude_sensitive_data=True,
+    )
+
+    with (
+        patch(
+            "baserow.contrib.builder.application_types.PageHandler.get_pages",
+            return_value=[],
+        ),
+        patch(
+            "baserow.contrib.builder.application_types.PageHandler.export_page",
+            return_value={},
+        ) as export_page,
+    ):
+        BuilderApplicationType().export_serialized(builder, config)
+
+    export_page.assert_called_once()
+    assert export_page.call_args.args[0] == login_page
+    assert export_page.call_args.kwargs["import_export_config"] is config
+
+
+@pytest.mark.django_db
 def test_builder_is_published(data_fixture):
     builder = data_fixture.create_builder_application()
     published_builder = data_fixture.create_builder_application(workspace=None)
@@ -2358,3 +2392,250 @@ def test_get_application_id_for_url(data_fixture, settings):
         )
         == builder_to.id
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+def test_builder_export_passes_config_to_elements_and_theme(
+    data_fixture, monkeypatch, exclude_sensitive_data
+):
+    """Element and theme types can redact values during a full Builder export."""
+
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_heading_element(page=page, value="Private")
+    theme_type = theme_config_block_registry.get("typography")
+    theme = getattr(page.builder, theme_type.related_name_in_builder_model)
+    monkeypatch.setattr(element.get_type(), "sensitive_fields", ["value"])
+    monkeypatch.setattr(theme_type, "sensitive_fields", ["heading_1_font_family"])
+
+    exported = BuilderApplicationType().export_serialized(
+        page.builder,
+        ImportExportConfig(
+            include_permission_data=False,
+            exclude_sensitive_data=exclude_sensitive_data,
+        ),
+    )
+
+    exported_page = next(p for p in exported["pages"] if p["id"] == page.id)
+    assert exported_page["elements"][0]["value"] == (
+        None if exclude_sensitive_data else element.value
+    )
+    assert exported["theme"]["heading_1_font_family"] == (
+        None if exclude_sensitive_data else theme.heading_1_font_family
+    )
+    element.refresh_from_db()
+    theme.refresh_from_db()
+    assert element.value["formula"] == "Private"
+    assert theme.heading_1_font_family is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values,expected_untrusted",
+    [
+        ({}, True),
+        ({"is_user_template": True}, True),
+        ({"is_user_template": True, "is_duplicate": True}, False),
+        ({"is_user_template": True, "is_publishing": True}, False),
+        ({"is_user_template": True, "is_template": True}, False),
+        ({"is_duplicate": True}, False),
+        ({"is_publishing": True}, False),
+        ({"is_template": True}, False),
+    ],
+)
+@pytest.mark.parametrize("already_untrusted", [False, True])
+@pytest.mark.parametrize("has_untrusted_content", [False, True])
+def test_application_content_trust_export_import(
+    data_fixture,
+    config_values,
+    expected_untrusted,
+    already_untrusted,
+    has_untrusted_content,
+):
+    """Only active external content needs consent; internal copies retain restrictions."""
+
+    builder = data_fixture.create_builder_application(
+        untrusted_content=already_untrusted
+    )
+    if has_untrusted_content:
+        page = data_fixture.create_builder_page(builder=builder)
+        data_fixture.create_builder_iframe_element(page=page)
+    expected_untrusted_on_import = expected_untrusted
+    expected_untrusted = (
+        has_untrusted_content if expected_untrusted else already_untrusted
+    )
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+    application_type = BuilderApplicationType()
+    serialized = application_type.export_serialized(builder, config)
+    if expected_untrusted_on_import:
+        # An external import detects it again, so the file never carries it.
+        assert "untrusted_content" not in serialized
+    else:
+        assert serialized["untrusted_content"] is already_untrusted
+    builder.refresh_from_db()
+    assert builder.untrusted_content is already_untrusted
+
+    imported = application_type.import_serialized(
+        builder.workspace, serialized, config, {}
+    )
+    imported.refresh_from_db()
+    assert imported.untrusted_content is expected_untrusted
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("serialized_flag", [None, False])
+def test_external_import_cannot_bypass_content_restrictions(
+    data_fixture, serialized_flag
+):
+    """Both legacy files and files claiming trust need explicit installer consent."""
+
+    builder = data_fixture.create_builder_application()
+    page = data_fixture.create_builder_page(builder=builder)
+    data_fixture.create_builder_iframe_element(page=page)
+    application_type = BuilderApplicationType()
+    config = ImportExportConfig(include_permission_data=False)
+    serialized = application_type.export_serialized(builder, config)
+    if serialized_flag is None:
+        assert "untrusted_content" not in serialized
+    else:
+        serialized["untrusted_content"] = serialized_flag
+
+    imported = application_type.import_serialized(
+        builder.workspace, serialized, config, {}
+    )
+    assert imported.untrusted_content is True
+
+
+@pytest.mark.django_db
+def test_deferred_content_detection_is_isolated_per_builder(data_fixture):
+    """A later safe import/export cannot overwrite an earlier import's detection."""
+
+    from baserow.core.deferred_callbacks import deferred_callback_context
+
+    application_type = BuilderApplicationType()
+    config = ImportExportConfig(include_permission_data=False)
+    unsafe = data_fixture.create_builder_application()
+    page = data_fixture.create_builder_page(builder=unsafe)
+    data_fixture.create_builder_iframe_element(page=page)
+    safe = data_fixture.create_builder_application()
+    serialized_unsafe = application_type.export_serialized(unsafe, config)
+    serialized_safe = application_type.export_serialized(safe, config)
+    serialized_unsafe["untrusted_content"] = False
+
+    with deferred_callback_context():
+        imported_unsafe = application_type.import_serialized(
+            unsafe.workspace, serialized_unsafe, config, {}
+        )
+        imported_safe = application_type.import_serialized(
+            safe.workspace, serialized_safe, config, {}
+        )
+        application_type.export_serialized(safe, config)
+
+    assert imported_unsafe.untrusted_content is True
+    assert imported_safe.untrusted_content is False
+    imported_unsafe.refresh_from_db()
+    imported_safe.refresh_from_db()
+    assert imported_unsafe.untrusted_content is True
+    assert imported_safe.untrusted_content is False
+
+    from baserow.contrib.builder.elements.models import IFrameElement
+
+    imported_iframe = IFrameElement.objects.get(page__builder=imported_unsafe)
+    assert imported_unsafe.import_report == [
+        {
+            "type": "iframe",
+            "id": imported_iframe.id,
+            "page_id": imported_iframe.page_id,
+            "page_name": imported_iframe.page.name,
+        }
+    ]
+    assert imported_iframe.id != page.element_set.get().id
+    assert imported_safe.import_report == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "install_config_values",
+    [
+        # Template sync.
+        {"is_template": True, "reduce_disk_space_usage": True},
+        # Template install.
+        {"is_duplicate": True, "is_template": True},
+    ],
+)
+def test_official_template_with_active_content_installs_trusted(
+    data_fixture, install_config_values
+):
+    """
+    Official templates are written by `export_workspace_applications`, an external
+    export, and installed as internal copies that keep the trust of the file.
+    """
+
+    workspace = data_fixture.create_workspace()
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_fixture.create_builder_iframe_element(page=page)
+    exported = CoreHandler().export_workspace_applications(
+        workspace, files_buffer=BytesIO(), import_export_config=cli_import_export_config
+    )
+    assert "untrusted_content" not in exported[0]
+
+    applications, _ = CoreHandler().import_applications_to_workspace(
+        data_fixture.create_workspace(),
+        exported,
+        BytesIO(),
+        ImportExportConfig(include_permission_data=False, **install_config_values),
+    )
+
+    installed = Builder.objects.get(id=applications[0].id)
+    assert installed.untrusted_content is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("login_page", ["other_builder", "shared"])
+def test_update_builder_refuses_a_login_page_it_does_not_own(data_fixture, login_page):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    other = data_fixture.create_builder_application(user=user)
+    page = (
+        data_fixture.create_builder_page(builder=other)
+        if login_page == "other_builder"
+        else builder.shared_page
+    )
+
+    with pytest.raises(ValidationError):
+        CoreHandler().update_application(user, builder, login_page_id=page.id)
+
+    builder.refresh_from_db()
+    assert builder.login_page_id is None
+
+
+@pytest.mark.django_db
+def test_update_builder_sets_and_clears_its_login_page(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+
+    CoreHandler().update_application(user, builder, login_page_id=page.id)
+    assert builder.login_page_id == page.id
+
+    CoreHandler().update_application(user, builder, login_page_id=None)
+    assert builder.login_page_id is None
+
+
+@pytest.mark.django_db
+def test_create_builder_refuses_a_login_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    page = data_fixture.create_builder_page(user=user)
+
+    with pytest.raises(ValidationError):
+        CoreHandler().create_application(
+            user, workspace, type_name="builder", login_page_id=page.id
+        )
+
+    assert not Builder.objects.filter(workspace=workspace).exists()

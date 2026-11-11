@@ -13,6 +13,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
+    CoreHttpRequestActionType,
     LocalBaserowWorkflowActionType,
     LogoutWorkflowActionType,
     NotificationWorkflowActionType,
@@ -22,6 +23,7 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
@@ -42,6 +44,28 @@ def local_baserow_service_backed_workflow_actions():
         and workflow_action_type.service_type
         not in {"local_baserow_create_rows", "local_baserow_update_rows"}
     ]
+
+
+def test_service_backed_workflow_action_passes_export_config_to_service():
+    workflow_action = MagicMock()
+    service = workflow_action.service.specific
+    service_type = service.get_type.return_value
+    action_type = CoreHttpRequestActionType()
+    action_type.get_property_names = MagicMock(return_value=["service"])
+    config = ImportExportConfig(
+        include_permission_data=False,
+        exclude_sensitive_data=True,
+    )
+
+    action_type.export_serialized(workflow_action, import_export_config=config)
+
+    service_type.export_serialized.assert_called_once_with(
+        service,
+        import_export_config=config,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    )
 
 
 @pytest.mark.django_db

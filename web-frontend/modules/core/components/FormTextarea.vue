@@ -1,6 +1,7 @@
 <template>
   <textarea
     ref="textarea"
+    v-pre-hydration-input
     :value="fromValue(currentValue)"
     class="form-textarea"
     :rows="autoExpandable ? minRows : rows"
@@ -26,8 +27,11 @@
 </template>
 
 <script>
+import preHydrationInput from '@baserow/modules/core/directives/preHydrationInput'
+
 export default {
   name: 'FormTextarea',
+  directives: { preHydrationInput },
   props: {
     /**
      * The number of rows to display.

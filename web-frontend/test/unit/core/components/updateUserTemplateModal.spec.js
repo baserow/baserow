@@ -1,0 +1,858 @@
+import { flushPromises } from '@vue/test-utils'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+
+import { TestApp } from '@baserow/test/helpers/testApp'
+import { ModalStub } from '@baserow/test/helpers/modalStub'
+import { permission } from '@baserow/test/helpers/permission'
+import { heldBack } from '@baserow/test/helpers/heldBack'
+import { seedWorkspaces, updateJob } from '@baserow/test/helpers/store'
+import {
+  chooseVisibility,
+  selectApplications,
+  selectedApplicationIds,
+  selectWorkspace,
+} from '@baserow/test/helpers/userTemplateForms'
+import UpdateUserTemplateModal from '@baserow/modules/core/components/template/UpdateUserTemplateModal'
+
+vi.mock('#app', async (importOriginal) =>
+  (await import('@baserow/test/helpers/permission')).mockHasPermission(
+    importOriginal
+  )
+)
+
+const categories = [
+  { id: 1, name: 'Business' },
+  { id: 2, name: 'Personal' },
+]
+
+const userTemplate = (values = {}) => ({
+  id: 3,
+  revision_id: 3,
+  type: 'user',
+  name: 'Sprint Tracker',
+  description: 'Plan sprints',
+  icon: 'iconoir-agile',
+  workspace_id: 103,
+  categories: [{ id: 2, name: 'Personal' }],
+  state: 'private',
+  reason: null,
+  source_workspace_id: 1,
+  source_application_ids: [11],
+  ...values,
+})
+
+const runningJob = (values = {}) => ({
+  id: 7,
+  type: 'create_user_template',
+  state: 'pending',
+  progress_percentage: 0,
+  human_readable_error: '',
+  workspace_id: null,
+  application_ids: [],
+  name: 'Sprints',
+  description: 'Plan sprints',
+  icon: 'iconoir-agile',
+  category_ids: [2],
+  template: 3,
+  revision: null,
+  ...values,
+})
+
+describe('UpdateUserTemplateModal', () => {
+  let testApp = null
+  let refreshed = 0
+
+  beforeEach(async () => {
+    testApp = new TestApp()
+    permission.check = () => true
+    refreshed = 0
+    const { store } = testApp
+    const dispatch = store.dispatch
+    vi.spyOn(store, 'dispatch').mockImplementation((type, ...args) => {
+      if (type === 'auth/refresh') {
+        refreshed += 1
+        return Promise.resolve()
+      }
+      return dispatch.call(store, type, ...args)
+    })
+    const database = { type: 'database', tables: [] }
+    await seedWorkspaces(
+      store,
+      [
+        { id: 1, name: 'Acme' },
+        { id: 2, name: 'Side project' },
+      ],
+      [
+        { id: 11, name: 'CRM', workspace: { id: 1 }, ...database },
+        { id: 12, name: 'Tasks', workspace: { id: 1 }, ...database },
+        { id: 21, name: 'Notes', workspace: { id: 2 }, ...database },
+      ]
+    )
+  })
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await testApp.store.dispatch('job/clearAll')
+    await testApp.afterEach()
+  })
+
+  const mountAndShow = async (mode, template = userTemplate()) => {
+    const wrapper = await testApp.mount(UpdateUserTemplateModal, {
+      props: { template, mode, categories },
+      global: { stubs: { Modal: ModalStub } },
+    })
+    await wrapper.vm.show()
+    await flushPromises()
+    return wrapper
+  }
+
+  const button = (wrapper, label) =>
+    wrapper.findAll('button').find((button) => button.text() === label)
+
+  const saveButton = (wrapper) =>
+    button(wrapper, 'updateUserTemplateModal.save')
+
+  const updateButton = (wrapper) =>
+    button(wrapper, 'updateUserTemplateModal.update')
+
+  const title = (wrapper) => wrapper.find('.user-template-modal__title').text()
+
+  const selectedWorkspaceId = (wrapper) =>
+    wrapper.findComponent({ name: 'Dropdown' }).props('modelValue')
+
+  const isModalOpen = (wrapper) =>
+    wrapper.findComponent({ name: 'Modal' }).vm.open
+
+  test.each([
+    ['1.public-update-approval_off', 'public', true, false, null],
+    ['1.public-update-approval_on', 'public', true, true, 'review'],
+    ['1.public+rejected-update', 'rejected', true, true, 'review'],
+    ['1.rejected-update', 'rejected', false, false, 'rejected'],
+    ['1.in_review-update', 'in_review', false, true, 'inReview'],
+    ['1.public+in_review-update', 'in_review', true, true, 'inReview'],
+  ])(
+    '%s tells what the update does to the review',
+    async (id, state, listed, updateNeedsReview, notice) => {
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ state, listed, update_needs_review: updateNeedsReview })
+      )
+
+      expect(
+        wrapper.findAll('.alert p').map((text) => text.text())
+      ).toStrictEqual(notice ? [`updateUserTemplateModal.${notice}Text`] : [])
+    }
+  )
+
+  test('tells nothing of the review when the template is made private', async () => {
+    const wrapper = await mountAndShow(
+      'details',
+      userTemplate({ state: 'public', listed: true, update_needs_review: true })
+    )
+    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+
+    expect(wrapper.findAll('.alert p')).toHaveLength(0)
+  })
+
+  describe('details', () => {
+    test('are prefilled from the template', async () => {
+      const wrapper = await mountAndShow('details')
+
+      expect(title(wrapper)).toBe('updateUserTemplateModal.detailsTitle')
+      expect(wrapper.find('input').element.value).toBe('Sprint Tracker')
+      expect(wrapper.find('textarea').element.value).toBe('Plan sprints')
+      expect(
+        wrapper.find('.user-template-form__icon-button i').classes()
+      ).toContain('iconoir-agile')
+      expect(
+        wrapper.findAll('.chips').map((chip) => chip.classes('chips--active'))
+      ).toStrictEqual([false, true])
+    })
+
+    test('show only the details of a template that is not private or public', async () => {
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ state: 'rejected' })
+      )
+
+      expect(wrapper.find('input').element.value).toBe('Sprint Tracker')
+      expect(
+        wrapper.findComponent({ name: 'UserTemplateVisibilityForm' }).exists()
+      ).toBe(false)
+      expect(
+        wrapper.findComponent({ name: 'UserTemplateContentForm' }).exists()
+      ).toBe(false)
+    })
+
+    test('can only be saved when changed', async () => {
+      const wrapper = await mountAndShow('details')
+
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+
+      await wrapper.find('input').setValue('Sprints')
+      expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+
+      await wrapper.find('input').setValue('Sprint Tracker ')
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+
+      await wrapper.find('textarea').setValue('Plan sprints ')
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+
+      await wrapper.findAll('.chips')[0].trigger('click')
+      expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+    })
+
+    test('ignore the order the categories are picked in', async () => {
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ categories: [...categories] })
+      )
+
+      await wrapper.findAll('.chips')[0].trigger('click')
+      await wrapper.findAll('.chips')[0].trigger('click')
+
+      expect(wrapper.vm.values.categoryIds).toStrictEqual([2, 1])
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+    })
+
+    test('keep a category that cannot be picked anymore', async () => {
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ categories: [{ id: 5, name: 'Retired' }] })
+      )
+
+      expect(
+        wrapper
+          .findAll('.chips')
+          .map((chip) => [chip.text(), chip.classes('chips--active')])
+      ).toStrictEqual([
+        ['Business', false],
+        ['Personal', false],
+        ['Retired', true],
+      ])
+    })
+
+    test('send the template and the details', async () => {
+      let request = null
+      testApp.mock.onPost('/jobs/').reply((config) => {
+        request = JSON.parse(config.data)
+        return [200, runningJob()]
+      })
+      const wrapper = await mountAndShow('details')
+
+      await wrapper.find('input').setValue(' Sprints ')
+      await wrapper.find('textarea').setValue(' Plan sprints\n')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(request).toStrictEqual({
+        type: 'create_user_template',
+        template_id: 3,
+        name: 'Sprints',
+        description: 'Plan sprints',
+        icon: 'iconoir-agile',
+        category_ids: [2],
+      })
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+      expect(wrapper.find('input').attributes('disabled')).toBeDefined()
+    })
+
+    test('need a name and a category', async () => {
+      testApp.mock.onPost('/jobs/').reply(200, runningJob())
+      const wrapper = await mountAndShow('details')
+
+      await wrapper.find('input').setValue('  ')
+      await wrapper.findAll('.chips')[1].trigger('click')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('userTemplateDetailsForm.nameRequired')
+      expect(wrapper.text()).toContain(
+        'userTemplateDetailsForm.categoriesRequired'
+      )
+      expect(testApp.mock.history.post).toHaveLength(0)
+    })
+
+    test("don't point to the details when a category is refused", async () => {
+      testApp.mock.onPost('/jobs/').reply(400, {
+        error: 'ERROR_INVALID_TEMPLATE_CATEGORY',
+        detail: 'A category is refused.',
+      })
+      const wrapper = await mountAndShow('details')
+
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('A category is refused.')
+      expect(wrapper.text()).not.toContain(
+        'updateUserTemplateModal.invalidKeptDetails'
+      )
+    })
+  })
+
+  describe('visibility', () => {
+    test('makes the template public once agreed, without a new revision', async () => {
+      const listed = userTemplate({ state: 'public' })
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(200, listed)
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+      await wrapper
+        .find('.user-template-form__consent input[type="checkbox"]')
+        .setValue(true)
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(
+        testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
+      ).toStrictEqual([{ visibility: 'public', public_listing_consent: true }])
+      expect(testApp.mock.history.post).toHaveLength(0)
+      expect(wrapper.emitted('visibility-changed')).toStrictEqual([[listed]])
+      expect(isModalOpen(wrapper)).toBe(false)
+      expect(testApp.store.state.toast.items).toHaveLength(0)
+    })
+
+    test('makes the template public with the new details by the job', async () => {
+      testApp.mock
+        .onPost('/jobs/')
+        .reply(200, runningJob({ name: 'Sprints', make_public: true }))
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      await wrapper
+        .find('.user-template-form__consent input[type="checkbox"]')
+        .setValue(true)
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(testApp.mock.history.patch).toHaveLength(0)
+      expect(JSON.parse(testApp.mock.history.post[0].data)).toMatchObject({
+        name: 'Sprints',
+        make_public: true,
+        public_listing_consent: true,
+      })
+
+      await updateJob(testApp.store, 7, { state: 'failed', revision: 8 })
+
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'warning',
+        title: 'updateUserTemplateModal.failedPublicAfterUpdated',
+      })
+    })
+
+    test('makes the template private before sending the details', async () => {
+      const requests = []
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(({ data }) => {
+        requests.push(JSON.parse(data))
+        return [200, userTemplate()]
+      })
+      testApp.mock.onPost('/jobs/').reply(() => {
+        requests.push('job')
+        return [200, runningJob()]
+      })
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({ slug: 'sprint-tracker', state: 'public' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(requests).toStrictEqual([{ visibility: 'private' }, 'job'])
+    })
+
+    // Mounted like the templates modal, which shows the template as changed.
+    const mountFollowingChanges = async (template) => {
+      let wrapper = null
+      wrapper = await testApp.mount(UpdateUserTemplateModal, {
+        props: {
+          template,
+          mode: 'details',
+          categories,
+          onVisibilityChanged: (changed) =>
+            wrapper.setProps({ template: changed }),
+        },
+        global: { stubs: { Modal: ModalStub } },
+      })
+      await wrapper.vm.show()
+      await flushPromises()
+      return wrapper
+    }
+
+    const activeVisibility = (wrapper) =>
+      wrapper.find('.segment-control__button--active').text()
+
+    test('sends what was chosen when Save was clicked', async () => {
+      const patch = heldBack()
+      testApp.mock.onPatch('/templates/sprint-tracker/').reply(patch.reply)
+      testApp.mock.onPost('/jobs/').reply(200, runningJob())
+      const wrapper = await mountFollowingChanges(
+        userTemplate({ slug: 'sprint-tracker', state: 'public' })
+      )
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      // Public can't be chosen again while the change is sent.
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+      expect(activeVisibility(wrapper)).toBe(
+        'userTemplateVisibilityForm.private'
+      )
+      patch.send([
+        200,
+        userTemplate({ slug: 'sprint-tracker', state: 'private' }),
+      ])
+      await flushPromises()
+
+      expect(
+        testApp.mock.history.patch.map(({ data }) => JSON.parse(data))
+      ).toStrictEqual([{ visibility: 'private' }])
+      const job = JSON.parse(testApp.mock.history.post[0].data)
+      expect(job.name).toBe('Sprints')
+      expect(job).not.toHaveProperty('make_public')
+    })
+
+    test.each([
+      ['public', 'private'],
+      ['private', 'public'],
+    ])(
+      "keeps a %s template that was made %s meanwhile so when it's renamed",
+      async (shown, changed) => {
+        testApp.mock.onPost('/jobs/').reply(200, runningJob())
+        const wrapper = await mountFollowingChanges(
+          userTemplate({ slug: 'sprint-tracker', state: shown })
+        )
+
+        // Changed from its row menu while the modal is open.
+        await wrapper.setProps({
+          template: userTemplate({ slug: 'sprint-tracker', state: changed }),
+        })
+        await wrapper.find('input').setValue('Sprints')
+        await saveButton(wrapper).trigger('click')
+        await flushPromises()
+
+        expect(testApp.mock.history.patch).toHaveLength(0)
+        const job = JSON.parse(testApp.mock.history.post[0].data)
+        expect(job.name).toBe('Sprints')
+        expect(job).not.toHaveProperty('make_public')
+      }
+    )
+
+    test("can't be changed while the details are saved", async () => {
+      const post = heldBack()
+      testApp.mock.onPost('/jobs/').reply(post.reply)
+      const wrapper = await mountFollowingChanges(
+        userTemplate({ slug: 'sprint-tracker', state: 'public' })
+      )
+
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+
+      // Not silently dropped by the running save.
+      expect(activeVisibility(wrapper)).toBe(
+        'userTemplateVisibilityForm.public'
+      )
+      expect(
+        wrapper
+          .findAll('.segment-control__button')
+          .every((button) => button.attributes('disabled') !== undefined)
+      ).toBe(true)
+      post.send([200, runningJob()])
+      await flushPromises()
+
+      expect(testApp.mock.history.patch).toHaveLength(0)
+    })
+
+    test.each([
+      [
+        { state: 'private', make_public_needs_review: true },
+        'publicReviewDescription',
+      ],
+      [
+        { state: 'private', make_public_needs_review: false },
+        'publicDescription',
+      ],
+      [{ state: 'public', listed: true }, 'listedDescription'],
+    ])('describes Public for a %o template', async (values, description) => {
+      const wrapper = await mountAndShow('details', userTemplate(values))
+
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.public')
+
+      const descriptions = [
+        'publicDescription',
+        'publicReviewDescription',
+        'listedDescription',
+      ].filter((key) =>
+        wrapper.text().includes(`userTemplateVisibilityForm.${key}`)
+      )
+      expect(descriptions).toStrictEqual([description])
+    })
+
+    test.each(['blocked', 'in_review'])(
+      "can't be changed for a %s template",
+      async (state) => {
+        const wrapper = await mountAndShow('details', userTemplate({ state }))
+
+        expect(wrapper.find('.segment-control').exists()).toBe(false)
+      }
+    )
+  })
+
+  describe('content', () => {
+    test('preselects the source workspace and applications', async () => {
+      const wrapper = await mountAndShow('content')
+
+      expect(title(wrapper)).toBe('updateUserTemplateModal.contentTitle')
+      expect(selectedWorkspaceId(wrapper)).toBe(1)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
+      expect(updateButton(wrapper).attributes('disabled')).toBeUndefined()
+    })
+
+    test('preselects only the source applications that still exist', async () => {
+      const wrapper = await mountAndShow(
+        'content',
+        userTemplate({ source_application_ids: [12, 99] })
+      )
+
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([12])
+    })
+
+    test('starts with the selected workspace without the source one', async () => {
+      const wrapper = await mountAndShow(
+        'content',
+        userTemplate({ source_workspace_id: 9, source_application_ids: [91] })
+      )
+
+      expect(selectedWorkspaceId(wrapper)).toBe(1)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+    })
+
+    test("doesn't preselect a workspace that can't be exported", async () => {
+      permission.check = (operation, context, workspaceId) => workspaceId !== 1
+      const wrapper = await mountAndShow('content')
+
+      expect(selectedWorkspaceId(wrapper)).toBe(2)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+    })
+
+    test('selects only the applications the template has when switching workspaces', async () => {
+      const wrapper = await mountAndShow('content')
+
+      await selectWorkspace(wrapper, 2)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([])
+      expect(updateButton(wrapper).attributes('disabled')).toBeDefined()
+
+      await selectWorkspace(wrapper, 1)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
+    })
+
+    test('needs at least one application', async () => {
+      const wrapper = await mountAndShow('content')
+
+      await selectApplications(wrapper, [])
+
+      expect(updateButton(wrapper).attributes('disabled')).toBeDefined()
+    })
+
+    test('sends the template and the content, and can be cancelled', async () => {
+      let request = null
+      testApp.mock.onPost('/jobs/').reply((config) => {
+        request = JSON.parse(config.data)
+        return [200, runningJob({ workspace_id: 1, application_ids: [11] })]
+      })
+      testApp.mock
+        .onPost('/jobs/7/cancel/')
+        .reply(200, runningJob({ state: 'cancelled' }))
+      const wrapper = await mountAndShow('content')
+
+      await updateButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(request).toStrictEqual({
+        type: 'create_user_template',
+        template_id: 3,
+        workspace_id: 1,
+        application_ids: [11],
+      })
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+      expect(
+        wrapper.findComponent({ name: 'Dropdown' }).props('disabled')
+      ).toBe(true)
+
+      await wrapper.find('.modal-progress__cancel-button').trigger('click')
+      await flushPromises()
+
+      expect(testApp.mock.history.post.map((r) => r.url)).toContain(
+        '/jobs/7/cancel/'
+      )
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(
+        false
+      )
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([11])
+      expect(updateButton(wrapper).attributes('disabled')).toBeUndefined()
+      expect(wrapper.emitted('updated')).toBeUndefined()
+    })
+
+    test.each([
+      'ERROR_INVALID_TEMPLATE_CATEGORY',
+      'ERROR_INVALID_TEMPLATE_ICON',
+    ])(
+      'points to the details when the kept ones are refused with %s',
+      async (error) => {
+        testApp.mock
+          .onPost('/jobs/')
+          .reply(400, { error, detail: 'The details are refused.' })
+        const wrapper = await mountAndShow('content')
+
+        await updateButton(wrapper).trigger('click')
+        await flushPromises()
+
+        expect(wrapper.text()).toContain(
+          'updateUserTemplateModal.invalidKeptDetails'
+        )
+        expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(
+          false
+        )
+      }
+    )
+  })
+
+  describe('job', () => {
+    const startContentUpdate = async () => {
+      testApp.mock
+        .onPost('/jobs/')
+        .reply(200, runningJob({ workspace_id: 1, application_ids: [11] }))
+      const wrapper = await mountAndShow('content')
+      await updateButton(wrapper).trigger('click')
+      await flushPromises()
+      return wrapper
+    }
+
+    test('closes and refreshes when the template is updated', async () => {
+      const wrapper = await startContentUpdate()
+
+      await updateJob(testApp.store, 7, {
+        state: 'finished',
+        progress_percentage: 100,
+      })
+
+      expect(isModalOpen(wrapper)).toBe(false)
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'success',
+        title: 'updateUserTemplateModal.updated',
+      })
+      expect(refreshed).toBe(1)
+      expect(wrapper.emitted('updated')).toHaveLength(1)
+      expect(wrapper.emitted('updated')[0][0].template).toBe(3)
+    })
+
+    test('is handled as updated when it failed after the revision', async () => {
+      const wrapper = await startContentUpdate()
+
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Failed',
+        revision: 8,
+      })
+
+      expect(isModalOpen(wrapper)).toBe(false)
+      expect(wrapper.emitted('updated')).toHaveLength(1)
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'warning',
+        title: 'updateUserTemplateModal.failedAfterUpdated',
+      })
+      expect(refreshed).toBe(1)
+    })
+
+    test('shows why the job failed', async () => {
+      const wrapper = await startContentUpdate()
+
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Denied',
+      })
+
+      expect(isModalOpen(wrapper)).toBe(true)
+      expect(wrapper.text()).toContain('Denied')
+      // Already shown in the modal.
+      expect(testApp.store.state.toast.items).toHaveLength(0)
+      expect(wrapper.emitted('updated')).toBeUndefined()
+      expect(refreshed).toBe(0)
+      expect(updateButton(wrapper).attributes('disabled')).toBeUndefined()
+    })
+
+    test('notifies why the job failed while closed', async () => {
+      const wrapper = await startContentUpdate()
+      wrapper.vm.hide()
+
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Denied',
+      })
+
+      expect(testApp.store.state.toast.items).toHaveLength(1)
+      expect(testApp.store.state.toast.items[0]).toMatchObject({
+        type: 'error',
+        title: 'clientHandler.notCompletedTitle',
+        message: 'Denied',
+      })
+      expect(wrapper.emitted('updated')).toBeUndefined()
+    })
+
+    test('shows a job that failed while closed once, with its inputs', async () => {
+      testApp.mock.onPost('/jobs/').reply(200, runningJob())
+      const wrapper = await mountAndShow('details')
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+      wrapper.vm.hide()
+
+      await updateJob(testApp.store, 7, {
+        state: 'failed',
+        human_readable_error: 'Denied',
+      })
+      await wrapper.vm.show()
+      await flushPromises()
+
+      expect(wrapper.text()).toContain('Denied')
+      expect(wrapper.find('input').element.value).toBe('Sprints')
+      expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+
+      wrapper.vm.hide()
+      await wrapper.vm.show()
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain('Denied')
+      expect(wrapper.find('input').element.value).toBe('Sprint Tracker')
+    })
+
+    test('notifies once when more than one modal follows the job', async () => {
+      await testApp.store.dispatch(
+        'job/forceCreate',
+        runningJob({ workspace_id: 1, application_ids: [11] })
+      )
+      const wrappers = [
+        await mountAndShow('content'),
+        await mountAndShow('content'),
+      ]
+
+      await updateJob(testApp.store, 7, {
+        state: 'finished',
+        progress_percentage: 100,
+      })
+
+      expect(testApp.store.state.toast.items).toHaveLength(1)
+      expect(refreshed).toBe(1)
+      for (const wrapper of wrappers) {
+        expect(isModalOpen(wrapper)).toBe(false)
+        expect(wrapper.emitted('updated')).toHaveLength(1)
+      }
+    })
+
+    test('explains a refused cancel', async () => {
+      testApp.mock.onPost('/jobs/7/cancel/').reply(400, {
+        error: 'ERROR_JOB_NOT_CANCELLABLE',
+        detail: 'The job cannot be cancelled.',
+      })
+      const wrapper = await startContentUpdate()
+
+      await wrapper.find('.modal-progress__cancel-button').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.text()).toContain(
+        'updateUserTemplateModal.cannotBeCancelled'
+      )
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+    })
+
+    test('shows a running update of the same template again', async () => {
+      await testApp.store.dispatch(
+        'job/forceCreate',
+        runningJob({ workspace_id: 2, application_ids: [21] })
+      )
+      // Asked for the details, but the running job updates the content.
+      const wrapper = await mountAndShow('details')
+
+      expect(title(wrapper)).toBe('updateUserTemplateModal.contentTitle')
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+      expect(selectedWorkspaceId(wrapper)).toBe(2)
+      expect(selectedApplicationIds(wrapper)).toStrictEqual([21])
+      expect(wrapper.find('.modal-progress__cancel-button').exists()).toBe(true)
+    })
+
+    test('keeps an update that is still being sent when shown again', async () => {
+      const jobRequest = heldBack()
+      testApp.mock.onPost('/jobs/').reply(jobRequest.reply)
+      const wrapper = await mountAndShow('details')
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(wrapper.find('input').attributes('disabled')).toBeDefined()
+
+      wrapper.vm.hide()
+      await wrapper.vm.show()
+      await flushPromises()
+
+      expect(wrapper.find('input').element.value).toBe('Sprints')
+      expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+
+      jobRequest.send([200, runningJob()])
+      await flushPromises()
+
+      expect(wrapper.find('input').element.value).toBe('Sprints')
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+    })
+
+    test('shows a running details update again', async () => {
+      await testApp.store.dispatch('job/forceCreate', runningJob())
+      const wrapper = await mountAndShow('content')
+
+      expect(title(wrapper)).toBe('updateUserTemplateModal.detailsTitle')
+      expect(wrapper.find('input').element.value).toBe('Sprints')
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(true)
+      expect(
+        wrapper.findComponent({ name: 'UserTemplateContentForm' }).exists()
+      ).toBe(false)
+    })
+
+    test("doesn't show the job of another template", async () => {
+      await testApp.store.dispatch(
+        'job/forceCreate',
+        runningJob({ template: 4 })
+      )
+      const wrapper = await mountAndShow('details')
+
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(
+        false
+      )
+      expect(wrapper.find('input').element.value).toBe('Sprint Tracker')
+    })
+
+    test("doesn't show the job of a new template", async () => {
+      await testApp.store.dispatch(
+        'job/forceCreate',
+        runningJob({ template: null, workspace_id: 1, application_ids: [11] })
+      )
+      const wrapper = await mountAndShow('details')
+
+      expect(wrapper.findComponent({ name: 'ProgressBar' }).exists()).toBe(
+        false
+      )
+    })
+  })
+})

@@ -245,6 +245,48 @@ def test_get_rows_grouped_by_single_select_field_with_empty_table(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("unknown_option", ["999999", ""])
+def test_get_rows_grouped_by_single_select_field_with_only_unknown_options(
+    premium_data_fixture, unknown_option
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    view = premium_data_fixture.create_grid_view(table=table)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    premium_data_fixture.create_view_filter(
+        view=view, field=text_field, type="equal", value="Visible"
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Visible",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Hidden",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+
+    rows = get_rows_grouped_by_single_select_field(
+        user,
+        view,
+        single_select_field,
+        option_settings={unknown_option: {"limit": 10, "offset": 0}},
+        model=model,
+    )
+
+    assert all(len(stack["results"]) == 0 for stack in rows.values())
+
+
+@pytest.mark.django_db
 @pytest.mark.view_ownership
 def test_list_views_personal_ownership_type(
     data_fixture, premium_data_fixture, alternative_per_workspace_license_service

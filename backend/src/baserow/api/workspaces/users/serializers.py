@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from drf_spectacular.types import OpenApiTypes
@@ -13,6 +14,7 @@ from baserow.core.ai_provider.registries import (
 from baserow.core.ai_provider.resolution import get_ai_provider_state
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import WorkspaceUser
+from baserow.core.registries import permission_manager_type_registry
 
 User = get_user_model()
 
@@ -25,6 +27,9 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
         help_text="True if user account is pending deletion.",
     )
     two_factor_auth = serializers.SerializerMethodField()
+    role_uid = serializers.SerializerMethodField(
+        help_text="The resolved workspace role UID; permissions retains its stored value."
+    )
 
     class Meta:
         model = WorkspaceUser
@@ -34,6 +39,7 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
             "email",
             "workspace",
             "permissions",
+            "role_uid",
             "created_on",
             "user_id",
             "to_be_deleted",
@@ -47,6 +53,17 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_email(self, object):
         return object.user.email
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_role_uid(self, workspace_user):
+        """Expose the resolved role without changing legacy permissions."""
+
+        for manager_name in settings.PERMISSION_MANAGERS:
+            manager = permission_manager_type_registry.get(manager_name)
+            role_uid = manager.get_workspace_user_role_uid(workspace_user)
+            if role_uid is not None:
+                return role_uid
+        return workspace_user.permissions
 
     def get_two_factor_auth(self, object):
         try:
@@ -133,6 +150,9 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True,
         help_text="List of all workspace users.",
     )
+    agents_count = serializers.SerializerMethodField(
+        help_text="The number of agents in the workspace."
+    )
 
     # WorkspaceUser fields
     order = serializers.IntegerField(
@@ -150,6 +170,11 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True, help_text="Generative AI models available in this workspace."
     )
     ai_features = serializers.SerializerMethodField(read_only=True)
+
+    def get_agents_count(self, workspace_user):
+        """Return the annotated agent count without issuing another query."""
+
+        return getattr(workspace_user, "workspace_agent_count", 0)
 
     def _get_ai_provider_state(self, workspace_user):
         """

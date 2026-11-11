@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from django.db import connection, transaction
 
 import pytest
 
@@ -400,6 +401,136 @@ def test_job_cancel_cancelled(data_fixture, test_thread, mutable_job_type_regist
     out = JobHandler.cancel_job(job)
     # won't cancel already cancelled
     assert out is None
+
+
+def create_pending_job(user, job_type):
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+        return JobHandler().create_and_start_job(user, job_type.type, sync=False)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_job_cancel_ignores_is_cancellable_without_lock_on_cancel(
+    data_fixture, mutable_job_type_registry
+):
+    class RefusingJobType(JobType):
+        type = "refusing_job"
+        model_class = Job
+
+        def is_cancellable(self, job):
+            return False
+
+    mutable_job_type_registry.register(RefusingJobType())
+    job = create_pending_job(data_fixture.create_user(), RefusingJobType)
+
+    assert JobHandler.cancel_job(job) == job
+    job.refresh_from_db()
+    assert job.state == JOB_CANCELLED
+
+
+@pytest.mark.django_db(transaction=True)
+def test_job_cancel_with_lock_on_cancel_asks_the_job_type(
+    data_fixture, mutable_job_type_registry
+):
+    class LockingJobType(JobType):
+        type = "locking_job"
+        model_class = Job
+        lock_on_cancel = True
+
+        def is_cancellable(self, job):
+            return job.progress_percentage < 100
+
+    mutable_job_type_registry.register(LockingJobType())
+    job = create_pending_job(data_fixture.create_user(), LockingJobType)
+    # Saved by the job after the instance was loaded.
+    Job.objects.filter(id=job.id).update(progress_percentage=100)
+
+    with pytest.raises(JobNotCancellable):
+        JobHandler.cancel_job(job)
+    assert not job.cancelled
+
+    Job.objects.filter(id=job.id).update(progress_percentage=50)
+    assert JobHandler.cancel_job(job) == job
+
+    job = Job.objects.get(id=job.id)
+    assert job.state == JOB_CANCELLED
+    # Only the state is saved.
+    assert job.progress_percentage == 50
+    assert JobHandler.cancel_job(job) is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.flaky(retries=3, delay=1)
+def test_job_cancel_with_lock_on_cancel_waits_for_the_locked_job(
+    data_fixture, test_thread, mutable_job_type_registry
+):
+    locked = threading.Event()
+
+    class LockingJobType(JobType):
+        type = "locking_job"
+        model_class = Job
+        lock_on_cancel = True
+
+        def is_cancellable(self, job):
+            return job.progress_percentage < 100
+
+    mutable_job_type_registry.register(LockingJobType())
+    job = create_pending_job(data_fixture.create_user(), LockingJobType)
+
+    def commit_while_locked():
+        with transaction.atomic():
+            JobHandler.lock_job(job)
+            locked.set()
+            sleep(0.3)
+            Job.objects.filter(id=job.id).update(progress_percentage=100)
+        connection.close()
+
+    with test_thread(commit_while_locked) as t:
+        t.start()
+        assert locked.wait(1)
+        # Waits for the commit, so that it's refused.
+        with pytest.raises(JobNotCancellable):
+            JobHandler.cancel_job(job)
+
+    assert Job.objects.get(id=job.id).state != JOB_CANCELLED
+
+
+@pytest.mark.django_db(transaction=True)
+def test_job_with_lock_on_cancel_keeps_a_cancel_accepted_as_it_starts(
+    data_fixture, mutable_job_type_registry
+):
+    cancelled_job_ids = []
+
+    class LockingJobType(JobType):
+        type = "locking_job"
+        model_class = Job
+        lock_on_cancel = True
+
+        def run(self, job, progress):
+            pytest.fail("The job should not run after being cancelled.")
+
+        def on_cancelled(self, job):
+            cancelled_job_ids.append(job.id)
+
+    mutable_job_type_registry.register(LockingJobType())
+    job = create_pending_job(data_fixture.create_user(), LockingJobType)
+
+    is_cancelled = Job.cancelled.fget
+    checks = []
+
+    def cancel_after_the_cached_check(self):
+        if not checks:
+            # The worker's cached check passes, then the cancel commits before the
+            # worker locks the row to save STARTED.
+            checks.append(self.id)
+            JobHandler.cancel_job(Job.objects.get(id=job.id))
+            return False
+        return is_cancelled(self)
+
+    with patch.object(Job, "cancelled", property(cancel_after_the_cached_check)):
+        run_async_job(job.id)
+
+    assert cancelled_job_ids == [job.id]
+    assert Job.objects.get(id=job.id).state == JOB_CANCELLED
 
 
 @pytest.mark.django_db

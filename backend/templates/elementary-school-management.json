@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Elementary School Management",
+    "description": "Run an elementary school's staff, students, classes and rooms.",
     "icon": "iconoir-graduation-cap",
     "keywords": [
         "school",

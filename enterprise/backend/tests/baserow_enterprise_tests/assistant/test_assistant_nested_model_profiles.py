@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from baserow.contrib.builder.tools.formulas import BuilderFormulaError
 from baserow_enterprise.assistant.model_profiles import UTILITY
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.builder import agents as builder_agents
@@ -49,51 +50,54 @@ def test_builder_formula_orchestrator_forwards_request_model_profile():
     """Builder formula generation must reuse the enclosing request profile."""
 
     model_profile = MagicMock()
-    tool_helpers = SimpleNamespace(model_profile=model_profile)
+    tool_helpers = SimpleNamespace(
+        model_profile=model_profile, update_status=lambda message: None
+    )
     context = MagicMock()
 
+    entry = BuilderFormulaError(
+        "data_source", SimpleNamespace(id=1), MagicMock(), "row_id", "the id", "refused"
+    )
+
     with (
-        patch.object(
-            builder_agents,
-            "BuilderFormulaContext",
-            return_value=context,
-        ),
+        patch.object(builder_agents, "page_formula_context", return_value=context),
+        patch.object(builder_agents, "write_builder_formulas"),
         patch.object(builder_agents, "get_formula_generator") as factory,
     ):
-        result = builder_agents.update_element_formulas(
-            MagicMock(),
-            MagicMock(),
-            [],
-            {},
-            tool_helpers,
+        builder_agents.repair_builder_formula_errors(
+            MagicMock(), tool_helpers, MagicMock(), [entry]
         )
 
-    assert result == []
     factory.assert_called_once_with(
         builder_agents.BUILDER_FORMULA_PROMPT,
         model_profile,
     )
 
 
-def test_automation_formula_orchestrator_forwards_request_model_profile():
+def test_automation_formula_repair_forwards_request_model_profile():
     """Automation formula generation must reuse the enclosing request profile."""
 
     model_profile = MagicMock()
-    tool_helpers = SimpleNamespace(model_profile=model_profile)
-    workflow = MagicMock()
-    workflow.automation_workflow_nodes.all.return_value.order_by.return_value = []
-    orm_node = MagicMock(workflow=workflow)
-    node_update = MagicMock()
-    node_update.get_formulas_to_update.return_value = None
+    tool_helpers = SimpleNamespace(
+        model_profile=model_profile, raise_if_cancelled=lambda: None
+    )
+    error = {
+        "node_id": 1,
+        "node_label": "Mail",
+        "field": "subject",
+        "formula": "$formula: the name",
+        "error": "needs a formula",
+    }
 
-    with patch.object(
-        automation_agents,
-        "get_generate_formulas_tool",
-    ) as factory:
-        automation_agents.update_single_node_formulas(
-            node_update,
-            orm_node,
-            tool_helpers,
+    with (
+        patch.object(automation_agents.shared_nodes, "get_node_in_workspace"),
+        patch.object(automation_agents, "WorkflowExamples"),
+        patch.object(automation_agents, "get_generate_formulas_tool") as factory,
+    ):
+        factory.return_value.return_value = {}
+        remaining = automation_agents.repair_formula_errors(
+            MagicMock(), tool_helpers, [error]
         )
 
     factory.assert_called_once_with(model_profile)
+    assert remaining == [error]

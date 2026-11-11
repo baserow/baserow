@@ -4,7 +4,7 @@
       v-model="computedTableId"
       class="local-baserow-user-source-form__table-selector"
       :service-type="userSourceType"
-      :databases="integration.context_data.databases"
+      :databases="databases"
       :display-view-dropdown="false"
       dropdown-size="large"
     />
@@ -138,7 +138,7 @@ export default {
       return this.$registry.get('userSource', 'local_baserow')
     },
     databases() {
-      return this.integration.context_data.databases
+      return this.integration.context_data?.databases || []
     },
     fieldTypes() {
       return this.$registry.getAll('field')

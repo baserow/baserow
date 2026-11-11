@@ -71,6 +71,20 @@
     background-color: rgba($palette-neutral-1300, 0.04);
     color: $palette-neutral-1200;
   }
+
+  &.modal-sidebar__nav-link--error {
+    background-color: $palette-red-50;
+
+    &:hover,
+    &.active {
+      background-color: $palette-red-100;
+    }
+  }
+}
+
+.modal-sidebar__nav-error-icon {
+  margin-left: auto;
+  color: $palette-red-700;
 }
 
 .modal-sidebar__nav-icon {

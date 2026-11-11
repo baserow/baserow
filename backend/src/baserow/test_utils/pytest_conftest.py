@@ -62,6 +62,8 @@ DEFAULT_DEFERRED_CALLABLES: List[str] = [
     "baserow.ws.tasks.broadcast_to_group.delay",
     "baserow.ws.tasks.broadcast_to_groups.delay",
     "baserow.ws.tasks.broadcast_application_created.delay",
+    "baserow.contrib.agent.ws.tasks.broadcast_run_as_updates.delay",
+    "baserow.ws.tasks.broadcast_application_pending_counts.delay",
     "baserow.contrib.database.search.tasks.schedule_update_search_data.delay",
     "baserow.contrib.database.search.tasks.update_search_data.delay",
     "baserow.contrib.database.table.tasks.update_table_usage.delay",
@@ -151,6 +153,34 @@ def api_request_factory():
     """
 
     return APIRequestFactory()
+
+
+@pytest.fixture
+def fake_async_redis():
+    """
+    Inject a FakeRedis async client sharing the same FakeServer as
+    django-redis (sync) so both sync assertions and async production
+    code hit the same in-memory store.
+    """
+
+    from fakeredis.aioredis import FakeRedis
+
+    from baserow.config.settings.test import _fake_redis_server
+    from baserow.core.async_redis import (
+        get_cache_redis_url,
+        set_async_cache_redis,
+        set_async_redis,
+    )
+
+    client = FakeRedis(server=_fake_redis_server, decode_responses=True)
+    set_async_redis(client)
+    cache_db = int(get_cache_redis_url().rpartition("/")[2] or 0)
+    set_async_cache_redis(
+        FakeRedis(server=_fake_redis_server, decode_responses=False, db=cache_db)
+    )
+    yield
+    set_async_redis(None)
+    set_async_cache_redis(None)
 
 
 @pytest.fixture(autouse=True)

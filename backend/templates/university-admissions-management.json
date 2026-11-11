@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "University Admissions Management",
+    "description": "Manage university applicants, test scores and reviewers.",
     "icon": "iconoir-graduation-cap",
     "keywords": [
         "university",

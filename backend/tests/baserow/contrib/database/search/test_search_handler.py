@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from unittest.mock import Mock, patch
 
-from django.db import ProgrammingError, transaction
+from django.db import ProgrammingError, connection, transaction
 
 import pytest
 from freezegun import freeze_time
@@ -123,6 +123,35 @@ def test_create_workspace_search_table(data_fixture):
 
     search_table = SearchHandler.get_workspace_search_table_model(workspace.id)
     assert search_table.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_create_workspace_search_table_exits_its_transaction_if_the_index_fails(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    # Taking the index's name makes the deferred CREATE INDEX fail.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"CREATE TABLE database_workspace_{workspace.id}_value_tsv_idx (id int)"
+        )
+    savepoint_ids = list(connection.savepoint_ids)
+
+    SearchHandler.create_workspace_search_table_if_not_exists(workspace.id)
+
+    assert connection.savepoint_ids == savepoint_ids
+    assert not SearchHandler.workspace_search_table_exists(workspace.id)
+
+
+@pytest.mark.django_db
+def test_create_workspace_search_tables_with_a_clashing_unique_together_name():
+    # Django names the `unique_together` constraint of both these workspaces
+    # `database_search_workspac_field_id_row_id_075cdc27_uniq`.
+    SearchHandler.create_workspace_search_table_if_not_exists(196341)
+    SearchHandler.create_workspace_search_table_if_not_exists(252798)
+
+    assert SearchHandler.workspace_search_table_exists(196341)
+    assert SearchHandler.workspace_search_table_exists(252798)
 
 
 @pytest.mark.django_db
@@ -299,7 +328,7 @@ def test_update_rows_create_update_entries_for_all_updated_fields(data_fixture):
     assert PendingSearchValueUpdate.objects.count() == 0
 
     with patch(
-        "baserow.contrib.database.search.handler.SearchHandler.process_search_data_updates"
+        "baserow.contrib.database.search.search_data_updater_types.FullTextSearchDataUpdaterType.process_pending_updates"
     ) as mock:
         row1, row2, row3 = (
             RowHandler()

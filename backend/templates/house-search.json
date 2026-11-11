@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "House Search",
+    "description": "Compare houses for sale and open houses, and track your applications.",
     "icon": "iconoir-neighbourhood",
     "keywords": [
         "house hunt",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Bucket List",
+    "description": "Collect life goals by category and plan when to achieve them.",
     "icon": "iconoir-task-list",
     "keywords": [
         "bucket list",

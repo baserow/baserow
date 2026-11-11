@@ -16,6 +16,7 @@ import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
 import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 import {
+  canTellIfDeletedRowWasCounted,
   extractChangedFields,
   getRowMetadata,
   resolveBeforeRow,
@@ -23,6 +24,14 @@ import {
   prepareRowForRequest,
   updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
+
+// The backend rejects page sizes above the configured row page size limit.
+function getRequestSize(getters, $config) {
+  return Math.min(
+    getters.getBufferRequestSize,
+    $config.public.baserowRowPageSizeLimit
+  )
+}
 
 export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
@@ -243,11 +252,11 @@ export const actions = {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     commit('SET_LAST_KANBAN_ID', kanbanId)
-    const { $client } = this
+    const { $client, $config } = this
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
-      limit: getters.getBufferRequestSize,
+      limit: getRequestSize(getters, $config),
       offset: 0,
       includeFieldOptions,
       selectOptions: [],
@@ -280,19 +289,19 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
-    const { $client } = this
+    const { $client, $config } = this
     const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
-      limit: getters.getBufferRequestSize,
+      limit: getRequestSize(getters, $config),
       offset: 0,
       includeFieldOptions: false,
       selectOptions: [
         {
           id: selectOptionId,
-          limit: getters.getBufferRequestSize,
+          limit: getRequestSize(getters, $config),
           offset: stack.results.length,
         },
       ],
@@ -560,8 +569,28 @@ export const actions = {
     { dispatch, commit, getters },
     { view, row, fields }
   ) {
+    const current = getters.findStackIdAndIndex(row.id)
+    if (current !== undefined) {
+      const currentStackId = current[0]
+      const currentIndex = current[1]
+      const currentRow = current[2]
+      commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
+      commit('DECREASE_COUNT', { stackId: currentStackId })
+      return currentRow
+    }
+
     row = clone(row)
     populateRow(row)
+
+    const canTellIfCounted = canTellIfDeletedRowWasCounted({
+      row,
+      view,
+      fields,
+      fieldOptions: getters.getAllFieldOptions,
+    })
+    if (!canTellIfCounted) {
+      return
+    }
 
     const matchesFilters = await dispatch('rowMatchesFilters', {
       view,
@@ -575,18 +604,7 @@ export const actions = {
     const singleSelectFieldId = getters.getSingleSelectFieldId
     const option = row[`field_${singleSelectFieldId}`]
     const stackId = option !== null ? option.id : 'null'
-    const current = getters.findStackIdAndIndex(row.id)
-
-    if (current !== undefined) {
-      const currentStackId = current[0]
-      const currentIndex = current[1]
-      const currentRow = current[2]
-      commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
-      commit('DECREASE_COUNT', { stackId: currentStackId })
-      return currentRow
-    } else {
-      commit('DECREASE_COUNT', { stackId })
-    }
+    commit('DECREASE_COUNT', { stackId })
 
     return null
   },

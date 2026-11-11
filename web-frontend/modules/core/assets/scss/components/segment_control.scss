@@ -25,6 +25,12 @@
   }
 }
 
+.segment-control--pills {
+  gap: 8px;
+  padding: 0;
+  background: none;
+}
+
 .segment-control--transparent {
   background: none;
 }
@@ -53,6 +59,18 @@
   &:hover {
     background: $palette-neutral-200;
     color: $palette-neutral-1200;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .segment-control--pills & {
+    flex: none;
+    padding: 0 12px;
+    border-color: $palette-neutral-200;
+    border-radius: 80px;
   }
 
   .segment-control--small & {
@@ -85,6 +103,13 @@
   &:hover {
     border: 1px solid $palette-neutral-500;
     background: $white;
+  }
+
+  .segment-control--pills &,
+  .segment-control--pills &:hover {
+    border-color: $palette-neutral-200;
+    background-color: $palette-neutral-100;
+    box-shadow: none;
   }
 }
 

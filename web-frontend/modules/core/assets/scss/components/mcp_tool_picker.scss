@@ -1,0 +1,83 @@
+.mcp-tool-picker {
+  margin-top: 20px;
+}
+
+.mcp-tool-picker__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.mcp-tool-picker__label {
+  font-weight: 600;
+}
+
+.mcp-tool-picker__presets {
+  font-size: 12px;
+  color: $palette-neutral-1000;
+}
+
+// A button so it is keyboard reachable, styled like the app's text links.
+.mcp-tool-picker__preset {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $palette-blue-500;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
+.mcp-tool-picker__empty {
+  color: $palette-neutral-900;
+}
+
+.mcp-tool-picker__list {
+  border: 1px solid $palette-neutral-200;
+  overflow: hidden;
+
+  @include rounded($rounded-md);
+}
+
+.mcp-tool-picker__area-title {
+  padding: 6px 12px;
+  background-color: $palette-neutral-50;
+  border-bottom: 1px solid $palette-neutral-200;
+  color: $palette-neutral-1000;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mcp-tool-picker__group-title {
+  padding: 9px 12px;
+  border-bottom: 1px solid $palette-neutral-200;
+  font-weight: 500;
+}
+
+.mcp-tool-picker__tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px 9px 36px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.mcp-tool-picker__list > :last-child > :last-child > :last-child {
+  border-bottom: 0;
+}
+
+.mcp-tool-picker__tool-checkbox {
+  flex: 1;
+}
+
+.mcp-tool-picker__badge {
+  flex: none;
+}

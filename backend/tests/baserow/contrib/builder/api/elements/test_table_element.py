@@ -54,6 +54,33 @@ def test_can_create_a_table_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_can_create_a_table_element_with_fields(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+
+    response = api_client.post(
+        url,
+        {
+            "type": "table",
+            "fields": [
+                {"name": "Name", "type": "text", "value": "'Horse'", "styles": None},
+                {"name": "Link", "type": "link", "link_name": "'Go'"},
+            ],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    fields = response.json()["fields"]
+    assert [field["name"] for field in fields] == ["Name", "Link"]
+    assert fields[0]["value"]["formula"] == "'Horse'"
+    assert fields[1]["link_name"]["formula"] == "'Go'"
+
+
+@pytest.mark.django_db
 def test_can_update_a_table_element_fields(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table_element = data_fixture.create_builder_table_element(user=user)

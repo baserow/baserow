@@ -2,7 +2,10 @@ import dataclasses
 from typing import Any, Dict, List, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import FieldDoesNotExist
+from django.utils.text import capfirst
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
@@ -10,6 +13,7 @@ from baserow.core.action.registries import (
     ActionType,
     ActionTypeDescription,
     UndoableActionType,
+    render_action_type_description,
 )
 from baserow.core.action.scopes import (
     WORKSPACE_ACTION_CONTEXT,
@@ -21,13 +25,21 @@ from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.models import (
     Application,
     ImportExportResource,
+    Settings,
     Template,
     Workspace,
     WorkspaceInvitation,
+    WorkspaceInvitationLink,
     WorkspaceUser,
 )
-from baserow.core.registries import ImportExportConfig, application_type_registry
+from baserow.core.registries import (
+    ImportExportConfig,
+    application_type_registry,
+    object_scope_type_registry,
+)
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.trash.registries import trash_item_type_registry
+from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -367,6 +379,22 @@ class OrderApplicationsActionType(UndoableActionType):
         CoreHandler().order_applications(user, workspace, params.application_ids)
 
 
+def _restore_application(user: AbstractUser, application_id: int) -> None:
+    """
+    Restores a trashed application under its own trash type, as some application
+    types have their own, like the automation.
+
+    :param user: The user restoring the application.
+    :param application_id: The id of the trashed application.
+    """
+
+    application = Application.objects_and_trash.get(id=application_id)
+    trash_type = trash_item_type_registry.get_by_model(application.specific_class)
+    TrashHandler.restore_item(
+        user, trash_type.type, application_id, parent_trash_item_id=None
+    )
+
+
 class CreateApplicationActionType(UndoableActionType):
     type = "create_application"
     description = ActionTypeDescription(
@@ -444,9 +472,7 @@ class CreateApplicationActionType(UndoableActionType):
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
-            user, "application", params.application_id, parent_trash_item_id=None
-        )
+        _restore_application(user, params.application_id)
 
 
 class DeleteApplicationActionType(UndoableActionType):
@@ -508,9 +534,7 @@ class DeleteApplicationActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user, params: Params, action_being_undone: Action):
-        TrashHandler.restore_item(
-            user, "application", params.application_id, parent_trash_item_id=None
-        )
+        _restore_application(user, params.application_id)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
@@ -617,6 +641,24 @@ class UpdateApplicationActionType(UndoableActionType):
             user, application, name=params.application_name, **params.data
         )
 
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        if params_dict.get("application_name") == params_dict.get(
+            "original_application_name"
+        ):
+            # Only attributes of the application type changed, like the
+            # description of a dashboard, so reporting a rename would be wrong.
+            description = ActionTypeDescription(
+                cls.description.short,
+                _(
+                    "Application (%(application_id)s) of type %(application_type)s "
+                    '"%(application_name)s" updated'
+                ),
+                cls.description.context,
+            )
+            return render_action_type_description(description, params_dict)
+        return super().get_long_description(params_dict, *args, **kwargs)
+
 
 class DuplicateApplicationActionType(UndoableActionType):
     type = "duplicate_application"
@@ -698,9 +740,7 @@ class DuplicateApplicationActionType(UndoableActionType):
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
-            user, "application", params.application_id, parent_trash_item_id=None
-        )
+        _restore_application(user, params.application_id)
 
 
 class InstallTemplateActionType(UndoableActionType):
@@ -734,32 +774,47 @@ class InstallTemplateActionType(UndoableActionType):
         workspace: Workspace,
         template: Template,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        *,
+        content: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Application]:
         """
         Install a template into the provided workspace. See
-        baserow.core.handler.CoreHandler.install_template for further details.
+        baserow.core.handler.CoreHandler.install_template for further details, and
+        UserTemplateHandler.install_template_content for a user template.
         Undoing this action trash the installed applications and redoing
         restore them all.
 
         :param user: The user on whose behalf the template is installed.
         :param workspace: The workspace where the applications will be installed.
-        :param template: The template to install.
+        :param template: The template to install, a revision for a user template.
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the installation.
+        :param content: The serialized content of a user template, see
+            UserTemplateHandler.serialize_template_content.
         :return: The list of installed applications.
         """
 
-        installed_applications, _ = CoreHandler().install_template(
-            user,
-            workspace,
-            template,
-            progress_builder=progress_builder,
-        )
+        if template.type == Template.Type.USER:
+            installed_applications = UserTemplateHandler().install_template_content(
+                user,
+                workspace,
+                template,
+                content,
+                progress_builder=progress_builder,
+            )
+        else:
+            installed_applications, _ = CoreHandler().install_template(
+                user,
+                workspace,
+                template,
+                progress_builder=progress_builder,
+            )
 
         params = cls.Params(
             workspace.id,
             workspace.name,
-            template.id,
+            # The id of a template is its root, whichever revision is installed.
+            template.family_id,
             template.name,
             [app.id for app in installed_applications],
         )
@@ -783,9 +838,7 @@ class InstallTemplateActionType(UndoableActionType):
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         for application_id in params.installed_application_ids:
-            TrashHandler.restore_item(
-                user, "application", application_id, parent_trash_item_id=None
-            )
+            _restore_application(user, application_id)
 
 
 class CreateWorkspaceInvitationActionType(ActionType):
@@ -816,7 +869,6 @@ class CreateWorkspaceInvitationActionType(ActionType):
         workspace: Workspace,
         email: str,
         permissions: str,
-        base_url: str,
     ) -> WorkspaceInvitation:
         """
         Creates a new workspace invitation for the given email address and sends out an
@@ -828,7 +880,7 @@ class CreateWorkspaceInvitationActionType(ActionType):
         """
 
         workspace_invitation = CoreHandler().create_workspace_invitation(
-            user, workspace, email, permissions, base_url
+            user, workspace, email, permissions
         )
 
         cls.register_action(
@@ -932,6 +984,7 @@ class AcceptWorkspaceInvitationActionType(ActionType):
         cls,
         user: AbstractUser,
         workspace_invitation: WorkspaceInvitation,
+        token: str | None = None,
     ) -> WorkspaceUser:
         """
         Accepts an existing workspace invitation.
@@ -948,7 +1001,7 @@ class AcceptWorkspaceInvitationActionType(ActionType):
             workspace.name,
         )
         workspace_user = CoreHandler().accept_workspace_invitation(
-            user, workspace_invitation
+            user, workspace_invitation, token=token
         )
 
         cls.register_action(
@@ -1089,6 +1142,277 @@ class UpdateWorkspaceInvitationActionType(ActionType):
         return RootActionScopeType.value()
 
 
+class CreateWorkspaceInvitationLinkActionType(ActionType):
+    type = "create_workspace_invitation_link"
+    description = ActionTypeDescription(
+        _("Create workspace invitation link"),
+        _(
+            'Invitation link (%(invitation_link_id)s) created to join "%(group_name)s" '
+            "(%(group_id)s) as %(permissions)s."
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        name: str = ""
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        workspace: Workspace,
+        permissions: str,
+        name: str = "",
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a new permanent link to join the workspace.
+        Look into baserow.core.handler.CoreHandler.create_workspace_invitation_link
+        for further details.
+        """
+
+        invitation_link = CoreHandler().create_workspace_invitation_link(
+            user, workspace, permissions, name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id, permissions, workspace.id, workspace.name, name
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UpdateWorkspaceInvitationLinkActionType(ActionType):
+    type = "update_workspace_invitation_link"
+    description = ActionTypeDescription(
+        _("Update workspace invitation link"),
+        _(
+            'Invitation link (%(invitation_link_id)s) to join "%(group_name)s" '
+            '(%(group_id)s) changed from "%(original_name)s" as '
+            '%(original_permissions)s to "%(name)s" as %(permissions)s.'
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+        "original_permissions",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        original_permissions: str
+        name: str
+        original_name: str
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        permissions: str | None = None,
+        name: str | None = None,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of the link or the permissions people get when joining
+        through it.
+        Look into baserow.core.handler.CoreHandler.update_workspace_invitation_link
+        for further details.
+        """
+
+        workspace = invitation_link.workspace
+        original_permissions = invitation_link.permissions
+        original_name = invitation_link.name
+        invitation_link = CoreHandler().update_workspace_invitation_link(
+            user, invitation_link, permissions=permissions, name=name
+        )
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.permissions,
+                workspace.id,
+                workspace.name,
+                original_permissions=original_permissions,
+                name=invitation_link.name,
+                original_name=original_name,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return invitation_link
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class DeleteWorkspaceInvitationLinkActionType(ActionType):
+    type = "delete_workspace_invitation_link"
+    description = ActionTypeDescription(
+        _("Delete workspace invitation link"),
+        _(
+            'Invitation link "%(name)s" (%(invitation_link_id)s) to join '
+            '"%(group_name)s" (%(group_id)s) as %(permissions)s deleted.'
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        name: str = ""
+
+    @classmethod
+    def do(cls, user: AbstractUser, invitation_link: WorkspaceInvitationLink):
+        """
+        Deletes a workspace invitation link.
+        Look into baserow.core.handler.CoreHandler.delete_workspace_invitation_link
+        for further details.
+        """
+
+        workspace = invitation_link.workspace
+        params = cls.Params(
+            invitation_link.id,
+            invitation_link.permissions,
+            workspace.id,
+            workspace.name,
+            invitation_link.name,
+        )
+        CoreHandler().delete_workspace_invitation_link(user, invitation_link)
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class JoinWorkspaceViaInvitationLinkActionType(ActionType):
+    type = "join_workspace_via_invitation_link"
+    description = ActionTypeDescription(
+        _("Join workspace via invitation link"),
+        _(
+            'Joined "%(group_name)s" (%(group_id)s) through invitation link '
+            "(%(invitation_link_id)s) as %(permissions)s."
+        ),
+    )
+    scope_description = ActionTypeDescription(
+        _("Join workspace via invitation link"),
+        _(
+            'Joined "%(group_name)s" (%(group_id)s) through invitation link '
+            '(%(invitation_link_id)s) as %(permissions)s on "%(scope_type_name)s" '
+            "(%(scope_id)s)."
+        ),
+    )
+    analytics_params = [
+        "invitation_link_id",
+        "permissions",
+        "workspace_id",
+        "scope_type_name",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        invitation_link_id: int
+        permissions: str
+        workspace_id: int
+        workspace_name: str
+        scope_type_name: Optional[str] = None
+        scope_id: Optional[int] = None
+
+    @classmethod
+    def do(
+        cls, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> WorkspaceUser:
+        """
+        Joins the workspace of the link.
+        Look into baserow.core.handler.CoreHandler.join_workspace_via_invitation_link
+        for further details.
+        """
+
+        workspace = invitation_link.workspace
+        handler = CoreHandler()
+        was_member = WorkspaceUser.objects.filter(
+            user=user, workspace=workspace
+        ).exists()
+        raised_permissions = handler.get_permissions_raised_by_invitation_link(
+            user, invitation_link
+        )
+        workspace_user = handler.join_workspace_via_invitation_link(
+            user, invitation_link
+        )
+
+        # Members open the link on their way into the workspace, so only record
+        # the visits that changed their membership.
+        if was_member and raised_permissions is None:
+            return workspace_user
+
+        scope_type_name = None
+        if invitation_link.scope_type_id is not None:
+            scope_type_name = object_scope_type_registry.get_by_model(
+                invitation_link.scope_type.model_class()
+            ).type
+
+        cls.register_action(
+            user=user,
+            params=cls.Params(
+                invitation_link.id,
+                invitation_link.permissions,
+                workspace.id,
+                workspace.name,
+                scope_type_name,
+                invitation_link.scope_id,
+            ),
+            scope=cls.scope(),
+            workspace=workspace,
+        )
+        return workspace_user
+
+    @classmethod
+    def get_long_description(cls, params_dict: dict[str, Any], *args, **kwargs) -> str:
+        if params_dict.get("scope_type_name"):
+            return render_action_type_description(cls.scope_description, params_dict)
+        return super().get_long_description(params_dict, *args, **kwargs)
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
 class LeaveWorkspaceActionType(ActionType):
     type = "leave_group"
     description = ActionTypeDescription(
@@ -1119,6 +1443,76 @@ class LeaveWorkspaceActionType(ActionType):
             scope=cls.scope(),
             workspace=workspace,
         )
+
+    @classmethod
+    def scope(cls) -> ActionScopeStr:
+        return RootActionScopeType.value()
+
+
+class UpdateAdminSettingsActionType(ActionType):
+    type = "admin_update_settings"
+    description = ActionTypeDescription(
+        _("Update settings"),
+        _("Settings updated: %(settings)s"),
+    )
+
+    @dataclasses.dataclass
+    class Params:
+        settings: Dict[str, Any]
+
+    @classmethod
+    def do(cls, user: AbstractUser, **kwargs) -> Settings:
+        """
+        Updates the settings. Not undoable.
+
+        :param user: The instance admin who updates the settings.
+        :param kwargs: The settings to update, by name.
+        :return: The updated settings instance.
+        """
+
+        settings, values = CoreHandler().update_settings(user, **kwargs)
+        if values:
+            cls.register_action(user, cls.Params(settings=values), cls.scope())
+        return settings
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        settings = ", ".join(
+            f"{cls._get_setting_label(name)}: {cls._get_setting_value_label(value)}"
+            for name, value in params_dict["settings"].items()
+        )
+        return render_action_type_description(cls.description, {"settings": settings})
+
+    @classmethod
+    def _get_setting_label(cls, name: str) -> str:
+        """
+        The readable name of a setting.
+
+        :param name: The name of the `Settings` field.
+        :return: Its verbose name, capitalized, or the name of a removed field.
+        """
+
+        try:
+            return capfirst(Settings._meta.get_field(name).verbose_name)
+        except FieldDoesNotExist:
+            return name
+
+    @classmethod
+    def _get_setting_value_label(cls, value: Any) -> str:
+        """
+        The readable value of a setting.
+
+        :param value: The value as recorded.
+        :return: On or off for a boolean, none for no value, or the value.
+        """
+
+        if value is True:
+            return pgettext_lazy("setting value", "on")
+        if value is False:
+            return pgettext_lazy("setting value", "off")
+        if value is None:
+            return pgettext_lazy("setting value", "none")
+        return str(value)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:
@@ -1203,6 +1597,7 @@ class ExportApplicationsActionType(ActionType):
             include_permission_data=False,
             reduce_disk_space_usage=False,
             only_structure=only_structure,
+            exported_by=user,
         )
 
         resource = ImportExportHandler().export_workspace_applications(

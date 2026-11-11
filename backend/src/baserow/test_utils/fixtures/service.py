@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
     CoreCSVFileReaderService,
@@ -14,6 +15,7 @@ from baserow.contrib.integrations.core.models import (
     CoreRouterService,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
+    CoreWaitService,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
@@ -21,6 +23,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowDeleteRow,
     LocalBaserowFieldsUpdated,
     LocalBaserowGetRow,
+    LocalBaserowIntegration,
     LocalBaserowListRows,
     LocalBaserowRowsCreated,
     LocalBaserowRowsDeleted,
@@ -195,6 +198,9 @@ class ServiceFixtures:
     def create_core_goto_service(self, **kwargs) -> CoreGotoService:
         return self.create_service(CoreGotoService, **kwargs)
 
+    def create_core_wait_service(self, **kwargs) -> CoreWaitService:
+        return self.create_service(CoreWaitService, **kwargs)
+
     def create_core_http_trigger_service(self, **kwargs) -> CoreSMTPEmailService:
         if "uid" not in kwargs:
             kwargs["uid"] = uuid4()
@@ -217,10 +223,31 @@ class ServiceFixtures:
             integration = None
             integrations_args = kwargs.pop("integration_args", {})
             service_type = service_type_registry.get_by_model(model_class)
-            if service_type.get_integration_type():
-                integration = self.create_integration(
-                    service_type.get_integration_type().model_class, **integrations_args
-                )
+            integration_type = service_type.get_integration_type()
+            if integration_type:
+                if integration_type.model_class is LocalBaserowIntegration:
+                    table = kwargs.get("table")
+                    if table is None and kwargs.get("table_id"):
+                        table = Table.objects.get(id=kwargs["table_id"])
+                    if (
+                        table is not None
+                        and "application" not in integrations_args
+                        and "application_args" not in integrations_args
+                    ):
+                        # The table is read through the integration, so they
+                        # share a workspace.
+                        integrations_args["application"] = (
+                            self.create_builder_application(
+                                workspace=table.database.workspace
+                            )
+                        )
+                    integration = self.create_local_baserow_integration(
+                        **integrations_args
+                    )
+                else:
+                    integration = self.create_integration(
+                        integration_type.model_class, **integrations_args
+                    )
         else:
             integration = kwargs.pop("integration", None)
             kwargs.pop("integration_args", None)

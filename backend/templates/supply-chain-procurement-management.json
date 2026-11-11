@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Supply Chain & Procurement Management",
+    "description": "Manage suppliers, contracts, inventory and purchase requests.",
     "icon": "iconoir-link",
     "keywords": [
         "supply chain management",

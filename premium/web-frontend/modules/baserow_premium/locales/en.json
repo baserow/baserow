@@ -303,6 +303,9 @@
     },
     "allowPublicExportLabel": "Allow export on shared view"
   },
+  "premiumDashboardShareOptions": {
+    "hideLogo": "Hide Baserow logo on shared dashboard"
+  },
   "viewsContext": {
     "personal": "Personal"
   },
@@ -376,7 +379,8 @@
   "chart": {
     "true": "true",
     "false": "false",
-    "other": "Other"
+    "other": "Other",
+    "empty": "Empty"
   },
   "groupedAggregateRowsDataSourceForm": {
     "series": "Series",
@@ -402,6 +406,8 @@
     "aggregationTypeLabel": "Summary",
     "deleteSeries": "Delete series",
     "chartType": "Chart type",
+    "seriesColor": "Color",
+    "automaticColor": "Use automatic color",
     "barChart": "Bar",
     "lineChart": "Line",
     "pieChart": "Pie",
@@ -412,7 +418,12 @@
     "groupByFieldLabel": "Group by",
     "groupByNone": "None",
     "groupByRowId": "Row Id",
-    "rowIdDisabledTooltip": "Grouping by row ID is currently unavailable because the primary field can contain multiple values."
+    "groupedByField": "Grouped by {field}",
+    "bucketLimit": "Maximum buckets",
+    "bucketLimitHelp": "Includes the Other bucket. Leave empty to use the server maximum ({max}).",
+    "modeLabel": "Group multiple selections",
+    "completeSelection": "Complete selection",
+    "eachOption": "Each selected option"
   },
   "aggregationSortByForm": {
     "sortByFieldLabel": "Sort by",

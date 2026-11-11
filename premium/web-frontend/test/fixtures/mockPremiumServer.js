@@ -66,6 +66,12 @@ export default class MockPremiumServer extends MockServer {
       .reply(200, expectedContents)
   }
 
+  expectPremiumDashboardUpdate(dashboardId, expectedContents) {
+    this.mock
+      .onPatch(`/dashboard/${dashboardId}/premium/`, expectedContents)
+      .reply(200, expectedContents)
+  }
+
   expectCalendarViewUpdate(viewId, expectedContents) {
     this.mock
       .onPatch(`/database/views/${viewId}/`, { ical_public: true })

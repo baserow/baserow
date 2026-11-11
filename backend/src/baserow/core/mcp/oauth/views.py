@@ -2,7 +2,7 @@ import base64
 from urllib.parse import urlencode
 
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.views import View
 
 from oauth2_provider import cimd
@@ -81,3 +81,15 @@ class MCPProtectedResourceMetadataView(OAuthProtectedResourceMetadataView):
 
     def get_scopes_supported(self):
         return [MCP_SCOPE]
+
+
+def openai_apps_challenge(request):
+    """
+    Returns the token OpenAI fetches to verify the domain of the MCP server, or a
+    404 when it isn't set.
+    """
+
+    token = settings.BASEROW_MCP_OPENAI_APPS_CHALLENGE
+    if not token:
+        raise Http404()
+    return HttpResponse(token, content_type="text/plain")

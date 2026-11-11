@@ -98,6 +98,9 @@ Baserow provides various APIs detailed below:
 * [Copy and paste](technical/copy-and-paste.md): How cell values move through the
   clipboard, why Baserow keeps the exact value in local storage, and how the long text
   field behaves across every copy/paste path.
+* [Automation node and service type naming](technical/automation-node-and-service-type-naming.md):
+  How automation node types, the integration service types they wrap, their form
+  components and their test fixtures are named on the backend and the frontend.
 
 ## Development
 

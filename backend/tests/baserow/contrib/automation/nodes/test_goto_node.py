@@ -28,7 +28,7 @@ def _build_goto_workflow(data_fixture, condition="'false'", with_destination=Tru
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger, label="destination"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination
     )
 
@@ -69,7 +69,7 @@ def test_goto_node_prepare_values_rejects_cross_level_destination(data_fixture):
     iterator_child = iterator_data["iterator_child_1_node"]
 
     user = data_fixture.create_user()
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=trigger, position="south", output=""
     )
 
@@ -139,7 +139,7 @@ def test_undo_goto_node_update_after_destination_deleted(data_fixture):
     other_destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=destination, label="other destination"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=other_destination
     )
     service = goto_node.service.specific
@@ -206,7 +206,7 @@ def test_goto_node_prepare_values_rejects_forward_jump(data_fixture):
     workflow = data_fixture.create_automation_workflow(user=user)
     trigger = workflow.get_trigger()
 
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=trigger, position="south", output=""
     )
     # A node placed after the Go to node is a forward jump: reaching it would
@@ -236,7 +236,7 @@ def test_goto_node_prepare_values_rejects_cross_branch_destination(data_fixture)
     branch_a_node = router_data.edge1_output
     branch_b_node = router_data.edge2_output
 
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=branch_a_node, position="south", output=""
     )
 
@@ -329,7 +329,7 @@ def _cross_level_goto_workflow(data_fixture):
     iterator_child = data["iterator_child_1_node"]
     trigger = data["trigger_node"]
 
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=trigger, position="south", output=""
     )
     service = goto_node.service.specific

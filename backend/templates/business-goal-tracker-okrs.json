@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Business Goal Tracker (OKRs)",
+    "description": "Set objectives per department, with key results and progress updates.",
     "icon": "iconoir-okrs",
     "keywords": [
         "OKR",

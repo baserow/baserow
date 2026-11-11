@@ -1,0 +1,13 @@
+{
+    "type": "breaking_change",
+    "message": "Refreshing a token returns a new refresh token and revokes the one that was used",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [
+        "POST /api/user/token-refresh/ now also returns refresh_token and user_session. Use the new refresh token for the next refresh.",
+        "The previous refresh token stops working after 30 seconds, and using it after that signs the whole session off.",
+        "Set BASEROW_ROTATE_REFRESH_TOKENS=false to keep the previous behaviour."
+    ],
+    "created_at": "2026-10-27"
+}

@@ -1,4 +1,10 @@
+from typing import TYPE_CHECKING, Any, List, Tuple
+
 from django.db.models import DateTimeField, Expression, Field, Func, Lookup, Value
+
+if TYPE_CHECKING:
+    from django.db.backends.base.base import BaseDatabaseWrapper
+    from django.db.models.sql.compiler import SQLCompiler
 
 
 class Timezone(Expression):
@@ -82,3 +88,17 @@ class IsDistinctFrom(Lookup):
         rhs, rhs_params = self.process_rhs(compiler, connection)
         params = lhs_params + rhs_params
         return "%s IS DISTINCT FROM %s" % (lhs, rhs), params
+
+
+class EqualsAny(Lookup):
+    """
+    `lhs = ANY(array)`: Postgres computes the array once and looks the matches up
+    by index, where `lhs IN (subquery)` may walk the index for an `ORDER BY LIMIT`.
+    """
+
+    def as_sql(
+        self, compiler: "SQLCompiler", connection: "BaseDatabaseWrapper"
+    ) -> Tuple[str, List[Any]]:
+        lhs, lhs_params = self.process_lhs(compiler, connection)
+        rhs, rhs_params = compiler.compile(self.rhs)
+        return f"{lhs} = ANY({rhs})", [*lhs_params, *rhs_params]

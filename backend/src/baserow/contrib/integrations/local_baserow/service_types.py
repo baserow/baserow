@@ -23,7 +23,11 @@ from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.contrib.database.api.fields.serializers import FieldSerializer
+from baserow.api.exceptions import RequestBodyValidationException
+from baserow.contrib.database.api.fields.serializers import (
+    FieldSerializer,
+    serialize_public_field,
+)
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
     get_row_serializer_class,
@@ -88,6 +92,7 @@ from baserow.contrib.integrations.local_baserow.mixins import (
     LocalBaserowTableServiceSearchableMixin,
     LocalBaserowTableServiceSortableMixin,
     LocalBaserowTableServiceSpecificRowMixin,
+    import_refinement_field_id,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
@@ -105,6 +110,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowUpsertRow,
     Service,
 )
+from baserow.contrib.integrations.local_baserow.types import FieldMappingValues
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
@@ -118,8 +124,10 @@ from baserow.core.formula.validator import (
     ensure_object,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.models import Workspace
+from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -141,7 +149,7 @@ from baserow.core.services.types import (
     ServiceSubClass,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.types import PermissionCheck
+from baserow.core.types import PermissionCheck, Subject
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -159,32 +167,37 @@ class LocalBaserowServiceType(ServiceType):
 
     def get_acting_user(
         self, service: ServiceSubClass, dispatch_context: DispatchContext
-    ) -> AbstractUser:
+    ) -> Subject:
         """
-        Returns the user whose permissions and identity this dispatch runs under.
+        Returns the subject whose permissions and identity this dispatch runs under.
 
-        With an integration, that integration's `authorized_user` acts, as in the
+        With an integration, that integration's `authorized_subject` acts, as in the
         builder, automation and dashboard. Without one, the dispatch context's
         actor acts instead. This is the only place a Local Baserow service type
-        may resolve its user.
+        may resolve its subject.
 
         :param service: The service being dispatched.
         :param dispatch_context: The context this dispatch runs in.
         :raises ServiceImproperlyConfiguredDispatchException: When neither an
-            integration nor an actor supplies a user.
-        :return: The acting user.
+            integration nor an actor supplies a subject.
+        :return: The acting subject.
         """
 
         if service.integration_id:
-            authorized_user = service.integration.specific.authorized_user
-            # Nullable, and an import leaves it null when the exported username
-            # is not in the target workspace. Refuse rather than let a `None`
-            # reach a permission check as anonymous.
-            if authorized_user is None:
+            integration = service.integration.specific
+            authorized_subject = integration.authorized_subject_including_trash
+            if getattr(authorized_subject, "trashed", False):
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "The integration has no authorized user"
+                    "The integration's authorized agent is trashed"
                 )
-            return authorized_user
+
+            # Nullable, and an import can leave the authorized user null. Refuse
+            # rather than let a `None` reach a permission check as anonymous.
+            if authorized_subject is None:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration has no authorized subject"
+                )
+            return authorized_subject
 
         if dispatch_context.actor is None:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -204,6 +217,25 @@ class LocalBaserowServiceType(ServiceType):
         """
 
         return False
+
+    def before_dispatch(
+        self,
+        service: ServiceSubClass,
+        dispatch_context: DispatchContext,
+    ) -> None:
+        """Record when this service uses an authorized agent."""
+
+        if not service.integration_id:
+            return
+
+        integration = service.integration.specific
+        if not integration.authorized_subject_type:
+            return
+
+        subject_type = subject_type_registry.get(integration.authorized_subject_type)
+        subject = integration.authorized_subject
+        if subject is not None:
+            subject_type.track_usage(subject)
 
     def get_schema_for_return_type(
         self, service: ServiceSubClass, properties: Dict[str, Any]
@@ -267,6 +299,49 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
     class SerializedDict(ServiceDict):
         table_id: int
+
+    def get_acting_user(
+        self, service: ServiceSubClass, dispatch_context: DispatchContext
+    ) -> Subject:
+        """
+        Returns the subject whose permissions and identity this dispatch runs under,
+        once the service's table is checked to belong to its integration's
+        workspace, as the table is read through the integration.
+
+        :param service: The service being dispatched.
+        :param dispatch_context: The context this dispatch runs in.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table belongs
+            to another workspace, or no subject can act.
+        :return: The acting subject.
+        """
+
+        if service.table_id and not self.is_table_in_integration_workspace(service):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table belongs to another workspace."
+            )
+
+        return super().get_acting_user(service, dispatch_context)
+
+    def is_table_in_integration_workspace(
+        self, service: ServiceSubClass, table: Optional["Table"] = None
+    ) -> bool:
+        """
+        Returns whether the service's table belongs to its integration's workspace,
+        as the table is read through the integration. A service without an
+        integration has nothing to compare against.
+
+        :param service: The service in question.
+        :param table: The service's table, if already at hand.
+        :return: True when the table may be read through the integration.
+        """
+
+        if not service.integration_id:
+            return True
+
+        table = table or service.table
+        return IntegrationHandler().is_integration_usable(
+            service.integration, workspace_id=table.database.workspace_id
+        )
 
     def get_permission_workspace(self, service: ServiceSubClass) -> Workspace:
         """
@@ -570,7 +645,48 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             else:
                 values["table"] = None
 
-        return super().prepare_values(values, user, instance)
+        values = super().prepare_values(values, user, instance)
+        self._check_table_workspace(values, instance)
+        return values
+
+    def _check_table_workspace(
+        self, values: Dict[str, Any], instance: Optional[ServiceSubClass] = None
+    ):
+        """
+        Validates that the service's table belongs to its integration's workspace,
+        as the table is read through the integration.
+
+        :param values: The prepared values.
+        :param instance: The current instance if it exists.
+        :raises RequestBodyValidationException: When the table belongs to another
+            workspace.
+        """
+
+        table = (
+            values["table"] if "table" in values else getattr(instance, "table", None)
+        )
+        integration = (
+            values["integration"]
+            if "integration" in values
+            else getattr(instance, "integration", None)
+        )
+        if table is None or integration is None:
+            return
+
+        if not IntegrationHandler().is_integration_usable(
+            integration, workspace_id=table.database.workspace_id
+        ):
+            raise RequestBodyValidationException(
+                {
+                    "table_id": [
+                        {
+                            "detail": f"The table with ID {table.id} is not related "
+                            "to the given workspace.",
+                            "code": "invalid_table",
+                        }
+                    ]
+                }
+            )
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
@@ -795,8 +911,12 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         for field_object in field_objects:
             field_type = field_object["type"]
             if field_type.can_have_select_options:
+                # Like the data schema, without the properties of field extensions,
+                # which would otherwise be looked up for every field.
                 field_serializer = field_type.get_serializer(
-                    field_object["field"], FieldSerializer
+                    field_object["field"],
+                    FieldSerializer,
+                    extra_params={"data_schema": True},
                 )
                 ret[field_object["name"]] = field_serializer.data["select_options"]
 
@@ -1163,10 +1283,13 @@ class LocalBaserowListRowsUserServiceType(
         if field_dbname == "id":
             return path
 
-        # Apply the mapping in case it is present for this field
-        field_id = self.import_property_name(field_dbname, id_mapping)
+        # Apply the mapping in case it is present for this field. Like in
+        # `import_path`, an unmapped field keeps its reference.
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
+        )
 
-        return [field_id, *rest]
+        return [imported_field_dbname, *rest]
 
     def dispatch_data(
         self,
@@ -1332,6 +1455,8 @@ class LocalBaserowAggregateRowsUserServiceType(
 
     type = "local_baserow_aggregate_rows"
     model_class = LocalBaserowAggregateRows
+    # The aggregations the service can compute.
+    aggregation_registry = field_aggregation_registry
     dispatch_types = [
         DispatchTypes.DATA,
         DispatchTypes.ACTION,
@@ -1398,13 +1523,35 @@ class LocalBaserowAggregateRowsUserServiceType(
         service: LocalBaserowAggregateRows,
         allowed_fields: Optional[List[str]] = None,
     ) -> dict:
+        return self._get_field_context_data(service, allowed_fields, public=False)
+
+    def get_public_context_data(
+        self,
+        service: LocalBaserowAggregateRows,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> dict:
+        # Anonymous visitors only need the field to format the result, never its
+        # configuration.
+        return self._get_field_context_data(service, allowed_fields, public=True)
+
+    def _get_field_context_data(
+        self,
+        service: LocalBaserowAggregateRows,
+        allowed_fields: Optional[List[str]],
+        public: bool,
+    ) -> dict:
         context_data = {}
         if service.field and not (
             allowed_fields is not None and "result" not in allowed_fields
         ):
-            serialized_field = field_type_registry.get_serializer(
-                service.field, FieldSerializer
-            ).data
+            if public:
+                serialized_field = serialize_public_field(service.field)
+            else:
+                # Like the data schema, this describes the values of the field, so
+                # the properties of field extensions are left out.
+                serialized_field = field_type_registry.get_serializer(
+                    service.field, FieldSerializer, extra_params={"data_schema": True}
+                ).data
             context_data["field"] = serialized_field
         return context_data
 
@@ -1443,6 +1590,13 @@ class LocalBaserowAggregateRowsUserServiceType(
             + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
             + LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_names
         ) + ["field_id", "aggregation_type"]
+
+    @property
+    def public_serializer_field_names(self):
+        # Visitors of a publicly shared dashboard need the aggregation type to
+        # format the result. The field is part of the context data already, the
+        # view, filters and search query stay private.
+        return super().public_serializer_field_names + ["aggregation_type"]
 
     @property
     def serializer_field_overrides(self):
@@ -1583,7 +1737,9 @@ class LocalBaserowAggregateRowsUserServiceType(
         """
 
         if prop_name == "field_id":
-            return id_mapping.get("database_fields", {}).get(value, value)
+            return import_refinement_field_id(
+                value, id_mapping, kwargs.get("import_export_config")
+            )
 
         return super().deserialize_property(
             prop_name,
@@ -2039,6 +2195,46 @@ class LocalBaserowUpsertRowServiceType(
                 bulk_field_mappings
             )
 
+    def field_mappings_with(
+        self,
+        instance: LocalBaserowUpsertRow,
+        values: Dict[int, BaserowFormulaObject],
+        enable: bool = False,
+    ) -> List[FieldMappingValues]:
+        """
+        The service's field mappings, mappings on trashed fields included, with
+        new values for some fields, in the shape ``after_update`` takes. The update
+        replaces the whole list, so a caller should hold the service lock between
+        reading this and writing it back.
+
+        :param instance: The service.
+        :param values: The new value of each field, by field ID. A field the service
+            doesn't map yet is added at the end, enabled.
+        :param enable: Whether a field already mapped is enabled too, or keeps
+            whether it was.
+        :return: The mappings.
+        """
+
+        mappings = []
+        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+            service=instance
+        ):
+            changed = mapping.field_id in values
+            mappings.append(
+                {
+                    "field_id": mapping.field_id,
+                    "enabled": True if changed and enable else mapping.enabled,
+                    "value": values[mapping.field_id] if changed else mapping.value,
+                }
+            )
+        mapped = {mapping["field_id"] for mapping in mappings}
+        mappings.extend(
+            {"field_id": field_id, "enabled": True, "value": value}
+            for field_id, value in values.items()
+            if field_id not in mapped
+        )
+        return mappings
+
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
         # The field mappings (each row field's value/formula) live on a related model,
@@ -2081,6 +2277,7 @@ class LocalBaserowUpsertRowServiceType(
         self,
         service: LocalBaserowUpsertRow,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -2101,7 +2298,12 @@ class LocalBaserowUpsertRowServiceType(
             ]
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def _import_field_mapping_field_id(
@@ -2945,7 +3147,7 @@ class LocalBaserowDeleteRowServiceType(
         return DispatchResult(data=dispatch_data["data"], status=204)
 
 
-class LocalBaserowRowsSignalServiceType(
+class LocalBaserowRowsSignalTriggerServiceType(
     TriggerServiceTypeMixin, LocalBaserowTableServiceType
 ):
     # The signal that this service type is called by.
@@ -2987,8 +3189,17 @@ class LocalBaserowRowsSignalServiceType(
 
             return self._prepare_result(local_model, data_to_process)
 
+        # A service reading the table through an integration of another
+        # workspace isn't dispatched.
+        services = [
+            service
+            for service in self._get_services_to_dispatch(
+                table, **kwargs
+            ).select_related("integration__application")
+            if self.is_table_in_integration_workspace(service, table)
+        ]
         self._process_event(
-            self._get_services_to_dispatch(table, **kwargs),
+            services,
             get_data,
             user=user,
         )
@@ -3064,27 +3275,35 @@ class LocalBaserowRowsSignalServiceType(
         return [index, imported_field_dbname, *rest]
 
 
-class LocalBaserowRowsCreatedServiceType(LocalBaserowRowsSignalServiceType):
+class LocalBaserowRowsCreatedTriggerServiceType(
+    LocalBaserowRowsSignalTriggerServiceType
+):
     signal = rows_created
     type = "local_baserow_rows_created"
     model_class = LocalBaserowRowsCreated
 
 
-class LocalBaserowRowsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
+class LocalBaserowRowsUpdatedTriggerServiceType(
+    LocalBaserowRowsSignalTriggerServiceType
+):
     signal = rows_updated
     type = "local_baserow_rows_updated"
     model_class = LocalBaserowRowsUpdated
 
 
-class LocalBaserowRowsDeletedServiceType(LocalBaserowRowsSignalServiceType):
+class LocalBaserowRowsDeletedTriggerServiceType(
+    LocalBaserowRowsSignalTriggerServiceType
+):
     signal = rows_deleted
     type = "local_baserow_rows_deleted"
     model_class = LocalBaserowRowsDeleted
 
 
-class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
+class LocalBaserowFieldsUpdatedTriggerServiceType(
+    LocalBaserowRowsSignalTriggerServiceType
+):
     """
-    Like `LocalBaserowRowsUpdatedServiceType`, this service listens to the
+    Like `LocalBaserowRowsUpdatedTriggerServiceType`, this service listens to the
     `rows_updated` signal, but it only dispatches when one of the watched
     `fields` is among the fields that actually changed (`updated_field_ids`).
     This lets users avoid recursive trigger loops by watching specific fields.
@@ -3113,7 +3332,7 @@ class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
             ),
         }
 
-    class SerializedDict(LocalBaserowRowsSignalServiceType.SerializedDict):
+    class SerializedDict(LocalBaserowRowsSignalTriggerServiceType.SerializedDict):
         field_ids: List[int]
 
     def enhance_queryset(self, queryset):
@@ -3253,6 +3472,7 @@ class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
         self,
         service: LocalBaserowFieldsUpdated,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -3261,7 +3481,12 @@ class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
             return service.field_ids
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def deserialize_property(
@@ -3276,11 +3501,18 @@ class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
     ):
         if prop_name == "field_ids":
             database_fields = id_mapping.get("database_fields", {})
-            # Remap each field id; skip fields that were trashed during export.
+            # Remap each field id like the filters do; also skip fields that were
+            # trashed during export.
             return [
-                database_fields.get(field_id, field_id)
+                new_field_id
                 for field_id in value
-                if not database_fields or database_fields.get(field_id) is not None
+                if (
+                    new_field_id := import_refinement_field_id(
+                        field_id, id_mapping, kwargs.get("import_export_config")
+                    )
+                )
+                is not None
+                and (not database_fields or field_id in database_fields)
             ]
 
         return super().deserialize_property(

@@ -107,12 +107,26 @@ def test_update_workspace_user(api_client, data_fixture):
     user_2, token_2 = data_fixture.create_user_and_token(email="test2@test.nl")
     user_3, token_3 = data_fixture.create_user_and_token(email="test3@test.nl")
     workspace_1 = data_fixture.create_workspace()
-    data_fixture.create_user_workspace(
+    workspace_user_1 = data_fixture.create_user_workspace(
         workspace=workspace_1, user=user_1, permissions="ADMIN"
     )
     workspace_user = data_fixture.create_user_workspace(
         workspace=workspace_1, user=user_2, permissions="MEMBER"
     )
+
+    # Nobody can change their own role, not even an admin.
+    response = api_client.patch(
+        reverse(
+            "api:workspaces:users:item",
+            kwargs={"workspace_user_id": workspace_user_1.id},
+        ),
+        {"permissions": "MEMBER"},
+        HTTP_AUTHORIZATION=f"JWT {token_1}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANNOT_CHANGE_YOUR_OWN_ROLE"
+    workspace_user_1.refresh_from_db()
+    assert workspace_user_1.permissions == "ADMIN"
 
     response = api_client.patch(
         reverse("api:workspaces:users:item", kwargs={"workspace_user_id": 99999}),

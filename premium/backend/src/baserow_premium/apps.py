@@ -7,6 +7,15 @@ class BaserowPremiumConfig(AppConfig):
     name = "baserow_premium"
 
     def ready(self):
+        from baserow.core.mcp.registries import mcp_tool_registry
+        from baserow_premium.mcp.row_comments.tools import (
+            CreateRowCommentsMcpTool,
+            ListRowCommentsMcpTool,
+        )
+
+        mcp_tool_registry.register(ListRowCommentsMcpTool())
+        mcp_tool_registry.register(CreateRowCommentsMcpTool())
+
         # noinspection PyUnresolvedReferences
         import baserow_premium.fields.receivers  # noqa: F401
         import baserow_premium.license.receivers  # noqa: F401
@@ -234,33 +243,6 @@ class BaserowPremiumConfig(AppConfig):
         grouped_aggregation_registry.register(VarianceFieldAggregationType())
         grouped_aggregation_registry.register(MedianFieldAggregationType())
 
-        from baserow.contrib.database.fields.field_types import (
-            AutonumberFieldType,
-            BooleanFieldType,
-            EmailFieldType,
-            LongTextFieldType,
-            NumberFieldType,
-            PhoneNumberFieldType,
-            RatingFieldType,
-            SingleSelectFieldType,
-            TextFieldType,
-            URLFieldType,
-        )
-        from baserow_premium.integrations.registries import (
-            grouped_aggregation_group_by_registry,
-        )
-
-        grouped_aggregation_group_by_registry.register(TextFieldType())
-        grouped_aggregation_group_by_registry.register(LongTextFieldType())
-        grouped_aggregation_group_by_registry.register(URLFieldType())
-        grouped_aggregation_group_by_registry.register(EmailFieldType())
-        grouped_aggregation_group_by_registry.register(NumberFieldType())
-        grouped_aggregation_group_by_registry.register(RatingFieldType())
-        grouped_aggregation_group_by_registry.register(BooleanFieldType())
-        grouped_aggregation_group_by_registry.register(PhoneNumberFieldType())
-        grouped_aggregation_group_by_registry.register(AutonumberFieldType())
-        grouped_aggregation_group_by_registry.register(SingleSelectFieldType())
-
         from baserow.contrib.dashboard.widgets.registries import widget_type_registry
         from baserow.core.services.registries import service_type_registry
         from baserow_premium.dashboard.widgets.widget_types import (
@@ -276,5 +258,16 @@ class BaserowPremiumConfig(AppConfig):
         )
         widget_type_registry.register(ChartWidgetType())
         widget_type_registry.register(PieChartWidgetType())
+
+        from baserow.contrib.dashboard.tools.registries import (
+            widget_tool_type_registry,
+        )
+        from baserow_premium.dashboard.widgets.tool_types import (
+            ChartWidgetToolType,
+            PieChartWidgetToolType,
+        )
+
+        widget_tool_type_registry.register(ChartWidgetToolType())
+        widget_tool_type_registry.register(PieChartWidgetToolType())
 
         from baserow_premium.fields import tasks  # noqa: F401

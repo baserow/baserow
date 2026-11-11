@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "GEMBA Walks",
+    "description": "Plan GEMBA walks, log findings and follow up on actions.",
     "icon": "iconoir-walking",
     "keywords": [
         "gemba walks",

@@ -26,8 +26,8 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Workspace
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
-    UnexpectedDispatchException,
 )
 from baserow.core.services.registries import DispatchTypes, ServiceType
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
@@ -308,7 +308,8 @@ class AIAgentServiceType(ServiceType):
         :raises ServiceImproperlyConfiguredDispatchException: If required input,
             workspace context, provider registration, or model availability is
             missing, or choice output has no non-empty options.
-        :raises UnexpectedDispatchException: If the provider raises a prompt error.
+        :raises RuntimeDispatchException: If the provider raises a prompt error,
+            e.g. because it is overloaded or rate limited.
         """
 
         if not service.ai_generative_ai_type:
@@ -409,7 +410,7 @@ class AIAgentServiceType(ServiceType):
             )
             return {"result": result}
         except GenerativeAIPromptError as e:
-            raise UnexpectedDispatchException(
+            raise RuntimeDispatchException(
                 f"AI prompt execution failed: {str(e)}"
             ) from e
 

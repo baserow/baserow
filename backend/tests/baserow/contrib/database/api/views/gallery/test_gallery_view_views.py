@@ -118,7 +118,6 @@ def test_list_rows(api_client, data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
     data_fixture.create_template(workspace=gallery.table.database.workspace)
-    gallery.table.database.workspace.has_template.cache_clear()
     url = reverse("api:database:views:gallery:list", kwargs={"view_id": gallery.id})
     response = api_client.get(url)
     assert response.status_code == HTTP_200_OK
@@ -896,6 +895,51 @@ def test_get_public_gallery_view(api_client, data_fixture):
             "ownership_type": "collaborative",
         },
     }
+
+
+@pytest.mark.django_db
+def test_list_rows_limit_is_capped(api_client, data_fixture, settings):
+    settings.ROW_PAGE_SIZE_LIMIT = 200
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    gallery = data_fixture.create_gallery_view(table=table)
+
+    url = reverse("api:database:views:gallery:list", kwargs={"view_id": gallery.id})
+    response = api_client.get(url, {"limit": 201}, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
+
+    response = api_client.get(url, {"limit": 200}, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_list_rows_default_limit_respects_limit(api_client, data_fixture, settings):
+    settings.ROW_PAGE_SIZE_LIMIT = 2
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    gallery = data_fixture.create_gallery_view(table=table)
+    model = table.get_model()
+    for _ in range(3):
+        model.objects.create()
+
+    url = reverse("api:database:views:gallery:list", kwargs={"view_id": gallery.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()["results"]) == 2
+
+
+@pytest.mark.django_db
+def test_list_public_rows_limit_is_capped(api_client, data_fixture, settings):
+    settings.ROW_PAGE_SIZE_LIMIT = 200
+    gallery = data_fixture.create_gallery_view(public=True)
+
+    url = reverse(
+        "api:database:views:gallery:public_rows", kwargs={"slug": gallery.slug}
+    )
+    response = api_client.get(url, {"limit": 201})
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
 
 
 @pytest.mark.django_db

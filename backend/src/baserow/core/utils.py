@@ -5,6 +5,7 @@ import hashlib
 import inspect
 import io
 import ipaddress
+import json
 import math
 import os
 import random
@@ -694,6 +695,19 @@ def remove_null_characters(value: Any) -> Any:
     if isinstance(value, tuple):
         return tuple(remove_null_characters(item) for item in value)
     return value
+
+
+def remove_unstorable_characters(value: Any) -> Any:
+    """
+    Removes NUL characters and lone surrogates from every string in a JSON value,
+    keys included, as PostgreSQL can't store them in a text or json column.
+
+    :param value: A value that can be dumped as JSON.
+    :return: A copy of the value without those characters.
+    """
+
+    dumped = json.dumps(value).encode("utf-8")
+    return json.loads(remove_invalid_surrogate_characters(dumped, "utf-8"))
 
 
 def split_ending_number(name: str) -> Tuple[str, str]:
@@ -1511,3 +1525,18 @@ def are_kwargs_default(func, **kwargs):
             return False
 
     return True
+
+
+def get_embedded_share_url(path: str) -> str:
+    """
+    Builds a URL that is shared outside of the app, for example a password reset
+    link in an email. It always starts with `BASEROW_EMBEDDED_SHARE_URL`, which
+    defaults to `PUBLIC_WEB_FRONTEND_URL` and is only different when Baserow is
+    embedded in another website. Redirects into the app itself, like SSO or OAuth
+    consent, must use `PUBLIC_WEB_FRONTEND_URL` instead.
+
+    :param path: The frontend path, without a leading slash.
+    :return: The frontend URL.
+    """
+
+    return f"{settings.BASEROW_EMBEDDED_SHARE_URL.rstrip('/')}/{path}"

@@ -79,6 +79,7 @@
     "integrationMessage": "You can create new integrations by adding data source, action or user authentication."
   },
   "automationHeader": {
+    "untrustedContentWarning": "Custom code nodes are blocked. Review the import report before trusting this workflow’s content.",
     "startTestRun": "Start test run",
     "stopTestRun": "Stop test run",
     "publishBtn": "Publish",
@@ -93,11 +94,22 @@
   },
   "dataProviderType": {
     "currentIteration": "Current iteration",
+    "currentNode": "This node",
     "item": "Item",
     "previousNode": "Previous node"
   },
   "nodeSidePanel": {
     "labelTitle": "Label"
+  },
+  "nodeErrorHandlingForm": {
+    "title": "Error handling",
+    "onFailureLabel": "On failure",
+    "stop": "Stop",
+    "retry": "Retry",
+    "conditionLabel": "Condition",
+    "conditionHelp": "Checked against the result of this node after each attempt. When it is true, the attempt counts as failed and the node is retried, for example when an HTTP request returns a certain status code.",
+    "conditionPlaceholder": "get('current_node.status_code') = 429",
+    "retriesLabel": "Retries"
   },
   "historySidePanel": {
     "title": "History",
@@ -110,6 +122,11 @@
     "statusSuccessBadge": "Completed",
     "statusErrorBadge": "Failed",
     "statusSkippedBadge": "Skipped",
+    "statusRetriedBadge": "Retried",
+    "statusWaitingBadge": "Waiting",
+    "statusRunningBadge": "Running",
+    "statusCancelledBadge": "Cancelled",
+    "waitingUntil": "Waiting until {time}",
     "statusDisabled": "Disabled by Baserow",
     "startedBy": "Started by {name}",
     "successfulRuns": "Successful runs",
@@ -124,6 +141,7 @@
     "errorHideDetails": "Hide details",
     "errorShowDetails": "Show details",
     "runNumber": "Run {n}",
+    "retryNumber": "Retry {n}",
     "runCount": "{n} runs",
     "testRun": "Test",
     "showResult": "Show result"
@@ -155,6 +173,10 @@
     "gotoHistoryLabel": "{label} → {destination}",
     "responseLabel": "Response",
     "iterationLabel": "Iterate on items",
+    "iteratorAliases": "loop, for loop, for each, repeat, iterate",
+    "gotoAliases": "while loop, repeat until, loop, retry, jump, back",
+    "waitNodeLabel": "Wait",
+    "waitAliases": "delay, sleep, pause, timer",
     "defaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
@@ -190,6 +212,20 @@
     "searchPlaceholderTrigger": "Search for an event...",
     "searchPlaceholderActions": "Search for actions...",
     "noResults": "No results found"
+  },
+  "nodeRecipe": {
+    "groupLabel": "Recipes",
+    "forLoopName": "For loop",
+    "forLoopDescription": "Adds an Iterator that runs its child nodes 5 times. Change the range to loop more or fewer times.",
+    "forLoopAliases": "loop, for each, repeat, iterate",
+    "forLoopIteratorLabel": "Repeat 5 times",
+    "whileLoopName": "While loop",
+    "whileLoopDescription": "Adds a List rows node and a Go to node that jumps back while rows are found. Add nodes between them that change those rows, or the loop never ends.",
+    "whileLoopAliases": "loop, repeat until, until, retry",
+    "whileLoopListRowsLabel": "Find rows to process",
+    "whileLoopGotoLabel": "Repeat while rows are found",
+    "nodesLeftTitle": "Recipe partly added",
+    "nodesLeftMessage": "The {recipe} recipe could not be completed, and the nodes it had already added could not be removed. Undo removes them, or delete them from the workflow."
   },
   "serviceType": {
     "periodicTrigger": "Periodic trigger",

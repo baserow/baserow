@@ -21,6 +21,7 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.models import (
     Element,
+    InputTextElement,
     MenuElement,
     MenuItemElement,
     TableElement,
@@ -29,8 +30,12 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
+from baserow.contrib.builder.tools.themes import builder_uses_theme
+from baserow.contrib.builder.tools.types.changes import name_key
+from baserow.contrib.builder.tools.types.menu_items import new_menu_link
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
+    NotificationWorkflowAction,
     OpenPageWorkflowAction,
 )
 from baserow.contrib.database.fields.models import Field
@@ -38,7 +43,10 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View, ViewFilter
-from baserow.contrib.integrations.local_baserow.models import LocalBaserowListRows
+from baserow.contrib.integrations.local_baserow.models import (
+    LocalBaserowGetRow,
+    LocalBaserowListRows,
+)
 from baserow.core.cache import local_cache
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -63,9 +71,6 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
-from baserow_enterprise.assistant.tools.builder.themes import builder_uses_theme
-from baserow_enterprise.assistant.tools.builder.types.changes import name_key
-from baserow_enterprise.assistant.tools.builder.types.menu_items import new_menu_link
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files
@@ -171,6 +176,21 @@ PROMPT_LINK_COLUMN_NEW_TAB = (
 PROMPT_ADD_EDITAR_BUTTON_COLUMN = (
     "On the Students page of '{builder_name}', add a last column called Editar to "
     "the table, with a button that opens the Edit student page for that row."
+)
+
+PROMPT_CHANGE_NOTIFICATION_TITLE = (
+    "In builder '{builder_name}', change the message the Save button shows to "
+    "'All done!'."
+)
+
+PROMPT_CHANGE_ROW_ACTION_MAPPING = (
+    "In builder '{builder_name}', make the Close button set the task's Status to "
+    "'Done' instead of 'Open'."
+)
+
+PROMPT_CHANGE_OPEN_PAGE_PARAMETER = (
+    "In builder '{builder_name}', make the Open button's slug parameter 'latest' "
+    "and leave its id as it is."
 )
 
 # ---------------------------------------------------------------------------
@@ -483,6 +503,21 @@ def _check_creates_contact_form(
         else False
     )
 
+    inputs = {
+        element.id: element.specific
+        for element in elements.filter(content_type__model="inputtextelement")
+    }
+
+    def _input_of(field) -> InputTextElement | None:
+        ids = {int(m) for m in form_data_re.findall(str(mappings.get(field.id, "")))}
+        return inputs.get(ids.pop()) if len(ids) == 1 else None
+
+    name_input, email_input = _input_of(name_field), _input_of(email_field)
+    email_input_ok = email_input is not None and (
+        email_input.validation_type == "email"
+        or "mail" in str(email_input.label).lower()
+    )
+
     return [
         CheckResult("page created", pages.exists(), hint="no pages found in DB"),
         CheckResult(
@@ -527,6 +562,14 @@ def _check_creates_contact_form(
             "all field mappings reference form input elements",
             all_map_formulas_ok,
             hint=f"formulas: {list(mappings.values())}, form input IDs: {form_input_ids}",
+        ),
+        CheckResult(
+            "Name and Email read their own inputs",
+            name_input is not None
+            and email_input_ok
+            and name_input.id != email_input.id
+            and "mail" not in str(name_input.label).lower(),
+            hint=f"formulas: {list(mappings.values())}",
         ),
     ]
 
@@ -982,7 +1025,7 @@ def _check_creates_app_with_theme(
 
     return [
         CheckResult(
-            "called create_builders", tool_called(output, "create_builders") >= 1
+            "called create_builder", tool_called(output, "create_builder") >= 1
         ),
         CheckResult(
             "builder 'Dashboard' created",
@@ -2329,6 +2372,10 @@ PROMPT_DEMO_PAGE = (
 
 PROMPT_TEAM_APP = "Create an app for my team."
 
+# Same request in wording that no prompt or tool description quotes, so the case
+# can't pass by matching an example.
+PROMPT_VOLUNTEERS_TOOL = "Put together a tool our volunteers can use."
+
 
 def _check_asks_when_named_table_missing(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
@@ -2475,7 +2522,10 @@ def _check_asks_once_when_goal_unclear(
         tool_called(output, "create_tables")
         + tool_called(output, "create_pages")
         + tool_called(output, "setup_page")
-        + tool_called(output, "create_builders")
+        + tool_called(output, "create_builder")
+        + tool_called(output, "create_database")
+        + tool_called(output, "create_automation")
+        + tool_called(output, "create_dashboard")
     )
 
     return [
@@ -2503,6 +2553,18 @@ register_case(
         dataset="kuma-builder",
         # Nothing pins what the app is for: one question first, not a guess.
         prompt=PROMPT_TEAM_APP,
+        scenario="builder-blank-app",
+        checks=_check_asks_once_when_goal_unclear,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/asks-once-when-goal-unclear-unquoted",
+        dataset="kuma-builder",
+        prompt=PROMPT_VOLUNTEERS_TOOL,
         scenario="builder-blank-app",
         checks=_check_asks_once_when_goal_unclear,
         mode=AgentMode.APPLICATION,
@@ -2784,6 +2846,15 @@ def _check_menu_button_opens_page(
             ),
             hint=f"actions on {help_click}: {[type(a).__name__ for a in actions]}",
         ),
+        CheckResult(
+            "Help's click action is stored on the shared page",
+            bool(actions)
+            and all(
+                action.page_id == scenario.refs["builder"].shared_page.id
+                for action in actions
+            ),
+            hint=f"pages: {[a.page_id for a in actions]}",
+        ),
     ]
 
 
@@ -2950,5 +3021,473 @@ register_case(
         checks=_check_menu_removes_dropdown,
         mode=AgentMode.APPLICATION,
         max_iters=25,
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Detail pages read their row from the URL
+# ---------------------------------------------------------------------------
+
+PROMPT_PRODUCT_DETAIL_PAGE = (
+    "In builder '{builder_name}', create a 'Product' page at '/product/:id' that "
+    "shows the Name and Price of the product whose id is in the URL. Add an "
+    "'Add to cart' button that shows a notification titled with the product's name."
+)
+PROMPT_CHANGE_DETAIL_PATH = (
+    "In builder '{builder_name}', change the Product page's URL to '/item/:id/:slug'."
+)
+PROMPT_DETAIL_ROW_FROM_URL = (
+    "On the Product page of '{builder_name}', the Product data source always shows "
+    "the same product. Make it load the product whose id is in the page URL."
+)
+
+
+def _reads_page_parameter(value: Any, name: str) -> bool:
+    return f"page_parameter.{name}" in _formula_text(value)
+
+
+def _get_row_sources(page: Page | None, table: Table) -> dict[int, Any]:
+    """The page's get_row services reading ``table``, by data source id."""
+
+    if page is None:
+        return {}
+    return {
+        source.id: source.service.specific
+        for source in DataSource.objects.filter(page=page)
+        if source.service_id is not None
+        and isinstance(source.service.specific, LocalBaserowGetRow)
+        and source.service.specific.table_id == table.id
+    }
+
+
+@register_scenario("builder-product-shop")
+def _product_shop_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="Store"
+    )
+    table = fx.create_database_table(user=user, database=database, name="Products")
+    name_field = fx.create_text_field(table=table, name="Name", primary=True)
+    price_field = fx.create_number_field(table=table, name="Price")
+    RowHandler().create_rows(
+        user,
+        table,
+        [
+            {f"field_{name_field.id}": "Chair", f"field_{price_field.id}": 49},
+            {f"field_{name_field.id}": "Desk", f"field_{price_field.id}": 199},
+        ],
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "builder": builder,
+            "table": table,
+            "name_field": name_field,
+            "price_field": price_field,
+        },
+    )
+
+
+def _check_product_detail_page(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    builder = scenario.refs["builder"]
+    table = scenario.refs["table"]
+    name_field = scenario.refs["name_field"]
+    price_field = scenario.refs["price_field"]
+
+    page = Page.objects.filter(
+        builder=builder, shared=False, path="/product/:id"
+    ).first()
+    sources = _get_row_sources(page, table)
+    element_formulas = " ".join(
+        str(vars(element.specific))
+        for element in (Element.objects.filter(page=page) if page else [])
+    )
+    notifications = [
+        action.specific
+        for action in (BuilderWorkflowAction.objects.filter(page=page) if page else [])
+        if isinstance(action.specific, NotificationWorkflowAction)
+    ]
+
+    def shown(field: Field) -> bool:
+        return any(
+            f"data_source.{source_id}.field_{field.id}" in element_formulas
+            for source_id in sources
+        )
+
+    return [
+        CheckResult(
+            "page created at '/product/:id'",
+            page is not None,
+            hint=f"paths: {list(Page.objects.filter(builder=builder).values_list('path', flat=True))}",
+        ),
+        CheckResult(
+            "get_row data source reads the row id from the URL",
+            any(_reads_page_parameter(svc.row_id, "id") for svc in sources.values()),
+            hint=f"row ids: {[_formula_text(svc.row_id) for svc in sources.values()]}",
+        ),
+        CheckResult("an element shows the product's Name", shown(name_field)),
+        CheckResult("an element shows the product's Price", shown(price_field)),
+        CheckResult(
+            "notification title is the product's name",
+            any(
+                f"field_{name_field.id}" in _formula_text(action.title)
+                for action in notifications
+            ),
+            hint=f"titles: {[_formula_text(action.title) for action in notifications]}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/creates-product-detail-page",
+        dataset="kuma-builder",
+        prompt=PROMPT_PRODUCT_DETAIL_PAGE.format(builder_name="Shop"),
+        scenario="builder-product-shop",
+        checks=_check_product_detail_page,
+        mode=AgentMode.APPLICATION,
+        max_iters=30,
+    )
+)
+
+
+@register_scenario("builder-product-detail-page")
+def _product_detail_page_scenario(fx: Fixtures) -> EvalScenario:
+    scenario = _product_shop_scenario(fx)
+    refs = scenario.refs
+    page = fx.create_builder_page(
+        builder=refs["builder"],
+        name="Product",
+        path="/product/:id",
+        path_params=[{"name": "id", "type": "numeric"}],
+    )
+    fx.create_builder_local_baserow_get_row_data_source(
+        page=page,
+        name="Product",
+        table=refs["table"],
+        row_id="'1'",
+        integration_args={"authorized_user": scenario.user},
+    )
+    return EvalScenario(
+        user=scenario.user,
+        workspace=scenario.workspace,
+        ui_context=scenario.ui_context,
+        refs={**refs, "page": page},
+    )
+
+
+def _check_changes_detail_path(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    page = scenario.refs["page"]
+    page.refresh_from_db()
+    params = {param["name"]: param.get("type") for param in page.path_params}
+    return [
+        CheckResult(
+            "path is '/item/:id/:slug'",
+            page.path == "/item/:id/:slug",
+            hint=f"path: {page.path}",
+        ),
+        CheckResult(
+            "id stays numeric", params.get("id") == "numeric", hint=f"params: {params}"
+        ),
+        CheckResult("slug is a path parameter", "slug" in params, hint=f"{params}"),
+        CheckResult(
+            "no other page was created",
+            Page.objects.filter(builder=scenario.refs["builder"], shared=False).count()
+            == 1,
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/changes-detail-path-keeps-param-type",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_DETAIL_PATH.format(builder_name="Shop"),
+        scenario="builder-product-detail-page",
+        checks=_check_changes_detail_path,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+def _check_detail_row_from_url(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    sources = _get_row_sources(scenario.refs["page"], scenario.refs["table"])
+    return [
+        CheckResult(
+            "Product data source reads the row id from the URL",
+            any(_reads_page_parameter(svc.row_id, "id") for svc in sources.values()),
+            hint=f"row ids: {[_formula_text(svc.row_id) for svc in sources.values()]}",
+        ),
+        CheckResult("still one data source on the page", len(sources) == 1),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/sets-detail-row-from-url",
+        dataset="kuma-builder",
+        prompt=PROMPT_DETAIL_ROW_FROM_URL.format(builder_name="Shop"),
+        scenario="builder-product-detail-page",
+        checks=_check_detail_row_from_url,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+@register_scenario("builder-changes-actions")
+def _changes_actions_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    home = fx.create_builder_page(builder=builder, name="Home", path="/")
+    detail = fx.create_builder_page(
+        builder=builder,
+        name="Detail",
+        path="/d/:id/:slug",
+        path_params=[{"name": "id", "type": "text"}, {"name": "slug", "type": "text"}],
+    )
+    save_button = fx.create_builder_button_element(page=home, value="'Save'")
+    open_button = fx.create_builder_button_element(page=home, value="'Open'")
+    save_action = fx.create_notification_workflow_action(
+        page=home, element=save_button, event="click", title="'Saved'"
+    )
+    open_action = fx.create_open_page_workflow_action(
+        page=home,
+        element=open_button,
+        event="click",
+        navigation_type="page",
+        navigate_to_page=detail,
+        page_parameters=[
+            {"name": "id", "value": BaserowFormulaObject.create("'42'")},
+            {"name": "slug", "value": BaserowFormulaObject.create("'first'")},
+        ],
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "builder": builder,
+            "home": home,
+            "save_button": save_button,
+            "open_button": open_button,
+            "save_action_id": save_action.id,
+            "open_action_id": open_action.id,
+        },
+    )
+
+
+def _actions_of(button) -> list[BuilderWorkflowAction]:
+    return list(BuilderWorkflowAction.objects.filter(element_id=button.id))
+
+
+def _home_buttons_unchanged(scenario: EvalScenario) -> CheckResult:
+    """The Home page still holds only the Save and Open buttons, with their text."""
+
+    refs = scenario.refs
+    buttons = [
+        (element.id, _render_saved_formula(getattr(element.specific, "value", None)))
+        for element in Element.objects.filter(page=refs["home"]).order_by("id")
+    ]
+    return CheckResult(
+        "Home page still has only the Save and Open buttons, unchanged",
+        buttons == [(refs["save_button"].id, "Save"), (refs["open_button"].id, "Open")],
+        hint=f"buttons: {buttons}",
+    )
+
+
+def _check_changes_notification_title(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    actions = _actions_of(scenario.refs["save_button"])
+    action = actions[0].specific if len(actions) == 1 else None
+    return [
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
+        CheckResult(
+            "Save button still has one action, the same one",
+            len(actions) == 1 and actions[0].id == scenario.refs["save_action_id"],
+            hint=f"actions: {[(a.id, type(a).__name__) for a in actions]}",
+        ),
+        CheckResult(
+            "message is 'All done!'",
+            action is not None
+            and _render_saved_formula(getattr(action, "title", "")) == "All done!",
+            hint=f"title: {_formula_text(getattr(action, 'title', None))}",
+        ),
+        CheckResult(
+            "Open button's action untouched",
+            [a.id for a in _actions_of(scenario.refs["open_button"])]
+            == [scenario.refs["open_action_id"]],
+        ),
+        _home_buttons_unchanged(scenario),
+    ]
+
+
+def _check_changes_open_page_parameter(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    actions = _actions_of(scenario.refs["open_button"])
+    action = actions[0].specific if len(actions) == 1 else None
+    parameters = {
+        parameter["name"]: _render_saved_formula(parameter.get("value"))
+        for parameter in (getattr(action, "page_parameters", None) or [])
+    }
+    return [
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
+        CheckResult(
+            "Open button still has one action, the same one",
+            len(actions) == 1 and actions[0].id == scenario.refs["open_action_id"],
+            hint=f"actions: {[(a.id, type(a).__name__) for a in actions]}",
+        ),
+        CheckResult(
+            "slug is 'latest'",
+            parameters.get("slug") == "latest",
+            hint=f"parameters: {parameters}",
+        ),
+        CheckResult(
+            "id is unchanged",
+            parameters.get("id") == "42",
+            hint=f"parameters: {parameters}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/changes-notification-title",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_NOTIFICATION_TITLE.format(builder_name="Shop"),
+        scenario="builder-changes-actions",
+        checks=_check_changes_notification_title,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/changes-open-page-parameter",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_OPEN_PAGE_PARAMETER.format(builder_name="Shop"),
+        scenario="builder-changes-actions",
+        checks=_check_changes_open_page_parameter,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+
+@register_scenario("builder-changes-row-action")
+def _changes_row_action_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    builder = fx.create_builder_application(user=user, workspace=workspace, name="Shop")
+    home = fx.create_builder_page(builder=builder, name="Home", path="/")
+    database = fx.create_database_application(
+        user=user, workspace=workspace, name="Work"
+    )
+    tasks, (name_field, status_field), _ = fx.build_table(
+        user=user,
+        database=database,
+        name="Tasks",
+        columns=[("Name", "text"), ("Status", "text")],
+        rows=[["Write docs", "Open"], ["Ship it", "Open"]],
+    )
+    integration = fx.create_local_baserow_integration(application=builder, user=user)
+    service = fx.create_local_baserow_upsert_row_service(
+        table=tasks, integration=integration, row_id="'2'"
+    )
+    service.field_mappings.create(field=name_field, value="'Ship it'", enabled=True)
+    service.field_mappings.create(field=status_field, value="'Open'", enabled=True)
+    button = fx.create_builder_button_element(page=home, value="'Close'")
+    action = fx.create_local_baserow_update_row_workflow_action(
+        page=home, element=button, event="click", service=service
+    )
+    return EvalScenario(
+        user=user,
+        workspace=workspace,
+        ui_context=build_builder_ui_context(user, workspace, builder),
+        refs={
+            "button": button,
+            "action_id": action.id,
+            "table": tasks,
+            "name_field": name_field,
+            "status_field": status_field,
+        },
+    )
+
+
+def _check_changes_row_action_mapping(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    actions = _actions_of(scenario.refs["button"])
+    action = actions[0].specific if len(actions) == 1 else None
+    service = action.service.specific if action is not None else None
+    mappings = (
+        {
+            m.field_id: _render_saved_formula(m.value)
+            for m in service.field_mappings.filter(enabled=True)
+        }
+        if service is not None
+        else {}
+    )
+    return [
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
+        CheckResult(
+            "Close button still has one action, the same one",
+            len(actions) == 1 and actions[0].id == scenario.refs["action_id"],
+            hint=f"actions: {[(a.id, type(a).__name__) for a in actions]}",
+        ),
+        CheckResult(
+            "still updates row 2 of Tasks",
+            service is not None
+            and service.table_id == scenario.refs["table"].id
+            and _render_saved_formula(service.row_id) == "2",
+            hint=f"row_id: {_formula_text(getattr(service, 'row_id', None))}",
+        ),
+        CheckResult(
+            "Status is set to 'Done'",
+            mappings.get(scenario.refs["status_field"].id) == "Done",
+            hint=f"mappings: {mappings}",
+        ),
+        CheckResult(
+            "Name mapping unchanged",
+            mappings.get(scenario.refs["name_field"].id) == "Ship it",
+            hint=f"mappings: {mappings}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="builder/changes-row-action-mapping",
+        dataset="kuma-builder",
+        prompt=PROMPT_CHANGE_ROW_ACTION_MAPPING.format(builder_name="Shop"),
+        scenario="builder-changes-row-action",
+        checks=_check_changes_row_action_mapping,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
     )
 )

@@ -9,10 +9,15 @@ from baserow.core.action.scopes import (
     WORKSPACE_ACTION_CONTEXT,
     WorkspaceActionScopeType,
 )
-from baserow.core.exceptions import ApplicationDoesNotExist, WorkspaceDoesNotExist
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    InstanceTypeDoesNotExist,
+    WorkspaceDoesNotExist,
+)
 from baserow.core.models import Application, Workspace
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.trash.registries import trash_item_type_registry
 
 
 class EmptyTrashActionType(ActionType):
@@ -148,3 +153,16 @@ class RestoreFromTrashActionType(ActionType):
     @classmethod
     def scope(cls, workspace_id: int):
         return WorkspaceActionScopeType.value(workspace_id)
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        try:
+            item_type = trash_item_type_registry.get(params_dict["item_type"])
+        except InstanceTypeDoesNotExist:
+            return super().get_long_description(params_dict, *args, **kwargs)
+
+        return super().get_long_description(
+            {**params_dict, "item_type": item_type.get_type_display_name()},
+            *args,
+            **kwargs,
+        )

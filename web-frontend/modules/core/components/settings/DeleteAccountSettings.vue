@@ -29,7 +29,7 @@
       </p>
       <ul class="delete-section__list">
         <li v-for="workspace in orphanWorkspaces" :key="workspace.id">
-          <i class="delete-section__list-icon iconoir-community"></i>
+          <i class="delete-section__list-icon baserow-icon-team"></i>
           {{ workspace.name }}
           <small>
             {{

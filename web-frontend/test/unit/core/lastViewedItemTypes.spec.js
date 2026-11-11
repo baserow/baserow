@@ -22,7 +22,7 @@ describe('lastViewedItem registry types', () => {
     await testApp.afterEach()
   })
 
-  test('the four backend types are registered in application order', () => {
+  test('the backend types are registered in application order', () => {
     expect(
       registry.getOrderedList('lastViewedItem').map((type) => type.getType())
     ).toEqual([
@@ -30,6 +30,7 @@ describe('lastViewedItem registry types', () => {
       'builder_page',
       'dashboard',
       'automation_workflow',
+      'agent',
     ])
   })
 

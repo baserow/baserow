@@ -6,10 +6,13 @@ from unittest.mock import ANY, MagicMock, Mock, patch
 import pytest
 from requests import exceptions as request_exceptions
 
+from advocate.exceptions import UnacceptableAddressException
 from baserow.contrib.integrations.core.models import BODY_TYPE, HTTP_METHOD
 from baserow.contrib.integrations.core.service_types import CoreHTTPRequestServiceType
 from baserow.core.services.exceptions import (
+    AddressNotAllowedDispatchException,
     ResponseTooLargeDispatchException,
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
@@ -160,6 +163,49 @@ def test_core_http_request_request_error(
     with pytest.raises(UnexpectedDispatchException):
         with mock_advocate_request(raise_exception=InvalidHeader()):
             service_type.dispatch(service, dispatch_context)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "failure",
+    [
+        request_exceptions.ConnectionError("nope"),
+        request_exceptions.ChunkedEncodingError("cut off"),
+        ConnectionResetError(),
+    ],
+)
+def test_core_http_request_transport_failure_is_retryable(data_fixture, failure):
+    """
+    A connection that could not be made or was dropped may well succeed next
+    time, so the automation runner is told it can retry the node.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    with mock_advocate_request(raise_exception=failure):
+        with pytest.raises(RuntimeDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+
+@pytest.mark.django_db
+def test_core_http_request_refused_address_is_not_retryable(data_fixture):
+    """
+    An address refused before anything was sent will be refused again.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'", timeout=15, http_method=HTTP_METHOD.GET
+    )
+
+    with mock_advocate_request(
+        raise_exception=UnacceptableAddressException("10.0.0.5")
+    ):
+        with pytest.raises(AddressNotAllowedDispatchException) as raised:
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert not isinstance(raised.value, RuntimeDispatchException)
 
 
 @pytest.mark.django_db

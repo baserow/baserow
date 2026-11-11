@@ -431,6 +431,7 @@ class CollectionElementTypeMixin:
         self,
         element: CollectionElementSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -455,6 +456,7 @@ class CollectionElementTypeMixin:
         return super().serialize_property(
             element,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
@@ -713,6 +715,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         self,
         element: CollectionElementSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -732,6 +735,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         return super().serialize_property(
             element,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,
@@ -1018,6 +1022,7 @@ class MultiPageElementTypeMixin:
         self,
         element: "MultiPageElementTypeMixin",
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -1034,6 +1039,7 @@ class MultiPageElementTypeMixin:
         return super().serialize_property(
             element,
             prop_name,
+            import_export_config=import_export_config,
             files_zip=files_zip,
             storage=storage,
             cache=cache,

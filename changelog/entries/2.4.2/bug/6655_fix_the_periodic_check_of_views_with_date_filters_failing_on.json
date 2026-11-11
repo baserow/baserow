@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix the periodic check of views with date filters failing on large instances, so their webhooks are sent again. The first check after upgrading can send late \"Rows enter view\" webhooks for rows missed earlier",
+    "issue_origin": "github",
+    "issue_number": 6655,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-09"
+}

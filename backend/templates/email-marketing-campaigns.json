@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Email Marketing Campaigns",
+    "description": "Plan email campaigns with subject lines, lists, brands and the team.",
     "icon": "iconoir-mail-out",
     "keywords": [
         "email copy structure",

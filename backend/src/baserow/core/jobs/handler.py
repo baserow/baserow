@@ -12,6 +12,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 
 from baserow.core.utils import Progress
 
+from .constants import JOB_CANCELLED
 from .exceptions import JobCancelled, JobDoesNotExist, JobNotCancellable
 from .models import Job
 from .registries import job_type_registry
@@ -30,18 +31,43 @@ class JobHandler:
 
         :param job: The job to cancel.
         :return: The job that was marked for cancellation.
-        :raises JobNotCancellable: If the job is already finished or failed, and
-            cannot be cancelled.
+        :raises JobNotCancellable: If the job is already finished or failed, or its
+            type refuses the cancellation, and cannot be cancelled.
         """
 
-        if job.cancelled:
-            return
-        elif job.ended:
-            raise JobNotCancellable()
+        job_type = job_type_registry.get_by_model(job.specific_class)
+        with transaction.atomic():
+            current_job = cls.lock_job(job) if job_type.lock_on_cancel else job
+            if current_job.cancelled:
+                return
+            elif current_job.ended or (
+                job_type.lock_on_cancel and not job_type.is_cancellable(current_job)
+            ):
+                raise JobNotCancellable()
 
-        job.set_state_cancelled()
-        job.save()
+            # Only the state is saved, so that what the job saved in the meantime
+            # is kept. The task checks the cache, so it's only updated once the
+            # cancellation commits: a rolled back one mustn't drop the task.
+            job.state = JOB_CANCELLED
+            job.save(update_fields=["state", "updated_on"])
+            transaction.on_commit(job.set_cached_state)
         return job
+
+    @classmethod
+    def lock_job(cls, job: AnyJob) -> AnyJob:
+        """
+        Locks the row of the job until the end of the current transaction, see
+        `JobType.lock_on_cancel`.
+
+        Only the row of the base job is locked. A multi-table save of the job
+        updates that row first, so the locks are always taken in the same order.
+
+        :param job: The job to lock.
+        :return: The specific job, as it is in the database.
+        """
+
+        Job._base_manager.select_for_update().only("id").get(id=job.id)
+        return job.specific_class._base_manager.get(id=job.id)
 
     @classmethod
     def run(cls, job: AnyJob):
@@ -199,6 +225,7 @@ class JobHandler:
         foreign_content_type_ids = list(
             Job.objects.filter(id__in=filter_ids)
             .exclude(user=user)
+            .order_by()
             .values_list("content_type_id", flat=True)
             .distinct()
         )

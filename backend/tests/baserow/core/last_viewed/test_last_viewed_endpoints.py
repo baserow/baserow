@@ -5,7 +5,7 @@ from django.conf import settings
 from django.shortcuts import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_404_NOT_FOUND
 
 from baserow.core.user.utils import generate_session_tokens_for_user
 
@@ -112,6 +112,29 @@ def test_dashboard_widgets_endpoint_schedules_last_viewed(
 
     assert response.status_code == HTTP_200_OK
     assert scheduled_views == [("dashboard", dashboard.id)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_agent_endpoint_schedules_last_viewed_only_for_agents(
+    api_client, data_fixture, scheduled_views
+):
+    user, token = data_fixture.create_user_and_token()
+    agent = data_fixture.create_agent_application(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+
+    responses = [
+        api_client.get(
+            reverse("api:agent:item", kwargs={"agent_id": application.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        for application in (agent, database)
+    ]
+
+    assert [response.status_code for response in responses] == [
+        HTTP_200_OK,
+        HTTP_404_NOT_FOUND,
+    ]
+    assert scheduled_views == [("agent", agent.id)]
 
 
 @pytest.mark.django_db(transaction=True)

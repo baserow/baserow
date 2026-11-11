@@ -60,8 +60,10 @@ class FieldPermissionSubjectOptionResponseSerializer(serializers.Serializer):
         read_only=True,
         choices=[UserSubjectType.type, TeamSubjectType.type, AgentSubjectType.type],
     )
-    name = serializers.CharField(read_only=True)
-    email = serializers.EmailField(read_only=True, allow_null=True)
+    name = serializers.CharField(source="subject_name", read_only=True)
+    email = serializers.EmailField(
+        source="subject_email", read_only=True, allow_null=True
+    )
     subject_count = serializers.IntegerField(read_only=True, allow_null=True)
 
 

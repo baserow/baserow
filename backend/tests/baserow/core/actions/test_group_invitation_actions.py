@@ -20,7 +20,6 @@ def test_create_workspace_invitation_action_type(data_fixture):
         workspace=workspace,
         email="user@test.com",
         permissions="ADMIN",
-        base_url="http://localhost:3000/",
     )
 
     assert invitation.workspace == workspace
@@ -57,7 +56,7 @@ def test_delete_workspace_invitation_action_type(data_fixture):
 def test_accept_workspace_invitation_action_type(data_fixture):
     sender = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=sender)
-    user = data_fixture.create_user()
+    user = data_fixture.create_user(email_verified=True)
     invitation = data_fixture.create_workspace_invitation(
         invited_by=sender, workspace=workspace, email=user.email
     )
@@ -72,7 +71,7 @@ def test_accept_workspace_invitation_action_type(data_fixture):
 def test_reject_workspace_invitation_action_type(data_fixture):
     sender = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=sender)
-    user = data_fixture.create_user()
+    user = data_fixture.create_user(email_verified=True)
     invitation = data_fixture.create_workspace_invitation(
         invited_by=sender, workspace=workspace, email=user.email
     )

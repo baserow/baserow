@@ -153,6 +153,10 @@ export class AIFieldType extends FieldType {
     return this.getBaserowFieldType(field).canRepresentDate(field)
   }
 
+  isEmptyForGrouping(field, value) {
+    return this.getBaserowFieldType(field).isEmptyForGrouping(field, value)
+  }
+
   getCanGroupByInView(field) {
     return this.getBaserowFieldType(field).getCanGroupByInView(field)
   }

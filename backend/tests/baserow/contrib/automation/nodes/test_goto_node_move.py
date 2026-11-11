@@ -25,7 +25,7 @@ def _root_goto_workflow(data_fixture, user=None):
     iterator = data_fixture.create_core_iterator_action_node(
         workflow=workflow, label="iterator"
     )
-    goto = data_fixture.create_core_goto_node(workflow=workflow, label="goto")
+    goto = data_fixture.create_core_goto_action_node(workflow=workflow, label="goto")
 
     service = goto.service.specific
     service.condition = "'true'"
@@ -120,7 +120,7 @@ def test_move_container_holding_both_endpoints_keeps_goto_link(data_fixture):
         reference_node=iterator,
         position="child",
     )
-    goto = data_fixture.create_core_goto_node(
+    goto = data_fixture.create_core_goto_action_node(
         workflow=workflow, label="goto", reference_node=destination, position="south"
     )
     service = goto.service.specific

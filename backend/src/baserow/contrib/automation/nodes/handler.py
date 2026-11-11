@@ -1,8 +1,11 @@
+import math
 from collections import defaultdict
+from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Type, Union
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
 from django.db import transaction
 from django.db.models import QuerySet
@@ -27,36 +30,62 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.models import AutomationWorkflow
+from baserow.contrib.automation.nodes.constants import (
+    AUTOMATION_NODE_RETRY_COUNTDOWNS,
+    AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS,
+    AUTOMATION_PENDING_NODE_STALE_SECONDS,
+    AutomationNodeOnFailure,
+)
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
     AutomationNodeMaxDispatchesExceeded,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.node_types import (
-    AutomationNodeActionNodeType,
+    AutomationActionNodeType,
     AutomationNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.signals import (
     automation_node_dispatch_completed,
+    automation_node_dispatch_resumed,
     automation_node_dispatch_started,
+    automation_node_dispatch_suspended,
     automation_node_updated,
 )
 from baserow.contrib.automation.nodes.tasks import (
     dispatch_node_celery_task,
     resume_deferred_node_celery_task,
+    resume_pending_node_celery_task,
 )
-from baserow.contrib.automation.nodes.types import AutomationNodeDict
+from baserow.contrib.automation.nodes.types import (
+    AutomationNodeDict,
+    NodeDispatchRetry,
+    PendingNodeAlreadyClaimed,
+    PendingNodeNotDue,
+)
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowDoesNotExist,
+)
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
+from baserow.core.formula import BaserowFormulaException, resolve_formula
+from baserow.core.formula.exceptions import (
+    InvalidFormulaContext,
+    InvalidFormulaContextContent,
+)
+from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.formula.validator import ensure_boolean
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.exceptions import (
+    RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
-from baserow.core.services.types import DispatchResult
+from baserow.core.services.types import DispatchResult, PendingDispatch
 from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace, baserow_trace_handler
 from baserow.core.utils import ChildProgressBuilder, MirrorDict, extract_allowed
@@ -67,10 +96,6 @@ tracer = trace.get_tracer(__name__)
 @baserow_trace_handler
 class AutomationNodeHandler:
     allowed_fields = [
-        "label",
-        "service",
-    ]
-    allowed_update_fields = [
         "label",
         "service",
     ]
@@ -138,6 +163,7 @@ class AutomationNodeHandler:
 
         local_cache.delete(self._get_node_cache_key(workflow, True))
         local_cache.delete(self._get_node_cache_key(workflow, False))
+        local_cache.delete(BaseGraphHandler.generate_point_map_cache_key(workflow))
 
     def get_children(
         self, node: AutomationNode, first_only: bool = False
@@ -234,7 +260,9 @@ class AutomationNodeHandler:
         :return: The updated AutomationNode.
         """
 
-        allowed_values = extract_allowed(kwargs, self.allowed_update_fields)
+        # The node type decides what can be updated: action nodes accept the
+        # error policy fields on top of the base ones, triggers do not.
+        allowed_values = extract_allowed(kwargs, node.get_type().allowed_fields)
 
         for key, value in allowed_values.items():
             setattr(node, key, value)
@@ -283,6 +311,7 @@ class AutomationNodeHandler:
     def export_node(
         self,
         node: AutomationNode,
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
@@ -298,7 +327,11 @@ class AutomationNodeHandler:
         """
 
         return node.get_type().export_serialized(
-            node, files_zip=files_zip, storage=storage, cache=cache
+            node,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
     def import_node(
@@ -383,6 +416,20 @@ class AutomationNodeHandler:
 
             [u.save() for u in updated_models]
 
+            # The node's own formulas (the retry condition) read the node's
+            # result through the `current_node` provider, whose paths carry no
+            # node id. The node is passed along so the provider can remap the
+            # path against the imported service.
+            node_type = imported_node.get_type()
+            updated_nodes = node_type.import_formulas(
+                imported_node,
+                id_mapping,
+                import_formula,
+                current_node=imported_node,
+                **kwargs,
+            )
+            [n.save() for n in updated_nodes]
+
         return imported_nodes
 
     def import_node_only(
@@ -412,7 +459,14 @@ class AutomationNodeHandler:
         node_history: AutomationNodeHistory,
         iteration_path: str,
         error: str,
+        result: Optional[Union[Dict, List[Dict]]] = None,
     ) -> None:
+        """
+        Marks the node history and the whole run as errored. `result` is stored
+        as the attempt's result when the node did produce data before it was
+        considered failed, so the data can still be inspected in the history.
+        """
+
         now = timezone.now()
         node_history.workflow_history.completed_on = now
         node_history.workflow_history.message = error
@@ -430,8 +484,197 @@ class AutomationNodeHandler:
 
         AutomationHistoryHandler().create_node_result(
             node_history=node_history,
+            result=result,
             iteration_path=iteration_path,
         )
+
+    def _retry_countdown(self, attempt: int) -> int:
+        """
+        Seconds to wait before the attempt following `attempt`: 1, 1, 2, 3, 6 s.
+        `_can_retry` bounds `attempt` by the node's `max_retries`, the last
+        countdown is repeated should that bound ever grow.
+        """
+
+        countdowns = AUTOMATION_NODE_RETRY_COUNTDOWNS
+        return countdowns[min(attempt, len(countdowns)) - 1]
+
+    @staticmethod
+    def _retries_phrase(count: int) -> str:
+        return f"{count} {'retry' if count == 1 else 'retries'}"
+
+    def _can_retry(
+        self,
+        node: AutomationNode,
+        workflow_history: AutomationWorkflowHistory,
+        attempt: int,
+    ) -> bool:
+        """
+        Whether the node's error policy allows another attempt after `attempt`
+        failed. Test runs retry like live runs, so the editor shows what the
+        published workflow will do. Simulations never retry: they run up to a
+        node to fetch its sample data. A node type without an error policy never
+        retries, whatever an import stored on the node.
+        """
+
+        return (
+            node.get_type().has_error_policy
+            and node.on_failure == AutomationNodeOnFailure.RETRY
+            and attempt <= node.max_retries
+            and workflow_history.simulate_until_node_id is None
+        )
+
+    def _handle_node_retry(
+        self,
+        node_history: AutomationNodeHistory,
+        iteration_path: str,
+        message: str,
+        result: Optional[Union[Dict, List[Dict]]] = None,
+    ) -> None:
+        """
+        Closes this attempt's history as `retried`. The run is left `started`:
+        the next attempt creates its own history entry when it runs.
+        """
+
+        now = timezone.now()
+        node_history.completed_on = now
+        node_history.message = message
+        node_history.status = HistoryStatusChoices.RETRIED
+        node_history.save()
+        # Written even when empty: the history API derives the iteration path
+        # from the result row. The next attempt writes its own row, and
+        # get_node_result() picks the most recent one.
+        AutomationHistoryHandler().create_node_result(
+            node_history=node_history,
+            result=result,
+            iteration_path=iteration_path,
+        )
+
+    def _handle_dispatch_failure(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        simulate_until_node: AutomationNode | None,
+        iteration_path: str,
+        attempt: int,
+        error: str,
+        retryable: bool,
+    ) -> NodeDispatchRetry | None:
+        """
+        Applies the node's error policy to a failed attempt. Only a `retryable`
+        failure (a transient `RuntimeDispatchException`) can be retried, and
+        only when the node opted into retries at all; everything else ends the
+        run as before.
+
+        :return: A NodeDispatchRetry for the Celery task to schedule, or None
+            when the run was marked as errored.
+        """
+
+        if retryable and self._can_retry(node, workflow_history, attempt):
+            self._handle_node_retry(
+                node_history,
+                iteration_path,
+                f"Retry {attempt} of {node.max_retries} scheduled. {error}",
+            )
+            return NodeDispatchRetry(
+                node_id=node.id,
+                history_id=workflow_history.id,
+                attempt=attempt,
+                countdown=self._retry_countdown(attempt),
+            )
+
+        if attempt > 1:
+            # The node was retried before this attempt failed for good. Say so,
+            # otherwise the row reads like a plain "Stop" failure.
+            error = f"Failed after {self._retries_phrase(attempt - 1)}. {error}"
+
+        self._handle_workflow_error(node_history, iteration_path, error)
+        self._handle_simulation_notify(simulate_until_node, node)
+
+        return None
+
+    def _retry_condition_enabled(
+        self, node: AutomationNode, workflow_history: AutomationWorkflowHistory
+    ) -> bool:
+        """
+        Whether a successful attempt must still be checked against the node's
+        retry condition. An empty condition means there is none. Simulations
+        never evaluate it; test runs do, like live runs. A node type without an
+        error policy has none.
+        """
+
+        formula = (node.retry_condition or {}).get("formula") or ""
+        return (
+            node.get_type().has_error_policy
+            and node.on_failure == AutomationNodeOnFailure.RETRY
+            and bool(formula.strip())
+            and workflow_history.simulate_until_node_id is None
+        )
+
+    def _retry_condition_matches(
+        self,
+        node: AutomationNode,
+        dispatch_context: AutomationDispatchContext,
+        dispatch_result: DispatchResult,
+    ) -> bool:
+        """
+        Evaluates the node's retry condition against the data it just
+        produced, exposed to the formula through the `current_node` data
+        provider. True means the attempt counts as failed.
+
+        :raises InvalidFormulaContext: If a `get()` path cannot be resolved.
+        :raises InvalidFormulaContextContent: If the resolved content is unusable.
+        :raises ValidationError: If a runtime function rejects one of its values.
+        :raises BaserowFormulaException: If the formula cannot be parsed.
+        """
+
+        context = dispatch_context.clone()
+        context.current_node = node
+        context.current_node_result = dispatch_result.data
+        value = resolve_formula(
+            node.retry_condition, formula_runtime_function_registry, context
+        )
+        return ensure_boolean(value, False)
+
+    def _handle_retry_condition_matched(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        iteration_path: str,
+        attempt: int,
+        result: Dict,
+    ) -> NodeDispatchRetry | None:
+        """
+        The node produced data, but its retry condition says the attempt
+        failed. The data is stored as the attempt's result either way, so it
+        can still be inspected in the history.
+
+        :return: A NodeDispatchRetry for the Celery task to schedule, or None
+            when the retries are exhausted and the run was marked as errored.
+        """
+
+        if self._can_retry(node, workflow_history, attempt):
+            self._handle_node_retry(
+                node_history,
+                iteration_path,
+                f"The retry condition matched. Retry {attempt} of "
+                f"{node.max_retries} scheduled.",
+                result=result,
+            )
+            return NodeDispatchRetry(
+                node_id=node.id,
+                history_id=workflow_history.id,
+                attempt=attempt,
+                countdown=self._retry_countdown(attempt),
+            )
+
+        error = (
+            "The retry condition still matched after "
+            f"{self._retries_phrase(node.max_retries)}."
+        )
+        self._handle_workflow_error(node_history, iteration_path, error, result=result)
+        return None
 
     def _node_dispatch_count_cache_key(self, history_id: int) -> str:
         return f"automation_node_dispatch_count_{history_id}"
@@ -515,7 +758,8 @@ class AutomationNodeHandler:
         node_id: int,
         history_id: int,
         current_iterations: Optional[Dict[int, int]] = None,
-    ) -> Signature | None:
+        attempt: int = 1,
+    ) -> Signature | NodeDispatchRetry | None:
         """
         Dispatch a single node and return a canvas for the next nodes.
 
@@ -523,8 +767,11 @@ class AutomationNodeHandler:
         :param history_id: The AutomationWorkflowHistory ID from which the
             workflow's event payload and node results are derived.
         :param current_iterations: Used by the Iterator node's children.
+        :param attempt: Which attempt of this node this is, starting at 1. The
+            Celery task increments it when it retries a failed attempt.
         :return result: A signature is returned if there is a next node to
-            dispatch, otherwise returns None.
+            dispatch, a NodeDispatchRetry if this attempt failed and the node's
+            error policy allows another one, otherwise None.
         """
 
         history_handler = AutomationHistoryHandler()
@@ -537,9 +784,14 @@ class AutomationNodeHandler:
             logger.error(str(e))
             return None
 
-        if workflow_history.status == HistoryStatusChoices.CANCELLED:
-            # The run was already finalized, e.g. by an earlier dispatch of
-            # this run or by the timeout sweep.
+        if workflow_history.status in (
+            HistoryStatusChoices.CANCELLED,
+            HistoryStatusChoices.ERROR,
+        ):
+            # The run was already finalized, e.g. by an earlier dispatch of this
+            # run, a failed sibling node, or the timeout sweep. Iterator iterations
+            # and sibling branches are pre-chained as Celery groups, so without this
+            # guard they would keep running after one child errored.
             return None
 
         if (
@@ -581,12 +833,6 @@ class AutomationNodeHandler:
                 # the simulated node.
                 return None
 
-        node_history = history_handler.create_node_history(
-            workflow_history=workflow_history,
-            node=node,
-            started_on=timezone.now(),
-        )
-
         dispatch_context = AutomationDispatchContext(
             node.workflow,
             workflow_history,
@@ -595,11 +841,30 @@ class AutomationNodeHandler:
             current_iterations=current_iterations,
         )
         iteration_path = dispatch_context.get_iteration_path(node)
-        node_type: Type[AutomationNodeActionNodeType] = node.get_type()
+
+        # The iteration path is stored on the entry itself, so a node that has no
+        # result yet (waiting, or cancelled while waiting) is still shown under
+        # its iteration in the history panel.
+        node_history = history_handler.create_node_history(
+            workflow_history=workflow_history,
+            node=node,
+            started_on=timezone.now(),
+            attempt=attempt,
+            iteration_path=iteration_path,
+        )
+
+        node_type: Type[AutomationActionNodeType] = node.get_type()
 
         try:
             self._before_node_dispatch(node, workflow_history)
             dispatch_result = node_type.dispatch(node, dispatch_context)
+            if dispatch_result.pending is not None and simulate_until_node:
+                # A simulation never waits, whatever the service did. A service
+                # is expected to answer at once when it uses sample data; this
+                # is the backstop, resuming it right away.
+                dispatch_result = node_type.resume_dispatch(
+                    node, dispatch_result.pending.state, dispatch_context
+                )
             if (
                 dispatch_result.destination_service_id is not None
                 and not simulate_until_node
@@ -613,23 +878,63 @@ class AutomationNodeHandler:
         except AutomationNodeMaxDispatchesExceeded as e:
             error = str(e)
             logger.warning(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
+        except RuntimeDispatchException as e:
+            # Must come before ServiceImproperlyConfiguredDispatchException:
+            # RemoteBusyDispatchException (a rate limit) is a subclass of both
+            # and is the one failure a later attempt is expected to fix.
+            original_workflow = node.workflow.get_original()
+            error = (
+                f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
+            )
+            logger.warning(error)
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=True,
+            )
         except ServiceImproperlyConfiguredDispatchException as e:
             error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
         except UnexpectedDispatchException as e:
             original_workflow = node.workflow.get_original()
             error = (
                 f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
             )
             logger.warning(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
         except Exception as e:
             original_workflow = node.workflow.get_original()
 
@@ -638,9 +943,78 @@ class AutomationNodeHandler:
                 f"Error: {str(e)}"
             )
             logger.exception(error)
-            self._handle_workflow_error(node_history, iteration_path, error)
-            self._handle_simulation_notify(simulate_until_node, node)
-            return None
+            return self._handle_dispatch_failure(
+                node,
+                node_history,
+                workflow_history,
+                simulate_until_node,
+                iteration_path,
+                attempt,
+                error,
+                retryable=False,
+            )
+
+        if dispatch_result.pending is not None:
+            # The service asked to be resumed later: the node is parked and the
+            # worker freed. Like a deferred node, a pending one gets its data
+            # later, through complete_pending_node(), where the retry condition
+            # does not apply.
+            return self._suspend_node(
+                node,
+                node_history,
+                workflow_history,
+                dispatch_result.pending,
+                iteration_path,
+                current_iterations,
+            )
+
+        # The node produced data, but its retry condition may still count the
+        # attempt as failed. A deferred node gets its data later, through
+        # complete_deferred_node(), where the error policy does not apply.
+        if (
+            dispatch_result.deferred_history_id is None
+            and self._retry_condition_enabled(node, workflow_history)
+        ):
+            try:
+                matched = self._retry_condition_matches(
+                    node, dispatch_context, dispatch_result
+                )
+            except (
+                InvalidFormulaContext,
+                InvalidFormulaContextContent,
+                ValidationError,
+                BaserowFormulaException,
+            ) as e:
+                detail = (
+                    " ".join(e.messages) if isinstance(e, ValidationError) else str(e)
+                )
+                error = f"The retry condition of this node is invalid. {detail}"
+                self._handle_workflow_error(
+                    node_history, iteration_path, error, result=dispatch_result.data
+                )
+                return None
+            except Exception as e:
+                # A bug in a runtime function must not leave the run `started`
+                # forever: it would only be swept after the workflow timeout.
+                error = (
+                    "Unexpected error while evaluating the retry condition of "
+                    f"this node. Error: {str(e)}"
+                )
+                logger.exception(error)
+                self._handle_workflow_error(
+                    node_history, iteration_path, error, result=dispatch_result.data
+                )
+                return None
+
+            if matched:
+                return self._handle_retry_condition_matched(
+                    node,
+                    node_history,
+                    workflow_history,
+                    iteration_path,
+                    attempt,
+                    dispatch_result.data,
+                )
 
         # A deferred node must first schedule and await its child workflow. The
         # simulation is completed when the deferred result is resumed below.
@@ -681,6 +1055,64 @@ class AutomationNodeHandler:
             iteration_path,
             dispatch_result,
             current_iterations,
+        )
+
+    def _pending_node_countdown(self, resume_at: datetime, now: datetime) -> int:
+        """
+        Seconds before the resume task of a waiting node wakes up next: the
+        time left until `resume_at`, cut to one chunk so that no message waits
+        in the broker longer than its visibility timeout. Rounded up, so a
+        wake-up never lands just before the node is due.
+        """
+
+        remaining = math.ceil((resume_at - now).total_seconds())
+        return max(0, min(remaining, AUTOMATION_PENDING_NODE_COUNTDOWN_CHUNK_SECONDS))
+
+    def _suspend_node(
+        self,
+        node: AutomationNode,
+        node_history: AutomationNodeHistory,
+        workflow_history: AutomationWorkflowHistory,
+        pending: PendingDispatch,
+        iteration_path: str,
+        current_iterations: Optional[Dict[int, int]],
+    ) -> Signature | None:
+        """
+        Parks a node whose service asked to be resumed later (e.g. a "Wait"
+        node): its history is marked `waiting` with everything the resume needs,
+        and the resume task is scheduled with a countdown. No worker is held in
+        the meantime and the run stays `started`.
+
+        :return: The resume task's signature, which runs in place of this
+            dispatch so the run's chain goes on from the resumed node, or None
+            when the run was marked as errored.
+        """
+
+        if pending.resume_at is None:
+            # Only time-based resumes are supported for now.
+            error = "The node cannot wait without knowing when to resume."
+            self._handle_workflow_error(node_history, iteration_path, error)
+            return None
+
+        now = timezone.now()
+        resume_at = pending.resume_at
+
+        node_history.status = HistoryStatusChoices.WAITING
+        node_history.resume_at = resume_at
+        # The iterator positions are stored as received: their keys are strings
+        # after Celery's JSON round trip, and the dispatch context converts them.
+        node_history.resume_state = {
+            "state": pending.state,
+            "current_iterations": current_iterations,
+        }
+        node_history.save()
+
+        automation_node_dispatch_suspended.send(
+            sender=self, node=node, node_history=node_history
+        )
+
+        return resume_pending_node_celery_task.si(node_history.id).set(
+            countdown=self._pending_node_countdown(resume_at, now)
         )
 
     def complete_deferred_node(
@@ -739,6 +1171,329 @@ class AutomationNodeHandler:
             current_iterations,
         )
 
+    def resume_pending_node(
+        self, node_history_id: int
+    ) -> Signature | PendingNodeNotDue | PendingNodeAlreadyClaimed | None:
+        """
+        Entry point of the resume task of a waiting node, called at every
+        wake-up. Checks that the run still wants the node, asks for another
+        wake-up if the node is not due yet, and otherwise claims it and
+        finishes its dispatch. The claim is a conditional update from `waiting`,
+        so a duplicate delivery of the task (a redelivered message, the recovery
+        sweep) resumes the node once at most.
+
+        :param node_history_id: The `waiting` node history to resume.
+        :return: As dispatch_node(): a signature for the next nodes, or None
+            when this branch of the run is over (the run was resolved, the node
+            was deleted, or nothing follows it). A PendingNodeNotDue asks the
+            task to wake up again later, a PendingNodeAlreadyClaimed tells it
+            that another delivery already resumed the node.
+        """
+
+        try:
+            node_history = AutomationNodeHistory.objects.select_related(
+                "workflow_history__workflow__automation__workspace",
+                "workflow_history__cancellation_requested_by",
+            ).get(id=node_history_id)
+        except AutomationNodeHistory.DoesNotExist:
+            # The clone the run executes on was deleted while the node waited:
+            # deleting the workflow deletes its latest published clone, and
+            # deleting the automation or the workspace deletes all of them. A
+            # republish keeps every clone that has history. The run's chain
+            # goes on and finds nothing left to update.
+            logger.warning(
+                f"Node history with ID {node_history_id} was not found. It was "
+                "likely deleted while the node was waiting."
+            )
+            return None
+
+        workflow_history = node_history.workflow_history
+
+        if workflow_history.status in (
+            HistoryStatusChoices.CANCELLED,
+            HistoryStatusChoices.ERROR,
+        ):
+            # Resolved while the node waited, e.g. by the timeout sweep.
+            self._resolve_waiting_node(
+                node_history, workflow_history.status, workflow_history.message
+            )
+            return None
+
+        if (
+            workflow_history.cancellation_requested_on is not None
+            and workflow_history.status == HistoryStatusChoices.STARTED
+        ):
+            # The same cooperative cancellation as dispatch_node(): a "Stop run"
+            # is noticed at the next wake-up, within one countdown chunk.
+            AutomationHistoryHandler().finalize_workflow_history_cancellation(
+                workflow_history
+            )
+            workflow_history.refresh_from_db(fields=["status", "message"])
+            self._resolve_waiting_node(
+                node_history, workflow_history.status, workflow_history.message
+            )
+            return None
+
+        if node_history.status != HistoryStatusChoices.WAITING:
+            return PendingNodeAlreadyClaimed()
+
+        now = timezone.now()
+        if node_history.resume_at > now:
+            return PendingNodeNotDue(
+                countdown=self._pending_node_countdown(node_history.resume_at, now)
+            )
+
+        claimed = AutomationNodeHistory.objects.filter(
+            id=node_history.id, status=HistoryStatusChoices.WAITING
+        ).update(status=HistoryStatusChoices.STARTED)
+        if not claimed:
+            return PendingNodeAlreadyClaimed()
+
+        node_history.status = HistoryStatusChoices.STARTED
+        return self.complete_pending_node(node_history)
+
+    def _resolve_waiting_node(
+        self, node_history: AutomationNodeHistory, status: str, message: str
+    ) -> None:
+        """
+        Closes the history of a waiting node whose run was resolved elsewhere,
+        with the run's outcome. Guarded on the row still being `waiting`, so a
+        duplicate wake-up never rewrites it.
+        """
+
+        AutomationNodeHistory.objects.filter(
+            id=node_history.id, status=HistoryStatusChoices.WAITING
+        ).update(status=status, message=message, completed_on=timezone.now())
+
+    def resume_stale_waiting_nodes(self) -> int:
+        """
+        Safety net for a waiting node whose resume task is gone: the broker lost
+        its message (a flushed or restarted Redis without persistence), so
+        nothing will ever wake the node up and its run would stay `started`
+        until the run timeout. A node is considered stale when its resume is
+        overdue by more than `AUTOMATION_PENDING_NODE_STALE_SECONDS`, which is
+        longer than a live resume can be late (see the constant), and is given a
+        fresh resume task. A message that turns out to have been late rather
+        than lost loses the claim and is dropped, so a node still resumes once
+        at most.
+
+        Called by the periodic cleanup, after the runs that are over their
+        budget were timed out: their waiting nodes are resolved with them and
+        need no recovery.
+
+        A waiting node inside an iterator is not recovered: the node and its run
+        end as `error` instead. Its resume task carried the rest of the loop
+        (the next iterations, then the nodes after the iterator), which the
+        runner does not plan again from the graph, so a fresh resume task would
+        run one iteration and let its tail mark a truncated run as `success`.
+        This holds whether the message was lost or is only late: a late original
+        wake-up finds the run resolved and does nothing.
+
+        :return: How many waiting nodes were given a new resume task.
+        """
+
+        stale_before = timezone.now() - timedelta(
+            seconds=AUTOMATION_PENDING_NODE_STALE_SECONDS
+        )
+        # Served by the conditional `resume_at` index on waiting rows.
+        stale_nodes = AutomationNodeHistory.objects.filter(
+            status=HistoryStatusChoices.WAITING,
+            resume_at__lt=stale_before,
+            workflow_history__status=HistoryStatusChoices.STARTED,
+        ).values_list(
+            "id",
+            "workflow_history_id",
+            "workflow_history__simulate_until_node",
+            "resume_state",
+        )
+
+        resumed = 0
+        for (
+            node_history_id,
+            history_id,
+            simulate_until_node_id,
+            resume_state,
+        ) in stale_nodes:
+            if (resume_state or {}).get("current_iterations"):
+                self._fail_stale_waiting_node_in_loop(node_history_id, history_id)
+                continue
+
+            logger.warning(
+                f"The resume of waiting node history {node_history_id} of "
+                f"workflow history {history_id} is overdue by more than "
+                f"{AUTOMATION_PENDING_NODE_STALE_SECONDS} seconds. Its resume "
+                "task was likely lost, scheduling a new one."
+            )
+            self._schedule_waiting_node_recovery(
+                node_history_id, history_id, simulate_until_node_id
+            )
+            resumed += 1
+
+        return resumed
+
+    def _fail_stale_waiting_node_in_loop(
+        self, node_history_id: int, history_id: int
+    ) -> None:
+        """
+        Ends a stale waiting node inside an iterator, and its run, as `error`,
+        see `resume_stale_waiting_nodes`. Both updates are guarded like the
+        claim: a resume task that claimed the node in the meantime keeps it, and
+        a run resolved in the meantime keeps its outcome.
+        """
+
+        message = (
+            "The run was interrupted while waiting inside a loop and could not "
+            "be resumed."
+        )
+        now = timezone.now()
+
+        failed = AutomationNodeHistory.objects.filter(
+            id=node_history_id, status=HistoryStatusChoices.WAITING
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=message,
+            completed_on=now,
+            resume_state=None,
+        )
+        if not failed:
+            return
+
+        logger.warning(
+            f"The resume of waiting node history {node_history_id} of workflow "
+            f"history {history_id} is overdue by more than "
+            f"{AUTOMATION_PENDING_NODE_STALE_SECONDS} seconds and the node is "
+            "inside a loop, whose remaining iterations cannot be recovered. The "
+            "run is marked as failed."
+        )
+        AutomationWorkflowHistory.objects.filter(
+            id=history_id, status=HistoryStatusChoices.STARTED
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=message,
+            completed_on=now,
+        )
+
+    def _schedule_waiting_node_recovery(
+        self,
+        node_history_id: int,
+        history_id: int,
+        simulate_until_node_id: Optional[int],
+    ) -> None:
+        """
+        Queues a replacement resume task for a stale waiting node, with the
+        run's dispatch-done tail behind it as `start_workflow()` has, so the run
+        is still completed once the recovered branch is finished.
+        """
+
+        from baserow.contrib.automation.workflows.tasks import (
+            handle_workflow_dispatch_done,
+        )
+
+        recovery = chain(
+            resume_pending_node_celery_task.si(node_history_id),
+            handle_workflow_dispatch_done.si(
+                history_id=history_id,
+                simulate_until_node_id=simulate_until_node_id,
+            ),
+        )
+        transaction.on_commit(recovery.delay)
+
+    def complete_pending_node(
+        self, node_history: AutomationNodeHistory
+    ) -> Optional[Signature]:
+        """
+        Finishes the dispatch of a node that suspended itself, once its resume
+        is due and claimed: the service is resumed with the state it stored, and
+        the result is completed like any other dispatch, iterator positions
+        included. A failure here is not retried by the node's error policy: the
+        wait itself has nothing transient to recover from. A resume does not
+        count as a dispatch for the per-run limit either.
+        """
+
+        node = node_history.node.specific
+        workflow_history = node_history.workflow_history
+        resume_state = node_history.resume_state or {}
+        current_iterations = resume_state.get("current_iterations")
+        try:
+            # The context loads the original workflow, which is not found once
+            # the workflow, its automation or its workspace is in the trash.
+            dispatch_context = AutomationDispatchContext(
+                node.workflow,
+                workflow_history,
+                event_payload=workflow_history.event_payload,
+                simulate_until_node=workflow_history.simulate_until_node,
+                current_iterations=current_iterations,
+            )
+        except AutomationWorkflowDoesNotExist:
+            self._cancel_run_of_deleted_workflow(node_history)
+            return None
+        iteration_path = dispatch_context.get_iteration_path(node)
+        node_type: Type[AutomationActionNodeType] = node.get_type()
+
+        try:
+            dispatch_result = node_type.resume_dispatch(
+                node, resume_state.get("state") or {}, dispatch_context
+            )
+        except Exception as e:
+            original_workflow = node.workflow.get_original()
+            error = (
+                f"Error while resuming workflow {original_workflow.id}. Error: {str(e)}"
+            )
+            logger.exception(error)
+            self._handle_workflow_error(node_history, iteration_path, error)
+            return None
+
+        # The state served its purpose. `resume_at` is kept: the history still
+        # tells when the node resumed.
+        node_history.resume_state = None
+        automation_node_dispatch_resumed.send(
+            sender=self, node=node, node_history=node_history
+        )
+
+        return self._complete_node_dispatch(
+            node,
+            node_history,
+            dispatch_context,
+            iteration_path,
+            dispatch_result,
+            current_iterations,
+        )
+
+    def _cancel_run_of_deleted_workflow(
+        self, node_history: AutomationNodeHistory
+    ) -> None:
+        """
+        Ends a run whose workflow was deleted while one of its nodes waited. The
+        clone the run executes on can outlive the deletion: a test clone, or a
+        published clone kept by a republish because it has history. The node,
+        claimed by the caller, and the run are cancelled rather than resumed, and
+        restoring the workflow from the trash does not revive them. A sibling
+        node still waiting finds the run resolved at its own wake-up.
+
+        The `cancelled` signal is not sent: its broadcast is for the history
+        panel of the workflow, which nobody can open while it is in the trash.
+        """
+
+        message = "Workflow was deleted while waiting."
+        now = timezone.now()
+
+        AutomationWorkflowHistory.objects.filter(
+            id=node_history.workflow_history_id,
+            status=HistoryStatusChoices.STARTED,
+        ).update(
+            status=HistoryStatusChoices.CANCELLED,
+            message=message,
+            completed_on=now,
+        )
+
+        node_history.status = HistoryStatusChoices.CANCELLED
+        node_history.message = message
+        node_history.completed_on = now
+        node_history.resume_state = None
+        node_history.save(
+            update_fields=["status", "message", "completed_on", "resume_state"]
+        )
+
     def _complete_node_dispatch(
         self,
         node: AutomationNode,
@@ -751,7 +1506,7 @@ class AutomationNodeHandler:
         """Persists a node result and returns the canvas for its next nodes."""
 
         history_handler = AutomationHistoryHandler()
-        node_type: Type[AutomationNodeActionNodeType] = node.get_type()
+        node_type: Type[AutomationActionNodeType] = node.get_type()
         history_id = node_history.workflow_history_id
         simulate_until_node = dispatch_context.simulate_until_node
 

@@ -25,7 +25,8 @@ class CreateUserActionType(ActionType):
         _("Create User"),
         _(
             'User "%(user_email)s" (%(user_id)s) created via "%(auth_provider_type)s"'
-            " (%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s)"
+            " (%(auth_provider_id)s) auth provider (invitation: %(with_invitation_token)s,"
+            " invitation link: %(with_invitation_link)s)"
         ),
     )
     analytics_params = [
@@ -34,6 +35,7 @@ class CreateUserActionType(ActionType):
         "workspace_id",
         "with_invitation_token",
         "template_id",
+        "with_invitation_link",
     ]
 
     @dataclasses.dataclass
@@ -46,6 +48,7 @@ class CreateUserActionType(ActionType):
         workspace_name: Optional[str] = ""
         with_invitation_token: bool = False
         template_id: Optional[int] = None
+        with_invitation_link: bool = False
 
     @classmethod
     def do(
@@ -58,6 +61,8 @@ class CreateUserActionType(ActionType):
         template: Optional[Template] = None,
         auth_provider: Optional[AuthProviderModel] = None,
         email_verified: bool = False,
+        workspace_invitation_link_slug: Optional[str] = None,
+        join_invitation_link_workspace: bool = True,
     ) -> AbstractUser:
         """
         Creates a new user.
@@ -71,6 +76,10 @@ class CreateUserActionType(ActionType):
         :param template: The template that will be used to create the user.
         :param auth_provider: The auth provider that will be used to create the user.
         :param email_verified: Whether the provider confirmed the email as verified.
+        :param workspace_invitation_link_slug: The slug of the workspace invitation
+            link that will be used to add the user to a workspace.
+        :param join_invitation_link_workspace: Whether the user joins the workspace
+            of the invitation link right away, or only signs up through it.
 
         :return: The created user.
         """
@@ -87,6 +96,8 @@ class CreateUserActionType(ActionType):
             template,
             auth_provider=auth_provider,
             email_verified=email_verified,
+            workspace_invitation_link_slug=workspace_invitation_link_slug,
+            join_invitation_link_workspace=join_invitation_link_workspace,
         )
 
         workspace_id, workspace_name = None, None
@@ -105,11 +116,18 @@ class CreateUserActionType(ActionType):
                 workspace_name,
                 workspace_invitation_token is not None,
                 template.id if template else None,
+                workspace_invitation_link_slug is not None,
             ),
             scope=cls.scope(),
             workspace=user.default_workspace,
         )
         return user
+
+    @classmethod
+    def get_long_description(cls, params_dict: dict[str, Any], *args, **kwargs) -> str:
+        # Users created before invitation links existed have no such param.
+        params_dict.setdefault("with_invitation_link", False)
+        return super().get_long_description(params_dict, *args, **kwargs)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:
@@ -340,14 +358,17 @@ class SendResetUserPasswordActionType(ActionType):
         user_email: str
 
     @classmethod
-    def do(cls, user: AbstractUser, base_url: str):
+    def do(cls, user: AbstractUser):
         """
         Send a reset password email to the user.
 
         :param user: The user that will be updated.
         """
 
-        UserHandler().send_reset_password_email(user, base_url)
+        # Requests dropped by the rate limit aren't logged, so that flooding the
+        # endpoint can't flood the audit log as well.
+        if not UserHandler().send_reset_password_email(user):
+            return
 
         cls.register_action(
             user=user, params=cls.Params(user.id, user.email), scope=cls.scope()
@@ -456,7 +477,8 @@ class SendVerifyEmailAddressActionType(ActionType):
         Sends an email verification email to the user.
         """
 
-        UserHandler().send_email_pending_verification(user)
+        if not UserHandler().send_email_pending_verification(user):
+            return user
 
         cls.register_action(
             user=user, params=cls.Params(user.id, user.email), scope=cls.scope()
@@ -527,21 +549,16 @@ class SendChangeEmailConfirmationActionType(ActionType):
         new_email: str
 
     @classmethod
-    def do(
-        cls, user: AbstractUser, new_email: str, password: str, base_url: str
-    ) -> AbstractUser:
+    def do(cls, user: AbstractUser, new_email: str, password: str) -> AbstractUser:
         """
         Send a change email confirmation email to the new email address.
 
         :param user: The user that requested the email change.
         :param new_email: The new email address.
         :param password: The current password for verification.
-        :param base_url: The base URL for the confirmation link.
         """
 
-        UserHandler().send_change_email_confirmation(
-            user, new_email, password, base_url
-        )
+        UserHandler().send_change_email_confirmation(user, new_email, password)
 
         cls.register_action(
             user=user,

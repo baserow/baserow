@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Product Roadmap",
+    "description": "Plan product features by priority, team and release.",
     "icon": "iconoir-pc-check",
     "keywords": [
         "product roadmap",

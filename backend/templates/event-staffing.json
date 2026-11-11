@@ -1,7 +1,8 @@
 {
     "baserow_template_version": 1,
     "name": "Event Staffing",
-    "icon": "iconoir-community",
+    "description": "Schedule staff and volunteers for events and see where you are short.",
+    "icon": "baserow-icon-team",
     "keywords": [
         "event",
         "staffing",

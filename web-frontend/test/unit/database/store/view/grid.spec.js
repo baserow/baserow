@@ -1,4 +1,6 @@
-import gridStore from '@baserow/modules/database/store/view/grid'
+import gridStore, {
+  populateRow,
+} from '@baserow/modules/database/store/view/grid'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import {
   EqualViewFilterType,
@@ -9,7 +11,7 @@ import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 import { getDefinedRowsFromSectionRows } from '@baserow/modules/database/utils/gridGroupBy'
 import flushPromises from 'flush-promises'
 
-import { vi } from 'vitest'
+import { onTestFinished, vi } from 'vitest'
 import { createStore } from 'vuex'
 
 const groupPathKey = (fieldId, value) =>
@@ -446,6 +448,124 @@ describe('Grid view store', () => {
     ).toEqual([12, 10])
     expect(store.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
   })
+
+  test.each([
+    [false, true],
+    [false, false],
+    [true, true],
+    [true, false],
+  ])(
+    'moveRow preserves its Last modified group (include time %s, succeeds %s)',
+    async (includeTime, succeeds) => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2024-01-09T00:00:00Z'))
+      onTestFinished(() => vi.useRealTimers())
+      const value = includeTime ? '2024-01-08T09:00:45Z' : '2024-01-08'
+      const groupValue = includeTime ? '2024-01-08T09:00:00Z' : value
+      const sectionKey = groupPathKey(1, groupValue)
+      const fields = [
+        {
+          id: 1,
+          type: 'last_modified',
+          date_include_time: includeTime,
+          _: { type: { type: 'last_modified' } },
+        },
+      ]
+      const groupBys = [{ field: 1, order: 'ASC', type: 'default' }]
+      const grid = {
+        id: 1,
+        filters_disabled: true,
+        sortings: [],
+        group_bys: groupBys,
+      }
+      store = testApp.createStore({
+        modules: {
+          grid: {
+            ...gridStore,
+            actions: {
+              ...gridStore.actions,
+              fetchByScrollTopDelayed: vi.fn(),
+              fetchAllFieldAggregationData: vi.fn(),
+            },
+          },
+        },
+      })
+      const initial = gridStore.state()
+      store.replaceState({
+        ...store.state,
+        grid: {
+          ...initial,
+          lastGridId: 1,
+          activeGroupBys: groupBys,
+          count: 2,
+          groupBy: {
+            ...initial.groupBy,
+            treeNodes: [
+              { path: { field_1: groupValue }, depth: 0, row_count: 2 },
+            ],
+            collapse: { mode: 'expand', paths: [] },
+          },
+        },
+      })
+      store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+        sectionKey,
+        rows: [
+          populateRow({ id: 10, order: '1', field_1: value }),
+          populateRow({ id: 11, order: '2', field_1: value }),
+        ],
+      })
+
+      let finishMove
+      if (!succeeds) {
+        testApp.dontFailOnErrorResponses()
+      }
+      mockServer.mock.onPatch('/database/rows/table/1/11/move/').reply(
+        () =>
+          new Promise((resolve) => {
+            finishMove = () =>
+              resolve(
+                succeeds
+                  ? [200, { id: 11, order: '0.5', field_1: value }]
+                  : [500, { error: 'ERROR_TEST', detail: 'Move failed' }]
+              )
+          })
+      )
+      const moving = store.dispatch('grid/moveRow', {
+        table: { id: 1 },
+        grid,
+        fields,
+        getScrollTop: () => 0,
+        row: store.getters['grid/getRow'](11),
+        before: store.getters['grid/getRow'](10),
+      })
+      await vi.waitFor(() => expect(finishMove).toBeTypeOf('function'))
+      const pendingValue = store.getters['grid/getRow'](11).field_1
+      const pendingSection =
+        store.state.grid.groupBy.rowLocations[11].sectionKey
+      const pendingIds = store.getters['grid/getAllRows'].map((row) => row.id)
+      finishMove()
+      if (succeeds) {
+        await moving
+      } else {
+        await expect(moving).rejects.toThrow()
+      }
+
+      expect(pendingValue).toBe(value)
+      expect(pendingSection).toBe(sectionKey)
+      expect(pendingIds).toEqual([11, 10])
+      expect(store.getters['grid/getRow'](11).field_1).toBe(value)
+      expect(store.state.grid.groupBy.rowLocations[11].sectionKey).toBe(
+        sectionKey
+      )
+      expect(store.getters['grid/getAllRows'].map((row) => row.id)).toEqual(
+        succeeds ? [11, 10] : [10, 11]
+      )
+      expect(store.getters['grid/getCount']).toBe(2)
+      expect(store.state.grid.groupBy.treeNodes).toEqual([
+        { path: { field_1: groupValue }, depth: 0, row_count: 2 },
+      ])
+    }
+  )
 
   test('moveRow immediately applies the destination group display value', async () => {
     const optionA = { id: 101, value: 'A', color: 'blue' }
@@ -2920,6 +3040,65 @@ describe('Grid view store', () => {
       ).toEqual([])
       expect(store.state.grid.groupBy.rowLocations[10]).toBeUndefined()
     })
+
+    test.each([
+      ['a search term', 'Alice', []],
+      [
+        'a link_row_has filter',
+        '',
+        [{ id: 1, view: 1, field: 4, type: 'link_row_has', value: '11' }],
+      ],
+    ])(
+      'deletedExistingRow removes a held row by id when the payload omits the value of %s',
+      async (_, activeSearchTerm, filters) => {
+        const linkField = { id: 4, name: 'Link', type: 'link_row' }
+        store.commit('grid/SET_SEARCH', {
+          activeSearchTerm,
+          hideRowsNotMatchingSearch: true,
+        })
+
+        await store.dispatch('grid/deletedExistingRow', {
+          view: { ...baseView, filters },
+          fields: [...fields, linkField],
+          row: { id: 10, order: '1.00' },
+        })
+
+        expect(leafCount('A', 'Open')).toBe(0)
+        expect(topCount('A')).toBe(0)
+        expect(store.getters['grid/getCount']).toBe(1)
+        expect(store.state.grid.groupBy.rowLocations[10]).toBeUndefined()
+      }
+    )
+
+    const heldGroupValues = { field_2: 'A', field_3: 'Open' }
+    test.each([
+      [
+        'filtered',
+        { filters: [{ id: 1, view: 1, field: 1, type: 'empty' }] },
+        heldGroupValues,
+      ],
+      [
+        'sorted',
+        { sortings: [{ id: 1, view: 1, field: 1, order: 'ASC' }] },
+        heldGroupValues,
+      ],
+      ['grouped', {}, { field_1: 'Bob' }],
+    ])(
+      'deletedExistingRow leaves the counts unchanged for an unheld row whose payload omits a %s field',
+      async (_, viewExtra, values) => {
+        await store.dispatch('grid/deletedExistingRow', {
+          view: { ...baseView, ...viewExtra },
+          fields,
+          row: { id: 99, order: '9.00', ...values },
+        })
+
+        expect(store.getters['grid/getCount']).toBe(2)
+        expect(store.getters['grid/getBufferStartIndex']).toBe(0)
+        expect(leafCount('A', 'Open')).toBe(1)
+        expect(topCount('A')).toBe(1)
+        expect(topCount('B')).toBe(1)
+      }
+    )
   })
 
   test('updatedExistingRow keeps a selected group-by change in place with a warning', async () => {

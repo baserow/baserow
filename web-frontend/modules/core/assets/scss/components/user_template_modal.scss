@@ -1,0 +1,99 @@
+.user-template-modal-wrapper {
+  div.modal__box {
+    max-width: 560px;
+  }
+}
+
+.user-template-modal-wrapper--small {
+  div.modal__box {
+    max-width: 464px;
+  }
+}
+
+.user-template-modal__head {
+  @include flex-align-items(8px);
+
+  // The actions stay next to the first line of a long title.
+  align-items: flex-start;
+  padding: 18px 24px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.user-template-modal__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+// The actions overflow the title line and the padding of the head, so that they
+// don't make the head taller.
+.user-template-modal__head-action {
+  @include center-text(28px, 16px);
+
+  flex: 0 0 auto;
+  margin: -4px 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $palette-neutral-700;
+  cursor: pointer;
+
+  @include rounded($rounded-md);
+
+  &:hover:not([disabled]) {
+    background-color: $palette-neutral-100;
+    color: $palette-neutral-1200;
+  }
+
+  &[disabled] {
+    cursor: not-allowed;
+    color: $palette-neutral-400;
+  }
+}
+
+.user-template-modal__back {
+  margin-left: -12px;
+}
+
+.user-template-modal__close {
+  margin-right: -12px;
+}
+
+.user-template-modal__body {
+  padding: 24px;
+}
+
+.user-template-modal__description {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+}
+
+.user-template-modal__footer {
+  @include flex-align-items(16px);
+
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.user-template-modal__selected {
+  color: $palette-neutral-900;
+}
+
+.user-template-modal__progress {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.user-template-modal__footer-actions {
+  @include flex-align-items(8px);
+
+  flex: 0 0 auto;
+  margin-left: auto;
+}

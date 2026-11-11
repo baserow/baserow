@@ -340,7 +340,13 @@ describe('Builder workflow action types', () => {
     // therefore no longer present on the builder.
     const builder = {
       id: 1,
-      integrations: [{ id: 5, type: 'local_baserow' }],
+      integrations: [
+        {
+          id: 5,
+          type: 'local_baserow',
+          authorized_subject: { id: 1, type: 'auth.User' },
+        },
+      ],
     }
 
     // Live integration + a table selected → not in error.

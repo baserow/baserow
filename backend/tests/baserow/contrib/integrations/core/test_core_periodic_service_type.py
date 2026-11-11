@@ -2,12 +2,16 @@ from datetime import datetime, timezone
 from unittest.mock import call, patch
 from zoneinfo import ZoneInfo
 
-from django.db import transaction
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
 
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeMisconfiguredService,
 )
@@ -23,8 +27,12 @@ from baserow.contrib.integrations.core.constants import (
     PERIODIC_INTERVAL_WEEK,
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
-from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
+from baserow.contrib.integrations.core.service_types import (
+    CorePeriodicTriggerServiceType,
+)
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
+from baserow.core.cache import local_cache
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
@@ -41,7 +49,7 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    trigger_node = data_fixture.create_periodic_trigger_node(
+    trigger_node = data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_MINUTE,
@@ -49,7 +57,7 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
         },
     )
     service = trigger_node.service
-    assert CorePeriodicServiceType().generate_schema(service) == {
+    assert CorePeriodicTriggerServiceType().generate_schema(service) == {
         "title": f"Periodic{service.id}Schema",
         "type": "object",
         "properties": {
@@ -67,7 +75,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
 
-    service_type = CorePeriodicServiceType()
+    service_type = CorePeriodicTriggerServiceType()
     node_type = automation_node_type_registry.get(CorePeriodicTriggerNodeType.type)
 
     with freeze_time("2025-02-15 10:30:45"):
@@ -122,7 +130,7 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
 def test_periodic_service_import_schedules_only_when_publishing(
     data_fixture, is_publishing
 ):
-    service_type = CorePeriodicServiceType()
+    service_type = CorePeriodicTriggerServiceType()
     service = data_fixture.create_core_periodic_service(
         interval=PERIODIC_INTERVAL_WEEK,
         day_of_week=0,
@@ -161,7 +169,7 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
         "interval": PERIODIC_INTERVAL_MINUTE,
         "minute": 5,
     }
-    prepared = CorePeriodicServiceType().prepare_values(values, user)
+    prepared = CorePeriodicTriggerServiceType().prepare_values(values, user)
     assert prepared["interval"] == PERIODIC_INTERVAL_MINUTE
     assert prepared["minute"] == 5
 
@@ -169,7 +177,7 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
         "interval": PERIODIC_INTERVAL_MINUTE,
         "minute": 10,
     }
-    prepared = CorePeriodicServiceType().prepare_values(values, user)
+    prepared = CorePeriodicTriggerServiceType().prepare_values(values, user)
     assert prepared["interval"] == PERIODIC_INTERVAL_MINUTE
     assert prepared["minute"] == 10
 
@@ -178,8 +186,104 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
         "minute": 3,
     }
     with pytest.raises(AutomationNodeMisconfiguredService) as e:
-        CorePeriodicServiceType().prepare_values(values, user)
+        CorePeriodicTriggerServiceType().prepare_values(values, user)
     assert str(e.value) == "The `minute` value must be greater or equal to 5."
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "saved,values",
+    [
+        # Only the minute is sent, and the saved interval makes it a frequency.
+        ({"interval": PERIODIC_INTERVAL_MINUTE, "minute": 20}, {"minute": 5}),
+        # Only the interval is sent, and it turns the saved minute into a frequency.
+        (
+            {"interval": PERIODIC_INTERVAL_HOUR, "minute": 5},
+            {"interval": PERIODIC_INTERVAL_MINUTE},
+        ),
+        # The saved frequency is already under the minimum and is sent again.
+        (
+            {"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+            {"interval": PERIODIC_INTERVAL_MINUTE},
+        ),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_periodic_service_prepare_values_validates_minute_minimum_of_partial_update(
+    data_fixture, saved, values
+):
+    user = data_fixture.create_user()
+    service = data_fixture.create_core_periodic_service(**saved)
+
+    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+        CorePeriodicTriggerServiceType().prepare_values(values, user, service)
+    assert str(e.value) == "The `minute` value must be greater or equal to 15."
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "saved,values",
+    [
+        # The frequency is lowered to exactly the minimum.
+        ({"interval": PERIODIC_INTERVAL_MINUTE, "minute": 20}, {"minute": 15}),
+        # The saved minute is high enough to become a frequency.
+        (
+            {"interval": PERIODIC_INTERVAL_HOUR, "minute": 20},
+            {"interval": PERIODIC_INTERVAL_MINUTE},
+        ),
+        # For any other interval it's the minute past the hour, which has no minimum.
+        ({"interval": PERIODIC_INTERVAL_HOUR, "minute": 20}, {"minute": 0}),
+        # A frequency under the minimum doesn't stop the interval being replaced.
+        (
+            {"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+            {"interval": PERIODIC_INTERVAL_HOUR},
+        ),
+        # Nor does it stop a change to a property that isn't part of the check.
+        (
+            {"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+            {"timezone": "Europe/Amsterdam"},
+        ),
+        ({"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5}, {}),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_periodic_service_prepare_values_allows_partial_update_within_minute_minimum(
+    data_fixture, saved, values
+):
+    user = data_fixture.create_user()
+    service = data_fixture.create_core_periodic_service(**saved)
+
+    prepared = CorePeriodicTriggerServiceType().prepare_values(
+        dict(values), user, service
+    )
+
+    assert prepared == values
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_periodic_service_prepare_values_validates_minute_minimum_when_creating(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    service_type = CorePeriodicTriggerServiceType()
+
+    # Without a minute the new service gets the model's default of 0.
+    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+        service_type.prepare_values({"interval": PERIODIC_INTERVAL_MINUTE}, user)
+    assert str(e.value) == "The `minute` value must be greater or equal to 15."
+
+    # A minute on its own is the minute past the hour of an unconfigured service.
+    assert service_type.prepare_values({"minute": 0}, user) == {"minute": 0}
 
 
 @pytest.mark.django_db(transaction=True)
@@ -196,7 +300,7 @@ def test_call_periodic_services_in_draft_workflow(mock_start_workflow, data_fixt
         interval=PERIODIC_INTERVAL_MINUTE,
         last_periodic_run=None,
     )
-    data_fixture.create_periodic_trigger_node(
+    data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service=service,
     )
@@ -204,7 +308,7 @@ def test_call_periodic_services_in_draft_workflow(mock_start_workflow, data_fixt
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
             service_type_registry.get(
-                CorePeriodicServiceType.type
+                CorePeriodicTriggerServiceType.type
             ).call_periodic_services_that_are_due()
 
     mock_start_workflow.delay.assert_not_called()
@@ -224,7 +328,7 @@ def test_call_periodic_services_in_paused_workflow(mock_start_workflow, data_fix
         interval=PERIODIC_INTERVAL_MINUTE,
         last_periodic_run=None,
     )
-    data_fixture.create_periodic_trigger_node(
+    data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service=service,
     )
@@ -232,7 +336,7 @@ def test_call_periodic_services_in_paused_workflow(mock_start_workflow, data_fix
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
             service_type_registry.get(
-                CorePeriodicServiceType.type
+                CorePeriodicTriggerServiceType.type
             ).call_periodic_services_that_are_due()
 
     mock_start_workflow.delay.assert_not_called()
@@ -252,7 +356,7 @@ def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixtur
         interval=PERIODIC_INTERVAL_MINUTE,
         last_periodic_run=None,
     )
-    trigger = data_fixture.create_periodic_trigger_node(
+    trigger = data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service=service,
     )
@@ -265,7 +369,7 @@ def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixtur
         with freeze_time("2025-02-15 10:30:45"):
             with transaction.atomic():
                 service_type_registry.get(
-                    CorePeriodicServiceType.type
+                    CorePeriodicTriggerServiceType.type
                 ).call_periodic_services_that_are_due()
 
         mock_start_workflow.delay.assert_not_called()
@@ -294,7 +398,7 @@ def test_call_multiple_periodic_services_that_are_due(
             last_periodic_run=None,
             next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
         )
-        data_fixture.create_periodic_trigger_node(
+        data_fixture.create_core_periodic_trigger_node(
             workflow=workflow_1,
             service=service_1,
         )
@@ -303,7 +407,7 @@ def test_call_multiple_periodic_services_that_are_due(
             last_periodic_run=None,
             next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
         )
-        data_fixture.create_periodic_trigger_node(
+        data_fixture.create_core_periodic_trigger_node(
             workflow=workflow_2,
             service=service_2,
         )
@@ -311,7 +415,7 @@ def test_call_multiple_periodic_services_that_are_due(
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
             service_type_registry.get(
-                CorePeriodicServiceType.type
+                CorePeriodicTriggerServiceType.type
             ).call_periodic_services_that_are_due()
 
     assert list(mock_async_start_workflow.call_args_list) == unordered(
@@ -336,6 +440,210 @@ def test_call_multiple_periodic_services_that_are_due(
     )
 
 
+def _create_live_periodic_workflows(data_fixture, count):
+    automation = data_fixture.create_automation_application(
+        user=data_fixture.create_user()
+    )
+    workflows = []
+    for _ in range(count):
+        workflow = data_fixture.create_automation_workflow(
+            automation=automation, state=WorkflowState.LIVE, create_trigger=False
+        )
+        data_fixture.create_core_periodic_trigger_node(
+            workflow=workflow,
+            service=data_fixture.create_core_periodic_service(
+                interval=PERIODIC_INTERVAL_MINUTE,
+                minute=5,
+                next_run_at=datetime(2025, 2, 15, 10, 5, tzinfo=timezone.utc),
+            ),
+        )
+        workflows.append(workflow)
+    return workflows
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.automation.workflows.handler.start_workflow_celery_task")
+def test_a_periodic_service_that_fails_doesnt_stop_the_others(
+    mock_start_workflow_celery_task, data_fixture
+):
+    """
+    Every periodic service that is due is called in the same task, so a workflow
+    that fails to start mustn't stop the workflows of the other services. Here it
+    fails once its history is created and its start is queued, which are both
+    rolled back with it.
+    """
+
+    failing_workflow, working_workflow = _create_live_periodic_workflows(
+        data_fixture, 2
+    )
+
+    reset_workflow_temporary_states = (
+        AutomationWorkflowHandler.reset_workflow_temporary_states
+    )
+
+    def reset_or_fail(handler, workflow):
+        if workflow.id == failing_workflow.id:
+            raise RuntimeError("The workflow can't be started.")
+        return reset_workflow_temporary_states(handler, workflow)
+
+    with (
+        patch.object(
+            AutomationWorkflowHandler,
+            "reset_workflow_temporary_states",
+            reset_or_fail,
+        ),
+        freeze_time("2025-02-15 10:05:30"),
+        transaction.atomic(),
+    ):
+        service_type_registry.get(
+            CorePeriodicTriggerServiceType.type
+        ).call_periodic_services_that_are_due()
+
+    history = AutomationWorkflowHistory.objects.get()
+    assert history.original_workflow_id == working_workflow.id
+    mock_start_workflow_celery_task.delay.assert_called_once_with(
+        history.workflow_id, history.id
+    )
+
+    # The failing service is rescheduled too, so that it's only tried again at its
+    # next run rather than every time the due services are called.
+    for workflow in [failing_workflow, working_workflow]:
+        service = CorePeriodicService.objects.get(
+            automation_workflow_node__workflow=workflow
+        )
+        assert service.next_run_at == datetime(2025, 2, 15, 10, 10, tzinfo=timezone.utc)
+        assert service.last_periodic_run == datetime(
+            2025, 2, 15, 10, 5, tzinfo=timezone.utc
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+@patch(
+    "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.async_start_workflow",
+    side_effect=SoftTimeLimitExceeded(),
+)
+def test_periodic_services_stop_when_the_task_is_out_of_time(
+    mock_async_start_workflow, data_fixture
+):
+    """
+    Running out of time isn't a failure of one workflow, so it stops the task
+    rather than being skipped like one.
+    """
+
+    _create_live_periodic_workflows(data_fixture, 2)
+
+    with (
+        pytest.raises(SoftTimeLimitExceeded),
+        freeze_time("2025-02-15 10:05:30"),
+        transaction.atomic(),
+    ):
+        service_type_registry.get(
+            CorePeriodicTriggerServiceType.type
+        ).call_periodic_services_that_are_due()
+
+    assert mock_async_start_workflow.call_count == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_periodic_services_that_start_no_workflow_add_no_queries(data_fixture):
+    """
+    Draft services have no next run, so they're due every time the due services
+    are called. Calling them mustn't cost more queries the more of them there are.
+    """
+
+    automation = data_fixture.create_automation_application(
+        user=data_fixture.create_user()
+    )
+    periodic_service_type = service_type_registry.get(
+        CorePeriodicTriggerServiceType.type
+    )
+
+    def count_queries_with_draft_services(count):
+        for _ in range(count):
+            data_fixture.create_core_periodic_trigger_node(
+                workflow=data_fixture.create_automation_workflow(
+                    automation=automation,
+                    state=WorkflowState.DRAFT,
+                    create_trigger=False,
+                ),
+                service=data_fixture.create_core_periodic_service(
+                    interval=PERIODIC_INTERVAL_MINUTE, minute=5, next_run_at=None
+                ),
+            )
+        with (
+            freeze_time("2025-02-15 10:05:30"),
+            transaction.atomic(),
+            CaptureQueriesContext(connection) as queries,
+        ):
+            periodic_service_type.call_periodic_services_that_are_due()
+        return len(queries.captured_queries)
+
+    assert count_queries_with_draft_services(1) == count_queries_with_draft_services(19)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("trashed", ["workflow", "workspace"])
+@patch("baserow.contrib.automation.workflows.handler.start_workflow_celery_task")
+def test_trashing_a_workflow_or_its_workspace_stops_its_published_copy(
+    mock_start_workflow_celery_task, data_fixture, trashed
+):
+    """
+    A published copy has no workspace of its own, so moving its workflow, or the
+    workspace the workflow is in, to the trash deletes the copy. Otherwise it would
+    keep running, and fail to, because its workflow can no longer be found.
+    """
+
+    user = data_fixture.create_user()
+
+    def publish_periodic_workflow():
+        automation = data_fixture.create_automation_application(
+            user=user, workspace=data_fixture.create_workspace(user=user)
+        )
+        workflow = data_fixture.create_automation_workflow(
+            automation=automation, create_trigger=False
+        )
+        data_fixture.create_core_periodic_trigger_node(
+            workflow=workflow,
+            service_kwargs={"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+        )
+        with transaction.atomic():
+            AutomationWorkflowHandler().publish(workflow)
+        return workflow
+
+    with freeze_time("2025-02-15 10:00:00"):
+        trashed_workflow = publish_periodic_workflow()
+        kept_workflow = publish_periodic_workflow()
+
+    # Publishing caches that the workflows had no published copy yet. Trashing
+    # happens in a later request, which starts with an empty cache.
+    local_cache.clear()
+
+    with transaction.atomic():
+        if trashed == "workspace":
+            CoreHandler().delete_workspace(user, trashed_workflow.automation.workspace)
+        else:
+            AutomationWorkflowHandler().delete_workflow(user, trashed_workflow)
+
+    assert not AutomationWorkflow.objects.filter(
+        automation__published_from=trashed_workflow
+    ).exists()
+    kept_published_workflow = AutomationWorkflowHandler().get_published_workflow(
+        kept_workflow
+    )
+
+    with freeze_time("2025-02-15 10:05:30"):
+        with transaction.atomic():
+            service_type_registry.get(
+                CorePeriodicTriggerServiceType.type
+            ).call_periodic_services_that_are_due()
+
+    history = AutomationWorkflowHistory.objects.get()
+    assert history.workflow_id == kept_published_workflow.id
+    mock_start_workflow_celery_task.delay.assert_called_once_with(
+        kept_published_workflow.id, history.id
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
     "service_kwargs,frozen_time,should_be_called",
@@ -352,18 +660,18 @@ def test_call_periodic_services_that_are_due(
     # Create the service at the frozen time so next_run_at is calculated correctly
     with freeze_time(frozen_time):
         service = data_fixture.create_core_periodic_service(**service_kwargs)
-        trigger = data_fixture.create_periodic_trigger_node(
+        trigger = data_fixture.create_core_periodic_trigger_node(
             workflow=workflow,
             service=service,
         )
 
-    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
 
     target_date = datetime.fromisoformat(frozen_time).replace(
         tzinfo=timezone.utc, second=0, microsecond=0
     )
 
-    def check_service_count(services, event_payload):
+    def check_service_count(services, event_payload, **kwargs):
         if should_be_called:
             assert len(services) == 1
             next_run_at = calculate_next_periodic_run(
@@ -413,7 +721,7 @@ def test_publishing_a_workflow_does_not_trigger_an_unscheduled_run(data_fixture)
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.DRAFT, create_trigger=False
     )
-    data_fixture.create_periodic_trigger_node(
+    data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_WEEK,
@@ -423,7 +731,7 @@ def test_publishing_a_workflow_does_not_trigger_an_unscheduled_run(data_fixture)
         },
     )
 
-    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
 
     # Publish on a Wednesday, nowhere near the Monday 05:00 schedule.
     with freeze_time("2025-02-12 14:23:00"):
@@ -464,11 +772,11 @@ def test_unconfigured_periodic_service_is_never_due(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    trigger = data_fixture.create_periodic_trigger_node(
+    trigger = data_fixture.create_core_periodic_trigger_node(
         workflow=workflow, service_kwargs={"interval": None}
     )
 
-    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
 
     with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
         with freeze_time("2025-02-12 14:24:00"):
@@ -488,7 +796,7 @@ def test_periodic_service_schedules_in_its_own_timezone(data_fixture):
     transition, so the `next_run_at` it resolves to has to differ with it.
     """
 
-    service_type = CorePeriodicServiceType()
+    service_type = CorePeriodicTriggerServiceType()
     schedule = {
         "interval": PERIODIC_INTERVAL_WEEK,
         "timezone": "Europe/Amsterdam",
@@ -542,7 +850,7 @@ def test_periodic_service_keeps_local_time_when_advancing_across_dst(data_fixtur
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    trigger = data_fixture.create_periodic_trigger_node(
+    trigger = data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_WEEK,
@@ -555,7 +863,7 @@ def test_periodic_service_keeps_local_time_when_advancing_across_dst(data_fixtur
         },
     )
 
-    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
 
     # Dispatch at the July occurrence, which is 09:00 in Amsterdam on CEST.
     with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
@@ -590,7 +898,7 @@ def test_periodic_service_defaults_to_utc(data_fixture):
 @pytest.mark.django_db
 def test_periodic_service_prepare_values_validates_timezone(data_fixture):
     user = data_fixture.create_user()
-    service_type = CorePeriodicServiceType()
+    service_type = CorePeriodicTriggerServiceType()
 
     prepared = service_type.prepare_values(
         {"interval": PERIODIC_INTERVAL_WEEK, "timezone": "Europe/Amsterdam"}, user
@@ -617,7 +925,7 @@ def test_late_periodic_service_catches_up_once_and_resumes(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    trigger = data_fixture.create_periodic_trigger_node(
+    trigger = data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_WEEK,
@@ -629,7 +937,7 @@ def test_late_periodic_service_catches_up_once_and_resumes(data_fixture):
         },
     )
 
-    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
 
     # The workers come back on a Wednesday, long after three runs were missed.
     with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
@@ -671,7 +979,7 @@ def test_existing_utc_periodic_service_is_unaffected_across_dst(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    trigger = data_fixture.create_periodic_trigger_node(
+    trigger = data_fixture.create_core_periodic_trigger_node(
         workflow=workflow,
         service_kwargs={
             "interval": PERIODIC_INTERVAL_WEEK,
@@ -685,7 +993,7 @@ def test_existing_utc_periodic_service_is_unaffected_across_dst(data_fixture):
     service = trigger.service.specific
     assert service.timezone == "UTC"
 
-    service_type = service_type_registry.get(CorePeriodicServiceType.type)
+    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
 
     # Advance it over the 29 March transition, when Amsterdam goes CET -> CEST.
     with patch.object(AutomationWorkflowHandler, "async_start_workflow") as mock_start:
@@ -718,7 +1026,7 @@ def test_periodic_payload_timestamps_are_in_the_service_timezone(data_fixture):
         hour=23,
         minute=30,
     )
-    service_type = CorePeriodicServiceType()
+    service_type = CorePeriodicTriggerServiceType()
 
     # 29 July is BST (UTC+1): 23:30 London is 22:30 UTC.
     with freeze_time("2026-07-29 15:44:00"):

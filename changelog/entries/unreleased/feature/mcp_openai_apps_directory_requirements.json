@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "MCP tools tell clients whether they can reach outside the workspace, and BASEROW_MCP_OPENAI_APPS_CHALLENGE serves OpenAI's domain verification token for ChatGPT app submission",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-15"
+}

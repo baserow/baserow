@@ -26,6 +26,7 @@ from baserow.contrib.automation.workflows.signals import (
     automation_workflows_reordered,
 )
 from baserow.contrib.automation.workflows.types import UpdatedAutomationWorkflow
+from baserow.core.exceptions import UntrustedContentCannotBePublished
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Job
@@ -300,6 +301,9 @@ class AutomationWorkflowService:
             context=workflow.automation,
         )
 
+        if workflow.untrusted_content:
+            raise UntrustedContentCannotBePublished()
+
         job = JobHandler().create_and_start_job(
             user,
             PublishAutomationWorkflowJobType.type,
@@ -309,14 +313,19 @@ class AutomationWorkflowService:
         return job
 
     def publish(
-        self, user: AbstractUser, workflow: AutomationWorkflow, progress: Progress
-    ) -> None:
+        self,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+        progress: Progress | None = None,
+    ) -> AutomationWorkflow:
         """
         Publish the automation for the given automation workflow if the
         user has the right permission.
 
         :param user: The user publishing the workflow.
         :param workflow: The workflow the user wants to publish.
+        :param progress: An object to track the publishing progress.
+        :return: The published workflow.
         """
 
         CoreHandler().check_permissions(

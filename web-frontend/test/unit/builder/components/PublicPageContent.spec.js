@@ -34,7 +34,7 @@ describe('PublicPageContent', () => {
     registry = null
   })
 
-  test('adds element responsive styles through useHead', async () => {
+  test('adds element responsive styles and provides the root data scope', async () => {
     const page = {
       id: 1,
       name: 'Public page',
@@ -79,7 +79,11 @@ describe('PublicPageContent', () => {
         stubs: {
           BuilderToasts: true,
           PageContent: true,
-          RecursiveWrapper: { template: '<div><slot /></div>' },
+          RecursiveWrapper: {
+            inject: ['applicationContext'],
+            template:
+              '<div data-test-id="root-scope">{{ applicationContext.dataScope.includeTargetElement }}<slot /></div>',
+          },
         },
       },
     })
@@ -92,5 +96,6 @@ describe('PublicPageContent', () => {
     )
 
     expect(responsiveStyle.innerHTML).toContain('@media (max-width: 640px)')
+    expect(wrapper.find('[data-test-id="root-scope"]').text()).toBe('false')
   })
 })

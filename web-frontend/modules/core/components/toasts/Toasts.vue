@@ -12,6 +12,16 @@
       <ConnectingToast v-if="reconnecting" />
       <FailedConnectingToast v-if="failedConnecting"></FailedConnectingToast>
       <AuthorizationErrorToast v-if="unauthorized"></AuthorizationErrorToast>
+      <InstallTemplateToast
+        v-for="toast in installTemplateToasts"
+        :key="toast.id"
+        :toast="toast"
+      ></InstallTemplateToast>
+      <DownloadTemplateToast
+        v-for="toast in downloadTemplateToasts"
+        :key="toast.id"
+        :toast="toast"
+      ></DownloadTemplateToast>
       <Toast
         v-for="toast in normalToasts"
         :key="toast.id"
@@ -59,12 +69,16 @@ import UndoRedoToast from '@baserow/modules/core/components/toasts/UndoRedoToast
 import { UNDO_REDO_STATES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsUpdatedToast from '@baserow/modules/core/components/toasts/PermissionsUpdatedToast'
 import WorkspaceOutdatedToast from '@baserow/modules/core/components/toasts/WorkspaceOutdatedToast'
+import InstallTemplateToast from '@baserow/modules/core/components/toasts/InstallTemplateToast'
+import DownloadTemplateToast from '@baserow/modules/core/components/toasts/DownloadTemplateToast'
 
 export default {
   name: 'Toasts',
   components: {
     PermissionsUpdatedToast,
     WorkspaceOutdatedToast,
+    InstallTemplateToast,
+    DownloadTemplateToast,
     RestoreToast,
     Toast,
     ConnectingToast,
@@ -84,8 +98,17 @@ export default {
     restoreToasts() {
       return this.toasts.filter((n) => n.type === 'restore')
     },
+    installTemplateToasts() {
+      return this.toasts.filter((n) => n.type === 'installTemplate')
+    },
+    downloadTemplateToasts() {
+      return this.toasts.filter((n) => n.type === 'downloadTemplate')
+    },
     normalToasts() {
-      return this.toasts.filter((n) => n.type !== 'restore')
+      return this.toasts.filter(
+        (n) =>
+          !['restore', 'installTemplate', 'downloadTemplate'].includes(n.type)
+      )
     },
     ...mapState({
       unauthorized: (state) => state.toast.authorizationError,

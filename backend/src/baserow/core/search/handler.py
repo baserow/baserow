@@ -21,18 +21,23 @@ class WorkspaceSearchHandler:
     """
 
     def search_all_types(
-        self, user: "AbstractUser", workspace: "Workspace", context: SearchContext
+        self,
+        user: "AbstractUser",
+        workspace: "Workspace",
+        context: SearchContext,
+        types: Optional[List[str]] = None,
     ) -> Tuple[List[SearchResult], bool]:
         """
         Build a single UNION ALL over all registered types standardized value
         querysets, apply global ordering and pagination, then postprocess the
-        paginated slice per type.
+        paginated slice per type. ``types`` limits the search to those types.
         """
 
         # Build union of standardized values querysets
         type_items = [
             (name, workspace_search_registry.get(name))
             for name in workspace_search_registry.registry.keys()
+            if not types or name in types
         ]
         # No need to sort before union; priority is part of rows and used in ordering.
 
@@ -111,6 +116,7 @@ class WorkspaceSearchHandler:
         query: str,
         limit: int = DEFAULT_SEARCH_LIMIT,
         offset: int = 0,
+        types: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Execute workspace search within a workspace.
@@ -120,6 +126,7 @@ class WorkspaceSearchHandler:
         param query: Search query string
         param limit: Maximum number of results to return
         param offset: Result offset for pagination
+        param types: Only search these registered types, all of them when empty
 
         return Dict with a flat, priority-ordered list of search results
             and has_more flag
@@ -134,7 +141,9 @@ class WorkspaceSearchHandler:
             offset=offset,
         )
 
-        raw_results, has_more = self.search_all_types(user, workspace, context)
+        raw_results, has_more = self.search_all_types(
+            user, workspace, context, types=types
+        )
 
         results_list = [result.to_dict() for result in raw_results]
 

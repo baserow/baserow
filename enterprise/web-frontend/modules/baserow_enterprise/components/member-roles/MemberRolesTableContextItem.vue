@@ -8,23 +8,19 @@
             if (deactivated) {
               $refs.paidFeaturesModal.show()
             } else {
-              $refs.memberRolesModal.show()
+              $refs.inviteModal.show()
             }
           }
         "
       >
-        <i class="context__menu-item-icon iconoir-community"></i>
+        <i class="context__menu-item-icon baserow-icon-team"></i>
         {{ $t('memberRolesDatabaseContexItem.label') }}
         <div v-if="deactivated" class="deactivated-label">
           <i class="iconoir-lock"></i>
         </div>
       </a>
     </div>
-    <MemberRolesModal
-      ref="memberRolesModal"
-      :database="database"
-      :table="table"
-    />
+    <InviteModal ref="inviteModal" :workspace="workspace" :target="target" />
     <PaidFeaturesModal
       ref="paidFeaturesModal"
       initial-selected-type="rbac"
@@ -34,13 +30,13 @@
 </template>
 
 <script>
-import MemberRolesModal from '@baserow_enterprise/components/member-roles/MemberRolesModal'
+import InviteModal from '@baserow/modules/core/components/invitation/InviteModal'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
   name: 'MemberRolesTableContextItem',
-  components: { PaidFeaturesModal, MemberRolesModal },
+  components: { PaidFeaturesModal, InviteModal },
   props: {
     table: {
       type: Object,
@@ -52,6 +48,17 @@ export default {
     },
   },
   computed: {
+    workspace() {
+      return this.$store.getters['workspace/get'](this.database.workspace.id)
+    },
+    target() {
+      return {
+        type: 'scope',
+        scopeType: 'database_table',
+        scope: this.table,
+        database: this.database,
+      }
+    },
     deactivated() {
       return !this.$hasFeature(
         EnterpriseFeatures.RBAC,

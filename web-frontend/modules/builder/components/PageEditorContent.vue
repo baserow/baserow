@@ -37,6 +37,7 @@ import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
 import PageSidePanels from '@baserow/modules/builder/components/page/PageSidePanels'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import ApplicationBuilderFormulaInput from '@baserow/modules/builder/components/ApplicationBuilderFormulaInput'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 import _ from 'lodash'
 
 const props = defineProps({
@@ -64,10 +65,11 @@ const { $store, $registry } = useNuxtApp()
 
 const panelWidth = ref(360)
 
+// Only wait for the initial data source fetch. `dataSource/getLoading` is also
+// true during every create, update, move, etc. and showing the skeleton then
+// would unmount the header (closing the data source modal) and the preview.
 const pageLoading = computed(
-  () =>
-    props.loading ||
-    $store.getters['dataSource/getLoading'](props.page) === true
+  () => props.loading || !$store.getters['dataSource/getFetched'](props.page)
 )
 
 // The preview of the skeleton is the same width as the device that's selected,
@@ -87,6 +89,7 @@ const applicationContext = computed(() => ({
   workspace: props.workspace,
   builder: props.builder,
   mode,
+  dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
 }))
 
 const sharedPage = computed(() =>

@@ -712,6 +712,11 @@ class ChoiceElement(FormElement):
         default=True,
         help_text="Whether to show the choices as a dropdown.",
     )
+    show_search = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether to show a search input in the choice dropdown.",
+    )
     option_type = models.CharField(
         choices=OPTION_TYPE.choices,
         max_length=32,

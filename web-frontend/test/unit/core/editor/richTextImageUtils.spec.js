@@ -5,6 +5,7 @@ import {
   preprocessRichTextImages,
   stripImageUrls,
   stripUnresolvedImageRefs,
+  replaceUnresolvedImageRefsWithAlt,
   replaceImagesWithPlaceholder,
   sanitizeUploadFileName,
   imageUploadType,
@@ -95,6 +96,21 @@ describe('stripUnresolvedImageRefs', () => {
   test('does not match user file names containing path separators', () => {
     const input = '![x][abc_def.png/../evil.png]'
     expect(stripUnresolvedImageRefs(input)).toBe(input)
+  })
+})
+
+describe('replaceUnresolvedImageRefsWithAlt', () => {
+  test('replaces bare references outside code with their escaped alt', () => {
+    expect(
+      replaceUnresolvedImageRefsWithAlt(
+        '![\\[a\\]][abc_def.png] `![b][abc_def.png]` ![][abc_def.png]'
+      )
+    ).toBe('\\[a\\] `![b][abc_def.png]` ')
+  })
+
+  test('returns an empty string for an empty value', () => {
+    expect(replaceUnresolvedImageRefsWithAlt('')).toBe('')
+    expect(replaceUnresolvedImageRefsWithAlt(null)).toBe('')
   })
 })
 

@@ -588,7 +588,7 @@ run-celery-export: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} celery -A baserow worker -Q export -l INFO
+    {{ uv_run }} celery -A baserow worker -Q export,chat_run --disable-prefetch -l INFO
 
 # Run production Celery beat scheduler
 [group('5 - production')]
@@ -646,8 +646,8 @@ run-dev-celery: _check-dev
     {{ uv_run }} celery -A baserow worker -Q celery,automation_workflow -n default-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "WORKER" "$COLOR_WORKER" &
     WORKER_PID=$!
 
-    echo "Starting Celery export worker (export queue)..."
-    {{ uv_run }} celery -A baserow worker -Q export -n export-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "EXPORT" "$COLOR_EXPORT" &
+    echo "Starting Celery export worker (export,chat_run queues)..."
+    {{ uv_run }} celery -A baserow worker -Q export,chat_run --disable-prefetch -n export-worker@%h -l {{ celery_log_level }} --pool {{ celery_pool }} 2>&1 | prefix_output "EXPORT" "$COLOR_EXPORT" &
     EXPORT_PID=$!
 
     echo "Starting Celery beat with redbeat scheduler..."

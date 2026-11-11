@@ -105,7 +105,10 @@ def test_update_data_source_filters_undo_redo(data_fixture):
         user=user, application=builder
     )
     table, fields, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[["A"]]
+        database=data_fixture.create_database_application(workspace=builder.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["A"]],
     )
     field = fields[0]
     service_type = service_type_registry.get("local_baserow_list_rows")
@@ -296,7 +299,10 @@ def test_configure_table_undo_then_redo(data_fixture):
         user=user, application=builder
     )
     table, _, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[["A"]]
+        database=data_fixture.create_database_application(workspace=builder.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["A"]],
     )
     service_type = service_type_registry.get("local_baserow_list_rows")
 
@@ -338,7 +344,10 @@ def test_create_and_configure_grouped_undo_then_redo(data_fixture):
         user=user, application=builder
     )
     table, _, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[["A"]]
+        database=data_fixture.create_database_application(workspace=builder.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["A"]],
     )
     service_type = service_type_registry.get("local_baserow_list_rows")
 
@@ -372,7 +381,10 @@ def test_create_then_integration_then_table_single_undo_redo(data_fixture):
         user=user, application=builder
     )
     table, _, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[["A"]]
+        database=data_fixture.create_database_application(workspace=builder.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["A"]],
     )
     service_type = service_type_registry.get("local_baserow_list_rows")
 
@@ -408,7 +420,10 @@ def test_data_source_create_configure_delete_undo_redo(data_fixture):
         user=user, application=builder
     )
     table, _, _ = data_fixture.build_table(
-        user=user, columns=[("Name", "text")], rows=[["A"]]
+        database=data_fixture.create_database_application(workspace=builder.workspace),
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["A"]],
     )
     service_type = service_type_registry.get("local_baserow_list_rows")
 

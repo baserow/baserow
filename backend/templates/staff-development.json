@@ -1,7 +1,8 @@
 {
     "baserow_template_version": 1,
     "name": "Staff Development",
-    "icon": "iconoir-group",
+    "description": "Plan staff development with goals, commitments, trainings and reviews.",
+    "icon": "baserow-icon-team",
     "keywords": [
         "HR",
         "human resources",

@@ -102,7 +102,7 @@ export class LocalBaserowUserSourceType extends UserSourceType {
       return this.app.$i18n.t('localBaserowUserSourceType.notConfigured')
     }
 
-    const databases = integration.context_data?.databases
+    const databases = integration.context_data?.databases || []
 
     const tableSelected = databases
       .map((database) => database.tables)

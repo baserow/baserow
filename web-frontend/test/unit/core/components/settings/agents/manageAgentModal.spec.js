@@ -208,7 +208,7 @@ describe('ManageAgentModal', () => {
         agentId: 42,
         values: { team_ids: [7] },
       })
-      expect(wrapper.find('.success').text()).toBe('agents.saved')
+      expect(wrapper.find('.success').text()).toBe('identities.saved')
       expect(hide).not.toHaveBeenCalled()
 
       await pages[0].trigger('click')
@@ -221,7 +221,7 @@ describe('ManageAgentModal', () => {
       expect(handleError.mock.calls[0][1]).toBe('agent')
       expect(handleError.mock.calls[0][2]).toBeNull()
       expect(handleError.mock.calls[0][3].name.invalid_name).toEqual({
-        title: 'agents.invalidNameTitle',
+        title: 'identities.invalidNameTitle',
         message: 'error.nameContainsUrl',
       })
       expect(wrapper.find('.name-input').element.value).toBe('Renamed')
@@ -238,9 +238,9 @@ describe('ManageAgentModal', () => {
       await wrapper.find('form').trigger('submit')
       expect(dispatch).toHaveBeenCalledTimes(3)
       await pages[2].trigger('click')
-      expect(wrapper.findAll('button').map((button) => button.text())).toEqual([
-        'action.close',
-      ])
+      expect(
+        wrapper.findAll('.actions button').map((button) => button.text())
+      ).toEqual(['action.close'])
     } finally {
       wrapper.unmount()
     }
@@ -325,6 +325,46 @@ describe('ManageAgentModal', () => {
     wrapper.unmount()
   })
 
+  test('does not create an agent with a whitespace-only name', async () => {
+    const dispatch = vi.fn()
+    const wrapper = await mountSuspended(ManageAgentModal, {
+      props: { workspace: { id: 12, _: { roles: [] } } },
+      global: {
+        mocks: {
+          $registry: { getOrderedList: () => [generalSetting] },
+          $store: { dispatch },
+          $t: (key) => key,
+        },
+        stubs: {
+          Modal: modalStub,
+          Error: true,
+          FormGroup: { template: '<div><slot /></div>' },
+          FormInput: {
+            props: ['modelValue'],
+            emits: ['update:modelValue'],
+            template:
+              '<input class="name-input" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+            methods: { focus() {} },
+          },
+          Button: ButtonStub,
+          WorkspaceRoleSelector: WorkspaceRoleSelectorStub,
+        },
+      },
+    })
+
+    try {
+      await wrapper.find('.name-input').setValue('   ')
+      const create = wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'identities.create')
+      expect(create.attributes('disabled')).toBeDefined()
+      await wrapper.find('form').trigger('submit')
+      expect(dispatch).not.toHaveBeenCalled()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   test('hides commercial information in its role selector', async () => {
     const wrapper = await mountSuspended(ManageAgentModal, {
       props: {
@@ -356,7 +396,7 @@ describe('ManageAgentModal', () => {
     const teamsSetting = {
       ...generalSetting,
       component: { template: '<div class="teams-settings" />' },
-      icon: 'iconoir-community',
+      icon: 'baserow-icon-team',
       name: 'Teams',
       getType: () => 'teams',
       getInitialValues: () => ({ team_ids: [3] }),
@@ -437,7 +477,7 @@ test('Cancel closes the Agent modal without submitting', async () => {
       .find((button) => button.text() === 'action.cancel')
     const create = wrapper
       .findAll('button')
-      .find((button) => button.text() === 'agents.create')
+      .find((button) => button.text() === 'identities.create')
     expect(cancel.attributes('type')).toBe('button')
     expect(create.attributes('type')).toBe('submit')
     cancel.element.click()

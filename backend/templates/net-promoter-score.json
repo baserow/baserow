@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Net Promoter Score",
+    "description": "Collect NPS surveys per product to see who promotes you.",
     "icon": "iconoir-clipboard-check",
     "keywords": [
         "Customer satisfaction",

@@ -3,6 +3,7 @@ import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
 import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
 import PublicViewExportMenuItem from '@baserow_premium/components/views/PublicViewExportMenuItem'
+import PremiumDashboardShareOptions from '@baserow_premium/components/dashboard/PremiumDashboardShareOptions'
 
 export class PremiumPlugin extends BaserowPlugin {
   static getType() {
@@ -19,6 +20,10 @@ export class PremiumPlugin extends BaserowPlugin {
 
   getAdditionalShareLinkOptions() {
     return [PremiumViewOptions]
+  }
+
+  getAdditionalDashboardShareLinkOptions() {
+    return [PremiumDashboardShareOptions]
   }
 
   getAdditionalPublicViewMenuItems(view) {

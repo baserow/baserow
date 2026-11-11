@@ -25,6 +25,7 @@ from baserow.core.utils import (
     find_unused_name,
     get_all_ips,
     get_baserow_saas_base_url,
+    get_embedded_share_url,
     get_value_at_path,
     grouper,
     is_hostname_safe,
@@ -886,3 +887,14 @@ def test_resolve_and_validate_hostname():
 def test_are_hostnames_same():
     assert are_hostnames_same("localhost", "localhost") is True
     assert are_hostnames_same("baserow.io", "localhost") is False
+
+
+@override_settings(
+    PUBLIC_WEB_FRONTEND_URL="https://baserow.example.com",
+    BASEROW_EMBEDDED_SHARE_URL="https://intranet.example.com/baserow/",
+)
+def test_get_embedded_share_url():
+    assert (
+        get_embedded_share_url("reset-password/TOKEN")
+        == "https://intranet.example.com/baserow/reset-password/TOKEN"
+    )

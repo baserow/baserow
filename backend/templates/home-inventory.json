@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Home Inventory",
+    "description": "Keep an inventory of household items and insurance policies.",
     "icon": "iconoir-house-rooms",
     "keywords": [
         "home",

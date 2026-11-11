@@ -109,6 +109,7 @@ describe('Grouped aggregate data source form', () => {
     const source = {
       id: 20,
       name: 'Grouped rows',
+      bucket_limit: null,
       type: 'local_baserow_grouped_aggregate_rows',
       table_id: 1,
       view_id: null,

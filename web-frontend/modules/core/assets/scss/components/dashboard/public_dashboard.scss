@@ -1,0 +1,52 @@
+/**
+ Publicly shared dashboard page: no sidebar or app header, the dashboard card
+ fills the page and the report abuse link and the Baserow logo sit in its bottom
+ left corner.
+ */
+
+.public-dashboard {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: $palette-neutral-100;
+}
+
+.public-dashboard__content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-dashboard__main {
+  flex: 1;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.public-dashboard__empty {
+  color: $palette-neutral-900;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.public-dashboard__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.public-dashboard__report-abuse {
+  @extend %ellipsis;
+
+  color: $palette-neutral-700;
+  font-size: 12px;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-900;
+  }
+}

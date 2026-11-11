@@ -1,7 +1,11 @@
 <template>
   <button
     class="chips"
-    :class="{ 'chips--active': active, 'chips--disabled': disabled }"
+    :class="{
+      'chips--active': active,
+      'chips--disabled': disabled,
+      'chips--small': size === 'small',
+    }"
   >
     <i v-if="icon" class="chips__icon" :class="icon" />
     <slot />
@@ -26,6 +30,17 @@ export default {
       required: false,
       type: String,
       default: '',
+    },
+    /**
+     * The size of the chips. Small is a compact pill, e.g. to pick tags.
+     */
+    size: {
+      required: false,
+      type: String,
+      default: 'regular',
+      validator: function (value) {
+        return ['regular', 'small'].includes(value)
+      },
     },
   },
 }

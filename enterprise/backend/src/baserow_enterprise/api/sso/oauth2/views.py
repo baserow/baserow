@@ -18,7 +18,11 @@ from baserow.core.auth_provider.exceptions import (
     UnverifiedEmailFromProvider,
 )
 from baserow.core.auth_provider.handler import AuthProviderHandler
-from baserow.core.exceptions import WorkspaceInvitationEmailMismatch
+from baserow.core.exceptions import (
+    FeatureDisabledException,
+    WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkDoesNotExist,
+)
 from baserow.core.user.exceptions import DeactivatedUserException, DisabledSignupError
 from baserow_enterprise.api.sso.serializers import SsoLoginRequestSerializer
 from baserow_enterprise.api.sso.utils import (
@@ -54,6 +58,13 @@ class OAuth2LoginView(APIView):
                 type=OpenApiTypes.STR,
                 description="The invitation token sent to the "
                 "user to join a specific workspace.",
+            ),
+            OpenApiParameter(
+                name="workspace_invitation_link_slug",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The slug of the workspace invitation link that a new "
+                "user signs up through.",
             ),
         ],
         tags=["Auth"],
@@ -113,6 +124,12 @@ class OAuth2CallbackView(APIView):
                 type=OpenApiTypes.STR,
                 description="The code returned by the IDP.",
             ),
+            OpenApiParameter(
+                name="state",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="The oauth state returned by the IDP.",
+            ),
         ],
         tags=["Auth"],
         operation_id="oauth_provider_login_callback",
@@ -133,6 +150,8 @@ class OAuth2CallbackView(APIView):
             DifferentAuthProvider: SsoErrorCode.DIFFERENT_PROVIDER,
             UnverifiedEmailFromProvider: SsoErrorCode.UNVERIFIED_EMAIL,
             WorkspaceInvitationEmailMismatch: SsoErrorCode.GROUP_INVITATION_EMAIL_MISMATCH,
+            WorkspaceInvitationLinkDoesNotExist: SsoErrorCode.INVITATION_LINK_INVALID,
+            FeatureDisabledException: SsoErrorCode.INVITATION_LINK_INVALID,
             DisabledSignupError: SsoErrorCode.SIGNUP_DISABLED,
         }
     )
@@ -154,6 +173,10 @@ class OAuth2CallbackView(APIView):
             "OAuth2 callback request GET query params: {0}", dict(request.query_params)
         )
         logger.debug("OAuth2 callback session data: {0}", request.session._session)
+
+        provider.get_type().consume_oauth_state_or_raise(
+            provider, request.session, request.query_params.get("state", None)
+        )
 
         code = request.query_params.get("code", None)
         user_info, original_url = provider.get_type().get_user_info(

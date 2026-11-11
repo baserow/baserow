@@ -56,7 +56,7 @@ export default {
   },
   computed: {
     databases() {
-      return this.integration.context_data.databases
+      return this.integration.context_data?.databases || []
     },
     fieldTypes() {
       return this.$registry.getAll('field')

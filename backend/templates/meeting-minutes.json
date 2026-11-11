@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Meeting Minutes",
+    "description": "Record minutes and action items, linked to rooms and attendees.",
     "icon": "iconoir-timer",
     "keywords": [
         "meeting minutes",

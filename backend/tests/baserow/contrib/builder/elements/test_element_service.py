@@ -1069,3 +1069,42 @@ def test_concurrent_element_creations_both_land_in_graph(data_fixture):
     # else is in the graph.
     assert set(created_ids) == {root_id, graph[str(root_id)]["next"][""][0]}
     assert set(graph) == {"0", *(str(element_id) for element_id in created_ids)}
+
+
+@pytest.mark.django_db
+def test_creating_and_moving_within_a_page_keeps_its_element_map(data_fixture):
+    from django.db import transaction
+
+    from baserow.core.cache import local_cache
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading_type = element_type_registry.get("heading")
+    service = ElementService()
+
+    with local_cache.context(), transaction.atomic():
+        created = service.create_element(user, heading_type, page)
+        # Loads the page's elements once.
+        page.get_graph().get_point(created.id)
+
+        with patch.object(
+            ElementHandler, "get_elements", wraps=ElementHandler().get_elements
+        ) as get_elements:
+            for _ in range(5):
+                created = service.create_element(
+                    user, heading_type, page, reference_element_id=created.id
+                )
+                assert page.get_graph().get_point(created.id) == created
+            first = Element.objects.filter(page=page).order_by("id").first()
+            service.move_element(
+                user,
+                page,
+                ElementHandler().get_element_for_update(first.id),
+                "",
+                created.id,
+                GraphPointPosition.SOUTH,
+            )
+            assert page.get_graph().get_last_position()[0].id == first.id
+
+        # Neither a create nor a move within the page loads it again.
+        get_elements.assert_not_called()

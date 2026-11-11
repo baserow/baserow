@@ -25,6 +25,13 @@ export class SMTPIntegrationType extends IntegrationType {
     })
   }
 
+  getErrorMessage(integration) {
+    if (!integration.host) {
+      return this.app.$i18n.t('smtpIntegrationType.errorNoHost')
+    }
+    return super.getErrorMessage(integration)
+  }
+
   get formComponent() {
     return SMTPForm
   }

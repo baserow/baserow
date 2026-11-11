@@ -116,7 +116,6 @@
     >
       <InjectedFormulaInput
         v-model="values.body"
-        :enabled-modes="bodyFormulaMode"
         :placeholder="$t('smtpEmailForm.bodyPlaceholder')"
         textarea
       />
@@ -130,7 +129,6 @@ import InjectedFormulaInput from '@baserow/modules/core/components/formula/Injec
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import Checkbox from '@baserow/modules/core/components/Checkbox'
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
-import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'CoreSMTPEmailServiceForm',
@@ -202,11 +200,6 @@ export default {
     }
   },
   computed: {
-    bodyFormulaMode() {
-      return this.values.body_type !== 'html'
-        ? BASEROW_FORMULA_MODES
-        : ['raw', 'simple']
-    },
     showInstanceSmtpOption() {
       if (this.instanceSmtpAvailable !== null) {
         return this.allowIntegration && this.instanceSmtpAvailable

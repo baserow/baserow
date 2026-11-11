@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Remote Team Hub",
+    "description": "Run a remote team's projects and meetings across time zones.",
     "icon": "iconoir-computer",
     "keywords": [
         "remote",

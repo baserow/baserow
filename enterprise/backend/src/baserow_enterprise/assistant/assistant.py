@@ -1,4 +1,5 @@
 import asyncio
+import re
 from contextlib import aclosing
 from dataclasses import dataclass
 from typing import Any, AsyncGenerator
@@ -10,6 +11,7 @@ from django.utils import translation
 from loguru import logger
 from pydantic_ai import UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
@@ -31,6 +33,7 @@ from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
 from baserow.core.models import Workspace
+from baserow.core.utils import exception_capturer
 from baserow_enterprise.assistant.action_memory import get_verified_tool_outcomes
 from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
@@ -77,6 +80,86 @@ _UNFINISHED_ANSWER = (
     "I couldn't finish my answer, but some changes may already have been made. "
     "Please check them, then tell me how to continue."
 )
+
+
+_TITLE_MAX_CHARS = 50
+_TITLE_HEADING = re.compile(r"^#+(\s+|$)")
+_TITLE_LABEL = re.compile(r"^(\*\*)?title\s*(\*\*)?\s*:\s*(\*\*)?\s*", re.IGNORECASE)
+_TITLE_WRAPPERS = ("**", '"', "'")
+_TITLE_MARKUP = "#*\"' "
+
+
+def _unwrap(line: str, marker: str) -> str:
+    """
+    Remove *marker* when it wraps the whole line and appears nowhere else in it,
+    so that markers belonging to the title stay.
+
+    :param line: The line to unwrap.
+    :param marker: The opening and closing marker, like ``**`` or a quote.
+    :return: The line without the wrapping marker.
+    """
+
+    inner = line[len(marker) : -len(marker)]
+    if (
+        len(line) >= 2 * len(marker)
+        and line.startswith(marker)
+        and line.endswith(marker)
+        and marker not in inner
+    ):
+        return inner.strip()
+    return line
+
+
+def _clean_title_line(line: str) -> str:
+    """
+    Remove a Markdown heading, a "Title:" label and bold or quotes around the
+    whole line, keeping characters that belong to the title.
+
+    :param line: One line of the title agent's output.
+    :return: The cleaned line, empty when only markup is left.
+    """
+
+    line = _TITLE_HEADING.sub("", line.strip())
+    line = _TITLE_LABEL.sub("", line)
+    for marker in _TITLE_WRAPPERS:
+        line = _unwrap(line, marker)
+    return line if line.strip(_TITLE_MARKUP) else ""
+
+
+def _short_title(text: str) -> str:
+    """
+    Keep the first line of the title agent's output, without thinking blocks or
+    a "Title:" label, shortened at a word boundary.
+
+    :param text: The title agent's output.
+    :return: A title of at most ``_TITLE_MAX_CHARS`` characters.
+    """
+
+    lines = (_clean_title_line(line) for line in _strip_think_tags(text).splitlines())
+    title = next((line for line in lines if line), "")
+    if len(title) <= _TITLE_MAX_CHARS:
+        return title
+    cut = title[: _TITLE_MAX_CHARS - 1].rsplit(" ", 1)[0].rstrip(" ,.;:-")
+    return f"{cut}…"
+
+
+_PROVIDER_RETRY_STATUS_CODES = (408, 409, 429)
+
+
+def _is_provider_outage(exc: Exception) -> bool:
+    """
+    Whether a failed run comes from the model provider rather than from
+    Baserow, so that reporting it would only add noise.
+
+    :param exc: The exception that ended the run.
+    :return: True for rate limits, timeouts, provider server errors, and
+        errors without a status code, which pydantic-ai raises for broken
+        connections and streams.
+    """
+
+    if isinstance(exc, ModelHTTPError):
+        return exc.status_code in _PROVIDER_RETRY_STATUS_CODES or exc.status_code >= 500
+    return isinstance(exc, ModelAPIError)
 
 
 @dataclass
@@ -216,6 +299,8 @@ def _mode_for_ui_context(ui_context: UIContext | None) -> AgentMode | None:
         return AgentMode.APPLICATION
     if ui_context.automation or ui_context.workflow:
         return AgentMode.AUTOMATION
+    if ui_context.dashboard:
+        return AgentMode.DASHBOARD
     return AgentMode.DATABASE
 
 
@@ -391,6 +476,7 @@ class Assistant:
         )
         return AiMessage(
             id=ai_msg.id,
+            timestamp=ai_msg.created_on,
             content=answer,
             sources=sources,
             can_submit_feedback=True,
@@ -518,6 +604,9 @@ class Assistant:
                     )
         except Exception as exc:
             logger.exception("Error running main agent")
+            if not _is_provider_outage(exc):
+                # Loguru logs don't reach Sentry.
+                exception_capturer(exc)
             queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
         finally:
             queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
@@ -555,9 +644,16 @@ class Assistant:
     async def _consume_agent_events(
         self, events: Any, queue: asyncio.Queue[QueueEvent]
     ) -> tuple[str, Any] | None:
-        """Forward reasoning events and return the completed run."""
+        """Stream thinking separately from tentative answer text.
+
+        Text can precede a tool call or fail output validation. Reclassify it when
+        tools start and clear it before the next model response; only the accepted
+        ``AgentRunResultEvent`` is returned for persistence.
+        """
 
         reasoning = ""
+        text = ""
+        response_started = False
         async for event in events:
             if isinstance(event, AgentRunResultEvent):
                 answer = event.result.output
@@ -566,21 +662,48 @@ class Assistant:
                 return answer, event.result
 
             if isinstance(event, FunctionToolCallEvent):
-                if thought := _extract_tool_thought(event):
-                    reasoning = await self._append_reasoning(queue, reasoning, thought)
+                # The response's text was a preface, not its answer. Move it once,
+                # even when the tool has no thought or several calls arrive together.
+                tool_reasoning = "\n\n".join(
+                    part for part in (text, _extract_tool_thought(event)) if part
+                )
+                text = ""
+                if tool_reasoning:
+                    if reasoning:
+                        tool_reasoning = f"\n\n{tool_reasoning}"
+                    reasoning = await self._append_reasoning(
+                        queue, reasoning, tool_reasoning
+                    )
                 continue
 
             if isinstance(event, FunctionToolResultEvent):
                 reasoning = ""
                 continue
 
-            # A rejected text answer emits no event, so the next response resets it.
-            if isinstance(event, PartStartEvent) and event.index == 0 and reasoning:
+            # Rejected text emits no special event. The next response must clear
+            # it even when its first part is an empty thought or a tool call.
+            if isinstance(event, PartStartEvent) and event.index == 0:
                 reasoning = ""
-                await self._enqueue_reasoning(queue, "")
+                text = ""
+                if response_started:
+                    await self._enqueue_reasoning(queue, "")
+                response_started = True
 
-            if content := self._get_content_delta(event):
-                reasoning = await self._append_reasoning(queue, reasoning, content)
+            if delta := self._get_content_delta(event):
+                content, is_thinking = delta
+                if is_thinking:
+                    reasoning = await self._append_reasoning(queue, reasoning, content)
+                else:
+                    text += content
+                    if visible_text := _strip_think_tags(text):
+                        await queue.put(
+                            QueueEvent(
+                                kind=QueueEventKind.STREAM,
+                                message=AiMessageChunk(
+                                    content=visible_text, sources=self._deps.sources
+                                ),
+                            )
+                        )
 
         return None
 
@@ -598,17 +721,19 @@ class Assistant:
         return reasoning
 
     @staticmethod
-    def _get_content_delta(event: Any) -> str | None:
-        """Extract text or thinking content from a stream event delta."""
+    def _get_content_delta(event: Any) -> tuple[str, bool] | None:
+        """Extract content and whether it belongs to native thinking."""
 
         if isinstance(event, PartStartEvent) and isinstance(
             event.part, (TextPart, ThinkingPart)
         ):
-            return event.part.content or None
+            if content := event.part.content:
+                return content, isinstance(event.part, ThinkingPart)
         if isinstance(event, PartDeltaEvent) and isinstance(
             event.delta, (TextPartDelta, ThinkingPartDelta)
         ):
-            return event.delta.content_delta or None
+            if content := event.delta.content_delta:
+                return content, isinstance(event.delta, ThinkingPartDelta)
         return None
 
     @staticmethod
@@ -696,7 +821,9 @@ class Assistant:
             return None
         try:
             title = await self._generate_chat_title(human_message.content)
-            self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
+            self._chat.title = _short_title(title) or _short_title(
+                human_message.content
+            )
             await self._chat.asave(update_fields=["title", "updated_on"])
             return ChatTitleMessage(content=self._chat.title)
         except Exception:

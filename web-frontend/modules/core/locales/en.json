@@ -1,4 +1,33 @@
 {
+  "untrustedContentReviewModal": {
+    "title": "Review imported content",
+    "publishBlocked": "Review and trust the imported content before publishing.",
+    "description": "Imported content is blocked to protect your data and visitors. Only enable it if you trust its source and have reviewed what it does.",
+    "contents": "Content found during import",
+    "riskIframe": "Embeds another page or HTML that may display misleading content or collect information entered by visitors.",
+    "riskCode": "Runs code that may read, change, or send data to external services using the workflow’s configured access.",
+    "riskScript": "Runs JavaScript in visitors’ browsers that may access page data or send information to external services.",
+    "riskStyles": "Changes the page’s appearance and may hide or disguise content. External stylesheets also contact a third-party server.",
+    "riskUnknown": "May run code or load external resources. Review its configuration before enabling it.",
+    "confirmation": "This list is a snapshot from import and may have changed. Trusting enables all current custom content. Publish again to enable it in the published version.",
+    "trust": "Trust content",
+    "empty": "No active content was recorded at import. Review the current content in the editor before trusting it.",
+    "page": "Page: {name}",
+    "typeIframe": "Iframe",
+    "typeCodeAction": "Code action",
+    "typeCodeNode": "Code node",
+    "typeCss": "Custom CSS",
+    "typeJs": "Custom JavaScript",
+    "typeScript": "External script",
+    "typeStylesheet": "External stylesheet",
+    "typeUnknown": "Active content",
+    "errorTitle": "Could not trust content",
+    "errorMessage": "The content is still blocked. Check your permissions and try again."
+  },
+  "applicationUntrustedContentAlert": {
+    "title": "Untrusted content blocked",
+    "review": "Review and trust"
+  },
   "mcpAuthorize": {
     "title": "Connect {client}",
     "titleFrom": "Connect {client} from {host}",
@@ -9,14 +38,6 @@
     "databases": "{count} database | {count} databases",
     "noWorkspaces": "You can't connect apps in any of your workspaces. Ask a workspace admin for access.",
     "loopbackWarning": "This app signs in through your own computer. Any program on it could use this name, so only continue if you just started the sign-in yourself.",
-    "tools": "What it can do",
-    "selectAll": "Select all",
-    "selectNone": "None",
-    "toolsRead": "Read",
-    "toolsChange": "Change",
-    "deletes": "Deletes",
-    "overwrites": "Overwrites",
-    "noTools": "There are no tools available.",
     "signedIn": "Signed in as {email}",
     "allow": "Allow",
     "deny": "Deny",
@@ -28,6 +49,35 @@
     "loadFailedMessage": "Check your connection and reload the page to try again.",
     "failed": "Could not complete the connection.",
     "framed": "For your security, this page can't be shown inside another site. Open it in its own browser window to continue."
+  },
+  "mcpToolPicker": {
+    "tools": "What it can do",
+    "readOnly": "Read only",
+    "fullAccess": "Full access",
+    "none": "None",
+    "noTools": "There are no tools available.",
+    "deletes": "Deletes",
+    "overwrites": "Overwrites",
+    "areaWorkspace": "Workspace",
+    "workspaceRead": "Search the workspace",
+    "areaDatabase": "Databases",
+    "databaseRead": "Read tables and rows",
+    "databaseEdit": "Create and change",
+    "databaseDelete": "Delete",
+    "areaAutomation": "Automations",
+    "automationRead": "Read workflows and nodes",
+    "automationEdit": "Create and change",
+    "automationDelete": "Delete",
+    "areaDashboard": "Dashboards",
+    "dashboardRead": "Read dashboards and widgets",
+    "dashboardEdit": "Create and change",
+    "dashboardDelete": "Delete",
+    "areaAuditLog": "Audit log",
+    "auditLogRead": "Read the audit log",
+    "areaBuilder": "Application builder",
+    "builderRead": "Read application builders",
+    "builderEdit": "Create and change",
+    "builderDelete": "Delete"
   },
   "paginator": {
     "page": "Page",
@@ -98,7 +148,8 @@
     }
   },
   "copied": {
-    "label": "Copied!"
+    "label": "Copied!",
+    "linkFailed": "The link couldn't be copied to the clipboard."
   },
   "sampleDataViewer": {
     "payloadLabel": "Output",
@@ -125,9 +176,25 @@
     "duplicating": "Duplicating",
     "duplicatedTitle": "Application duplicated"
   },
+  "createUserTemplateJobType": {
+    "name": "Create template"
+  },
   "InstallTemplateJobType": {
     "installing": "Installing",
-    "installedTitle": "Template installed"
+    "installedTitle": "Template installed",
+    "installingTitle": "Installing {name}",
+    "installedMessage": "Successfully installed {name}",
+    "failedTitle": "{name} couldn't be installed",
+    "dismiss": "Dismiss"
+  },
+  "downloadTemplateToast": {
+    "preparingTitle": "Preparing download…",
+    "preparingMessage": "Exporting \"{name}\" as a workspace file",
+    "readyTitle": "Download ready",
+    "readyMessage": "\"{name}\" is ready to download",
+    "failedTitle": "Download failed",
+    "download": "Download",
+    "dismiss": "Dismiss"
   },
   "sidebar": {
     "createWorkspace": "Create workspace",
@@ -150,7 +217,8 @@
     "adminSettings": "Admin settings",
     "general": "General",
     "people": "People",
-    "licenses": "Licenses"
+    "licenses": "Licenses",
+    "adminContentCategory": "Content"
   },
   "accountForm": {
     "nameLabel": "Your name",
@@ -299,6 +367,21 @@
   },
   "invitationTitle": "Invitation",
   "invitationMessage": "{invitedBy} has invited you to join {workspace}.",
+  "invitationLinkMessage": "You have been invited to join {workspace}.",
+  "invitationLinkJoin": {
+    "title": "Join {workspace}",
+    "joinAs": "You will join as {email}. The members of the workspace will be able to see your name and email address.",
+    "join": "Join workspace",
+    "upgradeTitle": "Change your role in {workspace}",
+    "upgradeRole": "You're already a member of this workspace. Your role will change from {from} to {to}.",
+    "upgrade": "Change my role",
+    "scopeIn": "{name} in {workspace}",
+    "upgradeScopeTitle": "Change your role on {name}",
+    "upgradeScopeRole": "You're already a member of {workspace}. Your role on {name} will change from {from} to {to}.",
+    "failed": "Could not join the workspace",
+    "failedMessage": "Something went wrong while joining the workspace. Please try again.",
+    "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one."
+  },
   "workspaceForm": {
     "nameLabel": "Name"
   },
@@ -390,19 +473,53 @@
     "title": "Invitation",
     "message": "{by} has invited you to join {workspace}.",
     "reject": "Reject",
-    "accept": "Accept"
+    "accept": "Accept",
+    "emailNotVerified": "Verify your email address to accept this invitation, or open the link in the invitation email.",
+    "sendVerificationEmail": "Send verification email"
   },
   "inviteModal": {
+    "backTo": "Back to {level}: {title}",
     "emailRoute": "Email invite",
-    "linkRoute": "Create link",
+    "linkRoute": "Invite links",
     "emailTitle": "Invite members by email",
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
-    "linkEmptyDescription": "You can create multiple links with different roles."
+    "linkEmptyDescription": "You can create multiple links with different roles.",
+    "linkColumn": "Link",
+    "linkName": "Name",
+    "linkNamePlaceholder": "E.g. Sales team",
+    "linkAdd": "Add link",
+    "linkInviteAs": "Invite as",
+    "linkCopy": "Copy link",
+    "linkDelete": "Delete link",
+    "pendingTitle": "Pending invitations",
+    "pendingEmptyTitle": "No invitations are pending.",
+    "pendingEmptyDescription": "Invitations show up here until they are accepted."
   },
-  "workspaceInviteForm": {
-    "errorInvalidEmail": "Please enter a valid e-mail address.",
-    "additionalRoles": "Additional roles"
+  "invitationLinkDeleteModal": {
+    "title": "Delete link",
+    "deleteWarning": "Are you sure that you want to delete this invite link to {workspaceName}? After deleting, it will not be possible to join the workspace via this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it keep their access.",
+    "delete": "Delete link"
+  },
+  "invitationLinkAdminConfirmModal": {
+    "title": "Invite as admin through a link?",
+    "message": "Anyone with this link can join the workspace as an admin, and admins can manage everything in it, including its members and invite links. Only share it with people you trust.",
+    "confirm": "Invite as admin"
+  },
+  "inviteInput": {
+    "batchLimitExceeded": "You can invite up to {limit} email addresses at once. Remove extra addresses to continue.",
+    "placeholder": "Type or paste email addresses",
+    "invite": "Invite",
+    "inviteAs": "Invite {count} as {role}",
+    "tabAll": "All",
+    "inviteEmail": "Invite {email}",
+    "inviteEmailDescription": "Joins the workspace as {role}",
+    "alreadyInvited": "An invitation is already pending.\nYou can change its role on the Invites page instead of inviting again.",
+    "alreadyMember": "Already a member of this workspace",
+    "invitedHint": "Invited",
+    "memberHint": "Member",
+    "roleNotForEmails": "Someone new can't be invited with the {role} role",
+    "noResults": "Type a full email address to invite someone."
   },
   "workspaceContext": {
     "renameWorkspace": "Rename workspace",
@@ -519,6 +636,10 @@
     "allTemplates": "All templates",
     "noResults": "No templates found"
   },
+  "templateEmptyState": {
+    "noResultsTitle": "No templates found",
+    "noResultsDescription": "No templates match “{query}”. Try a different search."
+  },
   "templateHeader": {
     "use": "Use this template",
     "selectWorkspace": "Choose workspace"
@@ -526,12 +647,176 @@
   "templateInstall": {
     "use": "Use this template",
     "selectWorkspace": "Choose workspace",
+    "workspaceNoPermission": "You don't have permission to add applications to this workspace.",
     "more": "More",
-    "copyLink": "Copy sharing link"
+    "copyLink": "Copy sharing link",
+    "download": "Download",
+    "noWorkspace": "A template is installed into a workspace. Create a workspace first, then install the template into it.",
+    "noWorkspaceAskInvite": "You aren't a member of any workspace. A template is installed into a workspace, so you will need to be invited to a workspace by an administrator first.",
+    "createWorkspace": "Create workspace"
   },
   "templateDetails": {
     "back": "Back to Templates",
-    "contents": "What’s inside"
+    "contents": "What’s inside",
+    "editDetails": "Edit details",
+    "updateContent": "Update template content",
+    "delete": "Delete",
+    "you": "You",
+    "private": "Only you can see this template",
+    "makePublic": "Make public",
+    "submitForReviewAgain": "Submit for review again",
+    "makePrivate": "Make private"
+  },
+  "templateModal": {
+    "officialTemplates": "Official templates",
+    "publicTemplates": "Shared templates",
+    "yourTemplates": "Your templates",
+    "unavailableTitle": "Template not available",
+    "unavailableDescription": "This template is no longer shared. The list shows the shared templates as they are now."
+  },
+  "createUserTemplateModal": {
+    "detailsTitle": "New template",
+    "detailsDescription": "Publish a reusable copy of your work for other people in this instance.",
+    "continue": "Continue",
+    "contentTitle": "Choose template content",
+    "contentDescription": "Choose the workspace to take the content from, then pick what the template should include.",
+    "create": "Create template",
+    "cannotBeCancelled": "It’s not possible to cancel, because the template has already been created.",
+    "failedAfterCreated": "The template was created, but something went wrong afterwards.",
+    "failedPublicAfterCreated": "The template was created, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”."
+  },
+  "userTemplateVisibilityForm": {
+    "visibility": "Visibility",
+    "private": "Private",
+    "privateDescription": "Hidden from the template browser. Only you can see and install it.",
+    "public": "Public",
+    "publicDescription": "This instance does not review templates, so it appears in the browser straight away.",
+    "publicReviewDescription": "A public template is reviewed by an admin before it appears in the browser.",
+    "listedDescription": "Listed in the template browser. You can make it private again later.",
+    "consent": "Listed in the template browser for everyone on this instance. You also acknowledge that your account name {author} is shared as author."
+  },
+  "updateUserTemplateModal": {
+    "detailsTitle": "Edit template",
+    "detailsDescription": "Change how your template is presented. The template content stays as it is.",
+    "contentTitle": "Update content",
+    "save": "Save changes",
+    "update": "Update template",
+    "updated": "Template updated",
+    "failedAfterUpdated": "The template was updated, but something went wrong afterwards.",
+    "failedPublicAfterUpdated": "The template was updated, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”.",
+    "cannotBeCancelled": "It’s not possible to cancel, because the template has already been updated.",
+    "invalidKeptDetails": "The icon or a category of the template can’t be used anymore. Change them with “Edit details” first, then update the content.",
+    "reviewTitle": "Saving sends this template back to review",
+    "reviewText": "The approved version stays listed in the template browser until an admin approves the changes.",
+    "inReviewTitle": "This template is in review",
+    "inReviewText": "Saving replaces the version in review, so an admin reviews your changes instead.",
+    "rejectedTitle": "Saving doesn’t send this template back to review",
+    "rejectedText": "It stays rejected. Make it public once your changes are ready."
+  },
+  "deleteUserTemplateModal": {
+    "title": "Are you sure you want to delete “{name}”?",
+    "description": "The template is removed for everyone in this instance. Copies people already installed in their workspaces are not affected.",
+    "delete": "Delete template"
+  },
+  "makeTemplatePublicModal": {
+    "title": "Make “{name}” public?",
+    "description": "“{name}” will be listed in the template browser for everyone on this instance, and your account name, {author}, is shared as author. You can make it private again later.",
+    "makePublic": "Make public",
+    "reviewDescription": "“{name}” will be listed in the template browser for everyone on this instance once an instance admin approves it, and your account name, {author}, is shared as author. You can make it private again later.",
+    "resubmitListedDescription": "The approved version of “{name}” stays listed in the template browser until an instance admin approves this one, which then replaces it.",
+    "resubmitTitle": "Submit “{name}” for review again?",
+    "submitForReviewAgain": "Submit for review again"
+  },
+  "userTemplatePrivateLink": {
+    "emptyTitle": "This template has no private link",
+    "emptyDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
+    "create": "Create a sharing link",
+    "sharedTitle": "This template is shared via a private link",
+    "sharedDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
+    "copy": "Copy link",
+    "regenerate": "Generate a new link",
+    "regenerateHint": "Regenerating creates a new link and breaks the old one.",
+    "remove": "Disable shared link",
+    "createdTitle": "Sharing link created",
+    "createdDescription": "Anyone with the link can preview this template. To install or download it, they need to sign in.",
+    "regeneratedTitle": "New sharing link generated",
+    "regeneratedDescription": "The old link no longer works.",
+    "removedTitle": "Sharing link disabled",
+    "removedDescription": "The link no longer works. If the template is public, it stays public.",
+    "blocked": "This template is blocked, so its private link can't be changed."
+  },
+  "userTemplateDetailsForm": {
+    "name": "Name",
+    "namePlaceholder": "Template name",
+    "nameRequired": "A name is required.",
+    "chooseIcon": "Choose an icon",
+    "description": "Description",
+    "descriptionPlaceholder": "What is this template for?",
+    "categories": "Categories",
+    "categoriesRequired": "Choose at least one category."
+  },
+  "userTemplateContentForm": {
+    "workspace": "Workspace",
+    "workspaceEmpty": "There is nothing to copy in this workspace.",
+    "workspaceNoPermission": "You don't have permission to copy this workspace.",
+    "applications": "Content",
+    "noticeTitle": "What is not copied",
+    "noticeSecrets": "Most passwords, tokens and API keys of integrations and data syncs.",
+    "noticePasswords": "Values of password fields in your tables, including the passwords of your application users.",
+    "noticePeople": "People: collaborator field values, role assignments and the user that automatic AI field updates run as.",
+    "noticePersonalViews": "Personal views.",
+    "noticeReferences": "Connections to databases that are not included. Data sources, filters and triggers using them need to be set up again.",
+    "noticeRest": "Everything else is shared as it is.",
+    "selectedApplications": "Nothing selected yet | 1 application selected | {count} applications selected"
+  },
+  "templateIconSelectContext": {
+    "search": "Search icons",
+    "noResults": "No icons found"
+  },
+  "userTemplateList": {
+    "title": "Your templates",
+    "count": "0 templates | 1 template | {count} templates",
+    "search": "Search templates",
+    "newTemplate": "New template",
+    "name": "Name",
+    "visibility": "Visibility",
+    "lastUpdated": "Last updated",
+    "used": "Used",
+    "usedTimes": "{count} time | {count} times",
+    "emptyTitle": "You have not shared any template yet",
+    "emptyDescription": "Turn your work into a template anyone in this instance can install with one click.",
+    "noWorkspace": "A template is created from a workspace. Create or join a workspace first.",
+    "noContent": "A template is created from the content of a workspace. Add a database, an application or an automation first.",
+    "statePrivate": "Private",
+    "stateInReview": "In review",
+    "stateRejected": "Rejected",
+    "stateBlocked": "Blocked",
+    "statePublic": "Public",
+    "stateListed": "Listed",
+    "errorTitle": "Your templates couldn't be loaded",
+    "errorDescription": "Something went wrong while loading your templates.",
+    "retry": "Retry",
+    "actions": "Actions",
+    "editDetails": "Edit details",
+    "updateContent": "Update template content",
+    "download": "Download",
+    "makePublic": "Make public",
+    "submitForReviewAgain": "Submit for review again",
+    "makePrivate": "Make private",
+    "privateLink": "Sharing link",
+    "copyLink": "Copy sharing link",
+    "delete": "Delete"
+  },
+  "publicTemplateList": {
+    "title": "Shared templates",
+    "you": "You",
+    "updated": "Updated {ago}",
+    "emptyTitle": "No shared templates yet",
+    "emptyCategoryTitle": "No shared templates in this category",
+    "emptyDescription": "Templates that people on this instance make public are listed here.",
+    "errorTitle": "Shared templates couldn't be loaded",
+    "errorDescription": "Something went wrong while loading the shared templates.",
+    "retry": "Retry"
   },
   "trashSidebar": {
     "unnamedWorkspace": "Unnamed workspace {id}",
@@ -783,6 +1068,7 @@
     "settingAllowNewAccountsDescription": "By default, any user visiting your Baserow domain can sign up for a new account.",
     "settingAllowSignupsViaWorkspaceInvitationsName": "Allow signups via workspace invitations",
     "settingAllowSignupsViaWorkspaceInvitationDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users to still create an account.",
+    "settingAllowSignupsViaWorkspaceInvitationOrLinkDescription": "Even if the creation of new accounts is disabled, this option permits directly invited users, and anyone who opens a workspace invite link, to still create an account.",
     "settingAllowNonStaffCreateWorkspaceOperation": "Allow everyone to create new workspaces",
     "settingAllowNonStaffCreateWorkspaceOperationDescription": "By default, everyone can create new workspaces. Disable this to only allow staff to create new workspaces.",
     "settingAllowNonStaffCreateWorkspaceOperationWarning": "New users will have a workspace automatically created for them where they are an Admin.",
@@ -802,7 +1088,9 @@
     "settingsVerifyImportSignature": "Verify import signature",
     "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with.",
     "settingAllowReportingAbuseName": "Allow reporting abuse",
-    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report."
+    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report.",
+    "settingUserTemplatesRequireApprovalName": "Templates need approval",
+    "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template. Turning it off approves the templates in review that an admin can approve, except the ones rejected since their last approval."
   },
   "formSidebar": {
     "fields": "Fields",
@@ -882,6 +1170,7 @@
     "stateFailed": "Failed",
     "errorJobCannotBeCancelledTitle": "Could not cancel",
     "errorJobCannotBeCancelledDescription": "It’s not possible to cancel the job as it has already been completed.\nPlease delete the first snapshot in the list below to remove it.",
+    "errorJobCannotBeCancelledGenericDescription": "It’s not possible to cancel the job as it has already been completed.",
     "errorJobAlreadyRunningTitle": "Already running",
     "errorJobAlreadyRunningDescription": "Another import job is already running. You need to wait for that one to finish before starting another."
   },
@@ -895,20 +1184,30 @@
     "lessThanMinuteAgo": "less than a minute ago",
     "justNow": "just now"
   },
+  "crudTable": {
+    "empty": "No items yet",
+    "emptyPage": "No results on this page.",
+    "noResults": "No results found. Try adjusting your search or filters.",
+    "rowActions": "Row actions",
+    "expandRow": "Expand row details",
+    "collapseRow": "Collapse row details"
+  },
   "crudTableSearch": {
     "search": "Search"
   },
   "membersSettings": {
     "membersTabTitle": "Members",
-    "invitesTabTitle": "Invites",
     "membersTable": {
-      "title": "{userAmount} Members in {workspaceName}",
-      "inviteMember": "Invite member",
+      "title": "{userAmount} members in {workspaceName}",
+      "inviteMember": "Invite members",
+      "pendingInvitations": "Pending invitations ({count})",
+      "emptyTitle": "No members yet",
+      "emptyDescription": "Invite people to collaborate in this workspace. Choose a role for each person to control what they can view and edit.",
       "columns": {
         "name": "Name",
         "email": "Email",
         "role": "Default role",
-        "highestRole": "Highest Role",
+        "highestRole": "Highest role",
         "highestRoleHelpText": "The highest role this user assigned to them directly or from a team, on anything in this workspace",
         "highestRoleInstanceHelpText": "The highest role this user has in the instance",
         "teams": "Teams",
@@ -917,22 +1216,10 @@
       "actions": {
         "copyEmail": "Copy email",
         "remove": "Remove from workspace"
-      }
-    },
-    "invitesTable": {
-      "title": "{invitesAmount} Pending invites in {workspaceName}",
-      "columns": {
-        "email": "Email",
-        "role": "Default role"
       },
-      "actions": {
-        "copyEmail": "Copy email",
-        "remove": "Cancel invite"
-      }
+      "search": "Search members"
     },
     "membersInviteModal": {
-      "submit": "Send invite",
-      "helpIconText": "The selected role will be the users default role in this workspace.",
       "errors": {
         "userAlreadyInWorkspace": {
           "title": "User is already in the workspace.",
@@ -1183,6 +1470,7 @@
     "dashboard": "Dashboard",
     "users": "Users",
     "workspaces": "Workspaces",
+    "templates": "Templates",
     "aiProviders": "AI providers"
   },
   "aiProviderAdmin": {
@@ -1304,6 +1592,54 @@
     "dateJoined": "Signed up",
     "active": "Active",
     "twoFactorAuth": "2FA"
+  },
+  "templatesAdmin": {
+    "title": "Templates",
+    "subtitle": "Every public template on this instance, and every one submitted for review.",
+    "inReview": "In review",
+    "public": "Public",
+    "rejectedTab": "Rejected",
+    "tabCount": "{name} · {count}",
+    "inReviewEmpty": "No templates in review.",
+    "publicEmpty": "No public templates.",
+    "rejectedEmpty": "No rejected templates.",
+    "template": "Template",
+    "author": "Author",
+    "reason": "Reason",
+    "submitted": "Submitted",
+    "used": "Used",
+    "usedTimes": "{count} time | {count} times",
+    "searchPlaceholder": "Search by name or author",
+    "viewInTemplates": "View in Templates",
+    "unlistFromBrowser": "Unlist from the browser",
+    "approveAfterAll": "Approve after all",
+    "delete": "Delete",
+    "deletedAuthor": "A deleted user",
+    "review": "Review",
+    "approve": "Approve",
+    "editedSinceSubmitted": "Its author edited it since submitting it. It can be approved once they make it public again.",
+    "noContent": "Its content is no longer available, so it can't be approved.",
+    "reject": "Reject",
+    "unlist": "Unlist",
+    "changedTitle": "The template changed",
+    "changedDescription": "The template changed since the page was loaded. The list shows it as it is now.",
+    "alreadyApprovedTitle": "“{name}” already approved",
+    "alreadyApprovedDescription": "It was approved since the page was loaded, most likely by another admin. The list shows it as it is now.",
+    "alreadyRejectedTitle": "“{name}” already rejected",
+    "alreadyRejectedDescription": "It was rejected since the page was loaded, most likely by another admin. The list shows it as it is now.",
+    "alreadyUnlistedTitle": "“{name}” already unlisted",
+    "alreadyUnlistedDescription": "It was unlisted since the page was loaded, most likely by another admin. The list shows it as it is now."
+  },
+  "rejectTemplateModal": {
+    "title": "Reject “{name}”?",
+    "description": "The author sees this reason on their template. It stays out of the browser until you approve it.",
+    "editDescription": "Only the latest change is rejected. The approved version stays listed in the template browser, and its author sees the reason.",
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Why this version can't be listed",
+    "reject": "Reject template",
+    "unlistTitle": "Unlist “{name}”?",
+    "unlistDescription": "The author sees this reason on their template. It comes out of the browser until you approve it again.",
+    "unlist": "Unlist template"
   },
   "editUserContext": {
     "changePassword": "Change password",
@@ -1434,6 +1770,11 @@
     "expiredTooltip": "This app's sign-in has ended. Sign in again from the app to use it.",
     "tools": "{count} tool | {count} tools",
     "connectedOn": "Connected {date}",
+    "toolsOff": "{count} tool turned off | {count} tools turned off",
+    "editTools": "Edit tools",
+    "editToolsTitle": "Tools for {client}",
+    "editToolsDescription": "Choose what it can do in {workspace}. The app gets the change on its next request, without signing in again.",
+    "saveTools": "Save",
     "disconnect": "Disconnect",
     "confirmDisconnect": "Click again to disconnect"
   },
@@ -1550,24 +1891,65 @@
   "subjectType": {
     "user": "User",
     "users": "Users",
-    "agent": "Agent",
-    "agents": "Agents"
+    "anonymousUser": "Anonymous user",
+    "identity": "Identity",
+    "identities": "Identities",
+    "members": "Members"
   },
-  "agents": {
+  "identities": {
     "saved": "Changes saved",
-    "tabTitle": "Agents",
-    "title": "{count} agents in {workspace}",
-    "create": "Create agent",
-    "createTitle": "Create agent",
-    "updateTitle": "Edit agent",
-    "save": "Save agent",
-    "edit": "Edit agent",
-    "delete": "Delete agent",
+    "tabTitle": "Identities",
+    "title": "{count} identities in {workspace}",
+    "create": "Create identity",
+    "createTitle": "Create identity",
+    "updateTitle": "Edit identity",
+    "save": "Save changes",
+    "edit": "Edit identity",
+    "delete": "Delete identity",
     "general": "General",
     "mcpServerPlaceholder": "MCP server settings will be available here.",
     "name": "Name",
-    "invalidNameTitle": "Agent name not allowed",
+    "invalidNameTitle": "Identity name not allowed",
     "lastActive": "Last active",
-    "workspaceRole": "Workspace role"
+    "workspaceRole": "Workspace role",
+    "search": "Search identities",
+    "emptyTitle": "No identities yet",
+    "emptyDescription": "Create an identity to connect AI tools to your workspace. Choose its role and teams to control what it can access.",
+    "new": "New",
+    "roleHelpText": "Start with No access, then grant access to specific databases, tables or views as needed."
+  },
+  "managementPages": {
+    "you": "You"
+  },
+  "toolPresentation": {
+    "tool": "Tool",
+    "running": "Using a tool",
+    "waiting": "Tool waiting for approval",
+    "done": "Tool completed",
+    "failed": "Tool failed",
+    "rejected": "Tool rejected",
+    "stopped": "Tool interrupted",
+    "statusRunning": "Running",
+    "statusWaiting": "Waiting for approval",
+    "statusDone": "Completed",
+    "statusPartial": "Completed with errors",
+    "statusFailed": "Failed",
+    "statusRejected": "Rejected",
+    "statusStopped": "Interrupted; changes may have completed",
+    "statusInterrupted": "Interrupted",
+    "stepAnnouncement": "{title}: {status}",
+    "failureNotFound": "Not found or not accessible to the agent.",
+    "failurePermissionDenied": "Permission denied for this operation.",
+    "failureInvalidInput": "The tool received invalid input.",
+    "failureInvalidFormula": "The formula isn't valid.",
+    "failureConflict": "It clashes with something that already exists.",
+    "failureFailed": "This tool call failed.",
+    "failureNotRun": "It didn't run.",
+    "input": "Input",
+    "inputTruncated": "This is a shortened preview of the input.",
+    "itemErrors": "Not done",
+    "workspaceRunning": "Looking at your workspace",
+    "workspaceDone": "Looked at your workspace",
+    "workspace": "Workspace activity"
   }
 }

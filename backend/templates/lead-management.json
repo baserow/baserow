@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Lead Management",
+    "description": "Manage leads by source and target group and log every interaction.",
     "icon": "iconoir-verified-user",
     "keywords": [
         "leads",

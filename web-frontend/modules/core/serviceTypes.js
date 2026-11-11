@@ -41,6 +41,15 @@ export class ServiceType extends Registerable {
     return null
   }
 
+  /**
+   * Extra terms a search for this service matches, besides its name and
+   * description, e.g. "loop" for the iterator.
+   * @returns {string[]}
+   */
+  get aliases() {
+    return []
+  }
+
   get group() {
     const integrationType = this.integrationType
     if (!integrationType) {
@@ -86,11 +95,27 @@ export class ServiceType extends Registerable {
    * @param service - The service object.
    * @returns {String} - The error message
    */
-  getErrorMessage({ service, workspace = null }) {
+  getErrorMessage({ service, workspace = null, application = null }) {
     const deactivatedReason =
       workspace && this.isDeactivatedReason({ workspace })
     if (deactivatedReason) {
       return deactivatedReason
+    }
+
+    if (application && service?.integration_id) {
+      const integration = this.app.$store.getters[
+        'integration/getIntegrationById'
+      ](application, service.integration_id)
+      if (integration) {
+        const integrationType = this.app.$registry.get(
+          'integration',
+          integration.type
+        )
+        const integrationError = integrationType.getErrorMessage(integration)
+        if (integrationError) {
+          return integrationError
+        }
+      }
     }
 
     return null
@@ -187,6 +212,28 @@ export class ServiceType extends Registerable {
 export const DataSourceServiceTypeMixin = (Base) =>
   class extends Base {
     isDataSource = true
+
+    /** Return optional metadata available alongside the source records. */
+    getContextDataSchema(service) {
+      return service.context_data_schema || null
+    }
+
+    /**
+     * Whether this data source type is left out of the builder's data source
+     * type picker, for types that can be dispatched as data but aren't offered
+     * as builder data sources.
+     */
+    get hiddenInDataSourcePicker() {
+      return false
+    }
+
+    /**
+     * Whether a data source of this type can be tested from its form, to fill
+     * the sample data its schema is built from.
+     */
+    get canBeTested() {
+      return false
+    }
 
     /**
      * In a service which returns a list, this method is used to

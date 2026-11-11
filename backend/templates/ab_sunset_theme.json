@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Sunset Theme",
+  "description": "Warm light application theme in orange and purple.",
   "icon": "",
   "keywords": [
     "application",

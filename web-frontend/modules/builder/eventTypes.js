@@ -103,6 +103,7 @@ export class Event {
             additionalContext,
             applicationContext: {
               ...applicationContext,
+              ...this.applicationContextAdditions,
               workflowActionContext,
               previousActionResults: additionalContext,
               currentDispatchId,

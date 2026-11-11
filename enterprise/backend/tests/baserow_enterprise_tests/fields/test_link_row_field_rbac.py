@@ -19,7 +19,10 @@ def enable_enterprise_and_roles_for_all_tests_here(enable_enterprise, synced_rol
 @pytest.mark.django_db
 def test_link_row_field_linked_to_table_with_no_access_created(data_fixture):
     user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = data_fixture.create_workspace(
+        user=data_fixture.create_user(), custom_permissions=[(user, "BUILDER")]
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table_with_access = data_fixture.create_database_table(user, database=database)
     table_with_no_access = data_fixture.create_database_table(user, database=database)
@@ -52,7 +55,10 @@ def test_link_row_field_linked_to_table_with_no_access_created(data_fixture):
 @pytest.mark.django_db
 def test_link_row_field_linked_to_table_with_no_access_updated(data_fixture):
     user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = data_fixture.create_workspace(
+        user=data_fixture.create_user(), custom_permissions=[(user, "BUILDER")]
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table_with_access = data_fixture.create_database_table(user, database=database)
     table_with_no_access = data_fixture.create_database_table(user, database=database)
@@ -83,7 +89,10 @@ def test_link_row_field_linked_to_table_with_no_access_updated(data_fixture):
 def test_link_row_field_linked_to_table_with_no_access_deleted(data_fixture):
     user = data_fixture.create_user()
     user_with_access = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user, members=[user_with_access])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = data_fixture.create_workspace(
+        user=user_with_access, custom_permissions=[(user, "BUILDER")]
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table_with_access = data_fixture.create_database_table(user, database=database)
     table_with_no_access = data_fixture.create_database_table(user, database=database)
@@ -114,7 +123,10 @@ def test_link_row_field_linked_to_table_with_no_access_from_inaccessible_to_acce
 ):
     user = data_fixture.create_user()
     user_with_access = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user, members=[user_with_access])
+    # Not an admin of the workspace, who keeps the admin role on every scope in it.
+    workspace = data_fixture.create_workspace(
+        user=user_with_access, custom_permissions=[(user, "BUILDER")]
+    )
     database = data_fixture.create_database_application(workspace=workspace)
     table_with_access = data_fixture.create_database_table(user, database=database)
     table_with_no_access = data_fixture.create_database_table(user, database=database)

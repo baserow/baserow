@@ -133,7 +133,7 @@ def test_process_inbound_email_raises_if_no_service_of_that_version(
 def test_process_inbound_email_dispatches_only_the_targeted_version(
     data_fixture, is_public, simulate
 ):
-    trigger_node = data_fixture.create_inbound_email_trigger_node(
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node(
         service_kwargs={"token": TOKEN},
     )
     draft_service = trigger_node.service.specific
@@ -190,7 +190,7 @@ def test_prepare_values_regenerates_token(data_fixture):
 @pytest.mark.django_db
 @pytest.mark.parametrize("is_publishing", [True, False])
 def test_import_serialized_sets_is_public(data_fixture, is_publishing):
-    trigger_node = data_fixture.create_inbound_email_trigger_node()
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node()
     service = trigger_node.service.specific
 
     service_type = CoreInboundEmailTriggerServiceType()
@@ -233,7 +233,7 @@ def test_import_serialized_regenerates_token_unless_publishing(
     because the newest published service with a token is the one dispatched.
     """
 
-    trigger_node = data_fixture.create_inbound_email_trigger_node()
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node()
     service = trigger_node.service.specific
 
     service_type = CoreInboundEmailTriggerServiceType()
@@ -259,7 +259,7 @@ def test_import_serialized_regenerates_token_unless_publishing(
 
 @pytest.mark.django_db
 def test_generate_schema(data_fixture):
-    trigger_node = data_fixture.create_inbound_email_trigger_node()
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node()
     service = trigger_node.service.specific
 
     schema = CoreInboundEmailTriggerServiceType().generate_schema(service)
@@ -297,7 +297,7 @@ def test_generate_schema(data_fixture):
 
 @pytest.mark.django_db
 def test_generate_schema_with_allowed_fields(data_fixture):
-    trigger_node = data_fixture.create_inbound_email_trigger_node()
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node()
     service = trigger_node.service.specific
 
     schema = CoreInboundEmailTriggerServiceType().generate_schema(
@@ -310,7 +310,7 @@ def test_generate_schema_with_allowed_fields(data_fixture):
 @pytest.mark.django_db
 @override_settings(INBOUND_EMAIL_DOMAIN="inbound.test")
 def test_dispatch_data_returns_sample_payload_without_event(data_fixture):
-    trigger_node = data_fixture.create_inbound_email_trigger_node(
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node(
         service_kwargs={"token": TOKEN},
     )
     service = trigger_node.service.specific
@@ -328,7 +328,7 @@ def test_dispatch_data_returns_sample_payload_without_event(data_fixture):
 
 @pytest.mark.django_db
 def test_dispatch_data_returns_event_payload(data_fixture):
-    trigger_node = data_fixture.create_inbound_email_trigger_node()
+    trigger_node = data_fixture.create_core_inbound_email_trigger_node()
     service = trigger_node.service.specific
 
     dispatch_context = MagicMock()

@@ -32,8 +32,7 @@ export default (client) => {
       delete(id) {
         return client.delete(`/workspaces/${id}/`)
       },
-      sendInvitation(workspaceId, baseUrl, { captchaToken = '', ...values }) {
-        values.base_url = baseUrl
+      sendInvitation(workspaceId, { captchaToken = '', ...values }) {
         if (captchaToken) {
           values.captcha_token = captchaToken
         }
@@ -66,8 +65,43 @@ export default (client) => {
       rejectInvitation(invitationId) {
         return client.post(`/workspaces/invitations/${invitationId}/reject/`)
       },
-      acceptInvitation(invitationId) {
-        return client.post(`/workspaces/invitations/${invitationId}/accept/`)
+      acceptInvitation(invitationId, token = null) {
+        return client.post(
+          `/workspaces/invitations/${invitationId}/accept/`,
+          token ? { token } : {}
+        )
+      },
+      fetchAllInvitationLinks(workspaceId) {
+        return client.get(
+          `/workspaces/invitation-links/workspace/${workspaceId}/`
+        )
+      },
+      createInvitationLink(workspaceId, values) {
+        return client.post(
+          `/workspaces/invitation-links/workspace/${workspaceId}/`,
+          values
+        )
+      },
+      updateInvitationLink(invitationLinkId, values) {
+        return client.patch(
+          `/workspaces/invitation-links/${invitationLinkId}/`,
+          values
+        )
+      },
+      deleteInvitationLink(invitationLinkId) {
+        return client.delete(
+          `/workspaces/invitation-links/${invitationLinkId}/`
+        )
+      },
+      fetchInvitationLinkBySlug(slug) {
+        return client.get(
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/`
+        )
+      },
+      joinInvitationLink(slug) {
+        return client.post(
+          `/workspaces/invitation-links/slug/${encodeURIComponent(slug)}/join/`
+        )
       },
       createInitialWorkspace(values) {
         return client.post('/workspaces/create-initial-workspace/', values)

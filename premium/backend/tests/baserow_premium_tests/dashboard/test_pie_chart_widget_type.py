@@ -125,7 +125,11 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
     )
 
     serialized = DashboardApplicationType().export_serialized(
-        dashboard, ImportExportConfig(include_permission_data=True)
+        dashboard,
+        ImportExportConfig(
+            include_permission_data=True,
+            exclude_sensitive_data=False,
+        ),
     )
 
     serialized = json.loads(json.dumps(serialized))
@@ -137,7 +141,8 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
         "type": "dashboard",
         "integrations": [
             {
-                "authorized_user": user.email,
+                "authorized_subject_type": "auth.User",
+                "authorized_subject_id": user.id,
                 "id": integration.id,
                 "name": "",
                 "order": "1.00000000000000000000",
@@ -156,6 +161,7 @@ def test_dashboard_export_serialized_with_pie_chart_widget_config(premium_data_f
                     "id": service.id,
                     "sample_data": None,
                     "integration_id": service.integration.id,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_sorts": [],
                     "service_aggregation_series": [
@@ -223,7 +229,8 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
         "type": "dashboard",
         "integrations": [
             {
-                "authorized_user": user.email,
+                "authorized_subject_type": "auth.User",
+                "authorized_subject_id": user.id,
                 "id": 1,
                 "name": "IntegrationName",
                 "order": "1.00000000000000000000",
@@ -241,6 +248,7 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
                     "filter_groups": [],
                     "id": 1,
                     "integration_id": 1,
+                    "bucket_limit": None,
                     "service_aggregation_group_bys": [],
                     "service_aggregation_series": [
                         {"aggregation_type": "sum", "field_id": 1, "id": 1},
@@ -291,7 +299,7 @@ def test_dashboard_import_serialized_with_pie_chart_widget_config(premium_data_f
     assert integration.content_type == ContentType.objects.get_for_model(
         LocalBaserowIntegration
     )
-    assert integration.authorized_user.id == user.id
+    assert integration.authorized_subject == user
     assert integration.name == "IntegrationName"
     assert integration.order == Decimal("1.0")
 

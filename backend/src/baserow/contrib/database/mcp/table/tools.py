@@ -1,17 +1,55 @@
+from typing import Annotated, Any
+
+from pydantic import Field
+
 from baserow.contrib.database.mcp import services
 from baserow.contrib.database.mcp.table.schemas import (
-    CreateDatabaseInput,
-    CreateTableInput,
     DeleteTableInput,
-    GetTableSchemaInput,
     ListDatabasesInput,
-    ListTablesInput,
     UpdateTableInput,
 )
+from baserow.contrib.database.tools import databases, tables
+from baserow.core.mcp.groups import (
+    GROUP_DATABASE_DELETE,
+    GROUP_DATABASE_EDIT,
+    GROUP_DATABASE_READ,
+)
 from baserow.core.mcp.models import MCPEndpoint
-from baserow.core.mcp.registries import MCPTool
+from baserow.core.mcp.registries import FunctionMCPTool, MCPTool
+from baserow.core.tools import ToolContext, applications
 
 
+def list_database_applications(
+    ctx: ToolContext,
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=applications.MAX_PAGE_SIZE,
+            description="The number of applications a page.",
+        ),
+    ] = 20,
+) -> dict[str, Any]:
+    """
+    List the databases in the workspace, with their id, name and type, in sidebar
+    order. Returns one page, the total count, and whether more pages follow.
+    """
+
+    return applications.list_applications(ctx, ["database"], page, size)
+
+
+class ListApplicationsMcpTool(FunctionMCPTool):
+    # Databases only: the tool is in the database read group. Other application
+    # types are listed by their own groups' tools.
+    type = "list_applications"
+    group = GROUP_DATABASE_READ
+    title = "List databases"
+    read_only = True
+    function = list_database_applications
+
+
+# TODO: remove after 2.6. Kept because existing connections allow it by name.
 class ListDatabasesMcpTool(MCPTool):
     """
     List all databases in the workspace.
@@ -19,77 +57,56 @@ class ListDatabasesMcpTool(MCPTool):
     """
 
     type = "list_databases"
-    title = "List databases"
+    group = GROUP_DATABASE_READ
+    title = "List all databases"
     read_only = True
     input_schema = ListDatabasesInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: ListDatabasesInput) -> list[dict]:
-        databases = services.list_databases(endpoint.user, endpoint.workspace)
+        ctx = ToolContext(
+            user=endpoint.user,
+            workspace=endpoint.workspace,
+            timezone=endpoint.user.profile.timezone,
+        )
+        databases = applications.visible_applications(ctx, ["database"])
         return [{"id": db.id, "name": db.name, "order": db.order} for db in databases]
 
 
-class CreateDatabaseMcpTool(MCPTool):
-    """
-    Create a new database in the workspace.
-    Returns the new database ID and name.
-    """
-
-    type = "create_database"
-    title = "Create database"
-    enabled = False
-    input_schema = CreateDatabaseInput
-
-    def _sync_call(self, endpoint: MCPEndpoint, args: CreateDatabaseInput) -> dict:
-        db = services.create_database(endpoint.user, endpoint.workspace, args.name)
-        return {"id": db.id, "name": db.name}
-
-
-class ListTablesMcpTool(MCPTool):
-    """
-    List all tables in the workspace, optionally filtered by database.
-    Use this to discover table IDs before calling get_table_schema.
-    """
-
+class ListTablesMcpTool(FunctionMCPTool):
     type = "list_tables"
+    group = GROUP_DATABASE_READ
     title = "List tables"
     read_only = True
-    input_schema = ListTablesInput
-
-    def _sync_call(self, endpoint: MCPEndpoint, args: ListTablesInput) -> list[dict]:
-        tables = services.list_tables(
-            endpoint.user, endpoint.workspace, database_id=args.database_id
-        )
-        return [
-            {
-                "id": t.id,
-                "name": t.name,
-                "order": t.order,
-                "database_id": t.database_id,
-            }
-            for t in tables
-        ]
+    function = tables.list_tables
+    # A legacy default tool, whose clients may still send arguments it dropped.
+    ignore_extra_arguments = True
 
 
-class CreateTableMcpTool(MCPTool):
-    """
-    Create a new table in a database, optionally with initial fields.
-    Fields are created in dependency order (regular → link_row → lookup → formula).
-    For link_row fields, the linked table must already exist.
-    """
+class CreateDatabaseMcpTool(FunctionMCPTool):
+    type = "create_database"
+    group = GROUP_DATABASE_EDIT
+    title = "Create a database"
+    read_only = False
+    destructive = False
+    function = databases.create_database
 
-    type = "create_table"
-    title = "Create table"
-    enabled = False
-    input_schema = CreateTableInput
 
-    def _sync_call(self, endpoint: MCPEndpoint, args: CreateTableInput) -> dict:
-        return services.create_table(
-            endpoint.user,
-            endpoint.workspace,
-            args.database_id,
-            args.name,
-            [f.model_dump() for f in args.fields] if args.fields else None,
-        )
+class UpdateDatabaseMcpTool(FunctionMCPTool):
+    type = "update_database"
+    group = GROUP_DATABASE_EDIT
+    title = "Rename a database"
+    read_only = False
+    destructive = True
+    function = databases.update_database
+
+
+class CreateTablesMcpTool(FunctionMCPTool):
+    type = "create_tables"
+    group = GROUP_DATABASE_EDIT
+    title = "Create tables"
+    read_only = False
+    destructive = False
+    function = tables.create_tables
 
 
 class UpdateTableMcpTool(MCPTool):
@@ -99,6 +116,7 @@ class UpdateTableMcpTool(MCPTool):
     """
 
     type = "update_table"
+    group = GROUP_DATABASE_EDIT
     title = "Update table"
     destructive = True
     enabled = False
@@ -117,6 +135,7 @@ class DeleteTableMcpTool(MCPTool):
     """
 
     type = "delete_table"
+    group = GROUP_DATABASE_DELETE
     title = "Delete table"
     destructive = True
     enabled = False
@@ -127,21 +146,11 @@ class DeleteTableMcpTool(MCPTool):
         return "Table successfully deleted."
 
 
-class GetTableSchemaMcpTool(MCPTool):
-    """
-    Get the field schema for one or more tables.
-    Call this before create_rows or update_rows to learn the field
-    names and types accepted by those tools.
-    """
-
+class GetTableSchemaMcpTool(FunctionMCPTool):
     type = "get_table_schema"
+    group = GROUP_DATABASE_READ
     title = "Get table schema"
     read_only = True
-    input_schema = GetTableSchemaInput
-
-    def _sync_call(
-        self, endpoint: MCPEndpoint, args: GetTableSchemaInput
-    ) -> list[dict]:
-        return services.get_table_schema(
-            endpoint.user, endpoint.workspace, args.table_ids
-        )
+    function = tables.get_table_schema
+    # A legacy default tool, whose clients may still send arguments it dropped.
+    ignore_extra_arguments = True

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Team Check-ins",
+    "description": "Collect team check-ins with mood ratings, linked to projects and tasks.",
     "icon": "iconoir-double-check",
     "keywords": [
         "team check-ins",

@@ -10,6 +10,7 @@ from baserow.contrib.dashboard.widgets.registries import (
     widget_type_registry,
 )
 from baserow.core.db import specific_iterator
+from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.utils import extract_allowed
@@ -319,10 +320,12 @@ class WidgetHandler:
         files_zip: ExportZipFile | None = None,
         storage: Storage | None = None,
         cache: dict[str, any] | None = None,
+        import_export_config: ImportExportConfig | None = None,
     ) -> WidgetDict:
         """
         Serializes the given widget.
 
+        :param import_export_config: Export settings passed to nested objects.
         :param widget: The instance to serialize.
         :param files_zip: A zip file to store files in necessary.
         :param storage: Optional storage to use.
@@ -335,7 +338,11 @@ class WidgetHandler:
         return cast(
             WidgetDict,
             widget_type.export_serialized(
-                widget, files_zip=files_zip, storage=storage, cache=cache
+                widget,
+                import_export_config=import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
             ),
         )
 

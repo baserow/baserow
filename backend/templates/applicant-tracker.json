@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Applicant Tracker",
+    "description": "Track applicants by hiring stage, with interviewers and scores.",
     "icon": "iconoir-add-user",
     "keywords": [
         "applicants",

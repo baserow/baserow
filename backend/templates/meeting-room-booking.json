@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Meeting Room Booking",
+    "description": "Book meeting rooms and see who booked what and when.",
     "icon": "iconoir-timer-off",
     "keywords": [
         "bookings",

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Objectives & Key Results",
+    "description": "Set objectives, track key results against targets and review progress.",
     "icon": "iconoir-okrs",
     "keywords": [
         "OKR",

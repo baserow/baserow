@@ -10,7 +10,7 @@
       class="field-duration"
       @keypress="onKeyPress(field, $event)"
       @keyup.enter="$refs.input.blur()"
-      @keyup="updateCopy(field, $event.target.value)"
+      @update:model-value="updateCopy(field, $event)"
       @focus="select()"
       @blur="unselect()"
     ></FormInput>

@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.db.models import Q, QuerySet
 
 from baserow.contrib.builder.elements.operations import (
@@ -7,6 +7,7 @@ from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
 )
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
@@ -120,6 +121,32 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         return True
 
+    def actor_can_dispatch_workflow_action(self, actor, workflow_action):
+        """
+        Return True if the actor is allowed to dispatch the workflow action. An
+        action bound to an element follows the element visibility, an action
+        bound to the page itself follows the page visibility.
+
+        An after-login action is dispatched by the user who has just logged in,
+        but its login form was submitted before that login, typically by a
+        logged-out visitor who can no longer see a `not-logged` form. Such an
+        action is therefore also allowed when a logged-out visitor can see the
+        element.
+        """
+
+        if workflow_action.element_id is None:
+            return self.actor_can_view_page(actor, workflow_action.page)
+
+        element = workflow_action.element
+        if self.actor_can_view_element(actor, element):
+            return True
+
+        return (
+            workflow_action.event == EventTypes.AFTER_LOGIN
+            and getattr(actor, "is_authenticated", False)
+            and self.actor_can_view_element(AnonymousUser(), element)
+        )
+
     def check_multiple_permissions(
         self,
         checks,
@@ -135,7 +162,9 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         for check in checks:
             if check.operation_name == DispatchBuilderWorkflowActionOperationType.type:
-                if not self.actor_can_view_element(check.actor, check.context.element):
+                if not self.actor_can_dispatch_workflow_action(
+                    check.actor, check.context
+                ):
                     result[check] = False
             elif check.operation_name == ReadElementOperationType.type:
                 result[check] = self.actor_can_view_element(check.actor, check.context)

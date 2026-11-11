@@ -3,34 +3,101 @@
 ## Prerequisites
 
 - A running Baserow instance (local dev or deployed)
-- An MCP endpoint key (created via Settings > MCP in the Baserow UI)
+- For OAuth: `BASEROW_MCP_OAUTH_ENABLED=true` on the backend
 - An MCP-compatible client (see step 1)
 
 ## 1. Connect an MCP client
 
-Go to **Settings > MCP** in Baserow and create an endpoint. The UI shows the
-SSE URL with the key pre-filled:
+Clients connect with OAuth or with an endpoint key. Both are set up under
+**My settings > MCP server**.
 
-```
-http://localhost:8000/mcp/YOUR_ENDPOINT_KEY/sse
-```
+The steps below use `<server url>`, the backend URL followed by `/mcp`:
 
-How you use this URL depends on your MCP client:
+- local dev: `http://localhost:8000/mcp`
+- baserow.io: `https://api.baserow.io/mcp`
+- self-hosted: `<PUBLIC_BACKEND_URL>/mcp`
 
-- **MCP Inspector** (recommended for quick testing, no install needed):
+### OAuth (recommended)
+
+The **OAuth** tab shows `<server url>`. Connect one of these clients:
+
+- **Claude Code**:
   ```bash
-  npx @modelcontextprotocol/inspector
+  claude mcp add --transport http baserow <server url>
   ```
-  Paste the SSE URL in the Inspector UI to list and call tools interactively.
+  Run `/mcp` in Claude Code to sign in.
+- **MCP Inspector**: run `npx @modelcontextprotocol/inspector`, choose the
+  Streamable HTTP transport and paste `<server url>`.
 
-- **Claude Desktop**:
-  1. Open Claude Desktop settings (`Cmd+,` on macOS, `Ctrl+,` on Windows/Linux).
-  2. Go to the **Develop** tab and click **Edit Config**.
-  3. Paste the JSON config snippet shown in the Baserow UI into
-     `claude_desktop_config.json` and save.
-  4. Restart Claude Desktop.
+The [baserow-mcp README](https://github.com/baserow/baserow-mcp#install-per-agent)
+has the steps for every other client, including Claude Desktop, claude.ai,
+ChatGPT, Codex, Cursor, VS Code and Gemini CLI.
 
-- **Any other MCP client**: point it at the SSE URL above.
+The client opens the Baserow consent page. Pick a workspace and tick the
+tools to allow. Only the read tools are ticked on a first connection, so also
+tick **Create rows**, **Update rows** and **Delete rows** for the scenarios in
+step 4. Approve, and the app shows under **Connected apps** on the OAuth tab.
+
+#### Hosted apps on a local stack
+
+Claude Desktop, claude.ai and ChatGPT connect to Baserow from the internet,
+so they can't reach `localhost`. Expose the backend with a tunnel, for example
+`cloudflared tunnel --url http://localhost:8000`, set `PUBLIC_BACKEND_URL` to
+the tunnel URL and restart the backend. Unset `BASEROW_PUBLIC_URL` if it is
+set: it overrides `PUBLIC_BACKEND_URL`, and setting it to the tunnel URL would
+also move the frontend there. `<server url>` is then
+`<tunnel url>/mcp`.
+
+The server only accepts tokens issued for its current `PUBLIC_BACKEND_URL`.
+After the switch, clients set up with `http://localhost:8000/mcp` stop working,
+so point every client at the tunnel URL. When you switch back, sign in again
+from each client.
+
+### Plugin and skill
+
+[baserow/baserow-mcp](https://github.com/baserow/baserow-mcp) packages the
+server config with the `baserow-basics` skill, which teaches the agent how to
+use the tools. Test it once on a release candidate:
+
+- **Claude Code**: the plugin asks for the server URL:
+  ```
+  /plugin marketplace add baserow/baserow-mcp
+  /plugin install baserow@baserow
+  ```
+  Enter `<server url>` when asked (change it later with
+  `/plugin configure baserow@baserow`), then run `/mcp`, pick
+  `plugin:baserow:baserow` and sign in. Remove any `baserow` server you added
+  by hand first, or Claude Code hides the plugin's server.
+- **Other agents**: the Codex, Cursor, VS Code, Copilot and Gemini plugins
+  always point at `https://api.baserow.io/mcp`. To test another instance, add
+  the server by hand as the README describes and install only the skill:
+  ```bash
+  npx skills add baserow/baserow-mcp
+  ```
+
+### Endpoint key
+
+Create an endpoint. With OAuth on, this is on the **Endpoint** tab; with OAuth
+off there are no tabs and the page lists the endpoints directly. The UI shows
+the SSE URL with the key pre-filled:
+
+```
+<backend url>/mcp/YOUR_ENDPOINT_KEY/sse
+```
+
+- **MCP Inspector**: choose the SSE transport and paste the URL.
+- **Claude Desktop, Cursor, Windsurf**: paste the JSON config snippet shown in
+  the Baserow UI into the client's config file and restart the client.
+
+The key also works as a bearer token on `<server url>`. This lists the tools:
+
+```bash
+curl -X POST <server url> \
+  -H "Authorization: Bearer YOUR_ENDPOINT_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+```
 
 ## 2. Verify connection
 
@@ -44,13 +111,83 @@ The following tools are currently enabled:
 
 | Tool | Description |
 |---|---|
+| `search_workspace` | Search the workspace by name or content |
+| `list_applications` | List the workspace's databases |
 | `list_databases` | List all databases in the workspace |
-| `list_tables` | List tables, optionally filtered by database |
+| `list_tables` | List tables, optionally filtered by database or table name |
 | `get_table_schema` | Get field names and types for one or more tables |
 | `list_table_rows` | List rows with optional search and pagination |
 | `create_rows` | Create one or more rows in a table |
 | `update_rows` | Update existing rows by ID |
 | `delete_rows` | Delete rows by ID |
+| `list_views` | List the views of a table |
+| `list_row_comments` | List a row's comments (premium) |
+| `create_row_comments` | Post comments on rows (premium) |
+| `create_database` | Create one database |
+| `update_database` | Rename a database |
+| `create_tables` | Create tables with their fields |
+| `create_fields` | Add fields to a table |
+| `update_fields` | Rename fields or change their settings |
+| `delete_fields` | Delete (trash) fields |
+| `create_views` | Create views in a table |
+| `create_view_filters` | Add filters to views |
+| `set_view_sorts` | Replace the sorts of a view |
+| `set_field_visibility` | Hide or show fields in a view |
+| `add_row_colours` | Colour rows of a view (premium) |
+| `delete_views` | Delete (trash) views |
+| `delete_view_filters` | Delete filters from views |
+| `delete_row_colours` | Remove row colours from views |
+| `list_workflows` | List automations and their workflows |
+| `list_nodes` | List a workflow's nodes with their output paths |
+| `create_automation` | Create one empty automation |
+| `update_automation` | Rename an automation |
+| `create_workflows` | Create draft workflows with a trigger and nodes |
+| `publish_workflow` | Make a workflow live |
+| `pause_workflow` | Pause a live workflow |
+| `add_nodes` | Add nodes to a workflow |
+| `update_nodes` | Change node labels, settings and router conditions |
+| `delete_nodes` | Delete (trash) workflow nodes |
+| `list_dashboards` | List the dashboards of the workspace |
+| `list_widgets` | List a dashboard's widgets and what they show |
+| `get_widget_data` | Read the figures widgets show |
+| `create_dashboard` | Create one empty dashboard |
+| `update_dashboard` | Rename a dashboard |
+| `create_widgets` | Add summary, chart and pie chart widgets |
+| `update_widgets` | Change a widget's title, chart type, or what it shows |
+| `delete_widgets` | Delete (trash) widgets |
+| `list_builders` | List the application builders of the workspace |
+| `list_pages` | List the pages of an application builder |
+| `list_data_sources` | List the data sources of a page |
+| `list_elements` | List the elements of a page |
+| `list_element_actions` | List the workflow actions of a page |
+| `create_builder` | Create one application builder |
+| `update_builder` | Rename an application builder or set its login page |
+| `create_pages` | Create pages |
+| `update_page` | Change a page's name, path, parameters or visibility |
+| `create_data_sources` | Create data sources on a page |
+| `update_data_source` | Change a data source |
+| `create_display_elements` | Add headings, text, buttons, links and images |
+| `create_layout_elements` | Add columns, containers, headers, footers and menus |
+| `create_form_elements` | Add forms and form inputs |
+| `create_collection_elements` | Add tables and repeats over a data source |
+| `update_element` | Change an element's text, settings, columns or menu items |
+| `update_element_style` | Change how an element looks |
+| `move_elements` | Move elements within a page |
+| `create_element_actions` | Add workflow actions to elements |
+| `update_element_action` | Change a workflow action, like the value a row action writes to a field |
+| `setup_page` | Add data sources, elements and actions to a page in one call |
+| `setup_user_source` | Set up password login and a login page |
+| `set_theme` | Replace the theme of an application builder |
+| `list_audit_log` | List who did what in this workspace, with an optional text search (advanced or enterprise, admin) |
+
+The automation and audit log tools are off in the "Read only" preset. Turn them
+on at consent or under **Settings > Connected apps**. The "Read only" preset
+includes reading dashboards and application builders, not changing them. The
+application builder tools need no licence, but `setup_user_source` is enterprise: a `BASEROW_OSS_ONLY` instance doesn't
+list it. `publish_workflow`, `pause_workflow`, `set_theme`, `update_database`,
+`update_automation`, `update_dashboard`, `update_builder`, `update_page`,
+`update_data_source`, `update_element`, `update_element_style`, `move_elements` and
+`update_element_action` are marked destructive, so clients ask before running them.
 
 ## 4. Test scenarios
 
@@ -94,14 +231,192 @@ Ask Claude: *"Find rows in [table name] that contain 'test'"*
 
 Expected: Claude calls `list_table_rows` with a `search` parameter.
 
+### Search the workspace
+
+Ask Claude: *"Which table has the invoices?"*, then *"Find the customer called Acme"*.
+
+Expected: Claude calls `search_workspace`, finds the table, and finds the row with its `table_id` and `row_id`. Row search needs the workspace's search data to be built, which happens in the background after rows are added.
+
+### Row comments
+
+Needs a premium licence. Ask Claude: *"Add a comment to row 1 of [table name] saying I called them"*, then *"What did people say about this row?"*.
+
+Expected: Claude calls `create_row_comments`, then `list_row_comments`. The comment shows in the row's comment panel. Without a licence Claude reports that the feature isn't available and no comment is stored.
+
+### Create tables, fields and views
+
+Ask Claude: *"Create a table called Tasks in [database name] with a text field
+Name and a single select field Status with options Open and Done"*
+
+Expected: Claude calls `list_applications` or `list_tables` to find the
+database, then `create_tables`. The table appears in Baserow.
+
+Ask Claude: *"Add a number field Estimate to Tasks, rename Status to State,
+then delete Estimate"*
+
+Expected: Claude calls `create_fields`, `update_fields` and `delete_fields`.
+The field is in the trash afterwards and can be restored.
+
+Ask Claude: *"Create a grid view called Open tasks in Tasks showing only rows
+where State is Open"*
+
+Expected: Claude calls `create_views`, then `create_view_filters`. The view
+shows the filter in Baserow.
+
+### View config
+
+Ask Claude: *"Sort the grid by due date, newest first"*, *"Hide the notes field in this view"*, *"Colour the rows by status"* (needs a premium licence), then *"Remove that colour and the filters on this view"*.
+
+Expected: the view changes after each request. Hiding the primary field of a grid view comes back as an error on that field. Without a licence, colouring reports that the feature isn't available.
+
+### Audit log
+
+Needs an advanced or enterprise licence and a workspace admin. Turn on **Read the audit log**, create and delete a table, then ask Claude: *"Who deleted a table this week?"*.
+
+Expected: Claude calls `list_audit_log` and names you. As a workspace member who isn't an admin, Claude reports it has no permission. Entries of other workspaces never show.
+
+### Automations
+
+Connect with the "Read only" preset, then turn on the automation tools under
+**Settings > Connected apps**. Ask Claude: *"In my automation, create a
+workflow that runs when a row is created in [table name]. If the row's
+[number field] is above 100, email me with the row's Name in the subject."*
+
+Expected: Claude calls `list_workflows` to find the automation, then
+`create_workflows` with a "rows created" trigger, a router whose condition
+is a formula such as `greater_than(get('previous_node.<id>.0.field_<id>'), 100)`
+and an email node. The workflow appears in Baserow with the router branch and
+the email node on it.
+
+Ask Claude to set the email subject to `concat('Big order ', ` (an unfinished
+formula). Expected: `update_nodes` returns it in `formula_errors` with the
+parser's message, the subject keeps its previous value, and Claude fixes it with another
+`update_nodes` call after reading the node's output paths with `list_nodes`.
+
+Ask Claude to delete the email node. Expected: `delete_nodes` moves it to the
+trash. Deleting the router while a node is on its branch is refused.
+
+### Dashboards
+
+Use a workspace with a premium licence and a table with a number field and a
+single select field. Connect with the "Read only" preset.
+
+Ask Claude: *"What dashboards do I have?"* Expected: `list_dashboards` lists
+them with their widget count.
+
+Turn on the dashboard editing tools under **Settings > Connected apps**. Ask
+Claude: *"Create a dashboard called Sales with the total of [number field] in
+[table], and a line chart of [number field] by [single select field]."*
+Expected: `create_dashboard`, then `create_widgets` with a `summary` and a
+`chart` widget. Both appear on the new dashboard in Baserow, the chart drawn
+as lines.
+
+Ask Claude: *"What do those widgets show?"* Expected: `get_widget_data`
+returns the total and one row per option, matching the dashboard.
+
+Ask Claude to show the sum of a text field. Expected: `create_widgets`
+returns an error that names the field and lists the aggregations that fit it,
+like `empty_count`, and no widget is added.
+
+Ask Claude to change the total to an average. Expected: `update_widgets`
+changes the aggregation and the dashboard shows the new figure.
+
+Ask Claude to delete the chart. Expected: `delete_widgets` moves it to the
+trash, and restoring it from the trash brings it back.
+
+In a workspace without a premium licence, ask for a chart. Expected: the
+error says the feature needs a licence, not "Internal error."
+
+### Create and rename applications
+
+Turn on the edit tools of each area. Ask Claude: *"Create a database called
+Test Data, an automation called Test Flows, a dashboard called Test Figures
+and an application called Test App."*
+
+Expected: `create_database`, `create_automation`, `create_dashboard` and
+`create_builder` are called once each, and the four applications show in the
+sidebar. Ask Claude to rename each one: the matching `update_` tool is called
+and the sidebar shows the new name. A name of only spaces is refused.
+
+These writes can't be undone with Ctrl+Z in Baserow, because the action is
+stored without a client session id. Delete the application to take it back; it
+goes to the trash.
+
+### Create a new application website
+
+Needs the enterprise app, which an instance with `BASEROW_OSS_ONLY` doesn't
+have. No licence is needed. Connect with `builder_edit` ticked. Ask Claude:
+*"create a new application website"*
+
+Expected: Claude calls `create_builder` and nothing else that creates an
+application. A new application builder shows in the UI sidebar of the
+workspace, with no new database, automation or dashboard.
+
+### Application builders
+
+Connect with the "Read only" preset. Ask Claude: *"What application builders
+and pages do I have?"* Expected: `list_builders`, then `list_pages`. Asking it
+to add a page fails, because `create_pages` is not in the list.
+
+Turn on **Edit application builders** under **Settings > Connected apps**, then
+ask Claude, one request at a time:
+
+1. *"Create an application called Shop with two pages, Home and Products."*
+   Expected: `create_builder`, then `create_pages`. Both pages show in the
+   builder.
+2. *"On Products, list the rows of [table name] and show them in a table."*
+   Expected: `create_data_sources`, then `create_collection_elements`. The
+   table shows the rows.
+3. *"Search that data source for get('page_parameter.missing')."* The page
+   has no such parameter. Expected: `update_data_source` changes the existing
+   data source, its search query stays as it was (empty), and the value is
+   listed in `formula_errors`. No model is called by Baserow.
+4. *"Add a button on Home that opens Products."* Expected: `create_display_elements`,
+   then `create_element_actions`.
+5. *"Let people log in with the [users table]."* Expected: `setup_user_source`
+   adds a `/login` page with a login form.
+6. *"Change the title on Home to 'Welcome'"* and *"Move the button above it"*.
+   Expected: `update_element`, `move_elements`.
+7. *"Use the eclipse theme."* Expected: `set_theme`. The client asks for
+   confirmation first, and every theme setting is replaced.
+
+Ask Claude to delete the page. Expected: no tool does it, and Claude says so.
+In an `OSS_ONLY` instance none of the builder tools are listed.
+
+### Publish and pause a workflow
+
+Turn on the automation edit tools. Ask Claude: *"Create a workflow in
+[automation] that sends me an email when a row is created in [table name]."*
+Expected: `create_workflows` makes a draft, and Claude says it is a draft.
+
+Ask Claude to publish it. Expected: the client asks for confirmation, then
+`publish_workflow` runs and the workflow is live. Add a row: the email arrives.
+
+Ask Claude to pause it, then add a row. Expected: `pause_workflow` runs and no
+email arrives. Ask Claude to publish again: the workflow is live with the
+current draft.
+
+Ask Claude to publish a workflow with no nodes after the trigger. Expected:
+refused, and nothing goes live.
+
 ## 5. Verify disabled tools are not exposed
 
 The following tools exist in the codebase but are **not** exposed to MCP
-clients (they will be enabled once users can control tool availability through
-the UI):
+clients. They are not listed on the consent page either:
 
-- `create_database`
-- `create_table`, `update_table`, `delete_table`
-- `create_fields`, `update_fields`, `delete_fields`
+- `update_table`, `delete_table`
 
 Verify these do **not** appear in your client's tool list.
+
+## 6. Verify tool selection (OAuth)
+
+The consent page only shows again for a new grant, so first disconnect the
+app as in step 7. Sign in again from the client and leave only
+**List databases** and **List tables** ticked. Verify the client lists only
+`list_databases` and `list_tables`, and that asking it to create a row fails.
+
+## 7. Verify disconnect
+
+Click **Disconnect** next to the app under **Connected apps**, then click it
+again to confirm. Verify the next tool call from the client fails and the
+client asks you to sign in again.

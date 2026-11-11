@@ -1,7 +1,10 @@
 <template>
   <div class="members-role-field">
-    <span
-      v-if="
+    <RoleSelectorButton
+      :icon="selectedRole?.icon"
+      :role-name="selectedRole?.name || ''"
+      :loading="saving"
+      :read-only="
         userId === row.user_id ||
         !$hasPermission(
           'workspace_user.update',
@@ -9,17 +12,8 @@
           column.additionalProps.workspaceId
         )
       "
-    >
-      {{ roleName(roles, row) }}
-    </span>
-    <a
-      v-else
-      ref="editRoleContextLink"
-      @click="$refs.editRoleContext.toggle($refs.editRoleContextLink)"
-    >
-      {{ roleName(roles, row) }}
-      <i class="iconoir-nav-arrow-down"></i>
-    </a>
+      @click="$refs.editRoleContext.toggle($event.currentTarget)"
+    />
     <EditRoleContext
       ref="editRoleContext"
       :subject="row"
@@ -34,13 +28,18 @@
     />
     <HelpIcon
       v-if="roleUidSelected === 'ADMIN'"
-      :tooltip="$t('membersRoleField.adminHelpText')"
-      icon="warning-triangle"
+      :tooltip="$t('membersRoleField.adminFullAccessHelpText')"
+      :tooltip-content-classes="[
+        'tooltip__content--expandable',
+        'tooltip__content--expandable-plain-text',
+      ]"
     />
   </div>
 </template>
 
 <script>
+import RoleSelectorButton from '@baserow/modules/core/components/settings/RoleSelectorButton'
+
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
@@ -51,7 +50,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 export default {
   name: 'MembersRoleField',
   emits: ['refresh', 'row-update'],
-  components: { EditRoleContext },
+  components: { EditRoleContext, RoleSelectorButton },
   props: {
     row: {
       type: Object,
@@ -62,7 +61,15 @@ export default {
       required: true,
     },
   },
+  data() {
+    return {
+      saving: false,
+    }
+  },
   computed: {
+    selectedRole() {
+      return this.roles.find((role) => role.uid === this.row.role_uid)
+    },
     workspace() {
       return this.$store.getters['workspace/get'](
         this.column.additionalProps.workspaceId
@@ -82,15 +89,15 @@ export default {
     ...mapGetters({ userId: 'auth/getUserId' }),
   },
   methods: {
-    roleName(roles, row) {
-      const role = roles.find((r) => r.uid === row.role_uid)
-      return role?.name || ''
-    },
     async roleUpdate({ uid: permissionsNew, subject: member }) {
       const oldMember = clone(member)
       const newMember = clone(member)
       newMember.role_uid = permissionsNew
       this.$emit('row-update', newMember)
+      // The button shows that the change is on its way until it is saved. Other
+      // columns, like the highest role, depend on it, so the rows are fetched
+      // again, quietly as they only change in place.
+      this.saving = true
 
       try {
         await RoleAssignmentsService(this.$client).assignRole(
@@ -101,10 +108,12 @@ export default {
           'workspace',
           permissionsNew
         )
-        this.$emit('refresh')
+        this.$emit('refresh', { silent: true })
       } catch (error) {
         this.$emit('row-update', oldMember)
         notifyIf(error)
+      } finally {
+        this.saving = false
       }
     },
   },

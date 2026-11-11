@@ -161,3 +161,30 @@ export class CurrentIterationDataProviderType extends DataProviderType {
     return super.getPathTitle(applicationContext, pathParts)
   }
 }
+
+/**
+ * The result of the node being edited. The backend only exposes it while it
+ * evaluates that node's retry condition, so this provider is offered to the
+ * retry condition input alone (see `DATA_PROVIDERS_ALLOWED_RETRY_CONDITION`).
+ * There is no node id in the path: `current_node.status_code` reads the
+ * `status_code` of the node's own result.
+ */
+export class CurrentNodeDataProviderType extends DataProviderType {
+  static getType() {
+    return 'current_node'
+  }
+
+  get name() {
+    return this.app.$i18n.t('dataProviderType.currentNode')
+  }
+
+  getDataSchema(applicationContext) {
+    const { automation, node } = applicationContext
+    if (!node?.type) {
+      return null
+    }
+    const nodeType = this.app.$registry.get('node', node.type)
+    const schema = nodeType.getDataSchema({ automation, node })
+    return schema ? { ...schema, title: this.name } : null
+  }
+}

@@ -26,6 +26,10 @@
               passLabel
             }}</span>
 
+            <span v-if="retryLabel" class="node-history__header-info-pass">{{
+              retryLabel
+            }}</span>
+
             <div>
               <Icon
                 :icon="
@@ -120,7 +124,18 @@
           passLabel
         }}</span>
 
-        <div class="node-history__header-show-result">
+        <span v-if="retryLabel" class="node-history__header-info-pass">{{
+          retryLabel
+        }}</span>
+
+        <span
+          v-if="waitingUntilLabel"
+          class="node-history__header-info-pass"
+          :title="waitingUntilTitle"
+          >{{ waitingUntilLabel }}</span
+        >
+
+        <div v-if="hasResult" class="node-history__header-show-result">
           <a
             ref="nodeResultButtonContextToggle"
             role="button"
@@ -139,7 +154,7 @@
       </Badge>
     </div>
 
-    <div v-if="hasOwnError" class="node-history__error">
+    <div v-if="showMessage" class="node-history__error">
       <div class="node-history__error-info">
         {{ errorMessage }}
       </div>
@@ -202,8 +217,10 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 
+import moment from '@baserow/modules/core/moment'
 import SampleDataModal from '@baserow/modules/core/components/SampleDataModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 
 const app = useNuxtApp()
 const store = useStore()
@@ -272,22 +289,65 @@ const iterationHasError = (group) => {
 const hasOwnError = computed(() => props.nodeHistory.status === 'error')
 
 /**
- * A node that ran without doing anything, e.g. a "Go to node" whose condition
- * resolved to false, so no jump was followed.
+ * An attempt that failed, but whose node's error policy scheduled another one.
+ * It doesn't error the run: the outcome of the node is told by its last attempt.
+ */
+const isRetried = computed(() => props.nodeHistory.status === 'retried')
+
+/**
+ * The message is shown for an errored attempt, and for a retried one so that it
+ * is clear why the node was retried.
+ */
+const showMessage = computed(() => hasOwnError.value || isRetried.value)
+
+/**
+ * When a node's error policy retried it, every attempt is its own entry. The
+ * first attempt is the normal run and carries no label; the later ones are
+ * numbered as retries, so with 5 retries the last entry reads "Retry 5".
+ */
+const retryLabel = computed(() => {
+  const attempt = props.nodeHistory.attempt ?? 1
+  if (attempt <= 1) return null
+  return app.$i18n.t('historySidePanel.retryNumber', { n: attempt - 1 })
+})
+
+/**
+ * `skipped` is a node that ran without doing anything, e.g. a "Go to node"
+ * whose condition resolved to false, so no jump was followed. `waiting` and
+ * `started` belong to a run still in progress: the node suspended itself
+ * until `resume_at` (e.g. a "Wait" node), or is running right now.
+ * `cancelled` is a node the run was stopped at, e.g. a wait that was never
+ * resumed because the run was cancelled.
  */
 const status = computed(() => {
   const childError = props.errorDescendantNodeIds.has(props.nodeHistory.node)
   if (hasOwnError.value || childError) return 'error'
-  if (props.nodeHistory.status === 'skipped') return 'skipped'
-  return 'success'
+  if (isRetried.value) return 'retried'
+  switch (props.nodeHistory.status) {
+    case 'skipped':
+    case 'waiting':
+    case 'started':
+    case 'cancelled':
+      return props.nodeHistory.status
+    default:
+      return 'success'
+  }
 })
 
 const statusLabel = computed(() => {
   switch (status.value) {
     case 'error':
       return app.$i18n.t('historySidePanel.statusErrorBadge')
+    case 'retried':
+      return app.$i18n.t('historySidePanel.statusRetriedBadge')
     case 'skipped':
       return app.$i18n.t('historySidePanel.statusSkippedBadge')
+    case 'waiting':
+      return app.$i18n.t('historySidePanel.statusWaitingBadge')
+    case 'started':
+      return app.$i18n.t('historySidePanel.statusRunningBadge')
+    case 'cancelled':
+      return app.$i18n.t('historySidePanel.statusCancelledBadge')
     default:
       return app.$i18n.t('historySidePanel.statusSuccessBadge')
   }
@@ -297,12 +357,47 @@ const statusBadgeColor = computed(() => {
   switch (status.value) {
     case 'error':
       return 'red'
+    case 'retried':
+      return 'yellow'
     case 'skipped':
+    case 'cancelled':
       return 'neutral'
+    case 'waiting':
+    case 'started':
+      return 'cyan'
     default:
       return 'green'
   }
 })
+
+/**
+ * When a waiting node is due to resume, in the user's time zone. The label
+ * shows the time of day, which is what a wait of up to a few hours needs; the
+ * full date sits in the title for a wait that crosses midnight.
+ */
+const waitingUntil = computed(() => {
+  if (status.value !== 'waiting' || !props.nodeHistory.resume_at) return null
+  return moment.utc(props.nodeHistory.resume_at).tz(getUserTimeZone())
+})
+
+const waitingUntilLabel = computed(() => {
+  if (!waitingUntil.value) return null
+  return app.$i18n.t('historySidePanel.waitingUntil', {
+    time: waitingUntil.value.format('HH:mm:ss'),
+  })
+})
+
+const waitingUntilTitle = computed(() =>
+  waitingUntil.value?.format('YYYY-MM-DD HH:mm:ss')
+)
+
+/**
+ * A node that is still waiting or running has not produced its result yet, and
+ * a waiting one the run was cancelled at never will.
+ */
+const hasResult = computed(
+  () => !['waiting', 'started', 'cancelled'].includes(props.nodeHistory.status)
+)
 
 const errorMessage = computed(() => props.nodeHistory.message)
 

@@ -97,7 +97,6 @@ def test_list_fields(api_client, data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
     data_fixture.create_template(workspace=table_1.database.workspace)
-    table_1.database.workspace.has_template.cache_clear()
     url = reverse("api:database:fields:list", kwargs={"table_id": table_1.id})
     response = api_client.get(url)
     assert response.status_code == HTTP_200_OK
@@ -1468,6 +1467,8 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
                 "immutable_type": False,
                 "database_id": field_1.table.database.id,
                 "workspace_id": field_1.table.database.workspace.id,
+                "semantic_search_enabled": False,
+                "semantic_search_status": None,
             }
         ],
         "text_default": "",
@@ -1475,6 +1476,8 @@ def test_change_primary_field_field_with_primary(api_client, data_fixture):
         "immutable_type": False,
         "database_id": table_a.database.id,
         "workspace_id": table_a.database.workspace.id,
+        "semantic_search_enabled": False,
+        "semantic_search_status": None,
     }
 
 

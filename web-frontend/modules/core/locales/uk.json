@@ -177,7 +177,8 @@
         "title": "Шаблони"
     },
     "templateHeader": {
-        "use": "Використати цей шаблон"
+        "use": "Використати цей шаблон",
+        "selectWorkspace": "Виберіть робочу область"
     },
     "trashSidebar": {
         "title": "",
@@ -293,11 +294,12 @@
     },
     "errorLayout": {
         "notFound": "Сторінку, яку ви шукаєте, не знайдено. Можливо, URL-адреса неправильна або у вас немає прав для перегляду цієї сторінки.",
-        "error": "Під час завантаження сторінки сталася помилка. Наших розробників уже повідомлено про проблему. Спробуйте оновити сторінку або повернутися до панелі керування.",
-        "backDashboard": "Назад до панелі керування",
+        "error": "Щось пішло не так під час завантаження сторінки. Наших розробників повідомлено про цю проблему. Спробуйте оновити сторінку або повернутися на головну.",
+        "backDashboard": "Назад на головну",
         "backLogin": "Повернутися до входу",
         "wrong": "Щось пішло не так",
-        "refresh": "Оновити сторінку"
+        "refresh": "Оновити сторінку",
+        "pageNotFoundTitle": "сторінку не знайдено"
     },
     "dashboard": {
         "title": "Дашборд",
@@ -328,7 +330,11 @@
         "emptyWorkspaceMessage": "Розпочніть, створивши нову базу даних або застосунок.",
         "addNew": "Додати новий…",
         "noWorkspace": "Немає робочого простору",
-        "noWorkspaceDescription": "Почніть зі створення нового робочого простору"
+        "noWorkspaceDescription": "Почніть зі створення нового робочого простору",
+        "templates": "Шаблони",
+        "templatesMessage": "Почніть із готового рішення",
+        "academy": "Академія Baserow",
+        "academyMessage": "Проходьте курси та станьте експертом"
     },
     "dashboardSidebar": {
         "workspaces": "",
@@ -423,7 +429,9 @@
         "emailVerificationRecommended": "Рекомендовано",
         "emailVerificationEnforced": "Обов’язково",
         "settingsVerifyImportSignature": "Перевіряти підпис імпорту",
-        "settingsVerifyImportSignatureDescription": "Коли ввімкнено, перевіряється підпис імпортованих даних, щоб переконатися, що їх не було змінено."
+        "settingsVerifyImportSignatureDescription": "Коли ввімкнено, перевіряється підпис імпортованих даних, щоб переконатися, що їх не було змінено.",
+        "settingAllowReportingAbuseName": "Дозволити повідомляти про порушення правил",
+        "settingAllowReportingAbuseDescription": "Якщо опцію ввімкнено, відвідувачі публічно доступних представлень і форм можуть повідомляти про порушення правил, а всі адміністратори інстансу отримуватимуть сповіщення про такі повідомлення."
     },
     "formSidebar": {
         "actions": {
@@ -560,6 +568,10 @@
                 "userAlreadyInWorkspace": {
                     "title": "Користувач уже є в цьому робочому просторі.",
                     "text": "Неможливо надіслати запрошення, якщо користувач уже є учасником робочого простору."
+                },
+                "tooManyInvitations": {
+                    "title": "Надіслано забагато запрошень.",
+                    "text": "Ви надіслали забагато запрошень. Спробуйте ще раз пізніше."
                 }
             }
         }
@@ -822,7 +834,19 @@
         "groqApiKeyDescription": "Введіть ключ API Groq. [Створити або переглянути ключ API](https://console.groq.com/keys).",
         "groqModelsLabel": "Увімкнені моделі",
         "groqModelsDescription": "Вкажіть розділений комами список [ідентифікаторів моделей Groq](https://console.groq.com/docs/models), які можна використовувати в Baserow. Наприклад: `openai/gpt-oss-120b,openai/gpt-oss-20b`.",
-        "groqModelIdentifierDescription": "Введіть [ідентифікатор моделі Groq](https://console.groq.com/docs/models). Наприклад: `openai/gpt-oss-120b` або `openai/gpt-oss-20b`."
+        "groqModelIdentifierDescription": "Введіть [ідентифікатор моделі Groq](https://console.groq.com/docs/models). Наприклад: `openai/gpt-oss-120b` або `openai/gpt-oss-20b`.",
+        "bedrock": "Amazon Bedrock",
+        "bedrockSecretLabel": "Ключ API або секретний ключ доступу",
+        "bedrockSecretDescription": "Введіть ключ [API Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) або секретний ключ доступу для ідентифікатора ключа доступу.",
+        "bedrockChangeSecret": "Змінити ключ API або секретний ключ доступу",
+        "bedrockSecretUpdateHint": "Введіть новий ключ API або секретний ключ доступу. Вводьте його знову щоразу, коли додаєте або видаляєте ідентифікатор ключа доступу.",
+        "bedrockAccessKeyIdLabel": "Ідентифікатор ключа доступу",
+        "bedrockAccessKeyIdDescription": "[Ідентифікатор ключа доступу IAM](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html), якому відповідає секретний ключ доступу. Залиште поле порожнім, щоб використовувати ключ API Bedrock.",
+        "bedrockRegionLabel": "Регіон",
+        "bedrockRegionDescription": "Регіон AWS, у якому буде виконуватися запит до Bedrock, наприклад `eu-central-1`.",
+        "bedrockModelsLabel": "Увімкнені моделі",
+        "bedrockModelsDescription": "Вкажіть розділений комами список профілів висновків або [ідентифікаторів моделей Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html), які можна використовувати в Baserow. Наприклад: `eu.anthropic.claude-sonnet-4-5-20250929-v1:0,eu.amazon.nova-pro-v1:0`.",
+        "bedrockModelIdentifierDescription": "Введіть [ідентифікатор профілю висновків Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html, наприклад `eu.anthropic.claude-sonnet-4-5-20250929-v1:0`. Новіші моделі не приймають ідентифікатор базової моделі."
     },
     "generativeAIWorkspaceSettings": {
         "title": "Налаштування генеративного ШІ",
@@ -839,7 +863,8 @@
         "overridden": "Перевизначено",
         "overriddenByWorkspace": "Перевизначено робочою областю",
         "disabledInWorkspace": "Вимкнено в робочій області",
-        "noProviders": "Немає доступних провайдерів ШІ"
+        "noProviders": "Немає доступних провайдерів ШІ",
+        "noProvidersDescription": "Додайте провайдера для цієї робочої області або попросіть адміністратора інстансу налаштувати його."
     },
     "uploadFileDropzone": {
         "drop": "Перетягніть сюди",
@@ -932,7 +957,9 @@
     "integrationCreateEditModal": {
         "createTitle": "Нова інтеграція",
         "editTitle": "Редагувати інтеграцію",
-        "warningTitle": "Попередження"
+        "warningTitle": "Попередження",
+        "credentialRequiredTitle": "Потрібні облікові дані",
+        "credentialRequiredMessage": "Введіть облікові дані ще раз, щоб змінити, куди підключається ця інтеграція."
     },
     "integrationEditForm": {
         "name": "Назва",
@@ -942,10 +969,12 @@
         "addIntegration": "Додати нову інтеграцію",
         "noIntegrations": "Інтеграцій не знайдено.",
         "selectTypeFirst": "Спочатку оберіть тип",
-        "integrationPlaceholder": "Виберіть інтеграцію"
+        "integrationPlaceholder": "Виберіть інтеграцію",
+        "editIntegration": "Редагувати інтеграцію"
     },
     "dropdown": {
-        "empty": "Немає доступних елементів"
+        "empty": "Немає доступних елементів",
+        "clearSearch": "Очистити пошук"
     },
     "richTextEditorMentionsList": {
         "notFound": "Користувачів не знайдено"
@@ -979,7 +1008,9 @@
         "errorInvalidFormula": "Формула недійсна.",
         "advancedFormulaMode": "Розширений режим формул",
         "invalidFormulaTitle": "Недійсна формула",
-        "invalidSyntax": "Некоректна експертна формула, будь ласка, перевірте синтаксис."
+        "invalidSyntax": "Некоректна експертна формула, будь ласка, перевірте синтаксис.",
+        "useFormulaMode": "Використовувати режим формул",
+        "useRawMode": "Використовувати необроблений режим"
     },
     "dataExplorer": {
         "noMatchingNodesText": "Збігів не знайдено.",
@@ -1015,7 +1046,8 @@
         "AIModel": "Модель ШІ",
         "fileField": "Поле файлу",
         "temperatureLabel": "Температура",
-        "temperatureDescription": "Температура LLM — це параметр у діапазоні від 0 до {max}, який визначає випадковість відповідей: нижчі значення дають більш зосереджені відповіді, а вищі підвищують креативність."
+        "temperatureDescription": "Температура LLM — це параметр у діапазоні від 0 до {max}, який визначає випадковість відповідей: нижчі значення дають більш зосереджені відповіді, а вищі підвищують креативність.",
+        "modelUnavailable": "Цю модель вимкнено або вона більше недоступна."
     },
     "onboarding": {
         "title": "Ознайомлення",
@@ -1026,7 +1058,8 @@
         "failedTitle": "Щось пішло не так",
         "failedDescription": "Процес ознайомлення не було повністю завершено, хоча деякі його частини могли бути виконані.",
         "failedTryAgain": "Спробувати ще раз",
-        "failedSkip": "Пропустити ознайомлення"
+        "failedSkip": "Пропустити ознайомлення",
+        "back": "Назад"
     },
     "moreStep": {
         "title": "Розкажіть нам трохи більше",
@@ -1078,7 +1111,8 @@
     "adminType": {
         "dashboard": "Панель керування",
         "users": "Користувачі",
-        "workspaces": "Робочі простори"
+        "workspaces": "Робочі простори",
+        "aiProviders": "Провайдери ШІ"
     },
     "workspacesAdminTable": {
         "allWorkspaces": "Усі робочі простори",
@@ -1190,7 +1224,9 @@
         "step": "Крок {step} із {totalSteps}",
         "gotIt": "Зрозуміло",
         "next": "Далі",
-        "back": "Назад"
+        "back": "Назад",
+        "watchVideo": "Переглянути відео",
+        "stopTour": "Зупинити ознайомлення"
     },
     "welcomeGuidedTourStep": {
         "title": "Ласкаво просимо до Baserow",
@@ -1236,7 +1272,12 @@
         "methodsOptionLabel": "Дозволені HTTP-методи",
         "methodsOptionDescription": "Визначає, які HTTP-методи дозволені для цього вебхука. Виключення методу GET зменшує ймовірність випадкового спрацювання вебхука.",
         "methodsOptionAll": "Всі",
-        "methodsOptionExcludeGet": "Виключити GET"
+        "methodsOptionExcludeGet": "Виключити GET",
+        "responseOptionsLabel": "Відповідь",
+        "waitForResponse": "Очікувати на відповідь робочого процесу",
+        "waitForResponseDescription": "Очікуйте, доки буде досягнуто вузла «Відповідь». Якщо його не буде досягнуто, дочекайтеся завершення робочого процесу та поверніть відповідь за замовчуванням.",
+        "responseTimeout": "Час очікування відповіді минув",
+        "seconds": "секунд"
     },
     "twoFactorAuthEmpty": {
         "title": "Ви ще не ввімкнули двофакторну автентифікацію (2FA)",
@@ -1246,8 +1287,9 @@
         "notAllowedDescription": "Додавання 2FA можливе лише для облікових записів із входом за паролем."
     },
     "nodeHelpTooltip": {
-        "exampleLabel": "Приклад",
-        "result": "Результат: {result}"
+        "exampleLabel": "Приклад | Приклади",
+        "result": "Результат: {result}",
+        "clickToInsert": "Натисніть на приклад, щоб вставити його"
     },
     "enableWithQRCode": {
         "scanQRCode": "Скануйте QR-код",
@@ -1358,5 +1400,206 @@
     },
     "editWorkspace": {
         "invalidNameTitle": "Назва робочого простору недопустима"
+    },
+    "trashType": {
+        "integration": "інтеграція",
+        "user_source": "джерело користувачів"
+    },
+    "groupedMenu": {
+        "core": "Ядро",
+        "files": "Файли",
+        "http": "HTTP",
+        "workflow": "Робочий процес"
+    },
+    "abuseReportCreatedNotification": {
+        "title": "Про ресурс {resourceName} повідомив про порушення правил користувач {reporterEmail}",
+        "openResource": "Відкрити сторінку, на яку поскаржилися",
+        "showMore": "Показати більше",
+        "detailsTitle": "Повідомлення про порушення правил",
+        "reportedBy": "Повідомив(ла) {reporterName} ({reporterEmail})."
+    },
+    "reportAbuseModal": {
+        "title": "Повідомити про порушення правил",
+        "description": "Ви вважаєте, що ця сторінка використовується для фішингу, видавання себе за іншу особу, шахрайства або інших зловмисних цілей? Повідомте адміністраторів цього інстансу Baserow, надіславши форму нижче.",
+        "submit": "Надіслати повідомлення про порушення",
+        "close": "Закрити",
+        "successTitle": "Дякуємо за ваше повідомлення",
+        "successDescription": "Повідомлення надіслано, а адміністраторів цього інстансу Baserow повідомлено, щоб вони могли вжити відповідних заходів.",
+        "reportingDisabledTitle": "Повідомлення про порушення вимкнено",
+        "reportingDisabledDescription": "Адміністратор цього інстансу Baserow вимкнув можливість повідомляти про порушення правил."
+    },
+    "reportAbuseForm": {
+        "nameLabel": "Ваше ім’я",
+        "emailLabel": "Ваша адреса електронної пошти",
+        "descriptionLabel": "Чому ви повідомляєте про порушення на цій сторінці?",
+        "descriptionHelper": "Будь ласка, детально опишіть, чому ви вважаєте цю сторінку зловмисною.",
+        "descriptionPlaceholder": "Наприклад: ця сторінка видає себе за сторінку входу іншої компанії та запитує в її відвідувачів пароль."
+    },
+    "richTextEditor": {
+        "errorUnsupportedImageTitle": "Не вдалося вбудувати зображення",
+        "errorUnsupportedImageMessage": "{name} — це непідтримуваний формат зображення, тому його не додано."
+    },
+    "aiProviderAdmin": {
+        "title": "Провайдери ШІ",
+        "description": "Керуйте провайдерами та моделями на рівні інстансу, доступними для робочих просторів і автоматизацій.",
+        "addProvider": "Додати провайдера",
+        "editProvider": "Редагувати провайдера",
+        "providerType": "Тип провайдера",
+        "apiKey": "Ключ API",
+        "changeApiKey": "Змінити ключ API",
+        "apiKeyUpdateHint": "Введіть новий ключ API, щоб замінити наявний.",
+        "extraField_organization": "Організація",
+        "extraField_base_url": "Базова URL-адреса",
+        "extraField_host": "Хост",
+        "extraField_region": "Регіон",
+        "extraField_access_key_id": "Ідентифікатор ключа доступу",
+        "models": "Моделі",
+        "addModel": "Додати модель",
+        "removeModel": "Видалити модель",
+        "editModel": "Редагувати модель",
+        "modelIdentifier": "Ідентифікатор моделі",
+        "availableFor": "Доступно для",
+        "availableForDescription": "Виберіть, які з перелічених функцій ШІ можуть використовувати цю модель.",
+        "availableForList": "Доступно для: {features}",
+        "availableForNone": "Недоступно для жодної з перелічених функцій",
+        "featureSettingsTitle": "Функції ШІ",
+        "featureSettingsDescription": "Виберіть налаштовану модель провайдера для кожної функції. Моделі середовища застаріли.",
+        "kumaDisabled": "Вимкнено",
+        "kumaInvalidFallback": "Вибрана модель недоступна — використовується застаріла модель середовища: {model}",
+        "kumaInvalidNoFallback": "Вибрана модель недоступна — модель середовища не налаштована",
+        "kumaDisabledInWorkspace": "Вимкнено в цій робочій області",
+        "kumaUseInstance": "Використовувати налаштування інстансу — {model}",
+        "kumaInheritedUnavailable": "вибрана модель інстансу недоступна",
+        "kumaUseLegacy": "Використовувати модель середовища (застаріла): {model}",
+        "kumaLegacyFallback": "модель середовища (застаріла): {model}",
+        "kumaLegacyEmpty": "порожньо",
+        "kumaNotConfigured": "не налаштовано",
+        "featureModelLabel": "Модель для {feature}",
+        "modelScopeInstance": "Інстанс",
+        "modelScopeWorkspace": "Робоча область",
+        "noFeatureModels": "Немає доступних відповідних моделей. Відредагуйте модель і виберіть, які функції можуть її використовувати.",
+        "featureSettingError": "Не вдалося зберегти налаштування функції ШІ.",
+        "featureSettingErrorDescription": "Оновіть сторінку та виберіть доступну модель.",
+        "modelDiscoveryHelp": "Виберіть модель зі списку або введіть будь-який власний ідентифікатор.",
+        "modelDiscoveryUnavailable": "Відомі варіанти моделей недоступні. Введіть ідентифікатор вручну.",
+        "modelDiscoveryEmpty": "Немає відомих моделей для цього провайдера. Введіть ідентифікатор вручну.",
+        "modelDiscoveryNoMatch": "Немає відомої відповідної моделі. Ви можете використовувати введений вами ідентифікатор.",
+        "noProviders": "Не налаштовано жодного провайдера ШІ на рівні інстансу",
+        "noProvidersDescription": "Додайте провайдера, щоб налаштувати моделі, доступні для ваших робочих просторів.",
+        "noModels": "Для цього провайдера не налаштовано жодної моделі.",
+        "active": "Активний",
+        "inactive": "Неактивний",
+        "inherited": "Успадкований",
+        "enable": "Увімкнути",
+        "disable": "Вимкнути",
+        "modelDisabled": "Вимкнено",
+        "moreActions": "Інші дії",
+        "testAllModels": "Перевірити всі моделі",
+        "testModel": "Перевірити модель",
+        "testPassed": "Тест пройдено",
+        "testFailed": "Тест не пройдено",
+        "someTestsFailed": "Деякі тести не пройдено",
+        "featureTestPassed": "{feature}: Пройдено",
+        "featureTestFailed": "{feature}: {error}",
+        "testing": "Тестування…",
+        "notTested": "Не перевірено",
+        "deleteProviderTitle": "Видалити {name}?",
+        "deleteProviderDescription": "Це назавжди видалить провайдера та його моделі.",
+        "deleteModelTitle": "Видалити {name}?",
+        "deleteModelDescription": "Це назавжди видалить модель.",
+        "disableModelTitle": "Вимкнути {name}?",
+        "disableModelDescription": "Модель залишається вибраною там, де її налаштовано, але не може використовуватися, доки її знову не буде ввімкнено.",
+        "modelFeaturesRemovedTitle": "Змінити, для чого доступний {name}?",
+        "modelFeaturesRemovedDescription": "Функції, які ви скасували, більше не зможуть використовувати цю модель.",
+        "modelInUse": "{features} використовує цю модель. | {features} використовують цю модель.",
+        "modelUsageUnknown": "Baserow не вдалося перевірити, що ще використовує цю модель.",
+        "modelUsageFeature": "{feature} ({count})",
+        "modelIdentifierRenamedTitle": "Перейменувати {name}?",
+        "modelIdentifierRenamedDescription": "Вони продовжать посилатися на старий ідентифікатор і перестануть працювати, доки не буде вказано новий ідентифікатор.",
+        "loadError": "Не вдалося завантажити налаштування провайдера ШІ.",
+        "loadErrorDescription": "Перевірте підключення та спробуйте ще раз.",
+        "retry": "Повторити",
+        "saveError": "Не вдалося зберегти провайдера ШІ.",
+        "saveModelError": "Не вдалося зберегти модель провайдера ШІ.",
+        "actionError": "Не вдалося змінити провайдера ШІ."
+    },
+    "academy": {
+        "learnMore": "Дізнайтеся більше в Академії Baserow"
+    },
+    "guidedTourVideoModal": {
+        "previous": "Попереднє відео",
+        "next": "Наступне відео",
+        "close": "Закрити"
+    },
+    "coreManualTriggerServiceForm": {
+        "responseOptionsLabel": "Відповідь",
+        "waitForResponse": "Очікувати на відповідь робочого процесу",
+        "waitForResponseDescription": "Очікуйте, доки буде досягнуто вузла «Відповідь». Якщо його не буде досягнуто, дочекайтеся завершення робочого процесу та поверніть відповідь за замовчуванням.",
+        "responseTimeout": "Час очікування відповіді минув",
+        "seconds": "секунд"
+    },
+    "coreResponseServiceForm": {
+        "statusCode": "Код статусу",
+        "statusCode200": "200 — OK",
+        "statusCode201": "201 — Створено",
+        "statusCode202": "202 — Прийнято",
+        "statusCode204": "204 — Немає вмісту",
+        "statusCode400": "400 — Неправильний запит",
+        "statusCode401": "401 — Неавторизовано",
+        "statusCode403": "403 — Заборонено",
+        "statusCode404": "404 — Не знайдено",
+        "statusCode405": "405 — Метод не дозволено",
+        "statusCode409": "409 — Конфлікт",
+        "statusCode422": "422 — Вміст не може бути оброблено",
+        "statusCode429": "429 — Забагато запитів",
+        "bodyType": "Тип тіла запиту",
+        "bodyTypeEmpty": "Порожнє",
+        "bodyTypeJson": "JSON",
+        "bodyTypeText": "Текст",
+        "body": "Тіло запиту",
+        "bodyPlaceholder": "Тіло відповіді",
+        "headers": "Заголовки",
+        "name": "Назва",
+        "value": "Значення",
+        "namePlaceholder": "Назва заголовка",
+        "valuePlaceholder": "Значення заголовка",
+        "addHeader": "Додати заголовок",
+        "nameFieldRequired": "Потрібно вказати назву заголовка.",
+        "nameFieldInvalid": "Назви заголовків можуть містити лише літери, цифри, дефіси та підкреслення і не можуть починатися з дефіса або підкреслення."
+    },
+    "inboundEmailTriggerServiceForm": {
+        "title": "Адреса електронної пошти",
+        "addressVersionTest": "Тест",
+        "addressVersionPublished": "Опубліковано",
+        "copyAddress": "Скопіювати адресу електронної пошти",
+        "description": "Будь-який електронний лист, надісланий на цю адресу, запустить робочий процес, передавши дані про відправника, тему, текст листа та вкладення як корисне навантаження.",
+        "limits": "Приймаються електронні листи розміром до {size} МБ, а текстова версія та HTML-вміст передаються в повному обсязі до 1 МБ кожен. Вкладення не зберігаються: до корисного навантаження додаються лише їхня назва, тип і розмір.",
+        "autoForwardTip": "Порада: ви також можете додати цю адресу як правило автоматичного пересилання у своїй поштовій скриньці, щоб робочий процес запускався щоразу, коли ви отримуєте електронний лист.",
+        "secretWarning": "Вважайте цю адресу конфіденційною: будь-хто, хто її знає, може запустити цей робочий процес.",
+        "regenerate": "Згенерувати нову адресу",
+        "notConfigured": "Цей інстанс Baserow не налаштовано для отримання вхідних електронних листів. Щоб увімкнути цей тригер, задайте змінну середовища BASEROW_INBOUND_EMAIL_DOMAIN."
+    },
+    "subjectType": {
+        "user": "Користувач",
+        "users": "Користувачі",
+        "agent": "Агент",
+        "agents": "Агенти"
+    },
+    "agents": {
+        "saved": "Зміни збережено",
+        "tabTitle": "Агенти",
+        "title": "{count} агентів у {workspace}",
+        "create": "Створити агента",
+        "createTitle": "Створити агента",
+        "updateTitle": "Редагувати агента",
+        "save": "Зберегти агента",
+        "edit": "Редагувати агента",
+        "delete": "Видалити агента",
+        "general": "Загальні налаштування",
+        "mcpServerPlaceholder": "Налаштування MCP-сервера будуть доступні тут.",
+        "name": "Назва",
+        "invalidNameTitle": "Назва агента недопустима",
+        "lastActive": "Востаннє активний",
+        "workspaceRole": "Роль у робочій області"
     }
 }

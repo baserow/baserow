@@ -122,6 +122,76 @@ test.describe("Automation node test suite", () => {
     await expect(nodeDiv).toBeVisible();
   });
 
+  test("Can create nodes from the While loop recipe", async ({ page }) => {
+    const createNodeButton = page.getByRole("button", {
+      name: "Create automation node",
+    });
+    await createNodeButton.click();
+
+    const addNodeMenu = page.locator(".workflow-node__context:visible");
+
+    // Recipes are the last group of the picker.
+    const navigationGroups = addNodeMenu.locator(
+      ".grouped-menu__navigation .menu-list__item-label"
+    );
+    await expect(navigationGroups.last()).toHaveText("Recipes");
+    await navigationGroups.last().click();
+
+    const whileLoopOption = addNodeMenu
+      .locator(".grouped-menu__actions")
+      .getByText("While loop", { exact: true });
+    await expect(whileLoopOption).toBeVisible();
+    await whileLoopOption.click();
+
+    // Both nodes land on the canvas with the labels the recipe gives them.
+    await expect(
+      page.getByRole("heading", { name: "Find rows to process", level: 1 })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Repeat while rows are found",
+        level: 1,
+      })
+    ).toBeVisible();
+  });
+
+  test("Finds the Iterator and the loop recipes by the loop alias", async ({
+    page,
+  }) => {
+    await page
+      .getByRole("button", { name: "Create automation node" })
+      .click();
+
+    const addNodeMenu = page.locator(".workflow-node__context:visible");
+    await addNodeMenu.getByRole("searchbox").fill("loop");
+
+    const navigationGroups = addNodeMenu.locator(
+      ".grouped-menu__navigation .menu-list__item-label"
+    );
+    await expect(navigationGroups.last()).toHaveText("Recipes");
+
+    // The Iterator only matches through its "loop" alias.
+    await navigationGroups.getByText("Workflow", { exact: true }).click();
+    await expect(
+      addNodeMenu
+        .locator(".grouped-menu__actions")
+        .getByText("Iterate on items", { exact: true })
+    ).toBeVisible();
+
+    await navigationGroups.last().click();
+
+    await expect(
+      addNodeMenu
+        .locator(".grouped-menu__actions")
+        .getByText("For loop", { exact: true })
+    ).toBeVisible();
+    await expect(
+      addNodeMenu
+        .locator(".grouped-menu__actions")
+        .getByText("While loop", { exact: true })
+    ).toBeVisible();
+  });
+
   test("Can delete an automation node", async ({
     page,
     automationWorkflowPage,

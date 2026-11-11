@@ -32,7 +32,7 @@ From inside the container:
 ./baserow sync_knowledge_base
 ```
 
-This will schedule a task to import `website_export.csv` containing all the docs and generate the embeddings using the local service. Once completed, asking the assistant to search for docs should show "Exploring the knowledge base..." in the UI when the assistant uses the `search_docs` tool, and the answers should show sources from the docs.
+This will schedule a task to import `website_export.csv` containing all the docs and generate the embeddings using the local service. Once completed, asking the assistant to search for docs should show "Exploring the knowledge base..." in the UI when the assistant uses the `search_user_docs` tool, and the answers should show sources from the docs.
 
 
 ## Troubleshooting
@@ -80,4 +80,4 @@ curl -X POST "$BASEROW_EMBEDDINGS_API_URL/embed" \
   -d '{"texts": "test"}'
 ```
 
-This command should return a vector of more than 500 numbers. If it doesn't, check that the embeddings container is running and healthy.
+This command should return a vector of 384 numbers. If it doesn't, check that the embeddings container is running and healthy.

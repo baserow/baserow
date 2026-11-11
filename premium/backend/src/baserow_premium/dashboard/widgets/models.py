@@ -23,6 +23,8 @@ class ChartWidget(Widget):
 
 
 class ChartSeriesConfig(models.Model):
+    series_color = models.CharField(max_length=9, null=True, blank=True)
+
     widget = models.ForeignKey(
         ChartWidget, on_delete=models.CASCADE, related_name="series_config"
     )
@@ -61,6 +63,8 @@ class PieChartWidget(Widget):
 
 
 class PieChartSeriesConfig(models.Model):
+    series_color = models.CharField(max_length=9, null=True, blank=True)
+
     widget = models.ForeignKey(
         PieChartWidget, on_delete=models.CASCADE, related_name="series_config"
     )

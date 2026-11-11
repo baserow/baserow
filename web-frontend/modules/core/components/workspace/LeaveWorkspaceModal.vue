@@ -28,8 +28,6 @@
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
-import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'LeaveWorkspaceModal',
@@ -39,10 +37,6 @@ export default {
       type: Object,
       required: true,
     },
-  },
-  setup() {
-    const nuxtApp = useNuxtApp()
-    return { nuxtApp }
   },
   data() {
     return {
@@ -54,16 +48,9 @@ export default {
       this.hideError()
       this.loading = true
 
-      const selected =
-        this.$store.getters['workspace/getSelected'].id === this.workspace.id
-
       try {
+        // Leaving navigates away from the workspace if it's selected.
         await this.$store.dispatch('workspace/leave', this.workspace)
-        if (selected) {
-          await this.$router.push({ name: 'all-workspaces' })
-          await pageFinished(this.nuxtApp)
-          await nextTick()
-        }
         this.hide()
       } catch (error) {
         this.handleError(error, 'view')

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Car Dealership Services",
+    "description": "Run dealership services with service logs, parts and labor.",
     "icon": "iconoir-wrench",
     "keywords": [
         "repairs",

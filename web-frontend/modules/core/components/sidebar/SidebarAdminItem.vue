@@ -9,6 +9,7 @@
       class="tree__action sidebar__action"
       :class="{
         'tree__action--deactivated': deactivated,
+        'tree__action--has-counter': badgeCount > 0,
       }"
     >
       <a
@@ -33,6 +34,12 @@
           <span class="sidebar__item-name">{{ adminType.getName() }}</span>
         </span>
       </nuxt-link>
+      <BadgeCounter
+        v-if="badgeCount > 0"
+        class="tree__counter badge-counter--warning"
+        :count="badgeCount"
+        :limit="10"
+      ></BadgeCounter>
     </div>
     <component
       :is="deactivatedModal[0]"
@@ -44,8 +51,11 @@
 </template>
 
 <script>
+import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
+
 export default {
   name: 'SidebarAdminItem',
+  components: { BadgeCounter },
   props: {
     adminType: {
       required: true,
@@ -62,6 +72,12 @@ export default {
     deactivatedModal() {
       return this.adminTypeObject.getDeactivatedModal()
     },
+    badgeCount() {
+      return this.adminTypeObject.getBadgeCount()
+    },
+  },
+  mounted() {
+    this.adminTypeObject.loadBadgeCount()
   },
 }
 </script>

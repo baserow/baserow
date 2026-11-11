@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Apply sensitive data export settings consistently across applications",
+    "issue_origin": "github",
+    "issue_number": 6115,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-28"
+}

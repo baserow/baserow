@@ -103,6 +103,16 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
 
         pass
 
+    def get_type_display_name(self) -> str:
+        """
+        Should return the human readable name of this trashable type, used when
+        describing trash actions, for example in the audit log.
+
+        :return The display name of this type, which defaults to its type.
+        """
+
+        return self.type
+
     def get_names(self, trashed_item: Any) -> str:
         """
         Should return an array of names of this particular trashed item to display in

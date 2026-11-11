@@ -6,10 +6,10 @@ User = get_user_model()
 
 class UserLastViewedItem(models.Model):
     """
-    Records when a user last opened a leaf item (a view, builder page, dashboard or
-    automation workflow). Only leaves are stored; the application and workspace
-    values are derived with a MAX over these rows, so a deleted leaf automatically
-    falls back to the next most recently viewed one.
+    Records when a user last opened a leaf item (a view, builder page, dashboard,
+    automation workflow or agent). Only leaves are stored; the application and
+    workspace values are derived with a MAX over these rows, so a deleted leaf
+    automatically falls back to the next most recently viewed one.
     """
 
     # Every upsert consumes a sequence value, also when it changes nothing, so a

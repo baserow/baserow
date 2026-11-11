@@ -23,7 +23,8 @@ export default (client) => {
       authenticate = true,
       workspaceInvitationToken = null,
       templateId = null,
-      captchaToken = ''
+      captchaToken = '',
+      workspaceInvitationLinkSlug = null
     ) {
       const values = {
         name,
@@ -37,6 +38,10 @@ export default (client) => {
         values.workspace_invitation_token = workspaceInvitationToken
       }
 
+      if (workspaceInvitationLinkSlug !== null) {
+        values.workspace_invitation_link_slug = workspaceInvitationLinkSlug
+      }
+
       if (templateId !== null) {
         values.template_id = templateId
       }
@@ -47,11 +52,8 @@ export default (client) => {
 
       return client.post('/user/', values)
     },
-    sendResetPasswordEmail(email, baseUrl) {
-      return client.post('/user/send-reset-password-email/', {
-        email,
-        base_url: baseUrl,
-      })
+    sendResetPasswordEmail(email) {
+      return client.post('/user/send-reset-password-email/', { email })
     },
     resetPassword(token, password) {
       return client.post('/user/reset-password/', {
@@ -65,11 +67,10 @@ export default (client) => {
         new_password: newPassword,
       })
     },
-    sendChangeEmailConfirmation(newEmail, password, baseUrl) {
+    sendChangeEmailConfirmation(newEmail, password) {
       return client.post('/user/send-change-email-confirmation/', {
         new_email: newEmail,
         password,
-        base_url: baseUrl,
       })
     },
     changeEmail(token) {

@@ -9,7 +9,11 @@
       @click="toggleCreateContext"
       @mousedown.stop
     />
-    <WorkflowNodeContext ref="context" @change="emit('add-node', $event)" />
+    <WorkflowNodeContext
+      ref="context"
+      @change="emit('add-node', $event)"
+      @recipe="emit('add-recipe', $event)"
+    />
   </div>
 </template>
 
@@ -24,7 +28,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['add-node'])
+const emit = defineEmits(['add-node', 'add-recipe'])
 const context = ref()
 const btn = ref()
 

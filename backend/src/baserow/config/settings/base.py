@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 import re
+import socket
 from datetime import timedelta
 from decimal import Decimal
 from ipaddress import ip_network
@@ -12,6 +13,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 import dj_database_url
 from corsheaders.defaults import default_headers
+from redis.backoff import EqualJitterBackoff
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import ReadOnlyError as RedisReadOnlyError
+from redis.retry import Retry
 
 from baserow.config.settings.utils import (
     Setting,
@@ -93,6 +98,7 @@ INSTALLED_APPS = [
     "baserow.contrib.builder",
     "baserow.contrib.dashboard",
     "baserow.contrib.automation",
+    "baserow.contrib.agent",
     *BASEROW_BUILT_IN_PLUGINS,
 ]
 
@@ -117,6 +123,7 @@ MIDDLEWARE = [
     "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
+    "baserow.api.templates.middleware.TemplatePrivateLinkMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
@@ -156,6 +163,13 @@ ASGI_APPLICATION = "baserow.config.asgi.application"
 ASGI_HTTP_MAX_CONCURRENCY = (
     int(os.getenv("BASEROW_ASGI_HTTP_MAX_CONCURRENCY") or 0) or None
 )
+ASGI_HTTP_MAX_CONCURRENT_STREAMS = int(
+    os.getenv("BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS") or 100
+)
+if ASGI_HTTP_MAX_CONCURRENT_STREAMS <= 0:
+    raise ImproperlyConfigured(
+        "BASEROW_ASGI_HTTP_MAX_CONCURRENT_STREAMS must be greater than zero."
+    )
 
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = os.getenv("REDIS_PORT", "6379")
@@ -183,6 +197,29 @@ BASEROW_GROUP_STORAGE_USAGE_QUEUE = os.getenv(
 BASEROW_ROLE_USAGE_QUEUE = os.getenv("BASEROW_GROUP_STORAGE_USAGE_QUEUE", "export")
 
 CELERY_BROKER_URL = REDIS_URL
+# Without these, a broker connection that is dropped silently (e.g. by a NAT or
+# conntrack timeout) is never detected and the worker keeps waiting on the dead
+# socket forever without consuming new tasks. TCP keepalive probes detect the dead
+# peer, the socket timeout makes blocked reads fail instead of hanging and the
+# health check pings idle connections. The socket timeout must stay well above
+# kombu's BRPOP timeout of 1 second.
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    "socket_keepalive": True,
+    # Start probing after 60s idle and give up after 3 unanswered probes 10s apart.
+    # TCP_KEEPIDLE is Linux only, so skip the options the platform doesn't have.
+    "socket_keepalive_options": {
+        getattr(socket, option): value
+        for option, value in (
+            ("TCP_KEEPIDLE", 60),
+            ("TCP_KEEPINTVL", 10),
+            ("TCP_KEEPCNT", 3),
+        )
+        if hasattr(socket, option)
+    },
+    "socket_timeout": 30,
+    "socket_connect_timeout": 30,
+    "health_check_interval": 25,
+}
 CELERY_TASK_ROUTES = {
     "baserow.contrib.database.export.tasks.run_export_job": {"queue": "export"},
     "baserow.contrib.database.export.tasks.clean_up_old_jobs": {"queue": "export"},
@@ -223,16 +260,31 @@ CELERY_REDBEAT_LOCK_TIMEOUT = os.getenv(
 )
 
 CELERY_RESULT_BACKEND = REDIS_URL
+# Like the broker transport options above, so a dropped connection is detected
+# instead of blocking until Celery's default 120 second socket timeout.
+CELERY_REDIS_SOCKET_TIMEOUT = 30
+CELERY_REDIS_SOCKET_CONNECT_TIMEOUT = 30
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 25
 CELERY_RESULT_EXPIRES = int(
     # default 1 hour
     os.getenv("CELERY_RESULT_EXPIRES") or 3600
 )
 
+# channels-redis blocks for five seconds while waiting for messages. Leave headroom
+# above that wait so redis-py's socket deadline does not close idle WebSockets.
+CHANNELS_REDIS_SOCKET_TIMEOUT = 10
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        # Retries what is safe to retry and detects pooled connections Redis
+        # already closed, see `RetryingRedisChannelLayer`.
+        "BACKEND": "baserow.ws.channel_layer.RetryingRedisChannelLayer",
         "CONFIG": {
-            "hosts": [REDIS_URL],
+            "hosts": [
+                {
+                    "address": REDIS_URL,
+                    "socket_timeout": CHANNELS_REDIS_SOCKET_TIMEOUT,
+                }
+            ],
         },
     },
 }
@@ -240,7 +292,11 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
 if "DATABASE_URL" in os.environ:
-    DATABASES = {"default": dj_database_url.parse(os.getenv("DATABASE_URL"))}
+    DATABASES = {
+        "default": dj_database_url.parse(
+            os.getenv("DATABASE_URL"), conn_health_checks=True
+        )
+    }
 else:
     DATABASES = {
         "default": {
@@ -266,7 +322,7 @@ for key, value in os.environ.items():
     if key.startswith("DATABASE_READ_REPLICA_") and key.endswith("_URL"):
         suffix = key[len("DATABASE_READ_REPLICA_") : -len("_URL")]
         db_key = f"read_{suffix}"
-        DATABASES[db_key] = dj_database_url.parse(value)
+        DATABASES[db_key] = dj_database_url.parse(value, conn_health_checks=True)
         DATABASE_READ_REPLICAS.append(db_key)
     elif key.startswith("DATABASE_READ_") and key.endswith("_NAME"):
         suffix = key[len("DATABASE_READ_") : -len("_NAME")]
@@ -296,7 +352,8 @@ BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
 # Also enable connection health checks by default so Django verifies that a
 # connection is still usable before each request/task, which prevents
 # "connection already closed" errors when connections are dropped by the server,
-# a load balancer, or a connection pooler.
+# a load balancer, or a connection pooler. URL configs are parsed with health
+# checks on, as dj_database_url sets them to False otherwise.
 for _db_key in DATABASES:
     DATABASES[_db_key]["CONN_MAX_AGE"] = BASEROW_CONN_MAX_AGE
     DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)
@@ -304,19 +361,45 @@ for _db_key in DATABASES:
 DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
 
 
+def _django_redis_cache_options():
+    # redis-py doesn't retry on pools created from a URL, like django-redis does, so
+    # a Redis restart or failover would fail the call right away. The retries wait
+    # 2.5 to 5 seconds in total, enough to bridge a restart or Sentinel failover
+    # without stalling requests long when Redis is down.
+    # Connection errors are only retried while connecting, before a command is sent.
+    # Once sent, a dropped connection or timeout leaves it unknown whether Redis ran
+    # it, and running a non-idempotent one like RPUSH again would duplicate it.
+    # Read-only errors are safe to retry on a new connection, because Redis rejected
+    # the command. After a failover a proxy can still route to the demoted primary
+    # until its health check notices.
+    def retry(*errors):
+        return Retry(EqualJitterBackoff(base=0.5, cap=2), 3, supported_errors=errors)
+
+    return {
+        "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        "CONNECTION_POOL_CLASS": "baserow.core.redis.RetryingConnectionPool",
+        "SOCKET_CONNECT_TIMEOUT": 5,
+        "SOCKET_TIMEOUT": 10,
+        "CONNECTION_POOL_KWARGS": {
+            "checkout_retry": retry(RedisConnectionError),
+            "retry": retry(RedisReadOnlyError),
+        },
+    }
+
+
 GENERATED_MODEL_CACHE_NAME = "generated-models"
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": _django_redis_cache_options(),
         "KEY_PREFIX": "baserow-default-cache",
         "VERSION": VERSION,
     },
     GENERATED_MODEL_CACHE_NAME: {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": _django_redis_cache_options(),
         "KEY_PREFIX": f"baserow-{GENERATED_MODEL_CACHE_NAME}-cache",
         "VERSION": None,
     },
@@ -450,6 +533,9 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_RENDERER_CLASSES": ("baserow.api.renderers.BaserowJSONRenderer",),
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
+    # Preserve positional list-validation errors in the public API. DRF 3.18
+    # defaults to dictionaries; migrate this contract before upgrading to 3.20.
+    "LIST_SERIALIZER_ERRORS_AS_DICT": False,
 }
 
 # Throttling / rate-limiting — see docs/installation/configuration.md
@@ -477,6 +563,14 @@ except ValueError as exc:
         f"BASEROW_WORKSPACE_INVITATION_RATE_LIMITS is invalid. It must be a comma "
         f"separated list of rate limits, for example '30/m,100/h'. {exc}"
     ) from exc
+
+# The number of letters and digits in the code of a permanent workspace invite
+# link. Shorter codes are easier to guess, so 7 is the minimum, and the code
+# must fit the 50 characters of its column.
+BASEROW_WORKSPACE_INVITATION_LINK_LENGTH = min(
+    50,
+    max(7, int(os.getenv("BASEROW_WORKSPACE_INVITATION_LINK_LENGTH", "") or 12)),
+)
 
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
@@ -511,6 +605,8 @@ BASEROW_ABUSE_REPORT_NOTIFICATION_COOLDOWN_SECONDS = int(
 BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
+PUBLIC_DASHBOARD_AUTHORIZATION_HEADER = "Baserow-Dashboard-Authorization"
+TEMPLATE_PRIVATE_LINK_TOKEN_HEADER = "Baserow-Template-Authorization"
 
 CORS_ORIGIN_ALLOW_ALL = True
 CLIENT_SESSION_ID_HEADER = "ClientSessionId"
@@ -526,6 +622,8 @@ REALTIME_RECOVERY_HEADER = "X-Baserow-Realtime-Recovery"
 CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
     PUBLIC_VIEW_AUTHORIZATION_HEADER,
+    PUBLIC_DASHBOARD_AUTHORIZATION_HEADER,
+    TEMPLATE_PRIVATE_LINK_TOKEN_HEADER,
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
@@ -547,6 +645,13 @@ ACCESS_TOKEN_LIFETIME = timedelta(
 REFRESH_TOKEN_LIFETIME = timedelta(
     hours=int(os.getenv("BASEROW_REFRESH_TOKEN_LIFETIME_HOURS", 24 * 7))  # 7 days
 )
+# Every refresh returns a new refresh token and revokes the one that was used.
+ROTATE_REFRESH_TOKENS = str_to_bool(
+    os.getenv("BASEROW_ROTATE_REFRESH_TOKENS") or "true"
+)
+# A revoked refresh token keeps working for this long, so tabs that refresh at the
+# same time don't log each other out. Using it later revokes the whole session.
+REFRESH_TOKEN_REUSE_GRACE_PERIOD = timedelta(seconds=30)
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": ACCESS_TOKEN_LIFETIME,
@@ -570,7 +675,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.4.1",
+    "VERSION": "2.4.2",
     "SERVE_INCLUDE_SCHEMA": False,
     "TAGS": [
         {"name": "Settings"},
@@ -680,6 +785,7 @@ SPECTACULAR_SETTINGS = {
             "multiple_select_has_not",
         ],
         "EventTypesEnum": ["rows.created", "rows.updated", "rows.deleted"],
+        "UserTemplateStateEnum": "baserow.core.models.UserTemplateState.choices",
     },
 }
 
@@ -947,6 +1053,11 @@ except ValueError as exc:
         f"separated list of rate limits, for example '10/m,60/h'. {exc}"
     ) from exc
 MCP_OAUTH_UNUSED_CLIENT_DAYS = 30
+# The domain verification token OpenAI shows when submitting the app. It's served
+# at /.well-known/openai-apps-challenge.
+BASEROW_MCP_OPENAI_APPS_CHALLENGE = (
+    os.getenv("BASEROW_MCP_OPENAI_APPS_CHALLENGE") or ""
+).strip()
 MCP_OAUTH_UNUSED_CIMD_CLIENT_DAYS = 1
 
 # django-oauth-toolkit's migrations declare swappable dependencies on these settings,
@@ -1171,6 +1282,34 @@ AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
 AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS", 20)
 )
+# The longest a single Wait node may pause a run; a longer wait fails the node
+# rather than being shortened. This bounds one node, not the run: the waits of
+# a run (and the work between them) still count towards
+# AUTOMATION_WORKFLOW_TIMEOUT_HOURS, and the hourly sweep times out a run that
+# exceeds it. 6 hours leaves room for a few waits inside the default 24.
+AUTOMATION_WAIT_MAX_SECONDS = int(
+    os.getenv("BASEROW_AUTOMATION_WAIT_MAX_SECONDS", 6 * 60 * 60)
+)
+# The largest request body the HTTP trigger accepts. Every accepted body is kept
+# in the workflow's history and sample data, so larger ones are refused.
+AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = int(
+    os.getenv("BASEROW_AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES") or 1024 * 1024
+)
+# How often one HTTP trigger may be called. Leaving it empty keeps the default;
+# a single comma switches the limits off.
+try:
+    AUTOMATION_HTTP_TRIGGER_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_AUTOMATION_HTTP_TRIGGER_RATE_LIMITS") or "300/m,6000/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        "BASEROW_AUTOMATION_HTTP_TRIGGER_RATE_LIMITS must be a comma separated "
+        f"list of rate limits, for example '300/m,6000/h'. {exc}"
+    ) from exc
 _legacy_workflow_rate_limit_max_runs = os.getenv(
     "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS"
 )
@@ -1259,6 +1398,25 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 )
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
+)
+# A started run that made no progress (no node started or completed) for this
+# many minutes lost its next task (a lost publish or a dead worker) and is
+# failed by the stall sweep. Elapsed time cannot tell a lost task from one
+# stuck in a queue backlog, so this stays well above a normal backlog. It must
+# also stay above the broker's visibility timeout (3600 s by default with
+# Redis): a task a hard-killed worker had reserved but not started is only
+# redelivered after it, and the run then recovers. 75 minutes is that timeout
+# plus the same margin as AUTOMATION_PENDING_NODE_STALE_SECONDS.
+AUTOMATION_RUN_STALL_TIMEOUT_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_TIMEOUT_MINUTES", 75)
+)
+# A started run that made no progress for this many minutes is only counted in
+# a warning log, to tell a backed-up queue apart from a lost task.
+AUTOMATION_RUN_STALL_WARNING_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_WARNING_MINUTES", 5)
+)
+AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES", 5)
 )
 # The maximum number of node dispatches allowed in a single workflow run.
 # This protects against infinite dispatches due to a misconfigured node.
@@ -1387,9 +1545,39 @@ CELERY_EMAIL_TASK_CONFIG = {
     "rate_limit": f"{int(MAX_EMAILS_PER_MINUTE / CELERY_EMAIL_CHUNK_SIZE)}/m",
 }
 
-BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
-    os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT", "5/h")
-)
+try:
+    BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT = RateLimit.from_string(
+        os.getenv("BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT") or "5/h"
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT is invalid. It must be a rate "
+        f"limit, for example '5/h'. {exc}"
+    ) from exc
+try:
+    BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT = RateLimit.from_string(
+        os.getenv("BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT") or "5/h"
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT is invalid. It must be a "
+        f"rate limit, for example '5/h'. {exc}"
+    ) from exc
+# Only applies when BASEROW_THROTTLE_IP_ENABLED is set. Leaving it empty keeps the
+# default; a single comma switches the limits off.
+try:
+    BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS = tuple(
+        RateLimit.from_string(value.strip())
+        for value in (
+            os.getenv("BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS") or "5/m,30/h"
+        ).split(",")
+        if value.strip()
+    )
+except ValueError as exc:
+    raise ImproperlyConfigured(
+        f"BASEROW_ANONYMOUS_EMAIL_IP_RATE_LIMITS is invalid. It must be a comma "
+        f"separated list of rate limits, for example '5/m,30/h'. {exc}"
+    ) from exc
 
 login_action_limit_from_env = os.getenv("BASEROW_LOGIN_ACTION_LOG_LIMIT")
 BASEROW_LOGIN_ACTION_LOG_LIMIT = (
@@ -1626,8 +1814,10 @@ PERMISSION_MANAGERS = [
     "staff",
     "allow_if_template",
     "allow_builder_preview",
-    "allow_public_builder",
+    # Must run before `allow_public_builder`, which allows every dispatch on a
+    # published builder and would leave hidden elements' actions dispatchable.
     "element_visibility",
+    "allow_public_builder",
     "member",
     "token",
     "write_field_values",
@@ -1797,7 +1987,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import drop_expected_asyncio_disconnect_events
+    from baserow.core.sentry import before_send, redact_private_link_tokens
     from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
@@ -1819,6 +2009,8 @@ if SENTRY_DSN:
         "code_verifier",
         "refresh_token",
         "access_token",
+        TEMPLATE_PRIVATE_LINK_TOKEN_HEADER.lower(),
+        "private_link_token",
     ]
     sentry_transport = None
 
@@ -1867,13 +2059,18 @@ if SENTRY_DSN:
         ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_disconnect_events,
+        before_send=before_send,
+        before_send_transaction=redact_private_link_tokens,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
         transport=sentry_transport,
     )
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
+
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
+    int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0) or None
+)
 
 # Deprecated provider connection/model environment variables. Manage providers and
 # models under AI providers instead. Keep these settings for compatibility and the
@@ -2028,7 +2225,7 @@ if CACHALOT_ENABLED:
     CACHES[CACHALOT_CACHE] = {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": REDIS_URL,
-        "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
+        "OPTIONS": _django_redis_cache_options(),
         "KEY_PREFIX": f"baserow-{CACHALOT_CACHE}-cache",
         "VERSION": VERSION,
     }

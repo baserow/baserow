@@ -1,5 +1,5 @@
 <template>
-  <p>{{ $t('agents.mcpServerPlaceholder') }}</p>
+  <p>{{ $t('identities.mcpServerPlaceholder') }}</p>
 </template>
 
 <script>

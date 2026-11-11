@@ -32,6 +32,14 @@ export default (client) =>
           data: { ...response.data, results, next: null },
         }
       },
+      /** Fetch one page of the Agents of the workspace. */
+      listPage(workspaceId, { page = 1, search = '', size = 100 } = {}) {
+        const params = { page, size }
+        if (search) {
+          params.search = search
+        }
+        return client.get(`/agents/workspace/${workspaceId}/`, { params })
+      },
       update(agentId, values) {
         return client.patch(`/agents/${agentId}/`, values)
       },

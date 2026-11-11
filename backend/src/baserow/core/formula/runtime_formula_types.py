@@ -42,6 +42,7 @@ from baserow.core.formula.validator import (
     ensure_json_serializable,
     ensure_string,
 )
+from baserow.core.markdown import markdown_to_html
 from baserow.core.utils import to_path
 
 
@@ -92,7 +93,7 @@ class RuntimeGet(RuntimeFormulaFunction):
                 f"The formula provider '{provider_name}' "
                 f"used in '{args[0]}' does not exist in this module.",
             )
-        provider.is_valid(rest)
+        provider.is_valid(rest, validation_context)
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return context[args[0]]
@@ -744,6 +745,17 @@ class RuntimeEncodeUriComponent(RuntimeFormulaFunction):
         return quote(args[0], safe=ENCODE_URI_COMPONENT_SAFE_CHARACTERS)
 
 
+class RuntimeMarkdownToHtml(RuntimeFormulaFunction):
+    type = "markdown_to_html"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return markdown_to_html(args[0])
+
+
 class RuntimeSum(RuntimeFormulaFunction):
     type = "sum"
 
@@ -865,6 +877,9 @@ class RuntimeNull(RuntimeFormulaFunction):
 class RuntimeNumberFormat(RuntimeFormulaFunction):
     type = "number_format"
 
+    # Same upper bound as JavaScript's `Number.prototype.toFixed`.
+    MAX_DECIMAL_PLACES = 100
+
     args = [
         NumberBaserowRuntimeFormulaArgumentType(),
         NumberBaserowRuntimeFormulaArgumentType(optional=True, cast_to_int=True),
@@ -881,7 +896,9 @@ class RuntimeNumberFormat(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         value = args[0]
-        decimal_places = max(int(args[1]), 0) if len(args) > 1 else 0
+        decimal_places = (
+            min(max(int(args[1]), 0), self.MAX_DECIMAL_PLACES) if len(args) > 1 else 0
+        )
         thousand_sep = args[2] if len(args) > 2 else ","
         decimal_sep = args[3] if len(args) > 3 else "."
 

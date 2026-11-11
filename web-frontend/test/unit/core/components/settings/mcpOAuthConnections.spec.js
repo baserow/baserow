@@ -25,11 +25,63 @@ describe('McpOAuthConnections', () => {
       verified_host: null,
       workspace_id: 2,
       workspace_name: 'Ops',
-      allowed_tools: null,
-      tool_count: 20,
+      allowed_tools: ['list_tables'],
+      tool_count: 1,
       created: '2026-10-05T10:00:00Z',
     },
   ]
+
+  const tools = [
+    {
+      name: 'list_tables',
+      title: 'List tables',
+      read_only: true,
+      destructive: false,
+      group: 'database_read',
+    },
+    {
+      name: 'list_rows',
+      title: 'List rows',
+      read_only: true,
+      destructive: false,
+      group: 'database_read',
+    },
+    {
+      name: 'create_rows',
+      title: 'Create rows',
+      read_only: false,
+      destructive: false,
+      group: 'database_edit',
+    },
+    {
+      name: 'delete_rows',
+      title: 'Delete rows',
+      read_only: false,
+      destructive: true,
+      group: 'database_delete',
+    },
+  ]
+  const groups = [
+    {
+      type: 'database_read',
+      title: 'Read',
+      area: 'database',
+      read_only_preset: true,
+    },
+    {
+      type: 'database_edit',
+      title: 'Edit',
+      area: 'database',
+      read_only_preset: false,
+    },
+    {
+      type: 'database_delete',
+      title: 'Delete',
+      area: 'database',
+      read_only_preset: false,
+    },
+  ]
+  const enabled = { oauth_enabled: true, mcp_url: mcpUrl, tools, groups }
 
   beforeEach(() => {
     testApp = new TestApp()
@@ -152,5 +204,134 @@ describe('McpOAuthConnections', () => {
     expect(wrapper.find('.mcp-oauth-connections__url-box').text()).toContain(
       '/mcp'
     )
+  })
+
+  // The test i18n drops message params; this `$t` keeps them in the text.
+  const withParams = {
+    global: {
+      mocks: {
+        $t: (key, params) =>
+          params ? `${key} ${JSON.stringify(params)}` : key,
+      },
+    },
+  }
+
+  test('hints at the tools a connection could use but has off', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/connections/')
+      .reply(200, { ...enabled, connections })
+    const wrapper = await testApp.mount(McpOAuthConnections, withParams)
+    await flushPromises()
+    const hint = (id) =>
+      wrapper.find(
+        `[data-test="mcp-oauth-connection-${id}"] [data-test="mcp-oauth-tools-off"]`
+      )
+    // 11 has 2 of 4 on, 12 has 1.
+    expect(hint(11).text()).toContain('"count":2')
+    expect(hint(12).text()).toContain('"count":3')
+    testApp.mock.resetHandlers()
+  })
+
+  test('no hint when every tool is on', async () => {
+    const wrapper = await mount({
+      ...enabled,
+      connections: [
+        {
+          ...connections[0],
+          allowed_tools: [
+            'list_tables',
+            'list_rows',
+            'create_rows',
+            'delete_rows',
+          ],
+        },
+      ],
+    })
+    expect(wrapper.find('[data-test="mcp-oauth-tools-off"]').exists()).toBe(
+      false
+    )
+  })
+
+  test('edit tools saves the picked names and updates the row', async () => {
+    const wrapper = await mount({ ...enabled, connections })
+    testApp.mock
+      .onPatch('/mcp/oauth/connections/11/', {
+        allowed_tools: ['list_tables', 'list_rows', 'create_rows'],
+      })
+      .reply(200, {
+        ...connections[0],
+        allowed_tools: ['list_tables', 'list_rows', 'create_rows'],
+        tool_count: 3,
+      })
+    await wrapper
+      .find(
+        '[data-test="mcp-oauth-connection-11"] [data-test="mcp-oauth-edit-tools"]'
+      )
+      .trigger('click')
+    await flushPromises()
+    const box = (name) =>
+      document.querySelector(`[data-test="mcp-tool-picker-tool-${name}"] input`)
+    expect(box('list_tables').checked).toBe(true)
+    expect(box('create_rows').checked).toBe(false)
+    box('create_rows').click()
+    await flushPromises()
+    document.querySelector('[data-test="mcp-oauth-save-tools"]').click()
+    await flushPromises()
+    expect(testApp.mock.history.patch.map((r) => JSON.parse(r.data))).toEqual([
+      { allowed_tools: ['list_tables', 'list_rows', 'create_rows'] },
+    ])
+    expect(
+      document.querySelector('[data-test="mcp-oauth-save-tools"]')
+    ).toBeNull()
+    expect(
+      wrapper.vm.connections.find((c) => c.id === 11).allowed_tools
+    ).toEqual(['list_tables', 'list_rows', 'create_rows'])
+  })
+
+  test('save is disabled with no tool picked', async () => {
+    const wrapper = await mount({ ...enabled, connections })
+    await wrapper
+      .find(
+        '[data-test="mcp-oauth-connection-11"] [data-test="mcp-oauth-edit-tools"]'
+      )
+      .trigger('click')
+    await flushPromises()
+    document.querySelector('[data-test="mcp-tool-picker-none"]').click()
+    await flushPromises()
+    expect(
+      document.querySelector('[data-test="mcp-oauth-save-tools"]').disabled
+    ).toBe(true)
+  })
+
+  async function openEditTools(wrapper, id) {
+    await wrapper
+      .find(
+        `[data-test="mcp-oauth-connection-${id}"] [data-test="mcp-oauth-edit-tools"]`
+      )
+      .trigger('click')
+    await flushPromises()
+  }
+
+  const saveButton = () =>
+    document.querySelector('[data-test="mcp-oauth-save-tools"]')
+
+  test('a slow save does not close the modal of another app', async () => {
+    const wrapper = await mount({ ...enabled, connections })
+    let respond = null
+    testApp.mock
+      .onPatch('/mcp/oauth/connections/11/')
+      .reply(() => new Promise((resolve) => (respond = resolve)))
+    await openEditTools(wrapper, 11)
+    saveButton().click()
+    await flushPromises()
+    wrapper.vm.toolsModal.hide()
+    await flushPromises()
+    await openEditTools(wrapper, 12)
+    expect(saveButton().disabled).toBe(false)
+
+    respond([200, connections[0]])
+    await flushPromises()
+    expect(saveButton()).not.toBeNull()
+    expect(saveButton().disabled).toBe(false)
   })
 })

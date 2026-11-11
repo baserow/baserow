@@ -91,6 +91,20 @@ class CannotDeleteYourselfFromWorkspace(Exception):
     """
 
 
+class CannotChangeYourOwnWorkspaceRole(Exception):
+    """
+    Raised when the user tries to change their own role in a workspace. Another
+    admin of the workspace has to do that.
+    """
+
+
+class InvalidWorkspaceRole(Exception):
+    """
+    Raised when a workspace role is not one of the roles available in the
+    workspace.
+    """
+
+
 class ApplicationDoesNotExist(Exception):
     """Raised when trying to get an application that does not exist."""
 
@@ -174,22 +188,35 @@ class SubjectTypeNotExist(Exception):
     """Raised when trying to use a subject type that does not exist."""
 
 
-class BaseURLHostnameNotAllowed(Exception):
-    """
-    Raised when the provided base url is not allowed when requesting a password
-    reset email.
-    """
-
-
 class WorkspaceInvitationDoesNotExist(Exception):
     """
     Raised when the requested workspace invitation doesn't exist.
     """
 
 
+class WorkspaceInvitationLinkDoesNotExist(Exception):
+    """
+    Raised when the requested workspace invitation link doesn't exist.
+    """
+
+
+class WorkspaceInvitationLinkSignupsDisabled(Exception):
+    """
+    Raised when an invitation link is created while nobody can sign up through
+    it, because both new signups and signups via invitations are disabled.
+    """
+
+
 class WorkspaceInvitationEmailMismatch(Exception):
     """
     Raised when the workspace invitation email is not the expected email address.
+    """
+
+
+class WorkspaceInvitationEmailNotVerified(Exception):
+    """
+    Raised when a workspace invitation is accepted without the token from the
+    invitation email by a user whose email address is not verified.
     """
 
 
@@ -263,6 +290,20 @@ class DuplicateApplicationMaxLocksExceededException(
     )
 
 
+class InstallTemplateMaxLocksExceededException(MaxLocksPerTransactionExceededException):
+    """
+    A user template is installed in a single transaction, so a template with a lot
+    of tables can exceed the `max_locks_per_transaction` value set in Postgres.
+    This exception is raised when we detect the scenario.
+    """
+
+    message = (
+        "Baserow attempted to install a template, but exceeded the maximum "
+        "number of PostgreSQL locks per transaction. Please read "
+        "https://baserow.io/docs/technical/postgresql-locks"
+    )
+
+
 class LastAdminOfWorkspace(Exception):
     """
     Raised when somebody tries to remove the last admin of a workspace.
@@ -302,3 +343,7 @@ class DeadlockException(OperationalError):
     """
 
     message = "The database failed to commit the transaction due to a deadlock."
+
+
+class UntrustedContentCannotBePublished(Exception):
+    """Content must be reviewed and trusted before publication."""

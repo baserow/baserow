@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes actions in nested tables failing to access the clicked row",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-14"
+}

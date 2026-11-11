@@ -1,16 +1,18 @@
 <template>
   <Modal ref="modal" :full-height="true" :small="true">
-    <h2 v-if="title" class="box__title">{{ title }}</h2>
-    <p v-if="description" class="margin-bottom-2">{{ description }}</p>
-    <MemberSelectionList
-      ref="memberSelectionList"
-      class="padding-top-2"
-      :members="members"
-      :selected-members="selectedMembers"
-      :allow-empty-selection="allowEmptySelection"
-      :button-label="buttonLabel"
-      @select="storeSelectedMembers"
-    />
+    <div class="member-assignment-modal">
+      <h2 v-if="title" class="box__title">{{ title }}</h2>
+      <p v-if="description" class="margin-bottom-2">{{ description }}</p>
+      <MemberSelectionList
+        ref="memberSelectionList"
+        class="padding-top-2"
+        :members="members"
+        :selected-members="selectedMembers"
+        :allow-empty-selection="allowEmptySelection"
+        :button-label="buttonLabel"
+        @select="storeSelectedMembers"
+      />
+    </div>
   </Modal>
 </template>
 

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 from django.db import connection
+from django.db.models import QuerySet
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
@@ -23,6 +24,9 @@ from baserow.contrib.automation.history.models import (
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
+from baserow.core.models import Agent
+
+HANDLER_PATH = "baserow.contrib.automation.history.handler"
 
 
 class FakeMonotonicClock:
@@ -332,6 +336,215 @@ def test_request_workflow_history_cancellation_not_running(data_fixture, status)
     assert history.status == status
     assert history.cancellation_requested_by is None
     assert history.cancellation_requested_on is None
+
+
+@pytest.mark.django_db
+def test_request_workflow_history_cancellation_stops_a_waiting_node(data_fixture):
+    """
+    A node that is only waiting to be resumed, e.g. a "Wait" node, holds no
+    worker, so nothing of the run would notice the request before the node's
+    resume task wakes up. Both the node and the run are stopped right away.
+    """
+
+    user = data_fixture.create_user(first_name="Ada")
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.STARTED
+    )
+    finished_node_history = data_fixture.create_automation_node_history(
+        workflow_history=history,
+        node=workflow.get_trigger(),
+        status=HistoryStatusChoices.SUCCESS,
+    )
+    waiting_node_history = data_fixture.create_automation_node_history(
+        workflow_history=history,
+        node=data_fixture.create_automation_node(user=user, workflow=workflow),
+        status=HistoryStatusChoices.WAITING,
+    )
+
+    with freeze_time("2026-08-18 12:00:00"):
+        result = AutomationHistoryHandler().request_workflow_history_cancellation(
+            history, user
+        )
+
+    # The caller gets the cancelled run, not the `started` one it asked about.
+    assert result.status == HistoryStatusChoices.CANCELLED
+    assert result.message == f"Cancelled by Ada ({user.id})."
+    assert result.completed_on.isoformat() == "2026-08-18T12:00:00+00:00"
+
+    waiting_node_history.refresh_from_db()
+    assert waiting_node_history.status == HistoryStatusChoices.CANCELLED
+    assert waiting_node_history.message == result.message
+    assert waiting_node_history.completed_on.isoformat() == "2026-08-18T12:00:00+00:00"
+
+    # A node that already finished keeps its own outcome.
+    finished_node_history.refresh_from_db()
+    assert finished_node_history.status == HistoryStatusChoices.SUCCESS
+    assert finished_node_history.message == ""
+
+
+@pytest.mark.django_db
+def test_cancel_waiting_nodes_stops_every_waiting_node(data_fixture):
+    """Branches of a run execute in parallel, so several can be waiting."""
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+    waiting_node_histories = [
+        data_fixture.create_automation_node_history(
+            workflow_history=history,
+            node=data_fixture.create_automation_node(user=user, workflow=workflow),
+            status=HistoryStatusChoices.WAITING,
+        )
+        for _ in range(2)
+    ]
+
+    finalized = AutomationHistoryHandler().cancel_waiting_nodes(history)
+
+    assert finalized is True
+    for node_history in waiting_node_histories:
+        node_history.refresh_from_db()
+        assert node_history.status == HistoryStatusChoices.CANCELLED
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.CANCELLED
+
+
+@pytest.mark.django_db
+def test_cancel_waiting_nodes_leaves_the_run_to_a_running_node(data_fixture):
+    """
+    Another branch is mid-dispatch: it notices the request itself before it
+    dispatches its next node, so the run is not finalized from here.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+    waiting_node_history = data_fixture.create_automation_node_history(
+        workflow_history=history,
+        node=data_fixture.create_automation_node(user=user, workflow=workflow),
+        status=HistoryStatusChoices.WAITING,
+    )
+    data_fixture.create_automation_node_history(
+        workflow_history=history,
+        node=data_fixture.create_automation_node(user=user, workflow=workflow),
+        status=HistoryStatusChoices.STARTED,
+    )
+
+    finalized = AutomationHistoryHandler().cancel_waiting_nodes(history)
+
+    assert finalized is False
+    # The waiting node is still stopped: nothing is going to resume it.
+    waiting_node_history.refresh_from_db()
+    assert waiting_node_history.status == HistoryStatusChoices.CANCELLED
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.STARTED
+    assert history.completed_on is None
+
+
+@pytest.mark.django_db
+def test_cancel_waiting_nodes_without_a_waiting_node(data_fixture):
+    """The run is dispatching: the cancellation stays cooperative."""
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+    node_history = data_fixture.create_automation_node_history(
+        workflow_history=history,
+        node=workflow.get_trigger(),
+        status=HistoryStatusChoices.STARTED,
+    )
+
+    finalized = AutomationHistoryHandler().cancel_waiting_nodes(history)
+
+    assert finalized is False
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.STARTED
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.STARTED
+
+
+@pytest.mark.django_db
+def test_cancel_waiting_nodes_leaves_a_claimed_node_alone(data_fixture):
+    """
+    The resume task claimed the node between our read and our write: it is
+    resuming the node now and finalizes the run itself.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+    node_history = data_fixture.create_automation_node_history(
+        workflow_history=history,
+        node=workflow.get_trigger(),
+        status=HistoryStatusChoices.WAITING,
+    )
+
+    with patch.object(QuerySet, "update", return_value=0):
+        finalized = AutomationHistoryHandler().cancel_waiting_nodes(history)
+
+    assert finalized is False
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.WAITING
+
+    history.refresh_from_db()
+    assert history.status == HistoryStatusChoices.STARTED
+
+
+@pytest.mark.django_db
+@patch(f"{HANDLER_PATH}.automation_node_dispatch_cancelled")
+def test_cancel_waiting_nodes_sends_the_cancelled_signal(mock_signal, data_fixture):
+    """
+    The readers of a run that is still shown as in progress refetch its node
+    rows on the signal.
+    """
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    history = data_fixture.create_automation_workflow_history(
+        workflow=workflow,
+        status=HistoryStatusChoices.STARTED,
+        cancellation_requested_by=user,
+        cancellation_requested_on=timezone.now(),
+    )
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+    node_history = data_fixture.create_automation_node_history(
+        workflow_history=history, node=node, status=HistoryStatusChoices.WAITING
+    )
+
+    handler = AutomationHistoryHandler()
+    handler.cancel_waiting_nodes(history)
+
+    mock_signal.send.assert_called_once()
+    assert mock_signal.send.call_args.args == (handler,)
+    kwargs = mock_signal.send.call_args.kwargs
+    assert kwargs["node"].id == node.id
+    assert kwargs["node_history"].id == node_history.id
+    # The receivers see the stopped row, not the `waiting` one it was read as.
+    assert kwargs["node_history"].status == HistoryStatusChoices.CANCELLED
+    assert kwargs["node_history"].workflow_history is history
 
 
 @pytest.mark.django_db
@@ -667,7 +880,7 @@ def test_get_destination_labels(data_fixture):
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger, label="destination node"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination
     )
     goto_node.service.specific.destination_service = destination.service
@@ -710,7 +923,7 @@ def test_get_destination_labels_without_custom_label(data_fixture):
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination
     )
     goto_node.service.specific.destination_service = destination.service
@@ -749,7 +962,7 @@ def test_get_destination_labels_query_count_does_not_grow_with_loops(data_fixtur
     destination = data_fixture.create_local_baserow_create_row_action_node(
         workflow=workflow, reference_node=trigger, label="destination node"
     )
-    goto_node = data_fixture.create_core_goto_node(
+    goto_node = data_fixture.create_core_goto_action_node(
         workflow=workflow, reference_node=destination
     )
     goto_node.service.specific.destination_service = destination.service
@@ -863,6 +1076,27 @@ def test_create_workflow_history_records_who_triggered_it(data_fixture):
     assert history.triggered_by_id == user.id
     assert history.triggered_by_type == "auth.User"
     assert history.triggered_by_name == user.first_name
+
+
+@pytest.mark.django_db
+def test_create_workflow_history_records_agent_who_triggered_it(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    agent = Agent.objects.create(
+        workspace=workflow.automation.workspace,
+        name="Workflow agent",
+    )
+
+    history = AutomationHistoryHandler().create_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        started_on=timezone.now(),
+        is_test_run=False,
+        triggered_by=agent,
+    )
+
+    assert history.triggered_by_id == agent.id
+    assert history.triggered_by_type == "core.Agent"
+    assert history.triggered_by_name == agent.name
 
 
 @pytest.mark.django_db

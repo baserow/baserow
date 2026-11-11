@@ -210,6 +210,33 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(11)
   })
 
+  test('deletedExistingRow removes a held card from its stack when the payload omits the filtered values', async () => {
+    const results = [
+      { id: 10, order: '10.00', field_1: { id: 1 } },
+      { id: 11, order: '11.00', field_1: { id: 1 } },
+    ]
+    const state = Object.assign(kanbanStore.state(), {
+      singleSelectFieldId: 1,
+      stacks: { 1: { count: 100, results } },
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    await store.dispatch('kanban/deletedExistingRow', {
+      view: {
+        ...view,
+        filter_type: 'AND',
+        filters: [{ id: 1, view: 1, field: 2, type: 'contains', value: 'A' }],
+      },
+      row: { id: 11, order: '11.00' },
+      fields: [{ id: 2, type: 'text' }],
+    })
+
+    expect(store.state.kanban.stacks['1'].count).toBe(99)
+    expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
+      10,
+    ])
+  })
+
   test('updateRowValue removes the row hidden by the backend and closes its row modal', async () => {
     const stacks = {}
     stacks['1'] = {
@@ -926,5 +953,49 @@ describe('Kanban view store', () => {
 
     expect(store.state.field.items[0].id).toBe(1)
     expect(store.state.field.items[0].select_options).toHaveLength(1)
+  })
+
+  test('row requests stay within the row page size limit', async () => {
+    const kanbanStoreWithView = testApp.createStore({
+      modules: {
+        kanban: kanbanStore,
+        view: {
+          namespaced: true,
+          getters: { get: () => () => view },
+        },
+      },
+    })
+    const originalLimit =
+      kanbanStoreWithView.$config.public.baserowRowPageSizeLimit
+    kanbanStoreWithView.$config.public.baserowRowPageSizeLimit = 20
+
+    const requests = []
+    testApp.mock.onGet('/database/views/kanban/1/').reply((config) => {
+      requests.push({
+        limit: config.params.get('limit'),
+        selectOptions: config.params.getAll('select_option'),
+      })
+      return [
+        200,
+        { rows: { 1: { count: 30, results: [] } }, field_options: {} },
+      ]
+    })
+
+    try {
+      await kanbanStoreWithView.dispatch('kanban/fetchInitial', {
+        kanbanId: 1,
+        singleSelectFieldId: 1,
+      })
+      await kanbanStoreWithView.dispatch('kanban/fetchMore', {
+        selectOptionId: 1,
+      })
+    } finally {
+      kanbanStoreWithView.$config.public.baserowRowPageSizeLimit = originalLimit
+    }
+
+    expect(requests).toEqual([
+      { limit: '20', selectOptions: [] },
+      { limit: '20', selectOptions: ['1,20,0'] },
+    ])
   })
 })

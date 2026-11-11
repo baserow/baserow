@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Compliance Assessment Builder",
+    "description": "Build compliance questionnaires and review the responses.",
     "icon": "iconoir-clipboard-check",
     "keywords": [
         "compliance assessments",

@@ -8,8 +8,8 @@
   "contactEmail": "bram@baserow.io",
   "tags": ["no-code", "nocode", "database", "data", "collaborate", "airtable"],
   "version": "2.1.4",
-  "healthCheckPath": "/api/_health/",
+  "healthCheckPath": "/health",
   "httpPort": 80,
-  "memoryLimit": 1000000,
+  "memoryLimit": 1610612736,
   "manifestVersion": 2
 }

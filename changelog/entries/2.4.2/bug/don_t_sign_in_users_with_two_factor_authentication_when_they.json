@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Don't sign in users with two-factor authentication when they verify their email",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-10-23"
+}

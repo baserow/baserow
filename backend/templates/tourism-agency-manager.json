@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Tourism Agency Manager",
+    "description": "Run a tour agency with tours, guides, excursions and bookings.",
     "icon": "iconoir-airplane-rotation",
     "keywords": [
         "City trips",

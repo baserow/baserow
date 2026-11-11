@@ -1,5 +1,6 @@
 from django.db.models import Exists, OuterRef
 
+from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.builder.workflow_actions.models import AIAgentWorkflowAction
 from baserow.contrib.integrations.ai.models import AIAgentService
@@ -20,7 +21,7 @@ class AIAgentAIProviderModelFeatureType(AIProviderModelFeatureType):
         workspace: Workspace | None = None,
     ) -> int:
         """
-        Count the AI Agent services selecting one provider model.
+        Count the AI Agent services and Agent applications selecting one model.
 
         One service is owned by an automation node or by builder workflow
         actions, and trashing an owner leaves the service row untouched, so a
@@ -33,7 +34,8 @@ class AIAgentAIProviderModelFeatureType(AIProviderModelFeatureType):
         :param model_identifier: The identifier the services persist.
         :param workspace: The workspace to narrow to, or None for the instance
             scope, which counts every workspace.
-        :return: The number of services referencing the model.
+        :return: The number of services and Agent applications referencing the
+            model.
         """
 
         live_automation_owner = Exists(
@@ -51,9 +53,15 @@ class AIAgentAIProviderModelFeatureType(AIProviderModelFeatureType):
             integration__application__trashed=False,
             integration__application__workspace__trashed=False,
         ).filter(live_automation_owner | live_builder_owner)
+        agents = AgentApplication.objects.filter(
+            provider_type=provider_type,
+            model_identifier=model_identifier,
+            workspace__trashed=False,
+        )
         if workspace is not None:
             queryset = queryset.filter(integration__application__workspace=workspace)
-        return queryset.count()
+            agents = agents.filter(workspace=workspace)
+        return queryset.count() + agents.count()
 
     def get_workspace_availability(
         self,

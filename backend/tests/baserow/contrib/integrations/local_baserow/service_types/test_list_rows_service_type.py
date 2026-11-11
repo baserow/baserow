@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, Mock, patch
 from django.db import connection
 from django.test import override_settings
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 import pytest
 
@@ -21,11 +22,13 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowListRowsUserServiceType,
 )
 from baserow.core.exceptions import PermissionException
+from baserow.core.models import Agent
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.subjects import UserSubjectType
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyStr, setup_interesting_test_table
 from baserow.test_utils.pytest_conftest import FakeDispatchContext, fake_import_formula
@@ -35,7 +38,14 @@ from baserow.test_utils.pytest_conftest import FakeDispatchContext, fake_import_
 def test_create_local_baserow_list_rows_service(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    view = data_fixture.create_grid_view(user)
+    view = data_fixture.create_grid_view(
+        user,
+        table=data_fixture.create_database_table(
+            database=data_fixture.create_database_application(
+                workspace=page.builder.workspace
+            )
+        ),
+    )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
     )
@@ -55,6 +65,43 @@ def test_create_local_baserow_list_rows_service(data_fixture):
 
     assert service.view.id == view.id
     assert service.table.id == view.table_id
+
+
+@pytest.mark.django_db
+def test_before_dispatch_updates_authorized_agent_last_active(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    agent = Agent.objects.create(workspace=workspace, name="Reader")
+    integration = data_fixture.create_local_baserow_integration(
+        authorized_agent=agent,
+        application=data_fixture.create_builder_application(workspace=workspace),
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration
+    )
+
+    before = timezone.now()
+    service.get_type().before_dispatch(service, FakeDispatchContext())
+    agent.refresh_from_db()
+
+    assert agent.last_active is not None
+    assert agent.last_active >= before
+
+
+@pytest.mark.django_db
+def test_before_dispatch_tracks_an_authorized_user(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(user=user), user=user
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        integration=integration
+    )
+
+    with patch.object(UserSubjectType, "track_usage") as track_usage:
+        service.get_type().before_dispatch(service, FakeDispatchContext())
+
+    track_usage.assert_called_once_with(user)
 
 
 @pytest.mark.django_db
@@ -213,6 +260,9 @@ def test_local_baserow_list_rows_service_dispatch_transform(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -261,6 +311,9 @@ def test_local_baserow_list_rows_service_dispatch_transform_with_default(data_fi
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -310,6 +363,9 @@ def test_local_baserow_list_rows_service_dispatch_data_permission_denied(
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, rows = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -940,6 +996,9 @@ def test_order_by_is_applied_depending_on_views_sorts(
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, _, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -1004,6 +1063,9 @@ def test_can_dispatch_table_with_deleted_field(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     table, fields, _ = data_fixture.build_table(
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
         user=user,
         columns=[
             ("Name", "text"),
@@ -1056,6 +1118,9 @@ def test_can_dispatch_interesting_table(data_fixture):
     table, _, _, _, _ = setup_interesting_test_table(
         data_fixture,
         user,
+        database=data_fixture.create_database_application(
+            workspace=page.builder.workspace
+        ),
     )
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder, user=user
@@ -1231,7 +1296,10 @@ def test_search_on_multiple_select_with_list(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     page = data_fixture.create_builder_page(
-        user=user, path="/page/", query_params=[{"name": "foobar", "type": "numeric"}]
+        user=user,
+        builder=data_fixture.create_builder_application(workspace=workspace),
+        path="/page/",
+        query_params=[{"name": "foobar", "type": "numeric"}],
     )
 
     service_type = service_type_registry.get("local_baserow_list_rows")
@@ -1293,8 +1361,8 @@ def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
 
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    field_1 = data_fixture.create_text_field(table=table, name="Fruit")
-    field_2 = data_fixture.create_number_field(table=table, name="Count")
+    field_1 = data_fixture.create_text_field(table=table, name="Fruit", order=1)
+    field_2 = data_fixture.create_number_field(table=table, name="Count", order=2)
     service = data_fixture.create_local_baserow_list_rows_service(table=table)
     service_type = LocalBaserowListRowsUserServiceType()
 

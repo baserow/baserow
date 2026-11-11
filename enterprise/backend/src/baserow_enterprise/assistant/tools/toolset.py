@@ -1,12 +1,13 @@
 """
 Pydantic-ai toolset utilities for the assistant.
 
-Contains schema helpers, lenient argument validation, and the
-``InlineRefsToolset`` wrapper.
+Contains schema helpers, lenient argument validation, the
+``InlineRefsToolset`` wrapper, and ``AssistantFunctionToolset``.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import re
 from collections import Counter
@@ -16,12 +17,13 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from loguru import logger
 from pydantic import ValidationError
-from pydantic_ai import Agent
+from pydantic_ai import Agent, Tool
 from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.toolsets import AbstractToolset
+from pydantic_ai.toolsets import AbstractToolset, FunctionToolset
 from pydantic_ai.toolsets.abstract import AgentDepsT, ToolsetTool
 from typing_extensions import Self
 
+from baserow.core.db import with_usable_db_connection
 from baserow.core.generative_ai.lifecycle import run_agent_with_model
 
 if TYPE_CHECKING:
@@ -98,6 +100,8 @@ _ID_PRODUCERS: dict[str, str] = {
     "data_source_id": "list_data_sources",
     "workflow_id": "list_workflows",
     "node_id": "list_nodes",
+    "dashboard_id": "list_builders",
+    "widget_id": "list_widgets",
 }
 
 # row_id stays hint-only: data-source row ids may hold formulas or user data.
@@ -828,3 +832,25 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
                 e2.errors(include_url=False, include_context=False),
             )
             raise ModelRetry(report) from e2
+
+
+# ---------------------------------------------------------------------------
+# Database connections of sync tools
+# ---------------------------------------------------------------------------
+
+
+class AssistantFunctionToolset(FunctionToolset[AgentDepsT]):
+    """
+    A ``FunctionToolset`` for tools that use the database. pydantic-ai runs sync
+    tools on its own worker threads, so each call checks the thread's database
+    connection the way Django does around a request.
+    """
+
+    def add_tool(self, tool: Tool[AgentDepsT]) -> None:
+        schema = tool.function_schema
+        already_wrapped = getattr(schema.function, "_uses_usable_db_connection", False)
+        if not schema.is_async and not already_wrapped:
+            tool.function_schema = dataclasses.replace(
+                schema, function=with_usable_db_connection(schema.function)
+            )
+        super().add_tool(tool)

@@ -81,6 +81,16 @@ export default {
       required: false,
       default: null,
     },
+    /**
+     * A formula node to reveal: its tab is opened and the explorer scrolls to
+     * it. Either `{ type: 'function', name }`, `{ type: 'operator', name }`
+     * with the operator symbol as name, or `{ type: 'data', path }`.
+     */
+    revealNode: {
+      type: Object,
+      required: false,
+      default: null,
+    },
     loading: {
       type: Boolean,
       required: false,
@@ -107,6 +117,9 @@ export default {
       debouncedSearch: null,
       // A map of open node paths
       openNodes: new Set(),
+      // Set when the search is cleared to reveal a node, so that clearing it
+      // doesn't unselect the data node being revealed.
+      skipSearchUnselect: false,
     }
   },
   computed: {
@@ -148,7 +161,11 @@ export default {
      * Debounces the actual search to prevent perf issues
      */
     search(newSearch) {
-      this.$emit('node-unselected')
+      if (this.skipSearchUnselect) {
+        this.skipSearchUnselect = false
+      } else {
+        this.$emit('node-unselected')
+      }
       clearTimeout(this.debounceSearch)
       this.debounceSearch = setTimeout(() => {
         this.debouncedSearch = newSearch ? newSearch.trim().toLowerCase() : null
@@ -162,6 +179,14 @@ export default {
         if (path) {
           this.debouncedSearch = null
           this.toggleNode(path, true)
+        }
+      },
+      immediate: true,
+    },
+    revealNode: {
+      handler(target) {
+        if (target) {
+          this.reveal(target)
         }
       },
       immediate: true,
@@ -260,6 +285,112 @@ export default {
       }
 
       this.$emit('node-toggled')
+    },
+    /**
+     * Finds the tab and the path of the node to reveal in the explorer.
+     * @param {Object} target the node to reveal, see the `revealNode` prop.
+     * @returns {Object|null} the `{ tabIndex, path }`, or null if the explorer
+     *   doesn't have the node.
+     */
+    findRevealLocation(target) {
+      const tabs = this.filteredNodesHierarchy
+      const nodeKey = (node) => node.identifier || node.name
+
+      if (target.type === 'data') {
+        const [rootKey] = _.toPath(target.path)
+        const tabIndex = tabs.findIndex(
+          (tab) =>
+            tab.type === 'data' &&
+            (tab.nodes || []).some((node) => nodeKey(node) === rootKey)
+        )
+        return tabIndex === -1 ? null : { tabIndex, path: target.path }
+      }
+
+      const isMatch = (node) =>
+        node.type === target.type &&
+        !node.nodes &&
+        (target.type === 'operator'
+          ? node.signature?.operator === target.name
+          : node.name.toLowerCase() === target.name.toLowerCase())
+
+      const findPath = (nodes, parentPath = []) => {
+        for (const node of nodes || []) {
+          const nodePath = [...parentPath, nodeKey(node)]
+          if (isMatch(node)) {
+            return nodePath.join('.')
+          }
+          const subPath = findPath(node.nodes, nodePath)
+          if (subPath) {
+            return subPath
+          }
+        }
+        return null
+      }
+
+      for (const [tabIndex, tab] of tabs.entries()) {
+        if (tab.type === target.type) {
+          const path = findPath(tab.nodes)
+          if (path) {
+            return { tabIndex, path }
+          }
+        }
+      }
+      return null
+    },
+    /**
+     * Opens the tab of the given node, clears the search, expands the node's
+     * parents and scrolls to it.
+     * @param {Object} target the node to reveal, see the `revealNode` prop.
+     */
+    reveal(target) {
+      const location = this.findRevealLocation(target)
+      if (!location) {
+        return
+      }
+      if (this.search) {
+        this.skipSearchUnselect = true
+      }
+      this.resetSearch(location.tabIndex)
+      // Switching tab resets the open nodes, so we expand them afterwards.
+      this.$nextTick(() => {
+        this.toggleNode(location.path, true)
+        this.$nextTick(() => this.scrollToPath(location.path))
+      })
+    },
+    /**
+     * Scrolls to the row of the given path and briefly highlights it. The
+     * explorer and its tab may not be rendered or visible yet when they were
+     * just opened by the same click, so we retry for a few frames. After that
+     * we fall back to the closest rendered parent, e.g. for an array item
+     * beyond the ones shown.
+     * @param {String} path the path of the node to scroll to.
+     * @param {Number} retries how many more frames to wait for the row.
+     */
+    scrollToPath(path, retries = 10) {
+      const rows = Array.from(
+        this.$refs.wrapper?.querySelectorAll('[data-node-path]') || []
+      )
+      const row = this.getPathAndParents(path)
+        .reverse()
+        .map((candidate) =>
+          rows.find((row) => row.dataset.nodePath === candidate)
+        )
+        .find(Boolean)
+
+      const isReady =
+        row?.dataset.nodePath === path && row.getClientRects().length > 0
+      if (!isReady && retries > 0) {
+        requestAnimationFrame(() => this.scrollToPath(path, retries - 1))
+        return
+      }
+      if (!row) {
+        return
+      }
+      row.scrollIntoView({ block: 'nearest' })
+      row.classList.remove('node-explorer-content__content--revealed')
+      // Force a reflow so the highlight animation restarts on repeat reveals.
+      void row.offsetWidth
+      row.classList.add('node-explorer-content__content--revealed')
     },
   },
 }

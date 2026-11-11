@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Builder data provider types > formula context explorer supports CSV sources without context metadata 1`] = `
+{
+  "icon": "iconoir-question-mark",
+  "identifier": "data_source_context",
+  "name": "dataProviderType.dataSourceContext",
+  "nodes": [],
+  "order": null,
+  "type": "object",
+}
+`;

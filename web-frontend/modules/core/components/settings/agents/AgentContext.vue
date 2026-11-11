@@ -4,7 +4,7 @@
       <li v-if="canUpdate" class="context__menu-item">
         <a class="context__menu-item-link" @click.prevent="edit">
           <i class="context__menu-item-icon iconoir-edit-pencil"></i>
-          {{ $t('agents.edit') }}
+          {{ $t('identities.edit') }}
         </a>
       </li>
       <li
@@ -17,7 +17,7 @@
           @click.prevent="remove"
         >
           <i class="context__menu-item-icon iconoir-bin"></i>
-          {{ $t('agents.delete') }}
+          {{ $t('identities.delete') }}
         </a>
       </li>
     </ul>

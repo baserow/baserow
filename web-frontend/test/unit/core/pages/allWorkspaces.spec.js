@@ -1,5 +1,6 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AllWorkspaces from '@baserow/modules/core/pages/allWorkspaces'
+import AllWorkspacesHeader from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesHeader'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 
 describe('All workspaces page', () => {
@@ -32,5 +33,21 @@ describe('All workspaces page', () => {
     expect(
       testApp.store.getters['undoRedo/getCurrentScope'].all_workspaces
     ).toBe(false)
+  })
+
+  test('offers only the application types that can be created', async () => {
+    vi.spyOn(
+      testApp.getRegistry().get('application', 'agent'),
+      'canBeCreated'
+    ).mockReturnValue(false)
+
+    const wrapper = await testApp.mount(AllWorkspaces)
+    const offered = wrapper
+      .findComponent(AllWorkspacesHeader)
+      .props('applicationTypes')
+      .map((applicationType) => applicationType.getType())
+
+    expect(offered).toContain('database')
+    expect(offered).not.toContain('agent')
   })
 })

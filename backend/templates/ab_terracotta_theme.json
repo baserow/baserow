@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Terracotta Theme",
+  "description": "Terracotta and teal application theme with serif headings.",
   "icon": "",
   "keywords": [
     "application",

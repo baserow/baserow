@@ -802,6 +802,27 @@ def test_submit_form_with_data_sync(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_cannot_submit_form_view_of_template(api_client, data_fixture):
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_template(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    form = data_fixture.create_form_view(table=table, public=True)
+    text_field = data_fixture.create_text_field(table=table)
+    data_fixture.create_form_view_field_option(form, text_field, enabled=True)
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FORM_DOES_NOT_EXIST"
+
+    response = api_client.post(url, {f"field_{text_field.id}": "a"}, format="json")
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_FORM_DOES_NOT_EXIST"
+    assert table.get_model().objects.count() == 0
+
+
+@pytest.mark.django_db
 def test_submit_form_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     user_2, token_2 = data_fixture.create_user_and_token()

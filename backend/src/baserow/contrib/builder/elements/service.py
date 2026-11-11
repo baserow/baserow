@@ -446,8 +446,14 @@ class ElementService:
             # stays consistent (prevents orphaned "X": {} nodes that would
             # later break export/import or graph traversal).
             source_graph.remove_isolated_point(element)
+            self.handler.invalidate_element_cache(source_page)
 
-        self.handler.invalidate_element_cache(element.page)
+        if is_cross_page_move:
+            self.handler.invalidate_element_cache(element.page)
+        else:
+            # A move within the page keeps the other elements valid: their parent and
+            # place are read from the graph. The moved one can have been saved.
+            self.handler.put_in_element_cache(element.page, element)
 
         element_moved.send(
             self,

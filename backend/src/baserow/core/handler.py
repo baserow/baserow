@@ -3,11 +3,12 @@ import json
 import os
 import re
 from collections import defaultdict
+from collections.abc import Iterable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
 from pathlib import Path
 from typing import IO, Any, Callable, Dict, List, NewType, Optional, Tuple, Union, cast
-from urllib.parse import urljoin, urlparse
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
@@ -15,12 +16,24 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.core.files.storage import Storage
 from django.db import OperationalError, transaction
-from django.db.models import Count, Model, Prefetch, Q, QuerySet
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    F,
+    Model,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    Value,
+    When,
+)
 from django.utils import translation
 from django.utils.translation import gettext as _
 
 import zipstream
-from itsdangerous import URLSafeSerializer
+from itsdangerous import BadSignature, URLSafeSerializer
 from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
@@ -28,18 +41,22 @@ from tqdm import tqdm
 from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
+from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
 from .context import clear_current_workspace_id, set_current_workspace_id
-from .emails import WorkspaceInvitationEmail
+from .emails import WorkspaceInvitationEmail, can_deliver_emails
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
-    BaseURLHostnameNotAllowed,
+    CannotChangeYourOwnWorkspaceRole,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
+    InstanceTypeDoesNotExist,
     InvalidPermissionContext,
+    InvalidWorkspaceRole,
     LastAdminOfWorkspace,
     PermissionDenied,
     PermissionException,
@@ -49,6 +66,9 @@ from .exceptions import (
     WorkspaceDoesNotExist,
     WorkspaceInvitationDoesNotExist,
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationEmailNotVerified,
+    WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkSignupsDisabled,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
     WorkspaceUserIsLastAdmin,
@@ -63,28 +83,35 @@ from .models import (
     TemplateCategory,
     Workspace,
     WorkspaceInvitation,
+    WorkspaceInvitationLink,
     WorkspaceUser,
 )
 from .operations import (
     CreateApplicationsWorkspaceOperationType,
+    CreateInvitationLinkWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
     CreateWorkspaceOperationType,
     DeleteApplicationOperationType,
+    DeleteWorkspaceInvitationLinkOperationType,
     DeleteWorkspaceInvitationOperationType,
     DeleteWorkspaceOperationType,
     DeleteWorkspaceUserOperationType,
     DuplicateApplicationOperationType,
+    ListInvitationLinksWorkspaceOperationType,
     OrderApplicationsOperationType,
     ReadApplicationOperationType,
     UpdateApplicationOperationType,
     UpdateSettingsOperationType,
+    UpdateWorkspaceInvitationLinkOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
 )
 from .registries import (
     ImportExportConfig,
+    InvitationLinkScopeType,
     application_type_registry,
+    invitation_link_scope_type_registry,
     object_scope_type_registry,
     operation_type_registry,
     permission_manager_type_registry,
@@ -98,6 +125,7 @@ from .signals import (
     before_workspace_deleted,
     before_workspace_user_deleted,
     before_workspace_user_updated,
+    settings_updated,
     workspace_created,
     workspace_deleted,
     workspace_invitation_accepted,
@@ -106,6 +134,7 @@ from .signals import (
     workspace_updated,
     workspace_user_added,
     workspace_user_deleted,
+    workspace_user_joined_via_invitation_link,
     workspace_user_updated,
     workspaces_reordered,
 )
@@ -129,6 +158,7 @@ from .utils import (
     atomic_if_not_already,
     extract_allowed,
     find_unused_name,
+    get_embedded_share_url,
     set_allowed_attrs,
 )
 
@@ -187,15 +217,16 @@ class CoreHandler:
 
     def update_settings(
         self, user: User, settings_instance: Optional[Settings] = None, **kwargs
-    ) -> Settings:
+    ) -> Tuple[Settings, Dict[str, Any]]:
         """
         Updates one or more setting values if the user has staff permissions.
 
         :param user: The user on whose behalf the settings are updated.
-        :param settings_instance: If already fetched, the settings instance can be
-            provided to avoid fetching the values for a second time.
+        :param settings_instance: The settings, if already fetched. The update reads
+            the row again, locked, so a stale instance is fine.
         :param kwargs: An dict containing the settings that need to be updated.
-        :return: The update settings instance.
+        :return: The updated settings instance, and the new values of the settings
+            that changed, by name, a file as its id.
         """
 
         CoreHandler().check_permissions(
@@ -205,9 +236,9 @@ class CoreHandler:
         if not settings_instance:
             settings_instance = self.get_settings()
 
-        settings_instance = set_allowed_attrs(
-            kwargs,
-            [
+        fields = [
+            name
+            for name in [
                 "allow_new_signups",
                 "allow_signups_via_workspace_invitations",
                 "allow_reset_password",
@@ -219,12 +250,45 @@ class CoreHandler:
                 "email_verification",
                 "verify_import_signature",
                 "allow_reporting_abuse",
-            ],
-            settings_instance,
-        )
+                "user_templates_require_approval",
+            ]
+            if name in kwargs
+        ]
+        with transaction.atomic():
+            # The previous values are the stored ones: a cached instance can be stale.
+            settings_instance = Settings.objects.select_for_update().get(
+                id=settings_instance.id
+            )
+            old_values = self._get_settings_values(settings_instance, fields)
+            set_allowed_attrs(kwargs, fields, settings_instance)
+            settings_instance.save(update_fields=fields)
+            settings_updated.send(
+                self, user=user, settings=settings_instance, old_values=old_values
+            )
+        changed = {
+            name: value
+            for name, value in self._get_settings_values(
+                settings_instance, fields
+            ).items()
+            if value != old_values[name]
+        }
+        return settings_instance, changed
 
-        settings_instance.save()
-        return settings_instance
+    def _get_settings_values(
+        self, settings_instance: Settings, fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        The values of settings, in the form they're stored in.
+
+        :param settings_instance: The settings.
+        :param fields: The names of the settings to read.
+        :return: The values of the settings by name, a file as its id.
+        """
+
+        return {
+            name: Settings._meta.get_field(name).value_from_object(settings_instance)
+            for name in fields
+        }
 
     @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
@@ -738,7 +802,9 @@ class CoreHandler:
         if queryset is None:
             queryset = Workspace.objects.all()
 
-        queryset = queryset.prefetch_related("workspaceuser_set", "template_set")
+        queryset = queryset.prefetch_related(
+            "workspaceuser_set", "template_set", "template_set__root"
+        )
 
         for plugin in plugin_registry.registry.values():
             queryset = plugin.enhance_workspace_queryset(queryset)
@@ -790,7 +856,8 @@ class CoreHandler:
         )
         workspaceuser_workspaces = WorkspaceUser.objects.select_related(
             "workspace"
-        ).prefetch_related(
+        ).annotate(workspace_agent_count=Count("workspace__agents", distinct=True))
+        workspaceuser_workspaces = workspaceuser_workspaces.prefetch_related(
             Prefetch(
                 "workspace__workspaceuser_set",
                 queryset=workspaceusers_with_user_and_profile,
@@ -1061,6 +1128,60 @@ class CoreHandler:
         )
         return [wk_user.user for wk_user in wk_users]
 
+    def raise_if_invalid_workspace_role(
+        self, role_uid: str, workspace: Workspace
+    ) -> None:
+        """
+        Checks that the role uid is one of the roles available in the workspace. The
+        first permission manager that answers decides, otherwise only the basic
+        ADMIN and MEMBER roles are available.
+
+        :param role_uid: The role uid stored in the `permissions` value.
+        :param workspace: The workspace the role is given in.
+        :raises InvalidWorkspaceRole: If the role is not available.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            is_valid = permission_manager_type_registry.get(
+                permission_manager_name
+            ).is_workspace_role_uid_valid(role_uid, workspace)
+            if is_valid is not None:
+                break
+        else:
+            is_valid = role_uid in {
+                WORKSPACE_USER_PERMISSION_ADMIN,
+                WORKSPACE_USER_PERMISSION_MEMBER,
+            }
+
+        if not is_valid:
+            raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
+
+    def is_workspace_role_upgrade(
+        self, current_role_uid: str, new_role_uid: str, workspace: Workspace
+    ) -> bool:
+        """
+        Checks whether the new role gives a workspace member everything their current
+        role does and more. The first permission manager that answers decides,
+        otherwise only becoming ADMIN is an upgrade.
+
+        :param current_role_uid: The role uid the member currently has.
+        :param new_role_uid: The role uid the member would get instead.
+        :param workspace: The workspace the roles are given in.
+        :return: True if the new role is an upgrade.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            is_upgrade = permission_manager_type_registry.get(
+                permission_manager_name
+            ).is_workspace_role_upgrade(current_role_uid, new_role_uid, workspace)
+            if is_upgrade is not None:
+                return is_upgrade
+
+        return (
+            new_role_uid == WORKSPACE_USER_PERMISSION_ADMIN
+            and current_role_uid != WORKSPACE_USER_PERMISSION_ADMIN
+        )
+
     def update_workspace_user(
         self,
         user: AbstractUser,
@@ -1070,8 +1191,11 @@ class CoreHandler:
         """
         Updates the values of an existing workspace user.
 
-        :param user: The user on whose behalf the workspace user is deleted.
+        :param user: The user on whose behalf the workspace user is updated.
         :param workspace_user: The workspace user that must be updated.
+        :raises CannotChangeYourOwnWorkspaceRole: If the user tries to change their
+            own role in the workspace.
+        :raises InvalidWorkspaceRole: If the new role is not available.
         :return: The updated workspace user instance.
         """
 
@@ -1084,6 +1208,17 @@ class CoreHandler:
             workspace=workspace_user.workspace,
             context=workspace_user,
         )
+
+        if user.id == workspace_user.user_id:
+            # Otherwise an admin could demote themselves and lose access.
+            raise CannotChangeYourOwnWorkspaceRole(
+                "Cannot change your own role in the workspace."
+            )
+
+        if "permissions" in kwargs:
+            self.raise_if_invalid_workspace_role(
+                kwargs["permissions"], workspace_user.workspace
+            )
 
         return self.force_update_workspace_user(user, workspace_user, **kwargs)
 
@@ -1169,37 +1304,35 @@ class CoreHandler:
 
         return URLSafeSerializer(settings.SECRET_KEY, "workspace-invite")
 
-    def send_workspace_invitation_email(self, invitation, base_url):
+    def _is_workspace_invitation_token(
+        self, token: str | None, invitation: WorkspaceInvitation
+    ) -> bool:
+        """
+        Returns whether the token is the signed id of the given invitation.
+        """
+
+        if not token:
+            return False
+
+        try:
+            return self.get_workspace_invitation_signer().loads(token) == invitation.id
+        except BadSignature:
+            return False
+
+    def send_workspace_invitation_email(self, invitation):
         """
         Sends out a workspace invitation email to the user based on the provided
         invitation instance.
 
         :param invitation: The invitation instance for which the email must be send.
         :type invitation: WorkspaceInvitation
-        :param base_url: The base url of the frontend, where the user can accept his
-            invitation. The signed invitation id is appended to the URL (base_url +
-            '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
-        :type base_url: str
-        :raises BaseURLHostnameNotAllowed: When the host name of the base_url is not
-            allowed.
         """
-
-        parsed_base_url = urlparse(base_url)
-        if parsed_base_url.hostname not in (
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
-        ):
-            raise BaseURLHostnameNotAllowed(
-                f"The hostname {parsed_base_url.netloc} is not allowed."
-            )
 
         signer = self.get_workspace_invitation_signer()
         signed_invitation_id = signer.dumps(invitation.id)
-
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        public_accept_url = urljoin(base_url, signed_invitation_id)
+        public_accept_url = get_embedded_share_url(
+            f"workspace-invitation/{signed_invitation_id}"
+        )
 
         # Send the email in the language of the user that has send the invitation.
         with translation.override(invitation.invited_by.profile.language):
@@ -1282,7 +1415,6 @@ class CoreHandler:
         workspace: Workspace,
         email: str,
         permissions: str,
-        base_url: str,
     ) -> WorkspaceInvitation:
         """
         Creates a new workspace invitation for the given email address and sends out an
@@ -1294,10 +1426,7 @@ class CoreHandler:
             Can be an existing or not existing user.
         :param permissions: The workspace permissions that the user will get once they
             have accepted the invitation.
-        :param base_url: The base url of the frontend, where the user can accept his
-            invitation. The signed invitation id is appended to the URL (base_url +
-            '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
-        :raises ValueError: If the provided permissions are not allowed.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The created workspace invitation.
@@ -1309,6 +1438,8 @@ class CoreHandler:
             workspace=workspace,
             context=workspace,
         )
+
+        self.raise_if_invalid_workspace_role(permissions, workspace)
 
         email = normalize_email_address(email)
 
@@ -1342,7 +1473,7 @@ class CoreHandler:
             created=created,
         )
 
-        self.send_workspace_invitation_email(invitation, base_url)
+        self.send_workspace_invitation_email(invitation)
 
         # Emit a sampling-independent metric observation without retaining another
         # application span in the trace. The Collector turns this short-lived span
@@ -1370,7 +1501,7 @@ class CoreHandler:
         :param invitation: The invitation that must be updated.
         :param permissions: The new permissions of the invitation that the user must
             has after accepting.
-        :raises ValueError: If the provided permissions is not allowed.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The updated workspace permissions instance.
@@ -1382,6 +1513,8 @@ class CoreHandler:
             workspace=invitation.workspace,
             context=invitation,
         )
+
+        self.raise_if_invalid_workspace_role(permissions, invitation.workspace)
 
         invitation.permissions = permissions
         invitation.save()
@@ -1474,20 +1607,33 @@ class CoreHandler:
         return workspace_user
 
     def accept_workspace_invitation(
-        self, user: User, invitation: WorkspaceInvitation
+        self,
+        user: User,
+        invitation: WorkspaceInvitation,
+        token: str | None = None,
     ) -> WorkspaceUser:
         """
         Accepts a workspace invitation by adding the user to the correct workspace with
         the right permissions. It can only be accepted if the invitation was
-        addressed to the email address of the user. Because the invitation has been
-        accepted it can then be deleted. If the user is already a member of the
-        workspace the invitation is consumed without changing their existing
-        permissions, so a stale invitation can never lower an existing member's role.
+        addressed to the email address of the user, and if the user either provides
+        the token from the invitation email or has a verified email address. The
+        latter is only required when this instance can deliver emails, because
+        otherwise neither the invitation nor a verification email arrives. Because
+        the invitation has been accepted it can then be deleted. If the user is
+        already a member of the workspace the invitation is consumed without changing
+        their existing permissions, so a stale invitation can never lower an existing
+        member's role.
 
         :param user: The user who has accepted the invitation.
         :param invitation: The invitation that must be accepted.
+        :param token: The signed invitation id from the invitation email. It proves
+            that the user received the email, so their email address is marked as
+            verified.
         :raises WorkspaceInvitationEmailMismatch: If the invitation email does not match
             the one of the user.
+        :raises WorkspaceInvitationEmailNotVerified: If no valid token is provided,
+            the email address of the user is not verified and this instance can
+            deliver emails.
         :return: The workspace user relationship related to the invite.
         """
 
@@ -1495,6 +1641,17 @@ class CoreHandler:
             raise WorkspaceInvitationEmailMismatch(
                 "The email address of the invitation does not match the one of the "
                 "user."
+            )
+
+        profile = user.profile
+        if self._is_workspace_invitation_token(token, invitation):
+            if not profile.email_verified:
+                profile.email_verified = True
+                profile.save(update_fields=["email_verified"])
+        elif not profile.email_verified and can_deliver_emails():
+            raise WorkspaceInvitationEmailNotVerified(
+                "The invitation can only be accepted with the token from the "
+                "invitation email or with a verified email address."
             )
 
         workspace_user = self.add_user_to_workspace(
@@ -1505,6 +1662,330 @@ class CoreHandler:
             sender=self, invitation=invitation, user=user
         )
         invitation.delete()
+
+        return workspace_user
+
+    def get_workspace_invitation_link(
+        self, invitation_link_id: int, base_queryset: Optional[QuerySet] = None
+    ) -> WorkspaceInvitationLink:
+        """
+        Selects a workspace invitation link with a given id from the database. By
+        default only links to the workspace itself are selected, links to an object
+        of the workspace are managed where the roles on that object are.
+
+        :param invitation_link_id: The identifier of the link that must be returned.
+        :param base_queryset: The base queryset from where to select the link.
+        :raises WorkspaceInvitationLinkDoesNotExist: If the link does not exist.
+        :return: The requested workspace invitation link.
+        """
+
+        if base_queryset is None:
+            base_queryset = WorkspaceInvitationLink.objects.filter(
+                scope_type__isnull=True
+            )
+
+        try:
+            return base_queryset.select_related("workspace").get(id=invitation_link_id)
+        except WorkspaceInvitationLink.DoesNotExist as e:
+            raise WorkspaceInvitationLinkDoesNotExist(
+                f"The workspace invitation link with id {invitation_link_id} does "
+                "not exist."
+            ) from e
+
+    def invitation_link_signups_allowed(self) -> bool:
+        """
+        Whether the instance settings let new people sign up through an invitation
+        link, which links need to be created or used.
+        """
+
+        settings = self.get_settings()
+        return bool(
+            settings.allow_new_signups
+            or settings.allow_signups_via_workspace_invitations
+        )
+
+    def get_workspace_invitation_link_by_slug(
+        self, slug: str
+    ) -> WorkspaceInvitationLink:
+        """
+        Returns the workspace invitation link of the given slug, which is what the
+        public link URL contains. Links of a trashed workspace can't be used, and
+        no link can be used while the instance doesn't let anyone sign up through
+        it. The links are kept, so they work again once signups are allowed.
+
+        :param slug: The slug of the link.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises WorkspaceInvitationLinkDoesNotExist: If no usable link has the slug.
+        :return: The workspace invitation link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        if not self.invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkDoesNotExist(
+                "Invitation links can't be used while signups are disabled."
+            )
+
+        try:
+            invitation_link = WorkspaceInvitationLink.objects.select_related(
+                "workspace", "created_by", "scope_type"
+            ).get(slug=slug, workspace__trashed=False)
+        except WorkspaceInvitationLink.DoesNotExist as e:
+            raise WorkspaceInvitationLinkDoesNotExist(
+                "The workspace invitation link does not exist."
+            ) from e
+
+        if invitation_link.scope_type_id is not None:
+            scope_type = self.get_invitation_link_scope_type(invitation_link)
+            if scope_type is None or not scope_type.is_usable(invitation_link):
+                raise WorkspaceInvitationLinkDoesNotExist(
+                    "The object of the workspace invitation link can't be joined."
+                )
+
+        return invitation_link
+
+    def get_invitation_link_scope_type(
+        self, invitation_link: WorkspaceInvitationLink
+    ) -> Optional[InvitationLinkScopeType]:
+        """
+        Returns the type that handles the object an invitation link targets.
+
+        :param invitation_link: A link that targets an object of the workspace.
+        :return: The type of the object of the link, or None if links can't target
+            objects of that type, for example because the module that handles them
+            isn't installed.
+        """
+
+        model_class = invitation_link.scope_type.model_class()
+        if model_class is None:
+            return None
+        try:
+            object_scope_type = object_scope_type_registry.get_by_model(model_class)
+            return invitation_link_scope_type_registry.get(object_scope_type.type)
+        except InstanceTypeDoesNotExist:
+            return None
+
+    def list_workspace_invitation_links(
+        self, user: AbstractUser, workspace: Workspace
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        """
+        Returns the invitation links to the workspace itself if the user is allowed
+        to manage them. Links to an object of the workspace aren't included.
+
+        :param user: The user on whose behalf the links are listed.
+        :param workspace: The workspace of which the links must be returned.
+        :raises PermissionException: If the user isn't allowed to list the links.
+        :return: The invitation links of the workspace.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            ListInvitationLinksWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        return WorkspaceInvitationLink.objects.filter(
+            workspace=workspace, scope_type__isnull=True
+        )
+
+    def create_workspace_invitation_link(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        permissions: str,
+        name: str = "",
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a new permanent link that anyone can use to join the workspace with
+        the given permissions.
+
+        :param user: The user on whose behalf the link is created.
+        :param workspace: The workspace that people join through the link.
+        :param permissions: The workspace permissions people get when joining.
+        :param name: A name that reminds the admins what the link is for.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises PermissionException: If the user isn't allowed to create links.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
+        :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
+            don't let anyone sign up through the link.
+        :return: The created workspace invitation link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        CoreHandler().check_permissions(
+            user,
+            CreateInvitationLinkWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        if not self.invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkSignupsDisabled(
+                "Invitation links can't be created while signups are disabled."
+            )
+
+        self.raise_if_invalid_workspace_role(permissions, workspace)
+
+        return WorkspaceInvitationLink.objects.create(
+            workspace=workspace, created_by=user, permissions=permissions, name=name
+        )
+
+    def update_workspace_invitation_link(
+        self,
+        user: AbstractUser,
+        invitation_link: WorkspaceInvitationLink,
+        permissions: str | None = None,
+        name: str | None = None,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of the link or the permissions that people get when joining
+        through it. It doesn't change the permissions of people who already joined.
+
+        :param user: The user on whose behalf the link is updated.
+        :param invitation_link: The link that must be updated.
+        :param permissions: The new workspace permissions of the link, if they
+            change.
+        :param name: The new name of the link, if it changes.
+        :raises PermissionException: If the user isn't allowed to update the link.
+        :raises InvalidWorkspaceRole: If the provided permissions are not available.
+        :return: The updated workspace invitation link.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            UpdateWorkspaceInvitationLinkOperationType.type,
+            workspace=invitation_link.workspace,
+            context=invitation_link,
+        )
+
+        update_fields = ["updated_on"]
+        if permissions is not None:
+            self.raise_if_invalid_workspace_role(permissions, invitation_link.workspace)
+            invitation_link.permissions = permissions
+            update_fields.append("permissions")
+        if name is not None:
+            invitation_link.name = name
+            update_fields.append("name")
+        invitation_link.save(update_fields=update_fields)
+
+        return invitation_link
+
+    def delete_workspace_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> None:
+        """
+        Deletes a workspace invitation link, after which it can't be used anymore.
+
+        :param user: The user on whose behalf the link is deleted.
+        :param invitation_link: The link that must be deleted.
+        :raises PermissionException: If the user isn't allowed to delete the link.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            DeleteWorkspaceInvitationLinkOperationType.type,
+            workspace=invitation_link.workspace,
+            context=invitation_link,
+        )
+
+        invitation_link.delete()
+
+    def _invitation_link_raises_permissions(
+        self, permissions: str, invitation_link: WorkspaceInvitationLink
+    ) -> bool:
+        return permissions != invitation_link.permissions and (
+            self.is_workspace_role_upgrade(
+                permissions, invitation_link.permissions, invitation_link.workspace
+            )
+        )
+
+    def get_permissions_raised_by_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> Optional[str]:
+        """
+        Returns the current permissions of a member of the workspace of the link
+        when joining through the link would raise them. For a link to an object of
+        the workspace, these are the permissions the member has on that object.
+
+        :param user: The user who opened the link, possibly anonymous.
+        :param invitation_link: The link the user opened.
+        :return: The current permissions of the member, or None if the user isn't a
+            member or joining wouldn't change their permissions.
+        """
+
+        if not user.is_authenticated:
+            return None
+
+        permissions = (
+            WorkspaceUser.objects.filter(
+                user=user, workspace_id=invitation_link.workspace_id
+            )
+            .values_list("permissions", flat=True)
+            .first()
+        )
+        if permissions is None:
+            return None
+
+        if invitation_link.scope_type_id is not None:
+            return self.get_invitation_link_scope_type(invitation_link).get_raised_role(
+                user, invitation_link
+            )
+
+        if not self._invitation_link_raises_permissions(permissions, invitation_link):
+            return None
+        return permissions
+
+    def join_workspace_via_invitation_link(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> WorkspaceUser:
+        """
+        Adds the user to the workspace of the link with the permissions of the
+        link. Someone who is already a member gets the permissions of the link when
+        they are an upgrade, and otherwise keeps their current permissions. A link
+        to an object of the workspace gives its permissions on that object only,
+        and with the same rule: they're never lowered.
+
+        :param user: The user who joins the workspace.
+        :param invitation_link: The link the user joins through.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :return: The workspace user of the user in the workspace of the link.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        if invitation_link.scope_type_id is not None:
+            scope_type = self.get_invitation_link_scope_type(invitation_link)
+            workspace_user = self.add_user_to_workspace(
+                invitation_link.workspace,
+                user,
+                permissions=scope_type.get_newcomer_permissions(invitation_link),
+            )
+            # A link can raise the role of a member on its object, but never
+            # lowers it.
+            if scope_type.get_raised_role(user, invitation_link) is not None:
+                scope_type.give_role(user, invitation_link)
+        else:
+            workspace_user = self.add_user_to_workspace(
+                invitation_link.workspace,
+                user,
+                permissions=invitation_link.permissions,
+            )
+            # A link can raise the role of a member, but never lowers it.
+            if self._invitation_link_raises_permissions(
+                workspace_user.permissions, invitation_link
+            ):
+                workspace_user = self.force_update_workspace_user(
+                    user, workspace_user, permissions=invitation_link.permissions
+                )
+
+        workspace_user_joined_via_invitation_link.send(
+            sender=self,
+            invitation_link=invitation_link,
+            user=user,
+            workspace_user=workspace_user,
+        )
 
         return workspace_user
 
@@ -1621,6 +2102,41 @@ class CoreHandler:
                 application_type_registry.get_by_model(model).enhance_queryset(qs)
             )
         return specific_queryset(queryset, per_content_type_queryset_hook)
+
+    def get_pending_counts_per_user_and_application(
+        self,
+        users: Iterable[AbstractUser | AnonymousUser],
+        applications: Iterable[Application],
+    ) -> dict[int, dict[int, int]]:
+        """
+        Asks each application type how many things wait for the users in its
+        applications, with one call per type whatever the number of users and
+        applications.
+
+        :param users: The users to count for. Nothing waits for an anonymous
+            visitor of a template, so they are left out.
+        :param applications: The applications to count in, of any type.
+        :return: The count per application id, per user id. Users and applications
+            with nothing waiting may be left out.
+        """
+
+        signed_in = [user for user in users if user.is_authenticated]
+        if not signed_in:
+            return {}
+
+        applications_per_model: dict[type[Application], list[Application]] = (
+            defaultdict(list)
+        )
+        for application in applications:
+            applications_per_model[application.specific_class].append(application)
+
+        pending_counts: dict[int, dict[int, int]] = defaultdict(dict)
+        for model, model_applications in applications_per_model.items():
+            application_type = application_type_registry.get_by_model(model)
+            counts = application_type.get_pending_counts(signed_in, model_applications)
+            for user_id, user_counts in counts.items():
+                pending_counts[user_id].update(user_counts)
+        return dict(pending_counts)
 
     def create_application(
         self,
@@ -1944,10 +2460,12 @@ class CoreHandler:
         self,
         workspace: Workspace,
         exported_applications: List[Dict[str, Any]],
-        files_buffer: IO[bytes],
+        files_buffer: Optional[IO[bytes]],
         import_export_config: ImportExportConfig,
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
+        *,
+        atomic_per_application: bool = False,
     ) -> Tuple[List[Application], Dict[str, Any]]:
         """
         Imports multiple exported applications into the given workspace. It is
@@ -1959,12 +2477,17 @@ class CoreHandler:
         :param workspace: The workspace that the applications must be imported to.
         :param exported_applications: A list containing the applications generated by
             the `export_workspace_applications` method.
-        :param files_buffer: A file buffer containing the exported files in ZIP format.
+        :param files_buffer: A file buffer containing the exported files in ZIP
+            format, or None when the files are already in the storage, for example
+            when the applications are copied within this instance.
         :param storage: The storage where the files can be copied to.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
         :param import_export_config: provides configuration options for the
             import/export process to customize how it works.
+        :param atomic_per_application: Whether each application is imported in its
+            own atomic block, so that a failure leaves no half-imported application
+            behind when the caller has no transaction of its own.
         :return: The newly created applications based on the import and a dict
             containing a mapping of old ids to new ids.
         """
@@ -1972,6 +2495,13 @@ class CoreHandler:
         progress = ChildProgressBuilder.build(
             progress_builder, len(exported_applications) * 1000
         )
+        id_mapping: Dict[str, Any] = {}
+        if import_export_config.is_user_template:
+            # A user template holds only some applications of its source. The guards
+            # only clear unmapped references when their mapping exists, which isn't
+            # the case when the referenced application isn't imported.
+            for key in USER_TEMPLATE_SEEDED_ID_MAPPINGS:
+                id_mapping[key] = {}
 
         storage = storage or get_default_storage()
 
@@ -2001,30 +2531,35 @@ class CoreHandler:
             # Callbacks registered during the loop run when this context exits,
             # by which point every application exists.
             with deferred_callback_context():
-                id_mapping: Dict[str, Any] = {}
                 imported_applications = []
                 next_application_order_value = Application.get_last_order(workspace)
                 for application in prioritized_applications:
                     application_type = application_type_registry.get(
                         application["type"]
                     )
-                    imported_application = application_type.import_serialized(
-                        workspace,
-                        application,
-                        import_export_config,
-                        id_mapping,
-                        files_zip,
-                        storage,
-                        progress_builder=progress.create_child_builder(
-                            represents_progress=1000
-                        ),
-                    )
+                    with (
+                        transaction.atomic()
+                        if atomic_per_application
+                        else nullcontext()
+                    ):
+                        imported_application = application_type.import_serialized(
+                            workspace,
+                            application,
+                            import_export_config,
+                            id_mapping,
+                            files_zip,
+                            storage,
+                            progress_builder=progress.create_child_builder(
+                                represents_progress=1000
+                            ),
+                        )
                     imported_application.order = next_application_order_value
                     next_application_order_value += 1
                     imported_applications.append(imported_application)
                 Application.objects.bulk_update(imported_applications, ["order"])
         finally:
-            files_zip.close()
+            if files_zip is not None:
+                files_zip.close()
 
         return imported_applications, id_mapping
 
@@ -2044,7 +2579,7 @@ class CoreHandler:
         """
 
         if base_queryset is None:
-            base_queryset = Template.objects
+            base_queryset = Template.objects.official()
 
         try:
             template = base_queryset.get(id=template_id)
@@ -2054,6 +2589,101 @@ class CoreHandler:
             )
 
         return template
+
+    def list_templates(
+        self,
+        actor: AbstractUser | AnonymousUser,
+        template_type: Optional[str] = None,
+        owned: bool = False,
+        listed: bool = False,
+        category_id: Optional[int] = None,
+    ) -> QuerySet[Template]:
+        """
+        Returns the latest revision the actor can open of every template, most
+        recently changed first: a user template by the creation of that revision,
+        an official one by its last update. With `listed`, the listed revision
+        instead, see `listed`. The fields of the template as a whole are on the
+        selected `root`, or on the row itself when it's the root. Equal dates are
+        ordered by id, newest first.
+
+        :param actor: The user or anonymous user listing the templates.
+        :param template_type: Only the templates of this `Template.Type`.
+        :param owned: Only the templates owned by the actor.
+        :param listed: Only what everybody can open, as everybody sees it: every
+            official template, unless `template_type` leaves them out, and the
+            public revision of every public user template. The actor's own come
+            first, then the most recently listed: a user template by when its
+            revision was listed, which is when it was made public or approved, an
+            official one by its last update.
+        :param category_id: Only the rows in this category.
+        :return: The templates.
+        """
+
+        templates = Template.objects.openable(actor)
+        if template_type == Template.Type.OFFICIAL:
+            templates = templates.official()
+        elif template_type == Template.Type.USER:
+            templates = templates.user()
+        if owned:
+            templates = (
+                templates.filter_by_root(owner_id=actor.id)
+                if actor.is_authenticated
+                else templates.none()
+            )
+        templates = (
+            templates.listed() if listed else templates.latest_revisions()
+        ).with_template_state()
+
+        # A revision isn't changed after it's created, an official template is.
+        # A listed revision is dated by when it was listed, see `submit_revision`.
+        changed_on = Case(
+            When(
+                type=Template.Type.USER,
+                then=F("reviewed_on" if listed else "created_on"),
+            ),
+            default=F("updated_on"),
+        )
+        # The actor's own come first in the listing.
+        is_own = Value(False)
+        if listed and actor.is_authenticated:
+            is_own = Case(
+                When(
+                    Q(root__isnull=True, owner_id=actor.id)
+                    | Q(root__owner_id=actor.id),
+                    then=Value(True),
+                ),
+                default=Value(False),
+            )
+        templates = templates.alias(list_is_own=is_own, list_changed_on=changed_on)
+        if category_id is not None:
+            # The categories of the listed row itself, which an edit can change.
+            templates = templates.filter(categories__id=category_id)
+        return (
+            templates.select_related("author", "root__author")
+            .prefetch_related("categories")
+            .order_by(
+                F("list_is_own").desc(),
+                F("list_changed_on").desc(nulls_last=True),
+                "-id",
+            )
+        )
+
+    def list_public_template_categories(
+        self, actor: AbstractUser | AnonymousUser
+    ) -> QuerySet[TemplateCategory]:
+        """
+        Returns the categories of the listed revisions of the public user
+        templates, see `list_templates`. Official templates aren't taken into
+        account.
+
+        :param actor: The user or anonymous user listing the templates.
+        :return: The categories holding at least one listed revision.
+        """
+
+        listed = Template.objects.openable(actor).user().public_revisions()
+        return TemplateCategory.objects.filter(
+            Exists(listed.filter(categories=OuterRef("pk")))
+        )
 
     # This single function generates a huge number of spans and events, we know it
     # is slow, and so we disable instrumenting it to save significant resources in
@@ -2086,7 +2716,8 @@ class CoreHandler:
             clean_templates = True
 
         installed_templates = (
-            Template.objects.all()
+            Template.objects.official()
+            .filter(root__isnull=True)
             .prefetch_related("categories")
             .select_related("workspace")
         )
@@ -2094,6 +2725,7 @@ class CoreHandler:
 
         sync_templates_import_export_config = ImportExportConfig(
             include_permission_data=False,
+            is_template=True,
             # Without reducing disk space usage Baserow after first time install
             # takes up over 1GB of disk space.
             reduce_disk_space_usage=True,
@@ -2135,8 +2767,15 @@ class CoreHandler:
                 for template_file_path in template_files_paths
             ]
 
-            for template in Template.objects.filter(~Q(slug__in=slugs)):
+            for template in (
+                Template.objects.official()
+                .filter(root__isnull=True)
+                .filter(~Q(slug__in=slugs))
+            ):
                 with transaction.atomic():
+                    # The listed revision is protected, so it must be cleared first.
+                    template.public_revision = None
+                    template.save(update_fields=["public_revision"])
                     TrashHandler.permanently_delete(template.workspace)
                     template.delete()
 
@@ -2239,7 +2878,9 @@ class CoreHandler:
             workspace.save()
 
         kwargs = {
+            "type": Template.Type.OFFICIAL,
             "name": parsed_json["name"],
+            "description": parsed_json.get("description", ""),
             "icon": parsed_json["icon"],
             "export_hash": export_hash,
             "keywords": keywords,
@@ -2254,13 +2895,20 @@ class CoreHandler:
             )
 
         if not installed_template:
-            installed_template = Template.objects.create(slug=slug, **kwargs)
+            installed_template = Template.objects.create(
+                slug=slug, review_state=Template.ReviewState.APPROVED, **kwargs
+            )
+            # Official templates are approved and listed from the start.
+            installed_template.public_revision = installed_template
+            installed_template.save(update_fields=["public_revision"])
         else:
             # If the installed template already exists, we only need to update the
-            # values to the latest version according to the JSON template.
+            # values to the latest version according to the JSON template. Only these
+            # fields are saved, so changes made to other fields since the template was
+            # loaded, like `install_count`, aren't reverted.
             for key, value in kwargs.items():
                 setattr(installed_template, key, value)
-            installed_template.save()
+            installed_template.save(update_fields=[*kwargs, "updated_on"])
 
         # Loop over the categories related to the template and check which ones
         # already exist and which need to be created. Based on that we can create
@@ -2350,6 +2998,27 @@ class CoreHandler:
         if files_buffer:
             files_buffer.close()
 
+        self.mark_applications_installed_from_template(user, applications, template)
+
+        return applications, id_mapping
+
+    def mark_applications_installed_from_template(
+        self,
+        user: AbstractUser,
+        applications: List[Application],
+        template: Template,
+    ) -> None:
+        """
+        Finishes the install of a template: links the installed applications to the
+        template they were installed from, and sends the signals of applications a
+        user created. Used by both the official and the user template install.
+
+        :param user: The user who installed the template.
+        :param applications: The applications the install created.
+        :param template: The installed template, or for a user template the
+            installed revision.
+        """
+
         # Because a user has initiated the creation of applications, we need to
         # call the `application_created` signal for each created application.
         #
@@ -2367,8 +3036,6 @@ class CoreHandler:
                 )
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
-
-        return applications, id_mapping
 
     @classmethod
     def raise_if_user_is_last_admin_of_workspace(cls, workspace_user: WorkspaceUser):

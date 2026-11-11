@@ -13,6 +13,7 @@ export default {
     },
   },
   props: {
+    badge: { type: String, default: null },
     title: {
       type: String,
       default: 'Tab',
@@ -45,6 +46,12 @@ export default {
       type: String,
       required: false,
       default: null,
+    },
+    developmentStage: {
+      type: String,
+      required: false,
+      default: null,
+      validator: (value) => value === null || ['alpha', 'beta'].includes(value),
     },
     highlight: {
       type: [String, null],

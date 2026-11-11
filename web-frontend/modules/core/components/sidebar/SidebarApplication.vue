@@ -7,7 +7,10 @@
   >
     <div
       class="tree__action tree__action--has-options"
-      :class="{ 'tree__action--highlighted': highlighted }"
+      :class="{
+        'tree__action--highlighted': highlighted,
+        'tree__action--error': isInError,
+      }"
       data-sortable-handle
       :data-highlight="`sidebar-application-${application.id}`"
     >
@@ -27,6 +30,11 @@
             @change="renameApplication(application, $event)"
           ></Editable>
         </span>
+        <i
+          v-if="isInError"
+          v-tooltip="errorMessage"
+          class="tree__error-icon iconoir-warning-circle"
+        ></i>
       </a>
 
       <a
@@ -37,6 +45,12 @@
       >
         <i class="baserow-icon-more-vertical"></i>
       </a>
+
+      <BadgeCounter
+        v-if="application.pending_count > 0"
+        class="tree__counter badge-counter--warning"
+        :count="application.pending_count"
+      />
 
       <component
         :is="getApplicationContextComponent(application)"
@@ -58,6 +72,7 @@
 </template>
 
 <script>
+import BadgeCounter from '@baserow/modules/core/components/BadgeCounter'
 import SidebarDuplicateApplicationContextItem from '@baserow/modules/core/components/sidebar/SidebarDuplicateApplicationContextItem.vue'
 import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import SnapshotsModal from '@baserow/modules/core/components/snapshots/SnapshotsModal'
@@ -66,6 +81,7 @@ import application from '@baserow/modules/core/mixins/application'
 export default {
   name: 'SidebarApplication',
   components: {
+    BadgeCounter,
     TrashModal,
     SidebarDuplicateApplicationContextItem,
     SnapshotsModal,
@@ -106,6 +122,12 @@ export default {
     },
     applicationType() {
       return this.$registry.get('application', this.application.type)
+    },
+    errorMessage() {
+      return this.applicationType.getErrorMessage(this.application)
+    },
+    isInError() {
+      return Boolean(this.errorMessage)
     },
   },
 }

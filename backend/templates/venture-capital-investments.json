@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Venture Capital Investments",
+    "description": "Track VC funds, investments, portfolio companies and partners.",
     "icon": "iconoir-coin",
     "keywords": [
         "money",

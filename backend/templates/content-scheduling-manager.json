@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Content Scheduling Manager",
+    "description": "Schedule ads across channels, target groups and creators.",
     "icon": "iconoir-calendar",
     "keywords": [
         "Content",

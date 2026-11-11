@@ -36,6 +36,7 @@
             :debug="debug"
             :read-only="readOnly"
             @add-node="emit('add-node', $event)"
+            @add-recipe="emit('add-recipe', $event)"
             @select-node="emit('select-node', $event)"
             @remove-node="emit('remove-node', $event)"
             @replace-node="emit('replace-node', $event)"
@@ -73,6 +74,7 @@
         :debug="debug"
         :read-only="readOnly"
         @add-node="emit('add-node', $event)"
+        @add-recipe="emit('add-recipe', $event)"
         @select-node="emit('select-node', $event)"
         @remove-node="emit('remove-node', $event)"
         @replace-node="emit('replace-node', $event)"
@@ -113,6 +115,7 @@ const props = defineProps({
 
 const emit = defineEmits([
   'add-node',
+  'add-recipe',
   'select-node',
   'remove-node',
   'replace-node',

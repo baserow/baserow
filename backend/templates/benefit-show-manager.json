@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Benefit Show Manager",
+    "description": "Organize benefit shows with talent, venues, beneficiaries and expenses.",
     "icon": "iconoir-heart",
     "keywords": [
         "nonprofit show",

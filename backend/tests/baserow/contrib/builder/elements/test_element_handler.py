@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.builder.elements.element_types import (
     ColumnElementType,
+    HeadingElementType,
 )
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
@@ -10,6 +13,7 @@ from baserow.contrib.builder.elements.exceptions import (
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element, HeadingElement, TextElement
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.core.cache import local_cache
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -624,3 +628,203 @@ def test_get_element_property_options_returns_expected_options(
             "sortable": sortable,
         },
     }
+
+
+@pytest.mark.django_db
+def test_get_previous_positions_builds_the_page_point_map_once(data_fixture):
+    page = data_fixture.create_builder_page()
+    elements = [
+        data_fixture.create_builder_heading_element(page=page) for _ in range(30)
+    ]
+
+    with local_cache.context():
+        graph = page.get_graph()
+        with patch.object(graph, "get_all_points", wraps=graph.get_all_points) as load:
+            positions = graph.get_previous_positions(elements[-1])
+
+    # Walking back a 30 element chain looks up every previous element, but the
+    # point map of the page must only be built once for all those lookups.
+    assert [p[0] for p in positions] == elements[:-1]
+    load.assert_called_once_with()
+
+
+@pytest.mark.django_db
+def test_page_point_map_includes_an_element_created_after_it_was_built(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    first = data_fixture.create_builder_heading_element(page=page)
+
+    with local_cache.context():
+        graph = page.get_graph()
+        assert graph.get_point(first.id) == first
+
+        created = ElementHandler().create_element(HeadingElementType(), page=page)
+        graph.insert(created, first, GraphPointPosition.SOUTH, "")
+
+        assert graph.get_point(created.id) == created
+        assert graph.get_point(first.id) == first
+
+
+@pytest.mark.django_db
+def test_page_point_map_is_shared_between_handlers(data_fixture):
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    with local_cache.context():
+        graph = page.get_graph()
+        assert graph.get_point(element.id) == element
+        other_graph = type(graph)(page)
+        with patch.object(ElementHandler, "get_elements") as get_elements:
+            assert other_graph.get_point(element.id) == element
+        get_elements.assert_not_called()
+
+        ElementHandler().update_element(element, value="'Updated heading'")
+        assert graph.get_point(element.id).value["formula"] == "'Updated heading'"
+        assert other_graph.get_point(element.id).value["formula"] == "'Updated heading'"
+
+
+@pytest.mark.django_db
+def test_reload_graph_drops_an_element_a_savepoint_rolled_back(data_fixture):
+    from django.db import transaction
+
+    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.contrib.builder.pages.models import Page
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    heading_type = element_type_registry.get("heading")
+
+    def create():
+        return ElementService().create_element(user, heading_type, page)
+
+    with local_cache.context(), transaction.atomic():
+        kept = create()
+        same_row = Page.objects.get(id=page.id)
+        same_row.get_graph()  # Shares the cached graph with `page`.
+        try:
+            with transaction.atomic():
+                create()
+                raise ValueError("rolled back")
+        except ValueError:
+            pass
+
+        page.reload_graph()
+
+        stored = Page.objects.get(id=page.id).graph
+        assert page.graph == stored
+        assert same_row.graph == stored
+        # The next change saves no trace of the rolled back element.
+        last = create()
+
+    graph = Page.objects.get(id=page.id).graph
+    assert sorted(key for key in graph if key != "0") == sorted(
+        [str(kept.id), str(last.id)]
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("element", ["link", "menu"])
+def test_element_refuses_a_link_to_another_builders_page(data_fixture, element):
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.builder.elements.service import ElementService
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    values = {
+        "link": {"navigation_type": "page", "navigate_to_page_id": elsewhere.id},
+        "menu": {
+            "menu_items": [
+                {
+                    "type": "link",
+                    "name": "Elsewhere",
+                    "navigation_type": "page",
+                    "navigate_to_page_id": elsewhere.id,
+                }
+            ]
+        },
+    }[element]
+    element_type = element_type_registry.get(element)
+
+    with pytest.raises(ValidationError):
+        ElementService().create_element(user, element_type, page, **values)
+
+    own = ElementService().create_element(user, element_type, page)
+    with pytest.raises(ValidationError):
+        ElementService().update_element(user, own, **values)
+
+
+@pytest.mark.django_db
+def test_element_refuses_to_turn_on_a_link_to_another_builders_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.builder.elements.service import ElementService
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    elsewhere = data_fixture.create_builder_page(user=user)
+    link = ElementService().create_element(
+        user,
+        element_type_registry.get("link"),
+        page,
+        navigation_type="custom",
+        navigate_to_page_id=elsewhere.id,
+    )
+
+    with pytest.raises(ValidationError):
+        ElementService().update_element(user, link, navigation_type="page")
+
+
+@pytest.mark.django_db
+def test_element_refuses_a_link_to_the_shared_page(data_fixture):
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.builder.elements.service import ElementService
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    with pytest.raises(ValidationError):
+        ElementService().create_element(
+            user,
+            element_type_registry.get("link"),
+            page,
+            navigation_type="page",
+            navigate_to_page_id=page.builder.shared_page.id,
+        )
+
+
+@pytest.mark.django_db
+def test_get_end_position(data_fixture):
+    page = data_fixture.create_builder_page()
+    handler = ElementHandler()
+
+    assert handler.get_end_position(page) == (None, GraphPointPosition.SOUTH, "")
+
+    column = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    first, last = [
+        data_fixture.create_builder_heading_element(
+            page=page,
+            parent_element_id=column.id,
+            reference_element=column,
+            position=GraphPointPosition.CHILD,
+            place_in_container="1",
+        )
+        for _ in range(2)
+    ]
+
+    assert handler.get_end_position(page) == (column.id, GraphPointPosition.SOUTH, "")
+    # The first child of a place names it; the next ones follow the last child.
+    assert handler.get_end_position(page, column.id, "0") == (
+        column.id,
+        GraphPointPosition.CHILD,
+        "0",
+    )
+    assert handler.get_end_position(page, column.id, "1") == (
+        last.id,
+        GraphPointPosition.SOUTH,
+        "",
+    )
+    assert first.id != last.id

@@ -14,6 +14,7 @@ export function populatePage(page) {
       selected: false,
       dataSourceContentLoading: false,
       dataSourceLoading: false,
+      dataSourceFetched: false,
     },
     dataSources: [],
     elements: [],

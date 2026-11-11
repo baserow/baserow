@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Healthcare Facility Management",
+    "description": "Manage patients, doctors and appointments across specialties.",
     "icon": "iconoir-ecology-book",
     "keywords": [
         "medical record",

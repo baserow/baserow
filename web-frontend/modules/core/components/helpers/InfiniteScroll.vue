@@ -36,6 +36,9 @@
  *
  * Provide an end slot which will be shown when the user scrolls to the end of all
  * available items.
+ *
+ * With `fill`, the next page is also loaded while the end of the items is in view,
+ * for example on a tall screen, because the wrapper can't be scrolled then.
  */
 export default {
   props: {
@@ -74,6 +77,11 @@ export default {
       required: false,
       default: true,
     },
+    fill: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   emits: ['load-next-page'],
   data() {
@@ -94,6 +102,7 @@ export default {
   watch: {
     currentCount() {
       this.calculateIfWrapperHasScrollbar()
+      this.observeEnd()
     },
   },
   created() {
@@ -106,6 +115,18 @@ export default {
     }
     this.calculateIfWrapperHasScrollbar()
   },
+  mounted() {
+    if (this.fill && typeof IntersectionObserver !== 'undefined') {
+      this.endObserver = new IntersectionObserver(
+        ([entry]) => entry.isIntersecting && this.loadNextPage(),
+        { root: this.$refs.infiniteScroll }
+      )
+      this.observeEnd()
+    }
+  },
+  beforeUnmount() {
+    this.endObserver?.disconnect()
+  },
   methods: {
     calculateIfWrapperHasScrollbar() {
       this.$nextTick(() => {
@@ -113,6 +134,21 @@ export default {
         this.wrapperHasScrollbar =
           infiniteScroll &&
           infiniteScroll.scrollHeight > infiniteScroll.clientHeight
+      })
+    },
+    /**
+     * The observer calls back when the end comes into view, for example when the
+     * list is shown again. It's observed again after new items, so that it also calls
+     * back while the end stays in view. Nothing changes after a page that failed to
+     * load, so that page isn't requested again and again.
+     */
+    observeEnd() {
+      this.$nextTick(() => {
+        const end = this.$refs.loadingWrapper
+        if (this.endObserver && end) {
+          this.endObserver.unobserve(end)
+          this.endObserver.observe(end)
+        }
       })
     },
     clientHeight() {

@@ -3,6 +3,10 @@ import ApplicationService from '@baserow/modules/core/services/application'
 import { clone } from '@baserow/modules/core/utils/object'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
+import {
+  markRealtimeMetadata,
+  realtimeMetadata,
+} from '@baserow/modules/core/utils/realtime'
 
 export function populateApplication(application, registry) {
   const type = registry.get('application', application.type)
@@ -13,6 +17,7 @@ export function populateApplication(application, registry) {
       type: type.serialize(),
       loading: false,
       selected: false,
+      ...realtimeMetadata(),
     },
   }
   return type.populate(app)
@@ -46,10 +51,11 @@ export const mutations = {
   APPEND_ITEMS(state, items) {
     state.items = state.items.concat(items)
   },
-  UPDATE_ITEM(state, { id, values }) {
+  UPDATE_ITEM(state, { id, values, viaRealtime = false }) {
     const index = state.items.findIndex((item) => item.id === id)
     if (index !== -1) {
       Object.assign(state.items[index], state.items[index], values)
+      markRealtimeMetadata(state.items[index], viaRealtime)
     }
   },
   ORDER_ITEMS(state, { workspace, order, isHashed = false }) {
@@ -224,13 +230,13 @@ export const actions = {
   /**
    * Forcefully update an item in the store without making a call to the server.
    */
-  forceUpdate({ commit }, { application, data }) {
+  forceUpdate({ commit }, { application, data, viaRealtime = false }) {
     const { $registry, $client } = this
 
     const type = $registry.get('application', application.type)
     data = type.prepareForStoreUpdate(application, data)
 
-    commit('UPDATE_ITEM', { id: application.id, values: data })
+    commit('UPDATE_ITEM', { id: application.id, values: data, viaRealtime })
   },
   /**
    * Updates the order of all the applications in a workspace.

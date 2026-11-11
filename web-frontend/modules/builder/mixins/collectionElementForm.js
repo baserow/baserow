@@ -2,6 +2,7 @@ import { mapGetters } from 'vuex'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 import { CurrentRecordDataProviderType } from '@baserow/modules/builder/dataProviderTypes'
 import elementForm from '@baserow/modules/builder/mixins/elementForm'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 export default {
   mixins: [elementForm, applicationContextMixin],
@@ -18,15 +19,10 @@ export default {
         .get('builderDataProvider', CurrentRecordDataProviderType.getType())
         .getDataSchema({
           ...this.applicationContext,
-          /**
-           * We want to use the data_source_id of this element...
-           */
-          allowSameElement: true,
-          /**
-           * but, we don't want to use the schema property of this element as we are
-           * defining it.
-           */
-          followSameElementSchemaProperties: false,
+          // Include this collection when finding the data source, but stop
+          // before applying its own schema_property: that is the property
+          // the user is choosing in this selector.
+          dataScope: DATA_SCOPES.INCLUDE_TARGET_DATA_SOURCE,
         })
     },
     /**

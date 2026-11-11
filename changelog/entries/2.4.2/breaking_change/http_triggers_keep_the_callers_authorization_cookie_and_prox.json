@@ -1,0 +1,13 @@
+{
+    "type": "breaking_change",
+    "message": "HTTP triggers keep the caller's Authorization, Cookie and Proxy-Authorization headers out of the workflow, and imported applications get their own HTTP trigger URLs.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [
+        "Formulas reading these headers get no value",
+        "Send caller secrets in another header or a query parameter",
+        "Update callers of imported HTTP triggers to the new URL"
+    ],
+    "created_at": "2026-10-26"
+}

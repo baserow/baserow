@@ -201,6 +201,19 @@ export function stripUnresolvedImageRefs(content) {
   )
 }
 
+/**
+ * Replaces every bare `![alt][name]` outside code with its alt text, for a
+ * renderer that cannot resolve a storage URL from the file name. The alt keeps
+ * the backslash escapes the editor stored (`\[`, `\]`, `\\`): markdown-it
+ * unescapes them, so the text stays literal instead of becoming markup.
+ */
+export function replaceUnresolvedImageRefsWithAlt(content) {
+  if (!content) return content || ''
+  return mapOutsideCode(content, (segment) =>
+    segment.replace(IMAGE_REF_REGEX, (match, alt) => alt)
+  )
+}
+
 export function replaceImagesWithPlaceholder(content) {
   if (!content) return content || ''
   const result = stripUnresolvedImageRefs(stripImageUrls(content))

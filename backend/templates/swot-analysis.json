@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "SWOT Analysis",
+    "description": "Run a SWOT analysis and turn each factor into actions with owners.",
     "icon": "iconoir-light-bulb-on",
     "keywords": [
         "swot",

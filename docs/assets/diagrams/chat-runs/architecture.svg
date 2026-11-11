@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="728" viewBox="0 0 720 728" role="img" aria-labelledby="title description">
+  <title id="title">Background chat run architecture</title>
+  <desc id="description">The client and AI provider are outside the Baserow system boundary. The HTTP streaming endpoint, served through ASGI, Celery, Redis and Postgres are inside. For a new run, the endpoint commits the run in Postgres and enqueues Celery after commit. The worker writes output events into Redis. The endpoint waits asynchronously for Redis output events and sends them to the client in the HTTP streaming response. Products may start and follow a run in one HTTP request or in separate requests. Final output is committed to Postgres before completion is published. Refresh replays the retained output and reconnect resumes by cursor, without creating a new task.</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#2563eb"/></marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 Z" fill="#7c3aed"/></marker>
+  </defs>
+  <style>text { font-family: Arial, sans-serif; fill: #0f172a; } .edge { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; } .label-bg { fill: #ffffff; } .caption { fill: #475569; }</style>
+  <rect x="0.5" y="0.5" width="719" height="727" rx="20" fill="#fff" stroke="#e2e8f0"/>
+  <text x="24" y="38" font-size="24" font-weight="700">Background chat run architecture</text>
+  <text x="24" y="66" font-size="17" class="caption">Independent execution. Shared HTTP streaming and replay.</text>
+  <g aria-label="Baserow system boundary">
+    <path d="M268 84 H502 Q518 84 518 100 V248 Q518 264 534 264 H696 Q712 264 712 280 V634 Q712 650 696 650 H24 Q8 650 8 634 V280 Q8 264 24 264 H236 Q252 264 252 248 V100 Q252 84 268 84 Z" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <text x="274" y="112" font-size="18" font-weight="700" class="caption">Baserow</text>
+  </g>
+  <g transform="translate(0 24)">
+  <g aria-label="Request, task and output connections">
+    <path class="edge" d="M180 146 H280" stroke="#2563eb" marker-end="url(#arrow-blue)"/>
+    <path class="edge" d="M280 184 H180" stroke="#059669" marker-end="url(#arrow-green)"/>
+    <path class="edge" d="M320 218 V284 Q320 296 308 296 H112 Q100 296 100 308 V430" stroke="#7c3aed" marker-end="url(#arrow-purple)"/>
+    <path class="edge" d="M440 155 H476 Q488 155 488 167 V454 Q488 466 500 466 H540" stroke="#2563eb" marker-end="url(#arrow-blue)"/>
+    <path class="edge" d="M582 430 V218" stroke="#2563eb" marker-end="url(#arrow-blue)"/>
+    <path class="edge" d="M658 218 V430" stroke="#059669" marker-end="url(#arrow-green)"/>
+    <path class="edge" d="M540 516 H440" stroke="#059669" marker-end="url(#arrow-green)"/>
+    <path class="edge" d="M360 430 V218" stroke="#059669" marker-end="url(#arrow-green)"/>
+    <path class="edge" d="M620 542 V594 Q620 606 608 606 H112 Q100 606 100 594 V542" stroke="#7c3aed" stroke-dasharray="7 5" marker-end="url(#arrow-purple)"/>
+  </g>
+  <g><rect x="20" y="110" width="160" height="108" rx="14" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.6"/>
+    <text x="100" y="144" text-anchor="middle" font-size="21" font-weight="600">Client</text>
+    <text x="100" y="172" text-anchor="middle" font-size="17">start / follow run</text>
+    <text x="100" y="195" text-anchor="middle" font-size="17">HTTP stream</text>
+  </g>
+  <g><rect x="280" y="110" width="160" height="108" rx="14" fill="#eff6ff" stroke="#60a5fa" stroke-width="1.6"/>
+    <text x="360" y="136" text-anchor="middle" font-size="19" font-weight="600">HTTP streaming</text>
+    <text x="360" y="158" text-anchor="middle" font-size="19" font-weight="600">endpoint</text>
+    <text x="360" y="184" text-anchor="middle" font-size="17">ASGI</text>
+    <text x="360" y="206" text-anchor="middle" font-size="17">start / follow run</text>
+  </g>
+  <g><rect x="540" y="110" width="160" height="108" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.6"/>
+    <text x="620" y="144" text-anchor="middle" font-size="21" font-weight="600">AI provider</text>
+    <text x="620" y="172" text-anchor="middle" font-size="17">HTTP stream</text>
+    <text x="620" y="195" text-anchor="middle" font-size="17">token output</text>
+  </g>
+  <g><rect x="540" y="430" width="160" height="108" rx="14" fill="#fff7ed" stroke="#fb923c" stroke-width="1.6"/>
+    <text x="620" y="464" text-anchor="middle" font-size="21" font-weight="600">Celery</text>
+    <text x="620" y="492" text-anchor="middle" font-size="17">queue / worker</text>
+    <text x="620" y="515" text-anchor="middle" font-size="17">background run</text>
+  </g>
+  <g>
+    <path d="M20 442 C20 426 180 426 180 442 V530 C180 546 20 546 20 530 Z" fill="#f5f3ff" stroke="#a78bfa" stroke-width="1.6"/>
+    <path d="M20 442 C20 458 180 458 180 442" fill="none" stroke="#a78bfa" stroke-width="1.6"/>
+    <text x="100" y="480" text-anchor="middle" font-size="20" font-weight="600">Postgres</text>
+    <text x="100" y="504" text-anchor="middle" font-size="17">Runs + final</text>
+    <text x="100" y="526" text-anchor="middle" font-size="17">answers / history</text>
+  </g>
+  <g>
+    <path d="M280 442 C280 426 440 426 440 442 V530 C440 546 280 546 280 530 Z" fill="#ecfdf5" stroke="#34d399" stroke-width="1.6"/>
+    <path d="M280 442 C280 458 440 458 440 442" fill="none" stroke="#34d399" stroke-width="1.6"/>
+    <text x="360" y="480" text-anchor="middle" font-size="20" font-weight="600">Redis Stream</text>
+    <text x="360" y="504" text-anchor="middle" font-size="17">Output buffer</text>
+    <text x="360" y="526" text-anchor="middle" font-size="17">Replay</text>
+  </g>
+  <g text-anchor="middle">
+    <text x="230" y="132" font-size="18" fill="#2563eb">HTTP</text>
+    <rect class="label-bg" x="184" y="192" width="92" height="45" rx="8"/>
+    <text x="230" y="209" font-size="17" fill="#059669">Streaming</text>
+    <text x="230" y="230" font-size="17" fill="#059669">response</text>
+    <text x="202" y="281" font-size="18" fill="#7c3aed">1  Commit new run</text>
+    <rect class="label-bg" x="426" y="246" width="124" height="70" rx="8"/>
+    <text x="488" y="265" font-size="17" font-weight="600">2  Enqueue</text>
+    <text x="488" y="286" font-size="17">new runs</text>
+    <text x="488" y="307" font-size="17">after commit</text>
+    <rect class="label-bg" x="541" y="330" width="82" height="50" rx="8"/>
+    <text x="582" y="349" font-size="18">HTTP</text>
+    <text x="582" y="371" font-size="17">request</text>
+    <rect class="label-bg" x="622" y="277" width="72" height="29" rx="8"/>
+    <text x="658" y="298" font-size="18">Tokens</text>
+    <rect class="label-bg" x="290" y="337" width="140" height="52" rx="8"/>
+    <text x="360" y="358" font-size="18">Wait / read</text>
+    <text x="360" y="380" font-size="17">output events</text>
+    <text x="490" y="484" font-size="17">Output</text>
+    <text x="490" y="505" font-size="17">events</text>
+    <text x="360" y="592" font-size="18" fill="#7c3aed">Final output at run end</text>
+    <text x="360" y="650" font-size="17" class="caption">Completion is published after the final database commit.</text>
+    <text x="360" y="678" font-size="17" class="caption">Refresh replays, reconnect resumes by cursor. No new task.</text>
+  </g>
+  </g>
+</svg>

@@ -17,6 +17,8 @@
  *   but a class can provide own implementation here.
  * - `getCustomHumanReadableJobState(state)` returns the human readable message your
  *   custom state values. This mixin provides a default implementation.
+ * - `getJobNotCancellableMessage()` returns the message shown when the job can't
+ *   be cancelled anymore. This mixin provides a default implementation.
  *
  */
 export default {
@@ -117,7 +119,7 @@ export default {
           if (errMsg?.error === 'ERROR_JOB_NOT_CANCELLABLE') {
             this.showError(
               this.$t('job.errorJobCannotBeCancelledTitle'),
-              this.$t('job.errorJobCannotBeCancelledDescription')
+              this.getJobNotCancellableMessage()
             )
           } else {
             this.showError({
@@ -134,6 +136,15 @@ export default {
       } finally {
         this.cancelLoading = false
       }
+    },
+    /**
+     * Returns the message shown when the job can't be cancelled anymore. A component
+     * can override it to explain what to do instead.
+     *
+     * @returns {string}
+     */
+    getJobNotCancellableMessage() {
+      return this.$t('job.errorJobCannotBeCancelledGenericDescription')
     },
   },
 }

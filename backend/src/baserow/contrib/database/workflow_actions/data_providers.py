@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
@@ -64,7 +64,9 @@ class PreviousActionDataProviderType(DataProviderType):
             workflow_action
         )
 
-    def is_valid(self, path: List[str]) -> bool:
+    def is_valid(
+        self, path: List[str], validation_context: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """
         Refuses a reference that names no action, since there is nothing to
         read. Called while the API validates the formula, so it is rejected

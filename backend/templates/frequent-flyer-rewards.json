@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Frequent Flyer Rewards",
+    "description": "Track flights, airlines, airports and reward points.",
     "icon": "iconoir-airplane",
     "keywords": [
         "travel",

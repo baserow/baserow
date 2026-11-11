@@ -275,3 +275,17 @@ def test_run_scan_no_notification_on_error(enterprise_data_fixture):
     scan.refresh_from_db()
     assert scan.last_error is not None
     assert Notification.objects.filter(type="data_scan_new_results").count() == 0
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(BASEROW_EMBEDDED_SHARE_URL="https://embed.example/baserow/")
+def test_web_frontend_url_keeps_the_embedded_share_url_path():
+    notification = Notification(
+        type="data_scan_new_results", data={"scan_id": 3, "scan_name": "Scan"}
+    )
+
+    assert DataScanNewResultsNotificationType().get_web_frontend_url(notification) == (
+        "https://embed.example/baserow/admin/data-scanner/results"
+        "?scan_id=3&scan_name=Scan"
+    )

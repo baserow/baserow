@@ -1,6 +1,6 @@
 import { Locator, Page, expect } from "@playwright/test";
 import { baserowConfig } from "../playwright.config";
-import { User } from "../fixtures/user";
+import { User, getBrowserRefreshToken } from "../fixtures/user";
 
 import { GotoOptions } from "@nuxt/test-utils/e2e";
 
@@ -20,7 +20,8 @@ export class BaserowPage {
   }
 
   async authenticate(user: User) {
-    await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
+    const refreshToken = await getBrowserRefreshToken(user);
+    await this.page.goto(`${this.baseUrl}?token=${refreshToken}`);
     await this.recoverFromNuxtError();
     // The AI panel would otherwise open over the page header on every visit.
     await this.page.evaluate(() => {

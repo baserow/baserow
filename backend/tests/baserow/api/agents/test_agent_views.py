@@ -69,6 +69,21 @@ def test_agent_pagination_with_duplicate_names(data_fixture, api_client, sorts):
 
 
 @pytest.mark.django_db
+def test_list_agents_page_size_is_limited(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    response = api_client.get(f"{url}?size=201", **headers)
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_PAGE_SIZE_LIMIT"
+
+    response = api_client.get(f"{url}?size=200", **headers)
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
 def test_member_can_list_but_cannot_mutate_agents(data_fixture, api_client):
     admin = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
@@ -189,27 +204,6 @@ def test_agent_openapi_operations_have_stable_ids_and_explicit_path_parameters(
         assert len(path_parameters) == 1
         assert path_parameters[0]["name"] == parameter_name
         assert path_parameters[0]["schema"]["type"] == "integer"
-
-
-@pytest.mark.django_db
-def test_cannot_create_agent_when_feature_flag_is_disabled(
-    data_fixture, api_client, settings
-):
-    user, token = data_fixture.create_user_and_token()
-    workspace = data_fixture.create_workspace(user=user)
-    url = reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id})
-    settings.FEATURE_FLAGS = []
-
-    response = api_client.post(
-        url,
-        {"name": "Writer", "role_uid": "MEMBER"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == 403
-    assert response.json()["error"] == "ERROR_FEATURE_DISABLED"
-    assert not Agent.objects.filter(workspace=workspace).exists()
 
 
 @pytest.mark.django_db

@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Recipe Book",
+    "description": "Collect recipes with ingredients, quantities and cost per serving.",
     "icon": "iconoir-clutery",
     "keywords": [
         "recipe book",

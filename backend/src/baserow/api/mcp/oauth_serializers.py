@@ -32,8 +32,4 @@ class ConsentSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"tools": f"Unknown tools: {', '.join(unknown)}."}
             )
-
-        # Stored in registry order so the grant doesn't depend on the client's.
-        requested = set(tools)
-        data["tools"] = [name for name in enabled if name in requested]
         return data

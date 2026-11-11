@@ -1,6 +1,18 @@
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 from django.db.models import OrderBy, Prefetch, QuerySet
+
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.field_filters import AdvancedFilterBuilder
@@ -53,6 +65,32 @@ if TYPE_CHECKING:
         LocalBaserowTableService,
     )
     from baserow.core.workflow_actions.models import WorkflowAction
+
+
+def import_refinement_field_id(
+    field_id: int, id_mapping: Dict[str, Any], import_export_config=None
+) -> Optional[int]:
+    """
+    The id the field of an imported filter or sort should point at.
+
+    A field outside the imported databases is only kept for a duplicate, an installed
+    template or a snapshot (`is_duplicate`), which keep the ids they always kept.
+    Otherwise the import can land in another workspace, where a kept id would reach a
+    field the importer can't see. Without a config, nothing is kept.
+
+    :param field_id: The field id the filter or sort was exported with.
+    :param id_mapping: The id mapping dict.
+    :param import_export_config: The config of the import.
+    :return: The field id to point at, or None to drop the filter or sort.
+    """
+
+    if "database_fields" not in id_mapping:
+        return field_id
+
+    is_duplicate = getattr(import_export_config, "is_duplicate", False)
+    return id_mapping["database_fields"].get(
+        field_id, field_id if is_duplicate else None
+    )
 
 
 class LocalBaserowTableServiceFilterableMixin:
@@ -159,6 +197,7 @@ class LocalBaserowTableServiceFilterableMixin:
         self,
         service: ServiceSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -178,32 +217,42 @@ class LocalBaserowTableServiceFilterableMixin:
             return self.serialize_filter_groups(service)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
-    def deserialize_filters(self, value, id_mapping):
+    def deserialize_filters(self, value, id_mapping, import_export_config=None):
         """
         Deserializes the filters by mapping the field_id to the new field_id if it
         exists in the id_mapping. If the value is a digit, try and map the value to
-        the new field select option id.
+        the new field select option id. A filter on a field that can't be mapped is
+        dropped, see `import_refinement_field_id`.
 
         :param value: the value of this property.
         :param id_mapping: the id mapping dict.
+        :param import_export_config: The config of the import.
         :return: the deserialized version for the filter.
         """
 
         result = []
 
         for f in value:
+            field_id = import_refinement_field_id(
+                f["field_id"], id_mapping, import_export_config
+            )
+            if field_id is None:
+                continue
+
             formula = BaserowFormulaObject.to_formula(f["value"])
             value_is_formula = f.get(
                 "value_is_formula", formula["mode"] != BASEROW_FORMULA_MODE_RAW
             )
             if not value_is_formula:
                 formula["mode"] = BASEROW_FORMULA_MODE_RAW
-            field_id = id_mapping.get("database_fields", {}).get(
-                f["field_id"], f["field_id"]
-            )
 
             if (
                 value_is_formula
@@ -291,7 +340,9 @@ class LocalBaserowTableServiceFilterableMixin:
                     service=service,
                 )
                 for index, service_filter in enumerate(
-                    self.deserialize_filters(filters, id_mapping)
+                    self.deserialize_filters(
+                        filters, id_mapping, kwargs.get("import_export_config")
+                    )
                 )
             ]
         )
@@ -418,8 +469,10 @@ class LocalBaserowTableServiceFilterableMixin:
             deserialized_filters = AdHocFilters.deserialize_dispatch_filters(
                 dispatch_filters
             )
-            # Next we pluck out the field IDs which the filters point to.
-            field_ids = list(set([f["field"] for f in deserialized_filters["filters"]]))
+            adhoc_filters = AdHocFilters.from_dict(deserialized_filters)
+            # Next we pluck out the field IDs which the filters point to,
+            # including the filters nested in groups.
+            field_ids = adhoc_filters.get_api_filters_field_ids()
             # In bulk fetch the field records.
             fields = Field.objects.filter(pk__in=field_ids).only("id")
             # Extract the field db columns names.
@@ -428,7 +481,8 @@ class LocalBaserowTableServiceFilterableMixin:
             dispatch_context.validate_filter_search_sort_fields(
                 field_names, ServiceAdhocRefinements.FILTER
             )
-            adhoc_filters = AdHocFilters.from_dict(deserialized_filters)
+            # Only the validated fields can be filtered on.
+            adhoc_filters.only_filter_by_field_ids = [field.id for field in fields]
             queryset = adhoc_filters.apply_to_queryset(model, queryset)
         return queryset
 
@@ -692,6 +746,7 @@ class LocalBaserowTableServiceSortableMixin:
         self,
         service: ServiceSubClass,
         prop_name: str,
+        import_export_config=None,
         files_zip=None,
         storage=None,
         cache=None,
@@ -708,30 +763,34 @@ class LocalBaserowTableServiceSortableMixin:
             return self.serialize_sortings(service)
 
         return super().serialize_property(
-            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+            service,
+            prop_name,
+            import_export_config=import_export_config,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
         )
 
-    def deserialize_sorts(self, value, id_mapping):
+    def deserialize_sorts(self, value, id_mapping, import_export_config=None):
         """
         Deserializes the sorts by mapping the field_id to the new field_id if it
-        exists in the id_mapping.
+        exists in the id_mapping. A sort on a field that can't be mapped is dropped,
+        see `import_refinement_field_id`.
 
         :param value: the value of this property.
         :param id_mapping: the id mapping dict.
+        :param import_export_config: The config of the import.
         :return: the deserialized version for the sort.
         """
 
-        return [
-            {
-                **f,
-                "field_id": (
-                    id_mapping["database_fields"][f["field_id"]]
-                    if "database_fields" in id_mapping
-                    else f["field_id"]
-                ),
-            }
-            for f in value
-        ]
+        result = []
+        for f in value:
+            field_id = import_refinement_field_id(
+                f["field_id"], id_mapping, import_export_config
+            )
+            if field_id is not None:
+                result.append({**f, "field_id": field_id})
+        return result
 
     def create_instance_from_serialized(
         self,
@@ -770,7 +829,9 @@ class LocalBaserowTableServiceSortableMixin:
                     service=service,
                 )
                 for index, service_sorting in enumerate(
-                    self.deserialize_sorts(sortings, id_mapping)
+                    self.deserialize_sorts(
+                        sortings, id_mapping, kwargs.get("import_export_config")
+                    )
                 )
             ]
         )
@@ -882,6 +943,24 @@ class LocalBaserowTableServiceSortableMixin:
         service: Union[LocalBaserowGetRow, LocalBaserowListRows],
         service_sorts: Optional[List[ServiceSortDictSubClass]] = None,
     ):
+        # A sort orders by a field of the service's table. The editor sends sorts on
+        # trashed fields back, so those are accepted.
+        field_ids = {
+            sort["field"].id if "field" in sort else sort["field_id"]
+            for sort in service_sorts
+        }
+        table_field_ids = set(
+            Field.objects_and_trash.filter(
+                table_id=service.table_id, id__in=field_ids
+            ).values_list("id", flat=True)
+        )
+        if field_ids - table_field_ids:
+            raise DRFValidationError(
+                f"The field with id {min(field_ids - table_field_ids)} is not a field "
+                "of the service's table.",
+                code="invalid_sort_field",
+            )
+
         with atomic_if_not_already():
             service.service_sorts.all().delete()
             LocalBaserowTableServiceSort.objects.bulk_create(

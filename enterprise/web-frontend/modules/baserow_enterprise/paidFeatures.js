@@ -62,7 +62,7 @@ export class RBACPaidFeature extends PaidFeature {
   }
 
   getIconClass() {
-    return 'iconoir-community'
+    return 'baserow-icon-team'
   }
 
   getName() {
@@ -361,6 +361,32 @@ export class XLSFileReaderPaidFeature extends PaidFeature {
 
   getContent() {
     return this.app.$i18n.t('enterpriseFeatures.xlsFileReaderContent')
+  }
+}
+
+export class SemanticSearchPaidFeature extends PaidFeature {
+  static getType() {
+    return 'semantic_search'
+  }
+
+  getPlan() {
+    return 'Advanced'
+  }
+
+  getIconClass() {
+    return 'iconoir-search'
+  }
+
+  getName() {
+    return this.app.$i18n.t('enterpriseFeatures.semanticSearch')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('enterpriseFeatures.semanticSearchContent')
   }
 }
 

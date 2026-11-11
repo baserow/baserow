@@ -27,7 +27,10 @@
     transition: left 0.1s ease-in;
 
     @include elevation($elevation-medium);
-    @include absolute(2px, auto, auto, 2px);
+
+    // Centered on the track, which `align-items: center` keeps in the middle
+    // even when the label is taller than the track (e.g. a deactivated badge).
+    @include absolute(calc(50% - 10px), auto, auto, 2px);
   }
 
   &.switch--active {
@@ -38,7 +41,13 @@
 
   &.switch--indeterminate {
     &::after {
-      left: 10px;
+      top: calc(50% - 1px);
+      left: 14px;
+      width: 12px;
+      height: 2px;
+      box-shadow: none;
+
+      @include rounded(1px);
     }
   }
 
@@ -59,7 +68,7 @@
     }
 
     &::after {
-      top: 2px;
+      top: calc(50% - 6px);
       width: 12px;
       height: 12px;
     }
@@ -69,7 +78,10 @@
     }
 
     &.switch--indeterminate::after {
-      left: 6px;
+      top: calc(50% - 1px);
+      left: 8px;
+      width: 8px;
+      height: 2px;
     }
   }
 
@@ -82,8 +94,8 @@
   @include switch-color(
     $palette-green-500,
     $palette-green-800,
-    $palette-yellow-500,
-    $palette-yellow-800,
+    $palette-green-500,
+    $palette-green-800,
     $palette-neutral-400,
     $palette-neutral-500
   );
@@ -112,6 +124,13 @@
 
   i {
     font-size: 16px;
+  }
+
+  // A deactivated (paid feature) badge after the text keeps its own icon size
+  // and gets some air from the text.
+  .deactivated-label {
+    margin-left: 4px;
+    font-size: 14px;
   }
 
   .switch--active & {

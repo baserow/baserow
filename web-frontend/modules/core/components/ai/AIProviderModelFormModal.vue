@@ -64,7 +64,7 @@
       </Button>
     </div>
   </Modal>
-  <AIProviderConfirmModal
+  <ConfirmModal
     v-if="saveConfirmation"
     ref="confirmModal"
     :title="saveConfirmation.title"
@@ -79,7 +79,7 @@
 </template>
 
 <script>
-import AIProviderConfirmModal from '@baserow/modules/core/components/ai/AIProviderConfirmModal'
+import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
 import aiProviderModelUsage from '@baserow/modules/core/mixins/aiProviderModelUsage'
@@ -89,7 +89,7 @@ import { aiProviderErrorMessage } from '@baserow/modules/core/utils/aiProvider'
 export default {
   name: 'AIProviderModelFormModal',
   components: {
-    AIProviderConfirmModal,
+    ConfirmModal,
     AIProviderModelCombobox,
     AIProviderModelFeatureSelector,
   },
@@ -212,12 +212,17 @@ export default {
       if (!this.modelHasDependents(atRisk)) {
         return null
       }
-      const prefix = renamed
-        ? 'aiProviderAdmin.modelIdentifierRenamed'
-        : 'aiProviderAdmin.modelFeaturesRemoved'
       return {
-        title: this.$t(`${prefix}Title`, { name: this.model.model_identifier }),
-        description: this.$t(`${prefix}Description`),
+        title: renamed
+          ? this.$t('aiProviderAdmin.modelIdentifierRenamedTitle', {
+              name: this.model.model_identifier,
+            })
+          : this.$t('aiProviderAdmin.modelFeaturesRemovedTitle', {
+              name: this.model.model_identifier,
+            }),
+        description: renamed
+          ? this.$t('aiProviderAdmin.modelIdentifierRenamedDescription')
+          : this.$t('aiProviderAdmin.modelFeaturesRemovedDescription'),
         usage: atRisk,
       }
     },

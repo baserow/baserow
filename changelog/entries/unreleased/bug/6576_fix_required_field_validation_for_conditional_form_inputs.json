@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix required field validation for conditional form inputs",
+    "issue_origin": "github",
+    "issue_number": 6576,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-06"
+}

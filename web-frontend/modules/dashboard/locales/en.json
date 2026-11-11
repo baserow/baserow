@@ -15,6 +15,53 @@
   "dashboardHeaderMenuItems": {
     "editMode": "Edit mode"
   },
+  "shareDashboardLink": {
+    "shareDashboard": "Share dashboard",
+    "notSharedTitle": "You have not yet shared this dashboard",
+    "notSharedText": "Private shareable link allows anyone to see the data in this dashboard.",
+    "createPrivateLink": "Create a private link",
+    "sharedTitle": "This dashboard is currently shared via a private link",
+    "sharedDescription": "People who have the link can see the dashboard.",
+    "copyURL": "Copy URL",
+    "generateNewUrl": "Generate new URL",
+    "disableLink": "Disable shared link",
+    "restrictWithPassword": "Restrict access with a password",
+    "passwordProtected": "Access is password-protected",
+    "changePassword": "Change password"
+  },
+  "dashboardRotateSlugModal": {
+    "title": "Refresh the URL of {dashboardName}?",
+    "refreshWarning": "After refreshing, a new URL will be generated and it will not be possible to access the dashboard via the old URL. Everyone that you have shared the URL with, won't be able to access the dashboard.",
+    "generateNewUrl": "Generate new URL",
+    "success": "Successfully generated new URL"
+  },
+  "dashboardEnablePasswordModal": {
+    "title": "Enter a password",
+    "description": "The public link will only be accessible after entering the password. This password must be 8 or more characters and will be saved encrypted.",
+    "setPassword": "Set password",
+    "changeTitle": "Change password",
+    "changeDescription": "By changing the password, the previous one will no longer work. This password must be 8 or more characters and will be saved encrypted.",
+    "changePassword": "Change password",
+    "placeholder": "Password"
+  },
+  "dashboardDisablePasswordModal": {
+    "title": "Disable password protection for this public link?",
+    "description": "By disabling, the password will be deleted and it will not be possible to recover it.",
+    "disable": "Disable"
+  },
+  "publicDashboard": {
+    "noWidgets": "This dashboard doesn't have any widgets yet.",
+    "reportAbuse": "Report abuse"
+  },
+  "publicDashboardAuth": {
+    "title": "Password required",
+    "description": "You need a password to access this site.",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Password...",
+    "continue": "Continue",
+    "incorrectPasswordTitle": "Incorrect password",
+    "incorrectPasswordText": "The provided password is incorrect."
+  },
   "createWidgetModal": {
     "title": "Add new widget"
   },

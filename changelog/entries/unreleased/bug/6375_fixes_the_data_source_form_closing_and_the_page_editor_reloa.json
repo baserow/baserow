@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes the data source form closing and the page editor reloading when a data source is created",
+    "issue_origin": "github",
+    "issue_number": 6375,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-14"
+}

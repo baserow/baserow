@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 2,
     "name": "Inspections & Compliance",
+    "description": "Log equipment inspections and escalate failures automatically.",
     "icon": "iconoir-shield-eye",
     "keywords": [
         "inspection",

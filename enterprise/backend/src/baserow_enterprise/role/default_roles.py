@@ -1,6 +1,15 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
+from baserow.contrib.agent.operations import (
+    CreateAgentConversationOperationType,
+    CreateAgentMessageOperationType,
+    DeleteAgentConversationOperationType,
+    ReadAgentConfigurationOperationType,
+    ReadAgentConversationsOperationType,
+    RestoreAgentConversationOperationType,
+    UpdateAgentConversationOperationType,
+)
 from baserow.contrib.automation.nodes.operations import (
     CreateAutomationNodeOperationType,
     DeleteAutomationNodeOperationType,
@@ -84,6 +93,7 @@ from baserow.contrib.dashboard.data_sources.operations import (
     ReadDashboardDataSourceOperationType,
     UpdateDashboardDataSourceOperationType,
 )
+from baserow.contrib.dashboard.operations import UpdateDashboardSlugOperationType
 from baserow.contrib.dashboard.widgets.operations import (
     CreateWidgetOperationType,
     DeleteWidgetOperationType,
@@ -246,14 +256,17 @@ from baserow.core.mcp.operations import (
 )
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
+    CreateInvitationLinkWorkspaceOperationType,
     CreateInvitationsWorkspaceOperationType,
     DeleteApplicationOperationType,
+    DeleteWorkspaceInvitationLinkOperationType,
     DeleteWorkspaceInvitationOperationType,
     DeleteWorkspaceOperationType,
     DeleteWorkspaceUserOperationType,
     DuplicateApplicationOperationType,
     ExportWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
+    ListInvitationLinksWorkspaceOperationType,
     ListInvitationsWorkspaceOperationType,
     ListWorkspaceUsersWorkspaceOperationType,
     OrderApplicationsOperationType,
@@ -263,6 +276,7 @@ from baserow.core.operations import (
     RestoreApplicationOperationType,
     RestoreWorkspaceOperationType,
     UpdateApplicationOperationType,
+    UpdateWorkspaceInvitationLinkOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
@@ -404,6 +418,10 @@ default_roles[VIEWER_ROLE_UID].extend(
         UpdateMCPEndpointOperationType,
         DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
+        ReadAgentConversationsOperationType,
+        UpdateAgentConversationOperationType,
+        DeleteAgentConversationOperationType,
+        RestoreAgentConversationOperationType,
         ReadFieldRuleOperationType,
         ExportTableOperationType,
         DispatchDashboardDataSourceOperationType,
@@ -457,6 +475,8 @@ default_roles[COMMENTER_ROLE_UID].extend(
 default_roles[EDITOR_ROLE_UID].extend(
     default_roles[COMMENTER_ROLE_UID]
     + [
+        CreateAgentConversationOperationType,
+        CreateAgentMessageOperationType,
         CreateRowDatabaseTableOperationType,
         UpdateDatabaseRowOperationType,
         DeleteDatabaseRowOperationType,
@@ -479,6 +499,7 @@ default_roles[EDITOR_ROLE_UID].extend(
 default_roles[BUILDER_ROLE_UID].extend(
     default_roles[EDITOR_ROLE_UID]
     + [
+        ReadAgentConfigurationOperationType,
         ListAgentsWorkspaceOperationType,
         CreatePageOperationType,
         DeletePageOperationType,
@@ -607,6 +628,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,
+        UpdateDashboardSlugOperationType,
         ListAutomationWorkflowsOperationType,
         OrderAutomationWorkflowsOperationType,
         CreateAutomationWorkflowOperationType,
@@ -647,6 +669,10 @@ default_roles[ADMIN_ROLE_UID].extend(
         CreateInvitationsWorkspaceOperationType,
         ListInvitationsWorkspaceOperationType,
         UpdateWorkspaceInvitationType,
+        ListInvitationLinksWorkspaceOperationType,
+        CreateInvitationLinkWorkspaceOperationType,
+        UpdateWorkspaceInvitationLinkOperationType,
+        DeleteWorkspaceInvitationLinkOperationType,
         CreateTeamOperationType,
         UpdateTeamOperationType,
         DeleteTeamOperationType,

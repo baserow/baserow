@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "EU Packaging and Packaging Waste Regulation (PPWR)",
+  "description": "Assess packaging against EU PPWR rules and track corrective actions.",
   "icon": "iconoir-box-iso",
   "keywords": [
     "governance",

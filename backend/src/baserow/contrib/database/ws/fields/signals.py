@@ -11,7 +11,10 @@ from baserow.contrib.database.api.views.serializers import (
 )
 from baserow.contrib.database.fields import signals as field_signals
 from baserow.contrib.database.fields.models import Field
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.registries import (
+    field_extension_registry,
+    field_type_registry,
+)
 from baserow.ws.registries import page_registry
 
 
@@ -99,6 +102,8 @@ class RealtimeFieldMessages:
     ):
         if field_serializer_class is None:
             field_serializer_class = FieldSerializer
+        fields = list(fields)
+        field_extension_registry.prefetch_fields(fields)
         return [
             field_type_registry.get_serializer(f, field_serializer_class).data
             for f in fields

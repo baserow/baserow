@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Copy Management",
+    "description": "Manage marketing copy by platform, with writers and ratings.",
     "icon": "iconoir-pen-tablet",
     "keywords": [
         "company copy management",

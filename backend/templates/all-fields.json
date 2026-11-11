@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "All fields",
+  "description": "Reference database with an example of every field type.",
   "icon": "iconoir-input-field",
   "keywords": [
     "All",

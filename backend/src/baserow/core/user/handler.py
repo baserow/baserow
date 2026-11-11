@@ -2,7 +2,6 @@ import hashlib
 import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
-from urllib.parse import urljoin, urlparse
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -20,13 +19,15 @@ from itsdangerous import BadSignature, URLSafeSerializer, URLSafeTimedSerializer
 from loguru import logger
 from opentelemetry import trace
 from requests.exceptions import RequestException
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.utils import datetime_from_epoch
 
 from baserow.core.auth_provider.exceptions import AuthProviderDisabled
 from baserow.core.auth_provider.handler import PasswordProviderHandler
 from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.emails import EmailPendingVerificationEmail
 from baserow.core.exceptions import (
-    BaseURLHostnameNotAllowed,
     WorkspaceInvitationEmailMismatch,
 )
 from baserow.core.handler import CoreHandler
@@ -48,8 +49,13 @@ from baserow.core.signals import (
     user_updated,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.utils import generate_hash, get_baserow_saas_base_url
-from baserow.throttling.handler import rate_limit
+from baserow.core.utils import (
+    generate_hash,
+    get_baserow_saas_base_url,
+    get_embedded_share_url,
+)
+from baserow.throttling.handler import consume_rate_limit
+from baserow.ws.tasks import broadcast_to_users
 
 from ..telemetry.utils import baserow_trace, baserow_trace_handler
 from .emails import (
@@ -79,7 +85,11 @@ from .exceptions import (
 from .registries import user_preference_type_registry
 from .signals import user_password_changed
 from .tasks import share_onboarding_details_with_baserow
-from .utils import normalize_email_address
+from .utils import (
+    SESSION_ID_CLAIM,
+    get_refresh_token_session_hash,
+    normalize_email_address,
+)
 
 User = get_user_model()
 
@@ -189,6 +199,8 @@ class UserHandler:
         template: Template = None,
         auth_provider: Optional[AuthProviderModel] = None,
         email_verified: bool = False,
+        workspace_invitation_link_slug: Optional[str] = None,
+        join_invitation_link_workspace: bool = True,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -208,17 +220,26 @@ class UserHandler:
             for the user to login.
         :param email_verified: Whether the auth provider confirmed the email as
             verified. When True, the profile is marked verified at creation time.
+        :param workspace_invitation_link_slug: If provided and valid, the user joins
+            the workspace of the invitation link and initial workspace will not be
+            created. Unlike an email invitation, the link doesn't verify the email.
+        :param join_invitation_link_workspace: Whether the user joins the workspace
+            of the invitation link right away. When False, the link only allows the
+            signup, and the user confirms joining on the page of the link.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
             does not match the one of the user.
         :raises SignupDisabledError: If signing up is disabled.
+        :raises WorkspaceInvitationLinkDoesNotExist: If the invitation link does not
+            exist.
         :return: The user object.
         """
 
         core_handler = CoreHandler()
 
         workspace_invitation = None
+        workspace_invitation_link = None
         workspace_user = None
 
         if workspace_invitation_token:
@@ -232,11 +253,22 @@ class UserHandler:
                     "user."
                 )
 
+        if workspace_invitation_link_slug:
+            workspace_invitation_link = (
+                core_handler.get_workspace_invitation_link_by_slug(
+                    workspace_invitation_link_slug
+                )
+            )
+
+        invited_to_workspace = (
+            workspace_invitation is not None or workspace_invitation_link is not None
+        )
+
         instance_settings = core_handler.get_settings()
         allow_new_signups = instance_settings.allow_new_signups
         allow_signup_for_invited_user = (
             instance_settings.allow_signups_via_workspace_invitations
-            and workspace_invitation is not None
+            and invited_to_workspace
         )
         if not (allow_new_signups or allow_signup_for_invited_user):
             raise DisabledSignupError("Sign up is disabled.")
@@ -264,11 +296,12 @@ class UserHandler:
         # If we have an invitation to a workspace, then accept it.
         if workspace_invitation_token:
             workspace_user = core_handler.accept_workspace_invitation(
-                user, workspace_invitation
+                user, workspace_invitation, token=workspace_invitation_token
             )
-            profile = user.profile
-            profile.email_verified = True
-            profile.save()
+        elif workspace_invitation_link is not None and join_invitation_link_workspace:
+            workspace_user = core_handler.join_workspace_via_invitation_link(
+                user, workspace_invitation_link
+            )
 
         if (
             # If the user signs up and installs a template, then we must create a
@@ -289,13 +322,13 @@ class UserHandler:
         workspace = getattr(workspace_user, "workspace", None)
         user.default_workspace = workspace
 
-        if not workspace_invitation_token and template and workspace:
+        if not invited_to_workspace and template and workspace:
             core_handler.install_template(user, workspace, template)
 
         if (
             # If the user accepted an invitation, then a workspace already exists
             # making the onboarding redundant.
-            workspace_invitation
+            invited_to_workspace
             # If the user signups up with a template, then we must create a workspace
             # because making the onboarding redundant.
             or template
@@ -468,40 +501,40 @@ class UserHandler:
 
         return URLSafeTimedSerializer(settings.SECRET_KEY, "user-change-email")
 
-    def send_reset_password_email(self, user: AbstractUser, base_url: str):
+    def send_reset_password_email(self, user: AbstractUser) -> bool:
         """
-        Sends an email containing a password reset url to the user.
+        Sends an email containing a password reset url to the user, unless too many
+        were sent to the user recently.
 
         :param user: The user instance.
-        :param base_url: The base url of the frontend, where the user can reset his
-            password. The reset token is appended to the URL (base_url + '/TOKEN').
-            Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
         :raises: ResetPasswordDisabledError: If the reset password is disabled.
+        :return: Whether the email was sent.
         """
 
         if not CoreHandler().get_settings().allow_reset_password:
             raise ResetPasswordDisabledError("Reset password is disabled")
 
-        parsed_base_url = urlparse(base_url)
-        if parsed_base_url.hostname not in (
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
+        if not consume_rate_limit(
+            settings.BASEROW_SEND_RESET_PASSWORD_EMAIL_RATE_LIMIT,
+            "send_reset_password_email",
+            user.username,
         ):
-            raise BaseURLHostnameNotAllowed(
-                f"The hostname {parsed_base_url.netloc} is not allowed."
+            logger.warning(
+                "Not sending a password reset email to user {user_id}, too many "
+                "were requested recently.",
+                user_id=user.id,
             )
+            return False
 
         signer = self.get_reset_password_signer()
         signed_token = signer.dumps([user.id, self._get_password_state_hash(user)])
-
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        reset_url = urljoin(base_url, signed_token)
+        reset_url = get_embedded_share_url(f"reset-password/{signed_token}")
 
         with translation.override(user.profile.language):
             email = ResetPasswordEmail(user, reset_url, to=[user.email])
             email.send()
+
+        return True
 
     def reset_password(self, token: str, password: str) -> AbstractUser:
         """
@@ -555,17 +588,10 @@ class UserHandler:
             user.set_password(password)
             user.save()
 
-            # last_password_change is used to invalidate old JWT tokens.
-            user.profile.last_password_change = datetime.now(tz=timezone.utc)
             user.profile.email_verified = True
-            user.profile.save()
-
-        user_password_changed.send(
-            self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
-        )
-
-        with translation.override(user.profile.language):
-            PasswordChangedEmail(user, to=[user.email]).send()
+            self.password_changed(
+                user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            )
 
         return user
 
@@ -598,21 +624,41 @@ class UserHandler:
         user.set_password(new_password)
         user.save()
 
+        self.password_changed(
+            user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+        )
+
+        return user
+
+    def password_changed(
+        self, user: AbstractUser, ignore_web_socket_id: Optional[str] = None
+    ) -> None:
+        """
+        Ends the existing sessions of a user whose new password has just been set
+        and saved, and tells them by email. Every path that changes a password must
+        call this, otherwise someone holding an old token keeps access.
+
+        JWT access and refresh tokens issued before now stop working, open
+        real-time connections are closed and OAuth apps are signed out.
+
+        :param user: The user whose password was changed.
+        :param ignore_web_socket_id: The real-time connection to keep open, if the
+            user changed their own password from that browser tab.
+        """
+
         # last_password_change is used to invalidate old JWT tokens.
         user.profile.last_password_change = datetime.now(tz=timezone.utc)
         user.profile.save()
 
         user_password_changed.send(
-            self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
+            self, user=user, ignore_web_socket_id=ignore_web_socket_id
         )
 
         with translation.override(user.profile.language):
             PasswordChangedEmail(user, to=[user.email]).send()
 
-        return user
-
     def send_change_email_confirmation(
-        self, user: AbstractUser, new_email: str, password: str, base_url: str
+        self, user: AbstractUser, new_email: str, password: str
     ):
         """
         Sends an email containing an email change confirmation url to the new email
@@ -621,14 +667,8 @@ class UserHandler:
         :param user: The user where to change the email for.
         :param new_email: The new email address to change to.
         :param password: The current password of the user for verification.
-        :param base_url: The base url of the frontend, where the user can confirm the
-            email change. The confirmation token is appended to the URL
-            (base_url + '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed
-            as domain name.
         :raises InvalidPassword: When the provided password is incorrect.
         :raises UserAlreadyExist: When a user with the new email already exists.
-        :raises BaseURLHostnameNotAllowed: When the provided base_url hostname is not
-            allowed.
         :raises AuthProviderDisabled: When the password provider is disabled and the
             user is not staff.
         :raises ChangeEmailNotAllowed: When the user does not have a password set.
@@ -651,22 +691,9 @@ class UserHandler:
         if User.objects.filter(Q(email=new_email) | Q(username=new_email)).exists():
             raise UserAlreadyExist(f"A user with email {new_email} already exists.")
 
-        parsed_base_url = urlparse(base_url)
-        if parsed_base_url.hostname not in (
-            settings.PUBLIC_WEB_FRONTEND_HOSTNAME,
-            settings.BASEROW_EMBEDDED_SHARE_HOSTNAME,
-        ):
-            raise BaseURLHostnameNotAllowed(
-                f"The hostname {parsed_base_url.netloc} is not allowed."
-            )
-
         signer = self.get_change_email_signer()
         signed_payload = signer.dumps({"user_id": user.id, "new_email": new_email})
-
-        if not base_url.endswith("/"):
-            base_url += "/"
-
-        confirmation_url = urljoin(base_url, signed_payload)
+        confirmation_url = get_embedded_share_url(f"change-email/{signed_payload}")
 
         with translation.override(user.profile.language):
             email = ChangeEmailConfirmationEmail(
@@ -936,10 +963,11 @@ class UserHandler:
         hashed_token = generate_hash(refresh_token)
 
         try:
-            BlacklistedToken.objects.create(
-                hashed_token=hashed_token,
-                expires_at=expires_at,
-            )
+            with transaction.atomic():
+                BlacklistedToken.objects.create(
+                    hashed_token=hashed_token,
+                    expires_at=expires_at,
+                )
         except IntegrityError:
             raise RefreshTokenAlreadyBlacklisted
 
@@ -963,6 +991,65 @@ class UserHandler:
 
         hashed_token = generate_hash(refresh_token)
         return self.refresh_token_hash_is_blacklisted(hashed_token)
+
+    def revoke_refresh_token_session(self, refresh_token: RefreshToken):
+        """
+        Revokes every refresh token rotated from the same login as the provided
+        refresh token.
+
+        :param refresh_token: A refresh token of the session that must be revoked.
+        """
+
+        BlacklistedToken.objects.get_or_create(
+            hashed_token=get_refresh_token_session_hash(refresh_token),
+            defaults={"expires_at": datetime_from_epoch(refresh_token["exp"])},
+        )
+
+    def refresh_token_session_is_revoked(self, refresh_token: RefreshToken) -> bool:
+        """
+        :param refresh_token: The refresh token that must be checked.
+        :return: Whether the session of the refresh token has been revoked.
+        """
+
+        return self.refresh_token_hash_is_blacklisted(
+            get_refresh_token_session_hash(refresh_token)
+        )
+
+    def rotate_refresh_token(self, refresh_token: str) -> RefreshToken:
+        """
+        Blacklists the provided refresh token and returns a new one with the same
+        claims and expiry. A token that was blacklisted less than
+        `REFRESH_TOKEN_REUSE_GRACE_PERIOD` ago can be rotated again, so that
+        clients refreshing at the same time don't log each other out. Reusing it
+        after that revokes the whole session, because the token was likely stolen.
+
+        :param refresh_token: The raw refresh token that must be rotated.
+        :raises RefreshTokenAlreadyBlacklisted: When the token or its session has
+            been revoked.
+        :return: The new refresh token.
+        """
+
+        token = RefreshToken(refresh_token)
+        if self.refresh_token_session_is_revoked(token):
+            raise RefreshTokenAlreadyBlacklisted
+
+        blacklisted, created = BlacklistedToken.objects.get_or_create(
+            hashed_token=generate_hash(refresh_token),
+            defaults={"expires_at": datetime_from_epoch(token["exp"])},
+        )
+        if (
+            not created
+            and blacklisted.created_on
+            < datetime.now(tz=timezone.utc) - settings.REFRESH_TOKEN_REUSE_GRACE_PERIOD
+        ):
+            self.revoke_refresh_token_session(token)
+            raise RefreshTokenAlreadyBlacklisted
+
+        token[SESSION_ID_CLAIM] = token.get(SESSION_ID_CLAIM) or token.get(
+            jwt_settings.JTI_CLAIM
+        )
+        token.set_jti()
+        return token
 
     def _get_email_verification_signer(self) -> URLSafeSerializer:
         return URLSafeSerializer(settings.SECRET_KEY, "verify-email")
@@ -1024,43 +1111,57 @@ class UserHandler:
         user_profile = user.profile
         user_profile.email_verified = True
         user_profile.save()
+
+        # The link is often opened in another tab, so the tabs that are already open
+        # are told as well, to offer what requires a verified email address.
+        transaction.on_commit(
+            lambda: broadcast_to_users.delay(
+                [user.id],
+                {
+                    "type": "user_data_updated",
+                    "user_data": {"user": {"email_verified": True}},
+                },
+            )
+        )
         return user
 
-    def send_email_pending_verification(self, user: User):
+    def send_email_pending_verification(self, user: User) -> bool:
         """
         Sends out a pending verification email to the user.
 
         :user: User that should receive the verification email.
         :raises EmailAlreadyVerified: Raised when the user's
             email is verified already.
+        :return: Whether the email was sent, which isn't the case when too many
+            were sent to the user recently.
         """
 
         if user.profile.email_verified:
             raise EmailAlreadyVerified()
 
+        if not consume_rate_limit(
+            settings.BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT,
+            "send_verify_email",
+            user.username,
+        ):
+            logger.warning(
+                "Not sending a verification email to user {user_id}, too many were "
+                "requested recently.",
+                user_id=user.id,
+            )
+            return False
+
         token = self.create_email_verification_token(user)
+        confirm_url = get_embedded_share_url(f"verify-email-address/{token}")
 
-        base_url = (
-            settings.BASEROW_EMBEDDED_SHARE_URL or settings.PUBLIC_WEB_FRONTEND_URL
-        )
-        if not base_url.endswith("/"):
-            base_url += "/"
+        with translation.override(user.profile.language):
+            email = EmailPendingVerificationEmail(
+                to=[user.email],
+                confirm_url=confirm_url,
+            )
+            email.send(fail_silently=False)
 
-        confirm_url = urljoin(base_url, f"verify-email-address/{token}")
-
-        def send_email():
-            with translation.override(user.profile.language):
-                email = EmailPendingVerificationEmail(
-                    to=[user.email],
-                    confirm_url=confirm_url,
-                )
-                email.send(fail_silently=False)
-
-        rate_limit(
-            rate=settings.BASEROW_SEND_VERIFY_EMAIL_RATE_LIMIT,
-            key=user.username,
-            raise_exception=False,
-        )(send_email)()
+        return True
 
     def start_share_onboarding_details_with_baserow(
         self,

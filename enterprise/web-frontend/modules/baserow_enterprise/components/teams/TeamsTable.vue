@@ -2,22 +2,49 @@
   <div>
     <CrudTable
       ref="crudTable"
+      class="management-table"
+      v-bind="tableLayout"
       :service="service"
       :columns="columns"
       row-id-key="id"
+      :search-placeholder="$t('teamsTable.search')"
+      :row-expandable="rowExpansion.isExpandable"
+      :expand-column-key="rowExpansion.columnKey"
       @row-context="onRowContext"
-      @rows-update="teamCount = $event.length"
       @edit-role-context="onEditRoleContext"
     >
-      <template #title>
+      <template #row-expansion-toggle="{ row }">
+        {{ rowExpansion.getToggleLabel(row) }}
+      </template>
+      <template #expanded-row="slotProps">
+        <component
+          :is="rowExpansion.component"
+          v-bind="{ ...slotProps, ...rowExpansion.getProps(slotProps.row) }"
+          :workspace="workspace"
+        />
+      </template>
+      <template #title="{ count }">
         {{
           $t('teamsTable.title', {
-            teamCount: teamCount,
+            teamCount: count,
             workspaceName: workspace.name,
           })
         }}
       </template>
-      <template #header-right-side>
+      <template #empty>
+        <div class="placeholder">
+          <div class="placeholder__icon">
+            <i class="baserow-icon-team" aria-hidden="true"></i>
+          </div>
+          <h2 class="placeholder__header">
+            {{ $t('teamsTable.emptyTitle') }}
+          </h2>
+          <p class="placeholder__content">
+            {{ $t('teamsTable.emptyDescription') }}
+          </p>
+        </div>
+      </template>
+      <template #primary-action>
         <Button
           v-if="
             $hasPermission(
@@ -28,7 +55,7 @@
           "
           type="primary"
           size="large"
-          class="margin-left-2"
+          icon="iconoir-plus"
           @click="$refs.createModal.show()"
         >
           {{ $t('teamsTable.createNew') }}
@@ -60,6 +87,7 @@
 </template>
 
 <script>
+import { getManagementTableLayout } from '@baserow/modules/core/utils/managementTable'
 import CreateTeamModal from '@baserow_enterprise/components/teams/CreateTeamModal'
 import UpdateTeamModal from '@baserow_enterprise/components/teams/UpdateTeamModal'
 import TeamRoleField from '@baserow_enterprise/components/crudTable/fields/TeamRoleField'
@@ -67,10 +95,11 @@ import SubjectSampleField from '@baserow_enterprise/components/crudTable/fields/
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import TeamService from '@baserow_enterprise/services/team'
 import { mapGetters } from 'vuex'
+import ManagementNameField from '@baserow/modules/core/components/settings/ManagementNameField'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
-import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import EditTeamContext from '@baserow_enterprise/components/teams/EditTeamContext'
+import { getSubjectRoleAssignmentsRowExpansion } from '@baserow_enterprise/utils/subjectRoleAssignments'
 
 export default {
   name: 'TeamsTable',
@@ -89,11 +118,23 @@ export default {
   data() {
     return {
       focusedTeam: {},
-      teamCount: 0,
       editRoleTeam: {},
     }
   },
   computed: {
+    tableLayout() {
+      const layout = getManagementTableLayout(this.columns, 'default_role')
+      layout.columnWidths.name = '40%'
+      layout.columnWidths.default_role = 'auto'
+      layout.columnWidths.subject_sample = '120px'
+      return layout
+    },
+    rowExpansion() {
+      return getSubjectRoleAssignmentsRowExpansion({
+        subjectType: 'baserow_enterprise.Team',
+        columnKey: 'default_role',
+      })
+    },
     ...mapGetters({ userId: 'auth/getUserId' }),
     service() {
       const service = TeamService(this.$client)
@@ -124,13 +165,21 @@ export default {
       )
     },
     columns() {
+      const teamSubjectType = this.$registry.get(
+        'subject',
+        'baserow_enterprise.Team'
+      )
       const columns = [
         new CrudTableColumn(
           'name',
           this.$t('teamsTable.nameColumn'),
-          SimpleField,
+          ManagementNameField,
           true,
-          true
+          true,
+          false,
+          {
+            avatarComponent: teamSubjectType.avatarComponent,
+          }
         ),
         new CrudTableColumn(
           'default_role',
@@ -144,6 +193,7 @@ export default {
             workspaceId: this.workspace.id,
             scopeType: 'workspace',
           },
+          '',
           this.$t('teamsTable.roleHelpText')
         ),
         new CrudTableColumn(

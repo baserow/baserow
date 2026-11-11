@@ -3899,6 +3899,11 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1",
@@ -3919,6 +3924,11 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -3969,6 +3979,11 @@ def test_list_row_history_for_different_rows(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4138,6 +4153,11 @@ def test_list_row_history_for_different_fields(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4381,6 +4401,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1",
@@ -4401,6 +4426,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4449,6 +4479,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:02:00Z",
                 "before": {
                     f"field_{name_field.id}": "Original 1",
@@ -4471,6 +4506,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2021-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1",
@@ -4491,6 +4531,11 @@ def test_undo_redo_create_new_entries_in_row_history(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2021-01-01T12:00:00Z",
@@ -4614,6 +4659,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2023-01-01T12:04:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1.3",
@@ -4634,6 +4684,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2023-01-01T12:03:00Z",
@@ -4677,6 +4732,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                     "id": user.id,
                     "name": user.first_name,
                 },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
+                    "name": user.first_name,
+                },
                 "timestamp": "2023-01-01T12:01:00Z",
                 "before": {
                     f"field_{name_field.id}": "New 1.0",
@@ -4697,6 +4757,11 @@ def test_list_row_history_endpoint_is_paginated(data_fixture, api_client):
                 "action_command_type": "DO",
                 "user": {
                     "id": user.id,
+                    "name": user.first_name,
+                },
+                "actor": {
+                    "id": user.id,
+                    "type": "auth.User",
                     "name": user.first_name,
                 },
                 "timestamp": "2023-01-01T12:00:00Z",
@@ -5032,7 +5097,8 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
         field_type = field_object["type"]
         field_name = f"field_{field.id}"
 
-        if field.read_only or field_type.read_only:
+        # Write-only fields, like password, can't have a default value.
+        if field.read_only or field_type.read_only or field_type.write_only:
             continue
 
         if field_name not in row_data:
@@ -5102,13 +5168,6 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
         created_value = created_row[field_name]
         sent_value = input_values_by_field_name[field_name]
         ft = field_type_by_id[field_id]
-
-        # Password: response is a boolean indicating whether a password is set.
-        if ft == "password":
-            assert created_value is True, (
-                f"{field_name}: expected password to be set (True)"
-            )
-            continue
 
         # File: compare by the sorted list of file names.
         if ft == "file":

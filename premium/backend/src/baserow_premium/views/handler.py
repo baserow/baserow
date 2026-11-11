@@ -164,6 +164,11 @@ def get_rows_grouped_by_single_select_field(
             filter=filters,
         )
 
+    # Without any group to fetch, `all_filters` is empty and would select every row
+    # of `base_queryset`, which doesn't have the view filters applied.
+    if not count_aggregates:
+        return defaultdict(lambda: {"count": 0, "results": []})
+
     queryset = list(base_queryset.filter(all_filters))
     counts = base_option_queryset.aggregate(**count_aggregates)
 
@@ -307,6 +312,11 @@ def get_rows_grouped_by_date_field(
             "pk",
             filter=date_filters,
         )
+
+    # Without any group to fetch, `all_filters` is empty and would select every row
+    # of `base_queryset`, which doesn't have the view filters applied.
+    if not count_aggregates:
+        return defaultdict(lambda: {"count": 0, "results": []})
 
     queryset = list(base_queryset.filter(all_filters))
     counts = base_option_queryset.aggregate(**count_aggregates)

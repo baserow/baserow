@@ -107,6 +107,13 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         "long_text_enable_rich_text",
         "error",
     ]
+    # Anonymous visitors only get what's needed to format the output, never the
+    # prompt nor the model.
+    public_serializer_field_names = [
+        "select_options",
+        "ai_output_type",
+        "long_text_enable_rich_text",
+    ]
     serializer_field_overrides = {
         "ai_output_type": serializers.ChoiceField(
             required=False,

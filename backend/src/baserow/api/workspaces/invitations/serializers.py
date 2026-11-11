@@ -19,11 +19,6 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
 
 
 class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
-    base_url = serializers.URLField(
-        help_text="The base URL where the user can publicly accept his invitation."
-        "The accept token is going to be appended to the base_url (base_url "
-        "'/token')."
-    )
     captcha_token = serializers.CharField(
         required=False,
         default="",
@@ -33,7 +28,7 @@ class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkspaceInvitation
-        fields = ("email", "permissions", "base_url", "captcha_token")
+        fields = ("email", "permissions", "captcha_token")
 
 
 class UpdateWorkspaceInvitationSerializer(serializers.ModelSerializer):
@@ -80,6 +75,15 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_email_exists(self, object):
         return object.email_exists if hasattr(object, "email_exists") else None
+
+
+class AcceptWorkspaceInvitationSerializer(serializers.Serializer):
+    token = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="The token from the invitation email. Required when the email "
+        "address of the user is not verified.",
+    )
 
 
 class GetWorkspaceInvitationsViewQuerySerializer(serializers.Serializer):

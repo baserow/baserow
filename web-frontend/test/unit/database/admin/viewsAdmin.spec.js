@@ -4,10 +4,6 @@ import ViewsAdminContext from '@baserow/modules/database/components/admin/views/
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import flushPromises from 'flush-promises'
 
-// Mock out debounce so we dont have to wait or simulate waiting for the search
-// debounce.
-vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
-
 describe('ViewsAdminTable component', () => {
   let testApp = null
 
@@ -81,7 +77,9 @@ describe('ViewsAdminTable component', () => {
 
     expect(viewsAdmin.find('.switch--active').exists()).toBe(false)
     expect(viewsAdmin.findAll('tbody tr').length).toBe(2)
-    expect(viewsAdmin.find('tbody').text()).toContain('Private view')
+    expect(viewsAdmin.findAll('tbody tr').at(1).text()).toContain(
+      'Private view'
+    )
   })
 
   test('the search route query is applied to the initial fetch', async () => {
@@ -143,7 +141,7 @@ describe('ViewsAdminTable component', () => {
     expect(viewsAdmin.find('.switch--active').exists()).toBe(true)
     expect(viewsAdmin.find('input').element.value).toBe('')
     expect(viewsAdmin.findAll('tbody tr').length).toBe(2)
-    expect(viewsAdmin.find('tbody').text()).toContain('Second view')
+    expect(viewsAdmin.findAll('tbody tr').at(1).text()).toContain('Second view')
 
     // The dropdown names the workspace the filter came from, so it is visible that
     // one is applied and which.

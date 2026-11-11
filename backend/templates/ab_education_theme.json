@@ -1,6 +1,7 @@
 {
   "baserow_template_version": 1,
   "name": "Education Theme",
+  "description": "Bright light application theme in blue and orange.",
   "icon": "",
   "keywords": [
     "application",

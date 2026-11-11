@@ -29,6 +29,17 @@ import pytest
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    CollectionElementCreate,
+    DataSourceCreate,
+    DisplayElementCreate,
+    ElementItemCreate,
+    FieldValueMapping,
+    LayoutElementCreate,
+    PageCreate,
+    TableFieldConfig,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.automation.tools import (
@@ -49,30 +60,21 @@ from baserow_enterprise.assistant.tools.automation.types.node import (
     RowsTriggersSettings,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
-    create_actions,
     create_collection_elements,
     create_data_sources,
     create_display_elements,
+    create_element_actions,
     create_layout_elements,
     create_pages,
-    list_actions,
     list_data_sources,
+    list_element_actions,
     list_elements,
     setup_page,
 )
-from baserow_enterprise.assistant.tools.builder.types import (
-    ActionCreate,
-    CollectionElementCreate,
-    DataSourceCreate,
-    DisplayElementCreate,
-    ElementItemCreate,
-    FieldValueMapping,
-    LayoutElementCreate,
-    PageCreate,
-    TableFieldConfig,
+from baserow_enterprise.assistant.tools.core.tools import (
+    create_automation,
+    create_builder,
 )
-from baserow_enterprise.assistant.tools.core.tools import create_builders
-from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
 from baserow_enterprise.assistant.tools.database.tools import create_tables
 from baserow_enterprise.assistant.tools.database.types import (
     FieldItemCreate,
@@ -213,14 +215,14 @@ def _seed_table(data_fixture: Any) -> SeededTable:
 def _create_builder_app(ctx: Any, name: str) -> int:
     """Create a builder application through the tool and return its id."""
 
-    created = create_builders(
+    created = create_builder(
         ctx,
-        builders=[BuilderItemCreate(name=name, type="application")],
+        name=name,
         thought="chain: the application the page lives in",
     )["created_builders"]
 
     assert len(created) == 1 and "id" in created[0], (
-        f"create_builders no longer returns [{{'id': ...}}] (got {created}). "
+        f"create_builder no longer returns [{{'id': ...}}] (got {created}). "
         f"create_pages, setup_page and list_pages all take that id as their "
         f"application_id."
     )
@@ -254,7 +256,10 @@ def _fingerprint_page(ctx: Any, page_id: int) -> PageFingerprint:
         list_data_sources, ctx=ctx, page_id=page_id, thought="chain: read the tree back"
     )["data_sources"]
     actions = _read_back(
-        list_actions, ctx=ctx, page_id=page_id, thought="chain: read the tree back"
+        list_element_actions,
+        ctx=ctx,
+        page_id=page_id,
+        thought="chain: read the tree back",
     )["workflow_actions"]
 
     at = {element["id"]: position for position, element in enumerate(elements)}
@@ -412,7 +417,7 @@ def test_chain_builds_a_page_against_a_real_table(data_fixture):
     display_ids = _element_ids_by_ref(display_result, "create_display_elements")
 
     # Action attached to the button by ref, writing to the seeded table.
-    action_result = create_actions(
+    action_result = create_element_actions(
         ctx,
         page_id=page_id,
         actions=[
@@ -432,7 +437,7 @@ def test_chain_builds_a_page_against_a_real_table(data_fixture):
         thought="chain: the button writes a row into the seeded table",
     )
     assert not action_result.get("errors") and action_result["created_actions"], (
-        f"create_actions could not attach an action to the 'new_btn' ref created "
+        f"create_element_actions could not attach an action to the 'new_btn' ref created "
         f"by the previous call: {action_result}. Element refs are tracked per "
         f"page in ToolHelpers.request_context — a change there breaks every "
         f"multi-call page build."
@@ -493,10 +498,13 @@ def test_chain_builds_a_page_against_a_real_table(data_fixture):
     )
 
     read_actions = _read_back(
-        list_actions, ctx=ctx, page_id=page_id, thought="chain: verify the actions"
+        list_element_actions,
+        ctx=ctx,
+        page_id=page_id,
+        thought="chain: verify the actions",
     )["workflow_actions"]
     assert [action["id"] for action in read_actions] == [action_id], (
-        f"list_actions returned {read_actions}, but create_actions reported id "
+        f"list_element_actions returned {read_actions}, but create_element_actions reported id "
         f"{action_id}."
     )
     assert read_actions[0]["element_id"] == display_ids["new_btn"], (
@@ -594,7 +602,7 @@ def _build_page_step_by_step(
         ],
         thought="chain: granular build",
     )
-    create_actions(
+    create_element_actions(
         ctx,
         page_id=page_id,
         actions=[
@@ -704,7 +712,7 @@ def test_setup_page_matches_the_granular_tools(data_fixture):
         f"parent position). The two paths are documented as interchangeable."
     )
     assert one_shot.actions == step.actions, (
-        f"setup_page produced different workflow actions than create_actions:\n"
+        f"setup_page produced different workflow actions than create_element_actions:\n"
         f"  setup_page:  {one_shot.actions}\n"
         f"  granular:    {step.actions}\n"
         f"Tuples are (type, event, element position, table_id, field mappings)."
@@ -738,13 +746,13 @@ def test_chain_builds_an_automation_workflow(data_fixture):
     seed = _seed_table(data_fixture)
     ctx = seed.ctx
 
-    created_builders = create_builders(
+    created_builders = create_automation(
         ctx,
-        builders=[BuilderItemCreate(name="Project Ops", type="automation")],
+        name="Project Ops",
         thought="chain: the automation the workflow lives in",
     )["created_builders"]
     assert len(created_builders) == 1 and "id" in created_builders[0], (
-        f"create_builders no longer returns [{{'id': ...}}] for automations "
+        f"create_automation no longer returns [{{'id': ...}}] "
         f"(got {created_builders}); create_workflows takes that id."
     )
     automation_id = created_builders[0]["id"]
@@ -880,7 +888,7 @@ def test_chain_builds_an_automation_workflow(data_fixture):
         {"id": workflow_id, "name": "On new project", "state": "draft"}
     ], (
         f"list_workflows returned {workflows} for the automation "
-        f"create_builders returned; create_workflows reported id {workflow_id}."
+        f"create_automation returned; create_workflows reported id {workflow_id}."
     )
 
     # --- final database state ---------------------------------------------
@@ -903,9 +911,9 @@ def test_add_nodes_persists_literal_field_values_like_create_workflows(data_fixt
 
     seed = _seed_table(data_fixture)
     ctx = seed.ctx
-    automation_id = create_builders(
+    automation_id = create_automation(
         ctx,
-        builders=[BuilderItemCreate(name="Parity", type="automation")],
+        name="Parity",
         thought="chain: compare the two node creation paths",
     )["created_builders"][0]["id"]
 

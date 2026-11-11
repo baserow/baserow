@@ -48,6 +48,7 @@ class CreatePageActionType(UndoableActionType):
         path: str,
         path_params: Optional[PagePathParams] = None,
         query_params: Optional[PageQueryParams] = None,
+        **kwargs,
     ) -> Page:
         page = PageService().create_page(
             user,
@@ -56,6 +57,7 @@ class CreatePageActionType(UndoableActionType):
             path,
             path_params=path_params,
             query_params=query_params,
+            **kwargs,
         )
 
         cls.register_action(

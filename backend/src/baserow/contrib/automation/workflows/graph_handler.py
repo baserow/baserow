@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Iterable
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -19,5 +19,5 @@ class AutomationWorkflowGraphHandler(BaseGraphHandler):
     instance_id_mapping = "automation_workflow_nodes"
     does_not_exist_exception = AutomationNodeDoesNotExist
 
-    def get_point_map(self) -> Dict[int, AutomationNode]:
-        return {n.id: n for n in AutomationNodeHandler().get_nodes(self.instance)}
+    def get_all_points(self) -> Iterable[AutomationNode]:
+        return AutomationNodeHandler().get_nodes(self.instance)

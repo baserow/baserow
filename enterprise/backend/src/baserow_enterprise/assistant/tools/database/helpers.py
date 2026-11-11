@@ -1,41 +1,35 @@
-from itertools import groupby
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Callable
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Q
-from django.utils.translation import gettext as _
+from django.db import transaction
 
-from baserow.contrib.database.fields.actions import (
-    CreateFieldActionType,
-    DeleteFieldActionType,
-    UpdateFieldActionType,
-)
-from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import Field
-from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.actions import CreateFieldActionType
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.mcp.services import filter_tables
 from baserow.contrib.database.table.models import Table
-from baserow.contrib.database.views.actions import CreateViewFilterActionType
+from baserow.contrib.database.tools import fields as shared_fields
+from baserow.contrib.database.tools.errors import conflict_errors
+from baserow.contrib.database.tools.tables import (
+    get_tables_schema,  # noqa: F401
+    permitted_tables,
+)
+from baserow.contrib.database.tools.views import create_view_filter  # noqa: F401
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.models import View, ViewFilter
-from baserow.core.db import specific_iterator
+from baserow.contrib.database.views.models import View
+from baserow.core.formula.parser.exceptions import BaserowFormulaException
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.database.types.table import TableItem
+from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import classify_item_error
 from baserow_enterprise.assistant.tools.shared import (
     ToolInputError,
     raise_if_permission_denied,
 )
 
 from .types import (
-    AnyViewFilterItemCreate,
     FieldItem,
-    FieldItemCreate,
     FieldItemUpdate,
     InvalidFormulaFieldError,
 )
-
-if TYPE_CHECKING:
-    from baserow_enterprise.assistant.deps import ToolHelpers
 
 
 def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
@@ -58,183 +52,194 @@ def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
         )
 
 
-def get_tables_schema(
-    tables: list[Table],
-    full_schema: bool = False,
-) -> list[TableItem]:
+def readable_database_tables(
+    user: AbstractUser, workspace: Workspace, database_id: int
+) -> list[Table]:
     """
-    Build serialised schema descriptions for the given tables.
-
-    :param tables: Tables to describe.
-    :param full_schema: If True include all fields, otherwise only primary
-        fields and relationships.
-    :returns: List of table descriptions, in the same order as the input tables.
-    """
-
-    q = Q(table__in=tables)
-    if not full_schema:
-        q &= Q(linkrowfield__isnull=False) | Q(primary=True)
-
-    base_field_queryset = FieldHandler().get_base_fields_queryset()
-    fields = specific_iterator(
-        base_field_queryset.filter(q).order_by("table_id", "order"),
-        per_content_type_queryset_hook=(
-            lambda field, queryset: field_type_registry.get_by_model(
-                field
-            ).enhance_field_queryset(queryset, field)
-        ),
-    )
-
-    table_items: list[TableItem] = []
-    tables_by_id = {table.id: table for table in tables}
-    for table_id, fields_in_table in groupby(fields, lambda f: f.table_id):
-        table_items.append(_get_table_schema(tables_by_id, table_id, fields_in_table))
-
-    # Preserve the input order
-    input_order = {t.id: i for i, t in enumerate(tables)}
-    table_items.sort(key=lambda t: input_order[t.id])
-    return table_items
-
-
-def _get_table_schema(
-    tables_by_id: dict[int, Table], table_id: int, fields_in_table: list[Field]
-) -> TableItem:
-    """
-    Build a TableItem schema description for a single table given its fields.
-
-    :param tables_by_id: Mapping of table ID → table instance for all tables.
-    :param table_id: ID of the table to describe.
-    :param fields_in_table: Iterable of field instances belonging to the table.
-    :returns: TableItem describing the table and its fields.
-    """
-
-    fields_in_table = list(fields_in_table)
-    primary_field = next((f for f in fields_in_table if f.primary), None)
-    if primary_field is None:
-        raise ValueError(f"Table {table_id} has no primary field")
-    primary_field_item = FieldItem.from_django_orm(primary_field)
-
-    table = tables_by_id[table_id]
-
-    return TableItem(
-        id=table_id,
-        name=table.name,
-        primary_field=primary_field_item,
-        fields=[
-            FieldItem.from_django_orm(f)
-            for f in fields_in_table
-            if f.id != primary_field.id
-        ],
-    )
-
-
-def create_fields(
-    user: AbstractUser,
-    table: Table,
-    field_items: list[FieldItemCreate],
-    tool_helpers: "ToolHelpers",
-    formula_fixer: Callable[[Table, str, str], str | None] | None = None,
-) -> tuple[list[FieldItem], list[str], list[dict]]:
-    """
-    Create fields in a table, handling formula errors with optional auto-fix.
-
-    Fields are sorted so that dependencies are satisfied: regular fields first,
-    then link_row, lookup, and formula last.
+    The database's tables whose fields the user may list, so the formula agents only
+    see fields the user can.
 
     :param user: The acting user.
-    :param table: Target table.
-    :param field_items: Field definitions to create.
-    :param tool_helpers: Provides status updates and cancellation.
-    :param formula_fixer: Optional callback ``(table, name, formula) -> fixed``
-        invoked when a formula field fails validation.
-    :returns: Tuple of (created fields, field error messages, formula error dicts).
+    :param workspace: The workspace the database is in.
+    :param database_id: The database whose tables are returned.
+    :returns: The tables, in sidebar order.
     """
 
-    from .types import InvalidFormulaFieldError
-    from .types.fields import FIELD_ORDER
-
-    created_fields: list[FieldItem] = []
-    formula_errors: list[dict] = []
-    field_errors: list[str] = []
-
-    # Creation order: regular → link_row → lookup → formula.
-    # link_row before lookup so auto-created links exist for lookups.
-    # formula last so they can reference fields created earlier.
-    field_items = sorted(field_items, key=lambda f: FIELD_ORDER.get(f.type, 0))
-
-    for field_item in field_items:
-        tool_helpers.raise_if_cancelled()
-        tool_helpers.update_status(
-            _("Creating field %(field_name)s...") % {"field_name": field_item.name}
-        )
-
-        try:
-            new_field = CreateFieldActionType.do(
-                user,
-                table,
-                field_item.type,
-                **field_item.to_django_orm_kwargs(table, user=user),
-            )
-            created_fields.append(FieldItem.from_django_orm(new_field))
-        except InvalidFormulaFieldError as exc:
-            _fix_formula_field(
-                user, table, formula_fixer, created_fields, formula_errors, exc
-            )
-        except Exception as error:
-            raise_if_permission_denied(error)
-            field_errors.append(
-                f"Error creating field {field_item.name} in table_{table.id}: "
-                f"{error}.\n"
-                f"Please retry recreating this field later, if important."
-            )
-    return created_fields, field_errors, formula_errors
+    return permitted_tables(
+        ToolContext(user=user, workspace=workspace),
+        filter_tables(user, workspace).filter(database_id=database_id),
+        ListFieldsOperationType.type,
+    )
 
 
-def _fix_formula_field(
+FormulaFixer = Callable[[Table, str, str], str | None]
+
+
+def has_formula(error: dict) -> bool:
+    """
+    Whether a formula error has a formula to repair. Without one the fixer would
+    have to invent what the field computes.
+    """
+
+    return bool((error.get("formula") or "").strip())
+
+
+def _repair_failure(error: dict, exc: Exception) -> dict:
+    """
+    The item error to report when repairing a formula failed. An invalid formula
+    keeps the original error; any other failure is classified over it, so it is logged
+    and the model sees the real cause. Call it from the ``except`` block.
+
+    :param error: The original formula error.
+    :param exc: The exception the repair raised.
+    :return: The item error.
+    """
+
+    if isinstance(exc, (InvalidFormulaFieldError, BaserowFormulaException)):
+        return error
+    return {**error, **classify_item_error(exc, conflict_errors()).to_dict()}
+
+
+def create_repaired_formula_fields(
     user: AbstractUser,
     table: Table,
-    formula_fixer: Callable[[Table, str, str], str | None] | None,
-    created_fields: list[FieldItem],
+    formula_fixer: FormulaFixer,
     formula_errors: list[dict],
-    exc: InvalidFormulaFieldError,
-):
+    raise_if_cancelled: Callable[[], None],
+) -> tuple[list[FieldItem], list[dict]]:
     """
-    Attempt to fix an invalid formula field using the provided formula_fixer callback.
-    If successful, creates the field with the fixed formula. Otherwise, records the error.
+    Ask the formula fixer to repair each invalid formula the shared create step
+    returned, and create the formula fields it repairs. Call it outside a
+    transaction, because the fixer calls a model.
 
     :param user: The acting user.
-    :param table: The table the field belongs to.
-    :param formula_fixer: Callback to attempt formula fixing.
-    :param created_fields: List to append successfully created fields to.
-    :param formula_errors: List to append error details to if fixing fails.
-    :param exc: The exception containing details about the invalid formula.
+    :param table: The table the fields belong to.
+    :param formula_fixer: Callback ``(table, name, formula) -> fixed formula``.
+    :param formula_errors: The invalid formulas from the shared create step.
+    :param raise_if_cancelled: Raises when the user cancelled the request.
+    :returns: The created fields, and the formula errors that remain.
     """
 
-    fixed = False
-    if formula_fixer:
+    created: list[FieldItem] = []
+    remaining: list[dict] = []
+    for error in formula_errors:
+        if not has_formula(error):
+            remaining.append(error)
+            continue
+        raise_if_cancelled()
         try:
-            new_formula = formula_fixer(exc.table, exc.field_name, exc.formula)
-            if new_formula:
-                new_field = CreateFieldActionType.do(
-                    user,
-                    table,
-                    "formula",
-                    name=exc.field_name,
-                    formula=new_formula,
-                )
-                created_fields.append(FieldItem.from_django_orm(new_field))
-                fixed = True
-        # Reusing the name `exc` would delete the outer binding at handler exit.
-        except Exception as error:
-            raise_if_permission_denied(error)
-    if not fixed:
-        formula_errors.append(
-            {
-                "field_name": exc.field_name,
-                "formula": exc.formula,
-                "error": exc.error,
-            }
+            formula = formula_fixer(table, error["field_name"], error["formula"])
+            raise_if_cancelled()
+            if formula:
+                with transaction.atomic():
+                    new_field = CreateFieldActionType.do(
+                        user,
+                        table,
+                        "formula",
+                        name=error["field_name"],
+                        formula=formula,
+                    )
+                created.append(FieldItem.from_django_orm(new_field))
+                continue
+        except Exception as exc:
+            # The savepoint rolled back a field its cached model may still have.
+            shared_fields.forget_cached_table_models()
+            raise_if_permission_denied(exc)
+            remaining.append(_repair_failure(error, exc))
+            continue
+        remaining.append(error)
+    return created, remaining
+
+
+def _failed_updates(
+    field_updates: list[FieldItemUpdate], formula_errors: list[dict]
+) -> list[tuple[dict, FieldItemUpdate, set[str]]]:
+    """
+    Pairs each formula error with the update that raised it, with the properties
+    a later update of the same field sets. A property set to None is left
+    unchanged, so it doesn't count.
+    """
+
+    pairs = []
+    for error in formula_errors:
+        index = error["index"]
+        later = set().union(
+            *(
+                {
+                    name
+                    for name, value in update.model_dump(exclude_unset=True).items()
+                    if value is not None
+                }
+                - {"field_id"}
+                for update in field_updates[index + 1 :]
+                if update.field_id == error["field_id"]
+            )
         )
+        pairs.append((error, field_updates[index], later))
+    return pairs
+
+
+def apply_repaired_formula_updates(
+    tool_context: ToolContext,
+    formula_fixer: FormulaFixer,
+    field_updates: list[FieldItemUpdate],
+    formula_errors: list[dict],
+    raise_if_cancelled: Callable[[], None],
+) -> tuple[list[FieldItem], bool, list[dict]]:
+    """
+    Ask the formula fixer to repair each invalid formula the shared update step
+    returned, and apply those updates with the repaired formula. Call it outside a
+    transaction, because the fixer calls a model.
+
+    :param tool_context: Who acts and where status goes.
+    :param formula_fixer: Callback ``(table, name, formula) -> fixed formula``.
+    :param field_updates: The updates the shared step received.
+    :param formula_errors: The invalid formulas from the shared update step.
+    :param raise_if_cancelled: Raises when the user cancelled the request.
+    :returns: The updated fields, whether any changed, and the formula errors that
+        remain.
+    """
+
+    updated: list[FieldItem] = []
+    changed = False
+    errors: list[dict] = []
+    for error, failed, later in _failed_updates(field_updates, formula_errors):
+        # The update rolled back as a whole. Its other properties are applied with
+        # the repaired formula, except those a later update of the field set.
+        values = failed.model_dump(exclude_unset=True, exclude=later)
+        if "formula" in later:
+            # A later update replaced the formula, so it isn't repaired.
+            values.pop("formula", None)
+            if values.keys() == {"field_id"}:
+                continue
+        elif not has_formula(error):
+            errors.append(error)
+            continue
+        raise_if_cancelled()
+        try:
+            if "formula" in values:
+                table = filter_tables(tool_context.user, tool_context.workspace).get(
+                    id=error["table_id"]
+                )
+                formula = formula_fixer(table, error["field_name"], error["formula"])
+                raise_if_cancelled()
+                if not formula:
+                    raise InvalidFormulaFieldError(
+                        error["field_name"], error["formula"], table, error["message"]
+                    )
+                values["formula"] = formula
+            update = FieldItemUpdate(**values)
+            with transaction.atomic():
+                field_item, field_changed = shared_fields.update_field(
+                    tool_context, update
+                )
+            updated.append(field_item)
+            changed = changed or field_changed
+        except Exception as exc:
+            shared_fields.forget_cached_table_models()
+            raise_if_permission_denied(exc)
+            errors.append(_repair_failure(error, exc))
+    return updated, changed, errors
 
 
 def get_view(user: AbstractUser, workspace: Workspace, view_id: int) -> View:
@@ -251,137 +256,3 @@ def get_view(user: AbstractUser, workspace: Workspace, view_id: int) -> View:
         view_id,
         base_queryset=View.objects.filter(table__database__workspace=workspace),
     )
-
-
-def create_view_filter(
-    user: AbstractUser,
-    orm_view: View,
-    table_fields: dict[int, Any],
-    view_filter_item: AnyViewFilterItemCreate,
-) -> ViewFilter:
-    """
-    Create a single view filter after validating the field type matches.
-
-    :param user: The acting user.
-    :param orm_view: The view to add the filter to.
-    :param table_fields: Mapping of field ID → field instance for the table.
-    :param view_filter_item: The filter definition to create.
-    :raises ValueError: If the field is not found or its type doesn't match.
-    """
-
-    field = table_fields.get(view_filter_item.field_id)
-    if field is None:
-        raise ValueError(
-            f"Field {view_filter_item.field_id} not found for filter. "
-            f"Available field IDs: {sorted(table_fields.keys())}"
-        )
-    field_type = field_type_registry.get_by_model(field.specific_class)
-    if field_type.type != view_filter_item.type:
-        raise ValueError(
-            f"Field '{field.name}' (id={field.id}) is type '{field_type.type}', "
-            f"but filter declared type '{view_filter_item.type}'"
-        )
-
-    filter_type = view_filter_item.get_django_orm_type(field)
-    filter_value = view_filter_item.get_django_orm_value(
-        field, timezone=user.profile.timezone
-    )
-
-    return CreateViewFilterActionType.do(
-        user,
-        orm_view,
-        field,
-        filter_type,
-        filter_value,
-        filter_group_id=None,
-    )
-
-
-def update_field(
-    user: AbstractUser,
-    workspace: Workspace,
-    field_update: "FieldItemUpdate",
-    formula_fixer: Callable[[Table, str, str], str | None] | None = None,
-) -> tuple[FieldItem, bool]:
-    """
-    Update an existing field.
-
-    :param user: The acting user.
-    :param workspace: Workspace the field must belong to.
-    :param field_update: The update definition.
-    :param formula_fixer: Optional callback for fixing invalid formulas.
-    :returns: The current field and whether it changed.
-    """
-
-    base_field = FieldHandler().get_field(field_update.field_id)
-    field = base_field.specific
-
-    # Verify workspace access
-    filter_tables(user, workspace).filter(id=base_field.table_id).get()
-    kwargs = field_update.to_update_kwargs(field)
-    previous = FieldItem.from_django_orm(field)
-
-    if not kwargs:
-        return previous, False
-
-    # Validate formula before updating
-    if "formula" in kwargs and kwargs["formula"]:
-        from baserow.contrib.database.fields.models import FormulaField
-        from baserow.core.formula.parser.exceptions import BaserowFormulaException
-
-        try:
-            tmp = FormulaField(
-                formula=kwargs["formula"],
-                table=field.table,
-                name=kwargs.get("name", field.name),
-                order=0,
-            )
-            tmp.recalculate_internal_fields(raise_if_invalid=True)
-        except BaserowFormulaException as e:
-            if formula_fixer:
-                fixed = formula_fixer(
-                    field.table,
-                    kwargs.get("name", field.name),
-                    kwargs["formula"],
-                )
-                if fixed:
-                    kwargs["formula"] = fixed
-                else:
-                    raise InvalidFormulaFieldError(
-                        kwargs.get("name", field.name),
-                        kwargs["formula"],
-                        field.table,
-                        str(e),
-                    )
-            else:
-                raise InvalidFormulaFieldError(
-                    kwargs.get("name", field.name),
-                    kwargs["formula"],
-                    field.table,
-                    str(e),
-                )
-
-    UpdateFieldActionType.do(user, field, **kwargs)
-    # Re-fetch the specific field to get the updated state
-    updated_field = FieldHandler().get_field(field_update.field_id).specific
-    current = FieldItem.from_django_orm(updated_field)
-    return current, current != previous
-
-
-def delete_field(
-    user: AbstractUser,
-    workspace: Workspace,
-    field_id: int,
-) -> None:
-    """
-    Delete (soft-delete / trash) a field.
-
-    :param user: The acting user.
-    :param workspace: Workspace the field must belong to.
-    :param field_id: ID of the field to delete.
-    """
-
-    base_field = FieldHandler().get_field(field_id)
-    # Verify workspace access
-    filter_tables(user, workspace).filter(id=base_field.table_id).get()
-    DeleteFieldActionType.do(user, base_field.specific)

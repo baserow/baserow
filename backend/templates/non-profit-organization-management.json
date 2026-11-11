@@ -1,6 +1,7 @@
 {
     "baserow_template_version": 1,
     "name": "Non-profit Organization Management",
+    "description": "Run a non-profit's events, fundraising, grants and contacts.",
     "icon": "iconoir-spock-hand-gesture",
     "keywords": [
         "nonprofit",
