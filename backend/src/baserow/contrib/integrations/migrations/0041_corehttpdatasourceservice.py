@@ -4,7 +4,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("integrations", "0039_localbaserowintegration_authorized_agent"),
+        ("integrations", "0040_corewaitservice"),
     ]
 
     operations = [
