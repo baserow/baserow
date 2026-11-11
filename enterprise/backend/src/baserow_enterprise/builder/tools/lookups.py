@@ -1,18 +1,29 @@
 """
-Look up the builders and pages a tool works on. Every builder tool module imports
-these, so this module imports only `helpers`, which imports no tool module and must
-not import this one.
+Look up the builders and pages a tool works on. Every builder tool module and
+`helpers` import these, so this module imports no builder tool module.
 """
+
+from django.contrib.auth.models import AbstractUser
+from django.db.models import QuerySet
 
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import ReadPageOperationType
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Workspace
 from baserow.core.tools import ToolContext
 from baserow.core.tools import applications as shared_applications
 
-from . import helpers
+
+def workspace_pages(workspace: Workspace) -> QuerySet:
+    """
+    The pages of the workspace's builders that aren't trashed. Looking pages up
+    through it makes an ID from another workspace the user belongs to look like a
+    missing one.
+    """
+
+    return Page.objects.filter(builder__workspace=workspace, builder__trashed=False)
 
 
 def get_builder_in_workspace(ctx: ToolContext, builder_id: int) -> Builder:
@@ -35,10 +46,17 @@ def get_page_in_workspace(ctx: ToolContext, page_id: int) -> Page:
     :raises PermissionException: When the user can't read the page.
     """
 
-    page = PageHandler().get_page(
-        page_id, base_queryset=helpers.workspace_pages(ctx.workspace)
-    )
+    return get_readable_page(ctx.user, ctx.workspace, page_id)
+
+
+def get_readable_page(user: AbstractUser, workspace: Workspace, page_id: int) -> Page:
+    """
+    Get a page of the workspace the user can read. Raises like
+    `get_page_in_workspace`.
+    """
+
+    page = PageHandler().get_page(page_id, base_queryset=workspace_pages(workspace))
     CoreHandler().check_permissions(
-        ctx.user, ReadPageOperationType.type, workspace=ctx.workspace, context=page
+        user, ReadPageOperationType.type, workspace=workspace, context=page
     )
     return page

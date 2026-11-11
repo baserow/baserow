@@ -11,7 +11,7 @@ from typing import Any, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DatabaseError, transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -65,7 +65,6 @@ from baserow.contrib.builder.pages.exceptions import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.pages.operations import ReadPageOperationType
 from baserow.contrib.builder.workflow_actions.actions import (
     CreateBuilderWorkflowActionActionType,
 )
@@ -110,6 +109,7 @@ from baserow.core.user_sources.actions import CreateUserSourceActionType
 from baserow.core.workflow_actions.exceptions import WorkflowActionDoesNotExist
 
 from .errors import UnknownRefError
+from .lookups import get_readable_page
 from .page_parameters import parameters_in_page_order
 from .registries import element_tool_type_registry
 from .types import (
@@ -134,16 +134,6 @@ from .types.workflow_action import raise_if_read_only_field
 # ---------------------------------------------------------------------------
 # Accessors
 # ---------------------------------------------------------------------------
-
-
-def workspace_pages(workspace: Workspace) -> QuerySet:
-    """
-    The pages of the workspace's builders that aren't trashed. Looking pages up
-    through it makes an ID from another workspace the user belongs to look like a
-    missing one.
-    """
-
-    return Page.objects.filter(builder__workspace=workspace, builder__trashed=False)
 
 
 def on_page(page: Page) -> Q:
@@ -222,11 +212,7 @@ def get_page(user: AbstractUser, workspace: Workspace, page_id: int) -> Page:
     """
 
     try:
-        page = PageHandler().get_page(page_id, base_queryset=workspace_pages(workspace))
-        CoreHandler().check_permissions(
-            user, ReadPageOperationType.type, workspace=workspace, context=page
-        )
-        return page
+        return get_readable_page(user, workspace, page_id)
     except Exception as exc:
         raise_if_permission_denied(exc)
         raise ToolInputError(
