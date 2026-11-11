@@ -1,5 +1,48 @@
 # Changelog
 
+## Released 2.4.2
+
+### Bug fixes
+* [Core] Keep what users type or tick in forms and on the login page before the page finishes loading [#3185](https://github.com/baserow/baserow/issues/3185)
+* [Core] Allow OpenID Connect sign-in for users identified by a claim other than their email (e.g. the AWS Cognito user id) when the provider reports their email as unverified. [#6534](https://github.com/baserow/baserow/issues/6534)
+* [Database] Fix grouped public views sorted by hidden fields [#6615](https://github.com/baserow/baserow/issues/6615)
+* [Database] Fix grouping and sorting of date-only created and modified fields, and row placement in timed date groups [#6616](https://github.com/baserow/baserow/issues/6616)
+* [Database] Fix the periodic check of views with date filters failing on large instances, so their webhooks are sent again. The first check after upgrading can send late "Rows enter view" webhooks for rows missed earlier [#6655](https://github.com/baserow/baserow/issues/6655)
+* [Database] A search table that fails to be created no longer stops background tasks, such as exports and search updates, from running.
+* [Automation] A scheduled workflow that fails to start no longer stops other scheduled workflows from running.
+* [Core] Build password reset, email change, invitation and notification links from BASEROW_EMBEDDED_SHARE_URL. The base_url request field of these endpoints is now ignored.
+* [Core] Don't sign in users with two-factor authentication when they verify their email
+* [Builder] Enforce element and page visibility when running actions in published applications
+* [Core] Fix Celery workers that stop picking up tasks after losing the Redis connection
+* [Core] Limit how often password reset and verification emails can be requested.
+* [Core] Only the owner of an invited email address can accept a workspace invitation
+* [Core] Only workspace admins can restore a trashed workspace or empty its trash
+* [Core] Prevents SSO logins from sending the session token to a crafted redirect address
+* [Automation] Published workflows now stop when their workspace is moved to the trash, instead of continuing to run and preventing other scheduled workflows from running.
+* [Database] Search now works in workspaces whose search data could not be stored because of a name clash with another workspace.
+* [Integration] Stop returning AI integration API keys in API responses
+
+### Breaking API changes
+* [Core] Accepting a workspace invitation requires the emailed token or a verified email address
+  * POST /api/workspaces/invitations/{id}/accept/ takes an optional token
+  * Without it, unverified users get ERROR_GROUP_INVITATION_EMAIL_NOT_VERIFIED, unless the instance has no SMTP server configured
+* [Automation] HTTP triggers keep the caller's Authorization, Cookie and Proxy-Authorization headers out of the workflow, and imported applications get their own HTTP trigger URLs.
+  * Formulas reading these headers get no value
+  * Send caller secrets in another header or a query parameter
+  * Update callers of imported HTTP triggers to the new URL
+* [Core] Refreshing a token returns a new refresh token and revokes the one that was used
+  * POST /api/user/token-refresh/ now also returns refresh_token and user_session. Use the new refresh token for the next refresh.
+  * The previous refresh token stops working after 30 seconds, and using it after that signs the whole session off.
+  * Set BASEROW_ROTATE_REFRESH_TOKENS=false to keep the previous behaviour.
+* [Core] Secure file serve downloads files opened directly unless they are images, PDFs or plain text
+  * HTML, SVG, BMP, CSV, JSON, Markdown, audio, video and files with no extension now download when opened directly
+  * Images, audio and video shown inside Baserow are not affected
+  * Every file is served with a sandbox Content-Security-Policy
+* [Core] SSO logins check the state on callbacks, so custom OpenID Connect providers must return it
+  * OAuth2 and OpenID Connect callbacks are rejected unless the state matches the login started by the same browser with the same provider.
+  * A custom OpenID Connect identity provider that doesn't return the state sent to it can no longer be used to log in.
+
+
 ## Released 2.4.1
 
 ### New features
