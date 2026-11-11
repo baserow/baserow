@@ -70,6 +70,7 @@ def test_first_message_creates_a_private_conversation(
             "updated_on": ANY,
             "run_id": run_id,
             "pending_approval_count": 0,
+            "pinned": False,
         },
         "message": {
             "id": message.id,
@@ -720,7 +721,7 @@ def test_updating_and_deleting_can_be_undone_and_redone(data_fixture, configured
     )
     scopes = [ApplicationActionScopeType.value(agent.id)]
     action_type_registry.get_by_type(UpdateAgentConversationActionType).do(
-        user, agent.id, conversation.uuid, title="Renamed"
+        user, agent.id, conversation.uuid, title="Renamed", pinned=True
     )
     action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
         user, agent.id, conversation.uuid
@@ -728,10 +729,113 @@ def test_updating_and_deleting_can_be_undone_and_redone(data_fixture, configured
 
     ActionHandler.undo(user, scopes, "session")
     assert AgentConversation.objects.get().title == "Renamed"
+    assert AgentConversation.objects.get().pinned is True
     ActionHandler.undo(user, scopes, "session")
     assert AgentConversation.objects.get().title == "Original"
+    assert AgentConversation.objects.get().pinned is False
 
     ActionHandler.redo(user, scopes, "session")
     ActionHandler.redo(user, scopes, "session")
     assert not AgentConversation.objects.exists()
     assert AgentConversation.trash.get().title == "Renamed"
+    assert AgentConversation.trash.get().pinned is True
+
+
+@pytest.mark.django_db
+def test_pin_uses_the_update_endpoint_without_changing_activity(
+    data_fixture, configured_agent, api_client, api_user, mocker
+):
+    agent = configured_agent(user=api_user)
+    old = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    recent = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    updated_on = old.updated_on
+    changed = mocker.patch(
+        "baserow.contrib.agent.service.agent_conversation_updated.send"
+    )
+    url = agent_url(agent, "conversation", conversation_uuid=old.uuid)
+    list_url = agent_url(agent, "conversations")
+
+    response = api_client.patch(url, {"pinned": True})
+    assert response.status_code == 200
+    assert response.json()["pinned"] is True
+    assert [row["id"] for row in api_client.get(list_url).json()["results"]] == [
+        old.id,
+        recent.id,
+    ]
+    old.refresh_from_db()
+    assert old.updated_on == updated_on
+    assert changed.call_args.kwargs["values"] == {"pinned": True}
+    assert api_client.patch(url, {"pinned": False}).json()["pinned"] is False
+    assert [row["id"] for row in api_client.get(list_url).json()["results"]] == [
+        recent.id,
+        old.id,
+    ]
+    assert api_client.patch(url, {"pinned": "invalid"}).status_code == 400
+    foreign = data_fixture.create_agent_conversation(agent=agent)
+    assert (
+        api_client.patch(
+            agent_url(agent, "conversation", conversation_uuid=foreign.uuid),
+            {"pinned": True},
+        ).status_code
+        == 404
+    )
+
+
+@pytest.mark.django_db
+def test_conversation_filters_and_cursors_cover_the_pin_boundary(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    with freeze_time("2026-11-11 10:00:00"):
+        pinned = [
+            data_fixture.create_agent_conversation(
+                user=api_user, agent=agent, pinned=True
+            )
+            for _ in range(3)
+        ]
+    with freeze_time("2026-11-11 11:00:00"):
+        recent = [
+            data_fixture.create_agent_conversation(user=api_user, agent=agent)
+            for _ in range(3)
+        ]
+    for item in [pinned[0], pinned[2], recent[0], recent[2]]:
+        for _ in range(2):
+            data_fixture.create_agent_tool_approval(conversation=item)
+    # Other owners, other agents, and trash remain invisible through every filter.
+    for item in [
+        data_fixture.create_agent_conversation(agent=agent, pinned=True),
+        data_fixture.create_agent_conversation(user=api_user, pinned=True),
+        data_fixture.create_agent_conversation(
+            user=api_user, agent=agent, pinned=True, trashed=True
+        ),
+    ]:
+        data_fixture.create_agent_tool_approval(conversation=item)
+    url = agent_url(agent, "conversations")
+    for filters, expected in [
+        ({}, pinned[::-1] + recent[::-1]),
+        ({"pinned": "true"}, pinned[::-1]),
+        ({"pinned": "false"}, recent[::-1]),
+        (
+            {"has_pending_approvals": "true"},
+            [pinned[2], pinned[0], recent[2], recent[0]],
+        ),
+        ({"has_pending_approvals": "false"}, [pinned[1], recent[1]]),
+        ({"pinned": "true", "has_pending_approvals": "true"}, [pinned[2], pinned[0]]),
+    ]:
+        params = {"limit": 2, **filters}
+        ids = []
+        while True:
+            response = api_client.get(url, params)
+            assert response.status_code == 200
+            data = response.json()
+            ids.extend(row["id"] for row in data["results"])
+            if data["next_cursor"] is None:
+                break
+            params["cursor"] = data["next_cursor"]
+        assert ids == [item.id for item in expected]
+    for params in [
+        {"pinned": "bad"},
+        {"has_pending_approvals": "bad"},
+        {"cursor": "2:1_1"},
+    ]:
+        assert api_client.get(url, params).status_code == 400

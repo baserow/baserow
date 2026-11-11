@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import {
+  filterConversations,
   acceptConversation,
   chooseFromMenu,
   agentData,
@@ -444,7 +445,7 @@ describe('Agent conversations', () => {
       page([message('a1', 'Older A')])
     )
     const wrapper = await mount()
-    await wrapper.get('.agent-conversations__more').trigger('click')
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
     await flushPromises()
     expect(conversationTitles(wrapper)).toEqual([
       'Newest',
@@ -683,7 +684,7 @@ describe('Agent conversations', () => {
     const wrapper = await mount()
 
     await chooseFromMenu(wrapper, 'Conversation A', 'action.delete')
-    await wrapper.get('.agent-conversations__more').trigger('click')
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
     await flushPromises()
 
     expect(conversationTitles(wrapper)).toEqual([
@@ -695,7 +696,9 @@ describe('Agent conversations', () => {
         .filter(({ url }) => url === '/agent/10/conversations/')
         .map(({ params }) => params.cursor)
     ).toEqual([null, 'after-b'])
-    expect(wrapper.find('.agent-conversations__more').exists()).toBe(false)
+    expect(wrapper.find('.infinite-scroll__loading-wrapper').isVisible()).toBe(
+      false
+    )
   })
 
   test('rolls a failed rename back and drops a conversation deleted elsewhere', async () => {
@@ -722,5 +725,84 @@ describe('Agent conversations', () => {
 
     await rename('Gone')
     expect(conversationTitles(wrapper)).toEqual(['Conversation B'])
+  })
+
+  test('filters on the server, keeps the open draft, and ignores an older page', async () => {
+    const a = conversation('a', 'A')
+    const b = { ...conversation('b', 'B'), pinned: true }
+    const waiting = {
+      ...conversation('waiting', 'Waiting'),
+      pending_approval_count: 1,
+    }
+    const stale = deferredReply()
+    mockConversations(
+      testApp,
+      conversationsPage([a], 'older'),
+      stale.reply,
+      conversationsPage([waiting]),
+      conversationsPage([b])
+    )
+    mockMessages(testApp, a.uuid, page([message('m', 'Hello')]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'A')
+    await composer(wrapper).setValue('Unsent text')
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
+    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    expect(conversationTitles(wrapper)).toEqual([
+      'Waitingagent.waitingForApproval',
+    ])
+    expect(composer(wrapper).element.value).toBe('Unsent text')
+    expect(messages(wrapper)).toEqual(['Hello'])
+    stale.resolve(
+      200,
+      conversationsPage([conversation('old', 'Old')], 'stale-cursor')
+    )
+    await flushPromises()
+    expect(conversationTitles(wrapper)).toEqual([
+      'Waitingagent.waitingForApproval',
+    ])
+    await filterConversations(wrapper, 'agent.pinned')
+    expect(conversationTitles(wrapper)).toEqual(['B'])
+    const reads = testApp.mock.history.get.filter(({ url }) =>
+      url.endsWith('/conversations/')
+    )
+    expect(reads.at(-2).params).toEqual({
+      cursor: null,
+      limit: 20,
+      has_pending_approvals: true,
+    })
+    expect(reads.at(-1).params).toEqual({
+      cursor: null,
+      limit: 20,
+      pinned: true,
+    })
+  })
+
+  test('pins through PATCH, restores a failed unpin, and preserves the open conversation', async () => {
+    const a = conversation('a', 'A')
+    const b = conversation('b', 'B')
+    mockConversations(testApp, conversationsPage([a, b]))
+    mockMessages(testApp, b.uuid, page([message('m', 'Hello')]))
+    testApp.dontFailOnErrorResponses()
+    testApp.mock
+      .onPatch('/agent/10/conversations/b/')
+      .replyOnce(200, { ...b, pinned: true })
+      .onPatch('/agent/10/conversations/b/')
+      .replyOnce(500)
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'B')
+    await composer(wrapper).setValue('Draft')
+    await chooseFromMenu(wrapper, 'B', 'agent.pin')
+    expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
+    expect(JSON.parse(testApp.mock.history.patch[0].data)).toEqual({
+      pinned: true,
+    })
+    expect(wrapper.get('.agent-conversations__header').text()).toBe(
+      'agent.pinned'
+    )
+    await chooseFromMenu(wrapper, 'B', 'agent.unpin')
+    expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
+    expect(composer(wrapper).element.value).toBe('Draft')
+    expect(selected(wrapper).text()).toBe('B')
   })
 })

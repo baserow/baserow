@@ -32,6 +32,7 @@
       <AgentConversationList
         v-if="state.canReadConversations"
         :items="state.conversationItems"
+        :filter="state.conversationFilter"
         :selected="state.selectedUuid"
         :loading="state.conversationsLoading"
         :error="state.conversationsError"
@@ -40,6 +41,7 @@
         :ready-to-send="state.readyToSend"
         :can-update="state.canUpdateConversation"
         :can-delete="state.canDeleteConversation"
+        @filter="state.setConversationFilter"
         @select="state.selectConversation"
         @create="startConversation"
         @retry="state.retryConversations"

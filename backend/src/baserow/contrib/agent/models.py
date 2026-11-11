@@ -67,13 +67,18 @@ class AgentConversation(
     )
     # Reads are already narrowed to one owner's conversations by the index below.
     trashed = models.BooleanField(default=False, db_default=False)
+    pinned = models.BooleanField(default=False, db_default=False)
 
     class Meta:
-        ordering = ("-updated_on", "-id")
+        ordering = ("-pinned", "-updated_on", "-id")
         indexes = [
             models.Index(
                 fields=["agent", "owner_user", "-updated_on", "-id"],
                 name="agent_conversation_owner_idx",
+            ),
+            models.Index(
+                fields=["agent", "owner_user", "-pinned", "-updated_on", "-id"],
+                name="agent_conversation_pinned_idx",
             ),
         ]
 

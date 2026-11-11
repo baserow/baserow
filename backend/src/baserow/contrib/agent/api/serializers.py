@@ -19,7 +19,7 @@ from baserow.contrib.agent.models import (
     AgentToolApproval,
 )
 from baserow.contrib.agent.registries import agent_tool_type_registry
-from baserow.contrib.agent.types import AgentConfiguration
+from baserow.contrib.agent.types import AgentConfiguration, AgentConversationCursor
 from baserow.contrib.agent.validators import (
     AGENT_REJECTION_REASON_MAX_LENGTH,
     AGENT_TEXT_MAX_LENGTH,
@@ -312,6 +312,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "updated_on",
             "run_id",
             "pending_approval_count",
+            "pinned",
         )
 
     @extend_schema_field(serializers.UUIDField(allow_null=True))
@@ -328,6 +329,7 @@ class AgentConversationSerializer(serializers.ModelSerializer):
 class AgentConversationUpdateSerializer(
     UnknownFieldRaisesExceptionSerializerMixin, serializers.Serializer
 ):
+    pinned = serializers.BooleanField(required=False)
     title = serializers.CharField(
         required=False,
         max_length=AgentConversation._meta.get_field("title").max_length,
@@ -488,14 +490,28 @@ class AgentMessageCreatedSerializer(serializers.Serializer):
     reply = AgentMessageSerializer(allow_null=True)
 
 
+class AgentConversationCursorField(KeysetCursorField):
+    def to_internal_value(self, data) -> AgentConversationCursor:
+        value = serializers.CharField.to_internal_value(self, data)
+        pinned, separator, position = value.partition(":")
+        if separator and pinned not in ("0", "1"):
+            raise serializers.ValidationError("Invalid cursor.")
+        cursor = super().to_internal_value(position if separator else value)
+        return AgentConversationCursor(
+            value=cursor.value, id=cursor.id, pinned=separator != "" and pinned == "1"
+        )
+
+
 class AgentConversationsQuerySerializer(serializers.Serializer):
+    pinned = serializers.BooleanField(required=False)
+    has_pending_approvals = serializers.BooleanField(required=False)
     limit = serializers.IntegerField(
         default=20,
         min_value=1,
         max_value=100,
         help_text="Maximum number of conversations to return.",
     )
-    cursor = KeysetCursorField(
+    cursor = AgentConversationCursorField(
         required=False,
         help_text="The `next_cursor` of the previous page, omitted for the first page.",
     )

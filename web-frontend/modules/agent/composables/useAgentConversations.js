@@ -17,6 +17,8 @@ import {
 // The API's order, so positions compare with the pages it returns.
 const byNewest = (a, b) =>
   Date.parse(b.updated_on) - Date.parse(a.updated_on) || b.id - a.id
+const byListPosition = (a, b) =>
+  Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || byNewest(a, b)
 const pick = (source, fields) =>
   Object.fromEntries(fields.map((field) => [field, source[field]]))
 
@@ -108,8 +110,11 @@ export function useAgentConversations(agent, configuration) {
     permission('agent_application.delete_conversation')
   )
 
-  // Every conversation down to `loadedUntil`, newest first.
+  // Every conversation down to `loadedUntil`, pinned first, then newest first.
   const conversations = ref([])
+  const conversationFilter = ref('all')
+  // Changing the list filter must keep the open conversation and its draft.
+  const unlistedConversation = ref(null)
   const localConversations = ref([])
   // Where the next page continues, null once every conversation is loaded.
   const conversationsCursor = ref(null)
@@ -131,22 +136,31 @@ export function useAgentConversations(agent, configuration) {
   let loadingWaitingScope = null
 
   const conversationItems = computed(() => [
-    ...localConversations.value.filter((item) =>
-      drafts[item.uuid]?.content.trim()
+    ...conversations.value.filter((item) => item.pinned && matchesFilter(item)),
+    ...localConversations.value.filter(
+      (item) =>
+        conversationFilter.value === 'all' && drafts[item.uuid]?.content.trim()
     ),
-    ...conversations.value,
+    ...conversations.value.filter(
+      (item) => !item.pinned && matchesFilter(item)
+    ),
   ])
   const selectedConversation = computed(() =>
-    [...localConversations.value, ...conversations.value].find(
-      (item) => item.uuid === selectedUuid.value
-    )
+    [
+      ...localConversations.value,
+      ...conversations.value,
+      unlistedConversation.value,
+    ].find((item) => item?.uuid === selectedUuid.value)
   )
   const currentHistory = computed(() => histories[selectedUuid.value] || null)
   const currentDraft = computed(() => drafts[selectedUuid.value] || null)
   const findConversation = (conversationUuid) =>
-    conversations.value.find((item) => item.uuid === conversationUuid)
+    conversations.value.find((item) => item.uuid === conversationUuid) ||
+    (unlistedConversation.value?.uuid === conversationUuid
+      ? unlistedConversation.value
+      : null)
   const isInLoadedRange = (conversation) =>
-    !conversationsCursor.value || byNewest(conversation, loadedUntil) <= 0
+    !conversationsCursor.value || byListPosition(conversation, loadedUntil) <= 0
 
   const replyFollower = computed(() => {
     const id = selectedConversation.value?.id
@@ -236,7 +250,7 @@ export function useAgentConversations(agent, configuration) {
         Object.assign(current, conversation)
       }
     }
-    conversations.value = [...known.values()].sort(byNewest)
+    conversations.value = [...known.values()].sort(byListPosition)
   }
 
   /**
@@ -260,7 +274,13 @@ export function useAgentConversations(agent, configuration) {
         ;({ data } = await service.getConversations(
           agentId,
           data ? data.next_cursor : cursor,
-          { realtimeRecovery: reload }
+          {
+            realtimeRecovery: reload,
+            ...(conversationFilter.value === 'pinned' ? { pinned: true } : {}),
+            ...(conversationFilter.value === 'waiting'
+              ? { has_pending_approvals: true }
+              : {}),
+          }
         ))
         if (
           !scopeIsCurrent(currentScope) ||
@@ -274,7 +294,8 @@ export function useAgentConversations(agent, configuration) {
         reload &&
         data.next_cursor &&
         until &&
-        byNewest(data.results.at(-1), until) < 0
+        data.results.length &&
+        byListPosition(data.results.at(-1), until) < 0
       )
       if (changes !== conversationChanges) {
         return fetchConversations(cursor, reload)
@@ -283,12 +304,19 @@ export function useAgentConversations(agent, configuration) {
         const listed = new Set(results.map(({ uuid }) => uuid))
         conversations.value
           .filter(({ uuid }) => !listed.has(uuid))
-          .forEach(({ uuid }) => removeConversation(uuid))
+          .forEach(({ uuid }) => {
+            if (
+              conversationFilter.value === 'all' &&
+              isInLoadedRange(findConversation(uuid))
+            ) {
+              removeConversation(uuid)
+            } else unlistConversation(uuid)
+          })
       }
       mergeConversations(results)
       conversationsCursor.value = data.next_cursor
       if (results.length)
-        loadedUntil = pick(results.at(-1), ['updated_on', 'id'])
+        loadedUntil = pick(results.at(-1), ['pinned', 'updated_on', 'id'])
     } catch {
       if (scopeIsCurrent(currentScope) && request === conversationsRequest) {
         conversationsError.value = true
@@ -302,6 +330,34 @@ export function useAgentConversations(agent, configuration) {
         }
       }
     }
+  }
+
+  function matchesFilter(conversation) {
+    return conversationFilter.value === 'waiting'
+      ? isWaiting(conversation)
+      : conversationFilter.value !== 'pinned' || conversation.pinned
+  }
+
+  function unlistConversation(conversationUuid) {
+    if (selectedUuid.value === conversationUuid) {
+      unlistedConversation.value = findConversation(conversationUuid)
+    }
+    conversations.value = conversations.value.filter(
+      (item) => item.uuid !== conversationUuid
+    )
+  }
+
+  async function setConversationFilter(value) {
+    if (value === conversationFilter.value) return
+    unlistedConversation.value = selectedConversation.value?.local
+      ? null
+      : selectedConversation.value
+    conversationFilter.value = value
+    conversations.value = []
+    conversationsCursor.value = null
+    loadedUntil = null
+    conversationsReloadPending = false
+    return fetchConversations()
   }
 
   /** Read the loaded conversations again after missing events that changed them. */
@@ -638,12 +694,21 @@ export function useAgentConversations(agent, configuration) {
     if (!canReadConversations.value || loadingWaitingScope === scope) return
     const currentScope = scope
     const clickedFrom = selectedUuid.value
+    if (conversationFilter.value === 'pinned') {
+      await setConversationFilter('waiting')
+      if (!scopeIsCurrent(currentScope)) return
+    }
+    const filter = conversationFilter.value
     loadingWaitingScope = currentScope
     try {
       while (!waitingAfterSelected() && moreWaitingUnloaded()) {
         const cursor = conversationsCursor.value
         await loadMoreConversations()
-        if (!scopeIsCurrent(currentScope)) return
+        if (
+          !scopeIsCurrent(currentScope) ||
+          conversationFilter.value !== filter
+        )
+          return
         if (conversationsCursor.value === cursor) break
       }
       if (selectedUuid.value !== clickedFrom) return
@@ -699,6 +764,8 @@ export function useAgentConversations(agent, configuration) {
   function applyConversationValues(conversation, values) {
     conversationChanges++
     Object.assign(conversation, values)
+    // Pinning does not change activity time, but it does change list position.
+    conversations.value = [...conversations.value].sort(byListPosition)
   }
 
   function isDeletedElsewhere(error) {
@@ -717,6 +784,8 @@ export function useAgentConversations(agent, configuration) {
     conversations.value = conversations.value.filter(
       (item) => item.uuid !== conversationUuid
     )
+    if (unlistedConversation.value?.uuid === conversationUuid)
+      unlistedConversation.value = null
     delete histories[conversationUuid]
     delete drafts[conversationUuid]
     if (selectedUuid.value !== conversationUuid) return
@@ -755,6 +824,8 @@ export function useAgentConversations(agent, configuration) {
   function clearConversations() {
     ++conversationsRequest
     conversations.value = []
+    unlistedConversation.value = null
+    conversationFilter.value = 'all'
     conversationsCursor.value = null
     loadedUntil = null
     conversationsReloadPending = false
@@ -790,25 +861,32 @@ export function useAgentConversations(agent, configuration) {
       const conversation = findConversation(update.uuid)
       if (update.kind === 'updated') {
         if (conversation) applyConversationValues(conversation, update.values)
+        // A newly pinned conversation might be outside the pages already loaded.
+        if (Object.hasOwn(update.values, 'pinned')) reloadConversations()
         return
       }
       // Past the loaded range, the next page lists it.
       if (!conversation) {
-        if (isInLoadedRange(update.conversation)) {
+        if (
+          matchesFilter(update.conversation) &&
+          isInLoadedRange(update.conversation)
+        ) {
           mergeConversations([update.conversation])
         }
         return
       }
-      // A rename's own event can arrive after this one, so only take the activity.
-      mergeConversations([
-        pick(update.conversation, [
-          'id',
-          'uuid',
-          'run_id',
-          'updated_on',
-          'pending_approval_count',
-        ]),
+      // A rename or pin event can arrive after this one, so only take activity.
+      const activity = pick(update.conversation, [
+        'id',
+        'uuid',
+        'run_id',
+        'updated_on',
+        'pending_approval_count',
       ])
+      if (byNewest(conversation, activity) >= 0) {
+        Object.assign(conversation, activity)
+        mergeConversations([conversation])
+      }
       if (update.uuid === selectedUuid.value) {
         followReplies(conversation)
         // A followed run's finished record brings its approvals with the reply.
@@ -864,9 +942,10 @@ export function useAgentConversations(agent, configuration) {
   const stopListening = runType.listen({
     /** Apply the saved reply its run ended with, or read it when it has none. */
     replyFinished(follower) {
-      const conversation = conversations.value.find(
-        (item) => item.id === follower.chatId
-      )
+      const conversation = [
+        ...conversations.value,
+        unlistedConversation.value,
+      ].find((item) => item?.id === follower.chatId)
       if (!conversation) return
       if (conversation.run_id === follower.runId) conversation.run_id = null
       const history = histories[conversation.uuid]
@@ -884,9 +963,10 @@ export function useAgentConversations(agent, configuration) {
       for (const [conversationUuid, history] of Object.entries(histories)) {
         if (conversationUuid !== selectedUuid.value) history.stale = true
       }
-      const conversation = conversations.value.find(
-        (item) => item.id === chatId
-      )
+      const conversation = [
+        ...conversations.value,
+        unlistedConversation.value,
+      ].find((item) => item?.id === chatId)
       if (conversation) refreshMessages(conversation.uuid)
     },
   })
@@ -900,6 +980,8 @@ export function useAgentConversations(agent, configuration) {
     canUpdateConversation,
     canDeleteConversation,
     conversationItems,
+    conversationFilter,
+    setConversationFilter,
     conversationsLoading,
     conversationsError,
     conversationsNext,

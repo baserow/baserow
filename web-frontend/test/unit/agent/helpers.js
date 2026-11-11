@@ -333,3 +333,13 @@ export async function chooseFromMenu(wrapper, title, action) {
     .trigger('click')
   await flushPromises()
 }
+
+export async function filterConversations(wrapper, label) {
+  const dropdown = wrapper.get('.agent-conversations__filter')
+  await dropdown.get('.dropdown__selected').trigger('click')
+  await dropdown
+    .findAll('.select__item-link')
+    .find((item) => item.text() === label)
+    .trigger('click')
+  await flushPromises()
+}

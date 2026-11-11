@@ -9,7 +9,9 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import (
     Case,
     Count,
+    Exists,
     Max,
+    OuterRef,
     Prefetch,
     QuerySet,
     Value,
@@ -52,7 +54,6 @@ from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
-from baserow.core.pagination import KeysetCursor
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
@@ -89,6 +90,7 @@ from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
+    AgentConversationCursor,
     AgentConversationUpdated,
     AgentMessageCreated,
     AgentPausedRun,
@@ -110,7 +112,7 @@ def normalize_title(text: str) -> str:
 
 class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
-    conversation_fields = ["title"]
+    conversation_fields = ["title", "pinned"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
     option_fields = ["web_search_enabled", "reasoning_effort"]
 
@@ -516,7 +518,9 @@ class AgentHandler:
         self,
         agent: AgentApplication,
         owner: AbstractUser,
-        cursor: KeysetCursor | None = None,
+        cursor: AgentConversationCursor | None = None,
+        pinned: bool | None = None,
+        has_pending_approvals: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return the owner's conversations with the agent.
@@ -524,10 +528,21 @@ class AgentHandler:
         :param agent: The agent the conversations belong to.
         :param owner: The user whose conversations are returned.
         :param cursor: The last conversation of the previous page, to continue after.
-        :return: The owner's conversations, most recently updated first.
+        :param pinned: Only pinned or unpinned conversations, or both when omitted.
+        :param has_pending_approvals: Only conversations with or without pending calls.
+        :return: The owner's conversations, pinned first, then most recently active.
         """
 
         conversations = AgentConversation.objects.filter(agent=agent, owner_user=owner)
+        if pinned is not None:
+            conversations = conversations.filter(pinned=pinned)
+        if has_pending_approvals is not None:
+            pending = Exists(
+                self._pending_approvals().filter(reply__conversation_id=OuterRef("pk"))
+            )
+            conversations = conversations.filter(
+                pending if has_pending_approvals else ~pending
+            )
         if cursor is not None:
             conversations = conversations.filter(cursor.get_filter("updated_on"))
         return conversations
@@ -562,11 +577,10 @@ class AgentHandler:
         return conversation
 
     def update_conversation(
-        self, conversation: AgentConversation, **values: str
+        self, conversation: AgentConversation, **values: str | bool
     ) -> AgentConversationUpdated:
         """
-        Update a conversation's own values without moving it in the list, which is
-        ordered by activity.
+        Update a conversation's own values without changing its last activity time.
 
         :param conversation: The conversation to update.
         :param values: The values to set, by field name. A title is normalized like
@@ -1546,6 +1560,7 @@ class AgentHandler:
         return [
             {
                 "title": conversation.title,
+                "pinned": conversation.pinned,
                 "owner_user_id": conversation.owner_user_id,
                 "created_on": conversation.created_on.isoformat(),
                 "updated_on": conversation.updated_on.isoformat(),
@@ -1600,6 +1615,7 @@ class AgentHandler:
                 agent=agent,
                 uuid=uuid4(),
                 title=data["title"],
+                pinned=data.get("pinned", False),
                 owner_user_id=data["owner_user_id"],
             )
             for data in retained_data

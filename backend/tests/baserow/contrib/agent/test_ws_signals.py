@@ -71,6 +71,7 @@ def update_of(
             "updated_on": DateTimeField().to_representation(conversation.updated_on),
             "run_id": str(run_id) if run_id else None,
             "pending_approval_count": pending_approval_count,
+            "pinned": conversation.pinned,
         },
     }
 
@@ -218,7 +219,7 @@ def test_rolled_back_identity_change_does_not_invalidate_configuration(
 
 
 @pytest.mark.django_db
-def test_renames_deletions_and_restores_notify_only_the_owner(
+def test_renames_pins_deletions_and_restores_notify_only_the_owner(
     data_fixture,
     configured_agent,
     mocker,
@@ -237,7 +238,7 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
 
     with django_capture_on_commit_callbacks(execute=True):
         action_type_registry.get_by_type(UpdateAgentConversationActionType).do(
-            user, agent.id, conversation.uuid, title="Renamed"
+            user, agent.id, conversation.uuid, title="Renamed", pinned=True
         )
         action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
             user, agent.id, conversation.uuid
@@ -251,7 +252,7 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
             {
                 "type": "agent_conversation_updated",
                 **event,
-                "values": {"title": "Renamed"},
+                "values": {"title": "Renamed", "pinned": True},
             },
             ignore_web_socket_id="source-tab",
         ),

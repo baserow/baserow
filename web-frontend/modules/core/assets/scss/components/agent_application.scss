@@ -62,12 +62,16 @@
   border-right: 1px solid $palette-neutral-200;
 }
 
+.agent-conversations__filter {
+  margin: 16px 16px 0;
+}
+
 .agent-conversations__header {
   display: flex;
   align-items: center;
   height: 16px;
   padding: 0 8px;
-  margin: 16px 8px 8px;
+  margin: 16px 0 8px;
   font-size: 11px;
   line-height: 11px;
   font-weight: 500;
@@ -75,8 +79,11 @@
   color: $palette-neutral-900;
 }
 
-.agent-conversations__content {
+.agent-conversations__content.infinite-scroll {
+  position: relative;
+  inset: auto;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 0 8px;
 }
@@ -235,8 +242,15 @@
   }
 }
 
-.agent-conversations__more {
-  margin: 16px 0;
+.agent-conversations__private {
+  color: $palette-neutral-600;
+  font-size: 12px;
+}
+
+.agent-conversations__empty {
+  padding: 0 8px;
+  color: $palette-neutral-600;
+  font-size: 13px;
 }
 
 .agent-conversations__footer {

@@ -40,6 +40,7 @@ def conversation_values(agent: AgentApplication) -> list[tuple]:
     return [
         (
             conversation.title,
+            conversation.pinned,
             conversation.owner_user_id,
             conversation.created_on,
             conversation.updated_on,
@@ -78,7 +79,9 @@ def test_duplicate_copies_conversations_with_new_identifiers(
         workspace=data_fixture.create_workspace(user=copier, members=[owner])
     )
     with freeze_time("2026-01-01"):
-        conversation = data_fixture.create_agent_conversation(user=owner, agent=agent)
+        conversation = data_fixture.create_agent_conversation(
+            user=owner, agent=agent, pinned=True
+        )
         for role in AgentMessage.Role.values:
             data_fixture.create_agent_message(conversation=conversation, role=role)
         reply = data_fixture.create_agent_message(

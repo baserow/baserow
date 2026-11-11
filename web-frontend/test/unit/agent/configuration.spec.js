@@ -781,9 +781,9 @@ describe('Agent configuration', () => {
       workspaceAccessRow(wrapper).get('.icon--error').attributes('aria-label')
     ).toBe('agent.runAsMissing')
     await openSection(wrapper, 'agent.workspaceAccess')
-    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
-      'agent.runAsMissingLabel'
-    )
+    expect(
+      wrapper.get('.agent-configuration .dropdown__selected-text').text()
+    ).toBe('agent.runAsMissingLabel')
     expect(wrapper.get('.agent-configuration .dropdown').classes()).toContain(
       'dropdown--error'
     )
@@ -802,7 +802,9 @@ describe('Agent configuration', () => {
     testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
-    await wrapper.get('.dropdown__selected').trigger('click')
+    await wrapper
+      .get('.agent-configuration .dropdown__selected')
+      .trigger('click')
     await flushPromises()
     const requests = () =>
       testApp.mock.history.get.filter(({ url }) =>
@@ -811,7 +813,9 @@ describe('Agent configuration', () => {
     expect(requests()).toHaveLength(0)
     allowed.value = () => true
     await flushPromises()
-    await wrapper.get('.dropdown__selected').trigger('click')
+    await wrapper
+      .get('.agent-configuration .dropdown__selected')
+      .trigger('click')
     await flushPromises()
     expect(requests()).toHaveLength(1)
     expect(requests()[0].headers['X-Baserow-Realtime-Recovery']).toBe('true')
@@ -839,7 +843,9 @@ describe('Agent configuration', () => {
       testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
       const wrapper = await mount()
       await openSection(wrapper, 'agent.workspaceAccess')
-      await wrapper.get('.dropdown__selected').trigger('click')
+      await wrapper
+        .get('.agent-configuration .dropdown__selected')
+        .trigger('click')
       await flushPromises()
       testApp.mock.resetHistory()
 
@@ -878,7 +884,9 @@ describe('Agent configuration', () => {
     )
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
-    await wrapper.get('.dropdown__selected').trigger('click')
+    await wrapper
+      .get('.agent-configuration .dropdown__selected')
+      .trigger('click')
     await flushPromises()
     const search = wrapper.get('.select__search-input')
     await search.setValue('Inv')
@@ -906,13 +914,15 @@ describe('Agent configuration', () => {
     expect(configurations()).toHaveLength(configCount)
     expect(subjects()).toHaveLength(subjectCount + 1)
     expect(subjects().at(-1).params.search).toBe('Inv')
-    expect(wrapper.get('.select__items').text()).toContain(
+    expect(wrapper.get('.agent-configuration .select__items').text()).toContain(
       'Investor replacement'
     )
     expect(search.element.value).toBe('Inv')
     expect(document.activeElement).toBe(search.element)
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await wrapper.get('.dropdown__selected').trigger('click')
+    await wrapper
+      .get('.agent-configuration .dropdown__selected')
+      .trigger('click')
     await flushPromises()
     expect(subjects()).toHaveLength(subjectCount + 2)
   })
@@ -1028,7 +1038,9 @@ describe('Agent configuration', () => {
       { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
       { run_as_subject_type: 'core.Agent', run_as_subject_id: 8 },
     ])
-    expect(wrapper.get('.dropdown__selected-text').text()).toBe('Support')
+    expect(
+      wrapper.get('.agent-configuration .dropdown__selected-text').text()
+    ).toBe('Support')
     expect(testApp.store.state.toast.items).toHaveLength(0)
   })
 
@@ -1049,7 +1061,9 @@ describe('Agent configuration', () => {
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     await pickRunAs(wrapper, 'Investor')
-    expect(wrapper.get('.dropdown__selected-text').text()).toBe('Investor')
+    expect(
+      wrapper.get('.agent-configuration .dropdown__selected-text').text()
+    ).toBe('Investor')
     expect(wrapper.get('.agent-configuration__save-status').text()).toContain(
       'action.retry'
     )
@@ -1107,9 +1121,9 @@ describe('Agent configuration', () => {
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     await pickRunAs(wrapper, 'Investor')
-    expect(wrapper.get('.dropdown__selected-text').text()).toBe(
-      'agent.noWorkspaceAccess'
-    )
+    expect(
+      wrapper.get('.agent-configuration .dropdown__selected-text').text()
+    ).toBe('agent.noWorkspaceAccess')
     expect(wrapper.find('.agent-configuration__save-status').exists()).toBe(
       false
     )
