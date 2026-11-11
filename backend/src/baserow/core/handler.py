@@ -42,9 +42,9 @@ from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
+from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
-from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
 from .context import clear_current_workspace_id, set_current_workspace_id
 from .emails import WorkspaceInvitationEmail, can_deliver_emails
@@ -2496,12 +2496,11 @@ class CoreHandler:
             progress_builder, len(exported_applications) * 1000
         )
         id_mapping: Dict[str, Any] = {}
-        if import_export_config.is_user_template:
-            # A user template holds only some applications of its source. The guards
-            # only clear unmapped references when their mapping exists, which isn't
-            # the case when the referenced application isn't imported.
-            for key in USER_TEMPLATE_SEEDED_ID_MAPPINGS:
-                id_mapping[key] = {}
+        if not import_export_config.is_duplicate:
+            # The applications may come without the ones they reference, for example
+            # a user template holds only some applications of its source. Such
+            # references must be cleared, not kept as ids of the source.
+            seed_id_mappings(id_mapping)
 
         storage = storage or get_default_storage()
 

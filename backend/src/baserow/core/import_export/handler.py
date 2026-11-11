@@ -40,6 +40,7 @@ from baserow.core.import_export.exceptions import (
     ImportExportResourceInvalidFile,
     ImportExportResourceUntrustedSignature,
 )
+from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.import_export.utils import chunk_generator
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.models import (
@@ -901,6 +902,11 @@ class ImportExportHandler:
 
         imported_applications = []
         id_mapping: Dict[str, Any] = {}
+        # The file may not hold the databases and automations its applications
+        # reference, or only some applications are picked. Such references are
+        # cleared rather than kept as ids of the instance the file came from, which
+        # would point at unrelated tables and fields here.
+        seed_id_mappings(id_mapping)
         next_application_order_value = Application.get_last_order(workspace)
 
         # Sort the serialized applications so that we import:

@@ -1,9 +1,11 @@
+from functools import cache
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
     Generator,
     List,
+    NamedTuple,
     Optional,
     Tuple,
     Type,
@@ -114,7 +116,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
-from baserow.core.cache import global_cache
+from baserow.core.cache import global_cache, local_cache
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
@@ -155,6 +157,76 @@ if TYPE_CHECKING:
 
 
 SCHEMA_CACHE_TTL = 60 * 60  # 1 hour
+
+
+class ServiceOwnerModels(NamedTuple):
+    """The models a service can be part of, see `get_service_owner_models`."""
+
+    # Each holds one service: an automation node, a builder or dashboard data source.
+    single: Tuple[type, ...]
+    # The actions of a button field, in a table of the database.
+    button_actions: Tuple[type, ...]
+    # The actions of a builder page.
+    builder_actions: Tuple[type, ...]
+
+
+@cache
+def get_service_owner_models() -> ServiceOwnerModels:
+    """
+    Returns the models a service can be part of. The action base models are
+    abstract, each action type has a table of its own. A model of this repository
+    that holds a service and isn't listed, nor a part of a service, fails
+    `test_every_service_owner_is_known`. A service of a model that isn't listed,
+    for example of a plugin, is treated as part of no application.
+
+    :return: The owner models, by kind.
+    """
+
+    from django.apps import apps
+
+    from baserow.contrib.automation.nodes.models import AutomationNode
+    from baserow.contrib.builder.data_sources.models import DataSource
+    from baserow.contrib.builder.workflow_actions.models import (
+        BuilderWorkflowServiceAction,
+    )
+    from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
+    from baserow.contrib.database.workflow_actions.models import (
+        DatabaseWorkflowServiceAction,
+    )
+
+    concrete_models = [m for m in apps.get_models() if not m._meta.abstract]
+    return ServiceOwnerModels(
+        # Most services without an integration are automation nodes.
+        single=(AutomationNode, DataSource, DashboardDataSource),
+        button_actions=tuple(
+            m for m in concrete_models if issubclass(m, DatabaseWorkflowServiceAction)
+        ),
+        builder_actions=tuple(
+            m for m in concrete_models if issubclass(m, BuilderWorkflowServiceAction)
+        ),
+    )
+
+
+def _get_id_of_any_holding(models: Tuple[type, ...], service_id: int) -> Optional[int]:
+    """
+    Returns the ID of a row of one of the models that holds the service, in a single
+    query whatever the number of models.
+
+    :param models: The models that can hold a service.
+    :param service_id: The ID of the service.
+    :return: The ID of the row holding it, if any.
+    """
+
+    querysets = [
+        model._base_manager.filter(service_id=service_id)
+        .order_by()
+        .values_list("pk", flat=True)
+        for model in models
+    ]
+    if not querysets:
+        return None
+    union = querysets[0].union(*querysets[1:], all=True)
+    return next(iter(union[:1]), None)
 
 
 class LocalBaserowServiceType(ServiceType):
@@ -341,6 +413,108 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         return IntegrationHandler().is_integration_usable(
             service.integration, workspace_id=table.database.workspace_id
         )
+
+    def can_describe_table(
+        self, service: ServiceSubClass, table: Optional["Table"] = None
+    ) -> bool:
+        """
+        Returns whether the schema and context data of the service's table, such as
+        its field names and select options, may be returned for the service.
+
+        A service can point at a table of another workspace without being able to
+        read it, for example after an import kept the table id of the instance it
+        came from. Its dispatch is refused, and the table mustn't be described
+        either. With an integration, the table must belong to the integration's
+        workspace, as for a dispatch. Without one, it must belong to the workspace
+        of the application the service is part of, except for the action of a
+        button field: it runs as the user who clicks it, and its table, which can
+        be in another workspace, was picked through a permission check.
+
+        :param service: The service in question.
+        :param table: The table to describe, the service's table by default.
+        :return: True when the table may be described.
+        """
+
+        table = table or (service.table if service.table_id else None)
+        if table is None:
+            return False
+
+        # The schema, context data and context data schema are usually asked
+        # together, so the answer is kept for the request.
+        return local_cache.get(
+            f"local_baserow_service_{service.id}_can_describe_table_{table.id}"
+            f"_{service.integration_id}",
+            lambda: self._can_describe_table(service, table),
+        )
+
+    def _can_describe_table(self, service: ServiceSubClass, table: "Table") -> bool:
+        """See `can_describe_table`, without the cache."""
+
+        if service.integration_id:
+            # A trashed integration is cached as `None` while its id is kept, so the
+            # service reconnects when it's restored. Until then, nothing is read.
+            return service.integration is not None and (
+                self.is_table_in_integration_workspace(service, table)
+            )
+
+        is_button_action, workspace_id = self._get_owner_workspace_id(service)
+        return is_button_action or (
+            workspace_id is not None and workspace_id == table.database.workspace_id
+        )
+
+    def _get_owner_workspace_id(
+        self, service: ServiceSubClass
+    ) -> Tuple[bool, Optional[int]]:
+        """
+        Finds what the service is part of: the action of a button field, or an
+        application whose workspace is returned. It takes at most one query per kind
+        of owner, see `get_service_owner_models`.
+
+        :param service: The service in question.
+        :return: Whether the service belongs to the action of a button field, and
+            the workspace ID of the application it's part of, if found.
+        """
+
+        from baserow.contrib.builder.workflow_actions.models import (
+            BuilderWorkflowAction,
+        )
+
+        owner_models = get_service_owner_models()
+
+        for model in owner_models.single:
+            owner = model._base_manager.filter(service_id=service.id).first()
+            if owner is not None:
+                return False, self._get_application_workspace_id(owner)
+
+        if _get_id_of_any_holding(owner_models.button_actions, service.id):
+            return True, None
+
+        action_id = _get_id_of_any_holding(owner_models.builder_actions, service.id)
+        if action_id is not None:
+            action = BuilderWorkflowAction._base_manager.get(id=action_id)
+            return False, self._get_application_workspace_id(action)
+
+        return False, None
+
+    def _get_application_workspace_id(self, owner) -> Optional[int]:
+        """
+        Returns the workspace ID of the application the owner of a service is part
+        of. A published builder has no workspace of its own, `get_workspace`
+        returns the one it's published from.
+
+        :param owner: An instance of a model of `get_service_owner_models`.
+        :return: The workspace ID, if any.
+        """
+
+        from baserow.core.models import Application
+
+        ancestor = owner
+        while ancestor is not None and not isinstance(ancestor, Application):
+            ancestor = ancestor.get_parent()
+        if ancestor is None:
+            return None
+        workspace = ancestor.specific.get_workspace()
+        return workspace.id if workspace else None
 
     def get_permission_workspace(self, service: ServiceSubClass) -> Workspace:
         """
@@ -718,7 +892,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         :return: A schema dictionary, or None if no `Table` has been applied.
         """
 
-        if service.table_id is None:
+        if service.table_id is None or not self.can_describe_table(service):
             return None
 
         properties = self.get_table_properties(service)
@@ -876,7 +1050,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     def get_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        if service.table_id is None:
+        if service.table_id is None or not self.can_describe_table(service):
             return None
 
         context_data = global_cache.get(
@@ -924,7 +1098,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     def get_context_data_schema(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Optional[Dict[str, Any]]:
-        if service.table_id is None:
+        if service.table_id is None or not self.can_describe_table(service):
             return None
 
         properties = global_cache.get(
@@ -1505,7 +1679,11 @@ class LocalBaserowAggregateRowsUserServiceType(
             have been applied.
         """
 
-        if not service.field or not service.aggregation_type:
+        if (
+            not service.field
+            or not service.aggregation_type
+            or not self.can_describe_table(service, service.field.table)
+        ):
             return None
 
         # The `result` must be an allowed field, otherwise we have no schema.
@@ -1550,8 +1728,10 @@ class LocalBaserowAggregateRowsUserServiceType(
         public: bool,
     ) -> dict:
         context_data = {}
-        if service.field and not (
-            allowed_fields is not None and "result" not in allowed_fields
+        if (
+            service.field
+            and not (allowed_fields is not None and "result" not in allowed_fields)
+            and self.can_describe_table(service, service.field.table)
         ):
             if public:
                 serialized_field = serialize_public_field(service.field)
@@ -3371,7 +3551,11 @@ class LocalBaserowFieldsUpdatedTriggerServiceType(
         """
 
         field_ids = service.field_ids
-        if service.table_id is None or not field_ids:
+        if (
+            service.table_id is None
+            or not field_ids
+            or not self.can_describe_table(service)
+        ):
             return None
 
         # Reuse the cached, fully-built table properties and then narrow them down

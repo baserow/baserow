@@ -16,6 +16,9 @@ def user_source(data_fixture):
 
     return data_fixture.create_user_source_with_first_type(
         application=application,
+        integration=data_fixture.create_local_baserow_integration(
+            application=application, user=user
+        ),
     )
 
 
@@ -49,7 +52,13 @@ def test_roles_returns_expected_data(user_source, data_fixture, roles):
     """Ensure the roles field returns an alphabetized list of roles."""
 
     # Create a roles field and add some rows
-    users_table = data_fixture.create_database_table(name="test_users")
+    # The users are read through the integration, so they share a workspace.
+    users_table = data_fixture.create_database_table(
+        name="test_users",
+        database=data_fixture.create_database_application(
+            workspace=user_source.application.workspace
+        ),
+    )
     role_field = data_fixture.create_text_field(
         table=users_table, order=0, name="role", text_default=""
     )

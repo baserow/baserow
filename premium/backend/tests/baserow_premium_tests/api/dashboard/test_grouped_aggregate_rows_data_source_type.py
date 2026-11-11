@@ -32,7 +32,11 @@ def test_grouped_aggregate_rows_get_dashboard_data_sources(
 ):
     user, token = premium_data_fixture.create_user_and_token()
     dashboard = premium_data_fixture.create_dashboard_application(user=user)
-    table = premium_data_fixture.create_database_table(user=user)
+    # The table must belong to the dashboard's workspace to be described.
+    database = premium_data_fixture.create_database_application(
+        user=user, workspace=dashboard.workspace
+    )
+    table = premium_data_fixture.create_database_table(user=user, database=database)
     field = premium_data_fixture.create_number_field(table=table)
     field_2 = premium_data_fixture.create_number_field(table=table)
     field_3 = premium_data_fixture.create_number_field(table=table)

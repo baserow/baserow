@@ -165,6 +165,9 @@ def user_source_fixture(data_fixture):
     user_source = data_fixture.create_user_source(
         local_baserow_user_source_type.model_class,
         application=application,
+        integration=data_fixture.create_local_baserow_integration(
+            application=application, user=user
+        ),
     )
     return user_source
 
@@ -1107,6 +1110,7 @@ def test_local_baserow_user_source_token_generation(
 
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=database,
         columns=[
             ("Email", "text"),
             ("Name", "text"),
@@ -2124,7 +2128,9 @@ def test_get_roles_returns_empty_list_if_role_type_unsupported(
     user_source = data["user_source"]
 
     # Create a roles field and add some rows
-    users_table = data_fixture.create_database_table(name="test_users")
+    users_table = data_fixture.create_database_table(
+        name="test_users", database=user_source.table.database
+    )
     role_field = data_fixture.create_text_field(
         table=users_table, order=0, name="role", text_default=""
     )
@@ -2258,7 +2264,13 @@ def test_get_roles_returns_expected_roles(
     user_source = user_source_fixture
 
     # Create a roles field and add some rows
-    users_table = data_fixture.create_database_table(name="test_users")
+    # The users are read through the integration, so they share a workspace.
+    users_table = data_fixture.create_database_table(
+        name="test_users",
+        database=data_fixture.create_database_application(
+            workspace=user_source.application.workspace
+        ),
+    )
     role_field = data_fixture.create_text_field(
         table=users_table, order=0, name="role", text_default=""
     )
@@ -2492,8 +2504,10 @@ def test_update_user_count_with_configured_user_sources(
     integration2 = data_fixture.create_local_baserow_integration(
         application=application2
     )
+    # The users are read through the integrations, so they share a workspace.
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=data_fixture.create_database_application(workspace=workspace),
         columns=[
             ("Email", "text"),
             ("Name", "text"),

@@ -243,7 +243,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         allowed_fields: list[str] | None,
         public: bool,
     ) -> dict | None:
-        if not service.table_id:
+        if not service.table_id or not self.can_describe_table(service):
             return None
 
         result_properties = self._get_result_properties(service, public=public)
@@ -1021,7 +1021,7 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     ) -> dict:
         context_data = {}
 
-        if service.table:
+        if service.table_id and self.can_describe_table(service):
             model = service.table.get_model()
 
             def get_group_by_field(field):

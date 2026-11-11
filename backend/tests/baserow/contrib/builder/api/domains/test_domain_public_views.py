@@ -1483,7 +1483,13 @@ def test_public_dispatch_data_sources_get_row_no_elements(
     builder = page.builder
     builder.workspace = None
     builder.save()
-    data_fixture.create_builder_custom_domain(published_to=builder)
+    # Published from a builder of the workspace whose integration reads the users.
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=user_source_user_fixture["workspace"]
+        ),
+        published_to=builder,
+    )
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",
@@ -1539,7 +1545,13 @@ def test_public_dispatch_data_sources_list_rows_no_elements(
     builder = user_source_user_fixture["builder"]
     builder.workspace = None
     builder.save()
-    data_fixture.create_builder_custom_domain(published_to=builder)
+    # Published from a builder of the workspace whose integration reads the users.
+    data_fixture.create_builder_custom_domain(
+        builder=data_fixture.create_builder_application(
+            workspace=user_source_user_fixture["workspace"]
+        ),
+        published_to=builder,
+    )
 
     url = reverse(
         "api:builder:domains:public_dispatch_all",

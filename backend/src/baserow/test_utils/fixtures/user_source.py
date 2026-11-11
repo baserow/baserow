@@ -2,6 +2,8 @@ from typing import List
 
 from django.contrib.contenttypes.models import ContentType
 
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.models import Workspace
 from baserow.core.user_sources.models import UserSource
 from baserow.core.user_sources.registries import (
     UserSourceType,
@@ -44,12 +46,30 @@ class UserSourceFixtures:
             user_sources.append(user_source)
         return user_sources
 
+    def create_user_source_database(self, integration, user=None):
+        """
+        Creates a database in the workspace of the integration, which a local
+        Baserow user source reads its users through. A published application has
+        no workspace of its own, its source's is used.
+        """
+
+        workspace_id = IntegrationHandler().get_integration_workspace_id(integration)
+        workspace = Workspace.objects.get(id=workspace_id) if workspace_id else None
+        if workspace is None:
+            return self.create_database_application(user=user)
+        return self.create_database_application(user=user, workspace=workspace)
+
     def create_user_table_and_role(self, user, builder, user_role, integration=None):
         """Helper to create a User table with a particular user role."""
 
-        # Create the user table for the user_source
+        integration = integration or self.create_local_baserow_integration(
+            user=user, application=builder
+        )
+
+        # Create the user table for the user_source, in the integration's workspace.
         user_table, user_fields, user_rows = self.build_table(
             user=user,
+            database=self.create_user_source_database(integration, user=user),
             columns=[
                 ("Email", "text"),
                 ("Name", "text"),
@@ -62,9 +82,6 @@ class UserSourceFixtures:
         )
         email_field, name_field, password_field, role_field = user_fields
 
-        integration = integration or self.create_local_baserow_integration(
-            user=user, application=builder
-        )
         user_source = self.create_user_source(
             user_source_type_registry.get("local_baserow").model_class,
             application=builder,
@@ -90,8 +107,11 @@ class UserSourceFixtures:
             integration = self.create_local_baserow_integration(application=application)
 
         if not table:
+            # The users are read through the integration, so the table must share
+            # its workspace.
             table, fields, rows = self.build_table(
                 user=user,
+                database=self.create_user_source_database(integration, user=user),
                 columns=[
                     ("Email", "text"),
                     ("Name", "text"),

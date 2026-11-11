@@ -2,7 +2,7 @@ import operator
 from collections import defaultdict
 from datetime import datetime, timezone
 from functools import reduce
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
@@ -554,6 +554,71 @@ class LocalBaserowUserSourceType(UserSourceType):
 
         return True
 
+    def is_readable(
+        self, user_source: LocalBaserowUserSource, raise_exception=False
+    ) -> bool:
+        """
+        Returns True if the user source is configured, and its users may be read
+        from its table, see `is_table_readable`. Counting checks the table when it
+        counts, in `update_user_count`, so reading a cached count needs neither.
+        """
+
+        if not self.is_configured(user_source, raise_exception=raise_exception):
+            return False
+
+        if not self.is_table_readable(user_source):
+            if raise_exception:
+                raise UserSourceImproperlyConfigured(
+                    "The users can't be read from the table."
+                )
+            return False
+
+        return True
+
+    def is_table_readable(
+        self,
+        user_source: LocalBaserowUserSource,
+        fields: Tuple[str, ...] = ("name_field", "email_field", "role_field"),
+    ) -> bool:
+        """
+        Returns whether the users can be read from the table of the user source.
+
+        The users are read through the integration, so the table must belong to
+        the integration's workspace, and the configured fields to the table. An
+        import used to keep the table and field ids of the instance it came from
+        when their database wasn't imported, which could point at a table of
+        another workspace. Such a user source mustn't list or sign in its users,
+        nor reveal its roles.
+
+        :param user_source: The user source in question.
+        :param fields: The configured fields that must belong to the table.
+        :return: True when the users may be read.
+        """
+
+        # A trashed integration is cached as `None` while its id is kept.
+        if (
+            not user_source.table_id
+            or not user_source.integration_id
+            or user_source.integration is None
+        ):
+            return False
+
+        table = user_source.table
+        workspace_id = IntegrationHandler().get_integration_workspace_id(
+            user_source.integration
+        )
+        # A copy being published has no workspace until its domain points at it,
+        # and its roles are read while its pages are imported. Its user sources are
+        # copied from the published builder, and checked once the domain does.
+        if workspace_id is not None and workspace_id != table.database.workspace_id:
+            return False
+
+        return all(
+            getattr(user_source, f"{field}_id") is None
+            or getattr(user_source, field).table_id == table.id
+            for field in fields
+        )
+
     def gen_uid(self, user_source: LocalBaserowUserSource):
         """
         We want to invalidate user tokens if the table or the email field change.
@@ -597,7 +662,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         Returns the users from the table selected with the user source.
         """
 
-        if not self.is_configured(user_source):
+        if not self.is_readable(user_source):
             return []
 
         try:
@@ -635,7 +700,11 @@ class LocalBaserowUserSourceType(UserSourceType):
         role that is the Default User Role.
         """
 
-        if not user_source.role_field:
+        # A role field the user source can't read is like none: its options and
+        # values belong to another workspace.
+        if not user_source.role_field or not self.is_table_readable(
+            user_source, fields=("role_field",)
+        ):
             return [self.get_default_user_role(user_source)]
 
         if user_source.role_field.get_type().can_have_select_options:
@@ -674,15 +743,15 @@ class LocalBaserowUserSourceType(UserSourceType):
         Returns a user from the selected table.
         """
 
+        if not self.is_readable(user_source):
+            raise UserNotFound()
+
         try:
             UserModel = self.get_user_model(user_source)
         except UserSourceImproperlyConfigured as exc:
             raise UserNotFound() from exc
 
         user = None
-
-        if not self.is_configured(user_source):
-            raise UserNotFound()
 
         if kwargs.get("email", None):
             # As we have no unique constraint for fields we return the first matching
@@ -714,7 +783,7 @@ class LocalBaserowUserSourceType(UserSourceType):
         Creates the user in the configured table.
         """
 
-        self.is_configured(user_source, raise_exception=True)
+        self.is_readable(user_source, raise_exception=True)
 
         integration = user_source.integration.specific
 
@@ -776,7 +845,7 @@ class LocalBaserowUserSourceType(UserSourceType):
             raise_if_over_application_user_login_limit,
         )
 
-        self.is_configured(user_source, raise_exception=True)
+        self.is_readable(user_source, raise_exception=True)
 
         try:
             # Get the unique password auth provider
@@ -902,9 +971,19 @@ class LocalBaserowUserSourceType(UserSourceType):
         # we will filter again here.
         configured_user_sources = [us for us in user_sources if self.is_configured(us)]
 
+        # A user source whose table it can't read, for example one of another
+        # workspace, isn't counted, its rows aren't its users. A count cached before
+        # is dropped.
+        readable_user_sources = []
+        for us in configured_user_sources:
+            if self.is_table_readable(us):
+                readable_user_sources.append(us)
+            else:
+                cache.delete(self._generate_update_user_count_cache_key(us))
+
         # Fetch all the table records in bulk.
         user_source_table_map = defaultdict(list)
-        for us in configured_user_sources:
+        for us in readable_user_sources:
             user_source_table_map[us.table_id].append(us)
         tables = TableHandler.get_tables().filter(id__in=user_source_table_map.keys())
 

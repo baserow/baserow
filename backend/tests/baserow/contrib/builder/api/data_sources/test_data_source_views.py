@@ -2524,7 +2524,16 @@ def test_get_record_names_published_builder(
     token = data_source_fixture["user_source_user_token"]
     if actor == "other_builder":
         other_builder = data_fixture.create_builder_application(workspace=None)
-        data_fixture.create_builder_custom_domain(published_to=other_builder)
+        # Published from a builder of a workspace of the user its integration
+        # reads the users as.
+        data_fixture.create_builder_custom_domain(
+            builder=data_fixture.create_builder_application(
+                workspace=data_fixture.create_workspace(
+                    user=data_source_fixture["user"]
+                )
+            ),
+            published_to=other_builder,
+        )
         source = data_fixture.create_local_baserow_table_user_source(
             application=other_builder,
             user=data_source_fixture["user"],

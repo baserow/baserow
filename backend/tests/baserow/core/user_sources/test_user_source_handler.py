@@ -495,8 +495,16 @@ def test_get_all_roles_for_application_returns_user_roles(
     expected_roles,
 ):
     builder = data_fixture.create_builder_application()
-    user_source_1 = data_fixture.create_user_source_with_first_type(application=builder)
-    users_table_1 = data_fixture.create_database_table(name="test_users_1")
+    # The roles are read through the integration, so the tables must share the
+    # workspace of the builder.
+    integration = data_fixture.create_local_baserow_integration(application=builder)
+    database = data_fixture.create_database_application(workspace=builder.workspace)
+    user_source_1 = data_fixture.create_user_source_with_first_type(
+        application=builder, integration=integration
+    )
+    users_table_1 = data_fixture.create_database_table(
+        name="test_users_1", database=database
+    )
     role_field_1 = data_fixture.create_text_field(
         table=users_table_1, order=0, name="role", text_default=""
     )
@@ -509,8 +517,12 @@ def test_get_all_roles_for_application_returns_user_roles(
     for role in roles_a:
         model.objects.create(**{f"field_{role_field_1.id}": role})
 
-    user_source_2 = data_fixture.create_user_source_with_first_type(application=builder)
-    users_table_2 = data_fixture.create_database_table(name="test_users_2")
+    user_source_2 = data_fixture.create_user_source_with_first_type(
+        application=builder, integration=integration
+    )
+    users_table_2 = data_fixture.create_database_table(
+        name="test_users_2", database=database
+    )
     role_field_2 = data_fixture.create_text_field(
         table=users_table_2, order=0, name="role", text_default=""
     )
@@ -617,8 +629,12 @@ def test_update_all_user_source_counts_in_chunks(data_fixture):
     workspace = data_fixture.create_workspace(user=user)
     builder = data_fixture.create_builder_application(workspace=workspace)
     integration = data_fixture.create_local_baserow_integration(application=builder)
+    # The users are counted through the integration, so the table must share the
+    # workspace of the builder.
+    database = data_fixture.create_database_application(workspace=workspace)
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=database,
         columns=[
             ("Email", "text"),
             ("Name", "text"),

@@ -737,9 +737,19 @@ def test_list_roles_endpoint_returns_expected_data(
     """
 
     user_source, token = user_source_and_token
+    application = user_source.application
+
+    # The roles are read through the integration, so the table must share the
+    # workspace of the builder.
+    user_source.integration = data_fixture.create_local_baserow_integration(
+        application=application
+    )
+    database = data_fixture.create_database_application(workspace=application.workspace)
 
     # Create a roles field and add some rows
-    users_table = data_fixture.create_database_table(name="test_users")
+    users_table = data_fixture.create_database_table(
+        name="test_users", database=database
+    )
     role_field = data_fixture.create_text_field(
         table=users_table, order=0, name="role", text_default=""
     )

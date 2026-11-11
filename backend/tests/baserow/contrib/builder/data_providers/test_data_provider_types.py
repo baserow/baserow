@@ -921,7 +921,9 @@ def test_data_source_context_data_provider_get_data_chunk(data_fixture):
             },
         ],
     )
-    builder = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=table.database.workspace
+    )
     page = data_fixture.create_builder_page(user=user, builder=builder)
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
         user=user,

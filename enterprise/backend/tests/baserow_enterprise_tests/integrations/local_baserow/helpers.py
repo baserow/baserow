@@ -34,6 +34,7 @@ def populate_local_baserow_test_data(data_fixture, role_name="", extra_fields=No
 
     table, fields, rows = data_fixture.build_table(
         user=user,
+        database=database,
         columns=columns,
         rows=[
             [
