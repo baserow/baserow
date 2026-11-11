@@ -1,5 +1,5 @@
 from baserow.contrib.automation.exceptions import AutomationError
-from baserow.core.services.exceptions import TriggerServiceMisconfigured
+from baserow.core.services.exceptions import ServiceMisconfigured
 
 
 class AutomationNodeError(AutomationError):
@@ -42,9 +42,7 @@ class AutomationNodeTriggerMustBeFirstNode(AutomationNodeError):
     """When we try to create a trigger node as non first node of the graph"""
 
 
-class AutomationNodeMisconfiguredService(
-    TriggerServiceMisconfigured, AutomationNodeError
-):
+class AutomationNodeMisconfiguredService(ServiceMisconfigured, AutomationNodeError):
     """When the node's service is misconfigured."""
 
 

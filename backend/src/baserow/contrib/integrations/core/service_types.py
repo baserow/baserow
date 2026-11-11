@@ -117,7 +117,7 @@ from baserow.core.services.exceptions import (
     RemoteRefusedDispatchException,
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
-    TriggerServiceMisconfigured,
+    ServiceMisconfigured,
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
 )
@@ -1978,14 +1978,14 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
                 and minute is not None
                 and minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN
             ):
-                raise TriggerServiceMisconfigured(
+                raise ServiceMisconfigured(
                     "The `minute` value must be greater "
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
                 )
 
         service_timezone = values.get("timezone", None)
         if service_timezone is not None and service_timezone not in get_timezones():
-            raise TriggerServiceMisconfigured(
+            raise ServiceMisconfigured(
                 f"The timezone `{service_timezone}` is not a valid timezone."
             )
 

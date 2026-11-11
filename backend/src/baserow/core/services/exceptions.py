@@ -120,10 +120,9 @@ class TriggerServiceNotDispatchable(DispatchException):
     """When the trigger can't be immediately dispatched and needs an event to happens"""
 
 
-class TriggerServiceMisconfigured(Exception):
+class ServiceMisconfigured(Exception):
     """
-    Raised when the values of a trigger service cannot describe a valid event
-    source, such as a schedule below the instance minimum or an unknown timezone.
-    The message is written for whoever configures the service, so every host of
-    trigger services may show it as is.
+    Raised when service configuration values are invalid, such as a schedule
+    below the instance minimum or an unknown timezone. The message is written
+    for whoever configures the service, so every host may show it as is.
     """

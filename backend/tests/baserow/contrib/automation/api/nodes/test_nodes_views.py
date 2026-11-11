@@ -1458,7 +1458,7 @@ def test_update_periodic_trigger_with_unknown_timezone_is_a_misconfigured_servic
     api_client, data_fixture
 ):
     """
-    The periodic service type raises the core `TriggerServiceMisconfigured`; the
+    The periodic service type raises the core `ServiceMisconfigured`; the
     Automation API must still answer with its own error code for it.
     """
 
