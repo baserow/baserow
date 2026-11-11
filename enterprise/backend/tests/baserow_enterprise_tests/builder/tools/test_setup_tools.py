@@ -21,6 +21,7 @@ from baserow.contrib.builder.tools import (
     pages,
     themes,
 )
+from baserow.contrib.builder.tools import elements as shared_elements
 from baserow.contrib.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
@@ -32,6 +33,7 @@ from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowActio
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.integrations.models import Integration
 from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
 from baserow.core.user_sources.models import UserSource
@@ -1200,3 +1202,27 @@ def test_the_highest_values_the_rest_api_takes_are_stored(builder_ctx):
     column = Element.objects.get(id=ids["c"]).specific
     assert (column.column_amount, column.column_gap) == (6, 2000)
     assert Element.objects.get(id=ids["i"]).specific.rows == 100
+
+
+@pytest.mark.django_db
+def test_an_auth_form_login_button_label_is_stored_as_text(data_fixture, builder_ctx):
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=builder_ctx["builder"]
+    )
+
+    result = shared_elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="login",
+                type="auth_form",
+                user_source_id=user_source.id,
+                login_button_label="Sign in",
+            )
+        ],
+    )
+
+    login = AuthFormElement.objects.get(id=result["ref_to_id_map"]["login"])
+    assert login.login_button_label["formula"] == "'Sign in'"
+    assert login.login_button_label["mode"] == BASEROW_FORMULA_MODE_ADVANCED

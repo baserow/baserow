@@ -1,5 +1,12 @@
 """What the builder tools accept over MCP: no Kuma-only parameters."""
 
+import json
+import os
+import subprocess
+import sys
+
+from django.apps import apps
+
 from baserow.core.mcp.groups import GROUP_BUILDER_EDIT, GROUP_BUILDER_READ
 from baserow.core.mcp.registries import mcp_tool_registry
 
@@ -32,9 +39,10 @@ BUILDER_TOOLS = {
     "create_element_actions",
     "update_element_action",
     "setup_page",
-    "setup_user_source",
     "set_theme",
 }
+# Registered by enterprise, which has the login form it sets up.
+ENTERPRISE_BUILDER_TOOLS = {"setup_user_source"}
 
 
 def _keys(node):
@@ -60,7 +68,53 @@ def _builder_tools():
 def test_builder_tools_are_registered():
     names = {tool.name for tool in _builder_tools()}
 
-    assert names == BUILDER_TOOLS
+    if apps.is_installed("baserow_enterprise"):
+        assert names == BUILDER_TOOLS | ENTERPRISE_BUILDER_TOOLS
+    else:
+        assert names == BUILDER_TOOLS
+
+
+def test_an_instance_without_the_paid_editions_has_the_builder_tools():
+    code = """
+import json
+
+import django
+
+django.setup()
+
+from django.apps import apps
+
+from baserow.core.mcp.groups import GROUP_BUILDER_EDIT, GROUP_BUILDER_READ
+from baserow.core.mcp.registries import mcp_tool_registry
+
+print(json.dumps({
+    "enterprise": apps.is_installed("baserow_enterprise"),
+    "tools": sorted(
+        tool.name
+        for tool in mcp_tool_registry.get_all()
+        if tool.group in (GROUP_BUILDER_READ, GROUP_BUILDER_EDIT)
+    ),
+}))
+"""
+    env = {
+        **os.environ,
+        "PYTHONPATH": os.pathsep.join(sys.path),
+        "DJANGO_SETTINGS_MODULE": "baserow.config.settings.base",
+        "BASEROW_OSS_ONLY": "1",
+        "SECRET_KEY": os.environ.get("SECRET_KEY") or "test",
+    }
+
+    finished = subprocess.run(  # noqa: S603 - only the current interpreter runs fixed test code.
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+    listed = json.loads(finished.stdout.strip().splitlines()[-1])
+    assert listed["enterprise"] is False
+    assert set(listed["tools"]) == BUILDER_TOOLS
 
 
 def test_no_builder_tool_offers_a_kuma_only_parameter():

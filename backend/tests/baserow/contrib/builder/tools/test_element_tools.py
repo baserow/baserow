@@ -2202,30 +2202,6 @@ def test_children_of_a_column_are_listed_by_place(data_fixture, builder_ctx):
     ]
 
 
-@pytest.mark.django_db
-def test_an_auth_form_login_button_label_is_stored_as_text(data_fixture, builder_ctx):
-    user_source = data_fixture.create_user_source_with_first_type(
-        application=builder_ctx["builder"]
-    )
-
-    result = elements.create_elements(
-        builder_ctx["ctx"],
-        builder_ctx["page"].id,
-        [
-            ElementItemCreate(
-                ref="login",
-                type="auth_form",
-                user_source_id=user_source.id,
-                login_button_label="Sign in",
-            )
-        ],
-    )
-
-    login = saved(result["ref_to_id_map"]["login"])
-    assert login.login_button_label["formula"] == "'Sign in'"
-    assert login.login_button_label["mode"] == BASEROW_FORMULA_MODE_ADVANCED
-
-
 @pytest.fixture
 def two_parameter_pages(data_fixture, builder_ctx):
     return [
@@ -2701,8 +2677,14 @@ def test_an_element_type_the_instance_lacks_is_refused(builder_ctx, monkeypatch)
     result = elements.create_elements(
         builder_ctx["ctx"],
         builder_ctx["page"].id,
-        [ElementItemCreate(ref="login", type="auth_form")],
+        [
+            ElementItemCreate(ref="title", type="heading", value="Welcome"),
+            ElementItemCreate(ref="login", type="auth_form"),
+        ],
     )
 
-    assert "no auth_form element" in str(result["errors"])
+    assert result["errors"] == [
+        "login: This instance has no auth_form element, so it wasn't created."
+    ]
     assert "login" not in result["ref_to_id_map"]
+    assert "title" in result["ref_to_id_map"]
