@@ -398,7 +398,7 @@ def test_a_periodic_service_that_fails_doesnt_stop_the_others(
         transaction.atomic(),
     ):
         service_type_registry.get(
-            CorePeriodicTriggerServiceType.type
+            CorePeriodicServiceType.type
         ).call_periodic_services_that_are_due()
 
     history = AutomationWorkflowHistory.objects.get()
@@ -440,7 +440,7 @@ def test_periodic_services_stop_when_the_task_is_out_of_time(
         transaction.atomic(),
     ):
         service_type_registry.get(
-            CorePeriodicTriggerServiceType.type
+            CorePeriodicServiceType.type
         ).call_periodic_services_that_are_due()
 
     assert mock_async_start_workflow.call_count == 1
@@ -456,9 +456,7 @@ def test_periodic_services_that_start_no_workflow_add_no_queries(data_fixture):
     automation = data_fixture.create_automation_application(
         user=data_fixture.create_user()
     )
-    periodic_service_type = service_type_registry.get(
-        CorePeriodicTriggerServiceType.type
-    )
+    periodic_service_type = service_type_registry.get(CorePeriodicServiceType.type)
 
     def count_queries_with_draft_services(count):
         for _ in range(count):
@@ -536,7 +534,7 @@ def test_trashing_a_workflow_or_its_workspace_stops_its_published_copy(
     with freeze_time("2025-02-15 10:05:30"):
         with transaction.atomic():
             service_type_registry.get(
-                CorePeriodicTriggerServiceType.type
+                CorePeriodicServiceType.type
             ).call_periodic_services_that_are_due()
 
     history = AutomationWorkflowHistory.objects.get()

@@ -5584,7 +5584,9 @@ def test_link_row_group_values_use_display_safe_labels(data_fixture, with_sort):
         user, tasks, values={owner.db_column: [person.id], amount.db_column: 10}
     )
     service = data_fixture.create_service(
-        LocalBaserowGroupedAggregateRows, table=tasks, integration_args={"authorized_user": user}
+        LocalBaserowGroupedAggregateRows,
+        table=tasks,
+        integration_args={"authorized_user": user},
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=amount, aggregation_type="sum", order=0
@@ -5648,7 +5650,9 @@ def test_individual_group_sort_uses_member_field_type(
         ]
     amount = data_fixture.create_number_field(table=table, name="Amount")
     service = data_fixture.create_service(
-        LocalBaserowGroupedAggregateRows, table=table, integration_args={"authorized_user": user}
+        LocalBaserowGroupedAggregateRows,
+        table=table,
+        integration_args={"authorized_user": user},
     )
     LocalBaserowTableServiceAggregationSeries.objects.create(
         service=service, field=amount, aggregation_type="sum", order=0
