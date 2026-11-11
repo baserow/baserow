@@ -406,6 +406,7 @@
 .agent-approval__always-allow.button {
   height: auto;
   min-height: $button-small-height;
+  padding-block: 5px;
 
   .button__label {
     white-space: normal;
