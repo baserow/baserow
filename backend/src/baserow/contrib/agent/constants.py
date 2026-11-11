@@ -88,6 +88,7 @@ WEB_SEARCH_FAILED_INSTRUCTIONS = (
     "cannot search the web. Don't present what you remember as up to date."
 )
 TOOL_RETRIES = 3
+OUTPUT_RETRIES = 3
 # Queries one web search step shows, and the length of each, which keeps a step
 # readable.
 WEB_SEARCH_STEP_MAX_QUERIES = 5

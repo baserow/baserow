@@ -1,12 +1,12 @@
 """
-Centralized model configuration and per-model settings for all agents.
+Kuma model selection, shared request profiles, and output/adapter overrides.
 
 Contains:
 - ``resolve_assistant_model()``: Freezes model selection for one logical request.
 - ``ResolvedAssistantModelProfile``: The frozen selection and role-based behavior.
 - ``check_lm_ready_or_raise()``: Cached live compatibility check of that selection.
 - ``get_model_settings(model, role)``: Per-model, per-role settings.
-- ``AssistantModelConfiguration``: Central settings, output, and adapter overrides.
+- ``AssistantModelConfiguration``: Output and adapter overrides.
 
 Usage::
 
@@ -20,8 +20,7 @@ Usage::
 """
 
 import time
-from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from hashlib import sha256
 from threading import Lock
 from typing import Literal
@@ -51,6 +50,26 @@ from baserow.core.generative_ai.capabilities import test_model_text_and_tool_cal
 from baserow.core.generative_ai.generative_ai_model_types import (
     sanitize_google_model_settings,
 )
+from baserow.core.generative_ai.model_profiles import (
+    DOCUMENTATION,
+    ORCHESTRATOR,
+    TITLE,
+)
+from baserow.core.generative_ai.model_profiles import (
+    SAMPLE as SAMPLE,
+)
+from baserow.core.generative_ai.model_profiles import (
+    SUBAGENT as SUBAGENT,
+)
+from baserow.core.generative_ai.model_profiles import (
+    SUGGESTIONS as SUGGESTIONS,
+)
+from baserow.core.generative_ai.model_profiles import (
+    UTILITY as UTILITY,
+)
+from baserow.core.generative_ai.model_profiles import (
+    get_model_settings as get_shared_model_settings,
+)
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.exceptions import (
@@ -69,68 +88,14 @@ _process_local_model_readiness_cache_lock = Lock()
 _process_local_model_readiness_probe_locks: dict[str, Lock] = {}
 
 # ---------------------------------------------------------------------------
-# Agent roles
-# ---------------------------------------------------------------------------
-
-ORCHESTRATOR = "orchestrator"
-SUBAGENT = "subagent"  # database, builder, automations
-DOCUMENTATION = "documentation"  # source-backed answers without action tools
-UTILITY = "utility"  # formula, fixer (precision-oriented)
-SAMPLE = "sample"  # sample row generation (creative)
-TITLE = "title"  # title generation
-SUGGESTIONS = "suggestions"  # onboarding prompt suggestions (creative)
-
-# ---------------------------------------------------------------------------
 # Per-model profiles
 # ---------------------------------------------------------------------------
-
-# Defaults for every model, with model-specific overrides applied below.
-_DEFAULT_PROFILE: dict[str, ModelSettings] = {
-    ORCHESTRATOR: {
-        "temperature": 0.3,
-        "timeout": 30,
-        "parallel_tool_calls": False,
-        "max_tokens": 16384,
-    },
-    SUBAGENT: {
-        "temperature": 0.3,
-        "timeout": 20,
-        "parallel_tool_calls": False,
-        "max_tokens": 16384,
-    },
-    UTILITY: {
-        "temperature": 0.1,
-        "timeout": 20,
-    },
-    DOCUMENTATION: {
-        "temperature": 0.3,
-        "parallel_tool_calls": False,
-        "max_tokens": 16384,
-        # Keep the provider timeout used by documentation synthesis.
-    },
-    SAMPLE: {
-        "temperature": 0.5,
-        "timeout": 20,
-    },
-    TITLE: {
-        "temperature": 0.7,
-        # Gemini rejects deadlines under 10s, so stay clear of the floor.
-        "timeout": 15,
-        "max_tokens": AssistantChat.TITLE_MAX_LENGTH,
-    },
-    SUGGESTIONS: {
-        "temperature": 0.6,
-        "timeout": 30,
-        "max_tokens": 4096,
-    },
-}
 
 
 @dataclass(frozen=True)
 class AssistantModelConfiguration:
     """Provider/model exceptions to the assistant's default behavior."""
 
-    settings_overrides: dict[str, ModelSettings] = field(default_factory=dict)
     native_output_roles: frozenset[str] = frozenset()
     model_class: type[Model] | None = None
 
@@ -147,11 +112,6 @@ class AssistantModelConfiguration:
 _DEFAULT_MODEL_CONFIGURATION = AssistantModelConfiguration()
 _MODEL_CONFIGURATIONS: dict[str, AssistantModelConfiguration] = {
     "groq:openai/gpt-oss-120b": AssistantModelConfiguration(
-        # Groq GPT-OSS accepts reasoning_effort, but rejects reasoning_format.
-        settings_overrides={
-            SUBAGENT: {"extra_body": {"reasoning_effort": "high"}},
-            DOCUMENTATION: {"extra_body": {"reasoning_effort": "high"}},
-        },
         native_output_roles=frozenset({DOCUMENTATION}),
         model_class=GroqGPTOSSModel,
     ),
@@ -159,15 +119,6 @@ _MODEL_CONFIGURATIONS: dict[str, AssistantModelConfiguration] = {
         native_output_roles=frozenset({DOCUMENTATION}),
         model_class=GroqGPTOSSModel,
     ),
-}
-# Settings historically match provider plus the last model-name segment. Output
-# protocols and adapters require the exact identifier, so keep their lookup exact.
-_MODEL_SETTINGS_CONFIGURATIONS = {
-    (
-        identifier.partition(":")[0],
-        identifier.partition(":")[2].rsplit("/", 1)[-1],
-    ): configuration
-    for identifier, configuration in _MODEL_CONFIGURATIONS.items()
 }
 _PROVIDER_SETTINGS_SANITIZERS = dict.fromkeys(
     ("google", "google-gla", "google-cloud", "google-vertex"),
@@ -198,17 +149,9 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     :return: A ModelSettings dict suitable for ``model_settings=`` parameter.
     """
 
-    # Extract model name after the provider prefix:
-    #   "groq:openai/gpt-oss-120b" -> "gpt-oss-120b"
-    #   "ollama:kimi-2.5:cloud"    -> "kimi-2.5:cloud"
-    provider, sep, after_provider = model.partition(":")
-    model_name = after_provider.rsplit("/", 1)[-1] if sep else model
-
-    configuration = _MODEL_SETTINGS_CONFIGURATIONS.get(
-        (provider, model_name), _DEFAULT_MODEL_CONFIGURATION
-    )
-    result = deepcopy(_DEFAULT_PROFILE.get(role, {}))
-    result.update(deepcopy(configuration.settings_overrides.get(role, {})))
+    result = get_shared_model_settings(model, role)
+    if role == TITLE:
+        result["max_tokens"] = AssistantChat.TITLE_MAX_LENGTH
 
     # Allow the env-var-driven setting to override the orchestrator temperature.
     if role == ORCHESTRATOR:
@@ -218,6 +161,7 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
         if env_temp is not None:
             result["temperature"] = env_temp
 
+    provider, _, after_provider = model.partition(":")
     sanitizer = _PROVIDER_SETTINGS_SANITIZERS.get(provider)
     if sanitizer is not None:
         result = sanitizer(after_provider, result)

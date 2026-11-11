@@ -127,10 +127,29 @@ Docs synthesis on Groq GPT-OSS 20B and 120B uses strict native JSON output, avoi
 invented output-tool names. Typed result validation and retrieved-source checks
 still apply. Other models retain their existing output protocol.
 
-Model-specific output protocols, settings overrides, and legacy model adapters
-are registered together in `model_profiles.py`. Tools request settings and an
-output type from the resolved profile using their role, without inspecting model
-names. Unregistered models keep the role defaults and SDK output protocol.
+Kuma's output protocols and legacy adapters remain in its `model_profiles.py`.
+Role-based request defaults and model setting overrides live in
+`baserow.core.generative_ai.model_profiles`, shared with Agent applications.
+Kuma retains its configured orchestrator temperature and title length. Tools
+request settings and an output type from the resolved profile using their role,
+without inspecting model names.
+
+Agent replies use the shared orchestrator defaults, including a 16,384-token
+output budget, then apply the provider's options and the selected reasoning effort.
+Providers adapt these task defaults before sending the request: Claude reasoning
+needs answer headroom and compatible sampling, while non-reasoning OpenAI models
+and non-Claude Bedrock models keep their SDK/provider output defaults. Known
+Claude output limits cap the task budget. Context-window sizes are not output
+limits. Groq GPT-OSS sends reasoning effort without the unsupported
+`reasoning_format` parameter. These settings reduce premature exhaustion but do
+not guarantee that a response will fit; reasoning can consume the output budget.
+
+Kuma and Agent replies share detection of whole-answer JSON calls naming an
+offered tool. Agent retries these outputs up to three times within the same run,
+clears rejected text from the reply, and leaves completed tool steps intact.
+Printed JSON is never executed directly. A corrected tool call still passes
+validation, permissions, and Ask first approval. The guard leaves prose, fenced
+examples, and unrelated JSON unchanged; Kuma retains its additional answer checks.
 
 ## Verification
 

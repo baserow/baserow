@@ -2500,6 +2500,24 @@ class TestFinalAnswerValidation:
             "Students page.",
         }
 
+    def test_tool_call_name_after_long_arguments_is_still_sent_back(self) -> None:
+        arguments = {
+            "page_id": 2196,
+            "element": {"element_id": 1555, "value": "x" * 300},
+            "thought": "Update the element.",
+        }
+        retries, _ = self._run_with_first_answer(
+            json.dumps({"arguments": arguments, "name": "update_element"})
+        )
+
+        (retry,) = retries
+        prefix = (
+            "That answer is a tool call printed as text, so nothing was executed. "
+            "Call the update_element tool with exactly these arguments: "
+        )
+        assert retry.startswith(prefix)
+        assert json.loads(retry.removeprefix(prefix)) == arguments
+
     @pytest.mark.parametrize(
         "answer",
         [

@@ -894,6 +894,24 @@ class GenerativeAIModelType(Instance):
 
         return model_settings
 
+    def sanitize_default_model_settings(
+        self, model: "Model", model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Adapt task defaults to the model's capabilities and reasoning effort.
+
+        Call this before applying explicit request overrides. Providers can let
+        the SDK choose an output budget, cap it at a known output limit, or remove
+        default sampling settings incompatible with the selected reasoning mode.
+        A context window is not an output limit.
+
+        :param model: The configured model, including its SDK capability profile.
+        :param model_settings: Task defaults and the selected reasoning effort.
+        :return: A new mapping of compatible defaults.
+        """
+
+        return dict(model_settings)
+
     def get_reasoning_efforts(
         self, model_name: str, model: "Model"
     ) -> tuple[ReasoningEffort, ...]:

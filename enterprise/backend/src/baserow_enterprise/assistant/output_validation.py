@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.messages import ModelMessage
 
+from baserow.core.generative_ai.output_validation import get_printed_tool_call
 from baserow_enterprise.assistant.action_memory import (
     MutationEvidence,
     get_mutation_evidence,
@@ -274,7 +275,7 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
         into a call to one of the run's tools, the message gives that exact call.
     """
 
-    if _looks_like_tool_call(answer):
+    if get_printed_tool_call(ctx, answer) is not None or _looks_like_tool_call(answer):
         corrected_call = _corrected_tool_call(ctx, answer)
         if corrected_call is not None:
             tool_name, arguments_json = corrected_call

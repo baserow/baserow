@@ -610,6 +610,140 @@ def test_empty_groq_stream_logs_the_original_error_in_debug_mode(
 
 
 @pytest.mark.django_db
+def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(data_fixture, agent)
+    printed_call = json.dumps(
+        {
+            "name": "create_rows",
+            "arguments": {"table_id": table.id, "rows": [{"Name": "Not executed"}]},
+        }
+    )
+    received = respond(
+        mocker,
+        ({0: add_row(table)},),
+        (printed_call,),
+        ("Added the row.",),
+    )
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Added the row.")
+    assert row_names(table) == ["Plan"]
+    assert len(received) == 3
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "done")
+    ]
+
+
+@pytest.mark.django_db
+def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(data_fixture, agent)
+    printed_call = json.dumps(
+        {
+            "name": "create_rows",
+            "arguments": {"table_id": table.id, "rows": [{"Name": "Not executed"}]},
+        }
+    )
+    received = respond(
+        mocker, ({0: add_row(table)},), *((printed_call,) for _ in range(5))
+    )
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("failed", "failed", "")
+    assert row_names(table) == ["Plan"]
+    assert len(received) == 5  # The write, then four output attempts.
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "done")
+    ]
+
+
+@pytest.mark.django_db
+def test_printed_table_call_after_invalid_input_still_requires_approval(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    existing = allow_tools(
+        data_fixture, agent, ("create_tables",), ask_first=("create_tables",)
+    )
+    invalid = {
+        "database_id": existing.database_id,
+        "tables": [
+            {
+                "name": "Tasks",
+                "primary_field_name": "Name",
+                "fields": [
+                    {
+                        "name": "Status",
+                        "type": "single_select",
+                        "settings": {"options": [{"name": "Todo", "color": "black"}]},
+                    }
+                ],
+            }
+        ],
+    }
+    corrected = {
+        "database_id": existing.database_id,
+        "tables": [
+            {
+                "name": "Tasks",
+                "primary_field_name": "Name",
+                "fields": [
+                    {
+                        "name": "Status",
+                        "type": "single_select",
+                        "options": [{"value": "Todo", "color": "blue"}],
+                    }
+                ],
+            }
+        ],
+    }
+    received = respond(
+        mocker,
+        ({0: tool_call("create_tables", "bad_1", **invalid)},),
+        ({0: tool_call("create_tables", "bad_2", **invalid)},),
+        (json.dumps({"name": "create_tables", "arguments": corrected}),),
+        ({0: tool_call("create_tables", "corrected", **corrected)},),
+        ("Created Tasks.",),
+    )
+
+    reply = pause(user, agent)
+
+    assert reply.status == "waiting"
+    assert reply.content == ""
+    assert not Table.objects.filter(database=existing.database, name="Tasks").exists()
+    assert [(step["status"], step.get("error_code")) for step in reply.steps] == [
+        ("failed", "invalid_input"),
+        ("failed", "invalid_input"),
+        ("waiting", None),
+    ]
+    assert reply.approvals.get(status="pending").tool_call_id == "corrected"
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert (reply.status, reply.content) == ("completed", "Created Tasks.")
+    table = Table.objects.get(database=existing.database, name="Tasks")
+    assert list(
+        table.field_set.get(name="Status").select_options.values_list("value", "color")
+    ) == [("Todo", "blue")]
+    assert len(received) == 5
+
+
+@pytest.mark.django_db
 def test_a_stop_during_a_change_waits_for_it_and_saves_it_as_interrupted(
     data_fixture, configured_agent, mocker
 ):

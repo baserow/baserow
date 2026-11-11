@@ -9,6 +9,9 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_MODE_MODEL,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.generative_ai.model_profiles import (
+    get_model_settings as get_shared_model_settings,
+)
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant import model_profiles as model_profiles_module
 from baserow_enterprise.assistant.exceptions import AssistantModelDisabledError
@@ -125,6 +128,31 @@ def test_temperature_override_only_applies_to_the_orchestrator(settings, tempera
     assert profile.get_settings(ORCHESTRATOR)["temperature"] == temperature
     assert profile.get_settings(DOCUMENTATION)["temperature"] == 0.3
     assert profile.get_settings(SUBAGENT)["temperature"] == 0.3
+    assert (
+        get_shared_model_settings(profile.model_string, ORCHESTRATOR)["temperature"]
+        == 0.3
+    )
+
+
+def test_kuma_uses_the_shared_role_settings(settings, mocker):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = None
+    shared_settings = mocker.spy(model_profiles_module, "get_shared_model_settings")
+    profile = resolve_assistant_model(model="groq:openai/gpt-oss-120b")
+
+    for role in (ORCHESTRATOR, SUBAGENT, DOCUMENTATION, UTILITY, SAMPLE, SUGGESTIONS):
+        assert profile.get_settings(role) == get_shared_model_settings(
+            profile.model_string, role
+        )
+        shared_settings.assert_called_with(profile.model_string, role)
+
+
+def test_kuma_retains_its_own_title_budget(mocker):
+    mocker.patch.object(model_profiles_module.AssistantChat, "TITLE_MAX_LENGTH", 300)
+
+    profile = resolve_assistant_model(model="groq:openai/gpt-oss-120b")
+
+    assert profile.get_settings(TITLE)["max_tokens"] == 300
+    assert get_shared_model_settings(profile.model_string, TITLE)["max_tokens"] == 250
 
 
 @pytest.mark.parametrize("provider", ["google-gla", "google-vertex"])

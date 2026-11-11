@@ -118,6 +118,30 @@ def sanitize_google_model_settings(
     }
 
 
+def sanitize_groq_model_settings(
+    model_name: str, model_settings: dict[str, Any]
+) -> dict[str, Any]:
+    """Send GPT-OSS reasoning effort without its unsupported reasoning format."""
+
+    if model_name not in {"openai/gpt-oss-120b", "openai/gpt-oss-20b"}:
+        return model_settings
+
+    from pydantic_ai.profiles.groq import GROQ_GPT_OSS_REASONING_EFFORT_MAP
+
+    result = dict(model_settings)
+    thinking = result.pop("thinking", None)
+    result.pop("groq_reasoning_format", None)
+    if thinking is not None and result.get("groq_reasoning_effort") is None:
+        # The SDK's unified setting also sends reasoning_format='parsed', which
+        # GPT-OSS rejects. Preserve its effort mapping through the provider setting.
+        if thinking is True:
+            thinking = "medium"
+        elif thinking is False:
+            thinking = "low"
+        result["groq_reasoning_effort"] = GROQ_GPT_OSS_REASONING_EFFORT_MAP[thinking]
+    return result
+
+
 class EmbedOnlyFileHandler(FileHandler):
     """For providers that only support embedding/inlining (no upload API).
     Images and PDFs are embedded; small text files are inlined."""
@@ -418,6 +442,16 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
 class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "openai"
 
+    def sanitize_default_model_settings(
+        self, model: Model, model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        result = super().sanitize_default_model_settings(model, model_settings)
+        if not model.profile.get("supports_thinking", False):
+            # Older models have lower output limits absent from SDK metadata.
+            # Preserve their provider defaults instead of imposing a larger cap.
+            result.pop("max_tokens", None)
+        return result
+
     def get_web_search_tool(
         self, model_name: str, with_function_tools: bool
     ) -> WebSearchTool | None:
@@ -460,6 +494,36 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
+
+    def sanitize_default_model_settings(
+        self, model: Model, model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        from pydantic_ai.profiles.anthropic import ANTHROPIC_SAMPLING_PARAMS
+
+        result = super().sanitize_default_model_settings(model, model_settings)
+        profile = model.profile
+        thinking = result.get("thinking")
+        active_thinking = profile.get("supports_thinking", False) and (
+            bool(thinking)
+            or (thinking is None and profile.get("thinking_enabled_by_default", False))
+        )
+        if active_thinking:
+            for parameter in ANTHROPIC_SAMPLING_PARAMS:
+                result.pop(parameter, None)
+        if (
+            active_thinking
+            and not profile.get("anthropic_supports_adaptive_thinking", False)
+        ) or profile.get("anthropic_rejects_max_tokens_beyond_context_window", False):
+            # The SDK includes the thinking budget and room for the answer when
+            # no cap is supplied, and uses a smaller default for legacy models.
+            result.pop("max_tokens", None)
+            return result
+
+        proposed = result.get("max_tokens")
+        maximum = profile.get("anthropic_max_output_tokens")
+        if proposed is not None and isinstance(maximum, int) and maximum > 0:
+            result["max_tokens"] = min(proposed, maximum)
+        return result
 
     def get_web_search_tool(
         self, model_name: str, with_function_tools: bool
@@ -542,6 +606,43 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
 class BedrockGenerativeAIModelType(GenerativeAIModelType):
     type = "bedrock"
     supports_legacy_workspace_settings = False
+
+    def sanitize_default_model_settings(
+        self, model: Model, model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        result = super().sanitize_default_model_settings(model, model_settings)
+        profile = model.profile
+        if profile.get("bedrock_thinking_variant") != "anthropic":
+            result.pop("max_tokens", None)
+            return result
+
+        from pydantic_ai.profiles.anthropic import (
+            ANTHROPIC_SAMPLING_PARAMS,
+            ANTHROPIC_THINKING_BUDGET_MAP,
+        )
+
+        thinking = result.get("thinking")
+        active_thinking = bool(thinking) or (
+            thinking is None and profile.get("thinking_enabled_by_default", False)
+        )
+        if active_thinking:
+            for parameter in ANTHROPIC_SAMPLING_PARAMS:
+                result.pop(parameter, None)
+        if thinking and not profile.get("bedrock_supports_adaptive_thinking", False):
+            # Converse doesn't choose maxTokens to cover its reasoning budget.
+            # Leave the same answer headroom as the direct Anthropic adapter.
+            result["max_tokens"] = max(
+                result.get("max_tokens") or 0,
+                ANTHROPIC_THINKING_BUDGET_MAP[thinking] + 4096,
+            )
+        else:
+            proposed = result.get("max_tokens")
+            maximum = profile.get("anthropic_max_output_tokens")
+            if proposed is not None and isinstance(maximum, int) and maximum > 0:
+                result["max_tokens"] = min(proposed, maximum)
+            else:
+                result.pop("max_tokens", None)
+        return result
 
     @cached_property
     def file_handler(self) -> BedrockFileHandler:
@@ -786,6 +887,11 @@ class GroqGenerativeAIModelType(GenerativeAIModelType):
         ):
             return (ReasoningEffort.OFF,)
         return super().get_reasoning_efforts(model_name, model)
+
+    def sanitize_model_settings(
+        self, model: str, model_settings: dict[str, Any]
+    ) -> dict[str, Any]:
+        return sanitize_groq_model_settings(model, model_settings)
 
     def get_known_models(self) -> list[str]:
         from pydantic_ai.models.groq import ProductionGroqModelNames
