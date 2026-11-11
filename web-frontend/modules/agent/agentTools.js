@@ -24,17 +24,26 @@ export function groupAgentTools(availableTools, registry, t) {
         tools: [],
       })
     }
-    const presenter = registry.exists('toolPresentation', tool.name)
-      ? registry.get('toolPresentation', tool.name)
-      : null
+    const presenter = toolPresenter(tool.name, registry)
     groups.get(tool.group).tools.push({
       name: tool.name,
       changesData: tool.changes_data,
-      label: presenter ? presenter.getLabel(t) : tool.name,
+      label: agentToolLabel(tool.name, registry, t),
       description: presenter ? presenter.getDescription(t) : '',
     })
   }
   return [...groups.values()]
+}
+
+function toolPresenter(name, registry) {
+  return registry.exists('toolPresentation', name)
+    ? registry.get('toolPresentation', name)
+    : null
+}
+
+/** The tool's translated label, or its name without a registered presenter. */
+export function agentToolLabel(name, registry, t) {
+  return toolPresenter(name, registry)?.getLabel(t) ?? name
 }
 
 /**

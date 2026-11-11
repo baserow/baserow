@@ -205,7 +205,7 @@
     "reject": "Reject",
     "approveAll": "Approve all",
     "rejectAll": "Reject all",
-    "alwaysAllow": "Always allow",
+    "alwaysAllowTools": "Always allow {tools}",
     "approved": "Approved",
     "rejected": "Rejected",
     "showDetails": "Show details",

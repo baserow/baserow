@@ -52,10 +52,14 @@ const heldStep = (id, status) => ({
   },
   facts: {},
 })
-const approval = (id, status = 'pending', { reason = '', pause = 1 } = {}) => ({
+const approval = (
+  id,
+  status = 'pending',
+  { reason = '', pause = 1, tool = 'create_rows' } = {}
+) => ({
   id,
   step_id: `step-${id}`,
-  tool: 'create_rows',
+  tool,
   status,
   reason,
   pause,
@@ -140,6 +144,20 @@ describe('Agent tool approvals', () => {
     testApp.mock.history.get.filter(
       ({ url }) => url === '/agent/10/configuration/'
     ).length
+
+  function showAlwaysAllowTools() {
+    const useI18n = vueI18n.useI18n
+    vi.spyOn(vueI18n, 'useI18n').mockImplementation((...args) => {
+      const composer = useI18n(...args)
+      return {
+        ...composer,
+        t: (key, values, ...rest) =>
+          key === 'agent.alwaysAllowTools'
+            ? `Always allow ${values.tools}`
+            : composer.t(key, values, ...rest),
+      }
+    })
+  }
 
   async function openReply(saved, ...later) {
     mockConversations(
@@ -549,9 +567,12 @@ describe('Agent tool approvals', () => {
         runId: 'run-2',
       })
     )
+    showAlwaysAllowTools()
     const wrapper = await openWaitingReply([approval(1), approval(2)])
     const reads = configurationReads()
-    expect(alwaysAllow(wrapper).text()).toBe('agent.alwaysAllow')
+    expect(alwaysAllow(wrapper).text()).toBe(
+      'Always allow agent.toolCreateRows'
+    )
 
     await alwaysAllow(wrapper).trigger('click')
     await flushPromises()
@@ -567,6 +588,19 @@ describe('Agent tool approvals', () => {
     ])
     expect(configurationReads()).toBe(reads + 1)
     expect(alwaysAllow(wrapper).exists()).toBe(false)
+  })
+
+  test('always allow names each distinct tool it stops asking for', async () => {
+    showAlwaysAllowTools()
+    const wrapper = await openWaitingReply([
+      approval(1),
+      approval(2, 'pending', { tool: 'delete_rows' }),
+      approval(3),
+    ])
+
+    expect(alwaysAllow(wrapper).text()).toBe(
+      'Always allow agent.toolCreateRows and agent.toolDeleteRows'
+    )
   })
 
   test('always allow is offered only to members who can edit the configuration', async () => {

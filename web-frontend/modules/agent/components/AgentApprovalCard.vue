@@ -23,7 +23,7 @@
         :disabled="locked"
         @click="approve(pending, { alwaysAllow: true })"
       >
-        {{ $t('agent.alwaysAllow') }}
+        {{ alwaysAllowLabel }}
       </Button>
       <div v-if="pending.length" class="agent-approval__actions">
         <Button
@@ -159,6 +159,9 @@
 
 <script setup>
 import { computed, inject, reactive, ref, useId, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useNuxtApp } from '#app'
+import { agentToolLabel } from '@baserow/modules/agent/agentTools'
 import AgentRejectModal from '@baserow/modules/agent/components/AgentRejectModal'
 import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
@@ -192,6 +195,17 @@ let submitted = null
 const locked = computed(() => props.disabled || props.deciding)
 const pending = computed(() =>
   props.items.filter((item) => item.status === APPROVAL_STATUS.PENDING)
+)
+const { $registry } = useNuxtApp()
+const { locale, t } = useI18n()
+const alwaysAllowLabel = computed(() =>
+  t('agent.alwaysAllowTools', {
+    tools: new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
+      [...new Set(pending.value.map((item) => item.tool))].map((tool) =>
+        agentToolLabel(tool, $registry, t)
+      )
+    ),
+  })
 )
 const countOf = (status) =>
   props.items.filter((item) => item.status === status).length
