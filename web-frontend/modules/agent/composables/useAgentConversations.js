@@ -557,9 +557,11 @@ export function useAgentConversations(agent, configuration) {
   async function decideApprovals(reply, decisions, { alwaysAllow } = {}) {
     if (!canDecide.value || decidingReplies.has(reply.uuid)) return
     const currentScope = scope
-    const agentId = agent.value.id
+    const application = agent.value
+    const agentId = application.id
     const conversationUuid = selectedUuid.value
     decidingReplies.add(reply.uuid)
+    shiftPendingCount(application, -decisions.length)
     try {
       const { data } = await service.decideApprovals(
         agentId,
@@ -574,15 +576,21 @@ export function useAgentConversations(agent, configuration) {
       if (history) history.items = mergeMessages(history.items, [data])
       const conversation = findConversation(conversationUuid)
       if (conversation) {
-        conversation.pending_approval_count = pendingApprovals(data).length
+        applyConversationValues(conversation, {
+          pending_approval_count: pendingApprovals(data).length,
+        })
       }
       if (data.run_id && conversation) {
         conversation.run_id = data.run_id
         followReplies(conversation, data)
       }
     } catch (error) {
-      if (!scopeIsCurrent(currentScope)) return
       const code = error.response?.data?.error
+      // Calls decided elsewhere aren't pending any more either.
+      if (code !== API_ERROR_CODE.AGENT_TOOL_APPROVAL_NOT_PENDING) {
+        shiftPendingCount(application, decisions.length)
+      }
+      if (!scopeIsCurrent(currentScope)) return
       if (SEND_ERRORS[code]) {
         error.handler.notifyIf(
           null,
@@ -605,16 +613,27 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
+  /** Move the Agent's count by a change this tab knows before its event comes. */
+  function shiftPendingCount(application, change) {
+    store.dispatch('application/forceUpdate', {
+      application,
+      data: {
+        pending_count: Math.max(0, (application.pending_count || 0) + change),
+      },
+    })
+  }
+
   /** Select the next conversation waiting for approval, in list order. */
   async function selectNextWaitingConversation() {
     if (!canReadConversations.value || loadingWaitingScope === scope) return
     const currentScope = scope
-    const loadedCount = conversations.value.reduce(
+    const clickedFrom = selectedUuid.value
+    const loadedPendingCount = conversations.value.reduce(
       (sum, item) => sum + (item.pending_approval_count || 0),
       0
     )
     // Pages are newest first, so old waiting conversations may not be loaded.
-    if (loadedCount < agent.value.pending_count) {
+    if (loadedPendingCount < agent.value.pending_count) {
       loadingWaitingScope = currentScope
       const waiting = await service
         .getConversations(agent.value.id, null, { hasPendingApprovals: true })
@@ -627,7 +646,9 @@ export function useAgentConversations(agent, configuration) {
           if (loadingWaitingScope === currentScope) loadingWaitingScope = null
         })
       if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
-      mergeConversations(waiting)
+      // Loaded conversations are kept current by events and decisions.
+      mergeConversations(waiting.filter(({ uuid }) => !findConversation(uuid)))
+      if (selectedUuid.value !== clickedFrom) return
     }
     const items = conversationItems.value
     const selectedIndex = items.findIndex(
@@ -777,14 +798,10 @@ export function useAgentConversations(agent, configuration) {
         const followingRun = Boolean(
           update.conversation.run_id || replyFollower.value
         )
-        // The shown card no longer matches the server's pending approvals.
-        if (
-          !followingRun &&
+        const shownCardIsStale =
           update.conversation.pending_approval_count !==
-            pendingApprovalCount.value
-        ) {
-          refreshMessages(update.uuid)
-        }
+          pendingApprovalCount.value
+        if (!followingRun && shownCardIsStale) refreshMessages(update.uuid)
       } else if (histories[update.uuid]) histories[update.uuid].stale = true
     },
     // Each event applies to its conversation, even if several arrive in one tick.

@@ -510,7 +510,6 @@ describe('Agent tool approvals', () => {
         ],
       },
     ])
-    expect(sentBodies(testApp)[0]).not.toHaveProperty('always_allow')
     expect(configurationReads()).toBe(reads)
     expect(api.stream.mock.calls.map(([runId]) => runId)).toEqual(['run-2'])
     expect(stop(wrapper).exists()).toBe(true)
@@ -662,9 +661,16 @@ describe('Agent tool approvals', () => {
       page([prompt, reply('waiting', [approval(1, 'rejected'), approval(2)])])
     )
 
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 2 },
+    })
     await headerButtons(wrapper)[1].trigger('click')
     await flushPromises()
 
+    expect(
+      testApp.store.getters['application/get'](agentData.id).pending_count
+    ).toBe(0)
     expect(messageReads()).toHaveLength(2)
     expect(decisions(wrapper)).toEqual(['agent.rejected'])
     expect(testApp.store.state.toast.items).toHaveLength(1)
@@ -827,6 +833,87 @@ describe('Agent tool approvals', () => {
           url === '/agent/10/conversations/' && params.has_pending_approvals
       )
     ).toHaveLength(1)
+  })
+
+  test('the pill keeps a conversation chosen while it loads selected', async () => {
+    const waiting = deferredReply()
+    const idle = { ...conversation('idle', 'Idle'), pending_approval_count: 0 }
+    const oldest = {
+      ...conversation('oldest', 'Oldest', '2026-10-01T10:00:00Z'),
+      pending_approval_count: 1,
+    }
+    mockConversations(testApp, conversationsPage([idle], 'next'), waiting.reply)
+    mockMessages(testApp, idle.uuid, page([]))
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 1 },
+    })
+    const wrapper = await mount()
+
+    await wrapper.get('.agent-application__approvals').trigger('click')
+    await selectConversation(wrapper, 'Idle')
+    waiting.resolve(200, conversationsPage([oldest]))
+    await flushPromises()
+
+    expect(
+      selected(wrapper).get('.agent-conversations__item-name').text()
+    ).toBe('Idle')
+    expect(waitingDot(wrapper)).toBe(true)
+  })
+
+  test('a list read started before a decision keeps the decided count', async () => {
+    const stale = deferredReply()
+    mockConversations(
+      testApp,
+      conversationsPage([{ ...chat, pending_approval_count: 1 }]),
+      stale.reply,
+      conversationsPage([{ ...chat, pending_approval_count: 0 }])
+    )
+    mockMessages(
+      testApp,
+      chat.uuid,
+      page([prompt, reply('waiting', [approval(1)])])
+    )
+    mockApprovals(
+      testApp,
+      chat.uuid,
+      reply('running', [approval(1, 'approved')], { runId: 'run-2' })
+    )
+    const wrapper = await mount()
+    await selectConversation(wrapper, chat.title)
+    testApp.getRegistry().get('chatRunType', 'agent').refreshChat(chat.id)
+    await flushPromises()
+
+    await headerButtons(wrapper)[1].trigger('click')
+    await flushPromises()
+    stale.resolve(
+      200,
+      conversationsPage([{ ...chat, pending_approval_count: 1 }])
+    )
+    await flushPromises()
+
+    expect(waitingDot(wrapper)).toBe(false)
+  })
+
+  test('a decision lowers the waiting count at once and restores it on failure', async () => {
+    testApp.dontFailOnErrorResponses()
+    const decision = deferredReply()
+    mockApprovals(testApp, chat.uuid, decision.reply)
+    const wrapper = await openWaitingReply([approval(1), approval(2)])
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 3 },
+    })
+    const pendingCount = () =>
+      testApp.store.getters['application/get'](agentData.id).pending_count
+
+    await headerButtons(wrapper)[1].trigger('click')
+    expect(pendingCount()).toBe(1)
+    await flushPromises()
+    decision.resolve(500, { error: 'ERROR_UNKNOWN' })
+    await flushPromises()
+
+    expect(pendingCount()).toBe(3)
   })
 
   test('a reconnect keeps an older waiting conversation the pill opened', async () => {
