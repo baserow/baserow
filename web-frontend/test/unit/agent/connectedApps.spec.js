@@ -250,10 +250,12 @@ describe('Agent connected apps', () => {
 
   test('a refresh that finishes after another server was opened is ignored', async () => {
     let answer
-    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [
-      server({ tools: [tool('search')] }),
-      server({ id: 6, name: 'Tracker', tools: [tool('issue')] }),
-    ])
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [
+        server({ tools: [tool('search')] }),
+        server({ id: 6, name: 'Tracker', tools: [tool('issue')] }),
+      ])
     testApp.mock.onPost('/integrations/mcp/5/refresh-tools/').reply(
       () =>
         new Promise((resolve) => {
@@ -333,9 +335,7 @@ describe('Agent connected apps', () => {
       name: 'Helper',
       workspace: { id: 1 },
     })
-    testApp.mock
-      .onGet(/application\/10\/integrations/)
-      .reply(200, [server()])
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
     const wrapper = await testApp.mount(AgentConnectedAppsSection, {
       props: { editable: true },
       global: {
@@ -410,9 +410,7 @@ describe('Agent connected apps', () => {
     }
 
     const mockSignIn = () => {
-      testApp.mock
-        .onGet(/application\/10\/integrations/)
-        .reply(200, [])
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
       testApp.mock
         .onPost(/application\/10\/integrations/)
         .reply(200, oauthServer())
@@ -453,7 +451,10 @@ describe('Agent connected apps', () => {
       )
 
       // The provider redirects back and the callback page reports.
-      report({ state: 'abc', integration: oauthServer({ oauth_connected: true }) })
+      report({
+        state: 'abc',
+        integration: oauthServer({ oauth_connected: true }),
+      })
       await vi.waitFor(() =>
         expect(
           inBody('.modal__box .agent-tool-permissions__tool')
