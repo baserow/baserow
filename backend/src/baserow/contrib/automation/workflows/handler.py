@@ -885,12 +885,17 @@ class AutomationWorkflowHandler:
 
         original_workflow = workflow.get_original()
 
-        # The two workflows are always different because we call it only for published
-        # workflows
-        workflow.state = WorkflowState.DISABLED
-        workflow.save(update_fields=["state"])
-        original_workflow.state = WorkflowState.DISABLED
-        original_workflow.save(update_fields=["state"])
+        with transaction.atomic():
+            # The draft is locked first, like publishing and pausing do, so a
+            # concurrent pause waits instead of deadlocking.
+            self.get_workflow(original_workflow.id, for_update=True)
+
+            # The two workflows are always different because we call it only for
+            # published workflows
+            workflow.state = WorkflowState.DISABLED
+            workflow.save(update_fields=["state"])
+            original_workflow.state = WorkflowState.DISABLED
+            original_workflow.save(update_fields=["state"])
 
         if workflow != original_workflow:
             from baserow.contrib.automation.notification_types import (

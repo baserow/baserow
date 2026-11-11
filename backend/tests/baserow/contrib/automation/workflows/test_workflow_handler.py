@@ -1,4 +1,5 @@
 import datetime
+import re
 from unittest.mock import MagicMock, patch
 
 from django.db import connection
@@ -1278,6 +1279,42 @@ def test_disable_workflow_disables_published_workflow(data_fixture):
     # Ensure both published and original workflows are disabled
     assert published_workflow.state == WorkflowState.DISABLED
     assert original_workflow.state == WorkflowState.DISABLED
+
+
+@pytest.mark.django_db
+def test_disable_workflow_locks_the_draft_before_writing_the_published_one(
+    data_fixture,
+):
+    # Publishing and pausing lock the draft and then write the published workflow.
+    # Disabling in the other order would deadlock with a concurrent pause.
+    original_workflow = data_fixture.create_automation_workflow()
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    with CaptureQueriesContext(connection) as queries:
+        AutomationWorkflowHandler().disable_workflow(published_workflow)
+
+    statements = [query["sql"] for query in queries.captured_queries]
+
+    def on_workflow(sql, workflow):
+        return re.search(
+            rf'"automation_automationworkflow"\."id" = {workflow.id}\b', sql
+        )
+
+    draft_lock = next(
+        i
+        for i, sql in enumerate(statements)
+        if "FOR UPDATE" in sql and on_workflow(sql, original_workflow)
+    )
+    published_write = next(
+        i
+        for i, sql in enumerate(statements)
+        if sql.startswith("UPDATE") and on_workflow(sql, published_workflow)
+    )
+    assert draft_lock < published_write
 
 
 @pytest.mark.django_db(transaction=True)
