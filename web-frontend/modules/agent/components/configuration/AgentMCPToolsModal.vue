@@ -27,7 +27,7 @@
         <p v-if="!tools.length" class="agent-mcp-tools__empty">
           {{ $t('agent.connectedAppNoTools') }}
         </p>
-        <div v-else class="agent-tool-permissions__list">
+        <div v-else class="agent-tool-permissions__list agent-mcp-tools__list">
           <div class="agent-tool-permissions__list-head">
             <span>{{ $t('agent.connectedAppTool') }}</span>
             <span class="agent-mcp-tools__columns">
@@ -63,7 +63,7 @@
                 {{ tool.description }}
               </div>
               <ButtonText
-                v-if="parameters(tool).length"
+                v-if="hasSchema(tool)"
                 class="agent-mcp-tools__parameters-toggle"
                 size="small"
                 :icon="
@@ -74,15 +74,17 @@
                 @click="toggle(tool.name)"
               >
                 {{
-                  $t(
-                    'agent.connectedAppToolParameters',
-                    { count: parameters(tool).length },
-                    parameters(tool).length
-                  )
+                  parameters(tool).length
+                    ? $t(
+                        'agent.connectedAppToolParameters',
+                        { count: parameters(tool).length },
+                        parameters(tool).length
+                      )
+                    : $t('agent.connectedAppToolSchema')
                 }}
               </ButtonText>
               <ul
-                v-if="expanded[tool.name]"
+                v-if="expanded[tool.name] && parameters(tool).length"
                 class="agent-mcp-tools__parameters"
               >
                 <li
@@ -106,20 +108,27 @@
                   >
                 </li>
               </ul>
+              <details
+                v-if="expanded[tool.name]"
+                class="agent-mcp-tools__schema"
+              >
+                <summary>{{ $t('agent.connectedAppToolSchema') }}</summary>
+                <pre>{{ JSON.stringify(tool.input_schema, null, 2) }}</pre>
+              </details>
             </div>
             <span class="agent-mcp-tools__columns">
               <Checkbox
                 class="agent-tool-permissions__allow"
-                :model-value="picked[tool.name].changes_data"
+                :model-value="choice(tool).changes_data"
                 :disabled="!editable || tool.removed"
-                @update:model-value="set(tool.name, 'changes_data', $event)"
+                @update:model-value="set(tool, 'changes_data', $event)"
                 >{{ $t('agent.connectedAppChangesData') }}</Checkbox
               >
               <Checkbox
                 class="agent-tool-permissions__allow"
-                :model-value="picked[tool.name].enabled"
+                :model-value="choice(tool).enabled"
                 :disabled="!editable || tool.removed"
-                @update:model-value="set(tool.name, 'enabled', $event)"
+                @update:model-value="set(tool, 'enabled', $event)"
                 >{{ tool.title || tool.name }}</Checkbox
               >
             </span>
@@ -192,22 +201,36 @@ function parameters(tool) {
   }))
 }
 
+/**
+ * Whether the tool takes input. Only top-level parameters are summed up; the
+ * full schema shows the rest, such as allowed values and nested objects.
+ */
+function hasSchema(tool) {
+  return Object.keys(tool.input_schema ?? {}).some((key) => key !== 'type')
+}
+
 function toggle(name) {
   expanded.value = { ...expanded.value, [name]: !expanded.value[name] }
 }
 
+/**
+ * What the editor picked for the tool as it's listed now. A pick is kept with
+ * the definition it was made for: when a refresh, here or by another editor,
+ * changes the tool, it shows and saves as stored until picked again.
+ */
+function choice(tool) {
+  const entry = picked.value[tool.name]
+  return entry?.definition_hash === tool.definition_hash
+    ? entry
+    : {
+        definition_hash: tool.definition_hash,
+        enabled: tool.enabled,
+        changes_data: tool.changes_data,
+      }
+}
+
 function reset(next) {
-  // Choices the editor made survive a refresh; new tools start as stored.
-  const previous = picked.value
   server.value = next
-  picked.value = Object.fromEntries(
-    next.tools.map((tool) => [
-      tool.name,
-      previous[tool.name] && !tool.changed_since_review
-        ? previous[tool.name]
-        : { enabled: tool.enabled, changes_data: tool.changes_data },
-    ])
-  )
 }
 
 function show(next) {
@@ -221,11 +244,11 @@ function show(next) {
   modal.value.show()
 }
 
-function set(name, key, value) {
+function set(tool, key, value) {
   if (!props.editable) return
   picked.value = {
     ...picked.value,
-    [name]: { ...picked.value[name], [key]: value },
+    [tool.name]: { ...choice(tool), [key]: value },
   }
 }
 
@@ -253,12 +276,8 @@ async function done() {
       server.value,
       tools.value
         .filter((tool) => !tool.removed)
-        .map((tool) => ({
-          name: tool.name,
-          // A tool that changed since this list was loaded stays as it is.
-          definition_hash: tool.definition_hash,
-          ...picked.value[tool.name],
-        }))
+        // The server keeps a tool that changed since its pick as it is.
+        .map((tool) => ({ name: tool.name, ...choice(tool) }))
     )
     if (current === opening) modal.value.hide()
   } catch (e) {

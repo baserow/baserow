@@ -328,6 +328,30 @@ describe('Agent connected apps', () => {
     ])
   })
 
+  test('the review shows the full input schema, with what the summary leaves out', async () => {
+    const update = tool('update', {
+      input_schema: {
+        type: 'object',
+        properties: { status: { type: 'string', enum: ['open', 'closed'] } },
+      },
+    })
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [update] })])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppToolParameters').click()
+    await flushPromises()
+
+    const schema = inBody('.modal__box .agent-mcp-tools__schema pre')
+    expect(JSON.parse(schema[0].textContent)).toEqual(update.input_schema)
+  })
+
   test("another editor's change shows without a reload", async () => {
     const agent = await testApp.store.dispatch('application/forceCreate', {
       id: 10,
@@ -360,6 +384,95 @@ describe('Agent connected apps', () => {
     expect(wrapper.find('.agent-connected-apps__server-name').text()).toBe(
       'Renamed'
     )
+  })
+
+  const mountWithStore = async (servers) => {
+    await testApp.store.dispatch('application/forceCreate', {
+      id: 10,
+      type: 'agent',
+      name: 'Helper',
+      workspace: { id: 1 },
+    })
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, servers)
+    const wrapper = await testApp.mount(AgentConnectedAppsSection, {
+      props: { editable: true },
+      global: {
+        provide: {
+          agentApplication: ref(testApp.store.getters['application/get'](10)),
+        },
+      },
+    })
+    await flushPromises()
+    const handlers = {}
+    registerRealtimeEvents({
+      registerEvent: (name, handler) => (handlers[name] = handler),
+    })
+    return { wrapper, handlers }
+  }
+
+  test("a tool another editor's refresh changed is saved as stored, not as picked before", async () => {
+    const { wrapper, handlers } = await mountWithStore([
+      server({ tools: [tool('search')] }),
+    ])
+    testApp.mock.onPatch('/integrations/mcp/5/tools/').reply(200, server())
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    const [, allow] = inBody('.agent-mcp-tools__columns')[1].querySelectorAll(
+      '.checkbox'
+    )
+    allow.click()
+    await flushPromises()
+
+    handlers.integration_updated(
+      { store: testApp.store },
+      {
+        integration: server({
+          application_id: 10,
+          tools: [
+            tool('search', {
+              definition_hash: 'search-hash-2',
+              changed_since_review: true,
+            }),
+          ],
+        }),
+      }
+    )
+    await flushPromises()
+    buttonInBody('agent.toolsDone').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({
+      tools: [
+        {
+          name: 'search',
+          definition_hash: 'search-hash-2',
+          enabled: false,
+          changes_data: true,
+        },
+      ],
+    })
+  })
+
+  test('a refresh that adds a tool lists it to pick', async () => {
+    const { wrapper } = await mountWithStore([
+      server({ tools: [tool('search')] }),
+    ])
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ tools: [tool('search'), tool('fetch')] }))
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+
+    buttonInBody('agent.connectedAppRefresh').click()
+    await flushPromises()
+
+    const rows = inBody('.agent-mcp-tools__columns').slice(1)
+    expect(rows).toHaveLength(2)
+    expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(2)
   })
 
   test('viewers see the apps but cannot add or edit them', async () => {
