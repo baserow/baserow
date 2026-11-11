@@ -62,6 +62,7 @@
       ref="permissions"
       :available-tools="availableTools"
       :allowed-tools="allowedTools"
+      :ask-first-tools="askFirstTools"
       :agent-name="agentName"
       :editable="editable"
       @save="emit('update', $event)"
@@ -74,15 +75,19 @@ import { useNuxtApp } from '#app'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
-import { groupAgentTools } from '@baserow/modules/agent/agentTools'
+import {
+  groupAgentTools,
+  nextAskFirst,
+} from '@baserow/modules/agent/agentTools'
 import AgentToolPermissionsModal from '@baserow/modules/agent/components/configuration/AgentToolPermissionsModal'
 
 /**
  * Turns an Agent's workspace tools on and off with presets, or one by one in the
- * tool permissions modal. Emits `update` with the names of the tools to allow.
+ * tool permissions modal. Emits `update` with the tool lists.
  */
 const props = defineProps({
   allowedTools: { type: Array, required: true },
+  askFirstTools: { type: Array, required: true },
   availableTools: { type: Array, required: true },
   agentName: { type: String, required: true },
   editable: Boolean,
@@ -117,15 +122,27 @@ const presetIndex = computed(() => {
   return 2
 })
 
+function allow(names) {
+  emit('update', {
+    allowed_tools: names,
+    ask_first_tools: nextAskFirst(
+      props.availableTools,
+      props.allowedTools,
+      props.askFirstTools,
+      names
+    ),
+  })
+}
+
 function choosePreset(index) {
   if (!props.editable) return
-  if (index === 0) emit('update', allTools.value)
-  else if (index === 1) emit('update', readTools.value)
+  if (index === 0) allow(allTools.value)
+  else if (index === 1) allow(readTools.value)
   else permissions.value.show()
 }
 
 function setEnabled(enabled) {
   if (!props.editable) return
-  emit('update', enabled ? readTools.value : [])
+  allow(enabled ? readTools.value : [])
 }
 </script>

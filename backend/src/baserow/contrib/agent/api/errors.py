@@ -23,3 +23,13 @@ ERROR_AGENT_BUSY = (
     429,
     "Agents in this workspace are busy. Try again shortly.",
 )
+ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL = (
+    "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
+    409,
+    "Approve or reject the agent's held steps before sending a new message.",
+)
+ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING = (
+    "ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING",
+    409,
+    "These steps are not waiting for a decision any more.",
+)

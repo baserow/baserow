@@ -56,7 +56,13 @@ export default {
       required: false,
       default: null,
     },
+    loadErrorHandler: {
+      type: Function,
+      required: false,
+      default: null,
+    },
   },
+  emits: ['loaded'],
   data() {
     return {
       loading: false,
@@ -125,6 +131,7 @@ export default {
     async fetchApplications(template) {
       const request = ++this.lastRequest
       this.loading = true
+      let loaded = false
 
       try {
         const { data } = await ApplicationService(this.$client).fetchAll(
@@ -157,16 +164,22 @@ export default {
             }
           }
         }
+        loaded = true
       } catch (error) {
         if (request !== this.lastRequest) {
           return
         }
         this.applications = []
         this.page = null
-        notifyIf(error, 'templates')
+        if (this.loadErrorHandler) {
+          this.loadErrorHandler(error)
+        } else {
+          notifyIf(error, 'templates')
+        }
       } finally {
         if (request === this.lastRequest) {
           this.loading = false
+          this.$emit('loaded', loaded)
         }
       }
     },

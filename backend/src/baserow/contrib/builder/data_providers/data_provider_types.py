@@ -32,6 +32,7 @@ from baserow.core.formula.exceptions import (
     InvalidFormulaContextContent,
     InvalidRuntimeFormula,
 )
+from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import (
     DataProviderType,
     formula_runtime_function_registry,
@@ -765,6 +766,9 @@ class UserDataProviderType(BuilderDataProviderType):
 
     type = "user"
 
+    # What ``get_data_chunk`` exposes about the user.
+    PROPERTIES = ("id", "email", "username", "role", "is_authenticated")
+
     def get_request_serializer(self):
         """
         Returns the serializer used to parse data for this data provider.
@@ -811,3 +815,17 @@ class UserDataProviderType(BuilderDataProviderType):
             user = {"id": 0, "username": "", "email": "", "role": ""}
 
         return get_value_at_path({"is_authenticated": is_authenticated, **user}, path)
+
+    def is_valid(self, path: List[str]) -> bool:
+        """
+        Refuses a property the user doesn't have, which would always render empty.
+
+        :param path: The property, then nothing.
+        :raises BaserowFormulaSyntaxError: When the path names another property.
+        """
+
+        if path and path[0] not in self.PROPERTIES:
+            raise BaserowFormulaSyntaxError(
+                f"The user has no '{path[0]}'. It has: {', '.join(self.PROPERTIES)}."
+            )
+        return True

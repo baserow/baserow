@@ -5,7 +5,11 @@
     required
     :helper-text="
       modelValue.makePublic
-        ? $t('userTemplateVisibilityForm.publicDescription')
+        ? listed
+          ? $t('userTemplateVisibilityForm.listedDescription')
+          : needsReview
+            ? $t('userTemplateVisibilityForm.publicReviewDescription')
+            : $t('userTemplateVisibilityForm.publicDescription')
         : $t('userTemplateVisibilityForm.privateDescription')
     "
   >
@@ -51,6 +55,14 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     required: false,
+    default: false,
+  },
+  needsReview: {
+    type: Boolean,
+    default: false,
+  },
+  listed: {
+    type: Boolean,
     default: false,
   },
 })

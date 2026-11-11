@@ -388,7 +388,7 @@ def test_a_new_target_that_does_not_fit_a_link_is_refused_over_mcp(
     result = _session(endpoint, call)
 
     assert result.isError
-    assert "stays on the page" in result.content[0].text
+    assert "Give link_page_parameters for that page" in result.content[0].text
     assert Element.objects.get(id=link.id).specific.navigate_to_page_id == start.id
 
 
@@ -550,3 +550,77 @@ def test_a_call_over_the_item_limits_saves_nothing(
     assert result.isError is True
     assert f"at most {limit} items" in result.content[0].text
     assert Element.objects.count() == before
+
+
+@pytest.mark.django_db
+def test_update_element_over_mcp_deletes_nothing(data_fixture, builder_ctx):
+    endpoint = _endpoint(data_fixture, builder_ctx, ["update_element"])
+
+    async def callback(client):
+        listed = await client.list_tools()
+        result = await client.call_tool(
+            "update_element",
+            {
+                "element_id": builder_ctx["button"].id,
+                "element": {"remove_menu_items": ["x"]},
+            },
+        )
+        return listed, result
+
+    listed, result = _session(endpoint, callback)
+
+    schema = json.dumps(listed.tools[0].inputSchema)
+    assert "remove_menu_items" not in schema
+    assert "remove_table_columns" not in schema
+    assert result.isError is True
+
+
+@pytest.mark.django_db
+def test_delete_element_items_deletes_menu_items_over_mcp(data_fixture, builder_ctx):
+    endpoint = _endpoint(
+        data_fixture,
+        builder_ctx,
+        ["create_layout_elements", "list_elements", "delete_element_items"],
+    )
+    page = builder_ctx["page"]
+
+    async def callback(client):
+        created = _load(
+            await client.call_tool(
+                "create_layout_elements",
+                {
+                    "page_id": page.id,
+                    "elements": [
+                        {
+                            "ref": "menu",
+                            "type": "menu",
+                            "menu_items": [
+                                {"name": "Home", "page_id": page.id},
+                                {"name": "Again", "page_id": page.id},
+                            ],
+                        }
+                    ],
+                },
+            )
+        )
+        menu_id = created["ref_to_id_map"]["menu"]
+        elements = _load(await client.call_tool("list_elements", {"page_id": page.id}))[
+            "elements"
+        ]
+        menu = next(el for el in elements if el["id"] == menu_id)
+        uid = next(i["uid"] for i in menu["menu_items"] if i["name"] == "Again")
+        listed = await client.list_tools()
+        deleted = await client.call_tool(
+            "delete_element_items", {"element_id": menu_id, "menu_items": [uid]}
+        )
+        empty = await client.call_tool("delete_element_items", {"element_id": menu_id})
+        return menu_id, listed, deleted, empty
+
+    menu_id, listed, deleted, empty = _session(endpoint, callback)
+
+    tool = next(t for t in listed.tools if t.name == "delete_element_items")
+    assert tool.annotations.destructiveHint is True
+    assert _load(deleted)["updated_element"]["id"] == menu_id
+    menu = Element.objects.get(id=menu_id).specific
+    assert [item.name for item in menu.menu_items.all()] == ["Home"]
+    assert empty.isError is True

@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -192,13 +193,35 @@ def create_template_with_content(data_fixture, user=None, **kwargs):
     return template, table, view
 
 
-def create_template(data_fixture, user, **kwargs):
-    """A user template whose content can be copied, without running a job."""
-
+def create_template(data_fixture, user, state="private", **kwargs):
     workspace = data_fixture.create_workspace(name="Content")
     data_fixture.create_database_application(workspace=workspace)
     kwargs.setdefault("icon", ICON)
-    return data_fixture.create_user_template(user=user, workspace=workspace, **kwargs)
+    template = data_fixture.create_user_template(
+        user=user, workspace=workspace, **kwargs
+    )
+    if state == "private":
+        return template
+    return data_fixture.set_user_template_state(template, state)
+
+
+def revision_ids(root):
+    return list(
+        Template.objects.filter_by_root(id=root.id)
+        .order_by("version")
+        .values_list("id", flat=True)
+    )
+
+
+@contextmanager
+def recorded_actions():
+    actions = []
+
+    def record(*args, action_type, action_params, **kwargs):
+        actions.append((action_type.type, action_params))
+
+    with patch("baserow.core.action.signals.action_done.send", side_effect=record):
+        yield actions
 
 
 def make_public(user, template):

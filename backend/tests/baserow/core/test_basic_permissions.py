@@ -1,10 +1,11 @@
 import gc
 import inspect
+import secrets
 import weakref
 
 from django.contrib.auth.models import AnonymousUser
 from django.db import connection
-from django.db.models import F, Q, QuerySet
+from django.db.models import Q, QuerySet
 from django.test.utils import CaptureQueriesContext, override_settings
 from django.utils import timezone
 
@@ -13,6 +14,7 @@ import pytest
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import ListTablesDatabaseTableOperationType
 from baserow.core.cache import local_cache
+from baserow.core.context import private_link_token
 from baserow.core.exceptions import (
     PermissionDenied,
     UserInvalidWorkspacePermissionsError,
@@ -1469,11 +1471,19 @@ def test_all_scope_types_query_methods():
             assert isinstance(scope_type.get_filter_for_scope_type(parent, []), Q)
 
 
-def create_templates_of_each_state(data_fixture, owner):
+OTHERS, HOLDER, OWNER, ADMIN = 1, 2, 3, 4
+
+
+def create_templates_of_each_state(data_fixture, owner, with_links=False):
     """
     Returns templates with who can open them while user templates are enabled:
-    anyone but the owner, and the owner. Only the official ones open while user
-    templates are disabled.
+    the others (not the owner, a link holder or an admin), anyone with the token of
+    the private link of the template, see `get_link_token`, the owner, and an
+    instance admin who isn't the owner. With `allow_instance_admin`, which only the
+    checks of a single template pass, the admin opens what the owner opens. Only the
+    official ones open while user templates are disabled.
+
+    :param with_links: Whether the templates that can have a private link get one.
     """
 
     official = data_fixture.create_template()
@@ -1487,13 +1497,17 @@ def create_templates_of_each_state(data_fixture, owner):
     rejected = data_fixture.create_user_template(
         user=owner, review_state=Template.ReviewState.REJECTED
     )
-    public = data_fixture.create_user_template(user=owner)
-    blocked = data_fixture.create_user_template(user=owner, blocked_at=timezone.now())
-    Template.objects.filter(id__in=[public.id, blocked.id]).update(
-        public_revision_id=F("id")
+    withdrawn = data_fixture.create_user_template(
+        user=owner, review_state=Template.ReviewState.WITHDRAWN
     )
-    public.refresh_from_db()
-    blocked.refresh_from_db()
+    public = data_fixture.create_user_template(user=owner)
+    data_fixture.set_user_template_state(public, "public")
+    blocked = data_fixture.set_user_template_state(
+        data_fixture.create_user_template(user=owner), "public_blocked"
+    )
+    blocked_private = data_fixture.create_user_template(
+        user=owner, blocked_at=timezone.now()
+    )
     public_revision = data_fixture.create_user_template_revision(public)
     marked = data_fixture.create_user_template(
         user=owner, marked_for_deletion_at=timezone.now()
@@ -1502,38 +1516,63 @@ def create_templates_of_each_state(data_fixture, owner):
     public_marked = data_fixture.create_user_template(
         user=owner, marked_for_deletion_at=timezone.now()
     )
-    Template.objects.filter(id=public_marked.id).update(public_revision_id=F("id"))
-    public_marked.refresh_from_db()
+    data_fixture.set_user_template_state(public_marked, "public")
+    if with_links:
+        roots = [
+            private,
+            pending,
+            rejected,
+            withdrawn,
+            public,
+            blocked,
+            blocked_private,
+            marked,
+            public_marked,
+        ]
+        for root in roots:
+            Template.objects.filter(id=root.id).update(
+                private_link_token=secrets.token_hex(32)
+            )
     return [
-        (official, True, True),
-        (legacy, True, True),
-        (private, False, True),
-        # A revision is opened like its root.
-        (revision, False, True),
-        (latest_revision, False, True),
-        (pending, False, True),
-        (rejected, False, True),
-        (public, True, True),
-        # Others only open the public revision.
-        (public_revision, False, True),
-        (blocked, False, True),
-        (marked, False, False),
-        (marked_revision, False, False),
-        (public_marked, False, False),
+        (official, True, True, True, True),
+        (legacy, True, True, True, True),
+        (private, False, False, True, False),
+        (revision, False, False, True, False),
+        (latest_revision, False, True, True, False),
+        (pending, False, True, True, True),
+        (rejected, False, True, True, True),
+        (withdrawn, False, True, True, False),
+        (public, True, True, True, True),
+        (public_revision, False, False, True, False),
+        (blocked, False, False, True, False),
+        (blocked_private, False, False, True, False),
+        (marked, False, False, False, False),
+        (marked_revision, False, False, False, False),
+        (public_marked, False, False, False, False),
     ]
+
+
+def get_link_token(template):
+    return Template.objects.get(id=template.root_id or template.id).private_link_token
 
 
 def get_template_actors(data_fixture, owner):
     """
-    Returns the actors with whether they own the templates. A `None` actor is
-    anonymous too, see `PermissionCheck.actor`.
+    Returns the actors with their column in `create_templates_of_each_state` and
+    whether they send the token of the private link of the template. A `None`
+    actor is anonymous too, see `PermissionCheck.actor`. A deactivated admin is
+    like anybody else.
     """
 
     return [
-        (AnonymousUser(), False),
-        (None, False),
-        (data_fixture.create_user(), False),
-        (owner, True),
+        (AnonymousUser(), OTHERS, False),
+        (AnonymousUser(), HOLDER, True),
+        (None, OTHERS, False),
+        (data_fixture.create_user(), OTHERS, False),
+        (data_fixture.create_user(is_staff=True, is_active=False), OTHERS, False),
+        (data_fixture.create_user(), HOLDER, True),
+        (owner, OWNER, False),
+        (data_fixture.create_user(is_staff=True), ADMIN, False),
     ]
 
 
@@ -1545,40 +1584,64 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
     if not user_templates_enabled:
         settings.FEATURE_FLAGS = []
     owner = data_fixture.create_user()
-    templates = create_templates_of_each_state(data_fixture, owner)
+    templates = create_templates_of_each_state(data_fixture, owner, with_links=True)
     not_a_template = (data_fixture.create_workspace(), False, False)
     manager = AllowIfTemplatePermissionManagerType()
 
-    for actor, is_owner in get_template_actors(data_fixture, owner):
-        for template, opens_for_others, opens_for_owner in templates:
-            workspace = template.workspace
-            allowed = (opens_for_owner if is_owner else opens_for_others) and (
-                user_templates_enabled or template.type != Template.Type.USER
-            )
+    for actor, column, has_link in get_template_actors(data_fixture, owner):
+        for row in templates:
+            template, workspace = row[0], row[0].workspace
+            token = get_link_token(template) if has_link else None
+            enabled = user_templates_enabled or template.type != Template.Type.USER
+            allowed = row[column] and enabled
+            listed_column = OTHERS if column == HOLDER else column
+            listed = row[listed_column] and enabled
+            in_lists = column != ADMIN or row[OTHERS]
+            as_admin = OWNER if column == ADMIN else None
+            checked = row[as_admin or column] and enabled
+            checked_listed = row[as_admin or listed_column] and enabled
+            opener = PermissionCheck(actor, ReadWorkspaceOperationType.type).actor
+            reason = (template.name, actor, has_link)
+            assert (
+                Template.objects.openable(opener, private_link_token=token)
+                .filter(id=template.id)
+                .exists()
+            ) is (allowed and in_lists), reason
+            assert (
+                Template.objects.openable(
+                    opener, private_link_token=token, allow_instance_admin=True
+                )
+                .filter(id=template.id)
+                .exists()
+            ) is checked, reason
+            assert (
+                workspace.has_openable_template(opener, allow_instance_admin=True)
+                is checked_listed
+            ), reason
+            assert (
+                Template.objects.openable(opener).filter(id=template.id).exists()
+            ) is (listed and in_lists), reason
             for operation in manager.OPERATION_ALLOWED_ON_TEMPLATES:
                 check = PermissionCheck(actor, operation, workspace)
                 queryset = workspace.application_set.all()
-                reason = (template.name, actor, operation)
+                reason = (template.name, actor, has_link, operation)
 
-                assert manager.check_multiple_permissions([check], workspace) == (
-                    {check: True} if allowed else {}
-                ), reason
-                assert (
-                    manager.filter_queryset(check.actor, operation, queryset, workspace)
-                    is not None
-                ) is allowed, reason
-                assert (
-                    workspace.id
-                    in manager.filter_queryset_for_workspaces(
-                        check.actor, operation, queryset, [workspace]
-                    )
-                ) is allowed, reason
-                assert template.is_openable_by(check.actor) is allowed, reason
-                assert (
-                    Template.objects.openable(check.actor)
-                    .filter(id=template.id)
-                    .exists()
-                ) is allowed, reason
+                with private_link_token(token):
+                    assert manager.check_multiple_permissions([check], workspace) == (
+                        {check: True} if checked else {}
+                    ), reason
+                    assert (
+                        manager.filter_queryset(
+                            check.actor, operation, queryset, workspace
+                        )
+                        is not None
+                    ) is checked, reason
+                    assert (
+                        workspace.id
+                        in manager.filter_queryset_for_workspaces(
+                            check.actor, operation, queryset, [workspace]
+                        )
+                    ) is checked, reason
 
         workspace = not_a_template[0]
         check = PermissionCheck(actor, ReadWorkspaceOperationType.type, workspace)
@@ -1611,21 +1674,32 @@ def test_allow_if_template_permissions_object_lists_official_and_own_templates(
     if not user_templates_enabled:
         settings.FEATURE_FLAGS = []
     owner = data_fixture.create_user()
-    templates = create_templates_of_each_state(data_fixture, owner)
+    templates = create_templates_of_each_state(data_fixture, owner, with_links=True)
     # The public templates of other users aren't listed.
     others_public = data_fixture.create_user_template()
-    Template.objects.filter(id=others_public.id).update(public_revision_id=F("id"))
+    data_fixture.set_user_template_state(others_public, "public")
     manager = AllowIfTemplatePermissionManagerType()
 
-    for actor, is_owner in get_template_actors(data_fixture, owner):
-        permissions = manager.get_permissions_object(actor)
+    linked = templates[2][0]
+
+    for actor, column, has_link in get_template_actors(data_fixture, owner):
+        with private_link_token(get_link_token(linked) if has_link else None):
+            permissions = manager.get_permissions_object(actor)
 
         assert set(permissions["workspace_template_ids"]) == {
-            template.workspace_id
-            for template, _, opens_for_owner in templates
-            if template.type != Template.Type.USER
-            or (is_owner and opens_for_owner and user_templates_enabled)
-        }
+            row[0].workspace_id
+            for row in templates
+            if row[0].type != Template.Type.USER
+            or (
+                user_templates_enabled
+                and row[column]
+                and (
+                    column == OWNER
+                    or column == HOLDER
+                    and (row[0].root_id or row[0].id) == linked.id
+                )
+            )
+        }, actor
 
 
 @pytest.mark.django_db
@@ -1654,21 +1728,25 @@ def test_openable_template_check_uses_prefetched_templates(
 ):
     owner = data_fixture.create_user()
     templates = create_templates_of_each_state(data_fixture, owner)
-    workspace_ids = [template.workspace_id for template, _, _ in templates]
+    workspace_ids = [row[0].workspace_id for row in templates]
     workspaces = list(
         CoreHandler().get_enhanced_workspace_queryset(
             Workspace.objects.filter(id__in=workspace_ids)
         )
     )
 
+    admin = data_fixture.create_user(is_staff=True)
+
     with django_assert_num_queries(0):
         openable = {w.id for w in workspaces if w.has_openable_template(owner)}
+        openable_by_admin = {
+            w.id
+            for w in workspaces
+            if w.has_openable_template(admin, allow_instance_admin=True)
+        }
 
-    assert openable == {
-        template.workspace_id
-        for template, _, opens_for_owner in templates
-        if opens_for_owner
-    }
+    assert openable == {row[0].workspace_id for row in templates if row[OWNER]}
+    assert openable_by_admin == openable
 
 
 @pytest.mark.django_db
@@ -1721,6 +1799,27 @@ def test_openable_template_check_selects_the_root_of_a_revision(
 
     with django_assert_num_queries(1):
         assert workspace.has_openable_template(owner)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "latest_state,openable", [("private", False), ("in_review", True)]
+)
+def test_openable_template_check_queries_the_review_queue_once_for_an_admin(
+    data_fixture, django_assert_num_queries, latest_state, openable
+):
+    admin = data_fixture.create_user(is_staff=True)
+    user_template = data_fixture.create_user_template()
+    for _ in range(2):
+        revision = data_fixture.create_user_template_revision(
+            user_template, workspace=user_template.workspace
+        )
+    data_fixture.set_user_template_state(user_template, latest_state, revision)
+    workspace = Workspace.objects.get(id=user_template.workspace_id)
+    workspace.get_template_types()
+
+    with django_assert_num_queries(2):
+        assert workspace.has_openable_template(admin) is openable
 
 
 @pytest.mark.django_db

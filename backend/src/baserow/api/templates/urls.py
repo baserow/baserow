@@ -4,6 +4,7 @@ from .views import (
     AsyncInstallTemplateView,
     DownloadUserTemplateView,
     InstallTemplateView,
+    RotateTemplatePrivateLinkTokenView,
     TemplatesView,
     TemplateView,
 )
@@ -26,6 +27,11 @@ urlpatterns = [
         r"(?P<slug>[\w-]+)/download/$",
         DownloadUserTemplateView.as_view(),
         name="download",
+    ),
+    re_path(
+        r"(?P<slug>[\w-]+)/rotate-private-link-token/$",
+        RotateTemplatePrivateLinkTokenView.as_view(),
+        name="rotate_private_link_token",
     ),
     re_path(r"(?P<slug>[\w-]+)/$", TemplateView.as_view(), name="item"),
     re_path(r"$", TemplatesView.as_view(), name="list"),

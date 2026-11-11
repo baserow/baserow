@@ -13,8 +13,10 @@ export const RUN_HEARTBEAT = 'run.heartbeat'
 
 export const STEP_STATUS = Object.freeze({
   RUNNING: 'running',
+  WAITING: 'waiting',
   DONE: 'done',
   FAILED: 'failed',
+  REJECTED: 'rejected',
   STOPPED: 'stopped',
   SKIPPED: 'skipped',
 })
@@ -26,6 +28,7 @@ export const STEP_ERROR_CODE = Object.freeze({
   INVALID_FORMULA: 'invalid_formula',
   CONFLICT: 'conflict',
   FAILED: 'failed',
+  NOT_RUN: 'not_run',
 })
 
 export const RUN_STATUS = {

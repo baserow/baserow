@@ -379,6 +379,21 @@ class CoreGotoService(Service):
     )
 
 
+class CoreWaitService(Service):
+    """
+    A service that pauses for a number of seconds. The pause is not spent here:
+    the service asks the consumer that dispatched it to resume it later (see
+    `PendingDispatch`), so no worker is held while waiting.
+    """
+
+    seconds = FormulaField(
+        default="",
+        blank=True,
+        help_text="A formula resolving to the number of seconds to wait before "
+        "continuing.",
+    )
+
+
 class CorePeriodicService(Service):
     last_periodic_run = models.DateTimeField(
         null=True,

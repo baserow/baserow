@@ -26,13 +26,16 @@
       </div>
 
       <div class="user-template-modal__body">
-        <p class="user-template-modal__description">
-          {{
-            activeMode === 'details'
-              ? $t('updateUserTemplateModal.detailsDescription')
-              : $t('updateUserTemplateModal.contentDescription')
-          }}
+        <p
+          v-if="activeMode === 'details'"
+          class="user-template-modal__description"
+        >
+          {{ $t('updateUserTemplateModal.detailsDescription') }}
         </p>
+        <Alert v-if="reviewNotice" type="info-neutral" class="margin-bottom-2">
+          <template #title>{{ $t(reviewNotice.title) }}</template>
+          <p>{{ $t(reviewNotice.text) }}</p>
+        </Alert>
         <UserTemplateDetailsForm
           v-if="activeMode === 'details'"
           ref="detailsForm"
@@ -46,6 +49,8 @@
           v-if="showVisibility"
           :model-value="visibility"
           :disabled="jobIsRunning || updateLoading"
+          :needs-review="Boolean(template.make_public_needs_review)"
+          :listed="Boolean(template.listed)"
           class="margin-top-2"
           @update:model-value="Object.assign(values, $event)"
         />
@@ -126,7 +131,7 @@ import UserTemplateContentForm from '@baserow/modules/core/components/template/U
 import UserTemplateDetailsForm from '@baserow/modules/core/components/template/UserTemplateDetailsForm'
 import UserTemplateVisibilityForm from '@baserow/modules/core/components/template/UserTemplateVisibilityForm'
 import TemplateService from '@baserow/modules/core/services/template'
-import { getVisibilityAction } from '@baserow/modules/core/utils/userTemplate'
+import { canChangeVisibilityInDetails } from '@baserow/modules/core/utils/userTemplate'
 
 // The notifications of the jobs that ended, by job of the store. The same template
 // can be updated from more than one mounted modal, which all follow the same job,
@@ -206,7 +211,7 @@ export default {
     showVisibility() {
       return (
         this.activeMode === 'details' &&
-        getVisibilityAction({ state: this.shownState }) !== null &&
+        canChangeVisibilityInDetails({ state: this.shownState }) &&
         !this.jobIsRunning &&
         !this.jobIsFinished
       )
@@ -229,14 +234,9 @@ export default {
       )
       return [...this.categories, ...missing]
     },
-    // The content is copied from the same workspace and applications as before,
-    // if known.
     preselect() {
-      if (!this.template.source_workspace_id) {
-        return null
-      }
       return {
-        workspaceId: this.template.source_workspace_id,
+        workspaceId: this.template.source_workspace_id ?? null,
         applicationIds: this.template.source_application_ids || [],
       }
     },
@@ -249,6 +249,29 @@ export default {
         this.values.icon !== initial.icon ||
         sorted(this.values.categoryIds) !== sorted(initial.categoryIds)
       )
+    },
+    reviewNotice() {
+      if (
+        this.template.update_needs_review &&
+        (!this.showVisibility || this.values.makePublic)
+      ) {
+        return this.template.state === 'in_review'
+          ? {
+              title: 'updateUserTemplateModal.inReviewTitle',
+              text: 'updateUserTemplateModal.inReviewText',
+            }
+          : {
+              title: 'updateUserTemplateModal.reviewTitle',
+              text: 'updateUserTemplateModal.reviewText',
+            }
+      }
+      if (this.template.state === 'rejected') {
+        return {
+          title: 'updateUserTemplateModal.rejectedTitle',
+          text: 'updateUserTemplateModal.rejectedText',
+        }
+      }
+      return null
     },
     canUpdate() {
       const valid =
@@ -380,9 +403,6 @@ export default {
         }
         if (!updatesDetails) {
           this.hide()
-          this.$store.dispatch('toast/success', {
-            title: this.$t('updateUserTemplateModal.updated'),
-          })
           return
         }
         const { data } = await JobService(this.$client).create(

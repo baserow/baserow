@@ -48,9 +48,11 @@ describe('foldRunEvent', () => {
     expect(
       fold([
         ['step', step('a')],
+        ['step', step('b', 'waiting')],
+        ['step', step('c', 'done')],
         ['run.finished', { status: 'cancelled' }],
       ]).steps
-    ).toEqual([step('a', 'stopped')])
+    ).toEqual([step('a', 'stopped'), step('b', 'stopped'), step('c', 'done')])
   })
 
   test('retains a failure code through live events, reconnect and saved history', () => {

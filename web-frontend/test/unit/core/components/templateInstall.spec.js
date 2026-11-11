@@ -4,7 +4,8 @@ import { ref } from 'vue'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { permission } from '@baserow/test/helpers/permission'
-import { updateJob } from '@baserow/test/helpers/store'
+import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType, updateJob } from '@baserow/test/helpers/store'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -36,6 +37,7 @@ describe('TemplateInstall', () => {
   afterEach(async () => {
     permission.check = () => true
     push.mockRestore()
+    await testApp.nuxtApp.$router.replace('/template/project-tracker')
     await testApp.afterEach()
   })
 
@@ -55,22 +57,29 @@ describe('TemplateInstall', () => {
     await flushPromises()
   }
 
-  test('sends an anonymous visitor to the login page and back', async () => {
-    const wrapper = await testApp.mount(TemplateInstall, {
-      props: { template },
-    })
+  test.each([
+    '/template/project-tracker',
+    `/template/project-tracker/private-link/${'a'.repeat(64)}`,
+  ])(
+    'sends an anonymous visitor from %s to the login page and back',
+    async (path) => {
+      const wrapper = await testApp.mount(TemplateInstall, {
+        props: { template },
+      })
+      await testApp.nuxtApp.$router.replace(path)
 
-    expect(wrapper.find('.template-install__workspace').exists()).toBe(false)
+      expect(wrapper.find('.template-install__workspace').exists()).toBe(false)
 
-    await clickUse(wrapper)
+      await clickUse(wrapper)
 
-    expect(push).toHaveBeenCalledWith({
-      name: 'login',
-      query: { original: '/template/project-tracker' },
-    })
-    expect(testApp.mock.history.post).toHaveLength(0)
-    expect(wrapper.emitted('installed')).toBeUndefined()
-  })
+      expect(push).toHaveBeenCalledWith({
+        name: 'login',
+        query: { original: path },
+      })
+      expect(testApp.mock.history.post).toHaveLength(0)
+      expect(wrapper.emitted('installed')).toBeUndefined()
+    }
+  )
 
   test.each([
     [
@@ -152,10 +161,7 @@ describe('TemplateInstall', () => {
     ).toBeDefined()
   })
 
-  const installToasts = () =>
-    testApp.store.state.toast.items.filter(
-      (toast) => toast.type === 'installTemplate'
-    )
+  const installToasts = () => toastsOfType(testApp.store, 'installTemplate')
 
   const selectWorkspace = (id) =>
     testApp.store.commit(
@@ -279,17 +285,17 @@ describe('TemplateInstall', () => {
 
   test('shows nothing when the install answers after a logout', async () => {
     signIn()
-    let reply = null
+    const { reply, send } = heldBack()
     testApp.mock
       .onPost(`/templates/install/1/${template.id}/async/`)
-      .reply(() => new Promise((resolve) => (reply = resolve)))
+      .reply(reply)
     const wrapper = await testApp.mount(TemplateInstall, {
       props: { template, workspace: { id: 1 } },
     })
     await clickUse(wrapper)
 
     await testApp.store.dispatch('auth/forceLogoff')
-    reply([202, { id: 10, type: 'install_template', state: 'started' }])
+    send([202, { id: 10, type: 'install_template', state: 'started' }])
     await flushPromises()
 
     expect(installToasts()).toHaveLength(0)
@@ -383,13 +389,9 @@ describe('TemplateInstall', () => {
         .filter((request) => request.url === downloadUrl)
         .map((request) => JSON.parse(request.data))
 
-    const downloadToasts = () =>
-      testApp.store.state.toast.items.filter(
-        (toast) => toast.type === 'downloadTemplate'
-      )
+    const downloadToasts = () => toastsOfType(testApp.store, 'downloadTemplate')
 
-    const errorToasts = () =>
-      testApp.store.state.toast.items.filter((toast) => toast.type === 'error')
+    const errorToasts = () => toastsOfType(testApp.store, 'error')
 
     test.each([
       ['a user template', userTemplate, true, ['download']],
@@ -410,13 +412,8 @@ describe('TemplateInstall', () => {
 
     test('starts the download job of the shown revision with its toast, then closes the menu', async () => {
       signIn()
-      let reply = null
-      testApp.mock.onPost(downloadUrl).reply(
-        () =>
-          new Promise((resolve) => {
-            reply = resolve
-          })
-      )
+      const { reply, send } = heldBack()
+      testApp.mock.onPost(downloadUrl).reply(reply)
       const wrapper = await mountWithMenu({ template: userTemplate })
 
       await clickDownload(wrapper)
@@ -431,7 +428,7 @@ describe('TemplateInstall', () => {
       await clickDownload(wrapper)
       expect(downloadRequests()).toStrictEqual([{ revision_id: 9 }])
 
-      reply([202, runningJob()])
+      send([202, runningJob()])
       await flushPromises()
 
       expect(downloadToasts().map((toast) => toast.data)).toStrictEqual([
@@ -486,15 +483,13 @@ describe('TemplateInstall', () => {
 
     test('shows nothing when the answer comes after a logout', async () => {
       signIn()
-      let reply = null
-      testApp.mock
-        .onPost(downloadUrl)
-        .reply(() => new Promise((resolve) => (reply = resolve)))
+      const { reply, send } = heldBack()
+      testApp.mock.onPost(downloadUrl).reply(reply)
       const wrapper = await mountWithMenu({ template: userTemplate })
       await clickDownload(wrapper)
 
       await testApp.store.dispatch('auth/forceLogoff')
-      reply([202, runningJob()])
+      send([202, runningJob()])
       await flushPromises()
 
       expect(downloadToasts()).toHaveLength(0)

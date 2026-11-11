@@ -88,6 +88,7 @@ class PageService:
         path: str,
         path_params: PagePathParams = None,
         query_params: PageQueryParams = None,
+        **kwargs,
     ) -> Page:
         """
         Creates a new page
@@ -97,6 +98,8 @@ class PageService:
         :param name: The name of the page
         :param path: The path of the page
         :param path_params: The params of the path provided
+        :param kwargs: The page's `visibility`, `role_type` and `roles`, if not the
+            defaults.
         :return: The newly created page instance
         """
 
@@ -108,7 +111,12 @@ class PageService:
         )
 
         page = self.handler.create_page(
-            builder, name, path, path_params=path_params, query_params=query_params
+            builder,
+            name,
+            path,
+            path_params=path_params,
+            query_params=query_params,
+            **extract_allowed(kwargs, ["visibility", "role_type", "roles"]),
         )
 
         page_created.send(self, page=page, user=user)

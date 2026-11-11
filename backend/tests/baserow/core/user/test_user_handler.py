@@ -492,6 +492,22 @@ def test_change_password(data_fixture):
 
 
 @pytest.mark.django_db
+def test_change_password_keeps_the_tab_that_made_the_change_connected(
+    data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user(password="aValidPassword")
+    user.web_socket_id = "settings-tab"
+
+    with (
+        patch("baserow.ws.signals.force_disconnect_users.delay") as disconnect,
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        UserHandler().change_password(user, "aValidPassword", "aValidNewPassword")
+
+    disconnect.assert_called_once_with([user.id], ["settings-tab"])
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("invalid_password", invalid_passwords)
 def test_change_password_invalid_new_password(data_fixture, invalid_password):
     validOldPW = "thisPasswordIsValid"

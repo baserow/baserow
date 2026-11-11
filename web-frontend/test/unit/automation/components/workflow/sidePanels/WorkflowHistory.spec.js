@@ -17,6 +17,7 @@ const mounted = []
 const mountHistory = ({
   item,
   cancel = vi.fn(),
+  fetchNodeHistories = vi.fn(),
   hasPermission = true,
   nodeHistories = null,
   nodeType = null,
@@ -33,7 +34,7 @@ const mountHistory = ({
         },
         actions: {
           cancelWorkflowRun: (ctx, payload) => cancel(payload),
-          fetchNodeHistories: () => {},
+          fetchNodeHistories: (ctx, payload) => fetchNodeHistories(payload),
           fetchNodeResult: () => {},
         },
       },
@@ -53,6 +54,8 @@ const mountHistory = ({
       mocks: { $t: (key) => key },
       stubs: {
         Expandable: {
+          name: 'Expandable',
+          emits: ['toggle'],
           template:
             '<div><slot name="header" :expanded="true" /><slot /></div>',
         },
@@ -265,5 +268,87 @@ describe('WorkflowHistory passes', () => {
     expect(
       wrapper.findAll('.node-history__header-info-pass').map((el) => el.text())
     ).toEqual(['historySidePanel.retryNumber:1'])
+  })
+})
+
+describe('WorkflowHistory runs in progress', () => {
+  afterEach(() => {
+    mounted.splice(0).forEach((wrapper) => wrapper.unmount())
+  })
+
+  const nodeType = {
+    iconClass: 'iconoir-timer',
+    getHistoryLabel: ({ nodeHistory }) => nodeHistory.node_label,
+  }
+  const attempt = (extra) => ({
+    node: 5,
+    node_type: 'wait',
+    node_label: 'Wait',
+    attempt: 1,
+    iteration_path: '',
+    parent_node_id: null,
+    message: '',
+    ...extra,
+  })
+
+  test('shows the node histories of a running run next to the cancel link', () => {
+    // The node rows of a run in progress are shown so that a waiting node can
+    // be seen; the run keeps its running timer and cancel link.
+    const { wrapper } = mountHistory({
+      item: runningItem(),
+      nodeHistories: [
+        attempt({
+          id: 1,
+          status: 'waiting',
+          resume_at: '2026-09-15T10:01:00Z',
+        }),
+      ],
+      nodeType,
+    })
+
+    expect(wrapper.findAll('.node-history__header-row')).toHaveLength(1)
+    expect(wrapper.find('.badge').text()).toBe(
+      'historySidePanel.statusWaitingBadge'
+    )
+    expect(wrapper.find('.workflow-history__run-time').exists()).toBe(true)
+    expect(wrapper.find('.workflow-history__cancel-link').exists()).toBe(true)
+  })
+
+  test('fetches the node histories of a running run when it is expanded', async () => {
+    const fetchNodeHistories = vi.fn()
+    const { wrapper } = mountHistory({
+      item: runningItem(),
+      fetchNodeHistories,
+    })
+    expect(fetchNodeHistories).not.toHaveBeenCalled()
+
+    await wrapper.findComponent({ name: 'Expandable' }).vm.$emit('toggle')
+
+    expect(fetchNodeHistories).toHaveBeenCalledWith({ workflowHistoryId: 11 })
+  })
+
+  test('fetches the node histories again once the run completes', async () => {
+    // The rows shown while the run was in progress stopped at a waiting or
+    // running node, so they are fetched afresh rather than served from cache.
+    const fetchNodeHistories = vi.fn()
+    const { wrapper } = mountHistory({
+      item: runningItem(),
+      fetchNodeHistories,
+      nodeHistories: [],
+    })
+    expect(fetchNodeHistories).not.toHaveBeenCalled()
+
+    await wrapper.setProps({
+      item: runningItem({
+        status: 'success',
+        completed_on: '2026-09-15T10:00:05Z',
+      }),
+    })
+
+    expect(fetchNodeHistories).toHaveBeenCalledTimes(1)
+    expect(fetchNodeHistories).toHaveBeenCalledWith({
+      workflowHistoryId: 11,
+      refresh: true,
+    })
   })
 })

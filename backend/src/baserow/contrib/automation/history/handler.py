@@ -22,6 +22,7 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistoryResponse,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.signals import automation_node_dispatch_cancelled
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 from baserow.core.db import specific_iterator
@@ -124,9 +125,11 @@ class AutomationHistoryHandler:
         """
         Records that `user` asked for the given run to be cancelled.
 
-        This is the first phase of a cooperative cancellation: nothing is stopped
-        here. The runner reads the request fields before dispatching every node and
-        finalizes the run itself, see `finalize_workflow_history_cancellation`.
+        This is the first phase of a cooperative cancellation: a node that is
+        being dispatched is not interrupted. The runner reads the request fields
+        before dispatching every node and finalizes the run itself, see
+        `finalize_workflow_history_cancellation`. Nodes that are only waiting to
+        be resumed are stopped right away, see `cancel_waiting_nodes`.
 
         The update is conditional so that it never clobbers a run that has just
         reached a terminal status, and so that only the first request is recorded:
@@ -161,7 +164,82 @@ class AutomationHistoryHandler:
                 workflow_history.id
             )
 
+        if self.cancel_waiting_nodes(workflow_history):
+            # The run was stopped right away, so the requester gets the
+            # cancelled row rather than the `started` one read above.
+            workflow_history = self.get_workflow_history(workflow_history.id)
+
         return workflow_history
+
+    def cancel_waiting_nodes(self, workflow_history: AutomationWorkflowHistory) -> bool:
+        """
+        Stops the nodes of a run that are waiting to be resumed later, e.g. a
+        "Wait" node, right after the cancellation of that run was requested.
+
+        A waiting node holds no worker, so nothing of the run is running that
+        could notice the request: without this, the run would stay `started`
+        until the node's resume task wakes up, which is up to one countdown
+        chunk later. Every row is stopped with a conditional update from
+        `waiting`, the same race rule as the resume claim, so a node that a
+        resume task just claimed is left to the runner, which notices the
+        request before it dispatches the next node.
+
+        The run itself is finalized only once no node of it is left running or
+        waiting: a branch that is mid-dispatch finalizes the run itself, and so
+        does the resume task of a node that just lost its row to a claim.
+
+        :param workflow_history: The run whose cancellation was requested.
+        :return: True if this call finalized the run as cancelled.
+        """
+
+        message = self._cancellation_message(workflow_history)
+        now = timezone.now()
+        waiting_node_histories = AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history,
+            status=HistoryStatusChoices.WAITING,
+        ).select_related("node")
+
+        stopped_any = False
+        for node_history in waiting_node_histories:
+            stopped = AutomationNodeHistory.objects.filter(
+                id=node_history.id, status=HistoryStatusChoices.WAITING
+            ).update(
+                status=HistoryStatusChoices.CANCELLED,
+                message=message,
+                completed_on=now,
+            )
+            if not stopped:
+                continue
+
+            stopped_any = True
+            node_history.status = HistoryStatusChoices.CANCELLED
+            node_history.message = message
+            node_history.completed_on = now
+            # Saves the receivers a query: the rows were read for this run.
+            node_history.workflow_history = workflow_history
+            automation_node_dispatch_cancelled.send(
+                self, node=node_history.node, node_history=node_history
+            )
+
+        if not stopped_any:
+            return False
+
+        if AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history,
+            status__in=(HistoryStatusChoices.STARTED, HistoryStatusChoices.WAITING),
+        ).exists():
+            return False
+
+        return self.finalize_workflow_history_cancellation(workflow_history)
+
+    def _cancellation_message(self, workflow_history: AutomationWorkflowHistory) -> str:
+        """What a cancelled run and the nodes it stopped say."""
+
+        # requester can be None if the user's account was deleted.
+        requester = workflow_history.cancellation_requested_by
+        if requester is not None:
+            return f"Cancelled by {requester.first_name} ({requester.id})."
+        return "Cancelled."
 
     def finalize_workflow_history_cancellation(
         self, workflow_history: AutomationWorkflowHistory
@@ -179,12 +257,7 @@ class AutomationHistoryHandler:
         :return: True if this call performed the finalization.
         """
 
-        # requester can be None if the user's account was deleted.
-        requester = workflow_history.cancellation_requested_by
-        if requester is not None:
-            message = f"Cancelled by {requester.first_name} ({requester.id})."
-        else:
-            message = "Cancelled."
+        message = self._cancellation_message(workflow_history)
 
         updated = AutomationWorkflowHistory.objects.filter(
             id=workflow_history.id,
@@ -205,10 +278,13 @@ class AutomationHistoryHandler:
         completed_on: Optional[datetime] = None,
         message: str = "",
         attempt: int = 1,
+        iteration_path: str = "",
     ) -> AutomationNodeHistory:
         """
         Creates a history entry for a Node dispatch. Every attempt of a node
         gets its own entry; `attempt` records which one this is, starting at 1.
+        `iteration_path` is the iteration the node is dispatched in ("" outside
+        an iterator).
         """
 
         return AutomationNodeHistory.objects.create(
@@ -219,6 +295,7 @@ class AutomationHistoryHandler:
             completed_on=completed_on,
             message=message,
             attempt=attempt,
+            iteration_path=iteration_path,
         )
 
     def create_node_result(

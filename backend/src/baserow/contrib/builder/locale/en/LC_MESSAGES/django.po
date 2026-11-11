@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-28 10:12+0000\n"
+"POT-Creation-Date: 2026-11-10 11:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,7 +53,7 @@ msgstr ""
 msgid "Last name"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_providers/data_provider_types.py:656
+#: src/baserow/contrib/builder/data_providers/data_provider_types.py:789
 #, python-format
 msgid "%(user_source_name)s member"
 msgstr ""
@@ -100,7 +100,7 @@ msgstr ""
 msgid "Data source (%(data_source_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/builder/data_sources/service.py:169
+#: src/baserow/contrib/builder/data_sources/service.py:173
 msgid "Data source"
 msgstr ""
 
@@ -149,93 +149,93 @@ msgstr ""
 msgid "Element (%(element_id)s) moved"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:141
+#: src/baserow/contrib/builder/elements/element_types.py:144
 msgid "Column"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:350
+#: src/baserow/contrib/builder/elements/element_types.py:353
 msgid "Form"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:425
+#: src/baserow/contrib/builder/elements/element_types.py:428
 msgid "Container"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:437
+#: src/baserow/contrib/builder/elements/element_types.py:440
 msgid "Table"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:502
+#: src/baserow/contrib/builder/elements/element_types.py:505
 msgid "Repeat"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:570
+#: src/baserow/contrib/builder/elements/element_types.py:573
 msgid "Record selector"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:829
+#: src/baserow/contrib/builder/elements/element_types.py:834
 msgid "Heading"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:896
+#: src/baserow/contrib/builder/elements/element_types.py:901
 msgid "Text"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1118
+#: src/baserow/contrib/builder/elements/element_types.py:1123
 msgid "Link"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1256
+#: src/baserow/contrib/builder/elements/element_types.py:1261
 msgid "Image"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1420
+#: src/baserow/contrib/builder/elements/element_types.py:1431
 msgid "Rating"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1467
+#: src/baserow/contrib/builder/elements/element_types.py:1478
 msgid "Rating input"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1553
+#: src/baserow/contrib/builder/elements/element_types.py:1568
 msgid "Input text"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1693
+#: src/baserow/contrib/builder/elements/element_types.py:1716
 msgid "Button"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1741
+#: src/baserow/contrib/builder/elements/element_types.py:1764
 msgid "Checkbox"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:1815
+#: src/baserow/contrib/builder/elements/element_types.py:1842
 msgid "Choice"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2128
+#: src/baserow/contrib/builder/elements/element_types.py:2187
 msgid "Iframe"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2200
+#: src/baserow/contrib/builder/elements/element_types.py:2259
 msgid "Date time picker"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2344
+#: src/baserow/contrib/builder/elements/element_types.py:2407
 msgid "Shared header"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2354
+#: src/baserow/contrib/builder/elements/element_types.py:2417
 msgid "Shared footer"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/element_types.py:2364
+#: src/baserow/contrib/builder/elements/element_types.py:2427
 msgid "Menu"
 msgstr ""
 
-#: src/baserow/contrib/builder/elements/mixins.py:744
-#: src/baserow/contrib/builder/elements/mixins.py:749
-#: src/baserow/contrib/builder/elements/mixins.py:754
+#: src/baserow/contrib/builder/elements/mixins.py:748
+#: src/baserow/contrib/builder/elements/mixins.py:753
+#: src/baserow/contrib/builder/elements/mixins.py:758
 #, python-format
 msgid "Column %(count)s"
 msgstr ""
@@ -258,40 +258,40 @@ msgstr ""
 msgid "Page \"%(page_name)s\" (%(page_id)s) created"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:86
+#: src/baserow/contrib/builder/pages/actions.py:88
 msgid "Update page"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:87
+#: src/baserow/contrib/builder/pages/actions.py:89
 #, python-format
 msgid "Page \"%(page_name)s\" (%(page_id)s) updated"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:141
+#: src/baserow/contrib/builder/pages/actions.py:143
 msgid "Delete page"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:142
+#: src/baserow/contrib/builder/pages/actions.py:144
 #, python-format
 msgid "Page \"%(page_name)s\" (%(page_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:185
+#: src/baserow/contrib/builder/pages/actions.py:187
 msgid "Duplicate page"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:187
+#: src/baserow/contrib/builder/pages/actions.py:189
 #, python-format
 msgid ""
 "Page \"%(page_name)s\" (%(page_id)s) duplicated from "
 "\"%(original_page_name)s\" (%(original_page_id)s)"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:251
+#: src/baserow/contrib/builder/pages/actions.py:253
 msgid "Order pages"
 msgstr ""
 
-#: src/baserow/contrib/builder/pages/actions.py:252
+#: src/baserow/contrib/builder/pages/actions.py:254
 msgid "Pages ordered"
 msgstr ""
 

@@ -50,12 +50,14 @@ from baserow.core.tools.errors import (
 )
 from baserow.core.utils import to_path
 from baserow_enterprise.tools.formula_utils import (
+    client_value_of,
     create_example_from_json_schema,
     formula_object,
     minimize_json_schema,
 )
 
 from .types import DataSourceCreate, DataSourceUpdate, ElementUpdate
+from .types.workflow_action import raise_unless_same_target, with_parameter_formulas
 
 BuilderFormulaKind = Literal["element", "data_source", "action"]
 
@@ -405,6 +407,8 @@ class BuilderFormulaError(dict):
     :param kind: The kind of the item.
     :param source: The element, data source or workflow action.
     :param item: The input it was created or updated with.
+    :param formula: The value to store. Its ``formula`` on the entry is what the
+        client sent, and ``description`` is what a formula generator should resolve.
     :param can_repair: False when the value is fine and something else failed, so
         asking for another formula wouldn't help.
     :param permission_denied: Whether the user may not write the value.
@@ -425,10 +429,11 @@ class BuilderFormulaError(dict):
             {
                 f"{kind}_id": source.id,
                 "field": field,
-                "formula": formula,
+                "formula": client_value_of(formula),
                 "error": error,
             }
         )
+        self.description = str(formula)
         self.kind = kind
         self.source = source
         self.item = item
@@ -725,10 +730,28 @@ def current_record_of(
         context.pop_current_record_context()
 
 
+def _raise_if_retargeted(
+    source: Any, item: Any, fresh: Any, formulas: dict[str, str]
+) -> None:
+    """
+    :raises ToolInputError: When page parameter formulas are to be written, and the
+        link or action opens another page than the one the call left it on.
+    """
+
+    if not any(key.startswith("page_param_") for key in formulas):
+        return
+    expected = getattr(item, "navigate_to_page_id", None)
+    if expected is None:
+        # The call kept the page, so it's the one the item opened when it was read.
+        expected = getattr(source, "navigate_to_page_id", None)
+    raise_unless_same_target(expected, fresh)
+
+
 def _write_element_formulas(
     user: AbstractUser, element: Any, item: Any, formulas: dict[str, str]
 ) -> None:
     fresh = ElementHandler().get_element_for_update(element.id)
+    _raise_if_retargeted(element, item, fresh, formulas)
     if not isinstance(item, ElementUpdate):
         item.update_with_formulas(user, fresh, formulas)
         return
@@ -737,6 +760,15 @@ def _write_element_formulas(
         for field, formula in formulas.items()
         if "." not in field and hasattr(element, field)
     }
+    # A link's page parameters are replaced as a whole list.
+    params = with_parameter_formulas(
+        getattr(fresh, "page_parameters", None),
+        item.link_page_parameters,
+        "page_param",
+        formulas,
+    )
+    if params is not None:
+        values["page_parameters"] = params
     dependent = item.get_formula_dependent_fields(element.get_type().type)
     for dependent_field, formula_field in dependent.items():
         if formula_field in values:
@@ -770,11 +802,12 @@ def _write_action_formulas(
     user: AbstractUser, action: Any, item: Any, formulas: dict[str, str]
 ) -> None:
     # A row action's mappings are replaced as a whole list, so a concurrent
-    # add_action_field_mapping waits for this.
+    # add_element_action_field_mapping waits for this.
     service_id = getattr(action, "service_id", None)
     if service_id is not None:
         Service.objects.select_for_update().filter(id=service_id).first()
     fresh = BuilderWorkflowActionHandler().get_workflow_action(action.id)
+    _raise_if_retargeted(action.specific, item, fresh.specific, formulas)
     values = item.formula_values(fresh, formulas)
     if values:
         UpdateBuilderWorkflowActionActionType.do(user, fresh, **values)

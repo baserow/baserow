@@ -127,18 +127,21 @@
                   </div>
                 </div>
               </div>
-              <div class="user-template-list__cell">
+              <div class="user-template-list__cell user-template-list__state">
                 <Badge
-                  v-tooltip:[TOOLTIP_OPTIONS]="template.reason || null"
-                  :color="getState(template).color"
+                  v-tooltip:[REASON_TOOLTIP_OPTIONS]="template.reason || null"
+                  :color="getState(template.state, $i18n.t).color"
                   rounded
                   ><i
-                    v-if="getState(template).icon"
+                    v-if="getState(template.state, $i18n.t).icon"
                     class="user-template-list__state-icon"
-                    :class="getState(template).icon"
+                    :class="getState(template.state, $i18n.t).icon"
                   ></i
-                  >{{ getState(template).label }}</Badge
+                  >{{ getState(template.state, $i18n.t).label }}</Badge
                 >
+                <Badge v-if="showsListed(template)" color="neutral" rounded>{{
+                  $t('userTemplateList.stateListed')
+                }}</Badge>
               </div>
               <div class="user-template-list__cell user-template-list__updated">
                 {{ getHumanAgoLabel($i18n.t, template.updated_on) }}
@@ -159,9 +162,25 @@
               </div>
               <div class="user-template-list__cell user-template-list__actions">
                 <ButtonIcon
+                  v-if="template.state !== 'blocked'"
+                  type="secondary"
+                  size="small"
+                  icon="iconoir-link"
+                  class="user-template-list__link"
+                  :class="{
+                    'user-template-list__link--shared':
+                      template.private_link_token,
+                  }"
+                  :active="privateLinkOpenId === template.id"
+                  :title="$t('userTemplateList.privateLink')"
+                  @click.stop="togglePrivateLink($event, template)"
+                ></ButtonIcon>
+                <ButtonIcon
                   type="secondary"
                   size="small"
                   icon="iconoir-more-vert"
+                  class="user-template-list__more"
+                  :active="focusedTemplate?.id === template.id"
                   :title="$t('userTemplateList.actions')"
                   @click.stop="toggleActions($event, template)"
                 ></ButtonIcon>
@@ -189,7 +208,7 @@
                 </a>
               </li>
               <li
-                v-if="focusedVisibilityAction === 'make-public'"
+                v-if="canMakePublic(focusedTemplate)"
                 class="context__menu-item"
               >
                 <a
@@ -197,11 +216,15 @@
                   @click.prevent="changeVisibility('make-public')"
                 >
                   <i class="context__menu-item-icon iconoir-eye-empty"></i>
-                  {{ $t('userTemplateList.makePublic') }}
+                  {{
+                    makePublicResubmits(focusedTemplate)
+                      ? $t('userTemplateList.submitForReviewAgain')
+                      : $t('userTemplateList.makePublic')
+                  }}
                 </a>
               </li>
               <li
-                v-else-if="focusedVisibilityAction === 'make-private'"
+                v-if="canMakePrivate(focusedTemplate)"
                 class="context__menu-item"
               >
                 <a
@@ -212,7 +235,25 @@
                   {{ $t('userTemplateList.makePrivate') }}
                 </a>
               </li>
-              <li class="context__menu-item context__menu-item--with-separator">
+              <li
+                v-if="focusedPrivateLinkUrl"
+                class="context__menu-item context__menu-item--with-separator"
+              >
+                <a
+                  class="context__menu-item-link"
+                  @click.prevent="copyPrivateLink()"
+                >
+                  <i class="context__menu-item-icon iconoir-link"></i>
+                  {{ $t('userTemplateList.copyLink') }}
+                  <Copied ref="copied"></Copied>
+                </a>
+              </li>
+              <li
+                class="context__menu-item"
+                :class="{
+                  'context__menu-item--with-separator': !focusedPrivateLinkUrl,
+                }"
+              >
                 <a
                   class="context__menu-item-link"
                   :class="{
@@ -236,6 +277,13 @@
               </li>
             </ul>
           </Context>
+          <UserTemplatePrivateLinkContext
+            ref="privateLinkContext"
+            :template="privateLinkTemplate"
+            @changed="replace"
+            @shown="privateLinkOpenId = privateLinkTemplate?.id"
+            @hidden="privateLinkOpenId = null"
+          ></UserTemplatePrivateLinkContext>
         </div>
       </template>
     </div>
@@ -244,59 +292,37 @@
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useNuxtApp } from '#app'
+import { useNuxtApp, useRuntimeConfig } from '#app'
 import debounce from 'lodash/debounce'
 
 import TemplateService from '@baserow/modules/core/services/template'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { getVisibilityAction } from '@baserow/modules/core/utils/userTemplate'
+import {
+  canMakePrivate,
+  canMakePublic,
+  makePublicResubmits,
+  getPrivateLinkUrl,
+} from '@baserow/modules/core/utils/userTemplate'
+import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import TemplateEmptyState from '@baserow/modules/core/components/template/TemplateEmptyState'
+import {
+  getState,
+  showsListed,
+} from '@baserow/modules/core/components/template/userTemplateStates'
+import UserTemplatePrivateLinkContext from '@baserow/modules/core/components/template/UserTemplatePrivateLinkContext'
 
 const PAGE_SIZE = 20
 
 // The tooltips hold sentences, which don't fit in one line.
 const TOOLTIP_OPTIONS = { contentClasses: 'tooltip__content--expandable' }
-
-const STATES = {
-  private: {
-    color: 'neutral',
-    icon: 'iconoir-eye-off',
-    label: 'userTemplateList.statePrivate',
-  },
-  in_review: {
-    color: 'yellow',
-    icon: 'iconoir-clock',
-    label: 'userTemplateList.stateInReview',
-  },
-  rejected: {
-    color: 'red',
-    icon: 'iconoir-eye-off',
-    label: 'userTemplateList.stateRejected',
-  },
-  blocked: {
-    color: 'red',
-    icon: 'iconoir-warning-triangle',
-    label: 'userTemplateList.stateBlocked',
-  },
-  public: {
-    color: 'green',
-    icon: 'iconoir-eye-empty',
-    label: 'userTemplateList.statePublic',
-  },
-}
-
-/**
- * A state that this version doesn't know is shown as it is, so that the list
- * still works when a new state is added.
- */
-function getState(template) {
-  const state = STATES[template.state]
-  return state
-    ? { ...state, label: $i18n.t(state.label) }
-    : { color: 'neutral', icon: null, label: template.state }
+const REASON_TOOLTIP_OPTIONS = {
+  contentClasses: [
+    'tooltip__content--expandable',
+    'user-template-list__reason',
+  ],
 }
 
 const props = defineProps({
@@ -321,15 +347,27 @@ const emit = defineEmits([
   'make-private',
 ])
 
-const { $client, $i18n, $priorityBus, $store } = useNuxtApp()
+const { $client, $i18n, $priorityBus, $router, $store } = useNuxtApp()
+const { copyLink } = useCopyLink()
+const config = useRuntimeConfig()
 
 const searchInput = ref(null)
 const actionsContext = ref(null)
 // The template whose actions are shown.
 const focusedTemplate = ref(null)
-const focusedVisibilityAction = computed(() =>
-  getVisibilityAction(focusedTemplate.value)
+const focusedPrivateLinkUrl = computed(() =>
+  focusedTemplate.value
+    ? getPrivateLinkUrl(
+        focusedTemplate.value,
+        $router,
+        config.public.publicWebFrontendUrl
+      )
+    : null
 )
+const copied = ref(null)
+const privateLinkContext = ref(null)
+const privateLinkTemplate = ref(null)
+const privateLinkOpenId = ref(null)
 const { isDownloading, download } = useUserTemplateDownload()
 const search = ref('')
 const templates = ref([])
@@ -437,6 +475,29 @@ function toggleActions(event, template) {
   )
 }
 
+/**
+ * Opens the private link of a template next to the clicked button, or closes it
+ * when it's already open for it.
+ */
+function togglePrivateLink(event, template) {
+  const open =
+    privateLinkContext.value.isOpen() &&
+    privateLinkTemplate.value?.id === template.id
+  privateLinkTemplate.value = template
+  privateLinkContext.value.toggle(
+    event.currentTarget,
+    'bottom',
+    'right',
+    4,
+    0,
+    !open
+  )
+}
+
+function copyPrivateLink() {
+  return copyLink(focusedPrivateLinkUrl.value, copied.value)
+}
+
 function edit(mode) {
   const template = focusedTemplate.value
   actionsContext.value.hide()
@@ -470,8 +531,8 @@ function changeVisibility(event) {
 }
 
 /**
- * Shows the changed state of a loaded template in its row. Its position doesn't
- * change, because the visibility doesn't change when the template was updated.
+ * Shows the changed state of a loaded template in its row and its private link.
+ * It keeps its row, the order is refreshed when the list is loaded again.
  *
  * @param {object} template The template as listed in the user's templates.
  */
@@ -479,6 +540,9 @@ function replace(template) {
   const index = templates.value.findIndex(({ id }) => id === template.id)
   if (index !== -1) {
     templates.value.splice(index, 1, template)
+  }
+  if (privateLinkTemplate.value?.id === template.id) {
+    privateLinkTemplate.value = template
   }
 }
 

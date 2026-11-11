@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 
 from django.utils import timezone
@@ -94,29 +95,105 @@ def _check_search_finds_row(
     ]
 
 
-_DENIALS = (
-    "no table",
-    "no invoices table",
-    "not find",
-    "couldn't find",
-    "could not find",
-    "didn't find",
-    "don't see",
-    "doesn't exist",
-    "does not exist",
-    "isn't one",
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|\n+")
+
+# Clauses are judged apart, so "in Sales, not Operations" doesn't deny the table.
+_CLAUSE_END = re.compile(r"[,;()—–]|\s-\s|\bbut\b")
+
+_NEGATION = re.compile(
+    r"\b(?:no|not|none|never|nothing|nowhere|without|cannot)\b|n't\b"
+)
+
+# Said after the table is named: "the Invoices table is missing".
+_ABSENT = re.compile(r"\b(?:missing|absent|not found)\b")
+
+_BULLET = re.compile(r"^\s*(?:[-*+•]|\d+[.)])\s+")
+
+# The other database of the scenario. "Not in Operations" contrasts, it doesn't deny.
+_OTHER_DATABASES = ("operations",)
+_CONTRAST = re.compile(
+    r"\bnot\s+(?:in\s+|from\s+|under\s+)?(?:the\s+)?(?:%s)\b"
+    % "|".join(_OTHER_DATABASES)
+)
+
+_CREATE_OFFERS = (
     "create it",
     "create one",
     "create an invoices",
-    "create a new",
+    "create a new invoices",
+    "create the invoices",
+    "create a table",
+    "create a new table",
 )
+
+
+def _normalized(answer: str) -> str:
+    # Models often write a typographic apostrophe, and markdown around names.
+    text = answer.lower().replace("’", "'")
+    return re.sub(r"\*\*|__|`", "", text)
+
+
+def _denies_invoices(clause: str) -> bool:
+    """
+    Whether a clause says the Invoices table isn't there: a negation before the
+    name, or one or an absence word after it. A clause about another database only
+    ("Operations has no invoices table") doesn't count.
+    """
+
+    clause = _CONTRAST.sub("", clause)
+    at = clause.find("invoice")
+    if at == -1:
+        return False
+    if any(name in clause for name in _OTHER_DATABASES) and "sales" not in clause:
+        return False
+    before, after = clause[:at], clause[at:]
+    return bool(
+        _NEGATION.search(before) or _NEGATION.search(after) or _ABSENT.search(after)
+    )
+
+
+def _clauses(text: str) -> list[str]:
+    return [
+        clause
+        for sentence in _SENTENCE_END.split(text)
+        for clause in _CLAUSE_END.split(sentence)
+    ]
+
+
+def _listed_under_sales(text: str) -> bool:
+    """Whether a line naming Sales is followed by a list with Invoices in it."""
+
+    lines = text.split("\n")
+    for index, line in enumerate(lines):
+        if "sales" not in line or _BULLET.match(line):
+            continue
+        for item in lines[index + 1 :]:
+            if not item.strip():
+                continue
+            if not _BULLET.match(item):
+                break
+            if "invoice" in item and not _denies_invoices(item):
+                return True
+    return False
+
+
+def _places_invoices_in_sales(text: str) -> bool:
+    """
+    Whether a sentence names Sales and Invoices without denying the table, or a
+    list of Sales has it.
+    """
+
+    for sentence in _SENTENCE_END.split(text):
+        if "sales" in sentence and "invoices" in sentence:
+            if not any(_denies_invoices(c) for c in _CLAUSE_END.split(sentence)):
+                return True
+    return _listed_under_sales(text)
 
 
 def _check_search_finds_table(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
-    # Models often write a typographic apostrophe.
-    answer = output.answer.lower().replace("\u2019", "'")
+    text = _normalized(output.answer)
     return [
         CheckResult(
             "called search_workspace or list_tables",
@@ -124,13 +201,18 @@ def _check_search_finds_table(
             >= 1,
         ),
         CheckResult(
-            "answer names the Sales/Invoices table",
-            "invoices" in answer and "sales" in answer,
+            "the answer places the Invoices table in Sales",
+            _places_invoices_in_sales(text),
             hint=output.answer[:200],
         ),
         CheckResult(
-            "answer doesn't deny it or offer to create it",
-            not any(marker in answer for marker in _DENIALS),
+            "no part of the answer denies the Invoices table",
+            not any(_denies_invoices(clause) for clause in _clauses(text)),
+            hint=output.answer[:200],
+        ),
+        CheckResult(
+            "answer doesn't offer to create it",
+            not any(offer in text for offer in _CREATE_OFFERS),
             hint=output.answer[:200],
         ),
     ]
@@ -321,8 +403,10 @@ register_case(
 )
 
 
-@register_scenario("core-creates-database")
-def _creates_database_scenario(fx: Fixtures) -> EvalScenario:
+@register_scenario("core-one-database")
+def _one_database_scenario(fx: Fixtures) -> EvalScenario:
+    """A workspace with one empty database, open in the UI."""
+
     user = fx.create_user()
     workspace = fx.create_workspace(user=user)
     database = fx.create_database_application(workspace=workspace)
@@ -360,7 +444,7 @@ register_case(
         id="core/creates-database",
         dataset="kuma-core",
         prompt=PROMPT_CREATES_DATABASE,
-        scenario="core-creates-database",
+        scenario="core-one-database",
         checks=_check_creates_database,
         max_iters=15,
     )
@@ -428,19 +512,6 @@ register_case(
 )
 
 
-@register_scenario("core-creates-application")
-def _creates_application_scenario(fx: Fixtures) -> EvalScenario:
-    user = fx.create_user()
-    workspace = fx.create_workspace(user=user)
-    database = fx.create_database_application(workspace=workspace)
-    return EvalScenario(
-        user=user,
-        workspace=workspace,
-        ui_context=build_database_ui_context(user, workspace, database),
-        refs={"database": database},
-    )
-
-
 def _check_creates_application(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
@@ -476,7 +547,7 @@ register_case(
         dataset="kuma-core",
         # A bare request for an application is a builder, made without asking.
         prompt=PROMPT_CREATES_APPLICATION,
-        scenario="core-creates-application",
+        scenario="core-one-database",
         checks=_check_creates_application,
         max_iters=15,
     )
@@ -489,19 +560,6 @@ def _named(model, workspace, name: str) -> list:
         for application in model.objects.filter(workspace=workspace)
         if application.name.strip().casefold() == name.casefold()
     ]
-
-
-@register_scenario("core-creates-dashboard")
-def _creates_dashboard_scenario(fx: Fixtures) -> EvalScenario:
-    user = fx.create_user()
-    workspace = fx.create_workspace(user=user)
-    database = fx.create_database_application(workspace=workspace)
-    return EvalScenario(
-        user=user,
-        workspace=workspace,
-        ui_context=build_database_ui_context(user, workspace, database),
-        refs={"database": database},
-    )
 
 
 def _check_creates_dashboard(
@@ -545,7 +603,7 @@ register_case(
         id="core/creates-dashboard",
         dataset="kuma-core",
         prompt=PROMPT_CREATES_DASHBOARD,
-        scenario="core-creates-dashboard",
+        scenario="core-one-database",
         checks=_check_creates_dashboard,
         max_iters=15,
     )
@@ -599,6 +657,18 @@ def _check_creates_several_applications(
             "no application builder added",
             len(builders) == 1,
             hint=f"builders: {[b.name for b in builders]}",
+        )
+    )
+    # The Shop builder and the three new applications, nothing else.
+    applications = [
+        application.name
+        for application in Application.objects.filter(workspace=workspace)
+    ]
+    checks.append(
+        CheckResult(
+            "no other application created",
+            len(applications) == 4,
+            hint=f"applications: {applications}",
         )
     )
     return checks

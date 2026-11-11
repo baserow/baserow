@@ -24,14 +24,11 @@ from baserow.core.jobs.constants import JOB_CANCELLED, JOB_PENDING, JOB_STARTED
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JOB_STATES_ENDED
-from baserow.core.models import Template, Workspace
+from baserow.core.models import Template, UserTemplateState, Workspace
 from baserow.core.subjects import UserSubjectType
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_files.handler import UserFileHandler
-from baserow.core.user_templates.constants import (
-    USER_TEMPLATE_ICON_MAX_LENGTH,
-    UserTemplateState,
-)
+from baserow.core.user_templates.constants import USER_TEMPLATE_ICON_MAX_LENGTH
 from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
     InvalidTemplateIcon,
@@ -457,8 +454,9 @@ def test_list_listed_templates(data_fixture):
     data_fixture.create_user_template(user=user)
     own = data_fixture.create_user_template(user=user)
     # The listed revision of the actor's own template isn't its root.
-    listed_revision = data_fixture.create_user_template_revision(own)
-    data_fixture.set_user_template_state(own, "public", revision=listed_revision)
+    listed_revision = data_fixture.set_user_template_revision_states(
+        own, ["private", "public"]
+    )
     other = data_fixture.set_user_template_state(
         data_fixture.create_user_template(), "public"
     )
@@ -577,72 +575,32 @@ def test_get_user_template_root_by_slug(data_fixture, kind):
 
 
 @pytest.mark.django_db
-def test_get_template_state_of_a_revision(data_fixture):
+@pytest.mark.parametrize(
+    "revision_states,state,reason",
+    [
+        (["private"], UserTemplateState.PRIVATE, None),
+        (["in_review"], UserTemplateState.IN_REVIEW, None),
+        (["rejected"], UserTemplateState.REJECTED, "Reason"),
+        (["rejected", "private"], UserTemplateState.REJECTED, "Reason"),
+        (["withdrawn_rejected"], UserTemplateState.PRIVATE, None),
+        (["private", "in_review"], UserTemplateState.IN_REVIEW, None),
+        (["public", "private"], UserTemplateState.PUBLIC, None),
+        (["rejected", "public"], UserTemplateState.PUBLIC, None),
+        (["public", "in_review"], UserTemplateState.IN_REVIEW, None),
+        (["public", "rejected"], UserTemplateState.REJECTED, "Reason"),
+        (["rejected", "blocked"], UserTemplateState.BLOCKED, "Spam"),
+        (["public_blocked"], UserTemplateState.BLOCKED, "Spam"),
+    ],
+)
+def test_get_template_state(data_fixture, revision_states, state, reason):
     handler = UserTemplateHandler()
-    root = data_fixture.create_user_template(
-        review_state=Template.ReviewState.REJECTED, reject_reason="Not useful"
-    )
-    revision = data_fixture.create_user_template_revision(
-        root, review_state=Template.ReviewState.PENDING
-    )
+    root = data_fixture.create_user_template(blocked_reason="Spam")
+    revision = data_fixture.set_user_template_revision_states(root, revision_states)
 
-    # The review is the revision's own.
-    assert handler.get_template_state(root) == (
-        UserTemplateState.REJECTED,
-        "Not useful",
-    )
-    assert handler.get_template_state(revision) == (UserTemplateState.IN_REVIEW, None)
-
-    # Whether it's public or blocked is the template's, so its root's.
-    root.review_state = Template.ReviewState.APPROVED
-    root.public_revision = root
-    root.save()
-    revision = Template.objects.get(id=revision.id)
-    assert handler.get_template_state(revision) == (UserTemplateState.PUBLIC, None)
-
-    root.blocked_at = timezone.now()
-    root.blocked_reason = "Spam"
-    root.save()
-    revision = Template.objects.get(id=revision.id)
-    assert handler.get_template_state(revision) == (
-        UserTemplateState.BLOCKED,
-        "Spam",
-    )
-
-
-@pytest.mark.django_db
-def test_get_template_state(data_fixture):
-    handler = UserTemplateHandler()
-    template = data_fixture.create_user_template()
-
-    assert handler.get_template_state(template) == (UserTemplateState.PRIVATE, None)
-
-    template.review_state = Template.ReviewState.PENDING
-    assert handler.get_template_state(template) == (
-        UserTemplateState.IN_REVIEW,
-        None,
-    )
-
-    template.review_state = Template.ReviewState.REJECTED
-    template.reject_reason = "Not useful"
-    assert handler.get_template_state(template) == (
-        UserTemplateState.REJECTED,
-        "Not useful",
-    )
-
-    template.review_state = Template.ReviewState.APPROVED
-    template.public_revision = template
-    assert handler.get_template_state(template) == (UserTemplateState.PUBLIC, None)
-
-    template.blocked_at = timezone.now()
-    template.blocked_reason = "Spam"
-    assert handler.get_template_state(template) == (
-        UserTemplateState.BLOCKED,
-        "Spam",
-    )
-
-    template.blocked_reason = ""
-    assert handler.get_template_state(template) == (UserTemplateState.BLOCKED, None)
+    annotated = Template.objects.with_template_state().get(id=revision.id)
+    for latest in [handler.get_latest_revision(root), annotated]:
+        assert handler.get_template_state(latest) == (state, reason)
+        assert handler.is_listed(latest) is ("public" in revision_states)
 
 
 @pytest.mark.django_db

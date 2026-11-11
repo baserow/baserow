@@ -123,6 +123,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/admin/workspaces.vue'),
       },
       {
+        name: 'admin-templates',
+        path: '/admin/templates',
+        file: path.resolve(__dirname, 'pages/admin/templates.vue'),
+      },
+      {
         name: 'settings',
         path: '/workspace/:workspaceId/settings',
         file: path.resolve(__dirname, 'pages/settings.vue'),
@@ -167,6 +172,12 @@ export const routes = [
     name: 'template',
     path: '/template/:slug',
     file: path.resolve(__dirname, 'pages/template.vue'),
+  },
+  {
+    name: 'template-private-link',
+    path: '/template/:slug/private-link/:token([0-9a-f]{64})',
+    file: path.resolve(__dirname, 'pages/templatePrivateLink.vue'),
+    meta: { preventPageViewTracking: true },
   },
   {
     name: 'health-check',

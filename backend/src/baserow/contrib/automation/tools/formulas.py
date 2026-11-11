@@ -28,8 +28,10 @@ FORMULA_PREFIX = "$formula:"
 # An empty string literal, stored for a value that is missing or could not be set.
 EMPTY_FORMULA = "''"
 
-# Formula syntax written as a value: get('...'), concat(...), {{ ... }},
-# comparison functions, if(...), today(), now().
+# Formula syntax written as a value: get('...'), concat(...), comparison
+# functions, if(...), today(), now(). ``{{ ... }}`` is checked separately in
+# ``needs_formula``, because a regex for it backtracks quadratically on a long
+# value with many ``{{`` and no ``}}``.
 # A function name must touch its parenthesis, so text such as "Order now (today
 # only)" stays a literal. A whole value that is one call, such as
 # "concat ('a', 'b')", is a formula even with a space before the parenthesis.
@@ -38,7 +40,7 @@ _FUNCTION_NAMES = (
     r"|greater_than_(?:or_)?equal|less_than_(?:or_)?equal"
 )
 RAW_FORMULA_RE = re.compile(
-    r"\bget\(|\bconcat\(|\{\{.*\}\}"
+    r"\bget\(|\bconcat\("
     r"|\b(?:equal|not_equal|greater_than|less_than"
     r"|greater_than_(?:or_)?equal|less_than_(?:or_)?equal)\("
     r"|\bif\(|\btoday\(|\bnow\("
@@ -78,7 +80,16 @@ def needs_formula(value: str | None) -> bool:
     if not value:
         return False
     stripped = value.strip()
-    return FORMULA_PREFIX in stripped.lower() or bool(RAW_FORMULA_RE.search(stripped))
+    if FORMULA_PREFIX in stripped.lower() or _has_template_braces(stripped):
+        return True
+    return bool(RAW_FORMULA_RE.search(stripped))
+
+
+def _has_template_braces(value: str) -> bool:
+    """Whether the value holds a ``{{`` followed later by ``}}``."""
+
+    start = value.find("{{")
+    return start != -1 and value.find("}}", start + 2) != -1
 
 
 def is_valid_formula(value: str) -> bool:

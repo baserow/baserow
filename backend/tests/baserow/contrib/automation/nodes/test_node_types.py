@@ -261,7 +261,7 @@ def test_automation_node_type_update_row_dispatch(mock_dispatch, data_fixture):
     node = data_fixture.create_automation_node(
         user=user,
         type="local_baserow_update_row",
-        service_kwargs={"row_id": "'1'"},
+        service_kwargs={"row_id": "'1'", "table": data_fixture.create_database_table()},
     )
 
     dispatch_context = AutomationDispatchContext(node.workflow, None)
@@ -1026,3 +1026,45 @@ def test_automation_trigger_node_type_rejects_table_of_another_workspace(
     )
     trigger.service.refresh_from_db()
     assert trigger.service.specific.table_id != table.id
+
+
+TABLE_NODE_TYPES = [
+    "local_baserow_create_row",
+    "local_baserow_update_row",
+    "local_baserow_delete_row",
+    "local_baserow_get_row",
+    "local_baserow_list_rows",
+    "local_baserow_aggregate_rows",
+    "local_baserow_create_rows",
+    "local_baserow_update_rows",
+    "local_baserow_rows_created",
+    "local_baserow_rows_updated",
+    "local_baserow_rows_deleted",
+    "local_baserow_fields_updated",
+]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("node_type", TABLE_NODE_TYPES)
+def test_a_table_node_type_refuses_a_node_without_a_table(data_fixture, node_type):
+    node = data_fixture.create_automation_node(type=node_type)
+    node.service.specific_class.objects.filter(id=node.service_id).update(table=None)
+    node.refresh_from_db()
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
+        node.get_type().raise_if_misconfigured(node)
+
+    assert str(exc.value) == "No table is selected."
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("node_type", TABLE_NODE_TYPES)
+def test_a_table_node_type_accepts_a_node_with_a_table(data_fixture, node_type):
+    service_kwargs = {"table": data_fixture.create_database_table()}
+    if node_type == "local_baserow_update_row":
+        service_kwargs["row_id"] = "'1'"
+    node = data_fixture.create_automation_node(
+        type=node_type, service_kwargs=service_kwargs
+    )
+
+    node.get_type().raise_if_misconfigured(node)

@@ -26,7 +26,7 @@ Official templates keep working as they do today.
 | User template      | Created by a user of this instance, who is its author.                                                                                               |
 | Private / public   | Whether a user template is listed. Every user template starts private; making it public is an explicit action.                                       |
 | Template link      | Permanent, non-secret address of a template.                                                                                                         |
-| Private link       | Optional secret, rotatable, login-only link the author can create to share a template. Opening it grants the signed-in user access to that template. |
+| Private link       | Optional secret, rotatable link the author can create to share a template. Anyone who opens it can preview that template; installing requires login. |
 | Revision           | One version of a user template's content and details. The first one is created with the template, and every update creates a new one.                |
 | Template workspace | Hidden, memberless workspace holding a revision's content.                                                                                           |
 
@@ -115,6 +115,7 @@ by its state, the private link and the actor's role:
 | -------------------------------------- | -------------------------- | -------------------------- | ------------------------------------------------------------- |
 | Anonymous                              | —                          | preview                    | —                                                             |
 | Signed-in user                         | —                          | preview, install           | —                                                             |
+| Anyone who opened private link         | preview                    | preview                    | —                                                             |
 | Signed-in user who opened private link | preview, install           | preview, install           | —                                                             |
 | Author                                 | preview, install, manage   | preview, install, manage   | preview, change details or content, submit for review, delete |
 | Instance admin                         | preview, install, moderate | preview, install, moderate | preview, install, moderate                                    |

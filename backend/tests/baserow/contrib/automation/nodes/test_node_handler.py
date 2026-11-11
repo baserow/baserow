@@ -1,5 +1,6 @@
 import pytest
 
+from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
@@ -285,6 +286,35 @@ def test_update_node_ignores_error_policy_on_triggers(data_fixture):
     assert trigger.label == "Rows"
     assert trigger.on_failure == "stop"
     assert trigger.max_retries == 2
+
+
+@pytest.mark.parametrize(
+    "node_type", ["wait", "iterator", "router", "goto", "response"]
+)
+def test_action_nodes_that_cannot_benefit_from_a_retry_have_no_error_policy(
+    node_type,
+):
+    """
+    These nodes only fail on values computed from the data of earlier nodes,
+    which a retry evaluates the same way, so they do not accept the error policy
+    fields and the update drops them, like for a trigger.
+    """
+
+    automation_node_type = automation_node_type_registry.get(node_type)
+
+    assert automation_node_type.is_workflow_action
+    assert not automation_node_type.has_error_policy
+    assert not set(ERROR_POLICY_FIELDS) & set(automation_node_type.allowed_fields)
+
+
+@pytest.mark.parametrize(
+    "node_type", ["http_request", "local_baserow_create_row", "smtp_email"]
+)
+def test_action_nodes_that_can_fail_transiently_have_an_error_policy(node_type):
+    automation_node_type = automation_node_type_registry.get(node_type)
+
+    assert automation_node_type.has_error_policy
+    assert set(ERROR_POLICY_FIELDS) <= set(automation_node_type.allowed_fields)
 
 
 @pytest.mark.django_db

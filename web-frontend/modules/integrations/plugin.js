@@ -25,6 +25,7 @@ import {
   CorePeriodicTriggerServiceType,
   CoreRouterServiceType,
   CoreGotoServiceType,
+  CoreWaitServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
@@ -75,6 +76,7 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreSMTPEmailServiceType(context))
     $registry.register('service', new CoreRouterServiceType(context))
     $registry.register('service', new CoreGotoServiceType(context))
+    $registry.register('service', new CoreWaitServiceType(context))
     $registry.register('service', new CoreHTTPTriggerServiceType(context))
     $registry.register(
       'service',

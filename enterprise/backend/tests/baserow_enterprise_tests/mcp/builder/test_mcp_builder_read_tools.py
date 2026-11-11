@@ -17,7 +17,7 @@ READ_TOOLS = [
     "list_pages",
     "list_data_sources",
     "list_elements",
-    "list_actions",
+    "list_element_actions",
 ]
 KUMA_ONLY = ("ask_user", "navigate", "thought", "load_")
 
@@ -56,7 +56,7 @@ def test_builder_read_tools_over_mcp(data_fixture, builder_ctx):
             await client.call_tool("list_pages", {"builder_id": builder.id}),
             await client.call_tool("list_data_sources", {"page_id": page.id}),
             await client.call_tool("list_elements", {"page_id": page.id}),
-            await client.call_tool("list_actions", {"page_id": page.id}),
+            await client.call_tool("list_element_actions", {"page_id": page.id}),
         )
 
     listed, builders, pages, data_sources, elements, actions = _session(
@@ -94,7 +94,11 @@ def test_builder_read_tools_over_mcp_hide_other_workspaces(data_fixture, builder
             ),
             *[
                 await client.call_tool(name, {"page_id": builder_ctx["page"].id})
-                for name in ("list_data_sources", "list_elements", "list_actions")
+                for name in (
+                    "list_data_sources",
+                    "list_elements",
+                    "list_element_actions",
+                )
             ],
         ]
 

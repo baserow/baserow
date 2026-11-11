@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
+import { toastsOfType } from '@baserow/test/helpers/store'
 import UserTemplateList from '@baserow/modules/core/components/template/UserTemplateList'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 
@@ -135,6 +136,25 @@ describe('UserTemplateList', () => {
     ])
     expect(wrapper.find('.template-empty-state').exists()).toBe(false)
   })
+
+  test.each([
+    ['in_review', true, 'stateInReview', true],
+    ['public', true, 'statePublic', false],
+    ['in_review', false, 'stateInReview', false],
+  ])(
+    'shows that a %s template (listed: %s) is still listed',
+    async (state, listed, label, shown) => {
+      mockPages(page([userTemplate(1, 'Sprint Tracker', state, { listed })]))
+      const wrapper = await mountComponent()
+
+      expect(
+        wrapper.findAll('.badge').map((badge) => badge.text())
+      ).toStrictEqual([
+        `userTemplateList.${label}`,
+        ...(shown ? ['userTemplateList.stateListed'] : []),
+      ])
+    }
+  )
 
   test('shows how many times each template was used', async () => {
     mockPages(
@@ -387,9 +407,7 @@ describe('UserTemplateList', () => {
     ]
     mockPages(page(templates))
     const wrapper = await mountComponent()
-    const actionButtons = wrapper.findAll(
-      '.user-template-list__actions .button-icon'
-    )
+    const actionButtons = wrapper.findAll('.user-template-list__more')
 
     // Any state, blocked included, can be updated.
     expect(actionButtons).toHaveLength(2)
@@ -450,10 +468,7 @@ describe('UserTemplateList', () => {
         ...JSON.parse(request.data),
       }))
 
-  const downloadToasts = () =>
-    testApp.store.state.toast.items.filter(
-      (toast) => toast.type === 'downloadTemplate'
-    )
+  const downloadToasts = () => toastsOfType(testApp.store, 'downloadTemplate')
 
   const menuLink = (wrapper, text) =>
     wrapper
@@ -480,9 +495,7 @@ describe('UserTemplateList', () => {
     const wrapper = await mountComponent()
     const context = wrapper.findComponent({ name: 'Context' }).vm
 
-    await wrapper
-      .findAll('.user-template-list__actions .button-icon')[1]
-      .trigger('click')
+    await wrapper.findAll('.user-template-list__more')[1].trigger('click')
     await clickDownload(wrapper)
 
     expect(downloadRequests()).toStrictEqual([
@@ -506,9 +519,7 @@ describe('UserTemplateList', () => {
     const replies = holdDownloadRequests()
     const wrapper = await mountComponent()
     const context = wrapper.findComponent({ name: 'Context' }).vm
-    const actionButtons = wrapper.findAll(
-      '.user-template-list__actions .button-icon'
-    )
+    const actionButtons = wrapper.findAll('.user-template-list__more')
 
     await actionButtons[1].trigger('click')
     await clickDownload(wrapper)
@@ -534,9 +545,7 @@ describe('UserTemplateList', () => {
     mockPages(page(templates))
     holdDownloadRequests()
     const wrapper = await mountComponent()
-    const actionButtons = wrapper.findAll(
-      '.user-template-list__actions .button-icon'
-    )
+    const actionButtons = wrapper.findAll('.user-template-list__more')
     const isLoading = () =>
       menuLink(wrapper, 'userTemplateList.download')
         .classes()
@@ -565,9 +574,7 @@ describe('UserTemplateList', () => {
     mockPages(page(templates))
     const wrapper = await mountComponent()
 
-    await wrapper
-      .findAll('.user-template-list__actions .button-icon')[1]
-      .trigger('click')
+    await wrapper.findAll('.user-template-list__more')[1].trigger('click')
     const items = wrapper.findAll('.context__menu-item')
     const last = items[items.length - 1]
 
@@ -585,36 +592,108 @@ describe('UserTemplateList', () => {
   })
 
   test.each([
-    ['private', 'userTemplateList.makePublic', 'make-public'],
-    ['public', 'userTemplateList.makePrivate', 'make-private'],
+    [false, ['userTemplateList.makePublic'], ['make-public']],
+    [
+      true,
+      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
+      ['make-public', 'make-private'],
+    ],
   ])(
-    'offers to change the visibility of a %s template',
-    async (state, item, event) => {
-      const template = userTemplate(1, 'Sprint Tracker', state)
+    'offers to make a rejected template (listed: %s) public or private',
+    async (listed, visibilityLabels, events) => {
+      const template = userTemplate(1, 'Sprint Tracker', 'rejected', {
+        can_make_public: true,
+        make_public_needs_review: true,
+        listed,
+      })
       mockPages(page([template]))
       const wrapper = await mountComponent()
+      const openMenu = async () => {
+        await wrapper.find('.user-template-list__more').trigger('click')
+        return wrapper.findAll('.context__menu-item-link')
+      }
 
-      await wrapper
-        .find('.user-template-list__actions .button-icon')
-        .trigger('click')
-      const links = wrapper.findAll('.context__menu-item-link')
-
+      const links = await openMenu()
       expect(links.map((link) => link.text())).toStrictEqual([
         'userTemplateList.editDetails',
         'userTemplateList.updateContent',
-        item,
+        ...visibilityLabels,
         'userTemplateList.download',
         'userTemplateList.delete',
       ])
-
       await links[2].trigger('click')
+      if (listed) {
+        await (await openMenu())[3].trigger('click')
+      }
       await flushPromises()
 
-      expect(wrapper.emitted(event)).toStrictEqual([[template]])
+      for (const event of ['make-public', 'make-private']) {
+        expect(wrapper.emitted(event)).toStrictEqual(
+          events.includes(event) ? [[template]] : undefined
+        )
+      }
       // The modal makes the change, not the list.
       expect(testApp.mock.history.patch).toHaveLength(0)
     }
   )
+
+  test('offers to copy the private link of a template', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+    const token = 'a'.repeat(64)
+    mockPages(
+      page([
+        userTemplate(1, 'Sprint Tracker', 'private', {
+          private_link_token: token,
+        }),
+      ])
+    )
+    const wrapper = await mountComponent()
+
+    await wrapper.find('.user-template-list__more').trigger('click')
+    await wrapper
+      .findAll('.context__menu-item-link')
+      .find((link) => link.text().startsWith('userTemplateList.copyLink'))
+      .trigger('click')
+    await flushPromises()
+
+    const url = new URL(navigator.clipboard.writeText.mock.calls[0][0])
+    expect(url.pathname).toBe(
+      `/template/sprint-tracker-a1b2c3/private-link/${token}`
+    )
+    vi.unstubAllGlobals()
+  })
+
+  test('manages the private link of a row and shows it in the row', async () => {
+    const templates = [
+      userTemplate(1, 'Sprint Tracker'),
+      userTemplate(2, 'Growth Playbook', 'blocked'),
+    ]
+    mockPages(page(templates))
+    testApp.mock
+      .onPatch(`/templates/${templates[0].slug}/`)
+      .reply(200, { ...templates[0], private_link_token: 'a'.repeat(64) })
+    const wrapper = await mountComponent()
+    const linkButtons = wrapper.findAll('.user-template-list__link')
+
+    expect(linkButtons).toHaveLength(1)
+    expect(linkButtons[0].classes()).not.toContain(
+      'user-template-list__link--shared'
+    )
+
+    await linkButtons[0].trigger('click')
+    await wrapper
+      .find('.user-template-private-link__empty button')
+      .trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('selected')).toBeUndefined()
+    expect(wrapper.find('.user-template-list__link').classes()).toContain(
+      'user-template-list__link--shared'
+    )
+    expect(wrapper.find('.user-template-private-link__url-box').exists()).toBe(
+      true
+    )
+  })
 
   test('replaces a row in place', async () => {
     mockPages(

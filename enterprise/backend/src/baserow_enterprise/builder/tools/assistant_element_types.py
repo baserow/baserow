@@ -12,7 +12,13 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
 )
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
 from baserow.core.tools.errors import ToolInputError
+from baserow_enterprise.tools.formula_utils import (
+    EMPTY_FORMULA,
+    formula_object,
+    wrap_static_string,
+)
 
 from .formulas import current_record_of, formula_problem, page_formula_context
 from .helpers import (
@@ -34,6 +40,7 @@ from .types.element import (
 )
 from .types.menu_items import listed_menu_items
 from .types.table_columns import stored_formula_text, table_column_items
+from .types.workflow_action import mapping_value_is_formula
 
 
 def _merge_menu_item_changes(
@@ -158,7 +165,7 @@ class ButtonAssistantElementType(AssistantElementType):
             "note": (
                 "This changed only the text on the button. Clicking it also shows a "
                 f"notification ({'; '.join(notifications)}), which stays as it was. "
-                "If that message is what should change, use update_action."
+                "If that message is what should change, change that action."
             )
         }
 
@@ -177,7 +184,11 @@ class LinkAssistantElementType(AssistantElementType):
             kwargs.
         """
 
-        return {"link_variant": "variant", "link_target": "target"}
+        return {
+            "link_variant": "variant",
+            "link_target": "target",
+            "link_page_parameters": "page_parameters",
+        }
 
     def prepare_update(
         self, user: AbstractUser, element: Element, update: ElementUpdate
@@ -200,7 +211,9 @@ class LinkAssistantElementType(AssistantElementType):
                 update.navigation_type = "page"
             if update.navigation_type is not None:
                 kwargs["navigation_type"] = update.navigation_type
-        if page_id is not None and (
+        if update.link_page_parameters is not None:
+            kwargs["page_parameters"] = self._given_page_parameters(element, update)
+        elif page_id is not None and (
             page_id != element.navigate_to_page_id or element.navigation_type != "page"
         ):
             problem = page_parameters_problem(
@@ -210,9 +223,8 @@ class LinkAssistantElementType(AssistantElementType):
             )
             if problem:
                 raise ToolInputError(
-                    f"{problem} {NO_CHANGES} To link to that page, create a new link "
-                    "with link_page_parameters. This one stays on the page until "
-                    "someone deletes it in the editor."
+                    f"{problem} {NO_CHANGES} Give link_page_parameters for that "
+                    "page in the same update_element call."
                 )
             kwargs["page_parameters"] = parameters_in_page_order(
                 element.page.builder_id,
@@ -221,6 +233,54 @@ class LinkAssistantElementType(AssistantElementType):
                 itemgetter("name"),
             )
         return PreparedElementUpdate(kwargs, {})
+
+    @staticmethod
+    def _given_page_parameters(
+        element: Element, update: ElementUpdate
+    ) -> list[dict[str, Any]]:
+        """
+        The page parameters an update gives, in the order of the page the link opens.
+        A formula is written by the formula step, so until then the parameter keeps
+        its previous value, or is empty.
+
+        :raises ToolInputError: When their names don't fit that page.
+        """
+
+        builder_id = element.page.builder_id
+        page_id = update.navigate_to_page_id or element.navigate_to_page_id
+        given = update.link_page_parameters
+        if page_id is None:
+            raise ToolInputError(
+                "This link opens no page, so it has no page parameters. Give "
+                f"navigate_to_page_id as well. {NO_CHANGES}"
+            )
+        problem = page_parameters_problem(
+            builder_id, page_id, [param.name for param in given]
+        )
+        if problem:
+            raise ToolInputError(f"{problem} {NO_CHANGES}")
+        # In place: a formula's field names its parameter by position in this list.
+        update.link_page_parameters = parameters_in_page_order(
+            builder_id, page_id, given
+        )
+        previous = {
+            param["name"]: param["value"] for param in element.page_parameters or []
+        }
+        return [
+            {
+                "name": param.name,
+                "value": (
+                    previous.get(param.name)
+                    or formula_object(EMPTY_FORMULA, mode=BASEROW_FORMULA_MODE_ADVANCED)
+                )
+                if mapping_value_is_formula(param.value)
+                else formula_object(
+                    wrap_static_string(param.value),
+                    mode=BASEROW_FORMULA_MODE_ADVANCED,
+                ),
+            }
+            for param in update.link_page_parameters
+        ]
 
 
 class ColumnAssistantElementType(AssistantElementType):

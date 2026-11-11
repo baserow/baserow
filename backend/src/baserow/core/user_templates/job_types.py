@@ -24,6 +24,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_UPDATED,
 )
 from baserow.core.action.registries import action_type_registry
+from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
     PermissionException,
     TemplateDoesNotExist,
@@ -37,7 +38,6 @@ from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
-from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
@@ -524,8 +524,10 @@ class DownloadUserTemplateJobType(JobType):
         ),
         "revision_id": serializers.IntegerField(
             help_text="The id of the revision of the user template that the user "
-            "was shown. Its owner may download any revision, anyone else only the "
-            "public one.",
+            "was shown. Its owner and the instance admins may download any "
+            "revision. Anyone else downloads the public revision, or the latest "
+            "one of a template that isn't public with the token of its private "
+            "link.",
         ),
     }
 
@@ -574,14 +576,19 @@ class DownloadUserTemplateJobType(JobType):
         :param values: The validated request, with `slug` and `revision_id`.
         :param user: The user who downloads the template.
         :raises TemplateDoesNotExist: If the user may not download the template.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
-        :raises TemplateUpdated: If the revision isn't the public one anymore.
+        :raises TemplateBlocked: If the user owns the template and it's blocked,
+            unless they're an instance admin.
+        :raises TemplateUpdated: If the user neither owns the template nor is an
+            instance admin, and the revision isn't the one install picks anymore.
         :raises TemplateHasNoContent: If the revision has no application to copy.
         :return: The values the job is created with.
         """
 
         revision = UserTemplateHandler().get_downloadable_revision(
-            user, values["slug"], values["revision_id"]
+            user,
+            values["slug"],
+            values["revision_id"],
+            private_link_token=get_private_link_token(),
         )
         return {"revision": revision}
 
@@ -596,14 +603,15 @@ class DownloadUserTemplateJobType(JobType):
         :param progress: The progress of the job.
         :raises TemplateDoesNotExist: If the revision was deleted, the template
             marked for deletion, or the user lost access.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
+        :raises TemplateBlocked: If the user owns the template and it's blocked,
+            unless they're an instance admin.
         :raises TemplateHasNoContent: If the content of the revision was removed.
         """
 
         revision = job.revision
         if revision is None:
             raise TemplateDoesNotExist("The template was deleted.")
-        self._check_access(job, revision)
+        UserTemplateHandler().recheck_admitted_install_access(job.user, revision)
         # A repeated download reuses the archive.
         if has_valid_archive(revision):
             progress.increment(progress.total)
@@ -619,23 +627,6 @@ class DownloadUserTemplateJobType(JobType):
             # Saving the job with the deleted revision would fail.
             job.revision = None
             raise
-
-    def _check_access(self, job: DownloadUserTemplateJob, revision: Template) -> None:
-        """
-        Checks the access like install does, but unlike install, a download fails
-        once the template is marked for deletion too, so that its archive isn't
-        built after the owner deleted it.
-
-        :param job: The job that runs.
-        :param revision: The revision to download, with its root selected.
-        :raises TemplateDoesNotExist: If the template is marked for deletion, or
-            the user lost access.
-        :raises TemplateBlocked: If the user owns the template and it's blocked.
-        """
-
-        if revision.get_root().marked_for_deletion_at is not None:
-            raise TemplateDoesNotExist("The template was deleted.")
-        UserTemplateHandler().check_install_access(job.user, revision)
 
     def enhance_queryset(self, queryset: JobQuerySet) -> JobQuerySet:
         """

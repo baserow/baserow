@@ -59,3 +59,24 @@ class AutomationNodeDict(TypedDict):
     on_failure: str
     max_retries: int
     retry_condition: dict
+
+
+@dataclass
+class PendingNodeNotDue:
+    """
+    Returned by resume_pending_node() when the waiting node is not due yet. The
+    Celery task turns it into a delayed retry of itself.
+    """
+
+    # Seconds to wait before checking again: the time left, cut to one chunk.
+    countdown: int
+
+
+@dataclass
+class PendingNodeAlreadyClaimed:
+    """
+    Returned by resume_pending_node() when another delivery of the resume task
+    (a redelivered message, or the recovery sweep) already resumed the node.
+    The Celery task drops itself with `Ignore`, which also drops its copy of the
+    run's chain so the run is not completed twice, or early.
+    """

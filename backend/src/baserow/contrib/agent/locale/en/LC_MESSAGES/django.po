@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-20 12:15+0000\n"
+"POT-Creation-Date: 2026-11-10 17:15+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,29 +18,56 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/contrib/agent/actions.py:22
+#: src/baserow/contrib/agent/actions.py:27
 msgid "Create agent conversation"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:23
+#: src/baserow/contrib/agent/actions.py:28
 #, python-format
 msgid "Conversation (%(conversation_id)s) created in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:74
+#: src/baserow/contrib/agent/actions.py:79
 msgid "Create agent message"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:75
+#: src/baserow/contrib/agent/actions.py:80
 #, python-format
 msgid "Message (%(message_id)s) created in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:126
+#: src/baserow/contrib/agent/actions.py:131
+msgid "Decide agent tool approvals"
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:132
+#, python-format
+msgid "Held steps of reply (%(reply_id)s) decided in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:203
+msgid "Update agent conversation"
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:204
+#, python-format
+msgid "Conversation (%(conversation_id)s) updated in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:273
+msgid "Delete agent conversation"
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:274
+#, python-format
+msgid "Conversation (%(conversation_id)s) deleted in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/actions.py:328
 msgid "Update agent configuration"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:127
+#: src/baserow/contrib/agent/actions.py:329
 #, python-format
 msgid "Configuration updated for agent (%(agent_id)s)."
 msgstr ""

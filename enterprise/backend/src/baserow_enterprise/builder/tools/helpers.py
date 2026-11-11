@@ -35,7 +35,13 @@ from baserow.contrib.builder.elements.actions import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element, MenuElement
+from baserow.contrib.builder.elements.models import (
+    CollectionField,
+    Element,
+    LinkElement,
+    MenuElement,
+    MenuItemElement,
+)
 from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
@@ -51,6 +57,7 @@ from baserow.contrib.builder.pages.actions import (
 from baserow.contrib.builder.pages.exceptions import (
     DuplicatePageParams,
     DuplicatePathParamsInPath,
+    InvalidPagePath,
     InvalidPagePathParamType,
     InvalidQueryParamName,
     PagePathNotUnique,
@@ -61,14 +68,16 @@ from baserow.contrib.builder.pages.exceptions import (
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import ReadPageOperationType
-from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.builder.workflow_actions.actions import (
     CreateBuilderWorkflowActionActionType,
 )
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    OpenPageWorkflowAction,
+)
 from baserow.contrib.builder.workflow_actions.operations import (
     ReadBuilderWorkflowActionOperationType,
     UpdateBuilderWorkflowActionOperationType,
@@ -83,9 +92,11 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowViewServiceType,
 )
+from baserow.core.action.context import without_undo_redo_registration
 from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.actions import CreateIntegrationActionType
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
@@ -118,6 +129,7 @@ from .types import (
     PageUpdate,
 )
 from .types.page import PagePathParam, with_path_parameters
+from .types.workflow_action import raise_if_read_only_field
 
 # ---------------------------------------------------------------------------
 # Accessors
@@ -286,11 +298,25 @@ def get_local_baserow_integration(user: AbstractUser, builder: Builder) -> Integ
         if integration.get_type().type == "local_baserow":
             return integration.specific
 
-    local_baserow_type = integration_type_registry.get("local_baserow")
-    # An action would let undo trash it under data sources that still use it.
-    return IntegrationService().create_integration(
-        user, local_baserow_type, builder, name="Local Baserow"
-    )
+    return create_local_baserow_integration(user, builder)
+
+
+def create_local_baserow_integration(
+    user: AbstractUser, builder: Builder
+) -> Integration:
+    """
+    Connect a builder to the workspace's data. The audit log records it, but it stays
+    out of the undo stack: undoing it would trash the connection under the data
+    sources and actions that use it.
+    """
+
+    with without_undo_redo_registration(user):
+        return CreateIntegrationActionType.do(
+            user,
+            integration_type_registry.get("local_baserow"),
+            builder,
+            name="Local Baserow",
+        ).specific
 
 
 # ---------------------------------------------------------------------------
@@ -321,9 +347,8 @@ def list_data_sources_on_page(user: AbstractUser, page: Page) -> list[DataSource
     """List the data sources of a page and of its builder's shared page."""
 
     return [
-        item
-        for listed_page in dict.fromkeys((page.builder.shared_page, page))
-        for item in list_data_sources(user, listed_page)
+        DataSourceItem.from_orm(ds)
+        for ds in DataSourceService().get_data_sources(user, page, with_shared=True)
     ]
 
 
@@ -365,13 +390,19 @@ def list_elements(user: AbstractUser, page: Page) -> list[ElementItem]:
     List all elements on a page, including shared elements visible on it.
     Elements are listed in page order, with a container's children right after it.
     """
-    elements = _in_page_order(page, list(ElementService().get_elements(user, page)))
+
+    def page_elements(listed_page: Page) -> list:
+        listed = list(ElementService().get_elements(user, listed_page))
+        # The items name the page, which is loaded already.
+        for element in listed:
+            element.page = listed_page
+        return _in_page_order(listed_page, listed)
+
+    elements = page_elements(page)
 
     # Also include shared elements (headers/footers) visible on this page
     if not page.shared:
-        shared_page = page.builder.shared_page
-        shared_elements = ElementService().get_elements(user, shared_page)
-        elements = _in_page_order(shared_page, list(shared_elements)) + elements
+        elements = page_elements(page.builder.shared_page) + elements
 
     return [ElementItem.from_orm(el) for el in elements]
 
@@ -453,6 +484,7 @@ def ensure_distinct_paths(pages: list[PageCreate]) -> None:
 
 # Raised for a page's path or parameters.
 _PAGE_PARAM_ERRORS = (
+    InvalidPagePath,
     PathParamNotInPath,
     PathParamNotDefined,
     DuplicatePathParamsInPath,
@@ -471,13 +503,18 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
     """
 
     try:
-        page = CreatePageActionType.do(
+        # Visibility and roles are part of the creation, so one undo removes the
+        # page instead of leaving it visible to everyone.
+        return CreatePageActionType.do(
             user,
             builder,
             page_create.name,
             page_create.path,
             path_params=[p.model_dump() for p in page_create.path_params],
             query_params=[p.model_dump() for p in page_create.query_params],
+            visibility=page_create.visibility,
+            role_type=page_create.role_type,
+            roles=page_create.roles,
         )
     except PagePathNotUnique:
         # create_pages saves the other pages of the call.
@@ -486,20 +523,6 @@ def create_page(user: AbstractUser, builder: Builder, page_create: PageCreate) -
         )
     except _PAGE_PARAM_ERRORS as exc:
         raise ToolInputError(f"{exc}. This page was not created.")
-
-    # Page creation doesn't accept visibility/role kwargs, so they are set with
-    # an update if non-default.
-    update_kwargs: dict = {}
-    if page_create.visibility != "all":
-        update_kwargs["visibility"] = page_create.visibility
-    if page_create.role_type != "allow_all":
-        update_kwargs["role_type"] = page_create.role_type
-    if page_create.roles:
-        update_kwargs["roles"] = page_create.roles
-    if update_kwargs:
-        page = UpdatePageActionType.do(user, page, **update_kwargs)
-
-    return page
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +576,99 @@ def update_page(
             raise ToolInputError(f"{exc}. Nothing was changed in this call.")
         page.refresh_from_db()
     return page
+
+
+def navigations_out_of_step(page: Page) -> list[dict[str, Any]]:
+    """
+    The links, table link columns, menu items and open page actions that go to a page with parameter
+    names other than the page's, in its order. The frontend shows them as errors and
+    a publish hides them.
+
+    :param page: The page they open.
+    :return: Each one, with what it gives and how to fix it.
+    """
+
+    expected = [param["name"] for param in page.path_params or []]
+
+    def names(navigation) -> list[str]:
+        return [param["name"] for param in navigation.page_parameters or []]
+
+    on_page = {"navigate_to_page": page, "navigation_type": "page"}
+    found: list[dict[str, Any]] = []
+    for link in LinkElement.objects.filter(**on_page, page__trashed=False):
+        if names(link) != expected:
+            found.append(
+                {
+                    "type": "link",
+                    "element_id": link.id,
+                    "page_parameters": names(link),
+                    "fix": "Give the link link_page_parameters named "
+                    f"{', '.join(expected) or 'nothing'} with update_element.",
+                }
+            )
+    for action in OpenPageWorkflowAction.objects.filter(**on_page, page__trashed=False):
+        if names(action) != expected:
+            found.append(
+                {
+                    "type": "open_page action",
+                    "action_id": action.id,
+                    "element_id": action.element_id,
+                    "page_parameters": names(action),
+                    "fix": "Change the page_parameters of this click action to "
+                    f"{', '.join(expected) or 'none'}.",
+                }
+            )
+    # Table link columns keep their navigation in the column's config. The tools
+    # can't make or change them, so the fix is in the editor.
+    for column in CollectionField.objects.filter(
+        type="link",
+        config__navigation_type="page",
+        config__navigate_to_page_id=page.id,
+    ).prefetch_related("tableelement_set__page"):
+        if [param["name"] for param in column.config.get("page_parameters") or []] == (
+            expected
+        ):
+            continue
+        tables = [
+            table for table in column.tableelement_set.all() if not table.page.trashed
+        ]
+        if not tables:
+            continue
+        found.append(
+            {
+                "type": "table link column",
+                "element_id": tables[0].id,
+                "column_name": column.name,
+                "page_parameters": [
+                    param["name"]
+                    for param in column.config.get("page_parameters") or []
+                ],
+                "fix": "Change the page parameters of this table column in the "
+                f"editor to {', '.join(expected) or 'none'}; the tools can't.",
+            }
+        )
+    # The editor sets a menu item's page parameters; the tools only point it to a
+    # page, so the fix offers both.
+    for item in MenuItemElement.objects.filter(**on_page).prefetch_related(
+        "menuelement_set__page"
+    ):
+        if names(item) == expected:
+            continue
+        menus = [menu for menu in item.menuelement_set.all() if not menu.page.trashed]
+        if not menus:
+            continue
+        found.append(
+            {
+                "type": "menu item",
+                "element_id": menus[0].id,
+                "uid": str(item.uid),
+                "page_parameters": names(item),
+                "fix": "Change the page parameters of this menu item in the editor "
+                f"to {', '.join(expected) or 'none'}, or point it to another page "
+                "with update_element.",
+            }
+        )
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -640,16 +756,6 @@ def update_data_source(
     service_type = (
         service_type_registry.get_by_model(ds.service.specific) if ds.service else None
     )
-    if (
-        ds_update.row_id is not None
-        and not ds_update.row_id.strip()
-        and service_type is not None
-        and service_type.type == "local_baserow_get_row"
-    ):
-        raise ToolInputError(
-            f"'row_id' is required for data source {ds.id}, which reads one row. "
-            "No changes were applied."
-        )
     # Other services leave these out without saying so.
     for field in ("row_id", "search_query"):
         if getattr(ds_update, field) is not None and (
@@ -1415,7 +1521,7 @@ def get_writable_action(
     except BuilderWorkflowAction.DoesNotExist:
         raise ToolInputError(
             f"Action with ID {action_id} not found in this workspace. "
-            "Use list_actions to find valid action IDs."
+            "List the page's actions to find valid action IDs."
         )
     for operation_type in (
         ReadBuilderWorkflowActionOperationType,
@@ -1465,8 +1571,9 @@ def page_parameters_problem(
 
 def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
     """
-    Why menu items can't link to these pages, if so. A menu item has no way to give
-    path parameters, and the frontend hides a menu with an item that lacks them.
+    Why menu items can't link to these pages, if so. The tools can't give a menu item
+    path parameters, only the editor can, and the frontend hides a menu with an item
+    that lacks them.
 
     :param builder_id: The application the pages must be in.
     :param page_ids: The pages the items link to.
@@ -1477,9 +1584,11 @@ def menu_links_problem(builder_id: int, page_ids: list[int]) -> str | None:
         if page.path_params:
             names = ", ".join(param["name"] for param in page.path_params)
             return (
-                f"Page {page.id} has path parameters ({names}) and a menu item can't "
-                "give them, so visitors wouldn't see the menu. Link to a page without "
-                "path parameters, or create a link element with link_page_parameters."
+                f"Page {page.id} has path parameters ({names}), which these tools "
+                "can't give a menu item, so visitors wouldn't see the menu. Link to a "
+                "page without path parameters, create a link element with "
+                "link_page_parameters, or add the item in the editor and set its page "
+                "parameters there."
             )
     return None
 
@@ -1630,13 +1739,17 @@ def add_field_mapping_to_action(
             "This tool cannot select a table. Until one is selected, the action will fail."
         )
 
-    if not Field.objects_and_trash.filter(
-        id=field_id, table_id=service.table_id
-    ).exists():
+    field = (
+        Field.objects_and_trash.select_related("content_type")
+        .filter(id=field_id, table_id=service.table_id)
+        .first()
+    )
+    if field is None:
         raise ToolInputError(
             f"Field {field_id} is not in the table this action writes to. "
             "Use the IDs of that table's fields."
         )
+    raise_if_read_only_field(field)
 
     # The service replaces its whole list of mappings, mappings on trashed fields
     # included. The service row lock makes a concurrent addition wait for this one,
@@ -1942,8 +2055,10 @@ def create_login_page(
         while not PageHandler().is_page_path_unique(builder, path):
             suffix += 1
             path = f"/login-{suffix}"
-        # Builders skip update actions, so undo would orphan login_page_id.
-        page = PageService().create_page(user, builder, "Login", path)
+        # Builders skip update actions, so undo would orphan login_page_id. The
+        # audit log still records the page.
+        with without_undo_redo_registration(user):
+            page = CreatePageActionType.do(user, builder, "Login", path)
 
     add_auth_form(user, page, user_source_id)
     UpdateApplicationActionType.do(user, builder, login_page_id=page.id)
