@@ -419,8 +419,10 @@ class ElementHandler:
         """
         Where an element goes to come last: at the end of the page, or of a place in
         a container. Creating with the reference returned puts it after the others,
-        where a container child is otherwise created first. Takes the page graph
-        lock, so it reads the latest graph and a concurrent create or move waits.
+        where a container child is otherwise created first. Inside a transaction it
+        takes the page graph lock, so it reads the latest graph and a concurrent
+        create or move waits. Call it in the transaction that does the create or
+        move: outside one, nothing is locked or read again.
 
         :param page: The page.
         :param parent_element_id: The container, or None for the page itself.

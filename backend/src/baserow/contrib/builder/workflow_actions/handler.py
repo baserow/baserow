@@ -46,13 +46,19 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
 
     def lock_service_for_update(self, workflow_action: WorkflowAction) -> None:
         """
-        Lock the service of an action that has one. A row action's field mappings
-        are replaced as a whole list, so a concurrent change to them waits for this
-        one instead of overwriting it.
+        Lock the service of an action that has one, so a concurrent change to the
+        same service waits for this one. The lock lasts until the transaction ends,
+        so call it in one that is still open when the change is saved. It doesn't
+        merge anything: a caller that replaces the field mappings with a list read
+        before the lock still overwrites a newer one. To change some mappings, read
+        them after the lock with ``field_mappings_with``.
 
-        :param workflow_action: The action whose service to lock.
+        :param workflow_action: The action whose service to lock, as its specific
+            type or not.
         """
 
+        if not hasattr(workflow_action, "service_id"):
+            workflow_action = workflow_action.specific
         service_id = getattr(workflow_action, "service_id", None)
         if service_id is not None:
             Service.objects.select_for_update().filter(id=service_id).first()
@@ -62,9 +68,11 @@ class BuilderWorkflowActionHandler(WorkflowActionHandler):
     ) -> BuilderWorkflowAction:
         """
         Get an action again with its service locked, loaded after the lock so a
-        change committed meanwhile is kept.
+        change committed meanwhile is kept. Call it in a transaction that stays open
+        until the change is saved.
 
-        :param workflow_action: The action, as the caller has it.
+        :param workflow_action: The action, as the caller has it, as its specific
+            type or not.
         :return: The specific action.
         """
 
