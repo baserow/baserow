@@ -33,6 +33,34 @@
         size="small"
         @update:active-index="choosePreset"
       />
+      <div class="agent-workspace-tools__ask">
+        <div class="agent-workspace-tools__ask-text">
+          <div class="agent-workspace-tools__ask-title">
+            {{ $t('agent.askBeforeChanges') }}
+          </div>
+          <div
+            :id="askDescriptionId"
+            class="agent-workspace-tools__ask-description"
+          >
+            {{ $t('agent.askBeforeChangesDescription') }}
+          </div>
+        </div>
+        <SwitchInput
+          class="agent-workspace-tools__switch"
+          small
+          role="checkbox"
+          :tabindex="canAskBeforeChanges ? 0 : -1"
+          :aria-label="$t('agent.askBeforeChanges')"
+          :aria-describedby="askDescriptionId"
+          :aria-checked="askBeforeChanges ?? 'mixed'"
+          :aria-disabled="!canAskBeforeChanges"
+          :model-value="askBeforeChanges"
+          :disabled="!canAskBeforeChanges"
+          @update:model-value="setAskBeforeChanges"
+          @keydown.enter.prevent="toggleAskBeforeChanges"
+          @keydown.space.prevent="toggleAskBeforeChanges"
+        />
+      </div>
       <button
         v-for="group in groups"
         :key="group.type"
@@ -47,13 +75,23 @@
         <span class="agent-workspace-tools__group-name">{{ group.label }}</span>
         <span class="agent-workspace-tools__group-count">
           {{
-            $t(disabledReason ? 'agent.toolsSelected' : 'agent.toolsOn', {
-              count: group.tools.filter((tool) =>
-                allowedTools.includes(tool.name)
-              ).length,
+            $t(disabledReason ? 'agent.toolsSelected' : 'agent.toolsSummary', {
+              on: countIn(group, allowedTools),
               total: group.tools.length,
             })
           }}
+          <template v-if="countIn(group, askFirstTools)">
+            <span
+              class="agent-workspace-tools__group-separator"
+              aria-hidden="true"
+              >•</span
+            >
+            {{
+              $t('agent.toolsAskCount', {
+                count: countIn(group, askFirstTools),
+              })
+            }}
+          </template>
         </span>
         <i class="iconoir-nav-arrow-right"></i>
       </button>
@@ -72,7 +110,7 @@
 
 <script setup>
 import { useNuxtApp } from '#app'
-import { computed, ref } from 'vue'
+import { computed, ref, useId } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import {
@@ -81,10 +119,7 @@ import {
 } from '@baserow/modules/agent/agentTools'
 import AgentToolPermissionsModal from '@baserow/modules/agent/components/configuration/AgentToolPermissionsModal'
 
-/**
- * Turns an Agent's workspace tools on and off with presets, or one by one in the
- * tool permissions modal. Emits `update` with the tool lists.
- */
+/** Tool presets, permissions and the ask-before-changes switch. */
 const props = defineProps({
   allowedTools: { type: Array, required: true },
   askFirstTools: { type: Array, required: true },
@@ -95,6 +130,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update'])
 const { t } = useI18n()
+const askDescriptionId = useId()
 const { $registry } = useNuxtApp()
 
 const permissions = ref(null)
@@ -107,6 +143,24 @@ const readTools = computed(() =>
     .filter((tool) => !tool.changes_data)
     .map((tool) => tool.name)
 )
+const allowedChangeTools = computed(() =>
+  props.availableTools
+    .filter(
+      (tool) => tool.changes_data && props.allowedTools.includes(tool.name)
+    )
+    .map((tool) => tool.name)
+)
+const canAskBeforeChanges = computed(
+  () => props.editable && allowedChangeTools.value.length > 0
+)
+/** True if every allowed change tool asks first, false if none, else null. */
+const askBeforeChanges = computed(() => {
+  const asking = allowedChangeTools.value.filter((name) =>
+    props.askFirstTools.includes(name)
+  ).length
+  if (!asking) return false
+  return asking === allowedChangeTools.value.length ? true : null
+})
 const presets = computed(() => [
   { label: t('agent.toolsEverything') },
   { label: t('agent.toolsReadOnly') },
@@ -121,6 +175,8 @@ const presetIndex = computed(() => {
   if (isExactly(readTools.value)) return 1
   return 2
 })
+const countIn = (group, names) =>
+  group.tools.filter((tool) => names.includes(tool.name)).length
 
 function allow(names) {
   emit('update', {
@@ -144,5 +200,23 @@ function choosePreset(index) {
 function setEnabled(enabled) {
   if (!props.editable) return
   allow(enabled ? readTools.value : [])
+}
+
+function setAskBeforeChanges(ask) {
+  if (!canAskBeforeChanges.value) return
+  const changeTools = new Set(allowedChangeTools.value)
+  emit('update', {
+    ask_first_tools: props.availableTools
+      .filter((tool) =>
+        changeTools.has(tool.name)
+          ? ask
+          : props.askFirstTools.includes(tool.name)
+      )
+      .map((tool) => tool.name),
+  })
+}
+
+function toggleAskBeforeChanges() {
+  setAskBeforeChanges(askBeforeChanges.value !== true)
 }
 </script>

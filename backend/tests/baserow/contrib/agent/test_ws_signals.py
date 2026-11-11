@@ -1,10 +1,11 @@
 from functools import partial
-from unittest.mock import call
+from unittest.mock import MagicMock, call
 from uuid import UUID, uuid4
 
 from django.db import transaction
 
 import pytest
+from pytest_mock import MockerFixture
 from rest_framework.fields import DateTimeField
 
 from baserow.contrib.agent.actions import (
@@ -23,6 +24,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.models import Agent
+from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -47,7 +49,16 @@ def conversation_write(data_fixture, user, agent, kind):
     )
 
 
-def update_of(conversation: AgentConversation, run_id: UUID | None = None) -> dict:
+@pytest.fixture
+def pending_count_updated(mocker: MockerFixture) -> MagicMock:
+    return mocker.patch.object(application_pending_count_updated, "send")
+
+
+def update_of(
+    conversation: AgentConversation,
+    run_id: UUID | None = None,
+    pending_approval_count: int = 0,
+) -> dict:
     return {
         "type": "agent_conversation_activity",
         "agent_id": conversation.agent_id,
@@ -59,6 +70,7 @@ def update_of(conversation: AgentConversation, run_id: UUID | None = None) -> di
             "created_on": DateTimeField().to_representation(conversation.created_on),
             "updated_on": DateTimeField().to_representation(conversation.updated_on),
             "run_id": str(run_id) if run_id else None,
+            "pending_approval_count": pending_approval_count,
         },
     }
 
@@ -207,7 +219,11 @@ def test_rolled_back_identity_change_does_not_invalidate_configuration(
 
 @pytest.mark.django_db
 def test_renames_deletions_and_restores_notify_only_the_owner(
-    data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks
+    data_fixture,
+    configured_agent,
+    mocker,
+    django_capture_on_commit_callbacks,
+    pending_count_updated,
 ):
     user = data_fixture.create_user(web_socket_id="source-tab")
     other_user = data_fixture.create_user()
@@ -247,6 +263,63 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
         # The restoring tab also needs it back in its list.
         call([user.id], update_of(conversation), ignore_web_socket_id=None),
     ]
+    pending_count_updated.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", ["pending", "approved", "rejected"])
+def test_trash_and_restore_only_notify_counts_when_approvals_are_pending(
+    data_fixture, mocker, django_capture_on_commit_callbacks, status
+):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    reply = data_fixture.create_agent_message(
+        conversation=conversation, role="assistant", status="waiting"
+    )
+    data_fixture.create_agent_tool_approval(reply=reply, status=status)
+    queued = mocker.patch(
+        "baserow.ws.signals.broadcast_application_pending_counts.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+            user, agent.id, conversation.uuid
+        )
+        queued.assert_not_called()
+    assert queued.call_count == (1 if status == "pending" else 0)
+
+    queued.reset_mock()
+    with django_capture_on_commit_callbacks(execute=True):
+        TrashHandler.restore_item(user, "agent_conversation", conversation.id)
+        queued.assert_not_called()
+    assert queued.call_count == (1 if status == "pending" else 0)
+    if status == "pending":
+        queued.assert_called_once_with(agent.id, [user.id])
+
+
+@pytest.mark.django_db
+def test_rolled_back_conversation_trash_does_not_notify_pending_counts(
+    data_fixture, mocker, django_capture_on_commit_callbacks
+):
+    reply = data_fixture.create_agent_message(role="assistant", status="waiting")
+    data_fixture.create_agent_tool_approval(reply=reply)
+    conversation = reply.conversation
+    queued = mocker.patch(
+        "baserow.ws.signals.broadcast_application_pending_counts.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(RuntimeError):
+            with transaction.atomic():
+                action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+                    conversation.owner_user, conversation.agent_id, conversation.uuid
+                )
+                raise RuntimeError("Abort conversation deletion")
+
+    queued.assert_not_called()
+    conversation.refresh_from_db()
+    assert not conversation.trashed
 
 
 @pytest.mark.django_db
@@ -265,8 +338,11 @@ def test_a_deleted_conversation_sends_no_reply_activity(
 
 
 @pytest.mark.django_db
-def test_only_the_decision_that_resumes_a_reply_notifies_the_owner(
-    data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks
+def test_every_decision_tells_the_owner_s_other_sessions_what_is_left_to_decide(
+    data_fixture,
+    configured_agent,
+    mocker,
+    django_capture_on_commit_callbacks,
 ):
     user = data_fixture.create_user(web_socket_id="source-tab")
     agent = configured_agent(user=user)
@@ -282,10 +358,10 @@ def test_only_the_decision_that_resumes_a_reply_notifies_the_owner(
     # A resumed reply would notify again when it ends.
     mocker.patch.object(ChatRunHandler, "_enqueue")
 
-    run_ids = []
-    for approval in (first, last):
+    expected = []
+    for approval, left in [(first, 1), (last, 0)]:
         with django_capture_on_commit_callbacks(execute=True):
-            _, run_id = action_type_registry.get_by_type(
+            result = action_type_registry.get_by_type(
                 DecideAgentToolApprovalsActionType
             ).do(
                 user,
@@ -293,14 +369,13 @@ def test_only_the_decision_that_resumes_a_reply_notifies_the_owner(
                 reply.conversation.uuid,
                 [{"id": approval.id, "approved": True}],
             )
-        run_ids.append(run_id)
-
-    assert run_ids[0] is None
-    conversation = AgentConversation.objects.get(id=reply.conversation_id)
-    assert broadcast.call_args_list == [
-        call(
-            [user.id],
-            update_of(conversation, run_ids[1]),
-            ignore_web_socket_id="source-tab",
+        conversation = AgentConversation.objects.get(id=reply.conversation_id)
+        expected.append(
+            call(
+                [user.id],
+                update_of(conversation, result.run_id, left),
+                ignore_web_socket_id="source-tab",
+            )
         )
-    ]
+
+    assert broadcast.call_args_list == expected

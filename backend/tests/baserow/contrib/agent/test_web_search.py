@@ -259,13 +259,13 @@ def add_row(table: Table, index: int = 0) -> dict[int, DeltaToolCall]:
 def approve_and_resume(user: AbstractUser, reply: AgentMessage) -> AgentMessage:
     (approval,) = reply.approvals.all()
     conversation = reply.conversation
-    _, run_id = AgentService().decide_approvals(
+    decided = AgentService().decide_approvals(
         user,
         conversation.agent_id,
         conversation.uuid,
         [{"id": approval.id, "approved": True}],
     )
-    run_reply(ChatRun.objects.get(id=run_id))
+    run_reply(ChatRun.objects.get(id=decided.run_id))
     reply.refresh_from_db()
     return reply
 

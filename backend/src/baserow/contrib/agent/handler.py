@@ -1,3 +1,5 @@
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -6,6 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import (
     Case,
+    Count,
     Max,
     Prefetch,
     QuerySet,
@@ -326,6 +329,30 @@ class AgentHandler:
                     default=Value(False),
                 )
             )
+
+    def stop_asking_first(
+        self, agent: AgentApplication, tool_names: Iterable[str]
+    ) -> list[str]:
+        """
+        Let allowed tools run without waiting for the owner's approval.
+
+        :param agent: The Agent, locked like for a configuration update.
+        :param tool_names: The tools to stop asking first. Those that aren't allowed
+            or don't ask first are skipped.
+        :return: The names of the tools that stopped asking first, in registry
+            order.
+        """
+
+        requested = set(tool_names)
+        stopped = [
+            name
+            for name in self.get_tool_configuration(agent)["ask_first_tools"]
+            if name in requested
+        ]
+        if stopped:
+            agent.allowed_tools.filter(name__in=stopped).update(ask_first=False)
+            agent.save(update_fields=["updated_on"])
+        return stopped
 
     def get_run_as_subject(
         self,
@@ -803,12 +830,84 @@ class AgentHandler:
             return None
         return reply
 
+    def _pending_approvals(self) -> QuerySet[AgentToolApproval]:
+        """
+        :return: The held calls waiting for their conversation owner's decision.
+        """
+
+        return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
+
+    def get_conversation_pending_approval_counts(
+        self, conversation_ids: list[int]
+    ) -> dict[int, int]:
+        """
+        :param conversation_ids: The ids of the conversations to count in.
+        :return: The number of held calls waiting for the owner's decision by
+            conversation id, leaving out conversations with none.
+        """
+
+        return dict(
+            self._pending_approvals()
+            .filter(reply__conversation_id__in=conversation_ids)
+            .values("reply__conversation_id")
+            .annotate(count=Count("id"))
+            .values_list("reply__conversation_id", "count")
+        )
+
+    def conversation_has_pending_approvals(self, conversation_id: int) -> bool:
+        """
+        Check whether a conversation contributes to its owner's pending count.
+
+        :param conversation_id: The conversation, including one being restored.
+        :return: Whether any of its tool calls still needs a decision.
+        """
+
+        return (
+            self._pending_approvals()
+            .filter(reply__conversation_id=conversation_id)
+            .exists()
+        )
+
+    def get_pending_approval_counts(
+        self, user_ids: list[int], agent_ids: list[int]
+    ) -> dict[int, dict[int, int]]:
+        """
+        Count the held calls waiting for each user's decision in their untrashed
+        conversations with each Agent.
+
+        :param user_ids: The ids of the users who own the conversations.
+        :param agent_ids: The ids of the Agents to count in.
+        :return: The number of pending approvals by Agent id, by user id, leaving
+            out users and Agents with none.
+        """
+
+        counts: dict[int, dict[int, int]] = defaultdict(dict)
+        for user_id, agent_id, count in (
+            self._pending_approvals()
+            .filter(
+                reply__conversation__owner_user_id__in=user_ids,
+                reply__conversation__agent_id__in=agent_ids,
+                reply__conversation__trashed=False,
+            )
+            .values(
+                "reply__conversation__owner_user_id", "reply__conversation__agent_id"
+            )
+            .annotate(count=Count("id"))
+            .values_list(
+                "reply__conversation__owner_user_id",
+                "reply__conversation__agent_id",
+                "count",
+            )
+        ):
+            counts[user_id][agent_id] = count
+        return dict(counts)
+
     def decide_approvals(
         self,
         conversation: AgentConversation,
         user: AbstractUser,
         decisions: list[AgentToolDecision],
-    ) -> tuple[AgentMessage, bool]:
+    ) -> tuple[AgentMessage, list[AgentToolApproval], bool]:
         """
         Save the owner's decisions on held calls of the conversation's waiting reply.
 
@@ -818,7 +917,8 @@ class AgentHandler:
             reason for a rejection.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
-        :return: The reply with its approvals, and whether all of them are decided.
+        :return: The reply with its approvals, the approvals just decided, and
+            whether all of them are decided.
         """
 
         reply = self.get_waiting_reply(conversation)
@@ -849,7 +949,7 @@ class AgentHandler:
             decided, ["status", "reason", "decided_by", "decided_on"]
         )
         prefetch_related_objects([reply], "approvals")
-        return reply, not pending
+        return reply, decided, not pending
 
     def resume_reply(self, reply: AgentMessage) -> ChatRun:
         """

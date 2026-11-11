@@ -303,7 +303,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="list_agent_conversations",
         description=(
             "Lists the authenticated user's own conversations with the agent, most "
-            "recently active first."
+            "recently active first, each with its number of tool calls waiting for "
+            "the user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -336,7 +337,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         # One more than requested tells whether a next page exists without a count.
         conversations = list(
             AgentService().list_conversations(
-                request.user, agent_id, query_params.get("cursor")
+                request.user,
+                agent_id,
+                query_params.get("cursor"),
             )[: limit + 1]
         )
         page = conversations[:limit]
@@ -345,11 +348,17 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             if len(conversations) > limit
             else None
         )
-        runs = AgentHandler().get_conversation_runs([item.id for item in page])
+        page_ids = [item.id for item in page]
+        context = {
+            "conversation_runs": AgentHandler().get_conversation_runs(page_ids),
+            "conversation_pending_approvals": (
+                AgentHandler().get_conversation_pending_approval_counts(page_ids)
+            ),
+        }
         return Response(
             {
                 "results": AgentConversationSerializer(
-                    page, many=True, context={"conversation_runs": runs}
+                    page, many=True, context=context
                 ).data,
                 "next_cursor": encode_keyset_cursor(next_cursor),
             }
@@ -408,12 +417,17 @@ class AgentConversationView(APIView):
         conversation = action_type_registry.get_by_type(
             UpdateAgentConversationActionType
         ).do(request.user, agent_id, conversation_uuid, **data)
-        runs = AgentHandler().get_conversation_runs([conversation.id])
-        return Response(
-            AgentConversationSerializer(
-                conversation, context={"conversation_runs": runs}
-            ).data
-        )
+        context = {
+            "conversation_runs": AgentHandler().get_conversation_runs(
+                [conversation.id]
+            ),
+            "conversation_pending_approvals": (
+                AgentHandler().get_conversation_pending_approval_counts(
+                    [conversation.id]
+                )
+            ),
+        }
+        return Response(AgentConversationSerializer(conversation, context=context).data)
 
     @extend_schema(
         tags=["Agent applications"],
@@ -516,7 +530,8 @@ class AgentToolApprovalsView(APIView):
         description=(
             "Approves or rejects tool calls that the waiting reply of one of the "
             "authenticated user's conversations holds for approval. Once none are "
-            "left to decide, a run continues the reply and the response names it."
+            "left to decide, a run continues the reply and the response names it. "
+            "With always_allow, the tools of the approved calls stop asking first."
         ),
         parameters=[AGENT_ID_PATH_PARAMETER],
         request=AgentToolDecisionsSerializer,
@@ -529,11 +544,11 @@ class AgentToolApprovalsView(APIView):
     ) -> Response:
         """Saves the owner's decisions and names the run continuing the reply."""
 
-        reply, run_id = action_type_registry.get_by_type(
+        result = action_type_registry.get_by_type(
             DecideAgentToolApprovalsActionType
         ).do(request.user, agent_id, conversation_uuid, **data)
+        reply = result.reply
+        active_runs = {reply.id: result.run_id} if result.run_id else {}
         return Response(
-            AgentMessageSerializer(
-                reply, context={"active_runs": {reply.id: run_id} if run_id else {}}
-            ).data
+            AgentMessageSerializer(reply, context={"active_runs": active_runs}).data
         )

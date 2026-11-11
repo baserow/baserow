@@ -3,7 +3,21 @@
     <header
       class="layout__col-2-1 header header--space-between agent-application__header"
     >
-      <div class="agent-application__header-name">{{ agent.name }}</div>
+      <div class="agent-application__header-title">
+        <div class="agent-application__header-name">{{ agent.name }}</div>
+        <button
+          v-if="agent.pending_count > 0"
+          type="button"
+          class="agent-application__approvals"
+          @click="state.selectNextWaitingConversation"
+        >
+          <i
+            class="agent-application__approvals-icon iconoir-shield-check"
+            aria-hidden="true"
+          ></i>
+          {{ $t('agent.approvalsWaiting', { count: agent.pending_count }) }}
+        </button>
+      </div>
       <ButtonIcon
         v-if="state.canReadConfiguration"
         icon="iconoir-settings"
@@ -90,8 +104,12 @@
                 :key="message.uuid"
                 :message="message"
                 :can-decide="state.canDecide"
+                :can-always-allow="state.canUpdateConfiguration"
                 :deciding="state.decidingReplies.has(message.uuid)"
-                @decide="state.decideApprovals(message, $event)"
+                @decide="
+                  (decisions, options) =>
+                    state.decideApprovals(message, decisions, options)
+                "
               />
             </template>
             <div v-else-if="showChatIntro" class="agent-chat__intro">

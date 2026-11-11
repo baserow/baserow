@@ -71,12 +71,13 @@
               $t('agent.draft')
             }}</span>
             <span
+              v-if="item.pending_approval_count > 0"
+              class="agent-conversations__status-label"
+              >{{ $t('agent.waitingForApproval') }}</span
+            >
+            <span
               class="agent-conversations__status"
-              :class="
-                item.run_id
-                  ? 'agent-conversations__status--replying'
-                  : 'agent-conversations__status--idle'
-              "
+              :class="statusClass(item)"
               aria-hidden="true"
             />
           </button>
@@ -210,6 +211,15 @@ watch(
 function setItemButton(uuid, element) {
   if (element) itemButtons[uuid] = element
   else delete itemButtons[uuid]
+}
+
+function statusClass(item) {
+  if (item.pending_approval_count > 0) {
+    return 'agent-conversations__status--waiting'
+  }
+  return item.run_id
+    ? 'agent-conversations__status--replying'
+    : 'agent-conversations__status--idle'
 }
 
 function toggleMenu(target, item) {

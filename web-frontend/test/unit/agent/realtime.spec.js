@@ -78,6 +78,7 @@ describe('Agent conversation realtime updates', () => {
         conversation: {
           ...conversation(uuid, title, updatedOn),
           run_id: runId,
+          pending_approval_count: 0,
         },
       }
     )
