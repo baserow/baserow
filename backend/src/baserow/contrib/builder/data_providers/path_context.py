@@ -7,7 +7,7 @@ in the REST API, only checks what a provider can check alone.
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Optional, TypedDict
 
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.literals import MAX_LISTED_NAMES
@@ -26,12 +26,19 @@ def full_path(provider: str, path: list[str]) -> str:
     return ".".join([provider, *path])
 
 
+class PathDataSource(TypedDict):
+    """A data source a formula can read."""
+
+    name: str
+    schema: dict[str, Any] | None
+    """Its JSON schema, None when it is unknown."""
+
+
 @dataclass
 class FormulaPathContext:
     """
     :param page_shared: Whether the formula is on the shared page.
-    :param data_sources: The data sources the page can read, by ID, as a dict with
-        their ``name`` and ``schema`` (None when it is unknown).
+    :param data_sources: The data sources the page can read, by ID.
     :param page_parameters: The names of the page's parameters.
     :param form_inputs: The names the page's form inputs are read by.
     :param current_record: The data source of the repeat or table around the
@@ -47,7 +54,7 @@ class FormulaPathContext:
     """
 
     page_shared: bool = False
-    data_sources: dict[int, dict[str, Any]] = field(default_factory=dict)
+    data_sources: dict[int, PathDataSource] = field(default_factory=dict)
     page_parameters: list[str] = field(default_factory=list)
     form_inputs: list[str] = field(default_factory=list)
     current_record: Optional[int] = None

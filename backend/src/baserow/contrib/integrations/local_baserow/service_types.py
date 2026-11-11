@@ -110,6 +110,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowUpsertRow,
     Service,
 )
+from baserow.contrib.integrations.local_baserow.types import FieldMappingValues
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
@@ -2197,9 +2198,9 @@ class LocalBaserowUpsertRowServiceType(
     def field_mappings_with(
         self,
         instance: LocalBaserowUpsertRow,
-        values: Dict[int, Any],
+        values: Dict[int, BaserowFormulaObject],
         enable: bool = False,
-    ) -> List[Dict]:
+    ) -> List[FieldMappingValues]:
         """
         The service's field mappings, mappings on trashed fields included, with
         new values for some fields, in the shape ``after_update`` takes. The update

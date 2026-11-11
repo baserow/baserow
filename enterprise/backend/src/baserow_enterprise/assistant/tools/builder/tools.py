@@ -14,6 +14,7 @@ from pydantic_ai import ModelRetry, RunContext
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.workflow_actions.handler import (
@@ -111,7 +112,7 @@ def _not_on_page(page, element_ids) -> list[int]:
     return [element_id for element_id in element_ids if element_id not in reachable]
 
 
-def _get_builder(ctx: RunContext[AssistantDeps], application_id: int):
+def _get_builder(ctx: RunContext[AssistantDeps], application_id: int) -> Builder:
     """
     The application builder ``application_id`` of the workspace, through the getter
     MCP uses, so both answer alike: one the user can't see is not found.

@@ -16,6 +16,7 @@ from baserow.contrib.builder.data_providers.path_context import (
     PATH_CONTEXT_KEY,
     FormulaPathContext,
     FormulaPathNotReadable,
+    PathDataSource,
 )
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
@@ -78,7 +79,7 @@ class BuilderFormulaContext:
         self.context: dict[str, Any] = {}
         self.context_metadata: dict[str, Any] = {}
         # The page's data sources by ID, with their name and schema if they have one.
-        self.data_sources: dict[int, dict[str, Any]] = {}
+        self.data_sources: dict[int, PathDataSource] = {}
         self._current_record_stack: list[int] = []
         self._row_scoped_data_source: int | None = None
         # Whether the collection in the stack has nothing to read a row from.

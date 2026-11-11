@@ -4,17 +4,19 @@ Page parameter order. The types and the helpers both use it, so it imports neith
 
 from collections.abc import Callable
 from operator import attrgetter
-from typing import Any
+from typing import TypeVar
 
 from baserow.contrib.builder.pages.models import Page
+
+T = TypeVar("T")
 
 
 def parameters_in_page_order(
     builder_id: int,
     page_id: int | None,
-    parameters: list | None,
-    name_of: Callable[[Any], str] = attrgetter("name"),
-) -> list | None:
+    parameters: list[T] | None,
+    name_of: Callable[[T], str] = attrgetter("name"),
+) -> list[T] | None:
     """
     Sort page parameters like the path parameters of the page they open, because the
     frontend hides a link or button whose names are in another order.
