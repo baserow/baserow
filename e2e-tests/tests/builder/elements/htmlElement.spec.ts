@@ -45,7 +45,9 @@ for (const mode of ["preview", "published"]) {
     try {
       const { builder, builderPage } = builderPagePage;
       const other = await createBuilderPage("Other", "/other", builder);
-      await createBuilderElement(builderPage, "html", { html });
+      await createBuilderElement(builderPage, "html", {
+        html: { formula: JSON.stringify(html) },
+      });
       await createBuilderElement(builderPage, "link", {
         value: "'Leave widget'",
         navigate_to_page_id: other.id,
@@ -81,11 +83,14 @@ for (const mode of ["preview", "published"]) {
       await page
         .locator(".html-element__editor")
         .click({ position: { x: 20, y: 8 } });
-      const field = page.getByRole("textbox", { name: "HTML source" });
+      const field = page.locator(
+        '.general-side-panel .formula-input-field [contenteditable="true"]'
+      );
       if (!(await field.isVisible()))
         await builderPagePage.getElementGeneralTab();
-      await expect(field).toHaveValue(html);
-      await field.fill("");
+      await expect(field).toHaveText(html);
+      await field.press("ControlOrMeta+A");
+      await field.press("Backspace");
       await expect(
         page.locator(".element-preview--in-error .element-preview__error-tag")
       ).toHaveText("Missing HTML content");
@@ -212,7 +217,10 @@ test("repeated HTML is sandboxed throughout the editor @enterprise", async ({
       data_source_id: source.id,
     });
     await createBuilderElement(builderPage, "html", {
-      html,
+      html: {
+        formula: `concat(${JSON.stringify(html)}, '<p data-row-index>', get('current_record.__idx__'), '</p>')`,
+        mode: "advanced",
+      },
       reference_element_id: repeat.id,
       position: "child",
     });
@@ -224,9 +232,12 @@ test("repeated HTML is sandboxed throughout the editor @enterprise", async ({
     await builderPagePage.goto();
     const frames = page.locator('iframe[title="HTML preview"]');
     await expect(frames).toHaveCount(2);
-    for (const frame of await frames.all()) {
+    for (const [index, frame] of (await frames.all()).entries()) {
       await expect(frame).toHaveAttribute("sandbox", "allow-same-origin");
       await expect(frame.contentFrame().locator("#widget")).toBeVisible();
+      await expect(frame.contentFrame().locator("[data-row-index]")).toHaveText(
+        String(index)
+      );
     }
     await expect(page.locator("#widget")).toHaveCount(0);
     await expect.poll(() => requests).toBeGreaterThanOrEqual(2);
@@ -254,7 +265,7 @@ test("editor HTML isolates styles, blocks nested scripts and adapts its height @
       '<script>document.querySelector("#editor-card").textContent = "Script executed"</script>' +
       '<iframe title="Child document" src="/html-editor-child.html" style="display:block;height:40px;border:0"></iframe>';
     await createBuilderElement(builderPagePage.builderPage, "html", {
-      html: source,
+      html: { formula: JSON.stringify(source) },
     });
     await builderPagePage.goto();
     const frame = page.locator('iframe[title="HTML preview"]');
@@ -280,8 +291,10 @@ test("editor HTML isolates styles, blocks nested scripts and adapts its height @
     await page
       .locator(".html-element__editor")
       .click({ position: { x: 20, y: 8 } });
-    const field = page.getByRole("textbox", { name: "HTML source" });
-    await expect(field).toHaveValue(source);
+    const field = page.locator(
+      '.general-side-panel .formula-input-field [contenteditable="true"]'
+    );
+    await expect(field).toHaveText(source);
     await field.fill(
       '<div id="editor-card" style="height:240px">Updated HTML</div>'
     );
@@ -297,3 +310,54 @@ test("editor HTML isolates styles, blocks nested scripts and adapts its height @
     await deleteLicense(license);
   }
 });
+
+for (const mode of ["preview", "published"]) {
+  test(`HTML formulas react to form data in ${mode} @enterprise`, async ({
+    page,
+    context,
+    builderPagePage,
+    workspacePage,
+  }) => {
+    test.setTimeout(90000);
+    const license = await createLicense(ENTERPRISE_LICENSE);
+    try {
+      const { builder, builderPage } = builderPagePage;
+      const input = await createBuilderElement(builderPage, "input_text", {
+        label: "'Name'",
+        default_value: "'Alice'",
+      });
+      await createBuilderElement(builderPage, "html", {
+        html: {
+          formula: `concat('<p id="greeting">Hello ', get('form_data.${input.id}'), '</p>')`,
+          mode: "advanced",
+        },
+      });
+      await builderPagePage.goto();
+      await expect(
+        page.frameLocator('iframe[title="HTML preview"]').locator("#greeting")
+      ).toHaveText("Hello Alice");
+      const visitor = await context.newPage();
+      if (mode === "preview") {
+        const grant = await getClient(workspacePage.user).post(
+          `builder/preview/${builder.id}/grant/`,
+          { path: builderPage.path }
+        );
+        await visitor.goto(grant.data.url);
+      } else {
+        const domain = `html-formula-${builder.id}.localhost`;
+        await publishBuilder(builder, domain);
+        const url = new URL(
+          builderPage.path,
+          baserowConfig.PUBLIC_WEB_FRONTEND_URL
+        );
+        url.hostname = domain;
+        await visitor.goto(url.href);
+      }
+      await expect(visitor.locator("#greeting")).toHaveText("Hello Alice");
+      await visitor.getByRole("textbox").fill("Bob");
+      await expect(visitor.locator("#greeting")).toHaveText("Hello Bob");
+    } finally {
+      await deleteLicense(license);
+    }
+  });
+}

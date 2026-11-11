@@ -7,7 +7,7 @@ from baserow.core.formula.field import FormulaField, JSONFormulaField
 
 
 class HTMLElement(Element):
-    html = models.TextField(blank=True, default="", help_text="Static HTML markup.")
+    html = FormulaField(help_text="HTML content to render.")
 
 
 class AuthFormElement(Element):

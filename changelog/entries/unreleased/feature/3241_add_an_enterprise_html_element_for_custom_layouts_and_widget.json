@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Add an Enterprise HTML element for custom layouts and widgets in Application Builder",
+    "message": "Add an Enterprise HTML element with formula support for custom layouts and widgets in Application Builder",
     "issue_origin": "github",
     "issue_number": 3241,
     "domain": "builder",

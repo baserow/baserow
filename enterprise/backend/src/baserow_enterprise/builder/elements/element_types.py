@@ -48,22 +48,23 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
     model_class = HTMLElement
     allowed_fields = ["html"]
     serializer_field_names = ["html"]
+    simple_formula_fields = ["html"]
 
     class SerializedDict(ElementDict):
-        html: str
+        html: BaserowFormulaObject
 
     @property
-    def serializer_field_overrides(self) -> dict[str, serializers.CharField]:
+    def serializer_field_overrides(self):
         return {
-            "html": serializers.CharField(
-                allow_blank=True, required=False, trim_whitespace=False
+            "html": FormulaSerializerField(
+                help_text=HTMLElement._meta.get_field("html").help_text,
             ),
         }
 
     def get_import_report_entry(
         self, instance: HTMLElement
     ) -> dict[str, str | int] | None:
-        if not instance.html.strip():
+        if not instance.html["formula"].strip():
             return None
         return {
             "type": self.type,
@@ -75,8 +76,10 @@ class HTMLElementType(UntrustedContentTypeMixin, ElementType):
     def is_deactivated(self, workspace: Workspace) -> bool:
         return not LicenseHandler.workspace_has_feature(BUILDER_HTML_ELEMENT, workspace)
 
-    def get_pytest_params(self, pytest_data_fixture: Any) -> dict[str, str]:
-        return {"html": '<div id="widget"></div>'}
+    def get_pytest_params(
+        self, pytest_data_fixture: Any
+    ) -> dict[str, BaserowFormulaObject]:
+        return {"html": BaserowFormulaObject.create("'<div id=\"widget\"></div>'")}
 
 
 class GraphElementSeriesSerializer(serializers.Serializer):

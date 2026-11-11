@@ -1,4 +1,5 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { reactive, nextTick } from 'vue'
 import { enableAutoUnmount } from '@vue/test-utils'
 import HTMLElement from '@baserow_enterprise/builder/components/elements/HTMLElement'
 
@@ -10,16 +11,23 @@ const snippet =
 function mountElement(
   mode,
   contextMode = mode,
-  html = snippet,
-  untrusted = false
+  html = { formula: JSON.stringify(snippet) },
+  untrusted = false,
+  context = {}
 ) {
   return mountSuspended(HTMLElement, {
-    props: { element: { type: 'html', html } },
+    props: {
+      element: {
+        type: 'html',
+        html:
+          typeof html === 'string' ? { formula: JSON.stringify(html) } : html,
+      },
+    },
     global: {
       provide: {
         mode,
         builder: { untrusted_content: untrusted },
-        applicationContext: { mode: contextMode },
+        applicationContext: { mode: contextMode, ...context },
       },
     },
   })
@@ -111,3 +119,41 @@ describe('HTML element', () => {
     expect(wrapper.text()).toBe('')
   })
 })
+
+test.each(['editing', 'preview', 'public'])(
+  'updates resolved HTML when page data changes in %s',
+  async (mode) => {
+    const page = reactive({ parameters: { name: 'First' } })
+    const wrapper = await mountElement(
+      mode,
+      mode,
+      {
+        formula: `concat('<p id="dynamic">', get('page_parameter.name'), '</p>')`,
+        mode: 'advanced',
+      },
+      false,
+      { page }
+    )
+    const rendered = () =>
+      mode === 'editing'
+        ? wrapper.get('iframe').attributes('srcdoc')
+        : wrapper.get('#dynamic').text()
+    expect(rendered()).toContain('First')
+    await useNuxtApp().$store.dispatch('pageParameter/setParameter', {
+      page,
+      name: 'name',
+      value: 'Second',
+    })
+    await nextTick()
+    expect(rendered()).toContain('Second')
+  }
+)
+
+test.each([{ formula: "''" }, { formula: 'concat(' }])(
+  'shows an empty editor placeholder when the formula has no result',
+  async (html) => {
+    const wrapper = await mountElement('editing', 'editing', html)
+    expect(wrapper.find('iframe').exists()).toBe(false)
+    expect(wrapper.text()).toContain('htmlElement.placeholder')
+  }
+)

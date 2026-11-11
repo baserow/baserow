@@ -406,7 +406,7 @@ export class HTMLElementType extends ElementType {
   }
 
   getErrorMessage(element, applicationContext) {
-    if (!element.html?.trim()) {
+    if (!element.html?.formula?.trim()) {
       return this.app.$i18n.t('elementType.errorHtmlContentMissing')
     }
     return super.getErrorMessage(element, applicationContext)

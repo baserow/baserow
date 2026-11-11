@@ -3,6 +3,7 @@
 import django.db.models.deletion
 from django.db import migrations, models
 
+import baserow.core.formula.field
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -27,8 +28,8 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "html",
-                    models.TextField(
-                        blank=True, default="", help_text="Static HTML markup."
+                    baserow.core.formula.field.FormulaField(
+                        blank=True, default="", help_text="HTML content to render.", null=True
                     ),
                 ),
             ],
