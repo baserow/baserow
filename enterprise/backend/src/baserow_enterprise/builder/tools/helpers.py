@@ -7,7 +7,7 @@ source/action creation orchestrators used by ``tools.py`` and ``agents.py``.
 
 import re
 from collections import Counter
-from typing import Any, NamedTuple
+from typing import Any, Callable, NamedTuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DatabaseError, transaction
@@ -721,9 +721,11 @@ def create_element(
     data_source_ref_to_id_map: dict[str, int],
     shared_page_refs: set[str] | None = None,
     before_id: int | None = None,
+    prepare: Callable[[ElementItemCreate], None] | None = None,
 ) -> tuple[Any, int]:
     """
-    Create an element on a page, resolving refs to IDs.
+    Create an element on a page, resolving refs to IDs. ``prepare`` is called with
+    the element once its data source ref is an ID, before anything is saved.
 
     Returns ``(orm_element, element_id)``.
     """
@@ -770,6 +772,8 @@ def create_element(
     # Checked before to_orm_kwargs, which reads the data source's table fields.
     if element_create.data_source is not None:
         check_data_source_on_page(page, int(element_create.data_source))
+    if prepare is not None:
+        prepare(element_create)
 
     # In place: a formula's field names its parameter by position in this list.
     element_create.link_page_parameters = parameters_in_page_order(

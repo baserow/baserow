@@ -21,6 +21,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.formula.literals import FORMULA_PREFIX
 from baserow.core.tools.errors import validation_messages
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.tools.shared import (
@@ -65,6 +66,8 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
 )
+from baserow_enterprise.builder.tools.types.changes import name_key
+from baserow_enterprise.builder.tools.types.table_columns import data_source_fields
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
 from . import agents
@@ -110,6 +113,26 @@ def _not_on_page(page, element_ids) -> list[int]:
         )
     )
     return [element_id for element_id in element_ids if element_id not in reachable]
+
+
+def _named_field_beats_description(element: ElementItemCreate) -> None:
+    """
+    A new table column named like a field of its data source shows that field when
+    its value is only a ``$formula:`` description: the model often describes the
+    field it means. An explicit formula still wins.
+    """
+
+    if element.type != "table" or not element.fields:
+        return
+    table_fields = data_source_fields(element.data_source)
+    for column in element.fields:
+        if (
+            column.type == "text"
+            and column.value
+            and column.value.strip().lower().startswith(FORMULA_PREFIX)
+            and name_key(column.name) in table_fields
+        ):
+            column.value = None
 
 
 def _get_builder(ctx: RunContext[AssistantDeps], application_id: int) -> Builder:
@@ -659,7 +682,7 @@ def _create_elements_internal(
             known_refs=known_refs,
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_description=True,
+            prepare_element=_named_field_beats_description,
             item_error=item_error,
         ),
     )
@@ -1488,7 +1511,7 @@ def setup_page(
             known_refs=_get_element_refs(tool_helpers, page_id),
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_description=True,
+            prepare_element=_named_field_beats_description,
             defer_required_formulas=True,
             item_error=item_error,
             after_phase=after_phase,

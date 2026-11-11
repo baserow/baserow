@@ -22,6 +22,7 @@ from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
 from baserow.core.integrations.models import Integration
 from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
 from baserow.core.user_sources.models import UserSource
+from baserow_enterprise.assistant.tools.builder import tools as kuma_tools
 from baserow_enterprise.builder.elements.element_types import AuthFormElementType
 from baserow_enterprise.builder.elements.models import AuthFormElement
 from baserow_enterprise.builder.tools import (
@@ -309,7 +310,7 @@ def test_setup_page_stores_an_explicit_column_formula_in_every_mode(
         None,
         [table_element()],
         None,
-        BuilderWriteOptions(column_name_beats_description=True),
+        BuilderWriteOptions(prepare_element=kuma_tools._named_field_beats_description),
     )
 
     def column_value(result):

@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from baserow.core.tools.errors import item_error_message
+
+if TYPE_CHECKING:
+    from .types import ElementItemCreate
 
 
 def _phase_formula_errors(kind: str, phase: dict[str, Any]) -> list:
@@ -25,9 +28,9 @@ class BuilderWriteOptions:
     """Which of ``known_refs`` are on the shared page. The call adds the refs of the
     shared page elements it creates."""
 
-    column_name_beats_description: bool = False
-    """A new table column named like a field shows that field when its value is only
-    a ``$formula:`` description. An explicit formula always wins."""
+    prepare_element: Callable[["ElementItemCreate"], None] | None = None
+    """Called with each new element once its data source ref is an ID, before it is
+    saved. It may change the element."""
 
     defer_required_formulas: bool = False
     """Create an item whose value to run isn't a usable formula, with a placeholder,
