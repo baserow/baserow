@@ -2583,7 +2583,7 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     ) -> Dict[str, Any]:
         """
         Responsible for preparing and validating the periodic service values.
-        If the `interval` is set to `MINUTE`, it ensures that the `minute` value
+        If the `interval` ends up as `MINUTE`, it ensures that the `minute` value
         is greater than or equal to the minimum allowed value defined in the settings.
         The `timezone` is validated here so that an unknown one can't be persisted,
         as it would then raise every time the schedule is calculated.
@@ -2594,9 +2594,22 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
         :return: The prepared values.
         """
 
-        minute = values.get("minute", None)
-        if values.get("interval") == PERIODIC_INTERVAL_MINUTE and minute is not None:
-            if minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN:
+        # The minimum applies to the schedule that ends up saved. A partial update
+        # only carries the fields that change, so the other one is read from the
+        # saved service, or from the model's defaults for a service that's being
+        # created. Otherwise `interval` and `minute` sent in separate requests
+        # would each pass on their own. An update that touches neither isn't
+        # checked, so a service that's already under the minimum can still have
+        # its other properties changed.
+        if "interval" in values or "minute" in values:
+            saved = instance or CorePeriodicService()
+            interval = values.get("interval", saved.interval)
+            minute = values.get("minute", saved.minute)
+            if (
+                interval == PERIODIC_INTERVAL_MINUTE
+                and minute is not None
+                and minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN
+            ):
                 raise AutomationNodeMisconfiguredService(
                     "The `minute` value must be greater "
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."

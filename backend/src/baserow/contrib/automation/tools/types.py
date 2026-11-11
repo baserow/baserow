@@ -16,13 +16,15 @@ from pydantic import ConfigDict, Field, PrivateAttr, model_validator
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.formulas import (
-    EMPTY_FORMULA,
     InvalidAutomationFormula,
     check_automation_formula,
     check_output_paths,
     formula_object,
-    needs_formula,
     resolve_node_refs,
+)
+from baserow.core.formula.literals import (
+    EMPTY_FORMULA,
+    needs_formula,
     wrap_static_string,
 )
 from baserow.core.formula.types import (

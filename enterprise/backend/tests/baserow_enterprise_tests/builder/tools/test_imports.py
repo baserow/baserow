@@ -6,7 +6,6 @@ import baserow_enterprise
 SHARED_FOLDERS = (
     "builder/tools",
     "mcp/builder",
-    "tools",
 )
 FORBIDDEN = ("pydantic_ai", "baserow_enterprise.assistant")
 
@@ -32,11 +31,11 @@ def _forbidden_imports(root: Path, path: Path) -> list[str]:
     return found
 
 
-def test_shared_builder_code_does_not_import_the_assistant():
+def test_enterprise_builder_tools_do_not_import_the_assistant():
+    # MCP calls setup_user_source and the login helpers without Kuma.
     root = Path(baserow_enterprise.__file__).parent
-    # The MCP folder arrives with a later change, so it may not exist yet.
-    builder_tools_files = sorted((root / "builder/tools").rglob("*.py"))
-    assert builder_tools_files, "builder/tools has no files"
+    assert sorted((root / "builder/tools").rglob("*.py"))
+    assert sorted((root / "mcp/builder").rglob("*.py"))
 
     problems = []
     for folder in SHARED_FOLDERS:

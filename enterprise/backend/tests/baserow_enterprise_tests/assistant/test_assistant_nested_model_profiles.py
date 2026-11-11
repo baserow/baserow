@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from baserow.contrib.builder.tools.formulas import BuilderFormulaError
 from baserow_enterprise.assistant.model_profiles import UTILITY
 from baserow_enterprise.assistant.tools.automation import agents as automation_agents
 from baserow_enterprise.assistant.tools.builder import agents as builder_agents
@@ -8,7 +9,6 @@ from baserow_enterprise.assistant.tools.shared.agents import (
     FormulaGeneratorOutput,
     get_formula_generator,
 )
-from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
 
 
 def test_formula_generator_uses_request_model_profile():

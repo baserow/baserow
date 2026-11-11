@@ -41,9 +41,16 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
         self,
         functions: "FunctionCollection",
         data_provider_type_registry: Optional["DataProviderTypeRegistry"] = None,
+        validation_context: Optional[dict] = None,
     ):
+        """
+        :param validation_context: What the caller knows about where the formula is
+            read, passed to each function's and data provider's validation.
+        """
+
         self.functions = functions
         self.data_provider_type_registry = data_provider_type_registry
+        self.validation_context = validation_context or {}
 
     def visitRoot(self, ctx: BaserowFormula.RootContext):
         return ctx.expr().accept(self)
@@ -191,7 +198,8 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
             formula_function_type.validate_args(
                 args_parsed,
                 validation_context={
-                    "data_provider_type_registry": self.data_provider_type_registry
+                    **self.validation_context,
+                    "data_provider_type_registry": self.data_provider_type_registry,
                 },
             )
 

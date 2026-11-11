@@ -11,35 +11,28 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.contrib.builder.workflow_actions.handler import (
-    BuilderWorkflowActionHandler,
+from baserow.contrib.builder.tools import BuilderWriteOptions, helpers
+from baserow.contrib.builder.tools import actions as shared_actions
+from baserow.contrib.builder.tools import data_sources as shared_data_sources
+from baserow.contrib.builder.tools import elements as shared_elements
+from baserow.contrib.builder.tools import pages as shared_pages
+from baserow.contrib.builder.tools import themes as shared_themes
+from baserow.contrib.builder.tools.errors import (
+    UnknownRefError,
+    is_input_error,
+    user_error_message,
 )
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.shared import (
-    ToolInputError,
-    permission_denied_result,
-    raise_if_permission_denied,
-    require_payload,
-)
-from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
-from baserow_enterprise.assistant.types import BuilderPageNavigationType
-from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
-from baserow_enterprise.builder.tools import actions as shared_actions
-from baserow_enterprise.builder.tools import data_sources as shared_data_sources
-from baserow_enterprise.builder.tools import elements as shared_elements
-from baserow_enterprise.builder.tools import pages as shared_pages
-from baserow_enterprise.builder.tools import themes as shared_themes
-from baserow_enterprise.builder.tools import user_sources as shared_user_sources
-from baserow_enterprise.builder.tools.errors import is_input_error, item_error
-from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
-from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
-from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.formulas import BuilderFormulaError
+from baserow.contrib.builder.tools.lookups import get_builder_in_workspace
+from baserow.contrib.builder.tools.registries import element_tool_type_registry
+from baserow.contrib.builder.tools.themes import THEME_CATALOG, ThemeName
+from baserow.contrib.builder.tools.types import (
     ActionChanges,
     ActionCreate,
     ActionItem,
@@ -57,6 +50,24 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
 )
+from baserow.contrib.builder.tools.types.changes import name_key
+from baserow.contrib.builder.tools.types.table_columns import data_source_fields
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.formula.literals import FORMULA_PREFIX
+from baserow.core.tools.errors import validation_messages
+from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    permission_denied_result,
+    raise_if_permission_denied,
+    require_payload,
+)
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
+from baserow_enterprise.assistant.types import BuilderPageNavigationType
+from baserow_enterprise.builder.tools import user_sources as shared_user_sources
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
 from . import agents
@@ -104,11 +115,59 @@ def _not_on_page(page, element_ids) -> list[int]:
     return [element_id for element_id in element_ids if element_id not in reachable]
 
 
+def _named_field_beats_description(element: ElementItemCreate) -> None:
+    """
+    A new table column named like a field of its data source shows that field when
+    its value is only a ``$formula:`` description: the model often describes the
+    field it means. An explicit formula still wins.
+    """
+
+    if element.type != "table" or not element.fields:
+        return
+    table_fields = data_source_fields(element.data_source)
+    for column in element.fields:
+        if (
+            column.type == "text"
+            and column.value
+            and column.value.strip().lower().startswith(FORMULA_PREFIX)
+            and name_key(column.name) in table_fields
+        ):
+            column.value = None
+
+
+def _get_builder(ctx: RunContext[AssistantDeps], application_id: int) -> Builder:
+    """
+    The application builder ``application_id`` of the workspace, through the getter
+    MCP uses, so both answer alike: one the user can't see is not found.
+    """
+
+    try:
+        return get_builder_in_workspace(ctx.deps.tool_context(), application_id)
+    except ApplicationDoesNotExist:
+        raise ToolInputError(
+            f"Application with ID {application_id} not found in this workspace. "
+            "Use list_builders to find valid application IDs."
+        )
+
+
 def _page_not_found(page_id: int) -> ToolInputError:
     return ToolInputError(
         f"Page with ID {page_id} not found or not accessible. "
         "Use list_pages to find valid page IDs."
     )
+
+
+def item_error(exc: Exception) -> str:
+    """
+    The message Kuma gets for one item of a batch that failed with ``exc``. Kuma
+    keeps refs across calls, so an unknown ref gets the message for that.
+    """
+
+    if isinstance(exc, UnknownRefError):
+        return exc.message_with_known_refs
+    if isinstance(exc, DRFValidationError):
+        return validation_messages(exc)
+    return user_error_message(exc) or str(exc)
 
 
 def _input_item_error(exc: Exception) -> str:
@@ -194,12 +253,11 @@ def create_pages(
     """
 
     user = ctx.deps.user
-    workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
     require_payload("create_pages", "pages", pages)
 
-    builder = helpers.get_builder(user, workspace, application_id)
+    builder = _get_builder(ctx, application_id)
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
@@ -624,7 +682,7 @@ def _create_elements_internal(
             known_refs=known_refs,
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_description=True,
+            prepare_element=_named_field_beats_description,
             item_error=item_error,
         ),
     )
@@ -977,9 +1035,7 @@ def update_element(
     applied_formulas = [field for field in formulas if field not in not_applied]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
-    property_aliases = assistant_element_type_registry.get_for(
-        element_type
-    ).property_aliases
+    property_aliases = element_tool_type_registry.get_for(element_type).property_aliases
     updated_fields = []
     for field in element.get_updated_field_names():
         formula_field = property_aliases.get(field, field)
@@ -1455,7 +1511,7 @@ def setup_page(
             known_refs=_get_element_refs(tool_helpers, page_id),
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_description=True,
+            prepare_element=_named_field_beats_description,
             defer_required_formulas=True,
             item_error=item_error,
             after_phase=after_phase,
@@ -1527,14 +1583,10 @@ def setup_user_source(
     HOW: If user mentions a specific table, use table_id. Otherwise use database_id to create a new users table.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-
     try:
-        helpers.get_builder(user, workspace, application_id)
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        return {"error": f"Could not find application: {exc}"}
+        _get_builder(ctx, application_id)
+    except ToolInputError as exc:
+        return {"error": str(exc)}
 
     try:
         shared = shared_user_sources.setup_user_source(
@@ -1581,7 +1633,7 @@ def set_theme(
     {theme_list}
     """
 
-    helpers.get_builder(ctx.deps.user, ctx.deps.workspace, application_id)
+    _get_builder(ctx, application_id)
 
     try:
         shared_themes.set_theme(ctx.deps.tool_context(), application_id, theme_name)

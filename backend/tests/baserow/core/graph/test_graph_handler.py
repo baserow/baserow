@@ -1203,6 +1203,36 @@ def test_collect_descendant_ids():
     assert graph.collect_descendant_ids(99) == set()
 
 
+def test_get_ordered_point_ids():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [6]}, "children": {"1": [5], "0": [3]}},
+            "3": {"next": {"": [4]}, "children": {"": [7]}},
+            "4": {},
+            "5": {},
+            "6": {"next": {"": [2]}},
+            "7": {},
+        }
+    )
+    graph = model.get_graph()
+
+    # Children come right after their container, edge by edge, and a loop back
+    # to an earlier point ends the walk.
+    assert graph.get_ordered_point_ids() == [1, 2, 3, 7, 4, 5, 6]
+    assert graph.get_ordered_point_ids(edge_order=lambda edge: -int(edge or 0)) == [
+        1,
+        2,
+        5,
+        3,
+        7,
+        4,
+        6,
+    ]
+    assert make_graph_model({}).get_graph().get_ordered_point_ids() == []
+
+
 def test_find_unreachable_point_ids():
     graph = {
         "0": 1,
@@ -1329,3 +1359,19 @@ def test_migrate_graph_preserves_outputs_when_they_have_no_id_mapping():
         "41": {"next": {"0": [42]}},
         "42": {},
     }
+
+
+def test_get_ordered_point_ids_follows_only_the_default_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"b-uid": [4], "": [2], "a-uid": [3]}},
+            "2": {},
+            "3": {},
+            "4": {"next": {"": [5]}},
+            "5": {},
+        }
+    )
+
+    # A page renders only the default output, so the others are not reached.
+    assert model.get_graph().get_ordered_point_ids() == [1, 2]

@@ -47,29 +47,23 @@ class ToolInputError(Exception):
         self.hint = hint
 
 
-def _detail_messages(detail) -> str:
-    if isinstance(detail, dict):
-        return " ".join(
-            f"{field}: {_detail_messages(value)}" for field, value in detail.items()
-        )
-    if isinstance(detail, (list, tuple)):
-        return " ".join(_detail_messages(value) for value in detail)
-    return str(detail)
-
-
 def validation_messages(exc: DRFValidationError) -> str:
-    """The messages of a DRF ``ValidationError``, with the field they're on."""
+    """
+    The messages of a DRF ``ValidationError``, each with the path of the field it's
+    on, item indexes included.
+    """
 
-    return _detail_messages(exc.detail)
+    return " ".join(flatten_error_detail(exc.detail))
 
 
 def raise_if_permission_denied(error: Exception) -> None:
     """
-    Let the mode router explain permission failures.
+    Re-raise a permission failure caught by a handler that reports item errors, so
+    the whole call is refused and the caller explains it.
 
     :param error: The caught exception to inspect.
-    :raises PermissionException: When the given error is one, so it reaches
-        the mode router instead of being swallowed by a containment handler.
+    :raises PermissionException: When the given error is one, so it reaches the
+        caller instead of being reported as one failed item.
     """
 
     if isinstance(error, PermissionException):

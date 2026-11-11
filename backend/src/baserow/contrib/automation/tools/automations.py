@@ -9,10 +9,10 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
+from baserow.contrib.automation.automation_init_application import (
+    AutomationApplicationTypeInitApplication,
+)
 from baserow.contrib.automation.tools.workflows import get_automation_in_workspace
-from baserow.core.action.context import without_undo_redo_registration
-from baserow.core.integrations.actions import CreateIntegrationActionType
-from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
     ApplicationName,
@@ -37,15 +37,10 @@ def create_automation(
     with transaction.atomic():
         automation = create_application(ctx, "automation", name)
         # Row actions read and write tables through it, so workflows can't run
-        # without one. The action puts it in the audit log, as the editor does. It
-        # stays out of undo, so undo can't trash it under the nodes that use it.
-        with without_undo_redo_registration(ctx.user):
-            CreateIntegrationActionType.do(
-                ctx.user,
-                integration_type_registry.get("local_baserow"),
-                automation,
-                name="Local Baserow",
-            )
+        # without one.
+        AutomationApplicationTypeInitApplication(
+            ctx.user, automation
+        ).create_local_baserow_integration(audit_logged=True)
     return {"created_automation": {"id": automation.id, "name": automation.name}}
 
 

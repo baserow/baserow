@@ -29,6 +29,17 @@ import pytest
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    CollectionElementCreate,
+    DataSourceCreate,
+    DisplayElementCreate,
+    ElementItemCreate,
+    FieldValueMapping,
+    LayoutElementCreate,
+    PageCreate,
+    TableFieldConfig,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant.tools.automation.tools import (
@@ -69,17 +80,6 @@ from baserow_enterprise.assistant.tools.database.types import (
     FieldItemCreate,
     SelectOptionCreate,
     TableItemCreate,
-)
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    CollectionElementCreate,
-    DataSourceCreate,
-    DisplayElementCreate,
-    ElementItemCreate,
-    FieldValueMapping,
-    LayoutElementCreate,
-    PageCreate,
-    TableFieldConfig,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx

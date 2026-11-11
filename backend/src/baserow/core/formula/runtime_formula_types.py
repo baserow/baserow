@@ -93,7 +93,7 @@ class RuntimeGet(RuntimeFormulaFunction):
                 f"The formula provider '{provider_name}' "
                 f"used in '{args[0]}' does not exist in this module.",
             )
-        provider.is_valid(rest)
+        provider.is_valid(rest, validation_context)
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return context[args[0]]

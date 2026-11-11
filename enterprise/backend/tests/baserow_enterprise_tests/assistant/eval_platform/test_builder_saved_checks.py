@@ -4,6 +4,15 @@ import pytest
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.actions import UpdateElementActionType
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.themes import apply_theme
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    ElementUpdate,
+    MenuItemAdd,
+    MenuItemUpdate,
+)
+from baserow.contrib.builder.tools.types.menu_items import new_menu_link
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.graph.types import GraphPointPosition
 from baserow.test_utils.fixtures import Fixtures
@@ -29,15 +38,6 @@ from baserow_enterprise.assistant.evals.datasets.builder import (
     _site_header_menu_scenario,
 )
 from baserow_enterprise.assistant.evals.types import EvalRunOutput, EvalScenario
-from baserow_enterprise.builder.tools import helpers
-from baserow_enterprise.builder.tools.themes import apply_theme
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    ElementUpdate,
-    MenuItemAdd,
-    MenuItemUpdate,
-)
-from baserow_enterprise.builder.tools.types.menu_items import new_menu_link
 
 
 def _output(*calls):

@@ -6,7 +6,7 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
-from baserow_enterprise.tools.types import BaseModel
+from baserow.core.tools.types import BaseModel
 
 
 class WorkspaceUIContext(BaseModel):

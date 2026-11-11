@@ -21,7 +21,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 class MockDataProvider(DataProviderType):
     type = "test_provider"
 
-    def is_valid(self, path: List[str]):
+    def is_valid(self, path: List[str], validation_context=None):
         return True
 
     def get_data_chunk(self, dispatch_context: DispatchContext, path: List[str]):
@@ -85,7 +85,8 @@ def test_get_with_valid_provider_calls_is_valid(mock_registry):
     provider = mock_registry.get("test_provider")
     provider.is_valid = MagicMock(return_value=True)
     parse_and_visit_formula("get('test_provider.foo.bar.baz')", mock_registry)
-    provider.is_valid.assert_called_once_with(["foo", "bar", "baz"])
+    provider.is_valid.assert_called_once()
+    assert provider.is_valid.call_args.args[0] == ["foo", "bar", "baz"]
 
 
 def test_get_as_child_formula_is_valid(mock_registry):
@@ -96,5 +97,6 @@ def test_get_as_child_formula_is_valid(mock_registry):
         mock_registry,
     )
     assert provider.is_valid.call_count == 2
-    provider.is_valid.assert_any_call(["field1"])
-    provider.is_valid.assert_any_call(["field2"])
+    paths = [call.args[0] for call in provider.is_valid.call_args_list]
+    assert ["field1"] in paths
+    assert ["field2"] in paths

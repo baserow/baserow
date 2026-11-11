@@ -4,6 +4,14 @@ from django.test.utils import CaptureQueriesContext
 import pytest
 
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
+from baserow.contrib.builder.tools import (
+    actions,
+    applications,
+    data_sources,
+    elements,
+    pages,
+)
+from baserow.contrib.builder.tools.types import DataSourceCreate, ElementItemCreate
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.groups import (
@@ -17,14 +25,6 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.assistant.tools.builder import tools as kuma
 from baserow_enterprise.assistant.tools.core import tools as kuma_core
-from baserow_enterprise.builder.tools import (
-    actions,
-    applications,
-    data_sources,
-    elements,
-    pages,
-)
-from baserow_enterprise.builder.tools.types import DataSourceCreate, ElementItemCreate
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 READ_TOOLS = [
