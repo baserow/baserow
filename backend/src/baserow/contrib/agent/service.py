@@ -141,7 +141,6 @@ class AgentService:
         user: AbstractUser,
         agent_id: int,
         cursor: KeysetCursor | None = None,
-        has_pending_approvals: bool = False,
     ) -> QuerySet[AgentConversation]:
         """
         Return only the user's own conversations, never another owner's.
@@ -149,8 +148,6 @@ class AgentService:
         :param user: The user listing their conversations.
         :param agent_id: The id of the agent.
         :param cursor: The last conversation of the previous page, to continue after.
-        :param has_pending_approvals: Whether to return only the conversations with
-            held calls waiting for the user's decision.
         :raises PermissionException: When the user may not read conversations of the
             agent.
         :return: The user's conversations, most recently updated first.
@@ -159,9 +156,7 @@ class AgentService:
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
-        return self.handler.list_conversations(
-            agent, user, cursor, has_pending_approvals
-        )
+        return self.handler.list_conversations(agent, user, cursor)
 
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
@@ -242,11 +237,15 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        had_pending_approvals = self.handler.conversation_has_pending_approvals(
+            conversation.id
+        )
         self.handler.delete_conversation(user, conversation)
         agent_conversation_deleted.send(self, conversation=conversation, user=user)
-        application_pending_count_updated.send(
-            self, application=agent, user_ids=[conversation.owner_user_id]
-        )
+        if had_pending_approvals:
+            application_pending_count_updated.send(
+                self, application=agent, user_ids=[conversation.owner_user_id]
+            )
         return conversation
 
     def _require_ready(self, agent: AgentApplication) -> None:

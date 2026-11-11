@@ -262,7 +262,6 @@ def test_pending_approvals_are_counted_per_agent_and_per_conversation(
         [api_user, other_user], [agent, other_agent, idle_agent]
     )
     listed = api_client.get(url).json()["results"]
-    filtered = api_client.get(url, {"has_pending_approvals": "true"}).json()
     renamed = api_client.patch(
         agent_url(agent, "conversation", conversation_uuid=waiting.uuid),
         {"title": "Renamed"},
@@ -273,7 +272,6 @@ def test_pending_approvals_are_counted_per_agent_and_per_conversation(
         str(waiting.uuid): 2,
         str(idle.uuid): 0,
     }
-    assert [item["uuid"] for item in filtered["results"]] == [str(waiting.uuid)]
     assert renamed.json()["pending_approval_count"] == 2
 
 

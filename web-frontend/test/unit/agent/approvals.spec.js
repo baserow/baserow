@@ -15,6 +15,7 @@ import {
   destroyAgentPage,
   message,
   messages,
+  mockAgent,
   mockApprovals,
   mockConversations,
   mockMessages,
@@ -485,6 +486,10 @@ describe('Agent tool approvals', () => {
     const decision = deferredReply()
     mockApprovals(testApp, chat.uuid, decision.reply)
     const wrapper = await openWaitingReply([approval(1), approval(2)])
+    await testApp.store.dispatch('application/forceUpdate', {
+      application: agent,
+      data: { pending_count: 2 },
+    })
     expect(waitingDot(wrapper)).toBe(true)
     const reads = configurationReads()
 
@@ -501,6 +506,12 @@ describe('Agent tool approvals', () => {
     expect(title(wrapper)).toBe('agent.approvalReviewed')
     expect(messages(wrapper)).toEqual(['Add the companies', 'Adding them.'])
     expect(waitingDot(wrapper)).toBe(false)
+    // Success waits for the ordinary count event, with no speculative arithmetic
+    // or extra application read.
+    expect(agent.pending_count).toBe(2)
+    expect(
+      testApp.mock.history.get.filter(({ url }) => url === '/applications/10/')
+    ).toHaveLength(0)
 
     expect(sentBodies(testApp)).toEqual([
       {
@@ -650,8 +661,9 @@ describe('Agent tool approvals', () => {
     }
   )
 
-  test('re-reads the reply when a step was already decided elsewhere', async () => {
+  test('re-reads the reply and count when a step was already decided elsewhere', async () => {
     testApp.dontFailOnErrorResponses()
+    mockAgent(testApp, { ...agentData, pending_count: 1 })
     mockApprovals(testApp, chat.uuid, [
       409,
       { error: 'ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING', detail: 'Decided.' },
@@ -663,14 +675,15 @@ describe('Agent tool approvals', () => {
 
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
-      data: { pending_count: 2 },
+      // Another tab's count event already includes the decision.
+      data: { pending_count: 1 },
     })
     await headerButtons(wrapper)[1].trigger('click')
     await flushPromises()
 
     expect(
       testApp.store.getters['application/get'](agentData.id).pending_count
-    ).toBe(0)
+    ).toBe(1)
     expect(messageReads()).toHaveLength(2)
     expect(decisions(wrapper)).toEqual(['agent.rejected'])
     expect(testApp.store.state.toast.items).toHaveLength(1)
@@ -711,6 +724,32 @@ describe('Agent tool approvals', () => {
     expect(decisions(wrapper)).toEqual(['agent.approved'])
   })
 
+  test('an older successful partial response cannot restore the waiting dot', async () => {
+    const decision = deferredReply()
+    mockApprovals(testApp, chat.uuid, decision.reply)
+    const latest = reply('completed', [
+      approval(1, 'approved'),
+      approval(2, 'approved'),
+    ])
+    const wrapper = await openWaitingReply(
+      [approval(1), approval(2)],
+      page([prompt, latest])
+    )
+    await itemButtons(items(wrapper)[0])[1].trigger('click')
+    await flushPromises()
+    await updatedElsewhere(chat, 0)
+    expect(waitingDot(wrapper)).toBe(false)
+
+    decision.resolve(
+      200,
+      reply('waiting', [approval(1, 'approved'), approval(2)])
+    )
+    await flushPromises()
+
+    expect(decisions(wrapper)).toEqual(['agent.approved', 'agent.approved'])
+    expect(waitingDot(wrapper)).toBe(false)
+  })
+
   test('a pause arriving while following the run does not re-read the reply', async () => {
     let started
     mockStartConversation(testApp, ({ data }) => {
@@ -748,7 +787,7 @@ describe('Agent tool approvals', () => {
     expect(waitingDot(wrapper)).toBe(true)
   })
 
-  test('the header pill opens the next waiting conversation, loading missing ones', async () => {
+  test('the header pill cycles only loaded waiting conversations without fetching a list', async () => {
     const row = (uuid, updatedOn, count) => ({
       ...conversation(uuid, uuid, updatedOn),
       pending_approval_count: count,
@@ -758,25 +797,19 @@ describe('Agent tool approvals', () => {
       row('idle', '2026-10-14T10:00:02Z', 0),
       row('middle', '2026-10-14T10:00:01Z', 2),
     ]
-    const oldest = row('oldest', '2026-10-01T10:00:00Z', 1)
-    mockConversations(
-      testApp,
-      conversationsPage(loaded, 'next'),
-      conversationsPage([loaded[0], loaded[2], oldest])
-    )
-    for (const { uuid } of [...loaded, oldest]) {
-      mockMessages(testApp, uuid, page([]))
-    }
+    mockConversations(testApp, conversationsPage(loaded, 'next'))
+    for (const { uuid } of loaded) mockMessages(testApp, uuid, page([]))
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
-      data: { pending_count: 4 },
+      // Most waiting conversations are outside the loaded page.
+      data: { pending_count: 106 },
     })
     const wrapper = await mount()
     const pill = () => wrapper.find('.agent-application__approvals')
-    expect(pill().text()).toBe('agent.approvalsWaiting - 4')
+    expect(pill().text()).toBe('agent.approvalsWaiting - 106')
 
     const opened = []
-    for (let click = 0; click < 4; click++) {
+    for (let click = 0; click < 6; click++) {
       await pill().trigger('click')
       await flushPromises()
       opened.push(
@@ -784,17 +817,19 @@ describe('Agent tool approvals', () => {
       )
     }
 
-    expect(opened).toEqual(['newest', 'middle', 'oldest', 'newest'])
+    expect(opened).toEqual([
+      'newest',
+      'middle',
+      'newest',
+      'middle',
+      'newest',
+      'middle',
+    ])
     expect(
-      testApp.mock.history.get
-        .filter(({ url }) => url === '/agent/10/conversations/')
-        .map(({ params }) => params.has_pending_approvals)
-    ).toEqual([undefined, true])
-    expect(
-      testApp.mock.history.get
-        .filter(({ url }) => url === '/agent/10/conversations/')
-        .map(({ params }) => params.limit)
-    ).toEqual([20, 100])
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/conversations/'
+      )
+    ).toHaveLength(1)
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
       data: { pending_count: 0 },
@@ -803,62 +838,28 @@ describe('Agent tool approvals', () => {
     expect(pill().exists()).toBe(false)
   })
 
-  test('a second click while the waiting conversations load does nothing', async () => {
-    const waiting = deferredReply()
-    const row = { ...chat, pending_approval_count: 1 }
-    mockConversations(
-      testApp,
-      conversationsPage([
-        { ...conversation('idle', 'Idle'), pending_approval_count: 0 },
-      ]),
-      waiting.reply
-    )
-    mockMessages(testApp, chat.uuid, page([]))
-    await testApp.store.dispatch('application/forceUpdate', {
-      application: agent,
-      data: { pending_count: 1 },
-    })
-    const wrapper = await mount()
-    const pill = wrapper.get('.agent-application__approvals')
-
-    await pill.trigger('click')
-    await pill.trigger('click')
-    await flushPromises()
-    waiting.resolve(200, conversationsPage([row]))
-    await flushPromises()
-
-    expect(
-      testApp.mock.history.get.filter(
-        ({ url, params }) =>
-          url === '/agent/10/conversations/' && params.has_pending_approvals
-      )
-    ).toHaveLength(1)
-  })
-
-  test('the pill keeps a conversation chosen while it loads selected', async () => {
-    const waiting = deferredReply()
+  test('the pill preserves the selection when no loaded conversation is waiting', async () => {
     const idle = { ...conversation('idle', 'Idle'), pending_approval_count: 0 }
-    const oldest = {
-      ...conversation('oldest', 'Oldest', '2026-10-01T10:00:00Z'),
-      pending_approval_count: 1,
-    }
-    mockConversations(testApp, conversationsPage([idle], 'next'), waiting.reply)
+    mockConversations(testApp, conversationsPage([idle], 'next'))
     mockMessages(testApp, idle.uuid, page([]))
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
-      data: { pending_count: 1 },
+      data: { pending_count: 106 },
     })
     const wrapper = await mount()
-
-    await wrapper.get('.agent-application__approvals').trigger('click')
     await selectConversation(wrapper, 'Idle')
-    waiting.resolve(200, conversationsPage([oldest]))
-    await flushPromises()
-
+    for (let click = 0; click < 6; click++) {
+      await wrapper.get('.agent-application__approvals').trigger('click')
+      await flushPromises()
+    }
     expect(
       selected(wrapper).get('.agent-conversations__item-name').text()
     ).toBe('Idle')
-    expect(waitingDot(wrapper)).toBe(true)
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/conversations/'
+      )
+    ).toHaveLength(1)
   })
 
   test('a list read started before a decision keeps the decided count', async () => {
@@ -895,56 +896,98 @@ describe('Agent tool approvals', () => {
     expect(waitingDot(wrapper)).toBe(false)
   })
 
-  test('a decision lowers the waiting count at once and restores it on failure', async () => {
+  test.each([false, true])(
+    'reconciles an uncertain decision with committed=%s',
+    async (committed) => {
+      testApp.dontFailOnErrorResponses()
+      const decision = deferredReply()
+      mockApprovals(testApp, chat.uuid, decision.reply)
+      mockAgent(testApp, {
+        ...agentData,
+        pending_count: committed ? 2 : 3,
+      })
+      const wrapper = await openWaitingReply(
+        [approval(1), approval(2)],
+        page([
+          prompt,
+          reply('waiting', [
+            approval(1, committed ? 'approved' : 'pending'),
+            approval(2),
+          ]),
+        ])
+      )
+      await testApp.store.dispatch('application/forceUpdate', {
+        application: agent,
+        data: { pending_count: 3 },
+      })
+      const pendingCount = () =>
+        testApp.store.getters['application/get'](agentData.id).pending_count
+
+      await itemButtons(items(wrapper)[0])[1].trigger('click')
+      expect(pendingCount()).toBe(3)
+      await flushPromises()
+      if (committed) {
+        // The exact server count can arrive before the HTTP response is lost.
+        await testApp.store.dispatch('application/forceUpdate', {
+          application: agent,
+          data: { pending_count: 2 },
+        })
+      }
+      decision.resolve(504, { error: 'ERROR_UNKNOWN' })
+      await flushPromises()
+
+      expect(pendingCount()).toBe(committed ? 2 : 3)
+      const countReads = testApp.mock.history.get.filter(
+        ({ url }) => url === '/applications/10/'
+      )
+      expect(countReads).toHaveLength(1)
+      expect(countReads[0].headers['X-Baserow-Realtime-Recovery']).toBe('true')
+      expect(messageReads()).toHaveLength(2)
+      expect(messageReads().at(-1).headers['X-Baserow-Realtime-Recovery']).toBe(
+        'true'
+      )
+      expect(decisions(wrapper)).toEqual(committed ? ['agent.approved'] : [])
+    }
+  )
+
+  test('keeps the last count if an uncertain decision cannot refresh the application', async () => {
     testApp.dontFailOnErrorResponses()
-    const decision = deferredReply()
-    mockApprovals(testApp, chat.uuid, decision.reply)
-    const wrapper = await openWaitingReply([approval(1), approval(2)])
+    mockApprovals(testApp, chat.uuid, [504, { error: 'ERROR_UNKNOWN' }])
+    mockAgent(testApp, [503, { error: 'ERROR_UNKNOWN' }])
+    const wrapper = await openWaitingReply([approval(1)])
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
-      data: { pending_count: 3 },
+      data: { pending_count: 2 },
     })
-    const pendingCount = () =>
-      testApp.store.getters['application/get'](agentData.id).pending_count
 
     await headerButtons(wrapper)[1].trigger('click')
-    expect(pendingCount()).toBe(1)
-    await flushPromises()
-    decision.resolve(500, { error: 'ERROR_UNKNOWN' })
     await flushPromises()
 
-    expect(pendingCount()).toBe(3)
+    expect(agent.pending_count).toBe(2)
+    expect(headerButtons(wrapper)[1].element.disabled).toBe(false)
+    expect(
+      testApp.mock.history.get.filter(({ url }) => url === '/applications/10/')
+    ).toHaveLength(1)
   })
 
-  test('a reconnect keeps an older waiting conversation the pill opened', async () => {
-    const newest = { ...chat, pending_approval_count: 0 }
-    const oldest = {
-      ...conversation('oldest', 'Oldest', '2026-10-01T10:00:00Z'),
-      pending_approval_count: 1,
-    }
-    mockConversations(
-      testApp,
-      conversationsPage([newest], 'next'),
-      conversationsPage([oldest]),
-      conversationsPage([newest], 'next')
+  test('a failed always-allow response reconciles configuration as well as approvals', async () => {
+    testApp.dontFailOnErrorResponses()
+    mockApprovals(testApp, chat.uuid, [504, { error: 'ERROR_UNKNOWN' }])
+    const wrapper = await openWaitingReply(
+      [approval(1)],
+      page([prompt, reply('completed', [approval(1, 'approved')])])
     )
-    mockMessages(testApp, chat.uuid, page([]))
-    mockMessages(testApp, oldest.uuid, page([]))
-    await testApp.store.dispatch('application/forceUpdate', {
-      application: agent,
-      data: { pending_count: 1 },
-    })
-    const wrapper = await mount()
-    await wrapper.get('.agent-application__approvals').trigger('click')
+    const reads = configurationReads()
+    await alwaysAllow(wrapper).trigger('click')
     await flushPromises()
 
-    testApp.getRegistry().get('chatRunType', 'agent').refreshChat(oldest.id)
-    await flushPromises()
-
-    expect(
-      selected(wrapper).get('.agent-conversations__item-name').text()
-    ).toBe('Oldest')
-    expect(waitingDot(wrapper)).toBe(true)
+    expect(configurationReads()).toBe(reads + 1)
+    const refresh = testApp.mock.history.get
+      .filter(({ url }) => url === '/agent/10/configuration/')
+      .at(-1)
+    expect(refresh.headers['X-Baserow-Realtime-Recovery']).toBe('true')
+    expect(decisions(wrapper)).toEqual(['agent.approved'])
+    expect(waitingDot(wrapper)).toBe(false)
   })
 
   test('a busy workspace keeps the step pending with the agent copy', async () => {

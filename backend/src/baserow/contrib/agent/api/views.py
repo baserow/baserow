@@ -321,13 +321,6 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 "the first page. The next page continues after the last conversation "
                 "of the previous one, even when conversations changed in between.",
             ),
-            OpenApiParameter(
-                "has_pending_approvals",
-                OpenApiTypes.BOOL,
-                default=False,
-                description="Only conversations with tool calls waiting for the "
-                "user's approval.",
-            ),
         ],
         responses={
             200: AgentConversationsResponseSerializer,
@@ -347,7 +340,6 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 request.user,
                 agent_id,
                 query_params.get("cursor"),
-                query_params["has_pending_approvals"],
             )[: limit + 1]
         )
         page = conversations[:limit]

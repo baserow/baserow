@@ -1,5 +1,5 @@
 from functools import partial
-from unittest.mock import ANY, MagicMock, call
+from unittest.mock import MagicMock, call
 from uuid import UUID, uuid4
 
 from django.db import transaction
@@ -263,10 +263,63 @@ def test_renames_deletions_and_restores_notify_only_the_owner(
         # The restoring tab also needs it back in its list.
         call([user.id], update_of(conversation), ignore_web_socket_id=None),
     ]
-    assert (
-        pending_count_updated.call_args_list
-        == [call(ANY, application=agent, user_ids=[user.id])] * 2
+    pending_count_updated.assert_not_called()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("status", ["pending", "approved", "rejected"])
+def test_trash_and_restore_only_notify_counts_when_approvals_are_pending(
+    data_fixture, mocker, django_capture_on_commit_callbacks, status
+):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
+    reply = data_fixture.create_agent_message(
+        conversation=conversation, role="assistant", status="waiting"
     )
+    data_fixture.create_agent_tool_approval(reply=reply, status=status)
+    queued = mocker.patch(
+        "baserow.ws.signals.broadcast_application_pending_counts.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+            user, agent.id, conversation.uuid
+        )
+        queued.assert_not_called()
+    assert queued.call_count == (1 if status == "pending" else 0)
+
+    queued.reset_mock()
+    with django_capture_on_commit_callbacks(execute=True):
+        TrashHandler.restore_item(user, "agent_conversation", conversation.id)
+        queued.assert_not_called()
+    assert queued.call_count == (1 if status == "pending" else 0)
+    if status == "pending":
+        queued.assert_called_once_with(agent.id, [user.id])
+
+
+@pytest.mark.django_db
+def test_rolled_back_conversation_trash_does_not_notify_pending_counts(
+    data_fixture, mocker, django_capture_on_commit_callbacks
+):
+    reply = data_fixture.create_agent_message(role="assistant", status="waiting")
+    data_fixture.create_agent_tool_approval(reply=reply)
+    conversation = reply.conversation
+    queued = mocker.patch(
+        "baserow.ws.signals.broadcast_application_pending_counts.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(RuntimeError):
+            with transaction.atomic():
+                action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+                    conversation.owner_user, conversation.agent_id, conversation.uuid
+                )
+                raise RuntimeError("Abort conversation deletion")
+
+    queued.assert_not_called()
+    conversation.refresh_from_db()
+    assert not conversation.trashed
 
 
 @pytest.mark.django_db

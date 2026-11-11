@@ -4,6 +4,7 @@ import { useNuxtApp } from '#app'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
+import ApplicationService from '@baserow/modules/core/services/application'
 import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
 import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
@@ -83,6 +84,7 @@ export function useAgentConversations(agent, configuration) {
   const store = useStore()
   const { $client, $hasPermission, $i18n, $registry } = useNuxtApp()
   const service = AgentApplicationService($client)
+  const applicationService = ApplicationService($client)
   const runType = $registry.get('chatRunType', AGENT_RUN_TYPE)
   const permission = (operation) =>
     Boolean(
@@ -106,7 +108,7 @@ export function useAgentConversations(agent, configuration) {
     permission('agent_application.delete_conversation')
   )
 
-  // Every conversation down to `loadedUntil`, newest first, and older waiting ones.
+  // Every conversation down to `loadedUntil`, newest first.
   const conversations = ref([])
   const localConversations = ref([])
   // Where the next page continues, null once every conversation is loaded.
@@ -126,7 +128,6 @@ export function useAgentConversations(agent, configuration) {
   let conversationsReloadPending = false
   // Changes since a list read started, whose older copy would undo them.
   let conversationChanges = 0
-  let loadingWaitingScope = null
 
   const conversationItems = computed(() => [
     ...localConversations.value.filter((item) =>
@@ -239,8 +240,7 @@ export function useAgentConversations(agent, configuration) {
 
   /**
    * Read the page after `cursor`, or with `reload` every page down to
-   * `loadedUntil` again, dropping the conversations in that range they no longer
-   * list.
+   * `loadedUntil` again, dropping the conversations they no longer list.
    */
   async function fetchConversations(cursor = null, reload = false) {
     if (!canReadConversations.value) return
@@ -280,13 +280,8 @@ export function useAgentConversations(agent, configuration) {
       }
       if (reload) {
         const listed = new Set(results.map(({ uuid }) => uuid))
-        const oldestRead = data.next_cursor ? results.at(-1) : null
         conversations.value
-          .filter(
-            (item) =>
-              !listed.has(item.uuid) &&
-              (!oldestRead || byNewest(item, oldestRead) <= 0)
-          )
+          .filter(({ uuid }) => !listed.has(uuid))
           .forEach(({ uuid }) => removeConversation(uuid))
       }
       mergeConversations(results)
@@ -441,10 +436,14 @@ export function useAgentConversations(agent, configuration) {
           history.items = mergeMessages(history.items, latest)
           history.page = page
           history.next = Boolean(data.next)
-          followReplies(
-            findConversation(conversationUuid),
-            history.items.at(-1)
-          )
+          const conversation = findConversation(conversationUuid)
+          if (conversation) {
+            applyConversationValues(conversation, {
+              pending_approval_count: pendingApprovals(history.items.at(-1))
+                .length,
+            })
+          }
+          followReplies(conversation, history.items.at(-1))
           break
         }
         page++
@@ -561,7 +560,6 @@ export function useAgentConversations(agent, configuration) {
     const agentId = application.id
     const conversationUuid = selectedUuid.value
     decidingReplies.add(reply.uuid)
-    shiftPendingCount(application, -decisions.length)
     try {
       const { data } = await service.decideApprovals(
         agentId,
@@ -571,25 +569,23 @@ export function useAgentConversations(agent, configuration) {
       )
       if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
       // The application_updated event skips the socket that sent the request.
-      if (alwaysAllow) configuration.fetchConfiguration()
+      if (alwaysAllow) configuration.fetchConfiguration(true)
       const history = histories[conversationUuid]
       if (history) history.items = mergeMessages(history.items, [data])
+      // Another tab can have supplied a newer decision before this response.
+      const latest = history?.items.at(-1) || data
       const conversation = findConversation(conversationUuid)
       if (conversation) {
         applyConversationValues(conversation, {
-          pending_approval_count: pendingApprovals(data).length,
+          pending_approval_count: pendingApprovals(latest).length,
         })
       }
-      if (data.run_id && conversation) {
-        conversation.run_id = data.run_id
-        followReplies(conversation, data)
+      if (latest.run_id && conversation) {
+        conversation.run_id = latest.run_id
+        followReplies(conversation, latest)
       }
     } catch (error) {
       const code = error.response?.data?.error
-      // Calls decided elsewhere aren't pending any more either.
-      if (code !== API_ERROR_CODE.AGENT_TOOL_APPROVAL_NOT_PENDING) {
-        shiftPendingCount(application, decisions.length)
-      }
       if (!scopeIsCurrent(currentScope)) return
       if (SEND_ERRORS[code]) {
         error.handler.notifyIf(
@@ -604,52 +600,38 @@ export function useAgentConversations(agent, configuration) {
       }
       if (code === API_ERROR_CODE.AGENT_NOT_READY) {
         await configuration.refreshConfiguration()
+      } else if (alwaysAllow) {
+        // A failed response can still have committed the Agent-wide policy change.
+        await configuration.fetchConfiguration(true)
       }
-      if (CONVERSATION_CHANGED_ERRORS.includes(code)) {
-        await refreshMessages(conversationUuid)
-      }
+      // A failed response doesn't say whether the decision committed. Read the
+      // existing application endpoint; successful decisions use the count event.
+      await Promise.all([
+        refreshMessages(conversationUuid),
+        applicationService
+          .get(agentId, { realtimeRecovery: true })
+          .then(({ data }) => {
+            if (
+              scopeIsCurrent(currentScope) &&
+              store.getters['application/get'](agentId) === application
+            ) {
+              store.dispatch('application/forceUpdate', {
+                application,
+                data: { pending_count: data.pending_count },
+              })
+            }
+          })
+          // Keep the last known count if recovery fails; a later event updates it.
+          .catch(() => {}),
+      ])
     } finally {
       decidingReplies.delete(reply.uuid)
     }
   }
 
-  /** Move the Agent's count by a change this tab knows before its event comes. */
-  function shiftPendingCount(application, change) {
-    store.dispatch('application/forceUpdate', {
-      application,
-      data: {
-        pending_count: Math.max(0, (application.pending_count || 0) + change),
-      },
-    })
-  }
-
-  /** Select the next conversation waiting for approval, in list order. */
-  async function selectNextWaitingConversation() {
-    if (!canReadConversations.value || loadingWaitingScope === scope) return
-    const currentScope = scope
-    const clickedFrom = selectedUuid.value
-    const loadedPendingCount = conversations.value.reduce(
-      (sum, item) => sum + (item.pending_approval_count || 0),
-      0
-    )
-    // Pages are newest first, so old waiting conversations may not be loaded.
-    if (loadedPendingCount < agent.value.pending_count) {
-      loadingWaitingScope = currentScope
-      const waiting = await service
-        .getConversations(agent.value.id, null, { hasPendingApprovals: true })
-        .then(({ data }) => data.results)
-        .catch((error) => {
-          notifyIf(error)
-          return []
-        })
-        .finally(() => {
-          if (loadingWaitingScope === currentScope) loadingWaitingScope = null
-        })
-      if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
-      // Loaded conversations are kept current by events and decisions.
-      mergeConversations(waiting.filter(({ uuid }) => !findConversation(uuid)))
-      if (selectedUuid.value !== clickedFrom) return
-    }
+  /** Cycle through loaded waiting conversations without fetching another list page. */
+  function selectNextWaitingConversation() {
+    if (!canReadConversations.value) return
     const items = conversationItems.value
     const selectedIndex = items.findIndex(
       (item) => item.uuid === selectedUuid.value

@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import DEFAULT_DB_ALIAS, connection
 from django.db.models import QuerySet
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
@@ -853,3 +853,42 @@ def test_applications_expose_pending_count_of_requesting_user(api_client, data_f
                 database.id: 0,
                 dashboard.id: 0,
             }
+
+        detail_url = reverse(
+            "api:applications:item", kwargs={"application_id": database.id}
+        )
+        for requesting_token, count in [(token, 2), (other_token, 0)]:
+            response = api_client.get(
+                detail_url, HTTP_AUTHORIZATION=f"JWT {requesting_token}"
+            )
+            assert response.status_code == HTTP_200_OK
+            assert response.json()["pending_count"] == count
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("authenticated", [True, False])
+@pytest.mark.parametrize("recovery", [True, False])
+def test_application_recovery_only_pins_authenticated_recovery_reads(
+    api_client, data_fixture, mocker, authenticated, recovery
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_database_application(user=user)
+    pin = mocker.patch("baserow.api.mixins.set_db_alias")
+    headers = {}
+    if authenticated:
+        headers["HTTP_AUTHORIZATION"] = f"JWT {token}"
+    if recovery:
+        headers["HTTP_X_BASEROW_REALTIME_RECOVERY"] = "true"
+
+    response = api_client.get(
+        reverse("api:applications:item", kwargs={"application_id": application.id}),
+        **headers,
+    )
+
+    assert response.status_code == (
+        HTTP_200_OK if authenticated else HTTP_401_UNAUTHORIZED
+    )
+    if authenticated and recovery:
+        pin.assert_called_once_with(DEFAULT_DB_ALIAS)
+    else:
+        pin.assert_not_called()

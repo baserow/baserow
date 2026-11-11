@@ -9,9 +9,7 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import (
     Case,
     Count,
-    Exists,
     Max,
-    OuterRef,
     Prefetch,
     QuerySet,
     Value,
@@ -509,7 +507,6 @@ class AgentHandler:
         agent: AgentApplication,
         owner: AbstractUser,
         cursor: KeysetCursor | None = None,
-        has_pending_approvals: bool = False,
     ) -> QuerySet[AgentConversation]:
         """
         Return the owner's conversations with the agent.
@@ -517,20 +514,12 @@ class AgentHandler:
         :param agent: The agent the conversations belong to.
         :param owner: The user whose conversations are returned.
         :param cursor: The last conversation of the previous page, to continue after.
-        :param has_pending_approvals: Whether to return only the conversations with
-            held calls waiting for the owner's decision.
         :return: The owner's conversations, most recently updated first.
         """
 
         conversations = AgentConversation.objects.filter(agent=agent, owner_user=owner)
         if cursor is not None:
             conversations = conversations.filter(cursor.get_filter("updated_on"))
-        if has_pending_approvals:
-            conversations = conversations.filter(
-                Exists(
-                    self._pending_approvals().filter(reply__conversation=OuterRef("pk"))
-                )
-            )
         return conversations
 
     def get_conversation(
@@ -853,6 +842,20 @@ class AgentHandler:
             .values("reply__conversation_id")
             .annotate(count=Count("id"))
             .values_list("reply__conversation_id", "count")
+        )
+
+    def conversation_has_pending_approvals(self, conversation_id: int) -> bool:
+        """
+        Check whether a conversation contributes to its owner's pending count.
+
+        :param conversation_id: The conversation, including one being restored.
+        :return: Whether any of its tool calls still needs a decision.
+        """
+
+        return (
+            self._pending_approvals()
+            .filter(reply__conversation_id=conversation_id)
+            .exists()
         )
 
     def get_pending_approval_counts(

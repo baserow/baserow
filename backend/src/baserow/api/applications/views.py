@@ -17,6 +17,7 @@ from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
+from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -254,7 +255,7 @@ class ApplicationsView(APIView):
         )
 
 
-class ApplicationView(APIView):
+class ApplicationView(RealtimeRecoveryPrimaryReadMixin, APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(

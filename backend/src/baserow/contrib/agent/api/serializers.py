@@ -499,10 +499,6 @@ class AgentConversationsQuerySerializer(serializers.Serializer):
         required=False,
         help_text="The `next_cursor` of the previous page, omitted for the first page.",
     )
-    has_pending_approvals = serializers.BooleanField(
-        default=False,
-        help_text="Only conversations with tool calls waiting for the user's approval.",
-    )
 
 
 class AgentConversationsResponseSerializer(serializers.Serializer):
