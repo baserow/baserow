@@ -9,9 +9,8 @@ from typing import Annotated
 
 from pydantic import Field, StringConstraints, model_validator
 
-from baserow_enterprise.tools.types import BaseModel
-
-from .limits import MAX_NESTED_ITEMS
+from baserow.contrib.builder.tools.types.limits import MAX_NESTED_ITEMS
+from baserow.core.tools.types import BaseModel
 
 _DEFAULT_ROLES = ["Admin", "Member", "Viewer"]
 

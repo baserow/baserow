@@ -30,6 +30,9 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
+from baserow.contrib.builder.tools.themes import builder_uses_theme
+from baserow.contrib.builder.tools.types.changes import name_key
+from baserow.contrib.builder.tools.types.menu_items import new_menu_link
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     NotificationWorkflowAction,
@@ -68,9 +71,6 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
-from baserow_enterprise.builder.tools.themes import builder_uses_theme
-from baserow_enterprise.builder.tools.types.changes import name_key
-from baserow_enterprise.builder.tools.types.menu_items import new_menu_link
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files

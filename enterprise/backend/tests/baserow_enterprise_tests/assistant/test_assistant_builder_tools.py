@@ -28,6 +28,35 @@ from baserow.contrib.builder.elements.operations import (
     UpdateElementOperationType,
 )
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    ButtonStyleOverride,
+    CollectionElementCreate,
+    DataSourceCreate,
+    DataSourceItem,
+    DataSourceSort,
+    DataSourceUpdate,
+    DisplayElementCreate,
+    ElementItemCreate,
+    ElementMove,
+    ElementStyleUpdate,
+    ElementUpdate,
+    FormElementCreate,
+    InputStyleOverride,
+    LayoutElementCreate,
+    LinkStyleOverride,
+    MenuItemAdd,
+    MenuItemCreate,
+    PageCreate,
+    PagePathParam,
+    PageUpdate,
+    TableColumnAdd,
+    TableFieldConfig,
+    TypographyStyleOverride,
+)
+from baserow.contrib.builder.tools.types.table_columns import (
+    stored_formula_text,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.operations import (
     CreateBuilderWorkflowActionOperationType,
@@ -46,6 +75,12 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.services.models import Service
 from baserow.core.subjects import UserSubjectType
+from baserow.core.tools.formula_utils import (
+    ensure_valid_formula,
+    formula_desc,
+    formula_object,
+    literal_or_placeholder,
+)
 from baserow.core.user_sources.models import UserSource
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.tools.builder.agents import (
@@ -74,43 +109,8 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.audit_log.models import AuditLogEntry
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    ButtonStyleOverride,
-    CollectionElementCreate,
-    DataSourceCreate,
-    DataSourceItem,
-    DataSourceSort,
-    DataSourceUpdate,
-    DisplayElementCreate,
-    ElementItemCreate,
-    ElementMove,
-    ElementStyleUpdate,
-    ElementUpdate,
-    FormElementCreate,
-    InputStyleOverride,
-    LayoutElementCreate,
-    LinkStyleOverride,
-    MenuItemAdd,
-    MenuItemCreate,
-    PageCreate,
-    PagePathParam,
-    PageUpdate,
-    TableColumnAdd,
-    TableFieldConfig,
-    TypographyStyleOverride,
-)
-from baserow_enterprise.builder.tools.types.table_columns import (
-    stored_formula_text,
-)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
-from baserow_enterprise.tools.formula_utils import (
-    ensure_valid_formula,
-    formula_desc,
-    formula_object,
-    literal_or_placeholder,
-)
 
 from .utils import create_fake_tool_helpers, make_test_ctx
 
@@ -715,7 +715,7 @@ def test_create_elements_propagates_permission_denied(data_fixture, monkeypatch)
     def deny(*args, **kwargs):
         raise PermissionDenied()
 
-    monkeypatch.setattr("baserow_enterprise.builder.tools.helpers.create_element", deny)
+    monkeypatch.setattr("baserow.contrib.builder.tools.helpers.create_element", deny)
 
     with pytest.raises(PermissionDenied):
         create_display_elements(
@@ -1770,7 +1770,7 @@ def test_setup_page_open_page_without_its_parameters_returns_to_the_model(
 def test_open_page_action_extracts_page_param_formulas():
     """open_page actions with $formula: page parameters should produce formulas."""
 
-    from baserow_enterprise.builder.tools.types.workflow_action import (
+    from baserow.contrib.builder.tools.types.workflow_action import (
         ParameterMapping,
     )
 
@@ -1790,7 +1790,7 @@ def test_open_page_action_extracts_page_param_formulas():
 def test_open_page_action_no_formulas_for_static():
     """open_page actions without $formula: should produce no formulas."""
 
-    from baserow_enterprise.builder.tools.types.workflow_action import (
+    from baserow.contrib.builder.tools.types.workflow_action import (
         ParameterMapping,
     )
 
@@ -1840,7 +1840,7 @@ def test_create_row_action(data_fixture):
         thought="test",
     )
 
-    from baserow_enterprise.builder.tools.types import FieldValueMapping
+    from baserow.contrib.builder.tools.types import FieldValueMapping
 
     result = create_element_actions(
         ctx,
@@ -1903,7 +1903,7 @@ def test_add_action_field_mapping_creates_mapping(data_fixture):
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
     # Create a form and create_row action with one field mapping
-    from baserow_enterprise.builder.tools.types import FieldValueMapping
+    from baserow.contrib.builder.tools.types import FieldValueMapping
 
     form = create_form_elements(
         ctx,
@@ -1969,7 +1969,7 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
     tool_helpers = create_fake_tool_helpers()
     ctx = make_test_ctx(user, workspace, tool_helpers)
 
-    from baserow_enterprise.builder.tools.types import FieldValueMapping
+    from baserow.contrib.builder.tools.types import FieldValueMapping
 
     form = create_form_elements(
         ctx,
@@ -2171,7 +2171,7 @@ def test_add_action_field_mapping_refuses_a_value_the_page_cant_read(
 
 
 def _create_row_action_on_form(ctx, page, table, field) -> BuilderWorkflowAction:
-    from baserow_enterprise.builder.tools.types import FieldValueMapping
+    from baserow.contrib.builder.tools.types import FieldValueMapping
 
     create_form_elements(
         ctx,
@@ -2378,7 +2378,7 @@ def test_set_theme(data_fixture, monkeypatch):
         return True
 
     monkeypatch.setattr(
-        "baserow_enterprise.builder.tools.themes.apply_theme",
+        "baserow.contrib.builder.tools.themes.apply_theme",
         fake_apply_theme,
     )
 
@@ -2400,7 +2400,7 @@ def test_set_theme(data_fixture, monkeypatch):
 def test_apply_theme_function(data_fixture):
     """apply_theme should update theme properties on an existing builder."""
 
-    from baserow_enterprise.builder.tools.themes import apply_theme
+    from baserow.contrib.builder.tools.themes import apply_theme
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

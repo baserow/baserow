@@ -9,20 +9,15 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.core.exceptions import PermissionException
-from baserow.core.tools import ToolContext
-from baserow.core.user_sources.models import UserSource
-from baserow_enterprise.builder.tools import (
+from baserow.contrib.builder.tools import (
     actions,
     applications,
     data_sources,
     elements,
     pages,
     themes,
-    user_sources,
 )
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.types import (
     ActionChanges,
     ActionCreate,
     CollectionElementCreate,
@@ -38,6 +33,11 @@ from baserow_enterprise.builder.tools.types import (
     PageChanges,
     PageCreate,
 )
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.exceptions import PermissionException
+from baserow.core.tools import ToolContext
+from baserow.core.user_sources.models import UserSource
+from baserow_enterprise.builder.tools import user_sources
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role

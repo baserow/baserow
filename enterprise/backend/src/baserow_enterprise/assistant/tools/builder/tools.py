@@ -17,38 +17,22 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.contrib.builder.workflow_actions.handler import (
-    BuilderWorkflowActionHandler,
-)
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow.core.formula.literals import FORMULA_PREFIX
-from baserow.core.tools.errors import validation_messages
-from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.shared import (
-    ToolInputError,
-    permission_denied_result,
-    raise_if_permission_denied,
-    require_payload,
-)
-from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
-from baserow_enterprise.assistant.types import BuilderPageNavigationType
-from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
-from baserow_enterprise.builder.tools import actions as shared_actions
-from baserow_enterprise.builder.tools import data_sources as shared_data_sources
-from baserow_enterprise.builder.tools import elements as shared_elements
-from baserow_enterprise.builder.tools import pages as shared_pages
-from baserow_enterprise.builder.tools import themes as shared_themes
-from baserow_enterprise.builder.tools import user_sources as shared_user_sources
-from baserow_enterprise.builder.tools.errors import (
+from baserow.contrib.builder.tools import BuilderWriteOptions, helpers
+from baserow.contrib.builder.tools import actions as shared_actions
+from baserow.contrib.builder.tools import data_sources as shared_data_sources
+from baserow.contrib.builder.tools import elements as shared_elements
+from baserow.contrib.builder.tools import pages as shared_pages
+from baserow.contrib.builder.tools import themes as shared_themes
+from baserow.contrib.builder.tools.errors import (
     UnknownRefError,
     is_input_error,
     user_error_message,
 )
-from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
-from baserow_enterprise.builder.tools.lookups import get_builder_in_workspace
-from baserow_enterprise.builder.tools.registries import element_tool_type_registry
-from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.formulas import BuilderFormulaError
+from baserow.contrib.builder.tools.lookups import get_builder_in_workspace
+from baserow.contrib.builder.tools.registries import element_tool_type_registry
+from baserow.contrib.builder.tools.themes import THEME_CATALOG, ThemeName
+from baserow.contrib.builder.tools.types import (
     ActionChanges,
     ActionCreate,
     ActionItem,
@@ -66,8 +50,24 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
 )
-from baserow_enterprise.builder.tools.types.changes import name_key
-from baserow_enterprise.builder.tools.types.table_columns import data_source_fields
+from baserow.contrib.builder.tools.types.changes import name_key
+from baserow.contrib.builder.tools.types.table_columns import data_source_fields
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.formula.literals import FORMULA_PREFIX
+from baserow.core.tools.errors import validation_messages
+from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    permission_denied_result,
+    raise_if_permission_denied,
+    require_payload,
+)
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
+from baserow_enterprise.assistant.types import BuilderPageNavigationType
+from baserow_enterprise.builder.tools import user_sources as shared_user_sources
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
 from . import agents

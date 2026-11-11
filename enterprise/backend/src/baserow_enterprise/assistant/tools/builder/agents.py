@@ -12,11 +12,7 @@ from django.utils.translation import gettext as _
 from loguru import logger
 
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.exceptions import PermissionException
-from baserow.core.tools import ToolContext
-from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE
-from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
-from baserow_enterprise.builder.tools.formulas import (
+from baserow.contrib.builder.tools.formulas import (
     BuilderFormulaContext,
     BuilderFormulaError,
     current_record_of,
@@ -24,10 +20,14 @@ from baserow_enterprise.builder.tools.formulas import (
     page_read_from,
     write_builder_formulas,
 )
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.types import (
     DataSourceUpdate,
     ElementUpdate,
 )
+from baserow.core.exceptions import PermissionException
+from baserow.core.tools import ToolContext
+from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE
+from baserow_enterprise.assistant.tools.shared.agents import get_formula_generator
 
 from .prompts import BUILDER_FORMULA_PROMPT
 

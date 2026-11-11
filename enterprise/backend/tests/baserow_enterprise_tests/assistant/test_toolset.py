@@ -22,6 +22,9 @@ from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.builder.tools.types.data_source import (
+    DataSourceCreate,
+)
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.tools.errors import ToolInputError as SharedToolInputError
 from baserow_enterprise.assistant.action_memory import (
@@ -52,9 +55,6 @@ from baserow_enterprise.assistant.tools.toolset import (
     move_thought_to_top_level,
 )
 from baserow_enterprise.assistant.types import BaseModel as AssistantBaseModel
-from baserow_enterprise.builder.tools.types.data_source import (
-    DataSourceCreate,
-)
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 from .utils import make_test_ctx

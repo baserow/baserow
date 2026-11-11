@@ -7,6 +7,8 @@ from pydantic import AwareDatetime, Field
 from pydantic_ai import RunContext
 
 from baserow.contrib.automation.tools import automations as shared_automations
+from baserow.contrib.builder.tools import applications as shared_builders
+from baserow.contrib.builder.tools.themes import ThemeName
 from baserow.contrib.dashboard.tools import dashboards as shared_dashboards
 from baserow.contrib.database.tools import databases as shared_databases
 from baserow.core.exceptions import ApplicationDoesNotExist
@@ -16,8 +18,6 @@ from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.audit_log import tools as shared_audit_log
-from baserow_enterprise.builder.tools import applications as shared_builders
-from baserow_enterprise.builder.tools.themes import ThemeName
 
 from . import helpers
 from .helpers import APPLICATION_TYPES

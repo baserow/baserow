@@ -12,6 +12,22 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import formulas
+from baserow.contrib.builder.tools.formulas import apply_builder_formulas
+from baserow.contrib.builder.tools.types import (
+    ActionChanges,
+    ActionCreate,
+    CollectionElementCreate,
+    DataSourceCreate,
+    DataSourceUpdate,
+    DisplayElementCreate,
+    ElementItemCreate,
+    ElementUpdate,
+    LayoutElementCreate,
+    PageCreate,
+    PageUpdate,
+    TableFieldConfig,
+)
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.exceptions import PermissionException
 from baserow.core.tools import ToolContext
@@ -34,22 +50,6 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_element,
     update_element_action,
     update_page,
-)
-from baserow_enterprise.builder.tools import formulas
-from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
-from baserow_enterprise.builder.tools.types import (
-    ActionChanges,
-    ActionCreate,
-    CollectionElementCreate,
-    DataSourceCreate,
-    DataSourceUpdate,
-    DisplayElementCreate,
-    ElementItemCreate,
-    ElementUpdate,
-    LayoutElementCreate,
-    PageCreate,
-    PageUpdate,
-    TableFieldConfig,
 )
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
@@ -1174,7 +1174,7 @@ def test_set_theme_keeps_its_shape(site):
 @pytest.mark.django_db
 def test_set_theme_reports_a_theme_it_can_not_load_as_before(site, monkeypatch):
     monkeypatch.setattr(
-        "baserow_enterprise.builder.tools.themes._load_theme_data", lambda name: None
+        "baserow.contrib.builder.tools.themes._load_theme_data", lambda name: None
     )
 
     result = set_theme(
