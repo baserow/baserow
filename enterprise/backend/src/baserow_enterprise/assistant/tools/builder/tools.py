@@ -32,7 +32,6 @@ from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_enterprise.assistant.types import BuilderPageNavigationType
 from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
 from baserow_enterprise.builder.tools import actions as shared_actions
-from baserow_enterprise.builder.tools import applications as shared_applications
 from baserow_enterprise.builder.tools import data_sources as shared_data_sources
 from baserow_enterprise.builder.tools import elements as shared_elements
 from baserow_enterprise.builder.tools import pages as shared_pages
@@ -44,6 +43,7 @@ from baserow_enterprise.builder.tools.errors import (
     user_error_message,
 )
 from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
+from baserow_enterprise.builder.tools.lookups import get_builder_in_workspace
 from baserow_enterprise.builder.tools.registries import element_tool_type_registry
 from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
 from baserow_enterprise.builder.tools.types import (
@@ -118,9 +118,7 @@ def _get_builder(ctx: RunContext[AssistantDeps], application_id: int):
     """
 
     try:
-        return shared_applications.get_builder_in_workspace(
-            ctx.deps.tool_context(), application_id
-        )
+        return get_builder_in_workspace(ctx.deps.tool_context(), application_id)
     except ApplicationDoesNotExist:
         raise ToolInputError(
             f"Application with ID {application_id} not found in this workspace. "
@@ -1563,9 +1561,8 @@ def setup_user_source(
 
     try:
         _get_builder(ctx, application_id)
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        return {"error": f"Could not find application: {exc}"}
+    except ToolInputError as exc:
+        return {"error": str(exc)}
 
     try:
         shared = shared_user_sources.setup_user_source(

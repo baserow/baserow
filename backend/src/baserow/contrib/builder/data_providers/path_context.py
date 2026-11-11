@@ -35,7 +35,8 @@ class FormulaPathContext:
     :param page_parameters: The names of the page's parameters.
     :param form_inputs: The names the page's form inputs are read by.
     :param current_record: The data source of the repeat or table around the
-        formula, or None outside one or when it reads a schema property instead.
+        formula, or None outside one. A repeat bound to a schema property has it
+        too: ``current_record_is_row`` tells the two apart.
     :param in_collection: Whether the formula is inside a repeat or a table.
     :param in_unbound_collection: Whether that repeat or table reads nothing: no
         data source and no schema property.
