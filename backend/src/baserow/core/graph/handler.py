@@ -740,9 +740,9 @@ class BaseGraphHandler(ABC):
     ) -> List[int]:
         """
         Returns the ids of the points the root reaches, depth first: each point,
-        then its children edge by edge, then the points after it on each output,
-        the default output first. A pure walk of
-        the serialized graph with a seen set, so it terminates on a corrupted graph.
+        then its children edge by edge, then the points after it on the default
+        output. Other outputs are not followed. A pure walk of the serialized graph
+        with a seen set, so it terminates on a corrupted graph.
 
         :param edge_order: Sort key for a point's children edges. Defaults to the
             edge key itself.
@@ -764,13 +764,7 @@ class BaseGraphHandler(ABC):
             if not isinstance(info, dict):
                 continue
             children = self._get_children_dict_from_info(info)
-            outputs = info.get("next", {})
-            # The default output first, then each other output in key order.
-            following = [
-                point_id
-                for output in sorted(outputs, key=lambda key: (key != "", key))
-                for point_id in outputs[output]
-            ]
+            following = [*info.get("next", {}).get("", [])]
             for edge in reversed(sorted(children, key=edge_order)):
                 following = [*children[edge], *following]
             stack.extend(reversed(following))

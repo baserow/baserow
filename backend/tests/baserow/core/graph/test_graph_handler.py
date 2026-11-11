@@ -1361,7 +1361,7 @@ def test_migrate_graph_preserves_outputs_when_they_have_no_id_mapping():
     }
 
 
-def test_get_ordered_point_ids_follows_every_output():
+def test_get_ordered_point_ids_follows_only_the_default_output():
     model = make_graph_model(
         {
             "0": 1,
@@ -1373,5 +1373,5 @@ def test_get_ordered_point_ids_follows_every_output():
         }
     )
 
-    # The default output first, then the other outputs in key order.
-    assert model.get_graph().get_ordered_point_ids() == [1, 2, 3, 4, 5]
+    # A page renders only the default output, so the others are not reached.
+    assert model.get_graph().get_ordered_point_ids() == [1, 2]
