@@ -840,8 +840,8 @@ def test_applications_expose_pending_count_of_requesting_user(api_client, data_f
     with patch.object(
         DatabaseApplicationType,
         "get_pending_counts",
-        side_effect=lambda counted_user, applications: (
-            {database.id: 2} if counted_user.id == user.id else {}
+        side_effect=lambda users, applications: (
+            {user.id: {database.id: 2}} if users == [user] else {}
         ),
     ):
         for url in (

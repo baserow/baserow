@@ -257,8 +257,9 @@ def test_pending_approvals_are_counted_per_agent_and_per_conversation(
     idle = data_fixture.create_agent_conversation(user=api_user, agent=agent)
     url = agent_url(agent, "conversations")
 
+    other_user = data_fixture.create_user()
     counts = agent.get_type().get_pending_counts(
-        api_user, [agent, other_agent, idle_agent]
+        [api_user, other_user], [agent, other_agent, idle_agent]
     )
     listed = api_client.get(url).json()["results"]
     filtered = api_client.get(url, {"has_pending_approvals": "true"}).json()
@@ -267,7 +268,7 @@ def test_pending_approvals_are_counted_per_agent_and_per_conversation(
         {"title": "Renamed"},
     )
 
-    assert counts == {agent.id: 2, other_agent.id: 1}
+    assert counts == {api_user.id: {agent.id: 2, other_agent.id: 1}}
     assert {item["uuid"]: item["pending_approval_count"] for item in listed} == {
         str(waiting.uuid): 2,
         str(idle.uuid): 0,
@@ -284,7 +285,7 @@ def test_each_decision_sends_the_owner_the_pending_count_left(
     api_user, held_reply, mocker, django_capture_on_commit_callbacks
 ):
     agent = held_reply.conversation.agent
-    broadcast = mocker.patch("baserow.ws.tasks.broadcast_to_users")
+    broadcast = mocker.patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
     # Eager Celery would otherwise run the resumed reply.
     mocker.patch.object(ChatRunHandler, "_enqueue")
 
@@ -299,11 +300,12 @@ def test_each_decision_sends_the_owner_the_pending_count_left(
 
     assert [sent.args for sent in broadcast.call_args_list] == [
         (
-            [api_user.id],
             {
-                "type": "application_pending_count_updated",
-                "application_id": agent.id,
-                "pending_count": left,
+                str(api_user.id): {
+                    "type": "application_pending_count_updated",
+                    "application_id": agent.id,
+                    "pending_count": left,
+                }
             },
         )
         for left in (1, 0)

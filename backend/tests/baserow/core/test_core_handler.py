@@ -965,8 +965,9 @@ def test_get_application(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_pending_count_per_application_asks_each_type_for_its_own(data_fixture):
+def test_pending_counts_ask_each_type_once_for_all_signed_in_users(data_fixture):
     user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     dashboard = data_fixture.create_dashboard_application(workspace=database.workspace)
 
@@ -974,24 +975,29 @@ def test_get_pending_count_per_application_asks_each_type_for_its_own(data_fixtu
         patch.object(
             DatabaseApplicationType,
             "get_pending_counts",
-            return_value={database.id: 2},
+            return_value={user.id: {database.id: 2}},
         ) as database_counts,
         patch.object(
             DashboardApplicationType,
             "get_pending_counts",
-            return_value={dashboard.id: 1},
+            return_value={user.id: {dashboard.id: 1}, other_user.id: {dashboard.id: 3}},
         ) as dashboard_counts,
     ):
-        assert CoreHandler().get_pending_count_per_application(
-            user, [database, dashboard]
-        ) == {database.id: 2, dashboard.id: 1}
+        assert CoreHandler().get_pending_counts_per_user_and_application(
+            [user, other_user, AnonymousUser()], [database, dashboard]
+        ) == {
+            user.id: {database.id: 2, dashboard.id: 1},
+            other_user.id: {dashboard.id: 3},
+        }
         assert (
-            CoreHandler().get_pending_count_per_application(AnonymousUser(), [database])
+            CoreHandler().get_pending_counts_per_user_and_application(
+                [AnonymousUser()], [database]
+            )
             == {}
         )
 
-    database_counts.assert_called_once_with(user, [database])
-    dashboard_counts.assert_called_once_with(user, [dashboard])
+    database_counts.assert_called_once_with([user, other_user], [database])
+    dashboard_counts.assert_called_once_with([user, other_user], [dashboard])
 
 
 @pytest.mark.django_db

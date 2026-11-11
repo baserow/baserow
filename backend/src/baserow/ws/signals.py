@@ -250,9 +250,11 @@ def workspace_restored(sender, workspace_user, user, **kwargs):
             )
         ),
         "pending_count_per_application": (
-            CoreHandler().get_pending_count_per_application(
-                workspace_user.user, applications_qs
+            CoreHandler()
+            .get_pending_counts_per_user_and_application(
+                [workspace_user.user], applications_qs
             )
+            .get(workspace_user.user.id, {})
         ),
     }
     applications = [

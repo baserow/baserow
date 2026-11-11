@@ -296,7 +296,7 @@ def test_workspace_restored_carries_the_users_last_viewed_and_pending_count(
     with patch.object(
         DashboardApplicationType,
         "get_pending_counts",
-        return_value={dashboard.id: 2},
+        return_value={user.id: {dashboard.id: 2}},
     ):
         TrashHandler.restore_item(user, "workspace", workspace.id)
 

@@ -82,7 +82,9 @@ def _get_application_serializer_context(request: Request, applications: list) ->
             )
         ),
         "pending_count_per_application": (
-            CoreHandler().get_pending_count_per_application(request.user, applications)
+            CoreHandler()
+            .get_pending_counts_per_user_and_application([request.user], applications)
+            .get(request.user.id, {})
         ),
     }
 

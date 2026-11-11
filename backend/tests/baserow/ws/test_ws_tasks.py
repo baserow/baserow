@@ -8,7 +8,6 @@ import pytest
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
-from pytest_unordered import unordered
 
 from baserow.config.asgi import application
 from baserow.config.db_routers import clear_db_state, get_db_alias, set_db_alias
@@ -877,9 +876,7 @@ def test_broadcast_application_created_carries_each_users_pending_count(
     with patch.object(
         DashboardApplicationType,
         "get_pending_counts",
-        side_effect=lambda counted_user, applications: (
-            {dashboard.id: 2} if counted_user.id == user.id else {}
-        ),
+        return_value={user.id: {dashboard.id: 2}},
     ):
         broadcast_application_created(dashboard.id)
 
@@ -891,7 +888,7 @@ def test_broadcast_application_created_carries_each_users_pending_count(
 
 
 @pytest.mark.django_db
-@patch("baserow.ws.tasks.broadcast_to_users")
+@patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
 def test_broadcast_application_pending_counts_sends_each_user_their_count(
     mock_broadcast, data_fixture
 ):
@@ -902,29 +899,43 @@ def test_broadcast_application_pending_counts_sends_each_user_their_count(
     with patch.object(
         DashboardApplicationType,
         "get_pending_counts",
-        side_effect=lambda counted_user, applications: (
-            {dashboard.id: 2} if counted_user.id == user.id else {}
-        ),
-    ):
+        return_value={user.id: {dashboard.id: 2}},
+    ) as counts:
         broadcast_application_pending_counts(dashboard.id, [user.id, other_user.id])
 
-    assert [sent.args for sent in mock_broadcast.call_args_list] == unordered(
-        [
-            (
-                [counted_user.id],
-                {
-                    "type": "application_pending_count_updated",
-                    "application_id": dashboard.id,
-                    "pending_count": count,
-                },
-            )
+    assert counts.call_count == 1
+    mock_broadcast.assert_called_once_with(
+        {
+            str(counted_user.id): {
+                "type": "application_pending_count_updated",
+                "application_id": dashboard.id,
+                "pending_count": count,
+            }
             for counted_user, count in ((user, 2), (other_user, 0))
-        ]
+        }
     )
 
 
 @pytest.mark.django_db
-@patch("baserow.ws.tasks.broadcast_to_users")
+def test_broadcast_application_created_counts_once_for_all_members(data_fixture):
+    def queries_for(member_count: int) -> int:
+        workspace = data_fixture.create_workspace(
+            users=[data_fixture.create_user() for _ in range(member_count)]
+        )
+        agent = data_fixture.create_agent_application(workspace=workspace)
+        with (
+            patch("baserow.ws.tasks.broadcast_to_users_individual_payloads"),
+            CaptureQueriesContext(connection) as captured,
+        ):
+            broadcast_application_created(agent.id)
+        return len(captured.captured_queries)
+
+    queries_for(1)  # warms the caches of the first broadcast
+    assert queries_for(2) == queries_for(5)
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
 def test_broadcast_application_pending_counts_skips_a_gone_application(
     mock_broadcast, data_fixture
 ):
@@ -936,7 +947,7 @@ def test_broadcast_application_pending_counts_skips_a_gone_application(
 
 
 @pytest.mark.django_db(transaction=True)
-@patch("baserow.ws.tasks.broadcast_to_users")
+@patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
 def test_broadcast_application_pending_counts_counts_on_the_primary(
     mock_broadcast, data_fixture
 ):
@@ -944,7 +955,7 @@ def test_broadcast_application_pending_counts_counts_on_the_primary(
     dashboard = data_fixture.create_dashboard_application(user=user)
     counted_on = []
 
-    def record_alias(counted_user, applications):
+    def record_alias(users, applications):
         counted_on.append(get_db_alias())
         return {}
 

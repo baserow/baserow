@@ -356,11 +356,17 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             if len(conversations) > limit
             else None
         )
-        runs = AgentHandler().get_conversation_runs([item.id for item in page])
+        page_ids = [item.id for item in page]
+        context = {
+            "conversation_runs": AgentHandler().get_conversation_runs(page_ids),
+            "conversation_pending_approvals": (
+                AgentHandler().get_conversation_pending_approval_counts(page_ids)
+            ),
+        }
         return Response(
             {
                 "results": AgentConversationSerializer(
-                    page, many=True, context={"conversation_runs": runs}
+                    page, many=True, context=context
                 ).data,
                 "next_cursor": encode_keyset_cursor(next_cursor),
             }
@@ -419,12 +425,17 @@ class AgentConversationView(APIView):
         conversation = action_type_registry.get_by_type(
             UpdateAgentConversationActionType
         ).do(request.user, agent_id, conversation_uuid, **data)
-        runs = AgentHandler().get_conversation_runs([conversation.id])
-        return Response(
-            AgentConversationSerializer(
-                conversation, context={"conversation_runs": runs}
-            ).data
-        )
+        context = {
+            "conversation_runs": AgentHandler().get_conversation_runs(
+                [conversation.id]
+            ),
+            "conversation_pending_approvals": (
+                AgentHandler().get_conversation_pending_approval_counts(
+                    [conversation.id]
+                )
+            ),
+        }
+        return Response(AgentConversationSerializer(conversation, context=context).data)
 
     @extend_schema(
         tags=["Agent applications"],

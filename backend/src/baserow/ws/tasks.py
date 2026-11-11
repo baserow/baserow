@@ -838,6 +838,10 @@ def broadcast_application_created(
         [application.id], user_ids
     )
 
+    pending_counts_per_user = CoreHandler().get_pending_counts_per_user_and_application(
+        [users_in_workspace_id_map[user_id] for user_id in user_ids], [application]
+    )
+
     payload_map = {}
     for user_id in user_ids:
         user = users_in_workspace_id_map[user_id]
@@ -846,8 +850,8 @@ def broadcast_application_created(
             context={
                 "user": user,
                 "last_viewed_per_application": last_viewed_per_user.get(user_id, {}),
-                "pending_count_per_application": (
-                    CoreHandler().get_pending_count_per_application(user, [application])
+                "pending_count_per_application": pending_counts_per_user.get(
+                    user_id, {}
                 ),
             },
         ).data
@@ -887,20 +891,22 @@ def broadcast_application_pending_counts(
     except Application.DoesNotExist:
         return  # trashed in the meantime
 
-    for user in get_user_model().objects.filter(id__in=user_ids):
-        pending_count = (
-            CoreHandler()
-            .get_pending_count_per_application(user, [application])
-            .get(application.id, 0)
-        )
-        broadcast_to_users(
-            [user.id],
-            {
+    users = list(get_user_model().objects.filter(id__in=user_ids))
+    pending_counts_per_user = CoreHandler().get_pending_counts_per_user_and_application(
+        users, [application]
+    )
+    broadcast_to_users_individual_payloads(
+        {
+            str(user.id): {
                 "type": "application_pending_count_updated",
                 "application_id": application.id,
-                "pending_count": pending_count,
-            },
-        )
+                "pending_count": pending_counts_per_user.get(user.id, {}).get(
+                    application.id, 0
+                ),
+            }
+            for user in users
+        }
+    )
 
 
 @app.task(bind=True)

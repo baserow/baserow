@@ -668,16 +668,16 @@ class ApplicationType(
         return queryset
 
     def get_pending_counts(
-        self, user: "AbstractUser", applications: list["Application"]
-    ) -> dict[int, int]:
+        self, users: list["AbstractUser"], applications: list["Application"]
+    ) -> dict[int, dict[int, int]]:
         """
-        Counts the things in each application waiting for the user to act, like
+        Counts the things in each application waiting for each user to act, like
         tool calls to approve. The count shows next to the application.
 
-        :param user: The signed in user to count for.
+        :param users: The signed in users to count for.
         :param applications: The applications to count in, all of this type.
-        :return: The count per application id. Applications with nothing waiting
-            may be left out.
+        :return: The count per application id, per user id. Users and applications
+            with nothing waiting may be left out.
         """
 
         return {}

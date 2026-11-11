@@ -153,8 +153,7 @@ class AgentService:
             held calls waiting for the user's decision.
         :raises PermissionException: When the user may not read conversations of the
             agent.
-        :return: The user's conversations, most recently updated first, with
-            ``pending_approval_count``.
+        :return: The user's conversations, most recently updated first.
         """
 
         agent = self._get_authorized_agent(

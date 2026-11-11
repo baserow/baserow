@@ -320,17 +320,9 @@ class AgentConversationSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.IntegerField())
     def get_pending_approval_count(self, conversation: AgentConversation) -> int:
-        """
-        Read the count that lists annotate, or count it for a single conversation.
-
-        :param conversation: The conversation being serialized.
-        :return: The number of its pending approvals.
-        """
-
-        count = getattr(conversation, "pending_approval_count", None)
-        if count is None:
-            return AgentHandler().count_pending_approvals(conversation)
-        return count
+        return self.context.get("conversation_pending_approvals", {}).get(
+            conversation.id, 0
+        )
 
 
 class AgentConversationUpdateSerializer(

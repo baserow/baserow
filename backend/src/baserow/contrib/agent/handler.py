@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
@@ -8,16 +9,15 @@ from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import (
     Case,
     Count,
+    Exists,
     Max,
     OuterRef,
     Prefetch,
     QuerySet,
-    Subquery,
     Value,
     When,
     prefetch_related_objects,
 )
-from django.db.models.functions import Coalesce
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -510,34 +510,25 @@ class AgentHandler:
         has_pending_approvals: bool = False,
     ) -> QuerySet[AgentConversation]:
         """
-        Return the owner's conversations with the agent, each with the number of
-        its held calls waiting for the owner's decision.
+        Return the owner's conversations with the agent.
 
         :param agent: The agent the conversations belong to.
         :param owner: The user whose conversations are returned.
         :param cursor: The last conversation of the previous page, to continue after.
         :param has_pending_approvals: Whether to return only the conversations with
             held calls waiting for the owner's decision.
-        :return: The owner's conversations, most recently updated first, with
-            ``pending_approval_count``.
+        :return: The owner's conversations, most recently updated first.
         """
 
-        pending = (
-            AgentToolApproval.objects.filter(
-                reply__conversation=OuterRef("pk"),
-                status=AgentToolApproval.Status.PENDING,
-            )
-            .values("reply__conversation")
-            .annotate(count=Count("id"))
-            .values("count")
-        )
-        conversations = AgentConversation.objects.filter(
-            agent=agent, owner_user=owner
-        ).annotate(pending_approval_count=Coalesce(Subquery(pending), 0))
+        conversations = AgentConversation.objects.filter(agent=agent, owner_user=owner)
         if cursor is not None:
             conversations = conversations.filter(cursor.get_filter("updated_on"))
         if has_pending_approvals:
-            conversations = conversations.filter(pending_approval_count__gt=0)
+            conversations = conversations.filter(
+                Exists(
+                    self._pending_approvals().filter(reply__conversation=OuterRef("pk"))
+                )
+            )
         return conversations
 
     def get_conversation(
@@ -838,42 +829,63 @@ class AgentHandler:
             return None
         return reply
 
-    def count_pending_approvals(self, conversation: AgentConversation) -> int:
+    def _pending_approvals(self) -> QuerySet[AgentToolApproval]:
         """
-        Count the held calls of the conversation waiting for the owner's decision.
-
-        :param conversation: The conversation to look at.
-        :return: The number of its pending approvals.
+        :return: The held calls waiting for their conversation owner's decision.
         """
 
-        return AgentToolApproval.objects.filter(
-            reply__conversation=conversation, status=AgentToolApproval.Status.PENDING
-        ).count()
+        return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
 
-    def get_pending_approval_counts(
-        self, user: AbstractUser, agent_ids: list[int]
+    def get_conversation_pending_approval_counts(
+        self, conversation_ids: list[int]
     ) -> dict[int, int]:
         """
-        Count the held calls waiting for the user's decision in their untrashed
-        conversations with each Agent.
-
-        :param user: The user who owns the conversations.
-        :param agent_ids: The ids of the Agents to count in.
-        :return: The number of pending approvals by Agent id, leaving out Agents
-            with none.
+        :param conversation_ids: The ids of the conversations to count in.
+        :return: The number of held calls waiting for the owner's decision by
+            conversation id, leaving out conversations with none.
         """
 
         return dict(
-            AgentToolApproval.objects.filter(
-                status=AgentToolApproval.Status.PENDING,
-                reply__conversation__owner_user_id=user.id,
+            self._pending_approvals()
+            .filter(reply__conversation_id__in=conversation_ids)
+            .values("reply__conversation_id")
+            .annotate(count=Count("id"))
+            .values_list("reply__conversation_id", "count")
+        )
+
+    def get_pending_approval_counts(
+        self, user_ids: list[int], agent_ids: list[int]
+    ) -> dict[int, dict[int, int]]:
+        """
+        Count the held calls waiting for each user's decision in their untrashed
+        conversations with each Agent.
+
+        :param user_ids: The ids of the users who own the conversations.
+        :param agent_ids: The ids of the Agents to count in.
+        :return: The number of pending approvals by Agent id, by user id, leaving
+            out users and Agents with none.
+        """
+
+        counts: dict[int, dict[int, int]] = defaultdict(dict)
+        for user_id, agent_id, count in (
+            self._pending_approvals()
+            .filter(
+                reply__conversation__owner_user_id__in=user_ids,
                 reply__conversation__agent_id__in=agent_ids,
                 reply__conversation__trashed=False,
             )
-            .values("reply__conversation__agent_id")
+            .values(
+                "reply__conversation__owner_user_id", "reply__conversation__agent_id"
+            )
             .annotate(count=Count("id"))
-            .values_list("reply__conversation__agent_id", "count")
-        )
+            .values_list(
+                "reply__conversation__owner_user_id",
+                "reply__conversation__agent_id",
+                "count",
+            )
+        ):
+            counts[user_id][agent_id] = count
+        return dict(counts)
 
     def decide_approvals(
         self,

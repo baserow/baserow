@@ -2103,23 +2103,25 @@ class CoreHandler:
             )
         return specific_queryset(queryset, per_content_type_queryset_hook)
 
-    def get_pending_count_per_application(
+    def get_pending_counts_per_user_and_application(
         self,
-        user: AbstractUser | AnonymousUser,
+        users: Iterable[AbstractUser | AnonymousUser],
         applications: Iterable[Application],
-    ) -> dict[int, int]:
+    ) -> dict[int, dict[int, int]]:
         """
-        Asks each application type how many things wait for the user in its
-        applications, with one call per type whatever the number of applications.
+        Asks each application type how many things wait for the users in its
+        applications, with one call per type whatever the number of users and
+        applications.
 
-        :param user: The user to count for. Nothing waits for an anonymous visitor
-            of a template, so the types are not asked.
+        :param users: The users to count for. Nothing waits for an anonymous
+            visitor of a template, so they are left out.
         :param applications: The applications to count in, of any type.
-        :return: The count per application id. Applications with nothing waiting
-            may be left out.
+        :return: The count per application id, per user id. Users and applications
+            with nothing waiting may be left out.
         """
 
-        if not user.is_authenticated:
+        signed_in = [user for user in users if user.is_authenticated]
+        if not signed_in:
             return {}
 
         applications_per_model: dict[type[Application], list[Application]] = (
@@ -2128,13 +2130,13 @@ class CoreHandler:
         for application in applications:
             applications_per_model[application.specific_class].append(application)
 
-        pending_counts: dict[int, int] = {}
+        pending_counts: dict[int, dict[int, int]] = defaultdict(dict)
         for model, model_applications in applications_per_model.items():
             application_type = application_type_registry.get_by_model(model)
-            pending_counts.update(
-                application_type.get_pending_counts(user, model_applications)
-            )
-        return pending_counts
+            counts = application_type.get_pending_counts(signed_in, model_applications)
+            for user_id, user_counts in counts.items():
+                pending_counts[user_id].update(user_counts)
+        return dict(pending_counts)
 
     def create_application(
         self,
