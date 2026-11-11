@@ -206,7 +206,7 @@ def test_import_serialized_sets_is_public(data_fixture, is_publishing):
 def test_import_serialized_regenerates_uid_unless_publishing(
     data_fixture, is_duplicate
 ):
-    trigger_node = data_fixture.create_core_http_trigger_node()
+    trigger_node = data_fixture.create_http_trigger_node()
     service = trigger_node.service
 
     service_type = CoreHTTPTriggerServiceType()

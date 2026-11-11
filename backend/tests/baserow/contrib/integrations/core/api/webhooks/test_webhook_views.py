@@ -419,7 +419,7 @@ def test_http_trigger_rolls_back_mutations_before_waiting(api_client, data_fixtu
 def test_caller_credential_headers_are_not_passed_to_the_workflow(
     api_client, data_fixture, header_name
 ):
-    node = data_fixture.create_core_http_trigger_node()
+    node = data_fixture.create_http_trigger_node()
 
     with patch.object(
         service_type_registry.get("http_trigger"), "on_event"

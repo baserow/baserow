@@ -351,7 +351,7 @@ def _create_live_periodic_workflows(data_fixture, count):
         workflow = data_fixture.create_automation_workflow(
             automation=automation, state=WorkflowState.LIVE, create_trigger=False
         )
-        data_fixture.create_core_periodic_trigger_node(
+        data_fixture.create_periodic_trigger_node(
             workflow=workflow,
             service=data_fixture.create_core_periodic_service(
                 interval=PERIODIC_INTERVAL_MINUTE,
@@ -460,7 +460,7 @@ def test_periodic_services_that_start_no_workflow_add_no_queries(data_fixture):
 
     def count_queries_with_draft_services(count):
         for _ in range(count):
-            data_fixture.create_core_periodic_trigger_node(
+            data_fixture.create_periodic_trigger_node(
                 workflow=data_fixture.create_automation_workflow(
                     automation=automation,
                     state=WorkflowState.DRAFT,
@@ -502,7 +502,7 @@ def test_trashing_a_workflow_or_its_workspace_stops_its_published_copy(
         workflow = data_fixture.create_automation_workflow(
             automation=automation, create_trigger=False
         )
-        data_fixture.create_core_periodic_trigger_node(
+        data_fixture.create_periodic_trigger_node(
             workflow=workflow,
             service_kwargs={"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
         )
