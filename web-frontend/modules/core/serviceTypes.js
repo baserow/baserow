@@ -253,6 +253,15 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
 
     /**
+     * The image a data source of this type is shown with when it has no
+     * integration, whose image it would otherwise be shown with. Without one,
+     * the type's icon is shown.
+     */
+    get image() {
+      return null
+    }
+
+    /**
      * Why the last test of the data source found no data, when the test still
      * stored what it received: an error the test shows although it succeeded.
      */

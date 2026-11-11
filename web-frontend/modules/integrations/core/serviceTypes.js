@@ -21,6 +21,7 @@ import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/com
 import { SMTPIntegrationType } from '@baserow/modules/integrations/core/integrationTypes'
 import CoreResponseServiceForm from '@baserow/modules/integrations/core/components/services/CoreResponseServiceForm.vue'
 import CoreHTTPDataSourceServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPDataSourceServiceForm'
+import httpRequestImage from '@baserow/modules/integrations/core/assets/images/httpRequest.svg?url'
 import {
   HTTP_DATA_SOURCE_MAX_RESULT_LIMIT,
   HTTP_DATA_SOURCE_TYPE,
@@ -575,6 +576,10 @@ export class CoreHTTPDataSourceServiceType extends DataSourceServiceTypeMixin(
 
   get icon() {
     return 'iconoir-globe'
+  }
+
+  get image() {
+    return httpRequestImage
   }
 
   get group() {
