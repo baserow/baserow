@@ -677,6 +677,9 @@ SPECTACULAR_SETTINGS = {
     },
     "VERSION": "2.4.2",
     "SERVE_INCLUDE_SCHEMA": False,
+    # ReDoc 3 is incompatible with drf-spectacular's classic script template.
+    # Pin the bundle so CDN releases cannot silently break the documentation.
+    "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2.5.4",
     "TAGS": [
         {"name": "Settings"},
         {"name": "User"},
