@@ -77,7 +77,7 @@
               class="agent-conversations__item agent-conversations__item--renaming"
             >
               <Icon
-                icon="iconoir-chat-bubble"
+                :icon="conversationIcon(item)"
                 type="secondary"
                 aria-hidden="true"
               />
@@ -104,7 +104,7 @@
               @click="$emit('select', item)"
             >
               <Icon
-                icon="iconoir-chat-bubble"
+                :icon="conversationIcon(item)"
                 type="secondary"
                 aria-hidden="true"
               />
@@ -112,6 +112,7 @@
                 item.title || $t('agent.newConversation')
               }}</span>
               <span
+                v-if="!item.shared"
                 class="agent-conversations__private"
                 role="img"
                 :aria-label="$t('agent.privateConversation')"
@@ -124,7 +125,13 @@
               <span
                 v-if="item.pending_approval_count > 0"
                 class="agent-conversations__status-label"
-                >{{ $t('agent.waitingForApproval') }}</span
+                >{{
+                  $t(
+                    item.shared
+                      ? 'agent.waitingForApprovalShared'
+                      : 'agent.waitingForApproval'
+                  )
+                }}</span
               >
               <span
                 class="agent-conversations__status"
@@ -180,23 +187,25 @@
       >
     </div>
     <Context ref="menu" @hidden="menuItem = null">
-      <ul class="context__menu">
-        <li v-if="canUpdate" class="context__menu-item">
+      <ul v-if="menuItem" class="context__menu">
+        <li v-if="canUpdateItem(menuItem)" class="context__menu-item">
           <a class="context__menu-item-link" @click="togglePin">
             <i class="context__menu-item-icon iconoir-pin"></i>
             {{ $t(menuItem?.pinned ? 'agent.unpin' : 'agent.pin') }}
           </a>
         </li>
-        <li v-if="canUpdate" class="context__menu-item">
+        <li v-if="canUpdateItem(menuItem)" class="context__menu-item">
           <a class="context__menu-item-link" @click="startRename">
             <i class="context__menu-item-icon iconoir-edit-pencil"></i>
             {{ $t('action.rename') }}
           </a>
         </li>
         <li
-          v-if="canDelete"
+          v-if="canDeleteItem(menuItem)"
           class="context__menu-item"
-          :class="{ 'context__menu-item--with-separator': canUpdate }"
+          :class="{
+            'context__menu-item--with-separator': canUpdateItem(menuItem),
+          }"
         >
           <a
             class="context__menu-item-link context__menu-item-link--delete"
@@ -216,6 +225,8 @@ import { nextTick, ref, watch } from 'vue'
 import Icon from '@baserow/modules/core/components/Icon'
 import Context from '@baserow/modules/core/components/Context'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
+import { useNuxtApp } from '#app'
+import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -228,6 +239,8 @@ const props = defineProps({
   readyToSend: Boolean,
   canUpdate: Boolean,
   canDelete: Boolean,
+  /** Whether the viewer may update the agent, which shared conversations require. */
+  canUpdateAgent: Boolean,
 })
 const emit = defineEmits([
   'select',
@@ -238,6 +251,8 @@ const emit = defineEmits([
   'update',
   'delete',
 ])
+
+const { $registry } = useNuxtApp()
 
 const scroll = ref(null)
 const menu = ref(null)
@@ -250,8 +265,18 @@ const shownItems = ref(props.items)
 const itemButtons = {}
 let renameOriginal = ''
 
+function conversationIcon(item) {
+  return (
+    serviceTypeOf($registry, item.trigger_type)?.icon || 'iconoir-chat-bubble'
+  )
+}
+const canUpdateItem = (item) =>
+  props.canUpdate && (!item.shared || props.canUpdateAgent)
+const canDeleteItem = (item) =>
+  props.canDelete && (!item.shared || props.canUpdateAgent)
 // A draft exists only in this tab until its first message is sent.
-const hasOptions = (item) => !item.local && (props.canUpdate || props.canDelete)
+const hasOptions = (item) =>
+  !item.local && (canUpdateItem(item) || canDeleteItem(item))
 const isListed = (uuid) => props.items.some((item) => item.uuid === uuid)
 
 watch([() => props.items, renamingUuid], ([items, renaming]) => {

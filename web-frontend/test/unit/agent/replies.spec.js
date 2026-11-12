@@ -20,9 +20,11 @@ import {
   page,
   selectConversation,
   send,
+  sharedConversation,
   sendMessage,
   stop,
   useFakeTimers,
+  withoutConfiguration,
   conversationsPage,
 } from './helpers'
 
@@ -53,10 +55,10 @@ const toolStep = (id, tool, status, extra = {}) => ({
 })
 
 describe('Agent replies', () => {
-  let testApp, mount, api, streams, cursor
+  let testApp, mount, allowed, api, streams, cursor
 
   beforeEach(async () => {
-    ;({ testApp, mount } = await createAgentPage())
+    ;({ testApp, mount, allowed } = await createAgentPage())
     testApp.authenticate({ id: 1 })
     streams = {}
     cursor = 0
@@ -473,4 +475,29 @@ describe('Agent replies', () => {
       expect(error(wrapper)).toBe(expected)
     }
   )
+
+  test('lets only members who may update the agent stop a trigger run', async () => {
+    const shared = sharedConversation('conversation-a', 'Conversation A')
+    mockConversations(testApp, conversationsPage([shared]))
+    mockMessages(
+      testApp,
+      shared.uuid,
+      page([
+        message('t1', 'Trigger data', { id: 1, role: 'trigger' }),
+        runningReply('run-4', 4),
+      ])
+    )
+    allowed.value = withoutConfiguration
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'Conversation A')
+    expect(wrapper.find('.chat-composer').exists()).toBe(false)
+    expect(wrapper.find('.agent-chat__shared .button').exists()).toBe(false)
+
+    allowed.value = () => true
+    await flushPromises()
+    await wrapper.get('.agent-chat__shared .button').trigger('click')
+    await flushPromises()
+
+    expect(api.cancel).toHaveBeenCalledExactlyOnceWith('run-4')
+  })
 })

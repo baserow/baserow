@@ -282,3 +282,70 @@
     max-height: 320px;
   }
 }
+
+.agent-trigger-start {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 12px 12px 12px 6px;
+  background: $palette-neutral-0;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.agent-trigger-start__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 0;
+  background: $palette-neutral-50;
+  font: inherit;
+  font-weight: 500;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: $palette-neutral-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: -2px;
+  }
+}
+
+.agent-trigger-start__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.agent-trigger-start__title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.agent-trigger-start__chevron {
+  flex-shrink: 0;
+  color: $palette-neutral-700;
+}
+
+.agent-trigger-start__text {
+  @extend %ellipsis;
+
+  padding: 10px 16px;
+  color: $palette-neutral-900;
+}
+
+.agent-trigger-start--expanded .agent-trigger-start__text {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: pre-wrap;
+  color: $palette-neutral-1200;
+}

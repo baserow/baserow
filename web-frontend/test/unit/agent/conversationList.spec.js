@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import { flushPromises } from '@vue/test-utils'
+import Context from '@baserow/modules/core/components/Context'
 import { chooseFromMenu } from './helpers'
 
 describe('Agent conversation list', () => {
@@ -129,10 +130,18 @@ describe('Agent conversation list', () => {
         items: [
           { uuid: 'waiting', title: 'Waiting', pending_approval_count: 2 },
           { uuid: 'replying', title: 'Replying', run_id: 'run-1' },
+          {
+            uuid: 'shared',
+            title: 'Shared',
+            shared: true,
+            pending_approval_count: 1,
+          },
         ],
       },
     })
-    const [waiting, replying] = wrapper.findAll('.agent-conversations__item')
+    const [waiting, replying, shared] = wrapper.findAll(
+      '.agent-conversations__item'
+    )
 
     expect(waiting.get('.agent-conversations__status').classes()).toContain(
       'agent-conversations__status--waiting'
@@ -145,6 +154,9 @@ describe('Agent conversation list', () => {
     )
     expect(replying.find('.agent-conversations__status-label').exists()).toBe(
       false
+    )
+    expect(shared.get('.agent-conversations__status-label').text()).toBe(
+      'agent.waitingForApprovalShared'
     )
   })
 
@@ -249,5 +261,68 @@ describe('Agent conversation list', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  test('shows the trigger icon on trigger-started conversations and the chat icon otherwise', async () => {
+    const wrapper = await testApp.mount(AgentConversationList, {
+      props: {
+        items: [
+          {
+            uuid: 'periodic',
+            title: 'Daily digest',
+            shared: true,
+            trigger_type: 'periodic',
+          },
+          {
+            uuid: 'removed',
+            title: 'Old digest',
+            shared: true,
+            trigger_type: 'removed_plugin_trigger',
+          },
+          saved,
+        ],
+      },
+    })
+
+    const icons = wrapper
+      .findAll('.agent-conversations__item .icon')
+      .map((icon) => icon.classes().find((name) => name.startsWith('iconoir-')))
+    expect(icons).toEqual([
+      'iconoir-timer',
+      'iconoir-chat-bubble',
+      'iconoir-chat-bubble',
+    ])
+    expect(wrapper.findAll('.agent-conversations__private')).toHaveLength(1)
+  })
+
+  test('lets only members who may update the agent change a shared conversation', async () => {
+    const shared = {
+      uuid: 'shared',
+      title: 'Daily digest',
+      shared: true,
+      trigger_type: 'periodic',
+    }
+    const wrapper = await mountList([shared, saved])
+    const options = () =>
+      wrapper
+        .findAll('.agent-conversations__row')
+        .map((row) => row.find('.agent-conversations__options').exists())
+    expect(options()).toEqual([false, true])
+
+    await wrapper.setProps({ canUpdateAgent: true })
+    expect(options()).toEqual([true, true])
+    await wrapper.get('.agent-conversations__options').trigger('click')
+    const links = wrapper
+      .findComponent(Context)
+      .findAll('.context__menu-item-link')
+    expect(links.map((link) => link.text())).toEqual([
+      'agent.pin',
+      'action.rename',
+      'action.delete',
+    ])
+    await links[2].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('delete')).toEqual([[shared]])
   })
 })

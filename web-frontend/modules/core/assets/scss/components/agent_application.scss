@@ -1149,3 +1149,28 @@
   gap: 8px;
   margin-top: 12px;
 }
+
+.agent-chat__shared {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid $palette-neutral-200;
+  background: $palette-neutral-50;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+
+  @include rounded($rounded-xl);
+}
+
+.agent-chat__shared-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.agent-chat__shared-text {
+  flex: 1;
+  min-width: 0;
+}

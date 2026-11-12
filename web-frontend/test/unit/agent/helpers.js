@@ -278,6 +278,12 @@ export const conversation = (
   updated_on: updatedOn,
 })
 
+export const sharedConversation = (uuid, title, triggerType = 'periodic') => ({
+  ...conversation(uuid, title),
+  shared: true,
+  trigger_type: triggerType,
+})
+
 export const message = (
   uuid,
   content,

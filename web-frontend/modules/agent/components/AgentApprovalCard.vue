@@ -11,7 +11,12 @@
       <span :id="titleId" class="agent-approval__title">
         {{
           pending.length
-            ? $t('agent.approvalRequest', { name: agent.name })
+            ? $t(
+                disabled
+                  ? 'agent.approvalRequestReadOnly'
+                  : 'agent.approvalRequest',
+                { name: agent.name }
+              )
             : $t('agent.approvalReviewed')
         }}
       </span>
