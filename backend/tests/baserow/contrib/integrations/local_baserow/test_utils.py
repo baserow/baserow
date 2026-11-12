@@ -36,7 +36,6 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
-from baserow.core.models import Agent
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -280,9 +279,9 @@ def test_prepare_file_for_db_with_service_file(data_fixture):
 
 
 @pytest.mark.django_db
-def test_prepare_file_for_db_with_agent_creates_an_anonymous_user_file(data_fixture):
+def test_prepare_file_for_db_preserves_identity_attribution(data_fixture):
     user = data_fixture.create_user()
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=data_fixture.create_workspace(user=user), name="File writer"
     )
     service_file = ServiceFile(
@@ -294,9 +293,9 @@ def test_prepare_file_for_db_with_agent_creates_an_anonymous_user_file(data_fixt
         ),
     )
 
-    file_name = prepare_files_for_db(service_file, agent)[0]["name"]
+    file_name = prepare_files_for_db(service_file, identity)[0]["name"]
 
-    assert UserFileHandler().get_user_file_by_name(file_name).uploaded_by is None
+    assert UserFileHandler().get_user_file_by_name(file_name).uploaded_by == identity
 
 
 @pytest.mark.django_db

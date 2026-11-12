@@ -1,7 +1,8 @@
 import Avatar from '@baserow/modules/core/components/Avatar'
 import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import { Registerable } from '@baserow/modules/core/registry'
-import AgentService from '@baserow/modules/core/services/agent'
+import IdentityService from '@baserow/modules/core/services/identity'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 
 export class SubjectType extends Registerable {
   /** Component owning this subject type's avatar color, icon and shape. */
@@ -26,7 +27,7 @@ export class SubjectType extends Registerable {
 
   /**
    * Tells subjects of different types apart, for instance in the share dialog
-   * where users, agents and teams are listed together.
+   * where users, identities and teams are listed together.
    */
   getKey(subject) {
     return `${this.getType()}:${this.getId(subject)}`
@@ -41,7 +42,7 @@ export class SubjectType extends Registerable {
   }
 
   /**
-   * Whether a subject of this type holds its roles itself, as users and agents
+   * Whether a subject of this type holds its roles itself, as users and identities
    * do. A team passes its roles on to its members instead: such a role applies
    * on the scope it is held on, but it never makes a member an admin of what is
    * inside that scope.
@@ -125,7 +126,7 @@ export class SubjectType extends Registerable {
       id,
       name: this.getDisplayName(subject),
       email: subject.email,
-      subtitle: this.getSubtitle(subject) ?? this.getBadge(),
+      subtitle: this.getSubtitle(subject) ?? this.getBadge(subject),
       search: this.getSearchText(subject),
       avatarComponent: this.avatarComponent,
       subject,
@@ -142,8 +143,38 @@ export class UserSubjectType extends SubjectType {
     return 10
   }
 
-  getTypeDisplayName() {
-    return this.$t('subjectType.user')
+  get avatarComponent() {
+    return (this._avatarComponent ??= ({ subject, size }) => {
+      const isIdentity = subject.user_type === 'identity'
+      return (
+        <Avatar
+          class={isIdentity ? 'identity-avatar' : undefined}
+          initials={
+            isIdentity
+              ? ''
+              : nameAbbreviation(this.getDisplayName(subject) || '')
+          }
+          icon={isIdentity ? this.identityIconClass : ''}
+          color={isIdentity ? 'purple' : 'blue'}
+          rounded={!isIdentity}
+          size={size}
+        />
+      )
+    })
+  }
+
+  getTypeDisplayName(subject) {
+    return this.$t(
+      subject?.user_type === 'identity'
+        ? 'subjectType.identity'
+        : 'subjectType.user'
+    )
+  }
+
+  getBadge(subject) {
+    return subject?.user_type === 'identity'
+      ? this.$t('subjectType.identity')
+      : null
   }
 
   getPluralTypeDisplayName() {
@@ -158,8 +189,12 @@ export class UserSubjectType extends SubjectType {
     return 'iconoir-user'
   }
 
+  get identityIconClass() {
+    return 'iconoir-lock'
+  }
+
   getId(subject) {
-    return subject.user_id ?? super.getId(subject)
+    return subject.subject_id ?? subject.user_id ?? super.getId(subject)
   }
 
   getDisplayName(
@@ -186,8 +221,20 @@ export class UserSubjectType extends SubjectType {
     return this.getId(subject) === currentUserId
   }
 
-  fetchAssignableSubjects(workspace) {
-    return Promise.resolve(workspace.users || [])
+  async fetchAssignableSubjects(workspace) {
+    const users = workspace.users || []
+    if (
+      !this.app.$featureFlagIsEnabled?.(FF_IDENTITIES) ||
+      !this.app.$hasPermission(
+        'workspace.list_identities',
+        workspace,
+        workspace.id
+      )
+    ) {
+      return users
+    }
+    const { data } = await IdentityService(this.app.$client).list(workspace.id)
+    return [...users, ...data.results]
   }
 
   isUser() {
@@ -195,7 +242,7 @@ export class UserSubjectType extends SubjectType {
   }
 
   getWorkspaceRoleUid(subject) {
-    return subject.permissions ?? null
+    return subject.permissions ?? subject.role_uid ?? null
   }
 }
 
@@ -215,56 +262,5 @@ export class AnonymousUserSubjectType extends SubjectType {
   // Anonymous visitors are display-only and cannot receive role assignments.
   isEnabled(workspace) {
     return false
-  }
-}
-
-export class AgentSubjectType extends SubjectType {
-  static getType() {
-    return 'core.Agent'
-  }
-
-  getOrder() {
-    return 30
-  }
-
-  get avatarComponent() {
-    return (this._avatarComponent ??= ({ size }) => (
-      <Avatar
-        class="agent-avatar"
-        icon="iconoir-lock"
-        color="purple"
-        size={size}
-      />
-    ))
-  }
-
-  get iconClass() {
-    return 'iconoir-lock'
-  }
-
-  getTypeDisplayName() {
-    return this.$t('subjectType.identity')
-  }
-
-  getPluralTypeDisplayName() {
-    return this.$t('subjectType.identities')
-  }
-
-  getBadge() {
-    return this.getTypeDisplayName()
-  }
-
-  async fetchAssignableSubjects(workspace) {
-    if (
-      !this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
-    ) {
-      return []
-    }
-    const { data } = await AgentService(this.app.$client).list(workspace.id)
-    return data.results
-  }
-
-  getWorkspaceRoleUid(subject) {
-    return subject.role_uid ?? null
   }
 }

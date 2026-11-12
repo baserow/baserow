@@ -4,7 +4,7 @@ import MemberInvitationRoute from '@baserow_enterprise/components/invitation/Mem
 
 /**
  * The share dialog of one object: gives existing workspace members, teams and
- * agents a role on it, invites new people by email with a role on it only, and
+ * identities a role on it, invites new people by email with a role on it only, and
  * lists who has access. Only offered for scope targets with the RBAC feature,
  * since roles on objects need it.
  */

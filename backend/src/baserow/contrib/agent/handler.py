@@ -55,11 +55,14 @@ from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.exceptions import IdentityDoesNotExist
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
+from baserow.core.user.identity import is_identity
 from baserow.core.utils import extract_allowed, remove_unstorable_characters
 
 from .constants import (
@@ -420,19 +423,22 @@ class AgentHandler:
         ):
             return missing
         subject = self.get_run_as_subject(subject_type, subject_id, include_trash=True)
-        if subject is None:
+        if not is_identity(subject) or not subject.is_active:
             return missing
-        registered_type = subject_type_registry.get(subject_type)
-        if not registered_type.is_in_workspace(subject, workspace, include_trash=True):
+        try:
+            identity_workspace = IdentityHandler.get_workspace(subject)
+        except IdentityDoesNotExist:
+            return missing
+        if identity_workspace.id != workspace.id:
             return missing
         return AgentRunAsResolution(
             AgentRunAsState.TRASHED
-            if getattr(subject, "trashed", False)
+            if subject.profile.trashed
             else AgentRunAsState.ACTIVE,
             subject_type,
             subject_id,
             subject,
-            registered_type.get_display_name(subject),
+            subject_type_registry.get(subject_type).get_display_name(subject),
         )
 
     def get_usable_run_as_subject(

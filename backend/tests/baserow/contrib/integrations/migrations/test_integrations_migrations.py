@@ -211,3 +211,40 @@ def test_0032_coreperiodicservice_timezone_defaults_existing_rows_to_utc(
     assert service.interval == "WEEK"
     assert (service.day_of_week, service.hour, service.minute) == (0, 5, 0)
     assert service.next_run_at == datetime(2026, 2, 16, 5, 0, 0, tzinfo=timezone.utc)
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0043_clears_legacy_agent_authorization(migrator, teardown_table_metadata):
+    old_state = migrator.migrate(
+        [("integrations", "0042_corehttpdatasourceservice")]
+    )
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Application = old_state.apps.get_model("core", "Application")
+    Integration = old_state.apps.get_model("integrations", "LocalBaserowIntegration")
+
+    content_type, _ = ContentType.objects.get_or_create(
+        app_label="integrations", model="localbaserowintegration"
+    )
+    application = Application.objects.create(
+        workspace=Workspace.objects.create(name="Legacy"),
+        name="Legacy",
+        order=1,
+        content_type=content_type,
+    )
+    for subject_type in ("core.Agent", "auth.User"):
+        Integration.objects.create(
+            application=application,
+            name=subject_type,
+            order=1,
+            content_type=content_type,
+            authorized_subject_type=subject_type,
+            authorized_subject_id=1,
+        )
+
+    migrator.migrate([("integrations", "0043_clear_legacy_agent_authorization")])
+
+    authorizations = Integration.objects.order_by("id").values_list(
+        "authorized_subject_type", "authorized_subject_id"
+    )
+    assert list(authorizations) == [(None, None), ("auth.User", 1)]

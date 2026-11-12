@@ -21,6 +21,7 @@ __all__ = [
 
 
 class TeamSampleSubjectSerializer(serializers.Serializer):
+    user_type = serializers.CharField(read_only=True, allow_null=True)
     subject_id = serializers.IntegerField(help_text="The subject's unique identifier.")
     subject_type = serializers.ChoiceField(
         required=True,

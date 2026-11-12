@@ -63,6 +63,22 @@ There are also commands to easily run the tests.
 - `just b test -n=auto` (backend): run tests in parallel for faster execution.
 - `just f test` (frontend): run all frontend tests with Vitest.
 
+## Concurrent database indexes
+
+Use `RetryableAddIndexConcurrently` from `baserow.core.migration_utils` when adding
+an index to an existing PostgreSQL table. It accepts the same `model_name` and
+`models.Index` arguments as Django's `AddIndexConcurrently` and updates migration
+state directly; `SeparateDatabaseAndState` is not needed. Set `atomic = False` on
+the migration and keep transactional schema changes in a separate migration.
+
+An interrupted concurrent build can leave an invalid index. On rerunning
+`migrate`, this operation drops that index concurrently and rebuilds it. It keeps
+a valid, ready index and tolerates an already removed index during rollback.
+Recovery resolves the index in its table's schema and refuses a same-name relation
+belonging to another table. Keep index names and definitions immutable and run only
+one migration process at a time. Errors propagate; this does not retry builds in a
+loop. `sqlmigrate` shows ordinary concurrent DDL, without the runtime recovery.
+
 ## Git pre-commit hooks
 
 Baserow uses [`pre-commit`](https://pre-commit.com/) to automatically run linters and

@@ -1,0 +1,11 @@
+.identity-teams-cell,
+.identity-teams-form-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.identity-teams-cell__empty,
+.identity-teams-form-field__empty {
+  color: $palette-neutral-700;
+}

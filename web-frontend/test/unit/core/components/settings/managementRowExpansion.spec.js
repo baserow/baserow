@@ -1,8 +1,8 @@
 import flushPromises from 'flush-promises'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 
-import { AgentExtensionType } from '@baserow/modules/core/agentExtensionTypes'
-import AgentsTable from '@baserow/modules/core/components/settings/agents/AgentsTable'
+import { IdentityExtensionType } from '@baserow/modules/core/identityExtensionTypes'
+import IdentitiesTable from '@baserow/modules/core/components/settings/identities/IdentitiesTable'
 import MembersTable from '@baserow/modules/core/components/settings/members/MembersTable'
 import { MembersPagePluginType } from '@baserow/modules/database/membersPagePluginTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -37,13 +37,13 @@ class ExpandingMembersPlugin extends MembersPagePluginType {
   }
 }
 
-class ExpandingAgentsExtension extends AgentExtensionType {
+class ExpandingIdentitiesExtension extends IdentityExtensionType {
   static getType() {
-    return 'expandingAgentsTest'
+    return 'expandingIdentitiesTest'
   }
 
   getRowExpansion() {
-    return getRowExpansion('name', 'agent', (row) => row.id)
+    return getRowExpansion('name', 'identity', (row) => row.id)
   }
 }
 
@@ -115,10 +115,10 @@ describe('Management table row expansion', () => {
     }
   })
 
-  test('agents rows expand as the first active agent extension says', async () => {
-    const extension = new ExpandingAgentsExtension({ app: app.getApp() })
-    app.$registry.register('agentExtension', extension)
-    app.mock.onGet('/agents/workspace/1/').reply(200, {
+  test('identities rows expand as the first active identity extension says', async () => {
+    const extension = new ExpandingIdentitiesExtension({ app: app.getApp() })
+    app.$registry.register('identityExtension', extension)
+    app.mock.onGet('/identities/workspace/1/').reply(200, {
       count: 2,
       results: [
         {
@@ -136,20 +136,20 @@ describe('Management table row expansion', () => {
       ],
     })
     try {
-      const wrapper = await app.mount(AgentsTable, {
+      const wrapper = await app.mount(IdentitiesTable, {
         props: { workspace },
         global: { mocks: { $hasPermission: () => true } },
       })
       await flushPromises()
 
-      // Only the agent with roles can be expanded.
+      // Only the identity with roles can be expanded.
       expect(await expandFirstRow(wrapper)).toEqual({
         labels: ['+2'],
         renderedBeforeExpanding: false,
-        expanded: 'agent:5:1:true',
+        expanded: 'identity:5:1:true',
       })
     } finally {
-      app.$registry.unregister('agentExtension', extension.getType())
+      app.$registry.unregister('identityExtension', extension.getType())
     }
   })
 })

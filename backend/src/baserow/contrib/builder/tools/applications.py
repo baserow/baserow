@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools import applications as shared_applications
 from baserow.core.tools.errors import ToolInputError, validation_messages
 
@@ -19,6 +19,7 @@ from .lookups import get_builder_in_workspace
 from .themes import ThemeName, apply_theme
 
 
+@tool_execution
 def list_builders(
     ctx: ToolContext,
     page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
@@ -40,6 +41,7 @@ def list_builders(
     return shared_applications.list_applications(ctx, ["builder"], page, size)
 
 
+@tool_execution
 def create_builder(
     ctx: ToolContext,
     name: Annotated[
@@ -68,6 +70,7 @@ def create_builder(
     return {"created_builder": {"id": builder.id, "name": builder.name}}
 
 
+@tool_execution
 def update_builder(
     ctx: ToolContext,
     builder_id: Annotated[

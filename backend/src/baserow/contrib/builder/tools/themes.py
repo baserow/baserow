@@ -11,7 +11,7 @@ from pydantic import Field
 
 from baserow.contrib.builder.theme.registries import theme_config_block_registry
 from baserow.contrib.builder.theme.service import ThemeService
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import ToolInputError
 
 from .lookups import get_builder_in_workspace
@@ -138,6 +138,7 @@ def builder_uses_theme(builder, theme_name: str) -> bool:
     )
 
 
+@tool_execution
 def set_theme(
     ctx: ToolContext,
     builder_id: Annotated[

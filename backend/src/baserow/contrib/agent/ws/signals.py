@@ -15,45 +15,54 @@ from baserow.contrib.agent.signals import (
     agent_conversation_updated,
 )
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
-from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.signals import (
+    identity_created,
+    identity_deleted,
+    identity_updated,
+)
+from baserow.core.models import User, UserProfile
 from baserow.core.object_scopes import ApplicationObjectScopeType
-from baserow.core.trash.signals import permanently_deleted
+from baserow.core.trash.signals import before_permanently_deleted
 from baserow.ws.tasks import broadcast_to_permitted_users, broadcast_to_users
 
 
-@receiver(agent_created)
-@receiver(agent_deleted)
-def run_as_identity_changed(sender, agent: Agent, **kwargs) -> None:
+@receiver(identity_created)
+@receiver(identity_deleted)
+def run_as_identity_changed(sender, identity: User, **kwargs) -> None:
     """Refresh application-scoped identity state after creation, restore or trash."""
 
+    workspace_id = IdentityHandler.get_workspace(identity).id
     transaction.on_commit(
-        partial(broadcast_run_as_updates.delay, agent.workspace_id, agent.id),
+        partial(broadcast_run_as_updates.delay, workspace_id, identity.id),
         using=DEFAULT_DB_ALIAS,
     )
 
 
-@receiver(agent_updated)
-def run_as_identity_updated(sender, agent: Agent, updated_fields=(), **kwargs) -> None:
+@receiver(identity_updated)
+def run_as_identity_updated(
+    sender, identity: User, updated_fields=(), **kwargs
+) -> None:
     """Role and team changes do not alter identity names or availability."""
 
     if "name" in updated_fields:
-        run_as_identity_changed(sender, agent)
+        run_as_identity_changed(sender, identity)
 
 
-@receiver(permanently_deleted)
-def run_as_identity_permanently_deleted(
-    sender, trash_item, trash_item_id: int, **kwargs
-) -> None:
+@receiver(before_permanently_deleted)
+def run_as_identity_permanently_deleted(sender, trash_item, **kwargs) -> None:
     """Refresh references after an identity is permanently removed from trash."""
 
-    if isinstance(trash_item, Agent):
-        transaction.on_commit(
-            partial(
-                broadcast_run_as_updates.delay, trash_item.workspace_id, trash_item_id
-            ),
-            using=DEFAULT_DB_ALIAS,
-        )
+    if is_identity_profile(trash_item):
+        # Read before the deletion removes the membership that names the workspace.
+        run_as_identity_changed(sender, trash_item.user)
+
+
+def is_identity_profile(trash_item) -> bool:
+    return (
+        isinstance(trash_item, UserProfile)
+        and trash_item.user_type == UserProfile.UserType.IDENTITY
+    )
 
 
 def _notify_readers(

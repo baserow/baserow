@@ -8,6 +8,7 @@ import json
 from typing import Annotated, Any, Literal, get_args
 
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import DatabaseError, transaction
 from django.db.models import Q
@@ -38,7 +39,7 @@ from baserow.contrib.database.tools.errors import conflict_errors, user_error_me
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
 from baserow.core.formula.parser.exceptions import BaserowFormulaException
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import (
     ToolError,
     ToolErrorCode,
@@ -219,7 +220,7 @@ _FIELD_EXAMPLES: dict[str, dict] = {
 # ---------------------------------------------------------------------------
 
 
-def _resolve_linked_table(linked_table_ref, table, user):
+def _resolve_linked_table(linked_table_ref, table, user: AbstractUser | None):
     """
     Resolve a linked_table reference (name or ID) to a table of the database the
     user can see. Hidden tables are left out, so an error never reveals one.
@@ -250,15 +251,15 @@ def _resolve_linked_table(linked_table_ref, table, user):
     return matches[0]
 
 
-def _simple_to_orm(f, table, user):
+def _simple_to_orm(f, table, user: AbstractUser | None):
     return {"name": f.name}
 
 
-def _long_text_to_orm(f, table, user):
+def _long_text_to_orm(f, table, user: AbstractUser | None):
     return {"name": f.name, "long_text_enable_rich_text": f.rich_text}
 
 
-def _number_to_orm(f, table, user):
+def _number_to_orm(f, table, user: AbstractUser | None):
     return {
         "name": f.name,
         "number_decimal_places": f.decimal_places,
@@ -267,20 +268,20 @@ def _number_to_orm(f, table, user):
     }
 
 
-def _rating_to_orm(f, table, user):
+def _rating_to_orm(f, table, user: AbstractUser | None):
     return {"name": f.name, "max_value": f.max_value}
 
 
-def _date_to_orm(f, table, user):
+def _date_to_orm(f, table, user: AbstractUser | None):
     return {"name": f.name, "date_include_time": f.include_time}
 
 
-def _link_row_to_orm(f, table, user):
+def _link_row_to_orm(f, table, user: AbstractUser | None):
     linked = _resolve_linked_table(f.linked_table, table, user)
     return {"name": f.name, "link_row_table": linked}
 
 
-def _select_to_orm(f, table, user):
+def _select_to_orm(f, table, user: AbstractUser | None):
     options = [
         {
             "value": opt.value,
@@ -328,13 +329,13 @@ def check_formula(table: Table, field_name: str, formula: str) -> None:
         raise InvalidFormulaFieldError(field_name, formula, table, str(e))
 
 
-def _formula_to_orm(f, table, user):
+def _formula_to_orm(f, table, user: AbstractUser | None):
     formula = f.formula or ""
     check_formula(table, f.name, formula)
     return {"name": f.name, "formula": formula}
 
 
-def _named_link_field(f, table, user) -> LinkRowField:
+def _named_link_field(f, table, user: AbstractUser | None) -> LinkRowField:
     """
     The link_row field of the table a lookup names in ``through_field``.
 
@@ -390,7 +391,7 @@ def _only_link_field(f, table) -> LinkRowField:
     )
 
 
-def _lookup_link_field(f, table, user) -> LinkRowField | None:
+def _lookup_link_field(f, table, user: AbstractUser | None) -> LinkRowField | None:
     """The link_row field a lookup goes through, or None when there is none yet."""
 
     if f.through_field is not None:
@@ -406,7 +407,7 @@ def _lookup_link_field(f, table, user) -> LinkRowField | None:
 
 
 def create_missing_link_field(
-    f: "FieldItemCreate", table: Table, user
+    f: "FieldItemCreate", table: Table, user: AbstractUser
 ) -> LinkRowField | None:
     """
     Create the link_row field a lookup to ``linked_table`` needs, when the table
@@ -423,7 +424,7 @@ def create_missing_link_field(
     )
 
 
-def _lookup_to_orm(f, table, user):
+def _lookup_to_orm(f, table, user: AbstractUser | None):
     through = _lookup_link_field(f, table, user)
     if not through:
         raise ToolInputError(
@@ -593,7 +594,9 @@ class FieldItemCreate(BaseModel):
                 )
         return self
 
-    def to_django_orm_kwargs(self, table: Table, user=None) -> dict[str, Any]:
+    def to_django_orm_kwargs(
+        self, table: Table, user: AbstractUser | None = None
+    ) -> dict[str, Any]:
         builder = _TO_DJANGO_ORM.get(self.type, _simple_to_orm)
         return builder(self, table, user)
 
@@ -1119,6 +1122,7 @@ def delete_field(ctx: ToolContext, field_id: int) -> None:
 # ---------------------------------------------------------------------------
 
 
+@tool_execution
 def create_fields(
     ctx: ToolContext,
     table_id: Annotated[
@@ -1189,6 +1193,7 @@ def _lock_fields(ctx: ToolContext, field_ids: list[int]) -> None:
         ) from exc
 
 
+@tool_execution
 def update_fields(
     ctx: ToolContext,
     fields: Annotated[
@@ -1246,6 +1251,7 @@ def update_fields(
     )
 
 
+@tool_execution
 def delete_fields(
     ctx: ToolContext,
     field_ids: Annotated[

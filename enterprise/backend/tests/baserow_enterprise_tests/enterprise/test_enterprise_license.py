@@ -2179,3 +2179,42 @@ def test_enterprise_settings_feature_allow_co_branding_in_emails(data_fixture, t
             == f"http://localhost:8000/media/user_files/{user_file.name}"
         )
         assert email_context["logo_additional_text"] == "by Baserow"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_source", ["workspace", "table", "team"])
+def test_identity_roles_do_not_consume_seats(
+    enterprise_data_fixture, synced_roles, role_source
+):
+    human = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=human)
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace,
+        role_uid="ADMIN" if role_source == "workspace" else "NO_ROLE_LOW_PRIORITY",
+    )
+    if role_source != "workspace":
+        editor_role = Role.objects.get(uid=PAID_EDITOR_ROLE)
+        if role_source == "table":
+            database = enterprise_data_fixture.create_database_application(
+                workspace=workspace
+            )
+            table = enterprise_data_fixture.create_database_table(database=database)
+            RoleAssignmentHandler().assign_role(
+                identity, workspace, editor_role, scope=table
+            )
+        else:
+            team = enterprise_data_fixture.create_team(
+                workspace=workspace, members=[identity]
+            )
+            RoleAssignmentHandler().assign_role(team, workspace, editor_role)
+    summary = RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_workspace(
+        workspace
+    )
+    assert summary.seats_taken == 1
+    assert identity.id not in summary.highest_role_per_user_id
+    assert (
+        RoleBasedSeatUsageSummaryCalculator.get_seat_usage_for_specific_users(
+            [identity.id]
+        ).seats_taken
+        == 0
+    )

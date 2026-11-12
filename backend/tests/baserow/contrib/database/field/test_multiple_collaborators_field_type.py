@@ -11,6 +11,9 @@ import pytest
 from faker import Faker
 from pytest_unordered import unordered
 
+from baserow.contrib.database.fields.exceptions import (
+    AllProvidedCollaboratorIdsMustBeValidUsers,
+)
 from baserow.contrib.database.fields.field_types import MultipleCollaboratorsFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import MultipleCollaboratorsField
@@ -19,7 +22,11 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.handler import CoreHandler
-from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, WorkspaceUser
+from baserow.core.models import (
+    WORKSPACE_USER_PERMISSION_ADMIN,
+    UserProfile,
+    WorkspaceUser,
+)
 from baserow.core.registries import ImportExportConfig
 from baserow.test_utils.helpers import AnyInt
 
@@ -72,6 +79,21 @@ def test_multiple_collaborators_field_type_create_with_int(data_fixture):
     collaborator_field_list = getattr(row, field_id).all()
     assert len(collaborator_field_list) == 1
     assert collaborator_field_list[0].id == user.id
+
+
+@pytest.mark.django_db
+@pytest.mark.field_multiple_collaborators
+def test_multiple_collaborators_field_type_rejects_identities(data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_multiple_collaborators_field(user=user, table=table)
+    identity = data_fixture.create_identity(workspace=database.workspace)
+
+    with pytest.raises(AllProvidedCollaboratorIdsMustBeValidUsers):
+        RowHandler().create_row(
+            user=user, table=table, values={field.db_column: [{"id": identity.id}]}
+        )
 
 
 @pytest.mark.django_db
@@ -760,6 +782,7 @@ def test_multiple_collaborators_field_type_get_order_collate(data_fixture):
         rows.append(model())
 
     users = User.objects.bulk_create(users)
+    UserProfile.objects.bulk_create([UserProfile(user=user) for user in users])
     rows = model.objects.bulk_create(rows)
 
     workspace_users = []

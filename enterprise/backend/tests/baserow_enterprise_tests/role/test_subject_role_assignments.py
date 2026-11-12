@@ -1,6 +1,5 @@
 import pytest
 
-from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -163,7 +162,7 @@ def test_subject_role_assignments_lock_roles_inside_an_admin_role(data_fixture):
 
 
 @pytest.mark.django_db
-def test_subject_role_assignments_of_teams_and_agents(
+def test_subject_role_assignments_of_teams_and_identities(
     data_fixture, enterprise_data_fixture
 ):
     admin = data_fixture.create_user()
@@ -171,23 +170,29 @@ def test_subject_role_assignments_of_teams_and_agents(
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="ADMIN")
-    other_agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Bot", role_uid="ADMIN"
+    )
+    other_identity = data_fixture.create_identity(
         workspace=workspace, name="Other", role_uid="VIEWER"
     )
     assign(team, workspace, "ADMIN", database.application_ptr)
     assign(team, workspace, "VIEWER", table)
-    assign(agent, workspace, "NO_ACCESS", table)
-    assign(other_agent, workspace, "EDITOR", table)
+    assign(identity, workspace, "NO_ACCESS", table)
+    assign(other_identity, workspace, "EDITOR", table)
 
     rows = RoleAssignmentHandler().get_subject_role_assignments(
-        admin, workspace, [team, agent, other_agent]
+        admin, workspace, [team, identity, other_identity]
     )
 
-    # A team's admin role never locks anything, an agent's own one does.
+    # A team's admin role never locks anything, an identity's own one does.
     assert [(row.scope, row.locked_by) for row in rows[team]] == [
         (database.application_ptr, None),
         (table, None),
     ]
-    assert [(row.scope, row.locked_by) for row in rows[agent]] == [(table, workspace)]
-    assert [(row.scope, row.locked_by) for row in rows[other_agent]] == [(table, None)]
+    assert [(row.scope, row.locked_by) for row in rows[identity]] == [
+        (table, workspace)
+    ]
+    assert [(row.scope, row.locked_by) for row in rows[other_identity]] == [
+        (table, None)
+    ]

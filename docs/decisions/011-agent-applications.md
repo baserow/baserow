@@ -17,16 +17,16 @@ prioritize a simple starting experience and independent management.
 
 ## Terms
 
-| Term                         | Meaning                                                                                             |
-| ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| Agent                        | A reusable, configured AI agent that callers can invoke.                                            |
-| `Agent` subject              | The core permission subject with a workspace role. An agent may run as one: its execution identity. |
-| Caller                       | Anything that references an agent to invoke it, such as a conversation or an automatic job.         |
-| Agent Builder (option 1)     | A workspace application containing many agents, as a database contains tables.                      |
-| Agent application (option 2) | A workspace application of type `agent` that is exactly one agent.                                  |
-| Related agents               | Agents a team wants to manage together, such as all support agents.                                 |
-| Lifecycle operations         | Duplicate, export/import, snapshot, trash and restore.                                              |
-| Workspace integration        | A planned integration owned by the workspace, so several applications can share its secrets.        |
+| Term                         | Meaning                                                                                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent                        | A reusable, configured AI agent that callers can invoke.                                                                                              |
+| Identity                     | A workspace-owned nonhuman User with user type `identity` and a workspace role, as proposed in [ADR 013](013-identities.md). An agent may run as one. |
+| Caller                       | Anything that references an agent to invoke it, such as a conversation or an automatic job.                                                           |
+| Agent Builder (option 1)     | A workspace application containing many agents, as a database contains tables.                                                                        |
+| Agent application (option 2) | A workspace application of type `agent` that is exactly one agent.                                                                                    |
+| Related agents               | Agents a team wants to manage together, such as all support agents.                                                                                   |
+| Lifecycle operations         | Duplicate, export/import, snapshot, trash and restore.                                                                                                |
+| Workspace integration        | A planned integration owned by the workspace, so several applications can share its secrets.                                                          |
 
 ## Context
 
@@ -43,7 +43,7 @@ understandable.
 Both options can reuse Baserow's application infrastructure, permission system, internal
 tools and supported backend services. Sharing a management boundary does not by itself
 authorize sharing integrations, determine execution identity or provide orchestration.
-The `Agent` subject remains distinct from an agent.
+The identity remains distinct from the configured agent application.
 
 This record decides the ownership model. Execution, orchestration and workspace
 integrations are outside its scope. The

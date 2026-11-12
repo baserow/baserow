@@ -3,8 +3,7 @@ from django.dispatch import receiver
 from baserow.contrib.database.table.signals import table_schema_changed
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.cache import global_cache, local_cache
-from baserow.core.models import Agent
-from baserow.core.registries import subject_type_registry
+from baserow.core.models import UserProfile
 from baserow.core.signals import user_permanently_deleted
 from baserow.core.trash.signals import before_permanently_deleted
 
@@ -33,9 +32,11 @@ def clear_permanently_deleted_user_authorization(sender, user_id, **kwargs):
 
 
 @receiver(before_permanently_deleted)
-def clear_permanently_deleted_agent_authorization(sender, trash_item, **kwargs):
-    """Retain integrations when an agent is permanently deleted from trash."""
+def clear_permanently_deleted_identity_authorization(sender, trash_item, **kwargs):
+    """Retain integrations when an identity is permanently deleted from trash."""
 
-    if isinstance(trash_item, Agent):
-        subject_type = subject_type_registry.get_by_model(trash_item).type
-        _clear_authorized_subject(subject_type, trash_item.id)
+    if (
+        isinstance(trash_item, UserProfile)
+        and trash_item.user_type == UserProfile.UserType.IDENTITY
+    ):
+        _clear_authorized_subject("auth.User", trash_item.user_id)

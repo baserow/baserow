@@ -9,7 +9,7 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowDelete
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
 )
-from baserow.core.models import Agent, TrashEntry
+from baserow.core.models import TrashEntry
 from baserow.core.services.exceptions import (
     DoesNotExist,
     InvalidContextContentDispatchException,
@@ -214,14 +214,14 @@ def test_local_baserow_delete_row_service_dispatch_data_with_multiple_ids(data_f
 
 
 @pytest.mark.django_db
-def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
+def test_local_baserow_delete_row_service_dispatch_data_as_identity(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     database = data_fixture.create_database_application(
         workspace=page.builder.workspace
     )
     table = data_fixture.create_database_table(database=database)
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=page.builder.workspace,
         name="Row deleter",
         role_uid="ADMIN",
@@ -229,7 +229,7 @@ def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
     integration = data_fixture.create_local_baserow_integration(
         application=page.builder,
         user=user,
-        authorized_agent=agent,
+        authorized_identity=identity,
     )
     model = table.get_model()
     row = model.objects.create()
@@ -243,7 +243,7 @@ def test_local_baserow_delete_row_service_dispatch_data_as_agent(data_fixture):
 
     assert not model.objects.filter(id=row.id).exists()
     trash_entry = TrashEntry.objects.get(trash_item_type="rows")
-    assert trash_entry.user_who_trashed is None
+    assert trash_entry.user_who_trashed == identity
 
 
 @pytest.mark.django_db
