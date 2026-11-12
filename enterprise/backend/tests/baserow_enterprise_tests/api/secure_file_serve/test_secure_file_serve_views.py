@@ -469,8 +469,9 @@ def test_deactivate_user_prevents_file_download(
         }
     },
 )
+@pytest.mark.parametrize("changed_by_admin", [False, True])
 def test_password_change_prevents_file_download_with_previous_cookie(
-    enable_enterprise, enterprise_data_fixture, api_client, tmpdir
+    enable_enterprise, enterprise_data_fixture, api_client, tmpdir, changed_by_admin
 ):
     user = enterprise_data_fixture.create_user(password="password")
     storage = dummy_storage(tmpdir)
@@ -504,13 +505,23 @@ def test_password_change_prevents_file_download_with_previous_cookie(
         assert download(cookie).status_code == HTTP_200_OK
 
     with freeze_time("2026-10-20 09:00:05"):
-        response = api_client.post(
-            reverse("api:user:change_password"),
-            data={"old_password": "password", "new_password": "new-password-123"},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(user)}",
-        )
-        assert response.status_code == HTTP_204_NO_CONTENT
+        if changed_by_admin:
+            admin = enterprise_data_fixture.create_user(is_staff=True)
+            response = api_client.patch(
+                reverse("api:admin:users:edit", kwargs={"user_id": user.id}),
+                data={"password": "new-password-123"},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(admin)}",
+            )
+            assert response.status_code == HTTP_200_OK, response.json()
+        else:
+            response = api_client.post(
+                reverse("api:user:change_password"),
+                data={"old_password": "password", "new_password": "new-password-123"},
+                format="json",
+                HTTP_AUTHORIZATION=f"JWT {enterprise_data_fixture.generate_token(user)}",
+            )
+            assert response.status_code == HTTP_204_NO_CONTENT
 
         assert download(cookie).status_code == HTTP_403_FORBIDDEN
         assert download(log_in("new-password-123")).status_code == HTTP_200_OK

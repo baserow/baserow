@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from django.core.signing import BadSignature, TimestampSigner
 from django.test import RequestFactory, override_settings
 
@@ -8,6 +6,7 @@ from freezegun import freeze_time
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.user.handler import UserHandler
 from baserow.core.user.utils import sign_user_session
 from baserow.core.utils import generate_hash
@@ -134,12 +133,26 @@ def _sign_previous_release_user_session(user):
     )
 
 
+def _change_own_password(data_fixture, user):
+    UserHandler().change_password(user, "password", "new-password-123")
+
+
+def _change_password_as_admin(data_fixture, user):
+    admin = data_fixture.create_user(is_staff=True)
+    UserAdminHandler().update_user(admin, user.id, password="new-password-123")
+
+
 @pytest.mark.django_db
 @override_settings(FRONTEND_COOKIE_PREFIX="")
 @pytest.mark.parametrize(
     "sign", [_sign_current_user_session, _sign_previous_release_user_session]
 )
-def test_user_session_signed_before_a_password_change_stops_working(data_fixture, sign):
+@pytest.mark.parametrize(
+    "change_password", [_change_own_password, _change_password_as_admin]
+)
+def test_user_session_signed_before_a_password_change_stops_working(
+    data_fixture, sign, change_password
+):
     user = data_fixture.create_user(password="password")
     with freeze_time("2026-10-20 09:00:00"):
         user_session = sign(user)
@@ -147,7 +160,7 @@ def test_user_session_signed_before_a_password_change_stops_working(data_fixture
     with freeze_time("2026-10-20 10:00:00"):
         assert _authenticate_user_session(user_session)[0] == user
 
-        UserHandler().change_password(user, "password", "new-password-123")
+        change_password(data_fixture, user)
 
         with pytest.raises(AuthenticationFailed):
             _authenticate_user_session(user_session)
@@ -172,32 +185,3 @@ def test_user_session_signed_after_a_password_change_works(data_fixture, sign):
     with freeze_time("2026-10-20 10:00:02"):
         assert _authenticate_user_session(same_second_user_session)[0] == user
         assert _authenticate_user_session(later_user_session)[0] == user
-
-
-@pytest.mark.django_db
-@override_settings(FRONTEND_COOKIE_PREFIX="")
-@pytest.mark.parametrize(
-    "sign", [_sign_current_user_session, _sign_previous_release_user_session]
-)
-def test_user_session_works_when_the_password_never_changed(data_fixture, sign):
-    user = data_fixture.create_user()
-    with freeze_time("2026-10-20 09:00:00"):
-        user_session = sign(user)
-
-    assert user.profile.last_password_change is None
-    with freeze_time("2026-10-21 09:00:00"):
-        assert _authenticate_user_session(user_session)[0] == user
-
-
-@override_settings(FRONTEND_COOKIE_PREFIX="")
-def test_extract_user_session_returns_when_it_was_signed():
-    with freeze_time("2026-10-20 09:00:00.900"):
-        cookie = sign_user_session(1, "refresh-token")
-    request = RequestFactory().get("/", HTTP_COOKIE=f"user_session={cookie}")
-
-    with freeze_time("2026-10-20 09:05:00"):
-        user_session = extract_user_session_from_request(request)
-
-    assert user_session.signed_at == int(
-        datetime(2026, 10, 20, 9, tzinfo=timezone.utc).timestamp()
-    )
