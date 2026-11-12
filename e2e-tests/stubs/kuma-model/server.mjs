@@ -52,8 +52,8 @@ function nextAnswer(body) {
   const builders = results.find((result) => BUILDERS_RESULT.test(result));
   if (!builders) {
     return {
-      toolCall: toolCall("create_builders", {
-        builders: [{ name: databaseName, type: "database" }],
+      toolCall: toolCall("create_database", {
+        name: databaseName,
         thought: "Create the database",
       }),
     };

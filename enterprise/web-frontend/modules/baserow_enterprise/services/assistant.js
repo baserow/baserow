@@ -28,9 +28,8 @@ export default (client) => {
       return await client.post(
         `/assistant/chat/${chatUuid}/messages/`,
         {
-          ...(options.runId
-            ? { run_id: options.runId, cursor: options.cursor || undefined }
-            : { content: message, ui_context: uiContext }),
+          content: message,
+          ui_context: uiContext,
           ...(options.tabId ? { tab_id: options.tabId } : {}),
         },
         {
@@ -115,14 +114,6 @@ export default (client) => {
           },
         }
       )
-    },
-
-    async resumeMessage(chatUuid, runId, cursor, onRecord, options = {}) {
-      return this.sendMessage(chatUuid, null, null, onRecord, {
-        ...options,
-        runId,
-        cursor,
-      })
     },
 
     async fetchChats(workspaceId) {

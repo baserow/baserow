@@ -315,3 +315,61 @@ Background runs use the existing worker infrastructure:
 - **Health.** The health check warns when a run has waited more than 5 minutes
   for a worker, or when a run lost its worker and wasn't cleaned up (check that
   `celery-beat` runs).
+
+### First rollout from HTTP execution
+
+Existing HTTP replies finish in the process that accepted them. They are never
+converted to runs or sent to a worker again. Existing chats, messages, predictions
+and model history keep their format; this change has no schema migration or
+backfill. The next accepted message starts the chat's first background run.
+
+Use a brief admission pause for Kuma messages during this first cutover:
+
+1. At the ingress, temporarily reject **new POST requests** to
+   `/assistant/chat/<uuid>/messages/` with HTTP 503 and `Retry-After`. Apply this
+   before forwarding or reading the streaming response, so rejected prompts are
+   neither saved nor executed. Keep existing connections, history GETs, Stop
+   DELETEs and the rest of Baserow available. Do not automatically retry POSTs:
+   a lost response does not prove that the original prompt was rejected.
+2. Leave the old HTTP backends alive until every accepted Kuma response finishes.
+   Measure active requests at the proxy/backend; `AssistantChat.status` does not
+   track these replies, and absence of a `ChatRun` does not mean a chat is idle.
+   Verify that the final messages and history are saved before proceeding. A
+   Gunicorn, proxy or pod shutdown timeout is not a drain confirmation. If a
+   reply takes longer, keep waiting or postpone the cutover; do not kill it to
+   meet a rollout deadline.
+3. While admission remains paused, upgrade **all Celery workers**, including
+   export/chat-run consumers and workers running sweep/prune tasks, then the beat
+   process. Wait for old consumers to exit and their reserved tasks to finish.
+   An old worker knows the shared `execute_chat_run` task but not Kuma's
+   `assistant` run type, so it can claim and fail a new Kuma run. Confirm the new
+   workers load `AssistantChatRunType`, consume `chat_run`, and have the selected
+   model's credentials. Check `/api/_health/celery-queue/?queue=chat_run` returns
+   200; queue health alone does not verify the adapter or model configuration.
+4. Upgrade every HTTP backend and switch traffic while admission stays paused.
+   Only then remove the ingress rule. New POSTs now create runs; an old browser
+   tab can keep using the original content/UI-context request and cumulative JSON
+   response. Stop still accepts the original DELETE URL.
+5. Deploy the frontend last. New frontend assets require the new backends; do not
+   send them to an old backend pool. Verify a new prompt completes, refreshing
+   follows that same run, and the next prompt in an existing chat retains its
+   earlier context without repeating tools.
+
+Old and new writers must not answer the same chat concurrently: the old HTTP
+path has no shared admission lock and can overwrite a background run's history.
+The pause and complete drain avoid adding a second execution path, a backfill or
+a rollout flag to the application. After the cutover, requests always use runs.
+
+If continuous admission is required, first ship a separate preparation release
+that makes old HTTP sends participate in shared admission tracking. Do not skip
+the drain and rely on a normal mixed-version rolling restart.
+
+Before reopening admission, rollback consists of restoring the old HTTP pool
+while keeping the pause in place until it is ready. Once runs have been accepted,
+pause new sends again and drain their queue and active executions on the new
+workers before reverting any backend or worker. Keep the schema and saved chat
+data; do not reverse the shared engine migration, recreate runs, or replay prompts.
+Keep the new workers/backends if runs cannot be drained safely and fix forward.
+Already loaded new browser assets also need the new API; a full rollback needs a
+controlled client reload. Prefer reverting the frontend alone while keeping the
+new backend's compatible POST response.

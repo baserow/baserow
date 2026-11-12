@@ -11,6 +11,8 @@ from pytest_mock import MockerFixture
 from baserow_enterprise.assistant.history import NOT_STARTED_ANSWER, UNFINISHED_ANSWER
 from baserow_enterprise.assistant.stream import stream_run_messages
 
+HUMAN = {"type": "human", "content": "Hi", "id": 1}
+
 
 def _collect(
     mocker: MockerFixture, events: list[dict[str, Any]], **kwargs: Any
@@ -25,7 +27,12 @@ def _collect(
 
     async def collect():
         run = SimpleNamespace(id=uuid4(), chat_id=10, status="running")
-        return [record async for record in stream_run_messages(run, object(), **kwargs)]
+        return [
+            record
+            async for record in stream_run_messages(
+                run, object(), human_message=HUMAN, **kwargs
+            )
+        ]
 
     raw = async_to_sync(collect)()
     assert all(record.endswith("\n\n") for record in raw)
@@ -172,22 +179,13 @@ def test_progress_and_title_map_to_kuma_records_after_a_cursorless_start(
     assert record.items() >= expected.items()
 
 
-HUMAN = {"type": "human", "content": "Hi", "id": 1}
-
-
-@pytest.mark.parametrize(
-    "human_message,replay", [(None, True), (HUMAN, False)], ids=["follow", "send"]
-)
-def test_the_message_shows_once_and_a_started_run_is_running(
-    mocker, human_message, replay
-):
+def test_the_message_shows_once_and_a_started_run_is_running(mocker):
     records, follower = _collect(
         mocker,
         [
             {"kind": "run.created", "data": {"human_message": HUMAN}, "cursor": "c0"},
             {"kind": "run.started", "data": {}, "cursor": "c1"},
         ],
-        human_message=human_message,
     )
 
     assert [record["type"] for record in records].count("human") == 1
@@ -196,7 +194,7 @@ def test_the_message_shows_once_and_a_started_run_is_running(
         "c1",
         "running",
     )
-    assert follower.call_args.kwargs["replay"] is replay
+    assert follower.call_args.kwargs["replay"] is False
 
 
 @pytest.mark.parametrize(

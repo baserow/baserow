@@ -5,7 +5,6 @@ from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
 from rest_framework import serializers
 
-from baserow.core.chat_runs.buffer import parse_cursor
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatPrediction
 from baserow_enterprise.assistant.types import (
     AssistantMessageType,
@@ -98,15 +97,13 @@ class UIContextSerializer(serializers.Serializer):
 
 class AssistantMessageRequestSerializer(serializers.Serializer):
     content = serializers.CharField(
-        required=False,
         max_length=100_000,
-        help_text="The content of the message. Required unless `run_id` is set.",
+        help_text="The content of the message.",
     )
     ui_context = UIContextSerializer(
-        required=False,
         help_text=(
             "The UI context related to what the user was looking at when the "
-            "message was sent. Required unless `run_id` is set."
+            "message was sent."
         ),
     )
     tab_id = serializers.CharField(
@@ -118,50 +115,6 @@ class AssistantMessageRequestSerializer(serializers.Serializer):
             "navigation."
         ),
     )
-    run_id = serializers.UUIDField(
-        required=False,
-        help_text="Follow this run of the chat instead of sending a message.",
-    )
-    cursor = serializers.CharField(
-        required=False,
-        max_length=128,
-        help_text="With `run_id`, the last cursor received; only later output is sent.",
-    )
-
-    def validate_cursor(self, cursor: str) -> str:
-        """
-        :param cursor: The cursor sent with `run_id`.
-        :return: The cursor.
-        :raises ValidationError: When it is not a chat run cursor.
-        """
-
-        try:
-            parse_cursor(cursor)
-        except ValueError as exc:
-            raise serializers.ValidationError(str(exc)) from exc
-        return cursor
-
-    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        """
-        Accepts either a new message or a run to follow, never both.
-
-        :param attrs: The validated fields.
-        :return: The validated fields.
-        :raises ValidationError: When the request mixes both or lacks a field.
-        """
-
-        if "run_id" in attrs:
-            if "content" in attrs or "ui_context" in attrs:
-                raise serializers.ValidationError(
-                    "A request that follows a run cannot contain a new message."
-                )
-        elif "content" not in attrs or "ui_context" not in attrs:
-            raise serializers.ValidationError(
-                "A new message requires content and ui_context."
-            )
-        elif "cursor" in attrs:
-            raise serializers.ValidationError("A cursor requires run_id.")
-        return attrs
 
 
 class AssistantChatSerializer(serializers.ModelSerializer):
