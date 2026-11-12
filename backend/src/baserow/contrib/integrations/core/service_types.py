@@ -2679,6 +2679,14 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     def can_be_immediately_dispatched(self, service):
         return True
 
+    def get_timezone_name(self, service: CorePeriodicService) -> str:
+        """
+        :param service: The periodic service.
+        :return: The timezone its schedule runs in.
+        """
+
+        return service.timezone or PERIODIC_TIMEZONE_DEFAULT
+
     def _setup_periodic_task(self, sender, **kwargs):
         """
         Responsible for adding the periodic task to call due periodic services.

@@ -11,7 +11,11 @@ from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
-from baserow.contrib.agent.registries import agent_tool_type_registry
+from baserow.contrib.agent.registries import (
+    agent_data_provider_type_registry,
+    agent_tool_type_registry,
+)
+from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
@@ -30,6 +34,7 @@ from baserow.core.utils import ChildProgressBuilder
 class AgentApplicationType(ApplicationType):
     type = "agent"
     model_class = AgentApplication
+    data_provider_type_registry = agent_data_provider_type_registry
     serializer_field_names = ["name", "readiness"]
     serializer_mixins = [AgentApplicationSerializer]
     request_serializer_field_names = ["name"]
@@ -202,6 +207,9 @@ class AgentApplicationType(ApplicationType):
                 )
             ],
             web_search_enabled=application.web_search_enabled,
+            triggers=AgentTriggerHandler().export_triggers(
+                application, import_export_config, files_zip, storage
+            ),
         )
         # Identity ids are local references, not portable configuration.
         if (
@@ -229,7 +237,19 @@ class AgentApplicationType(ApplicationType):
         storage: Storage | None = None,
         progress_builder: ChildProgressBuilder | None = None,
     ) -> AgentApplication:
-        """Import the configuration and any copied conversations as one new Agent."""
+        """
+        Import the configuration, its triggers switched off, and any copied
+        conversations as one new Agent.
+
+        :param workspace: The workspace the Agent is imported into.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :param id_mapping: The export-to-import id map, filled in.
+        :param files_zip: The zip file service files are read from.
+        :param storage: The storage service files are written to.
+        :param progress_builder: Reports the import's progress.
+        :return: The new Agent.
+        """
 
         serialized_integrations = serialized_values.pop("integrations", [])
         id_mapping.setdefault("integrations", {})
@@ -287,6 +307,14 @@ class AgentApplicationType(ApplicationType):
                 storage=storage,
                 import_export_config=import_export_config,
             )
+        AgentTriggerHandler().import_triggers(
+            application,
+            serialized_values.get("triggers", []),
+            id_mapping,
+            import_export_config,
+            files_zip,
+            storage,
+        )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", [])

@@ -134,6 +134,11 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="Whether the agent's model can search the web, but not while the "
         "agent uses workspace tools."
     )
+    available_trigger_types = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The trigger types that can be added to the agent on this "
+        "instance, as service type names.",
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
             choices=[error.value for error in AgentConfigurationErrorCode]

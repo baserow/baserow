@@ -324,20 +324,7 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         )
 
         service = data_source.service.specific
-
-        if service.get_type().returns_list(service):
-            dispatch_result = dispatch_result["results"]
-            if len(rest) >= 2:
-                prepared_path = [
-                    rest[0],
-                    *service.get_type().prepare_value_path(service, rest[1:]),
-                ]
-            else:
-                prepared_path = rest
-        else:
-            prepared_path = service.get_type().prepare_value_path(service, rest)
-
-        return get_value_at_path(dispatch_result, prepared_path)
+        return service.get_type().get_result_value(service, dispatch_result, rest)
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -780,24 +767,10 @@ class PreviousActionProviderType(BuilderDataProviderType):
             )
             dispatch_result = cache.get(cache_key)
             service = workflow_action.service.specific
-            service_type = service.get_type()
-            if service_type.returns_list(service):
-                dispatch_result = dispatch_result["results"]
-                if len(rest) >= 2:
-                    prepared_path = [
-                        rest[0],
-                        *service_type.prepare_value_path(service, rest[1:]),
-                    ]
-                else:
-                    prepared_path = rest
-            else:
-                prepared_path = service_type.prepare_value_path(service, rest)
-        else:
-            # Frontend actions
-            dispatch_result = previous_action_results[previous_action_id]
-            prepared_path = rest
+            return service.get_type().get_result_value(service, dispatch_result, rest)
 
-        return get_value_at_path(dispatch_result, prepared_path)
+        # Frontend actions
+        return get_value_at_path(previous_action_results[previous_action_id], rest)
 
     def post_dispatch(
         self,

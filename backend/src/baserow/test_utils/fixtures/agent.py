@@ -8,6 +8,7 @@ from baserow.contrib.agent.models import (
     AgentMessage,
     AgentReplyStatus,
     AgentToolApproval,
+    AgentTrigger,
 )
 
 
@@ -75,3 +76,19 @@ class AgentApplicationFixtures:
         kwargs.setdefault("pause", 1)
         kwargs.setdefault("tool_name", "create_rows")
         return AgentToolApproval.objects.create(**kwargs)
+
+    def create_agent_trigger(
+        self, agent: AgentApplication | None = None, **kwargs
+    ) -> AgentTrigger:
+        """
+        Create a trigger wrapping a periodic service unless a `service` is given.
+
+        :param agent: The owning agent, created when not given.
+        :return: The created trigger.
+        """
+
+        if agent is None:
+            agent = self.create_agent_application()
+        if "service" not in kwargs:
+            kwargs["service"] = self.create_core_periodic_service()
+        return AgentTrigger.objects.create(agent=agent, **kwargs)

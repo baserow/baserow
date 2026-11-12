@@ -180,6 +180,40 @@ describe('Automation workflow node store', () => {
     await createPromise
   })
 
+  test('creates a periodic trigger without the service type defaults agents use', async () => {
+    const workflow = {
+      id: 2,
+      graph: {},
+      immediate_dispatch: false,
+      nodes: [],
+      nodeMap: {},
+      automation_id: 3,
+    }
+    testApp.mock
+      .onPost(`automation/workflow/${workflow.id}/nodes/`)
+      .reply(200, {
+        id: 1,
+        type: 'periodic',
+        service: { interval: null },
+        workflow: workflow.id,
+      })
+    testApp.mock
+      .onGet(`applications/${workflow.automation_id}/permissions/`)
+      .reply(200, {})
+
+    await testApp.store.dispatch('automationWorkflowNode/create', {
+      workflow,
+      type: 'periodic',
+      referenceNode: null,
+      position: 'south',
+      output: '',
+    })
+
+    expect(
+      testApp.mock.history.post.map(({ data }) => JSON.parse(data))
+    ).toEqual([{ type: 'periodic' }])
+  })
+
   describe('getNodesInOrder', () => {
     // A workflow whose graph order (1 -> 4 -> 2 -> 3) differs from its creation
     // order, which is what `workflow.nodes` holds: node 4 was inserted between

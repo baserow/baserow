@@ -1,5 +1,6 @@
-from django.urls import path
+from django.urls import include, path
 
+from .triggers import urls as triggers_urls
 from .views import (
     AgentApplicationView,
     AgentConfigurationView,
@@ -44,4 +45,5 @@ urlpatterns = [
         AgentToolApprovalsView.as_view(),
         name="approvals",
     ),
+    path("", include(triggers_urls, namespace="triggers")),
 ]

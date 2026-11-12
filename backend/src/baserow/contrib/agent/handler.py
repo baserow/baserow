@@ -87,6 +87,7 @@ from .models import (
     AgentToolApproval,
 )
 from .registries import agent_tool_type_registry
+from .triggers.handler import AgentTriggerHandler
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
@@ -179,6 +180,9 @@ class AgentHandler:
             web_search_blocked_by_tools=web_search_tool is None
             and with_tools
             and self._get_web_search_tool(agent, False) is not None,
+            available_trigger_types=AgentTriggerHandler().available_trigger_types(
+                agent
+            ),
             errors=errors,
         )
 

@@ -20,6 +20,7 @@ import {
   nameInput,
   openSection,
   page,
+  periodicTrigger,
   providerDropdown,
   reasoningEffortDropdown,
   reasoningEffortWarning,
@@ -74,6 +75,16 @@ describe('Agent configuration', () => {
     await toggle.trigger('click')
 
     expect(wrapper.find('.agent-configuration').exists()).toBe(true)
+  })
+
+  test('hosts a trigger form without nesting it in another form', async () => {
+    testApp.mock.onGet('/agent/10/triggers/').reply(200, [periodicTrigger()])
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.whenItRuns')
+    await flushPromises()
+
+    expect(wrapper.find('.agent-trigger-card form').exists()).toBe(true)
+    expect(wrapper.element.querySelectorAll('form form')).toHaveLength(0)
   })
 
   test('keeps the open form when the Agent changes in the background', async () => {
@@ -593,7 +604,7 @@ describe('Agent configuration', () => {
     mockConfiguration(testApp, incompleteConfiguration('model_identifier'))
     const wrapper = await mount()
 
-    const [instructionsSection, , , settingsSection] = wrapper.findAll(
+    const [instructionsSection, , , , settingsSection] = wrapper.findAll(
       '.menu-list__item-button'
     )
 
@@ -2148,7 +2159,7 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(4)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(5)
   })
 
   test('warns when model availability cannot be loaded until retry', async () => {

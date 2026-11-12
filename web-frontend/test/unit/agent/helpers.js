@@ -31,6 +31,34 @@ export const completeConfiguration = (extra = {}) => ({
   ...extra,
 })
 
+const triggerSchema = {
+  type: 'object',
+  properties: {
+    triggered_at: { type: 'string', title: 'Previous scheduled run' },
+    next_run_at: { type: 'string', title: 'Next scheduled run' },
+  },
+}
+
+export const periodicTrigger = (extra = {}) => ({
+  id: 1,
+  type: 'periodic',
+  name: '',
+  enabled: true,
+  message: { formula: "'Periodic trigger'", mode: 'simple', version: '0.1' },
+  service: {
+    id: 5,
+    type: 'periodic',
+    interval: 'HOUR',
+    minute: 0,
+    hour: 0,
+    day_of_week: 0,
+    day_of_month: 1,
+    timezone: 'UTC',
+    schema: triggerSchema,
+  },
+  ...extra,
+})
+
 export const incompleteConfiguration = (field) =>
   completeConfiguration({
     [field]: field === 'instructions' ? '' : null,

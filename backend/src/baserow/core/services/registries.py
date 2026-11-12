@@ -38,6 +38,7 @@ from baserow.core.registry import (
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
 from baserow.core.services.utils import sanitize_sample_data
+from baserow.core.utils import get_value_at_path
 
 from .exceptions import (
     DispatchException,
@@ -451,6 +452,26 @@ class ServiceType(
         """
 
         return path
+
+    def get_result_value(self, service: Service, result: Any, path: List[str]) -> Any:
+        """
+        Read a value from a result of the service, a dispatch result or an event
+        payload. A list service keeps its rows under `results`, so the first path
+        part is the row index and `prepare_value_path` maps the rest.
+
+        :param service: The service that produced the result.
+        :param result: The result to read from.
+        :param path: The path inside the result.
+        :return: The value at the path, or None when there is none.
+        """
+
+        if self.returns_list(service):
+            result = result["results"]
+            if len(path) >= 2:
+                path = [path[0], *self.prepare_value_path(service, path[1:])]
+        else:
+            path = self.prepare_value_path(service, path)
+        return get_value_at_path(result, path)
 
     def dispatch_transform(
         self,
@@ -904,6 +925,17 @@ class TriggerServiceTypeMixin(ABC):
         """
 
         return False
+
+    def get_timezone_name(self, service: Service) -> Optional[str]:
+        """
+        The timezone the service is configured in, for consumers that show the
+        moment it fired in the user's local time.
+
+        :param service: The specific trigger service.
+        :return: The IANA timezone name, or `None` when the type has none.
+        """
+
+        return None
 
     def dispatch_data(
         self,
