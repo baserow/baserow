@@ -2,12 +2,15 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
+from baserow.contrib.agent.constants import AGENT_TRIGGER_NAME_MAX_LENGTH
+from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     BigAutoFieldMixin,
     CreatedAndUpdatedOnMixin,
     TrashableModelMixin,
 )
 from baserow.core.models import Application
+from baserow.core.services.models import Service
 
 
 class AgentApplication(Application):
@@ -48,6 +51,26 @@ class AgentAllowedTool(models.Model):
                 fields=["agent", "name"], name="agent_allowed_tool_unique_name"
             )
         ]
+
+
+class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+    """An agent-owned trigger service whose events start shared conversations."""
+
+    agent = models.ForeignKey(
+        AgentApplication, on_delete=models.CASCADE, related_name="triggers"
+    )
+    service = models.OneToOneField(
+        Service, on_delete=models.CASCADE, related_name="agent_trigger"
+    )
+    # Blank shows a default worded by the trigger's service type.
+    name = models.CharField(
+        max_length=AGENT_TRIGGER_NAME_MAX_LENGTH, blank=True, default="", db_default=""
+    )
+    enabled = models.BooleanField(default=True, db_default=True)
+    message = FormulaField(default="", db_default="", blank=True)
+
+    class Meta:
+        ordering = ("id",)
 
 
 class AgentConversation(

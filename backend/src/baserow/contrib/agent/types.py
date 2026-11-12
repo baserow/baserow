@@ -13,7 +13,7 @@ from baserow.core.pagination import KeysetCursor, RowLessThan
 from baserow.core.types import Subject
 
 from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
-from .models import AgentApplication, AgentConversation, AgentMessage
+from .models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
 
 
 @dataclass(frozen=True)
@@ -48,6 +48,7 @@ class AgentConfiguration:
     web_search_available: bool
     web_search_blocked_by_tools: bool
     ask_first_tools: list[str]
+    available_trigger_types: list[str]
     errors: dict[str, AgentConfigurationErrorCode]
 
 
@@ -98,6 +99,14 @@ class AgentConversationCursor(KeysetCursor):
             (F("pinned"), F(field_name), F("id")),
             (Value(self.pinned), Value(self.value), Value(self.id)),
         )
+
+
+@dataclass
+class AgentTriggerUpdated:
+    """An updated trigger and the parts of it that the update changed."""
+
+    trigger: AgentTrigger
+    changed_fields: list[str]
 
 
 @dataclass(frozen=True)

@@ -13,6 +13,7 @@ from baserow.core.cache import local_cache
 from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.formula.registries import DataProviderTypeRegistry
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
@@ -316,3 +317,6 @@ class AgentToolTypeRegistry(Registry[AgentToolType]):
 
 
 agent_tool_type_registry = AgentToolTypeRegistry()
+
+# Resolves the trigger messages' `get('<provider>.…')` formulas.
+agent_data_provider_type_registry = DataProviderTypeRegistry()
