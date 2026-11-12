@@ -2,7 +2,7 @@ import asyncio
 import json
 import time
 from functools import wraps
-from unittest.mock import ANY
+from unittest.mock import ANY, call
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
@@ -12,6 +12,7 @@ from django.urls import reverse
 
 import pytest
 from asgiref.sync import sync_to_async
+from mcp.server.fastmcp import FastMCP
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -42,6 +43,7 @@ from baserow.contrib.agent.constants import (
     DISALLOWED_TOOL_CALL_NOTE,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
+    MCP_TOOL_CHANGED_CALL_NOTE,
     REJECTED_TOOL_CALL_NOTE,
     RUN_AS_LOST_TOOL_CALL_NOTE,
     TOOL_RETRIES,
@@ -65,6 +67,7 @@ from baserow.contrib.agent.types import (
 )
 from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.constants import ChatRunStopReason
@@ -76,9 +79,11 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
+from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
+from ..integrations.mcp.utils import serve
 from .utils import agent_url, new_conversation, run_reply
 
 
@@ -1479,13 +1484,13 @@ def decide(user: AbstractUser, reply: AgentMessage, **decision: object) -> ChatR
 
     conversation = reply.conversation
     approval = reply.approvals.get(status="pending")
-    _, run_id = AgentService().decide_approvals(
+    result = AgentService().decide_approvals(
         user,
         conversation.agent_id,
         conversation.uuid,
         [{"id": approval.id, **decision}],
     )
-    return ChatRun.objects.get(id=run_id)
+    return ChatRun.objects.get(id=result.run_id)
 
 
 @pytest.mark.django_db
@@ -1494,6 +1499,7 @@ def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
 ):
     user, agent, table = ask_first_agent
     respond(mocker, ({0: tool_call("list_tables", "call_read"), 1: add_row(table)},))
+    pending_count_updated = mocker.spy(application_pending_count_updated, "send")
 
     reply = pause(user, agent)
 
@@ -1519,6 +1525,9 @@ def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
         agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
     ).json()["results"]
     assert run.outcome == listed[-1]
+    assert pending_count_updated.call_args_list == [
+        call(ANY, application=agent, user_ids=[user.id])
+    ]
 
 
 @pytest.mark.django_db
@@ -1967,3 +1976,157 @@ def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
         transcript.usage,
         transcript.paused_conversation,
     ) == (paused.model_messages, paused.usage, None)
+
+
+def mcp_ticket_server(ran: list) -> FastMCP:
+    server = FastMCP("test")
+
+    @server.tool()
+    def close_ticket(ticket: str, api_key: str = "") -> str:
+        """Close the ticket."""
+
+        ran.append(ticket)
+        return "Closed."
+
+    return server
+
+
+def agent_with_mcp_tool(data_fixture, agent, mocker, ran, ask_first=True):
+    """
+    Give the Agent a server whose ``close_ticket`` tool is on.
+
+    :return: The server, and the tool's name for the model.
+    """
+
+    serve(mocker, mcp_ticket_server(ran))
+    integration = data_fixture.create_mcp_server_integration(
+        application=agent,
+        auth_header_name="Authorization",
+        auth_header_value="Bearer one",
+    )
+    MCPServerHandler().refresh_tools(integration)
+    MCPServerHandler().update_tools(
+        integration,
+        [MCPToolSettings("close_ticket", enabled=True, ask_first=ask_first)],
+    )
+    return integration, f"mcp{integration.id}_close_ticket"
+
+
+@pytest.mark.django_db
+def test_an_ask_first_mcp_call_waits_with_its_arguments_and_runs_once_approved(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    ran = []
+    _, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran)
+    received = respond(
+        mocker, ({0: tool_call(close, "call_mcp", ticket="T-1", api_key="s3cret")},)
+    )
+
+    reply = pause(user, agent)
+
+    assert ran == []
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        (close, "waiting")
+    ]
+    # The owner decides on the arguments, a credential masked.
+    assert reply.steps[0]["input"] == {
+        "server": "Docs",
+        "tool": "close_ticket",
+        "values": {"ticket": "T-1", "api_key": "••••"},
+    }
+    assert reply.approvals.get().tool_key
+    assert ASK_FIRST_INSTRUCTIONS in received[0][-1].instructions
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert ran == ["T-1"]
+    assert (reply.status, [step["status"] for step in reply.steps]) == (
+        "completed",
+        ["done"],
+    )
+
+
+@pytest.mark.django_db
+def test_an_mcp_write_after_a_held_call_waits_for_the_decision_too(
+    ask_first_agent, data_fixture, mocker
+):
+    user, agent, table = ask_first_agent
+    ran = []
+    _, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran, ask_first=False)
+    respond(
+        mocker, ({0: add_row(table), 1: tool_call(close, "call_mcp", ticket="T-1")},)
+    )
+
+    reply = pause(user, agent)
+
+    assert ran == []
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "waiting"),
+        (close, "waiting"),
+    ]
+
+
+def _sign_in_again(integration):
+    integration.auth_header_value = "Bearer two"
+    integration.save(update_fields=["auth_header_value"])
+
+
+def _review_a_new_definition(integration):
+    integration.tools.filter(name="close_ticket").update(definition_hash="new")
+
+
+def _move_the_server(integration):
+    integration.url = "https://other.example.com/mcp"
+    integration.save(update_fields=["url"])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change", [_sign_in_again, _review_a_new_definition, _move_the_server]
+)
+def test_an_approved_mcp_call_does_not_run_when_its_server_account_or_tool_changed(
+    data_fixture, configured_agent, mocker, change
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    ran = []
+    integration, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran)
+    received = respond(mocker, ({0: tool_call(close, "call_mcp", ticket="T-1")},))
+    reply = pause(user, agent)
+
+    change(integration)
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert ran == []
+    assert [step["status"] for step in reply.steps] == ["failed"]
+    assert [
+        (part.tool_call_id, part.outcome, part.content)
+        for part in received[-1][-1].parts
+    ] == [("call_mcp", "denied", MCP_TOOL_CHANGED_CALL_NOTE)]
+
+
+@pytest.mark.django_db
+def test_an_approved_mcp_call_does_not_run_once_the_tool_is_turned_off(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    ran = []
+    integration, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran)
+    received = respond(mocker, ({0: tool_call(close, "call_mcp", ticket="T-1")},))
+    reply = pause(user, agent)
+
+    MCPServerHandler().update_tools(
+        integration, [MCPToolSettings("close_ticket", enabled=False)]
+    )
+    run_reply(decide(user, reply, approved=True))
+
+    assert ran == []
+    assert [
+        (part.tool_call_id, part.outcome, part.content)
+        for part in received[-1][-1].parts
+    ] == [("call_mcp", "denied", DISALLOWED_TOOL_CALL_NOTE)]

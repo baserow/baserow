@@ -154,8 +154,13 @@ class IntegrationService:
         still change its host.
         """
 
+        dropped = integration_type.get_dropped_secrets(values, integration)
         for secret, targets in integration_type.secret_field_dependencies.items():
-            if not getattr(integration, secret, None) or secret in values:
+            if (
+                not getattr(integration, secret, None)
+                or secret in values
+                or secret in dropped
+            ):
                 continue
 
             check_secret_targets_unchanged(

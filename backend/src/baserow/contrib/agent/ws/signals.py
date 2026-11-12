@@ -6,6 +6,7 @@ from django.db import DEFAULT_DB_ALIAS, transaction
 from django.dispatch import receiver
 
 from baserow.contrib.agent.api.serializers import AgentConversationSerializer
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation
 from baserow.contrib.agent.signals import (
     agent_conversation_activity,
@@ -90,14 +91,17 @@ def conversation_activity(
     # A deleted conversation is already gone from every list.
     if conversation.trashed:
         return
-    runs = {conversation.id: str(run_id)} if run_id else {}
+    context = {
+        "conversation_runs": {conversation.id: str(run_id)} if run_id else {},
+        "conversation_pending_approvals": (
+            AgentHandler().get_conversation_pending_approval_counts([conversation.id])
+        ),
+    }
     _notify_owner(
         conversation,
         user,
         "agent_conversation_activity",
-        conversation=AgentConversationSerializer(
-            conversation, context={"conversation_runs": runs}
-        ).data,
+        conversation=AgentConversationSerializer(conversation, context=context).data,
     )
 
 

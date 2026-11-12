@@ -41,7 +41,13 @@
 
   &.switch--indeterminate {
     &::after {
-      left: 10px;
+      top: calc(50% - 1px);
+      left: 14px;
+      width: 12px;
+      height: 2px;
+      box-shadow: none;
+
+      @include rounded(1px);
     }
   }
 
@@ -72,7 +78,10 @@
     }
 
     &.switch--indeterminate::after {
-      left: 6px;
+      top: calc(50% - 1px);
+      left: 8px;
+      width: 8px;
+      height: 2px;
     }
   }
 
@@ -85,8 +94,8 @@
   @include switch-color(
     $palette-green-500,
     $palette-green-800,
-    $palette-yellow-500,
-    $palette-yellow-800,
+    $palette-green-500,
+    $palette-green-800,
     $palette-neutral-400,
     $palette-neutral-500
   );

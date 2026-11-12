@@ -53,12 +53,13 @@ describe('Agent tool presentations', () => {
           .failureHint
       ).toBeTruthy()
     }
+    // Connected app tools are named at runtime and claimed by prefix.
     expect(
       registry
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
         // The provider runs web search, so the backend has no agent tool for it.
-        .filter((type) => type !== 'web_search')
+        .filter((type) => !['mcp_server_tool', 'web_search'].includes(type))
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
     for (const { name, input, preview, facts } of cases.tools) {
@@ -378,6 +379,42 @@ describe('Agent tool presentations', () => {
       })
     }
   )
+
+  test('connected app calls name the tool and the app', () => {
+    const call = (status, input) =>
+      toolActivity(
+        {
+          id: '1',
+          tool: 'mcp12_create_issue',
+          status,
+          changes_data: true,
+          input,
+          facts: {},
+        },
+        registry,
+        t
+      )
+    const input = { server: 'Linear', tool: 'Create issue' }
+    expect(call('running', input).title).toBe('Using Create issue in Linear')
+    expect(call('done', input).title).toBe('Used Create issue in Linear')
+    expect(call('failed', input)).toMatchObject({
+      title: 'Create issue in Linear',
+      changesData: true,
+      group: null,
+    })
+    expect(call('done', {}).title).toBe('Connected app tool')
+    expect(call('done', input).input).toBeNull()
+    // A call held for approval shows its arguments, as the backend masked them.
+    const values = { title: 'Bug', api_key: '••••' }
+    expect(call('waiting', { ...input, values }).input).toEqual({
+      values,
+      truncated: false,
+    })
+    // A built-in tool that only looks similar is not claimed.
+    expect(toolActivity(step('mcp_tables', 'done'), registry, t).title).toBe(
+      'Tool completed'
+    )
+  })
 
   test.each([
     ['running', 'Searching the web: baserow'],

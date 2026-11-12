@@ -9,14 +9,14 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.pagination import KeysetCursor
-from baserow.core.signals import application_updated
+from baserow.core.signals import application_pending_count_updated, application_updated
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
 from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
 from .exceptions import AgentConversationWaitingForApproval, AgentNotReady
 from .handler import AgentHandler
-from .models import AgentApplication, AgentConversation, AgentMessage
+from .models import AgentApplication, AgentConversation, AgentMessage, AgentToolApproval
 from .operations import (
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
@@ -37,6 +37,7 @@ from .types import (
     AgentMessageCreated,
     AgentReplyRequest,
     AgentToolDecision,
+    AgentToolDecisionsResult,
 )
 from .validators import validate_message_content
 
@@ -136,7 +137,10 @@ class AgentService:
         return updated
 
     def list_conversations(
-        self, user: AbstractUser, agent_id: int, cursor: KeysetCursor | None = None
+        self,
+        user: AbstractUser,
+        agent_id: int,
+        cursor: KeysetCursor | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return only the user's own conversations, never another owner's.
@@ -233,8 +237,15 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        had_pending_approvals = self.handler.conversation_has_pending_approvals(
+            conversation.id
+        )
         self.handler.delete_conversation(user, conversation)
         agent_conversation_deleted.send(self, conversation=conversation, user=user)
+        if had_pending_approvals:
+            application_pending_count_updated.send(
+                self, application=agent, user_ids=[conversation.owner_user_id]
+            )
         return conversation
 
     def _require_ready(self, agent: AgentApplication) -> None:
@@ -422,20 +433,24 @@ class AgentService:
         agent_id: int,
         conversation_uuid: UUID,
         decisions: list[AgentToolDecision],
-    ) -> tuple[AgentMessage, UUID | None]:
+        always_allow: bool = False,
+    ) -> AgentToolDecisionsResult:
         """
         Approve or reject held calls of the reply waiting in one of the user's
-        conversations, and continue the reply once none are left to decide.
-        Continuing costs model usage like a message, so it needs the same access.
+        conversations, tell the owner's other sessions what is left to decide, and
+        continue the reply once nothing is. Continuing costs model usage like a
+        message, so it needs the same access.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
             reason for a rejection.
+        :param always_allow: Whether the tools of the approved calls stop asking
+            first, which needs the access of a configuration update.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises PermissionException: When the user may not send messages to the
-            agent.
+            agent, or may not update its configuration while always allowing.
         :raises AgentConversationDoesNotExist: When the user has no conversation with
             this uuid in the agent.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
@@ -443,26 +458,71 @@ class AgentService:
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
         :raises ChatRunLimitReached: When the workspace has its maximum of replies
             running.
-        :return: The reply with its approvals, and the run continuing it, or None
-            while some held calls are still undecided.
+        :return: The reply with its approvals, the run continuing it or None while
+            some held calls are still undecided, and the tools that stopped asking
+            first.
         """
 
         feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
-        agent = self._get_authorized_agent(
-            user, agent_id, CreateAgentMessageOperationType.type
-        )
+        operations = [CreateAgentMessageOperationType.type]
+        if always_allow:
+            operations += [
+                UpdateApplicationOperationType.type,
+                ReadAgentConfigurationOperationType.type,
+            ]
+        agent = self._get_authorized_agent(user, agent_id, *operations)
         # The lock serializes decisions with each other and with sends and trashing.
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
-        reply, all_decided = self.handler.decide_approvals(
+        reply, decided, all_decided = self.handler.decide_approvals(
             conversation, user, decisions
         )
-        if not all_decided:
-            return reply, None
-        self._require_ready(self.handler.get_agent(agent_id))
-        run = self.handler.resume_reply(reply)
-        agent_conversation_activity.send(
-            self, conversation=conversation, user=user, run_id=run.id
+        approved_tools = [
+            approval.tool_name
+            for approval in decided
+            if approval.status == AgentToolApproval.Status.APPROVED
+        ]
+        rejected_tools = [
+            approval.tool_name
+            for approval in decided
+            if approval.status == AgentToolApproval.Status.REJECTED
+        ]
+        always_allowed_tools = (
+            self._stop_asking_first(user, agent_id, approved_tools)
+            if always_allow
+            else []
         )
-        return reply, run.id
+        application_pending_count_updated.send(
+            self, application=agent, user_ids=[conversation.owner_user_id]
+        )
+        run_id = None
+        if all_decided:
+            self._require_ready(self.handler.get_agent(agent_id))
+            run_id = self.handler.resume_reply(reply).id
+        agent_conversation_activity.send(
+            self, conversation=conversation, user=user, run_id=run_id
+        )
+        return AgentToolDecisionsResult(
+            reply, approved_tools, rejected_tools, always_allowed_tools, run_id
+        )
+
+    def _stop_asking_first(
+        self, user: AbstractUser, agent_id: int, tool_names: list[str]
+    ) -> list[str]:
+        """
+        Stop asking first for the given tools, telling the Agent's open pages when
+        its configuration changed.
+
+        :param user: The user deciding, already allowed to update the configuration.
+        :param agent_id: The id of the Agent.
+        :param tool_names: The tools of the approved calls.
+        :return: The tools that stopped asking first.
+        """
+
+        # Locked after the conversation, as trashing it needs the Agent row too.
+        agent = self.handler.get_agent(agent_id, for_update=True)
+        stopped = self.handler.stop_asking_first(agent, tool_names)
+        if stopped:
+            application_updated.send(self, application=agent, user=user)
+        return stopped

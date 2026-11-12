@@ -1,3 +1,5 @@
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -6,6 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
 from django.db.models import (
     Case,
+    Count,
     Max,
     Prefetch,
     QuerySet,
@@ -25,6 +28,14 @@ from pydantic_ai import (
     WebSearchTool,
 )
 
+from baserow.contrib.integrations.mcp.exceptions import MCPServerNotConnected
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler
+from baserow.contrib.integrations.mcp.models import (
+    MCPAuthType,
+    MCPServerIntegration,
+    MCPServerTool,
+)
+from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
 from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStepStatus
@@ -51,6 +62,7 @@ from .constants import (
     AGENT_RUN_TYPE,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
+    MCP_TOOL_CHANGED_CALL_NOTE,
     REJECTED_TOOL_CALL_NOTE,
     RUN_AS_LOST_TOOL_CALL_NOTE,
     RUN_AS_SUBJECT_TYPES,
@@ -145,9 +157,9 @@ class AgentHandler:
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
         tools = self.get_tool_configuration(agent)
-        with_tools = run_as.status == AgentRunAsState.ACTIVE and bool(
-            tools["allowed_tools"]
-        )
+        with_tools = (
+            run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"])
+        ) or self.has_mcp_tools(agent)
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
             readiness=readiness,
@@ -205,7 +217,8 @@ class AgentHandler:
         Find the web search of the Agent's model, whether or not it's turned on.
 
         :param agent: The Agent.
-        :param with_function_tools: Whether the reply also offers workspace tools.
+        :param with_function_tools: Whether the reply also offers workspace or MCP
+            tools.
         :return: The tool, or None when the model can't search the web.
         """
 
@@ -316,6 +329,30 @@ class AgentHandler:
                     default=Value(False),
                 )
             )
+
+    def stop_asking_first(
+        self, agent: AgentApplication, tool_names: Iterable[str]
+    ) -> list[str]:
+        """
+        Let allowed tools run without waiting for the owner's approval.
+
+        :param agent: The Agent, locked like for a configuration update.
+        :param tool_names: The tools to stop asking first. Those that aren't allowed
+            or don't ask first are skipped.
+        :return: The names of the tools that stopped asking first, in registry
+            order.
+        """
+
+        requested = set(tool_names)
+        stopped = [
+            name
+            for name in self.get_tool_configuration(agent)["ask_first_tools"]
+            if name in requested
+        ]
+        if stopped:
+            agent.allowed_tools.filter(name__in=stopped).update(ask_first=False)
+            agent.save(update_fields=["updated_on"])
+        return stopped
 
     def get_run_as_subject(
         self,
@@ -793,12 +830,84 @@ class AgentHandler:
             return None
         return reply
 
+    def _pending_approvals(self) -> QuerySet[AgentToolApproval]:
+        """
+        :return: The held calls waiting for their conversation owner's decision.
+        """
+
+        return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
+
+    def get_conversation_pending_approval_counts(
+        self, conversation_ids: list[int]
+    ) -> dict[int, int]:
+        """
+        :param conversation_ids: The ids of the conversations to count in.
+        :return: The number of held calls waiting for the owner's decision by
+            conversation id, leaving out conversations with none.
+        """
+
+        return dict(
+            self._pending_approvals()
+            .filter(reply__conversation_id__in=conversation_ids)
+            .values("reply__conversation_id")
+            .annotate(count=Count("id"))
+            .values_list("reply__conversation_id", "count")
+        )
+
+    def conversation_has_pending_approvals(self, conversation_id: int) -> bool:
+        """
+        Check whether a conversation contributes to its owner's pending count.
+
+        :param conversation_id: The conversation, including one being restored.
+        :return: Whether any of its tool calls still needs a decision.
+        """
+
+        return (
+            self._pending_approvals()
+            .filter(reply__conversation_id=conversation_id)
+            .exists()
+        )
+
+    def get_pending_approval_counts(
+        self, user_ids: list[int], agent_ids: list[int]
+    ) -> dict[int, dict[int, int]]:
+        """
+        Count the held calls waiting for each user's decision in their untrashed
+        conversations with each Agent.
+
+        :param user_ids: The ids of the users who own the conversations.
+        :param agent_ids: The ids of the Agents to count in.
+        :return: The number of pending approvals by Agent id, by user id, leaving
+            out users and Agents with none.
+        """
+
+        counts: dict[int, dict[int, int]] = defaultdict(dict)
+        for user_id, agent_id, count in (
+            self._pending_approvals()
+            .filter(
+                reply__conversation__owner_user_id__in=user_ids,
+                reply__conversation__agent_id__in=agent_ids,
+                reply__conversation__trashed=False,
+            )
+            .values(
+                "reply__conversation__owner_user_id", "reply__conversation__agent_id"
+            )
+            .annotate(count=Count("id"))
+            .values_list(
+                "reply__conversation__owner_user_id",
+                "reply__conversation__agent_id",
+                "count",
+            )
+        ):
+            counts[user_id][agent_id] = count
+        return dict(counts)
+
     def decide_approvals(
         self,
         conversation: AgentConversation,
         user: AbstractUser,
         decisions: list[AgentToolDecision],
-    ) -> tuple[AgentMessage, bool]:
+    ) -> tuple[AgentMessage, list[AgentToolApproval], bool]:
         """
         Save the owner's decisions on held calls of the conversation's waiting reply.
 
@@ -808,7 +917,8 @@ class AgentHandler:
             reason for a rejection.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
-        :return: The reply with its approvals, and whether all of them are decided.
+        :return: The reply with its approvals, the approvals just decided, and
+            whether all of them are decided.
         """
 
         reply = self.get_waiting_reply(conversation)
@@ -839,7 +949,7 @@ class AgentHandler:
             decided, ["status", "reason", "decided_by", "decided_on"]
         )
         prefetch_related_objects([reply], "approvals")
-        return reply, not pending
+        return reply, decided, not pending
 
     def resume_reply(self, reply: AgentMessage) -> ChatRun:
         """
@@ -962,13 +1072,21 @@ class AgentHandler:
             if acting_subject
             else {"allowed_tools": [], "ask_first_tools": []}
         )
+        mcp_servers = self.get_mcp_servers(agent)
         resume = (
             None
             if transcript is None
             else self._get_reply_resume(
                 reply,
                 ConversationTypeAdapter.validate_python(transcript.paused_conversation),
-                tools["allowed_tools"],
+                {
+                    **{name: "" for name in tools["allowed_tools"]},
+                    **{
+                        name: tool.approval_key
+                        for server in mcp_servers
+                        for name, tool in server.model_tool_names().items()
+                    },
+                },
                 DISALLOWED_TOOL_CALL_NOTE
                 if acting_subject
                 else RUN_AS_LOST_TOOL_CALL_NOTE,
@@ -978,7 +1096,9 @@ class AgentHandler:
             (None, []) if resume is not None else self._get_reply_prompt(reply)
         )
         web_search_tool = (
-            self._get_web_search_tool(agent, bool(tools["allowed_tools"]))
+            self._get_web_search_tool(
+                agent, bool(tools["allowed_tools"]) or bool(mcp_servers)
+            )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
             else None
@@ -998,10 +1118,71 @@ class AgentHandler:
             allowed_tool_names=tools["allowed_tools"],
             ask_first_tool_names=tools["ask_first_tools"],
             timezone=conversation.owner_user.profile.timezone,
+            mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
         )
+
+    def has_mcp_tools(self, agent: AgentApplication) -> bool:
+        """
+        Whether a reply may offer MCP tools: one of the Agent's servers has a
+        tool turned on and, if it uses OAuth, an account connected. Unlike
+        `get_mcp_servers` it doesn't refresh a token, so it suits reads.
+
+        :param agent: The Agent.
+        :return: True when a server offers a tool.
+        """
+
+        return (
+            MCPServerTool.objects.filter(
+                integration__application_id=agent.id,
+                integration__trashed=False,
+                enabled=True,
+                removed=False,
+            )
+            .exclude(
+                integration__auth_type=MCPAuthType.OAUTH,
+                integration__oauth_connected_at__isnull=True,
+            )
+            .exists()
+        )
+
+    def get_mcp_servers(self, agent: AgentApplication) -> tuple[MCPServerSnapshot, ...]:
+        """
+        Read the Agent's MCP servers that have tools turned on. They don't depend
+        on the Agent's workspace identity: their tools act with the server's own
+        credential, not in the workspace.
+
+        :param agent: The Agent.
+        :return: One snapshot per server, in the integrations' order.
+        """
+
+        enabled_tools = Prefetch(
+            "tools",
+            queryset=MCPServerTool.objects.filter(enabled=True, removed=False),
+            to_attr="enabled_tools",
+        )
+        servers = MCPServerIntegration.objects.filter(
+            application_id=agent.id, trashed=False
+        ).prefetch_related(enabled_tools)
+        snapshots = []
+        for server in servers:
+            if not server.enabled_tools:
+                continue
+            try:
+                # Refreshes an OAuth token that expires soon, before the reply
+                # starts, so the reply itself never writes to the database.
+                connection = MCPServerHandler().get_connection(server)
+            except MCPServerNotConnected:
+                # Its tools can't be called until an editor connects again.
+                continue
+            snapshots.append(
+                MCPServerSnapshot.from_integration(
+                    server, server.enabled_tools, connection
+                )
+            )
+        return tuple(snapshots)
 
     def _get_paused_transcript(
         self, reply: AgentMessage
@@ -1042,7 +1223,7 @@ class AgentHandler:
         self,
         reply: AgentMessage,
         paused_conversation: Conversation,
-        allowed_tool_names: list[str],
+        callable_tools: dict[str, str],
         disallowed_note: str,
     ) -> AgentReplyResume:
         """
@@ -1051,7 +1232,8 @@ class AgentHandler:
 
         :param reply: The paused reply.
         :param paused_conversation: Its paused run, holding the calls.
-        :param allowed_tool_names: The tools the reply may call now.
+        :param callable_tools: The tools the reply may call now, with the
+            approval key of the MCP ones.
         :param disallowed_note: Tells the model why an approved call can't run.
         :return: The paused run with the decisions and the saved steps.
         """
@@ -1067,7 +1249,7 @@ class AgentHandler:
         # An undecided call gets no result, so the run fails instead of guessing.
         results = {
             tool_call_id: self._get_approval_result(
-                approval, allowed_tool_names, disallowed_note
+                approval, callable_tools, disallowed_note
             )
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
@@ -1090,16 +1272,18 @@ class AgentHandler:
     def _get_approval_result(
         self,
         approval: AgentToolApproval,
-        allowed_tool_names: list[str],
+        callable_tools: dict[str, str],
         disallowed_note: str,
     ) -> ToolApproved | ToolDenied:
         """
         Tell the model what the owner decided about a held call. An approved call
-        to a tool the reply may no longer call is denied instead, and its step then
-        shows a permission failure rather than a rejection.
+        to a tool the reply may no longer call, or to an MCP tool whose server,
+        account or definition changed since it was held, is denied instead, and
+        its step then shows a permission failure rather than a rejection.
 
         :param approval: The decided approval of the call.
-        :param allowed_tool_names: The tools the reply may call now.
+        :param callable_tools: The tools the reply may call now, with the
+            approval key of the MCP ones.
         :param disallowed_note: Tells the model why an approved call can't run.
         :return: Whether the call runs, or why it doesn't.
         """
@@ -1110,8 +1294,13 @@ class AgentHandler:
                 if approval.reason
                 else REJECTED_TOOL_CALL_NOTE
             )
-        if approval.tool_name not in allowed_tool_names:
-            return ToolDenied(disallowed_note)
+        if approval.tool_name not in callable_tools:
+            # An MCP tool doesn't act as the Agent's identity, so losing it isn't why.
+            return ToolDenied(
+                DISALLOWED_TOOL_CALL_NOTE if approval.tool_key else disallowed_note
+            )
+        if callable_tools[approval.tool_name] != approval.tool_key:
+            return ToolDenied(MCP_TOOL_CHANGED_CALL_NOTE)
         return ToolApproved()
 
     def finish_reply(
@@ -1173,6 +1362,7 @@ class AgentHandler:
                     step_id=call.step_id,
                     pause=last_pause + 1,
                     tool_name=call.tool_name,
+                    tool_key=result.tool_keys.get(call.tool_name, ""),
                 )
                 for call in result.waiting_calls
             )

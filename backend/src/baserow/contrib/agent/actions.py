@@ -16,9 +16,14 @@ from baserow.core.action.registries import (
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 
-from .models import AgentConversation, AgentMessage, AgentToolApproval
+from .models import AgentConversation
 from .service import AgentService
-from .types import AgentConfiguration, AgentMessageCreated, AgentToolDecision
+from .types import (
+    AgentConfiguration,
+    AgentMessageCreated,
+    AgentToolDecision,
+    AgentToolDecisionsResult,
+)
 
 
 class CreateAgentConversationActionType(ActionType):
@@ -131,7 +136,7 @@ class DecideAgentToolApprovalsActionType(ActionType):
         _("Decide agent tool approvals"),
         _("Held steps of reply (%(reply_id)s) decided in agent (%(agent_id)s)."),
     )
-    analytics_params = ["agent_id", "approved", "rejected"]
+    analytics_params = ["agent_id", "approved", "rejected", "always_allowed_tools"]
 
     @dataclass
     class Params:
@@ -140,6 +145,7 @@ class DecideAgentToolApprovalsActionType(ActionType):
         reply_id: int
         approved: list[str]
         rejected: list[str]
+        always_allowed_tools: list[str]
 
     @classmethod
     @transaction.atomic
@@ -149,48 +155,42 @@ class DecideAgentToolApprovalsActionType(ActionType):
         agent_id: int,
         conversation_uuid: UUID,
         decisions: list[AgentToolDecision],
-    ) -> tuple[AgentMessage, UUID | None]:
+        always_allow: bool = False,
+    ) -> AgentToolDecisionsResult:
         """
-        Approve or reject held calls, auditing the tools decided but never the
-        rejection reasons, which can quote the private conversation.
+        Approve or reject held calls, auditing the tools decided and those that
+        stopped asking first, but never the rejection reasons, which can quote the
+        private conversation.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
             reason for a rejection.
-        :return: The reply with its approvals, and the run continuing it, or None
-            while some held calls are still undecided.
+        :param always_allow: Whether the tools of the approved calls stop asking
+            first.
+        :return: The saved decisions, the tools that stopped asking first and the
+            run continuing the reply.
         """
 
-        reply, run_id = AgentService().decide_approvals(
-            user, agent_id, conversation_uuid, decisions
+        result = AgentService().decide_approvals(
+            user, agent_id, conversation_uuid, decisions, always_allow
         )
-        decided_ids = {decision["id"] for decision in decisions}
-        decided = [
-            approval for approval in reply.approvals.all() if approval.id in decided_ids
-        ]
+        reply = result.reply
         cls.register_action(
             user,
             cls.Params(
                 agent_id,
                 reply.conversation_id,
                 reply.id,
-                approved=[
-                    approval.tool_name
-                    for approval in decided
-                    if approval.status == AgentToolApproval.Status.APPROVED
-                ],
-                rejected=[
-                    approval.tool_name
-                    for approval in decided
-                    if approval.status == AgentToolApproval.Status.REJECTED
-                ],
+                approved=result.approved_tools,
+                rejected=result.rejected_tools,
+                always_allowed_tools=result.always_allowed_tools,
             ),
             cls.scope(agent_id),
             reply.conversation.agent.workspace,
         )
-        return reply, run_id
+        return result
 
     @classmethod
     def scope(cls, agent_id: int) -> ActionScopeStr:

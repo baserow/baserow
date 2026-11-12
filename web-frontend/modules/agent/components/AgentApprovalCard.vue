@@ -15,6 +15,16 @@
             : $t('agent.approvalReviewed')
         }}
       </span>
+      <Button
+        v-if="pending.length && canAlwaysAllow"
+        type="secondary"
+        size="small"
+        class="agent-approval__always-allow"
+        :disabled="locked"
+        @click="approve(pending, { alwaysAllow: true })"
+      >
+        {{ alwaysAllowLabel }}
+      </Button>
       <div v-if="pending.length" class="agent-approval__actions">
         <Button
           type="secondary"
@@ -149,6 +159,9 @@
 
 <script setup>
 import { computed, inject, reactive, ref, useId, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useNuxtApp } from '#app'
+import { agentToolLabel } from '@baserow/modules/agent/agentTools'
 import AgentRejectModal from '@baserow/modules/agent/components/AgentRejectModal'
 import ChatToolInput from '@baserow/modules/core/components/chat/ChatToolInput'
 import { STEP_STATUS } from '@baserow/modules/core/chatRuns/constants'
@@ -161,6 +174,8 @@ const props = defineProps({
   items: { type: Array, required: true },
   /** The viewer may not decide. */
   disabled: { type: Boolean, default: false },
+  /** The viewer may also turn off Ask first for these steps' tools. */
+  canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about these steps is being saved. */
   deciding: { type: Boolean, default: false },
 })
@@ -180,6 +195,17 @@ let submitted = null
 const locked = computed(() => props.disabled || props.deciding)
 const pending = computed(() =>
   props.items.filter((item) => item.status === APPROVAL_STATUS.PENDING)
+)
+const { $registry } = useNuxtApp()
+const { locale, t } = useI18n()
+const alwaysAllowLabel = computed(() =>
+  t('agent.alwaysAllowTools', {
+    tools: new Intl.ListFormat(locale.value, { type: 'conjunction' }).format(
+      [...new Set(pending.value.map((item) => item.tool))].map((tool) =>
+        agentToolLabel(tool, $registry, t)
+      )
+    ),
+  })
 )
 const countOf = (status) =>
   props.items.filter((item) => item.status === status).length
@@ -207,17 +233,20 @@ function setItemApprove(item, button) {
 }
 
 /** Send the decisions, remembered until their save ends. */
-function decide(decisions) {
+function decide(decisions, options) {
   submitted = {
     ids: decisions.map(({ id }) => id),
     approved: decisions[0].approved,
   }
-  emit('decide', decisions)
+  emit('decide', decisions, options)
 }
 
-function approve(items) {
+function approve(items, options) {
   if (locked.value) return
-  decide(items.map((item) => ({ id: item.id, approved: true })))
+  decide(
+    items.map((item) => ({ id: item.id, approved: true })),
+    options
+  )
 }
 
 function askToReject(items, event) {

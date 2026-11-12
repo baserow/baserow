@@ -4,7 +4,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("integrations", "0040_corewaitservice"),
+        ("integrations", "0041_mcp_server_integration"),
     ]
 
     operations = [

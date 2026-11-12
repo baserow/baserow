@@ -17,9 +17,13 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.models import Integration
+from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.models import Workspace
 from baserow.core.registries import ApplicationType, ImportExportConfig
 from baserow.core.storage import ExportZipFile
+from baserow.core.types import PermissionCheck
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -30,6 +34,7 @@ class AgentApplicationType(ApplicationType):
     serializer_mixins = [AgentApplicationSerializer]
     request_serializer_field_names = ["name"]
     request_serializer_mixins = []
+    supports_integrations = True
 
     @staticmethod
     def _includes_conversations(import_export_config: ImportExportConfig) -> bool:
@@ -76,10 +81,40 @@ class AgentApplicationType(ApplicationType):
             return run_as
         return None, None
 
+    def supports_integration_type(self, integration_type) -> bool:
+        """Only MCP servers: an Agent uses no other integration."""
+
+        from baserow.contrib.integrations.mcp.integration_types import (
+            MCPServerIntegrationType,
+        )
+
+        return (
+            super().supports_integration_type(integration_type)
+            and integration_type.type == MCPServerIntegrationType.type
+        )
+
     def get_api_urls(self) -> list[URLResolver]:
         from baserow.contrib.agent.api import urls as api_urls
 
         return [path("agent/", include(api_urls, namespace=self.type))]
+
+    def get_pending_counts(
+        self, users: list[AbstractUser], applications: list[AgentApplication]
+    ) -> dict[int, dict[int, int]]:
+        """
+        Count the held calls waiting for each user's decision in their own
+        conversations with each Agent.
+
+        :param users: The users to count for.
+        :param applications: The Agents to count in.
+        :return: The number of pending approvals by Agent id, by user id, leaving
+            out users and Agents with none.
+        """
+
+        return AgentHandler().get_pending_approval_counts(
+            [user.id for user in users],
+            [application.id for application in applications],
+        )
 
     def export_safe_transaction_context(self, application: AgentApplication) -> Atomic:
         return transaction.atomic()
@@ -103,6 +138,31 @@ class AgentApplicationType(ApplicationType):
         return super().create_application(
             user, workspace, init_with_data=init_with_data, **kwargs
         )
+
+    def _integrations_to_export(
+        self, application: AgentApplication, import_export_config: ImportExportConfig
+    ) -> list[Integration]:
+        """
+        The connected apps a copy carries. A duplicate keeps their credentials,
+        so it only carries the ones the person copying may read.
+        """
+
+        integrations = list(IntegrationHandler().get_integrations(application))
+        copied_by = import_export_config.copied_by
+        if copied_by is None or import_export_config.exclude_sensitive_data:
+            return integrations
+        checks = [
+            PermissionCheck(copied_by, ReadIntegrationOperationType.type, integration)
+            for integration in integrations
+        ]
+        allowed = CoreHandler().check_multiple_permissions(
+            checks, workspace=application.workspace
+        )
+        return [
+            integration
+            for check, integration in zip(checks, integrations)
+            if allowed.get(check, False) is True
+        ]
 
     def export_serialized(
         self,
@@ -130,6 +190,17 @@ class AgentApplicationType(ApplicationType):
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
             **AgentHandler().get_tool_configuration(application),
+            integrations=[
+                IntegrationHandler().export_integration(
+                    integration,
+                    import_export_config=import_export_config,
+                    files_zip=files_zip,
+                    storage=storage,
+                )
+                for integration in self._integrations_to_export(
+                    application, import_export_config
+                )
+            ],
             web_search_enabled=application.web_search_enabled,
         )
         # Identity ids are local references, not portable configuration.
@@ -160,6 +231,8 @@ class AgentApplicationType(ApplicationType):
     ) -> AgentApplication:
         """Import the configuration and any copied conversations as one new Agent."""
 
+        serialized_integrations = serialized_values.pop("integrations", [])
+        id_mapping.setdefault("integrations", {})
         application = super().import_serialized(
             workspace,
             serialized_values,
@@ -205,6 +278,15 @@ class AgentApplicationType(ApplicationType):
                 if name in allowed_tools
             ],
         )
+        for serialized_integration in serialized_integrations:
+            IntegrationHandler().import_integration(
+                application,
+                serialized_integration,
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                import_export_config=import_export_config,
+            )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
                 application, serialized_values.get("conversations", [])

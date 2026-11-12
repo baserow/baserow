@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Explain HTML embed rendering limitations with an information hint in the application editor.",
+    "issue_origin": "github",
+    "issue_number": 6333,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-05"
+}

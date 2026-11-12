@@ -1,3 +1,4 @@
+from unittest.mock import ANY
 from uuid import uuid4
 
 from django.test import override_settings
@@ -7,12 +8,17 @@ from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from baserow.contrib.agent.actions import DecideAgentToolApprovalsActionType
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentMessage,
     AgentReplyStatus,
     AgentToolApproval,
 )
+from baserow.core.action.registries import action_type_registry
+from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
+from baserow.core.models import Agent
+from baserow.core.signals import application_updated
 
 from .utils import agent_url, new_conversation
 
@@ -39,12 +45,14 @@ def held_reply(data_fixture, configured_agent, api_user) -> AgentMessage:
     return reply
 
 
-def decide(api_client: APIClient, reply: AgentMessage, *decisions: dict) -> Response:
+def decide(
+    api_client: APIClient, reply: AgentMessage, *decisions: dict, **options: bool
+) -> Response:
     conversation = reply.conversation
     url = agent_url(
         conversation.agent, "approvals", conversation_uuid=conversation.uuid
     )
-    return api_client.post(url, {"decisions": list(decisions)})
+    return api_client.post(url, {"decisions": list(decisions), **options})
 
 
 def statuses(reply: AgentMessage) -> tuple[str, list[str]]:
@@ -101,14 +109,15 @@ def test_the_last_decision_resumes_the_reply_and_each_is_audited_by_tool(
         (approval.decided_by_id, approval.decided_on is not None)
         for approval in held_reply.approvals.all()
     } == {(api_user.id, True)}
-    ids = {
+    params = {
         "agent_id": conversation.agent_id,
         "conversation_id": conversation.id,
         "reply_id": held_reply.id,
+        "always_allowed_tools": [],
     }
     assert [entry.args[1] for entry in audited.call_args_list] == [
-        {**ids, "approved": ["create_rows"], "rejected": []},
-        {**ids, "approved": [], "rejected": ["update_rows"]},
+        {**params, "approved": ["create_rows"], "rejected": []},
+        {**params, "approved": [], "rejected": ["update_rows"]},
     ]
 
 
@@ -224,3 +233,124 @@ def test_a_refused_resume_keeps_every_held_call_pending(
 
     assert (response.status_code, response.json()["error"]) == (status_code, error)
     assert statuses(held_reply) == ("waiting", ["pending", "pending"])
+
+
+@pytest.mark.django_db
+def test_pending_approvals_are_counted_per_agent_and_per_conversation(
+    data_fixture, api_client, api_user, held_reply
+):
+    waiting = held_reply.conversation
+    agent = waiting.agent
+    other_agent = data_fixture.create_agent_application(workspace=agent.workspace)
+    idle_agent = data_fixture.create_agent_application(workspace=agent.workspace)
+    data_fixture.create_agent_tool_approval(
+        reply=held_reply, status=AgentToolApproval.Status.APPROVED
+    )
+    for conversation in [
+        data_fixture.create_agent_conversation(
+            user=api_user, agent=agent, trashed=True
+        ),
+        data_fixture.create_agent_conversation(agent=agent),
+        data_fixture.create_agent_conversation(user=api_user, agent=other_agent),
+    ]:
+        data_fixture.create_agent_tool_approval(conversation=conversation)
+    idle = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    url = agent_url(agent, "conversations")
+
+    other_user = data_fixture.create_user()
+    counts = agent.get_type().get_pending_counts(
+        [api_user, other_user], [agent, other_agent, idle_agent]
+    )
+    listed = api_client.get(url).json()["results"]
+    renamed = api_client.patch(
+        agent_url(agent, "conversation", conversation_uuid=waiting.uuid),
+        {"title": "Renamed"},
+    )
+
+    assert counts == {api_user.id: {agent.id: 2, other_agent.id: 1}}
+    assert {item["uuid"]: item["pending_approval_count"] for item in listed} == {
+        str(waiting.uuid): 2,
+        str(idle.uuid): 0,
+    }
+    assert renamed.json()["pending_approval_count"] == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.enable_signals(
+    "baserow.ws.tasks.broadcast_application_pending_counts.delay"
+)
+def test_each_decision_sends_the_owner_the_pending_count_left(
+    api_user, held_reply, mocker, django_capture_on_commit_callbacks
+):
+    agent = held_reply.conversation.agent
+    broadcast = mocker.patch("baserow.ws.tasks.broadcast_to_users_individual_payloads")
+    # Eager Celery would otherwise run the resumed reply.
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+
+    for approval in held_reply.approvals.all():
+        with django_capture_on_commit_callbacks(execute=True):
+            action_type_registry.get_by_type(DecideAgentToolApprovalsActionType).do(
+                api_user,
+                agent.id,
+                held_reply.conversation.uuid,
+                [{"id": approval.id, "approved": True}],
+            )
+
+    assert [sent.args for sent in broadcast.call_args_list] == [
+        (
+            {
+                str(api_user.id): {
+                    "type": "application_pending_count_updated",
+                    "application_id": agent.id,
+                    "pending_count": left,
+                }
+            },
+        )
+        for left in (1, 0)
+    ]
+
+
+@pytest.mark.django_db
+def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
+    api_client, api_user, data_fixture, held_reply, mocker
+):
+    agent = held_reply.conversation.agent
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    for tool_name in ("delete_rows", "list_tables"):
+        data_fixture.create_agent_tool_approval(reply=held_reply, tool_name=tool_name)
+    created, updated, deleted, listed = held_reply.approvals.all()
+    AgentHandler().set_allowed_tools(
+        agent,
+        ["create_rows", "update_rows", "delete_rows"],
+        ["create_rows", "delete_rows"],
+    )
+    audited = mocker.spy(DecideAgentToolApprovalsActionType, "send_action_done_signal")
+    configuration_updated = mocker.spy(application_updated, "send")
+
+    rejected = decide(
+        api_client, held_reply, {"id": deleted.id, "approved": False}, always_allow=True
+    )
+
+    assert rejected.status_code == 200
+    assert audited.call_args.args[1]["always_allowed_tools"] == []
+    configuration_updated.assert_not_called()
+    audited.reset_mock()
+
+    response = decide(
+        api_client,
+        held_reply,
+        {"id": created.id, "approved": True},
+        {"id": updated.id, "approved": True},
+        {"id": listed.id, "approved": True},
+        always_allow=True,
+    )
+
+    assert response.status_code == 200
+    assert AgentHandler().get_tool_configuration(agent) == {
+        "allowed_tools": ["create_rows", "update_rows", "delete_rows"],
+        "ask_first_tools": ["delete_rows"],
+    }
+    assert audited.call_args.args[1]["always_allowed_tools"] == ["create_rows"]
+    configuration_updated.assert_called_once_with(ANY, application=agent, user=api_user)

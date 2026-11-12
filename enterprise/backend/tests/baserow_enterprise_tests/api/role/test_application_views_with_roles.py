@@ -123,6 +123,7 @@ def test_list_workspace_applications(data_fixture, enterprise_data_fixture, api_
             },
             "created_on": AnyStr(),
             "last_viewed": None,
+            "pending_count": 0,
             "tables": [
                 {
                     "id": table1.id,
@@ -145,6 +146,7 @@ def test_list_workspace_applications(data_fixture, enterprise_data_fixture, api_
             },
             "created_on": AnyStr(),
             "last_viewed": None,
+            "pending_count": 0,
             "tables": [
                 {
                     "id": table2.id,

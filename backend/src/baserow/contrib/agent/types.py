@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic_ai import Conversation, DeferredToolResults, WebSearchTool
 
+from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.chat_runs.types import ChatRunStep, ChatRunWaitingCall
 from baserow.core.models import Workspace
 from baserow.core.types import Subject
@@ -84,6 +85,21 @@ class AgentConversationUpdated:
 
 
 @dataclass(frozen=True)
+class AgentToolDecisionsResult:
+    """Saved decisions on a reply's held calls, and what they changed."""
+
+    reply: AgentMessage
+    approved_tools: list[str]
+    """The tools of the calls approved by these decisions."""
+    rejected_tools: list[str]
+    """The tools of the calls rejected by these decisions."""
+    always_allowed_tools: list[str]
+    """The tools that stopped asking first, in registry order."""
+    run_id: UUID | None
+    """The run continuing the reply, or None while some calls are undecided."""
+
+
+@dataclass(frozen=True)
 class AgentReplyResume:
     """A paused run of a reply, continued once its held calls are decided."""
 
@@ -122,6 +138,8 @@ class AgentReplyRequest:
     """The allowed tools whose calls wait for the owner's approval."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+    mcp_servers: tuple[MCPServerSnapshot, ...] = ()
+    """The MCP servers with tools turned on, as reviewed when the reply started."""
     reasoning_effort: str | None = None
     """How much the model reasons, or None for its default."""
     web_search_tool: WebSearchTool | None = None
@@ -155,6 +173,8 @@ class AgentReplyResult:
     """Its tool calls in call order, or None when it made none."""
     waiting_calls: list[ChatRunWaitingCall] = field(default_factory=list)
     """The calls held for the owner's approval, when the run paused."""
+    tool_keys: dict[str, str] = field(default_factory=dict)
+    """The approval key of each held MCP call's tool, by tool name."""
     paused_run: AgentPausedRun | None = None
     """The paused run, to resume once its held calls are decided."""
 
