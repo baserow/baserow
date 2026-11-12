@@ -20,6 +20,10 @@ NAME_HELP_TEXT = (
     "The trigger's name, trimmed. Blank shows a default worded by its type, such "
     "as its schedule."
 )
+ON_OVERLAP_HELP_TEXT = (
+    "What a firing does while a reply of the trigger is still going: `skip` "
+    "starts nothing, `wait` queues its conversation until that reply ends."
+)
 
 
 class AgentTriggerSerializer(serializers.ModelSerializer):
@@ -31,13 +35,40 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
     # A ModelSerializer would render the TextField-based formula as a plain string.
     message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
     service = PolymorphicServiceSerializer(help_text=SERVICE_HELP_TEXT)
+    # Read-only model fields lose allow_blank, so the schema would reject "".
+    last_skipped_reason = serializers.ChoiceField(
+        choices=AgentTrigger.SkipReason.choices,
+        allow_blank=True,
+        read_only=True,
+        help_text="Why the last skipped firing started nothing, empty until one is.",
+    )
 
     class Meta:
         model = AgentTrigger
-        fields = ("id", "type", "name", "enabled", "message", "service")
+        fields = (
+            "id",
+            "type",
+            "name",
+            "enabled",
+            "message",
+            "on_overlap",
+            "service",
+            "last_fired_on",
+            "last_skipped_on",
+            "last_skipped_reason",
+        )
         extra_kwargs = {
             "id": {"read_only": True},
             "name": {"help_text": NAME_HELP_TEXT},
+            "on_overlap": {"help_text": ON_OVERLAP_HELP_TEXT},
+            "last_fired_on": {
+                "read_only": True,
+                "help_text": "When a firing last started or queued a conversation.",
+            },
+            "last_skipped_on": {
+                "read_only": True,
+                "help_text": "When a firing was last skipped.",
+            },
         }
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -97,6 +128,12 @@ class CreateAgentTriggerSerializer(
         default=True,
         help_text="Whether the trigger starts conversations right away.",
     )
+    on_overlap = serializers.ChoiceField(
+        choices=AgentTrigger.OnOverlap.choices,
+        required=False,
+        default=AgentTrigger.OnOverlap.SKIP,
+        help_text=ON_OVERLAP_HELP_TEXT,
+    )
 
 
 class UpdateAgentTriggerSerializer(
@@ -117,3 +154,8 @@ class UpdateAgentTriggerSerializer(
         help_text="Whether the trigger starts conversations when its event happens.",
     )
     message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
+    on_overlap = serializers.ChoiceField(
+        choices=AgentTrigger.OnOverlap.choices,
+        required=False,
+        help_text=ON_OVERLAP_HELP_TEXT,
+    )

@@ -56,6 +56,20 @@ class AgentAllowedTool(models.Model):
 class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     """An agent-owned trigger service whose events start shared conversations."""
 
+    class OnOverlap(models.TextChoices):
+        """What a firing does while one of the trigger's replies is still going."""
+
+        SKIP = "skip", "Skip"
+        WAIT = "wait", "Wait for the previous run"
+
+    class SkipReason(models.TextChoices):
+        """Why the trigger's last skipped firing started nothing."""
+
+        RATE_LIMITED = "rate_limited", "Rate limited"
+        AGENT_RATE_LIMITED = "agent_rate_limited", "Agent rate limited"
+        PREVIOUS_RUNNING = "previous_running", "Previous run still going"
+        QUEUE_FULL = "queue_full", "Queue full"
+
     agent = models.ForeignKey(
         AgentApplication, on_delete=models.CASCADE, related_name="triggers"
     )
@@ -68,6 +82,22 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     )
     enabled = models.BooleanField(default=True, db_default=True)
     message = FormulaField(default="", db_default="", blank=True)
+    on_overlap = models.CharField(
+        max_length=16,
+        choices=OnOverlap.choices,
+        default=OnOverlap.SKIP,
+        db_default=OnOverlap.SKIP,
+    )
+    # A skip is shown while it is newer than the last accepted firing.
+    last_fired_on = models.DateTimeField(null=True, blank=True)
+    last_skipped_on = models.DateTimeField(null=True, blank=True)
+    last_skipped_reason = models.CharField(
+        max_length=32,
+        choices=SkipReason.choices,
+        blank=True,
+        default="",
+        db_default="",
+    )
 
     class Meta:
         ordering = ("id",)
@@ -100,7 +130,7 @@ class AgentConversation(
         on_delete=models.SET_NULL,
         related_name="conversations",
     )
-    # Both indexes below lead with the agent, so reads never need one on trashed.
+    # The list indexes lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
 
@@ -134,6 +164,12 @@ class AgentConversation(
                 fields=["agent", "-pinned", "-updated_on", "-id"],
                 name="agent_conversation_shared_idx",
             ),
+            # Rate limits count a trigger's, or its agent's, recent conversations.
+            models.Index(
+                fields=["trigger", "-created_on"],
+                condition=Q(trigger__isnull=False),
+                name="agent_conversation_trigger_idx",
+            ),
         ]
 
 
@@ -146,6 +182,9 @@ class AgentReplyStatus(models.TextChoices):
     CANCELLED = "cancelled"
     FAILED = "failed"
     WAITING = "waiting"
+
+
+GOING_REPLY_STATUSES = (AgentReplyStatus.RUNNING, AgentReplyStatus.WAITING)
 
 
 class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
@@ -176,6 +215,14 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         indexes = [
             models.Index(
                 fields=["conversation", "-id"], name="agent_message_history_idx"
+            ),
+            # Only replies still queued or going: what the trigger rules look up.
+            models.Index(
+                fields=["conversation"],
+                condition=Q(
+                    status__in=(AgentReplyStatus.QUEUED, *GOING_REPLY_STATUSES)
+                ),
+                name="agent_message_active_idx",
             ),
         ]
         constraints = [

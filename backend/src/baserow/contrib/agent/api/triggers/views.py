@@ -156,6 +156,7 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
             enabled=data["enabled"],
             service=pop_service_values(data),
             name=data["name"],
+            on_overlap=data["on_overlap"],
         )
         return Response(AgentTriggerSerializer(trigger).data)
 
@@ -173,8 +174,9 @@ class AgentTriggerView(APIView):
         operation_id="update_agent_trigger",
         description=(
             "Updates the provided fields of the trigger: its name, its switch, "
-            "its message and the values of its service, whose type is fixed. "
-            "Requires permission to update the agent and read its configuration."
+            "its message, its overlap rule and the values of its service, whose "
+            "type is fixed. Switching it off cancels its queued replies. Requires "
+            "permission to update the agent and read its configuration."
         ),
         request=UpdateAgentTriggerSerializer,
         responses={

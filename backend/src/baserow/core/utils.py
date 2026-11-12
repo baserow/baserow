@@ -13,6 +13,7 @@ import re
 import socket
 import string
 from collections import defaultdict, namedtuple
+from datetime import datetime, timedelta
 from decimal import Decimal
 from fractions import Fraction
 from itertools import chain, islice
@@ -24,6 +25,7 @@ from typing import (
     Iterable,
     List,
     Optional,
+    Sequence,
     Set,
     Tuple,
     Type,
@@ -1540,3 +1542,27 @@ def get_embedded_share_url(path: str) -> str:
     """
 
     return f"{settings.BASEROW_EMBEDDED_SHARE_URL.rstrip('/')}/{path}"
+
+
+def rate_limit_window_exceeded(
+    timestamps: Iterable[datetime],
+    limits: Sequence[tuple[int, int]],
+    now: datetime,
+) -> tuple[int, int] | None:
+    """
+    Find the first ``(max_runs, window_seconds)`` limit the given runs reach:
+    ``max_runs`` or more of them started in the ``window_seconds`` before ``now``.
+    A run exactly at a window's start counts, as in Automation's workflow limits.
+
+    :param timestamps: When each counted run started, in any order.
+    :param limits: The ``(max_runs, window_seconds)`` pairs to check, in order.
+    :param now: The moment every window ends.
+    :return: The first pair reached, or None when another run is allowed.
+    """
+
+    starts = list(timestamps)
+    for max_runs, window_seconds in limits:
+        window_start = now - timedelta(seconds=window_seconds)
+        if sum(start >= window_start for start in starts) >= max_runs:
+            return max_runs, window_seconds
+    return None

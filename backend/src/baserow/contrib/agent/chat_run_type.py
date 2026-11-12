@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 
 from asgiref.sync import sync_to_async
 from pydantic_ai.models import Model
@@ -29,6 +30,7 @@ from .models import AgentReplyStatus
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_activity
+from .triggers.dispatcher import agent_trigger_dispatcher
 from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -138,7 +140,7 @@ class AgentChatRunType(ChatRunType):
         """
         Save how the reply ended and tell every session that sees the conversation,
         with the pending counts of those who may decide when the reply now waits for
-        approvals.
+        approvals. A trigger's reply hands the trigger's queue on once this commits.
 
         :param run: The run that wrote the reply.
         :param status: The final status.
@@ -155,6 +157,13 @@ class AgentChatRunType(ChatRunType):
             return None
         conversation = reply.conversation
         agent_conversation_activity.send(self, conversation=conversation, user=None)
+        if conversation.trigger_id is not None:
+            trigger = conversation.trigger
+            # Before the commit, this run still counts against the workspace limit.
+            transaction.on_commit(
+                lambda: agent_trigger_dispatcher.start_next_queued_reply(trigger),
+                robust=True,
+            )
         if reply.status == AgentReplyStatus.WAITING:
             application_pending_count_updated.send(
                 self,
