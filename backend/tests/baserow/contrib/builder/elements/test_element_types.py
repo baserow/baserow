@@ -796,9 +796,7 @@ def test_choice_element_is_valid_formula_context(data_fixture):
             {"value": "Sweden", "color": "yellow"},
         ],
     )
-    builder = data_fixture.create_builder_application(
-        user=user, workspace=table.database.workspace
-    )
+    builder = data_fixture.create_builder_application(user=user)
     integration = data_fixture.create_local_baserow_integration(
         user=user, application=builder
     )

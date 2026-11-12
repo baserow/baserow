@@ -152,14 +152,9 @@ def test_local_baserow_table_service_generate_schema_with_interesting_test_table
     integration = data_fixture.create_local_baserow_integration(
         application=builder, user=user
     )
-    # The table is read through the builder's integration, so they share a
-    # workspace.
     table, _, _, _, _ = setup_interesting_test_table(
         data_fixture,
         user,
-        database=data_fixture.create_database_application(
-            user=user, workspace=builder.workspace
-        ),
     )
     field_db_column_by_name = {
         field.name: field.db_column for field in table.field_set.all()
