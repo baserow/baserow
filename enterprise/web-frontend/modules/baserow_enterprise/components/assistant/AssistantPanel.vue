@@ -71,8 +71,13 @@ import AssistantInputMessage from '@baserow_enterprise/components/assistant/Assi
 import AssistantMessageList from '@baserow_enterprise/components/assistant/AssistantMessageList'
 import AssistantChatHistoryContext from './AssistantChatHistoryContext'
 import { mapGetters, mapActions } from 'vuex'
-import { waitFor } from '@baserow/modules/core/utils/queue'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
+import { RUN_STATUS } from '@baserow/modules/core/chatRuns/constants'
+import { SEND_OUTCOME } from '@baserow_enterprise/store/assistant'
+import { navigateToAssistantLocation } from '@baserow_enterprise/utils/assistantNavigation'
+
+const WAITING_FOR_WORKER_AFTER_MS = 3000
 
 export default {
   name: 'AssistantPanel',
@@ -90,18 +95,14 @@ export default {
     },
   },
   setup() {
-    provideNow()
-  },
-  data() {
-    return {
-      loading: false,
-    }
+    return { now: provideNow(1000) }
   },
   computed: {
     ...mapGetters({
       user: 'auth/getUserObject',
       messages: 'assistant/messages',
       currentChat: 'assistant/currentChat',
+      activeFollower: 'assistant/activeFollower',
       chats: 'assistant/chats',
       isLoadingChats: 'assistant/isLoadingChats',
       pendingPrompt: 'assistant/pendingPrompt',
@@ -115,22 +116,43 @@ export default {
       return this.currentChat?.title
     },
     isAssistantRunning() {
-      return Boolean(this.currentChat?.running)
+      return Boolean(this.currentChat?.running || this.activeFollower)
     },
     isAssistantCancelling() {
-      return Boolean(this.currentChat?.cancelling)
+      return Boolean(this.activeFollower?.stopRequested)
     },
     assistantRunningMessage() {
-      return this.currentChat?.runningMessage || ''
+      const follower = this.activeFollower
+      if (!follower) {
+        return ''
+      }
+      if (follower.replayUnavailable || !follower.streaming) {
+        return this.$t('assistant.statusWaitingForOutput')
+      }
+      // Unknown before the first catch-up, and every run queues for a moment.
+      if (
+        follower.cursor &&
+        follower.view.status === RUN_STATUS.QUEUED &&
+        this.now - follower.followedAt >= WAITING_FOR_WORKER_AFTER_MS
+      ) {
+        return this.$t('assistant.statusWaitingForWorker')
+      }
+      if (follower.view.answering) {
+        return this.$t('assistant.statusAnswering')
+      }
+      return follower.view.progress || this.$t('assistant.statusThinking')
     },
   },
   watch: {
     workspace: {
-      handler(newWorkspace) {
+      async handler(newWorkspace) {
         this.resetStore()
         // The selected workspace is an empty object once it goes away.
-        if (newWorkspace.id !== undefined) {
-          this.fetchChats(newWorkspace.id)
+        if (newWorkspace.id === undefined) return
+        await this.fetchChats(newWorkspace.id)
+        // The user can have switched workspaces again while the chats loaded.
+        if (this.workspace.id === newWorkspace.id) {
+          await this.restoreOpenChat()
         }
       },
       immediate: true,
@@ -155,112 +177,27 @@ export default {
       }
     },
     uiLocation: {
-      handler(newLocation) {
-        if (!newLocation) return
-
-        if (newLocation.type === 'database-view') {
-          // Don't navigate to deactivated views
-          const viewType = this.$registry.get('view', newLocation.view_type)
-          if (!viewType || viewType.isDeactivated(this.workspace.id)) {
-            return
-          }
-        }
-
-        const router = this.$router
-        const store = this.$store
-        if (
-          newLocation.type === 'database-table' ||
-          newLocation.type === 'database-view'
-        ) {
-          waitFor(() => {
-            const database = store.getters['application/get'](
-              newLocation.database_id
-            )
-
-            const isCurrentlyOnTable =
-              this.$route.name === 'database-table' &&
-              parseInt(this.$route.params.tableId) ===
-                parseInt(newLocation.table_id)
-
-            const tableLoaded =
-              database &&
-              database.tables.find((table) => table.id === newLocation.table_id)
-            const viewLoaded = store.getters['view/get'](newLocation.view_id)
-            return (
-              tableLoaded &&
-              (!isCurrentlyOnTable || !newLocation.view_id || viewLoaded)
-            )
-          }).then(() => {
-            router.push({
-              name: 'database-table',
-              params: {
-                workspaceId: this.workspace.id,
-                databaseId: newLocation.database_id,
-                tableId: newLocation.table_id,
-                viewId: newLocation.view_id,
-              },
-            })
-          })
-        } else if (newLocation.type === 'workspace') {
-          this.$router.push({
-            name: 'workspace',
-            params: {
-              workspaceId: this.workspace.id,
-            },
-          })
-        } else if (newLocation.type === 'builder-page') {
-          waitFor(() => {
-            const builder = store.getters['application/get'](
-              newLocation.application_id
-            )
-            return (
-              builder &&
-              builder.pages.find((page) => page.id === newLocation.page_id)
-            )
-          }).then(() => {
-            router.push({
-              name: 'builder-page',
-              params: {
-                builderId: newLocation.application_id,
-                pageId: newLocation.page_id,
-              },
-            })
-          })
-        } else if (newLocation.type === 'automation-workflow') {
-          waitFor(() => {
-            const automation = store.getters['application/get'](
-              newLocation.automation_id
-            )
-
-            return (
-              automation &&
-              automation.workflows.find(
-                (workflow) => workflow.id === newLocation.workflow_id
-              )
-            )
-          }).then(() => {
-            this.$router.push({
-              name: 'automation-workflow',
-              params: {
-                automationId: newLocation.automation_id,
-                workflowId: newLocation.workflow_id,
-              },
-            })
-          })
-        } else if (newLocation.type === 'dashboard') {
-          waitFor(() =>
-            store.getters['application/get'](newLocation.dashboard_id)
-          ).then(() => {
-            router.push({
-              name: 'dashboard-application',
-              params: { dashboardId: newLocation.dashboard_id },
-            })
-          })
-        }
+      handler(location) {
+        if (!location) return
+        const workspaceId = this.workspace.id
+        const chatId = this.currentChatId
+        // Loading may outlive this panel, chat, workspace or navigation event.
+        const isCurrent = () =>
+          this.$store.getters['assistant/isPanelOpen'] &&
+          this.workspace.id === workspaceId &&
+          this.currentChatId === chatId &&
+          this.uiLocation === location
+        navigateToAssistantLocation(
+          this,
+          workspaceId,
+          location,
+          isCurrent
+        ).catch(notifyIf)
       },
     },
   },
   mounted() {
+    this.setPanelOpen(true)
     const container = this.$refs.scrollContainer
     let isUserScrolling = false
 
@@ -293,6 +230,7 @@ export default {
   },
 
   beforeUnmount() {
+    this.setPanelOpen(false)
     if (this.scrollObserver) {
       this.scrollObserver.disconnect()
     }
@@ -307,40 +245,42 @@ export default {
       fetchChats: 'assistant/fetchChats',
       resetStore: 'assistant/reset',
       setPendingPrompt: 'assistant/setPendingPrompt',
+      setPanelOpen: 'assistant/setPanelOpen',
+      restoreOpenChat: 'assistant/restoreOpenChat',
     }),
 
     /**
      * Sends a message that was typed somewhere else, always in a conversation of
-     * its own so it doesn't continue whatever was on screen before.
+     * its own so it doesn't continue whatever was on screen before. The running
+     * answer keeps going in its own chat.
      */
     async sendPendingPrompt(prompt) {
       const workspace = this.workspace
       await this.setPendingPrompt(null)
-      // A reply that is still streaming would otherwise keep applying its
-      // updates to the conversation this prompt starts.
-      await this.cancelMessage()
-      // The prompt was meant for the workspace it was typed in, which the user
-      // can have left while the cancellation was in flight.
-      if (this.workspace.id !== workspace.id) {
-        return
-      }
+      if (this.workspace.id !== workspace.id) return
       await this.clearChat()
       this.$refs.message.focus()
       await this.sendMessage({ message: prompt, workspace })
     },
 
     async handleSendMessage(text) {
-      const message = text
-      if (!message || this.loading) return
+      if (!text) return
 
-      await this.sendMessage({
-        message,
+      const outcome = await this.sendMessage({
+        message: text,
         workspace: this.workspace,
       })
+      if (outcome === SEND_OUTCOME.BUSY) {
+        this.$refs.message?.setCurrentMessage(text)
+      }
     },
 
     async handleCancelMessage() {
-      await this.cancelMessage()
+      try {
+        await this.cancelMessage()
+      } catch (error) {
+        notifyIf(error)
+      }
     },
 
     toggleChatHistoryContext() {

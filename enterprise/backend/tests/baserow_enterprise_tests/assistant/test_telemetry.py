@@ -1,6 +1,7 @@
 import asyncio
 import json
 import sys
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from django.test import override_settings
@@ -245,6 +246,43 @@ class TestPosthogTracingCallback:
 
         # After trace, context should be cleared
         assert _trace_ctx.get() is None
+
+    @pytest.mark.parametrize(
+        "outcome,is_error",
+        [
+            (AssistantTraceOutcome.INTERRUPTED, False),
+            (AssistantTraceOutcome.NOT_STARTED, True),
+        ],
+    )
+    @patch("baserow_enterprise.assistant.telemetry.get_posthog_client")
+    def test_capture_outcome_reports_a_run_once_the_transaction_commits(
+        self,
+        mock_get_client,
+        outcome,
+        is_error,
+        assistant_chat_fixture,
+        django_capture_on_commit_callbacks,
+    ):
+        mock_posthog = mock_get_client.return_value
+        tracer = PosthogTracingCallback()
+        start_time = datetime(2026, 10, 14, 10, 0, tzinfo=timezone.utc)
+
+        with django_capture_on_commit_callbacks(execute=True):
+            tracer.capture_outcome(assistant_chat_fixture, "Hello", outcome, start_time)
+            mock_posthog.capture.assert_not_called()
+
+        call_kwargs = mock_posthog.capture.call_args.kwargs
+        props = call_kwargs["properties"]
+        assert (call_kwargs["event"], call_kwargs["timestamp"]) == (
+            "$ai_trace",
+            start_time,
+        )
+        assert props["$ai_trace_id"] == tracer.trace_id
+        assert props["$ai_session_id"] == str(assistant_chat_fixture.uuid)
+        assert props["$ai_input_state"] == {"user_message": "Hello"}
+        assert props["$ai_output_state"] == {"status": outcome.value}
+        assert props["assistant_outcome"] == outcome.value
+        assert props["$ai_is_error"] is is_error
 
 
 class TestPydanticMessagesToPosthog:

@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 
 from drf_spectacular.extensions import OpenApiSerializerExtension
 from drf_spectacular.plumbing import force_instance
@@ -95,19 +96,38 @@ class UIContextSerializer(serializers.Serializer):
 
 
 class AssistantMessageRequestSerializer(serializers.Serializer):
-    content = serializers.CharField(help_text="The content of the message.")
+    content = serializers.CharField(
+        help_text="The content of the message.",
+    )
     ui_context = UIContextSerializer(
         help_text=(
-            "The UI context related to what the user was looking at when the message was sent."
-        )
+            "The UI context related to what the user was looking at when the "
+            "message was sent."
+        ),
+    )
+    tab_id = serializers.CharField(
+        default="",
+        allow_blank=True,
+        max_length=64,
+        help_text=(
+            "This tab's id; only the tab that sent the message receives Kuma's "
+            "navigation."
+        ),
     )
 
 
 class AssistantChatSerializer(serializers.ModelSerializer):
+    chat_id = serializers.IntegerField(
+        source="id",
+        read_only=True,
+        help_text="The id of the chat, the `chat_id` of its `chat_runs` page.",
+    )
+
     class Meta:
         model = AssistantChat
         fields = (
             "uuid",
+            "chat_id",
             "user_id",
             "workspace_id",
             "title",
@@ -138,6 +158,11 @@ class AiMessageSerializer(serializers.Serializer):
             "The list of relevant source URLs referenced in the knowledge. Can be empty or null."
         ),
     )
+    onboarding_target = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="The table created during onboarding, opened when the run ends.",
+    )
     can_submit_feedback = serializers.BooleanField(
         default=False,
         help_text=(
@@ -150,6 +175,23 @@ class AiMessageSerializer(serializers.Serializer):
         allow_null=True,
         choices=["LIKE", "DISLIKE"],
         help_text="The sentiment for the message, if it has been rated.",
+    )
+    run_status = serializers.CharField(
+        required=False,
+        allow_null=True,
+        help_text=(
+            "How the run that wrote this message ended when it didn't complete: "
+            "`cancelled` or `failed`. Null for a complete answer."
+        ),
+    )
+    error_code = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text=(
+            "Why that run failed or stopped: `interrupted`, `not_started`, "
+            "`timeout`, `failed`, `model_unavailable` or `access_lost`."
+        ),
     )
 
 
@@ -274,27 +316,27 @@ class AssistantMessageSerializer(serializers.Serializer):
 
 
 class AssistantChatMessagesSerializer(serializers.Serializer):
+    chat_title = serializers.CharField(
+        allow_blank=True, help_text="The chat's current title."
+    )
+    chat_id = serializers.IntegerField(help_text="The id of the chat.")
     messages = AssistantMessageSerializer(many=True)
+    active_run = serializers.JSONField(allow_null=True)
+    latest_run = serializers.JSONField(allow_null=True)
 
-    def to_representation(self, instance):
-        """Convert the instance to the proper representation."""
-
-        if isinstance(instance, dict) and "messages" in instance:
-            messages = instance["messages"]
-        else:
-            messages = getattr(instance, "messages", [])
-
-        # Filter out messages that can't be serialized
-        serializable_messages = [
-            msg
-            for msg in messages
-            if hasattr(msg, "type") and AssistantMessageSerializer.can_serialize(msg)
+    def to_representation(self, instance: dict[str, Any]) -> dict[str, Any]:
+        messages = [
+            message
+            for message in instance["messages"]
+            if hasattr(message, "type")
+            and AssistantMessageSerializer.can_serialize(message)
         ]
-
         return {
-            "messages": AssistantMessageSerializer(
-                serializable_messages, many=True
-            ).data
+            "chat_id": instance["chat_id"],
+            "chat_title": instance["chat_title"],
+            "messages": AssistantMessageSerializer(messages, many=True).data,
+            "active_run": instance["active_run"],
+            "latest_run": instance["latest_run"],
         }
 
 

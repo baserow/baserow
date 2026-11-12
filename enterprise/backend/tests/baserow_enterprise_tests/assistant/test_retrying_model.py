@@ -2,6 +2,7 @@
 
 import json
 import os
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
@@ -10,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import httpx2
 import pytest
+from loguru import logger
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
     ModelRequest,
@@ -33,6 +35,16 @@ from baserow_enterprise.assistant.retrying_model import (
     _try_recover_tool_use_failed,
     repair_printed_tool_call,
 )
+
+
+@pytest.fixture
+def retry_logs() -> Iterator[list[str]]:
+    written = []
+    sink = logger.add(written.append, format="{message}")
+    try:
+        yield written
+    finally:
+        logger.remove(sink)
 
 
 class TestIsTransientProviderError:
@@ -233,7 +245,7 @@ async def test_anthropic_non_transient_errors_are_not_retried(
 
 
 @pytest.mark.asyncio
-async def test_request_retries_on_transient_error():
+async def test_request_retries_on_transient_error(retry_logs):
     """RetryingModel.request should retry transient errors."""
 
     from unittest.mock import AsyncMock, MagicMock
@@ -244,7 +256,9 @@ async def test_request_retries_on_transient_error():
     response = ModelResponse(parts=[TextPart(content="hello")])
     inner.request = AsyncMock(
         side_effect=[
-            Exception("Failed to parse tool call arguments as JSON"),
+            Exception(
+                "Failed to parse tool call arguments as JSON: private-error-canary"
+            ),
             response,
         ]
     )
@@ -257,6 +271,9 @@ async def test_request_retries_on_transient_error():
     assert result == response
     assert inner.request.call_count == 2
     _assert_balanced_model_scope(inner)
+    logged = "".join(retry_logs)
+    assert "Exception" in logged
+    assert "private-error-canary" not in logged
 
 
 @pytest.mark.asyncio
@@ -565,7 +582,7 @@ async def test_request_stream_closes_model_when_consumer_exits_early():
 
 
 @pytest.mark.asyncio
-async def test_request_stream_retry_fallback_closes_nested_model_scopes():
+async def test_request_stream_retry_fallback_closes_nested_model_scopes(retry_logs):
     """A setup failure and fallback request must leave no model scope open."""
 
     from contextlib import asynccontextmanager
@@ -577,7 +594,9 @@ async def test_request_stream_retry_fallback_closes_nested_model_scopes():
 
     @asynccontextmanager
     async def failing_request_stream(*args, **kwargs):
-        raise Exception("Failed to parse tool call arguments as JSON")
+        raise Exception(
+            "Failed to parse tool call arguments as JSON: private-error-canary"
+        )
         yield  # pragma: no cover
 
     response = ModelResponse(parts=[TextPart(content="fallback")])
@@ -597,6 +616,9 @@ async def test_request_stream_retry_fallback_closes_nested_model_scopes():
     assert inner.request.await_count == 1
     # request_stream owns the outer scope and request() owns its nested scope.
     _assert_balanced_model_scope(inner, expected_count=2)
+    logged = "".join(retry_logs)
+    assert "Exception" in logged
+    assert "private-error-canary" not in logged
 
 
 @pytest.mark.asyncio

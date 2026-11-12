@@ -68,6 +68,7 @@ from pydantic_ai.settings import ModelSettings
 from baserow.core.generative_ai.anthropic import get_retry_after
 from baserow.core.generative_ai.output_validation import repair_printed_tool_call
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow_enterprise.assistant.deps import raise_if_agent_cancelled
 
 # Transient Groq errors that are safe to retry.
 _RETRYABLE_MESSAGES = frozenset(
@@ -404,6 +405,9 @@ class RetryingModel(WrapperModel):
     Only ``request()`` has a retry loop.  ``request_stream()`` falls back
     to ``request()`` when the stream raises a retryable error, since
     ``@asynccontextmanager`` only allows a single ``yield``.
+
+    A request for a cancelled agent never starts (see ``bind_tool_helpers``),
+    which stops the sub-agents that tools of a stopped agent are still running.
     """
 
     def __init__(
@@ -485,6 +489,8 @@ class RetryingModel(WrapperModel):
         :param model_request_parameters: The tools and output settings.
         :return: The response. A tool call that the provider rejected and returned
             as text comes back as a tool call when its JSON can be repaired.
+        :raises asyncio.CancelledError: When the agent the request is made for was
+            cancelled.
         :raises Exception: The provider error when it is not transient, when the
             provider asks not to retry, or when all attempts failed.
         """
@@ -492,6 +498,7 @@ class RetryingModel(WrapperModel):
         wrapped = self.wrapped
         async with wrapped:
             for attempt in range(1, self.max_attempts + 1):
+                raise_if_agent_cancelled()
                 try:
                     response = await wrapped.request(
                         messages, model_settings, model_request_parameters
@@ -522,7 +529,7 @@ class RetryingModel(WrapperModel):
                         attempt,
                         self.max_attempts,
                         delay,
-                        repr(exc),
+                        type(exc).__name__,
                     )
                     await asyncio.sleep(delay)
                 else:
@@ -539,6 +546,22 @@ class RetryingModel(WrapperModel):
         model_request_parameters: ModelRequestParameters,
         run_context: RunContext[Any] | None = None,
     ) -> AsyncIterator[StreamedResponse]:
+        """
+        Stream the response, falling back to ``request()`` when the stream fails
+        to start with a transient provider error.
+
+        :param messages: The conversation to send.
+        :param model_settings: The settings for this request.
+        :param model_request_parameters: The tools and output settings.
+        :param run_context: The context of the agent run making the request.
+        :return: The streamed response.
+        :raises asyncio.CancelledError: When the agent the request is made for was
+            cancelled.
+        :raises Exception: The provider error when it is not transient, or when it
+            happens after the stream started.
+        """
+
+        raise_if_agent_cancelled()
         wrapped = self.wrapped
         async with wrapped:
             yielded = False
@@ -578,7 +601,7 @@ class RetryingModel(WrapperModel):
                 logger.warning(
                     "[assistant] Stream failed with retryable error, "
                     "falling back to non-streaming request: {}",
-                    repr(exc),
+                    type(exc).__name__,
                 )
                 response = await self.request(
                     messages, model_settings, model_request_parameters

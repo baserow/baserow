@@ -1,12 +1,17 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated, Literal, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional
 
 from django.utils.translation import gettext as _
 
 from pydantic import Field
 
 from baserow.core.tools.types import BaseModel
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractUser
+
+    from rest_framework.request import Request
 
 
 class WorkspaceUIContext(BaseModel):
@@ -36,8 +41,8 @@ class UserUIContext(BaseModel):
     email: str
 
     @classmethod
-    def from_user(cls, user) -> "UserUIContext":
-        return cls(id=user.id, name=user.first_name, email=user.email)
+    def from_user(cls, user: "AbstractUser") -> "UserUIContext":
+        return cls(id=user.pk, name=user.first_name, email=user.email)
 
 
 class PageUIContext(BaseModel):
@@ -80,11 +85,13 @@ class UIContext(BaseModel):
     )
 
     @classmethod
-    def from_validate_request(cls, request, ui_context_data) -> "UIContext":
+    def from_validate_request(
+        cls, request: "Request", ui_context_data: dict[str, Any]
+    ) -> "UIContext":
         user_context = UserUIContext.from_user(request.user)
         return cls(user=user_context, **ui_context_data)
 
-    def format(self) -> dict:
+    def format(self) -> str:
         return self.model_dump_json(exclude_none=True)
 
 
@@ -110,9 +117,6 @@ class HumanMessage(BaseModel):
     type: Literal["human"] = AssistantMessageType.HUMAN.value
     timestamp: datetime | None = Field(default=None)
     content: str
-    ui_context: Optional[UIContext] = Field(
-        default=None, description="The UI context when the message was sent"
-    )
 
 
 class AiMessageChunk(BaseModel):
@@ -130,6 +134,10 @@ class AiReasoningChunk(BaseModel):
 
 
 class AiMessage(AiMessageChunk):
+    onboarding_target: dict[str, Any] | None = Field(
+        default=None,
+        description="The table created during onboarding, opened when the run ends.",
+    )
     id: int | None = Field(
         default=None,
         description="The unique UUID of the message",
@@ -148,6 +156,14 @@ class AiMessage(AiMessageChunk):
             "The sentiment of the message as submitted by the user. It can be 'LIKE', "
             "'DISLIKE', or None if no sentiment has been submitted."
         ),
+    )
+    run_status: Optional[str] = Field(
+        default=None,
+        description="How the run that wrote this message ended, when it didn't complete.",
+    )
+    error_code: Optional[str] = Field(
+        default=None,
+        description="Why that run failed or stopped, if it did.",
     )
 
 
@@ -177,16 +193,10 @@ class AiCancelledMessage(BaseModel):
     message_id: str = Field(description="The ID of the message that was cancelled")
 
 
-class AiErrorMessageCode(StrEnum):
-    RECURSION_LIMIT_EXCEEDED = "recursion_limit_exceeded"
-    TIMEOUT = "timeout"
-    UNKNOWN = "unknown"
-
-
 class AiErrorMessage(BaseModel):
     type: Literal["ai/error"] = AssistantMessageType.AI_ERROR.value
-    code: AiErrorMessageCode = Field(
-        AiErrorMessageCode.UNKNOWN, description="The type of error that occurred"
+    code: str = Field(
+        "unknown", description="Why the run failed: a run error code, or unknown."
     )
     content: str = Field(description="Error message content")
 
@@ -197,7 +207,7 @@ class TableNavigationType(BaseModel):
     table_id: int
     table_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("table %(table_name)s") % {"table_name": self.table_name}
 
 
@@ -209,14 +219,14 @@ class ViewNavigationType(BaseModel):
     view_name: str
     view_type: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("view %(view_name)s") % {"view_name": self.view_name}
 
 
 class WorkspaceNavigationType(BaseModel):
     type: Literal["workspace"]
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("home")
 
 
@@ -226,7 +236,7 @@ class WorkflowNavigationType(BaseModel):
     workflow_id: int
     workflow_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("workflow %(workflow_name)s") % {"workflow_name": self.workflow_name}
 
 
@@ -236,7 +246,7 @@ class BuilderPageNavigationType(BaseModel):
     page_id: int
     page_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("page %(page_name)s") % {"page_name": self.page_name}
 
 
@@ -245,7 +255,7 @@ class DashboardNavigationType(BaseModel):
     dashboard_id: int
     dashboard_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("dashboard %(dashboard_name)s") % {
             "dashboard_name": self.dashboard_name
         }
