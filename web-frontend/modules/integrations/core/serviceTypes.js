@@ -1,3 +1,4 @@
+import moment from '@baserow/modules/core/moment'
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
 import CoreInboundEmailTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreInboundEmailTriggerServiceForm'
 import CoreManualTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreManualTriggerServiceForm'
@@ -60,6 +61,24 @@ const getFormulaText = (app, { formula, mode }) => {
   } catch {
     return formula
   }
+}
+
+const WEEKDAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]
+
+const PERIODIC_NAMES = {
+  MINUTE: 'serviceType.corePeriodicNameMinute',
+  HOUR: 'serviceType.corePeriodicNameHour',
+  DAY: 'serviceType.corePeriodicNameDay',
+  WEEK: 'serviceType.corePeriodicNameWeek',
+  MONTH: 'serviceType.corePeriodicNameMonth',
 }
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
@@ -917,6 +936,77 @@ export class CorePeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   getDataSchema(service) {
     return service.schema
+  }
+
+  /**
+   * Schedules a never-scheduled periodic service every day at 09:00 in the
+   * browser's timezone.
+   * @param {object|null} service The service being edited, if any.
+   * @param {object} values The current default values for the service form.
+   * @returns {object} The values, with the daily schedule if none was set.
+   */
+  getDefaultValues(service, values) {
+    if (values.interval) {
+      return values
+    }
+    return {
+      ...values,
+      interval: 'DAY',
+      hour: 9,
+      minute: 0,
+      timezone: moment.tz.guess(),
+    }
+  }
+
+  /**
+   * @param {object|null} service The periodic service.
+   * @returns {object|null} The values that word its schedule, or null while
+   *   one its interval needs is missing.
+   */
+  getScheduleValues(service) {
+    const { t } = this.app.$i18n
+    const hasTime = service?.hour != null && service?.minute != null
+    const hasTimezone = Boolean(service?.timezone)
+    const values = {
+      minute: service?.minute,
+      time: moment({ hour: service?.hour, minute: service?.minute }).format(
+        'HH:mm'
+      ),
+      day: service?.day_of_month,
+    }
+    switch (service?.interval) {
+      case 'MINUTE':
+        if (!Number(service.minute)) return null
+        return { count: Number(service.minute) }
+      case 'HOUR':
+        if (service.minute == null) return null
+        return values
+      case 'DAY':
+        if (!hasTime || !hasTimezone) return null
+        return values
+      case 'WEEK':
+        if (!hasTime || !hasTimezone || service.day_of_week == null) return null
+        return { ...values, day: t(`common.${WEEKDAYS[service.day_of_week]}`) }
+      case 'MONTH':
+        if (!hasTime || !hasTimezone || service.day_of_month == null)
+          return null
+        return values
+      default:
+        return null
+    }
+  }
+
+  /**
+   * Name the trigger by its schedule, without the timezone.
+   * @param {object|null} service The periodic service.
+   * @returns {string} The schedule, like "Every day at 09:00", or the type's
+   *   name while the values it needs are missing.
+   */
+  getDefaultName(service) {
+    const values = this.getScheduleValues(service)
+    return values
+      ? this.app.$i18n.t(PERIODIC_NAMES[service.interval], values)
+      : this.name
   }
 
   getErrorMessage({ service }) {
