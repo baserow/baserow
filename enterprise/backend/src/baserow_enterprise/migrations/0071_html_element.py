@@ -30,10 +30,8 @@ class Migration(migrations.Migration):
                 (
                     "html",
                     baserow.core.formula.field.FormulaField(
-                        blank=True,
                         default="",
                         help_text="HTML content to render.",
-                        null=True,
                     ),
                 ),
             ],
