@@ -141,6 +141,52 @@
           </ul>
         </Expandable>
       </div>
+      <div class="agent-trigger-card__section agent-trigger-card__overlap">
+        <div
+          :id="`${overlapId}-title`"
+          class="agent-trigger-card__overlap-title"
+        >
+          {{ $t('agent.triggerOnOverlap') }}
+        </div>
+        <p
+          :id="`${overlapId}-description`"
+          class="agent-trigger-card__overlap-description"
+        >
+          {{ $t('agent.triggerOnOverlapDescription') }}
+        </p>
+        <div
+          class="agent-trigger-card__overlap-options"
+          role="radiogroup"
+          :aria-labelledby="`${overlapId}-title`"
+          :aria-describedby="`${overlapId}-description`"
+        >
+          <Radio
+            v-for="option in TRIGGER_OVERLAP_OPTIONS"
+            :key="option.value"
+            class="agent-trigger-card__overlap-option"
+            :name="overlapId"
+            :value="option.value"
+            :model-value="trigger.on_overlap"
+            :disabled="!editable"
+            @update:model-value="$emit('update', { on_overlap: $event })"
+          >
+            <div class="agent-trigger-card__overlap-option-text">
+              <div class="agent-trigger-card__overlap-option-label">
+                {{ $t(option.label) }}
+                <Badge v-if="option.recommended" color="green" size="small">
+                  {{ $t('agent.triggerOnOverlapRecommended') }}
+                </Badge>
+              </div>
+              <div class="agent-trigger-card__overlap-option-hint">
+                {{ overlapHint(option) }}
+              </div>
+            </div>
+          </Radio>
+        </div>
+        <p v-if="skippedText" class="agent-trigger-card__skipped" role="status">
+          {{ skippedText }}
+        </p>
+      </div>
     </div>
     <footer v-if="editable" class="agent-trigger-card__footer">
       <ButtonText
@@ -158,7 +204,16 @@
 </template>
 
 <script setup>
-import { computed, inject, nextTick, provide, reactive, ref, toRef } from 'vue'
+import {
+  computed,
+  inject,
+  nextTick,
+  provide,
+  reactive,
+  ref,
+  toRef,
+  useId,
+} from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import Icon from '@baserow/modules/core/components/Icon'
@@ -167,7 +222,12 @@ import Editable from '@baserow/modules/core/components/Editable'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
-import { TRIGGER_NAME_MAX_LENGTH } from '@baserow/modules/agent/constants'
+import moment from '@baserow/modules/core/moment'
+import {
+  TRIGGER_NAME_MAX_LENGTH,
+  TRIGGER_OVERLAP_OPTIONS,
+  TRIGGER_SKIP_REASON_TEXT,
+} from '@baserow/modules/agent/constants'
 
 const props = defineProps({
   /** The trigger as the card shows it, edits included. */
@@ -178,6 +238,8 @@ const props = defineProps({
   editable: Boolean,
   /** Whether a save of the trigger is in flight. */
   saving: Boolean,
+  /** How many runs of a waiting trigger the server queues, for its hint. */
+  maxQueuedTriggerRuns: { type: Number, default: null },
   /** Why the server rejected the service values, or ''. */
   serviceError: { type: String, default: '' },
   /** How often a failed save reverted the service values the form shows. */
@@ -190,6 +252,7 @@ const agent = inject('agentApplication')
 const form = ref(null)
 const nameEditable = ref(null)
 const renaming = ref(false)
+const overlapId = useId()
 const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
 // Hosted service forms inject these like in Automation's node side panel.
 provide('formulaComponent', FormulaInputField)
@@ -220,6 +283,33 @@ const configurationError = computed(
       workspace: props.workspace,
     }) || ''
 )
+/** The hint of an overlap option; a queue cap of 0 lets runs wait without limit. */
+const overlapHint = (option) => {
+  const unlimited =
+    props.maxQueuedTriggerRuns !== null && props.maxQueuedTriggerRuns <= 0
+  return unlimited && option.unlimitedHint
+    ? t(option.unlimitedHint)
+    : t(option.hint, { count: props.maxQueuedTriggerRuns })
+}
+/** Why the last firing started nothing, until a later firing is accepted. */
+const skippedText = computed(() => {
+  const {
+    last_skipped_on: skippedOn,
+    last_fired_on: firedOn,
+    last_skipped_reason: reason,
+  } = props.trigger
+  const reasonText = TRIGGER_SKIP_REASON_TEXT[reason]
+  if (
+    !skippedOn ||
+    !reasonText ||
+    (firedOn && !moment(skippedOn).isAfter(firedOn))
+  ) {
+    return ''
+  }
+  const skipped = moment(skippedOn)
+  const format = skipped.isSame(moment(), 'day') ? 'LT' : 'L LT'
+  return t(reasonText, { time: skipped.format(format) })
+})
 const schemaProperties = computed(() => {
   const schema = $registry
     .get('agentDataProvider', 'trigger')

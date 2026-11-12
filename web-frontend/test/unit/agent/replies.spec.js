@@ -307,6 +307,15 @@ describe('Agent replies', () => {
     expect(announcement(wrapper)).toBe('agent.replyStopped')
   })
 
+  test('announces a reply whose run ended without a final status as interrupted', async () => {
+    const wrapper = await startReply()
+
+    await testApp.store.dispatch('chatRuns/unavailable', 'run-1')
+    await flushPromises()
+
+    expect(announcement(wrapper)).toBe('agent.replyInterrupted')
+  })
+
   test('a call that changed nothing shows no card and is not announced', async () => {
     const wrapper = await startReply()
 

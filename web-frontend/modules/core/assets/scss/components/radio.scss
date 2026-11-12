@@ -83,6 +83,11 @@
   @include fill-radio('#{$palette-neutral-200}');
 }
 
+.radio__input input[type='radio']:focus-visible + label {
+  outline: 2px solid $palette-blue-500;
+  outline-offset: 2px;
+}
+
 .radio__loading {
   width: 16px;
   height: 16px;

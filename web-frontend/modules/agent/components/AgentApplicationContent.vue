@@ -377,6 +377,7 @@ watch(
       const { note, error } = replyOutcome({
         status: previous.view.status,
         error_code: previous.view.errorCode,
+        run_id: previous.runId,
       })
       announcement.value = note || error ? t(note || error) : ''
     }

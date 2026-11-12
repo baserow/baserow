@@ -23,6 +23,7 @@ import {
   send,
   sendMessage,
   conversationsPage,
+  sharedConversation,
 } from './helpers'
 
 vi.mock('@baserow/modules/core/services/chatRuns', () => ({ default: vi.fn() }))
@@ -427,6 +428,28 @@ describe('Agent conversation realtime updates', () => {
     ).toHaveLength(reads)
     await selectConversation(wrapper, first.title)
     expect(messages(wrapper)).toEqual(['Earlier A', 'Remote A'])
+  })
+
+  test('reads an open queued reply again when its conversation changes without a run', async () => {
+    const digest = sharedConversation('digest', 'Daily digest')
+    const trigger = message('t1', 'Trigger data', { id: 1, role: 'trigger' })
+    const reply = (status, errorCode = '') =>
+      message('r1', '', { id: 2, role: 'assistant', status, errorCode })
+    mockConversations(testApp, conversationsPage([digest]))
+    mockMessages(
+      testApp,
+      digest.uuid,
+      page([trigger, reply('queued')]),
+      page([trigger, reply('cancelled', 'not_started')])
+    )
+    const wrapper = await mount()
+    await selectConversation(wrapper, digest.title)
+    const note = () => wrapper.get('.chat-message__note').text()
+    expect(note()).toBe('agent.replyWaitingForPreviousRun')
+
+    await update(digest.uuid)
+
+    expect(note()).toBe('agent.replyCancelledBeforeStart')
   })
 
   test('pulses the dot while any session writes a reply, without reading again', async () => {

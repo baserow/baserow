@@ -49,6 +49,7 @@ const CONFIGURATION_FIELDS = [
   CONFIGURATION_FIELD.WEB_SEARCH_AVAILABLE,
   CONFIGURATION_FIELD.WEB_SEARCH_BLOCKED_BY_TOOLS,
   CONFIGURATION_FIELD.AVAILABLE_TRIGGER_TYPES,
+  CONFIGURATION_FIELD.MAX_QUEUED_TRIGGER_RUNS,
 ]
 
 const emptyConfiguration = () => ({
@@ -65,6 +66,7 @@ const emptyConfiguration = () => ({
   web_search_available: false,
   web_search_blocked_by_tools: false,
   available_trigger_types: [],
+  max_queued_trigger_runs: null,
 })
 
 /** Identities match by type and id, and tool lists by their names. */

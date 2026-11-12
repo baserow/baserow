@@ -878,4 +878,33 @@ describe('Agent conversations', () => {
     expect(wrapper.find('.agent-conversations__options').exists()).toBe(false)
     expect(warning(wrapper).exists()).toBe(false)
   })
+
+  test.each([
+    ['queued', '', 'agent.replyWaitingForPreviousRun'],
+    ['cancelled', 'not_started', 'agent.replyCancelledBeforeStart'],
+  ])(
+    'shows a %s trigger reply that never ran with its note',
+    async (status, errorCode, note) => {
+      allowed.value = withoutConfiguration
+      mockConversations(
+        testApp,
+        conversationsPage([sharedConversation('digest', 'Daily digest')])
+      )
+      mockMessages(
+        testApp,
+        'digest',
+        page([
+          message('t1', 'Trigger data', { id: 1, role: 'trigger' }),
+          message('r1', '', { id: 2, role: 'assistant', status, errorCode }),
+        ])
+      )
+      const wrapper = await mount()
+
+      await selectConversation(wrapper, 'Daily digest')
+
+      expect(wrapper.get('.chat-message__note').text()).toBe(note)
+      expect(wrapper.find('.chat-message__bubble--error').exists()).toBe(false)
+      expect(messages(wrapper)).toEqual([])
+    }
+  )
 })
