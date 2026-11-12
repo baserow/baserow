@@ -26,7 +26,11 @@
     "coreXLSFileReader": "Read an XLS file",
     "coreXLSFileReaderDescription": "Reads rows from an XLS or XLSX file.",
     "errorCodeMissing": "Missing code property",
-    "errorXLSFileMissing": "Missing XLS file property"
+    "errorXLSFileMissing": "Missing XLS file property",
+    "errorSearchQueryMissing": "Missing search query property",
+    "localBaserowSemanticSearch": "Semantic search",
+    "localBaserowSemanticSearchDescription": "Finds the rows that best match the meaning of a search query.",
+    "semanticSearchUnavailable": "Semantic search isn't configured on this instance"
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
@@ -52,7 +56,8 @@
   },
   "nodeType": {
     "codeLabel": "Execute code",
-    "xlsFileReaderLabel": "Read an XLS file"
+    "xlsFileReaderLabel": "Read an XLS file",
+    "localBaserowSemanticSearchLabel": "Semantic search in {tableName}"
   },
   "semanticSearchFieldSetting": {
     "label": "Semantic search",
@@ -64,6 +69,28 @@
     "statusPaused": "Indexing is paused because the workspace doesn't have the advanced plan anymore.",
     "statusUnavailable": "Indexing is paused because semantic search isn't configured on this instance anymore.",
     "statusIncompatible": "Indexing is paused because this field's value isn't text anymore, for example because a field it uses was deleted. It continues automatically when the value is text again."
+  },
+  "localBaserowSemanticSearchForm": {
+    "fields": "Fields to search in",
+    "fieldsPlaceholder": "All fields with semantic search",
+    "fieldsHelper": "Leave empty to search every field with semantic search.",
+    "searchFieldsGone": "None of the chosen fields can be searched anymore. Pick the fields to search in.",
+    "noFieldsTitle": "No field in this table can be searched by meaning yet",
+    "noFields": "In the table, open a text field's settings, go to Advanced and switch on Semantic search. Its rows can be searched once indexing finishes.",
+    "searchQuery": "Search query",
+    "searchQueryHelper": "Rows are ranked by how close their meaning is to this text.",
+    "searchQueryTooltip": "The score of a result mostly depends on how similar its meaning is to the query, and partly on whether it contains the words of the query. Each row is returned once, with the field that matches best.",
+    "searchQueryPlaceholder": "For example: How to create a field?",
+    "includedFields": "Returned fields",
+    "includedFieldsHelper": "Leave empty to return every field.",
+    "includedFieldsPlaceholder": "All fields",
+    "includedFieldsGone": "None of the chosen fields exist anymore, so no values are returned. Pick the fields to return.",
+    "maxResults": "Maximum results",
+    "maxResultsHelper": "Up to {max}.",
+    "minSimilarity": "Minimum similarity",
+    "minSimilarityHelper": "From 0 to 1. Weaker matches are left out.",
+    "minSimilarityTooltip": "Rows of which the meaning is less similar to the search query are left out, even if they contain its words. It's compared with the Similarity value of each result.",
+    "minSimilarityPlaceholder": "No minimum"
   },
   "createTeamModal": {
     "title": "Create team",

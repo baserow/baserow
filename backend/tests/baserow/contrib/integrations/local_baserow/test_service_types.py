@@ -70,6 +70,7 @@ def test_local_baserow_service_type_dispatch_types():
         LocalBaserowRowsDeletedTriggerServiceType.type: [DispatchTypes.EVENT],
         LocalBaserowFieldsUpdatedTriggerServiceType.type: [DispatchTypes.EVENT],
         "local_baserow_grouped_aggregate_rows": [DispatchTypes.DATA],
+        "local_baserow_semantic_search": [DispatchTypes.DATA, DispatchTypes.ACTION],
     }
 
 
@@ -1381,7 +1382,7 @@ def test_local_baserow_view_service_type_prepare_values(data_fixture):
     with pytest.raises(DRFValidationError) as exc:
         service_type().prepare_values({"view_id": view_b.id}, user, instance)
     assert (
-        str(exc.value.detail[0])
+        str(exc.value.detail["detail"])
         == f"The view with ID {view_b.id} is not related to the given table {instance.table_id}."
     )
 
@@ -1404,7 +1405,7 @@ def test_local_baserow_view_service_type_prepare_values(data_fixture):
             {"view_id": view_a.id, "table": table_b}, user, instance
         )
     assert (
-        str(exc.value.detail[0])
+        str(exc.value.detail["detail"])
         == f"The view with ID {view_a.id} is not related to the given table {table_b.id}."
     )
 

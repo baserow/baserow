@@ -382,7 +382,7 @@ export class SemanticSearchPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/semantic_search.png'
   }
 
   getContent() {
