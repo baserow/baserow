@@ -174,8 +174,9 @@ class AgentTriggerView(APIView):
         operation_id="update_agent_trigger",
         description=(
             "Updates the provided fields of the trigger: its name, its switch, "
-            "its message, its overlap rule and the values of its service, whose "
-            "type is fixed. Switching it off cancels its queued replies. Requires "
+            "its message, its overlap rule, its type and the values of its "
+            "service. Another type replaces the service with a new one of that "
+            "type. Switching it off cancels its queued replies. Requires "
             "permission to update the agent and read its configuration."
         ),
         request=UpdateAgentTriggerSerializer,
@@ -184,6 +185,7 @@ class AgentTriggerView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE",
                     "ERROR_TRIGGER_SERVICE_MISCONFIGURED",
                 ]
             ),
@@ -196,12 +198,12 @@ class AgentTriggerView(APIView):
     @require_request_data_type(dict)
     def patch(self, request: Request, agent_id: int, trigger_id: int) -> Response:
         """
-        Validates service values against the trigger's own type, which only
-        they need to look up before the update.
+        Validates service values against the type the payload names, else the
+        trigger's own type, which only they need to look up.
         """
 
-        service_type_name = None
-        if "service" in request.data:
+        service_type_name = request.data.get("type")
+        if service_type_name is None and "service" in request.data:
             trigger = AgentTriggerService().get_trigger(
                 request.user, agent_id, trigger_id
             )
@@ -214,8 +216,14 @@ class AgentTriggerView(APIView):
             context={**SERIALIZER_CONTEXT, "service_type_name": service_type_name},
         )
         service_values = pop_service_values(data)
+        service_type_name = data.pop("type", None)
         trigger = action_type_registry.get_by_type(UpdateAgentTriggerActionType).do(
-            request.user, agent_id, trigger_id, service=service_values, **data
+            request.user,
+            agent_id,
+            trigger_id,
+            service=service_values,
+            service_type_name=service_type_name,
+            **data,
         )
         return Response(AgentTriggerSerializer(trigger).data)
 

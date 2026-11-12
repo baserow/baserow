@@ -19,6 +19,7 @@ from baserow.contrib.agent.triggers.actions import (
 )
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.integrations.core.models import (
+    CoreHTTPTriggerService,
     CorePeriodicService,
 )
 from baserow.contrib.integrations.core.service_types import (
@@ -628,3 +629,101 @@ def test_a_trigger_saves_its_overlap_rule_and_shows_its_last_firing(
 
     assert rejected.status_code == 400
     assert rejected.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.fixture
+def http_trigger_available(mocker):
+    """Offer the HTTP trigger beside the periodic one, so a type can change."""
+
+    mocker.patch(
+        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
+        ("periodic", "http_trigger"),
+    )
+
+
+@pytest.mark.django_db
+def test_changing_the_type_replaces_the_service_and_keeps_the_trigger(
+    data_fixture, periodic_trigger, api_client, api_user, mocker, http_trigger_available
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent, interval="DAY", hour=9, minute=0, timezone="UTC")
+    AgentTrigger.objects.filter(id=trigger.id).update(name="Digest")
+    old_service_id = trigger.service_id
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    url = agent_url(agent, "triggers:item", trigger_id=trigger.id)
+    message = {**MESSAGE, "formula": "'New request'"}
+
+    response = api_client.patch(url, {"type": "http_trigger", "message": message})
+
+    assert response.status_code == 200, response.json()
+    assert (response.json()["id"], response.json()["type"]) == (
+        trigger.id,
+        "http_trigger",
+    )
+    trigger.refresh_from_db()
+    assert not CorePeriodicService.objects.filter(id=old_service_id).exists()
+    assert (trigger.enabled, trigger.name, trigger.message) == (
+        True,
+        "Digest",
+        message,
+    )
+    assert registered.call_args.args[1] == {
+        "agent_id": agent.id,
+        "trigger_id": trigger.id,
+        "trigger_type": "http_trigger",
+        "changed_fields": ["message", "type", "service"],
+    }
+
+    http_service_id = trigger.service_id
+    schedule = {"interval": "DAY", "hour": 9, "minute": 0, "timezone": "UTC"}
+    with freeze_time("2026-11-10 07:30"):
+        token = data_fixture.generate_token(api_user)
+        api_client.credentials(HTTP_AUTHORIZATION=f"JWT {token}")
+        back = api_client.patch(url, {"type": "periodic", "service": schedule})
+
+    assert back.status_code == 200, back.json()
+    service = CorePeriodicService.objects.get(agent_trigger__id=trigger.id)
+    assert service.next_run_at == datetime(2026, 11, 10, 9, 0, tzinfo=dt_timezone.utc)
+    assert not CoreHTTPTriggerService.objects.filter(id=http_service_id).exists()
+
+
+@pytest.mark.django_db
+def test_changing_only_the_type_starts_from_the_new_types_defaults(
+    data_fixture, api_client, api_user, http_trigger_available
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = data_fixture.create_agent_trigger(
+        agent=agent,
+        service=data_fixture.create_core_http_trigger_service(),
+        message=MESSAGE,
+    )
+    http_service_id = trigger.service_id
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"type": "periodic"}
+    )
+
+    assert response.status_code == 200, response.json()
+    service = CorePeriodicService.objects.get(agent_trigger__id=trigger.id)
+    assert (service.interval, service.minute) == (None, 0)
+    assert not CoreHTTPTriggerService.objects.filter(id=http_service_id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("type_name", ["http_trigger", "unknown"])
+def test_changing_to_a_type_the_agent_can_not_use_is_refused(
+    data_fixture, periodic_trigger, api_client, api_user, type_name
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    trigger = periodic_trigger(agent, interval="DAY", hour=9)
+    service_id = trigger.service_id
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"type": type_name}
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"
+    trigger.refresh_from_db()
+    assert trigger.service_id == service_id
+    assert CorePeriodicService.objects.get(id=service_id).interval == "DAY"

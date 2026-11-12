@@ -144,6 +144,14 @@ class UpdateAgentTriggerSerializer(
 ):
     """The parts of a trigger to change; the ones left out keep their value."""
 
+    type = serializers.CharField(
+        max_length=255,
+        required=False,
+        help_text="Another service type for the trigger, one of the "
+        "configuration's available_trigger_types: its service is replaced by a "
+        "new one of that type, set from `service`. The trigger keeps its id, "
+        "name, switch and other settings.",
+    )
     name = serializers.CharField(
         max_length=AGENT_TRIGGER_NAME_MAX_LENGTH,
         allow_blank=True,

@@ -128,11 +128,12 @@ class UpdateAgentTriggerActionType(ActionType):
         service: dict | None = None,
         on_overlap: str | None = None,
         name: str | None = None,
+        service_type_name: str | None = None,
     ) -> AgentTrigger:
         """
         Change a trigger and audit which of its parts changed, never their values:
         the message and service values are configuration. An update that changes
-        nothing isn't audited.
+        nothing isn't audited, and a type change is audited with the new type.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -143,13 +144,15 @@ class UpdateAgentTriggerActionType(ActionType):
         :param on_overlap: The new overlap rule, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
+        :param service_type_name: The service type the trigger should have, whose
+            service then starts from `service`, or None to keep its own.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger.
-        :raises AgentTriggerTypeNotAvailable: When it would switch on or reschedule
-            a trigger of a type the Agent doesn't offer.
+        :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
+            reschedule a type the Agent doesn't offer.
         :raises ServiceMisconfigured: When the service values are invalid.
         :return: The updated trigger.
         """
@@ -163,6 +166,7 @@ class UpdateAgentTriggerActionType(ActionType):
             service_values=service,
             on_overlap=on_overlap,
             name=name,
+            service_type_name=service_type_name,
         )
         trigger = updated.trigger
         if updated.changed_fields:
