@@ -1,12 +1,17 @@
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Annotated, Any, Literal, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Optional
 
 from django.utils.translation import gettext as _
 
 from pydantic import Field
 
 from baserow.core.tools.types import BaseModel
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractUser
+
+    from rest_framework.request import Request
 
 
 class WorkspaceUIContext(BaseModel):
@@ -36,8 +41,8 @@ class UserUIContext(BaseModel):
     email: str
 
     @classmethod
-    def from_user(cls, user) -> "UserUIContext":
-        return cls(id=user.id, name=user.first_name, email=user.email)
+    def from_user(cls, user: "AbstractUser") -> "UserUIContext":
+        return cls(id=user.pk, name=user.first_name, email=user.email)
 
 
 class PageUIContext(BaseModel):
@@ -80,11 +85,13 @@ class UIContext(BaseModel):
     )
 
     @classmethod
-    def from_validate_request(cls, request, ui_context_data) -> "UIContext":
+    def from_validate_request(
+        cls, request: "Request", ui_context_data: dict[str, Any]
+    ) -> "UIContext":
         user_context = UserUIContext.from_user(request.user)
         return cls(user=user_context, **ui_context_data)
 
-    def format(self) -> dict:
+    def format(self) -> str:
         return self.model_dump_json(exclude_none=True)
 
 
@@ -200,7 +207,7 @@ class TableNavigationType(BaseModel):
     table_id: int
     table_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("table %(table_name)s") % {"table_name": self.table_name}
 
 
@@ -212,14 +219,14 @@ class ViewNavigationType(BaseModel):
     view_name: str
     view_type: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("view %(view_name)s") % {"view_name": self.view_name}
 
 
 class WorkspaceNavigationType(BaseModel):
     type: Literal["workspace"]
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("home")
 
 
@@ -229,7 +236,7 @@ class WorkflowNavigationType(BaseModel):
     workflow_id: int
     workflow_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("workflow %(workflow_name)s") % {"workflow_name": self.workflow_name}
 
 
@@ -239,7 +246,7 @@ class BuilderPageNavigationType(BaseModel):
     page_id: int
     page_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("page %(page_name)s") % {"page_name": self.page_name}
 
 
@@ -248,7 +255,7 @@ class DashboardNavigationType(BaseModel):
     dashboard_id: int
     dashboard_name: str
 
-    def to_localized_string(self):
+    def to_localized_string(self) -> str:
         return _("dashboard %(dashboard_name)s") % {
             "dashboard_name": self.dashboard_name
         }

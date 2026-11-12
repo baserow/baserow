@@ -218,6 +218,27 @@ describe('Assistant store', () => {
     expect(store.getters['assistant/currentChat'].title).toBe('New title')
   })
 
+  test('fetching chats preserves a pending send and its loading state', async () => {
+    store.commit('assistant/SET_CHATS', [serverChat('persisted')])
+    store.commit('assistant/SET_CURRENT_CHAT_ID', 'persisted')
+    const chat = store.getters['assistant/currentChat']
+    store.commit('assistant/UPDATE_CHAT', {
+      id: chat.id,
+      updates: { running: true, loading: true },
+    })
+    service.fetchChats.mockResolvedValue({
+      results: [serverChat('persisted', 'New title')],
+    })
+
+    await store.dispatch('assistant/fetchChats', workspace.id)
+
+    expect(store.getters['assistant/currentChat']).toMatchObject({
+      title: 'New title',
+      running: true,
+      loading: true,
+    })
+  })
+
   test('resetting clears the chats instead of keeping the current one', async () => {
     await store.dispatch('assistant/createChat', workspace.id)
 
@@ -225,5 +246,60 @@ describe('Assistant store', () => {
 
     expect(store.getters['assistant/chats']).toStrictEqual([])
     expect(store.getters['assistant/currentChatId']).toBe(null)
+  })
+
+  test('a late chat list cannot replace a newer workspace list', async () => {
+    let finishFirst
+    service.fetchChats.mockImplementationOnce(
+      () => new Promise((resolve) => (finishFirst = resolve))
+    )
+    const first = store.dispatch('assistant/fetchChats', 1)
+    service.fetchChats.mockResolvedValue({ results: [serverChat('second')] })
+    await store.dispatch('assistant/fetchChats', 2)
+    finishFirst({ results: [serverChat('first')] })
+    await first
+
+    expect(store.getters['assistant/chats'].map((chat) => chat.id)).toEqual([
+      'second',
+    ])
+  })
+
+  test('reset invalidates an in-flight chat list', async () => {
+    let finishRead
+    service.fetchChats.mockImplementationOnce(
+      () => new Promise((resolve) => (finishRead = resolve))
+    )
+    const fetching = store.dispatch('assistant/fetchChats', workspace.id)
+    await store.dispatch('assistant/reset')
+    finishRead({ results: [serverChat('old-session')] })
+    await fetching
+
+    expect(store.getters['assistant/chats']).toEqual([])
+    expect(store.getters['assistant/isLoadingChats']).toBe(false)
+  })
+
+  test('opening the same chat twice keeps the newer history response', async () => {
+    store.commit('assistant/SET_CHATS', [serverChat('persisted')])
+    const chat = store.state.assistant.chats[0]
+    const reads = []
+    service.fetchChatMessages.mockImplementation(
+      () => new Promise((resolve) => reads.push(resolve))
+    )
+    const first = store.dispatch('assistant/selectChat', chat)
+    const second = store.dispatch('assistant/selectChat', chat)
+    reads[0]({
+      chat_id: 7,
+      messages: [{ id: 1, type: 'human', content: 'Outdated' }],
+    })
+    await first
+    reads[1]({
+      chat_id: 7,
+      messages: [{ id: 1, type: 'human', content: 'Latest' }],
+    })
+    await second
+
+    expect(
+      store.getters['assistant/messages'].map((message) => message.content)
+    ).toEqual(['Latest'])
   })
 })

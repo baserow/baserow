@@ -18,7 +18,7 @@ from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.models import Workspace
 from baserow.test_utils.helpers import AnyDict, AnyStr
-from baserow_enterprise.assistant.assistant import assistant_message_payload
+from baserow_enterprise.assistant.messages import assistant_message_payload
 from baserow_enterprise.assistant.models import (
     AssistantChat,
     AssistantChatMessage,

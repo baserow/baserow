@@ -6,10 +6,10 @@ import asyncio
 import json
 import os
 import time
-from collections.abc import Iterator
+from collections.abc import Coroutine, Iterator
 from contextlib import ExitStack, contextmanager
 from types import ModuleType
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic_ai import Agent
 from pydantic_ai._utils import run_until_complete  # noqa: PLC2701
@@ -306,9 +306,15 @@ def ensure_worker_safe() -> None:
         raise EvalCaseCleanupError(_cleanup_error)
 
 
+_Result = TypeVar("_Result")
+
+
 async def _run_with_timeout(
-    coro, timeout_s: float, helpers: ToolHelpers, executor: ToolExecutor
-):
+    coro: Coroutine[Any, Any, _Result],
+    timeout_s: float,
+    helpers: ToolHelpers,
+    executor: ToolExecutor,
+) -> _Result:
     task = asyncio.create_task(coro)
     cleanup_deadline = None
     try:

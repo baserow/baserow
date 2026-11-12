@@ -42,8 +42,8 @@ class ToolExecutor(ThreadPoolExecutor):
 
         super().__init__(thread_name_prefix="chat-run-tool")
         self._lock = threading.Lock()
-        self._futures: list[Future] = []
-        self._tool_calls: list[asyncio.Task] = []
+        self._futures: list[Future[Any]] = []
+        self._tool_calls: list[asyncio.Task[Any]] = []
         self._draining = False
 
     def submit(self, fn: Callable[..., _R], /, *args: Any, **kwargs: Any) -> Future[_R]:
