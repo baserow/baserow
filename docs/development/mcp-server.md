@@ -34,7 +34,7 @@ An `MCPEndpoint` links a user to one workspace and to the tools they allowed (`a
 - **OAuth grants**: created when a client signs in through the consent page (see [OAuth sign-in](#oauth-sign-in)). The client calls `POST /mcp` with an access token. They are listed, and can be disconnected, on the **OAuth** tab of **My settings > MCP server**.
 - **Endpoint keys**: a 32-character secret key, created under **My settings > MCP server** (on the **Endpoint** tab when OAuth is on). A new key gets every read-only tool plus the `LEGACY_DEFAULT_TOOLS`. Its tools can be changed with `PATCH` on the endpoint, like an OAuth connection's. Older clients use it in the SSE URL, `GET /mcp/{key}/sse`. `POST /mcp` also accepts it as `Authorization: Bearer <key>`.
 
-Users install the client side, the MCP server config plus a skill, from [baserow/baserow-mcp](https://github.com/baserow/baserow-mcp). Its README has the setup steps for each agent.
+Users install the client side, the MCP server config plus skills, from [baserow/baserow-mcp](https://github.com/baserow/baserow-mcp). Its README has the install steps for each agent, the [MCP server user docs](https://baserow.io/user-docs/mcp-server) cover the hosted apps such as Claude and ChatGPT, and **My settings > MCP server** shows copy-ready setup with the instance's own URL.
 
 ## Running the server
 

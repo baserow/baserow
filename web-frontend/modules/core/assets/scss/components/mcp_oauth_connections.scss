@@ -20,6 +20,11 @@
   color: $palette-neutral-900;
 }
 
+.mcp-oauth-connections__install {
+  display: flex;
+  margin-bottom: 16px;
+}
+
 .mcp-oauth-connections__item {
   display: flex;
   align-items: center;
