@@ -294,43 +294,21 @@ describe('assistant service streaming adapter', () => {
     }
   )
 
-  test('resume uses the same message POST with only existing run identity and cursor', async () => {
-    const client = makeClient()
-    const received = []
-    const request = AssistantService(client).resumeMessage(
-      CHAT_UUID,
-      'run-id',
-      'generation:123-4',
-      (record) => received.push(record),
-      { tabId: 'origin-tab' }
-    )
-    const xhr = FakeXHR.instances[0]
-    xhr.receive(BODY)
-    xhr.complete()
-    await request
-    expect(client.post).toHaveBeenCalledWith(
-      `/assistant/chat/${CHAT_UUID}/messages/`,
-      { run_id: 'run-id', cursor: 'generation:123-4', tab_id: 'origin-tab' },
-      expect.objectContaining({ baseURL: 'http://localhost:8000' })
-    )
-    expect(received).toEqual(EVENTS)
-  })
-
   test('blank heartbeat separators do not produce records', async () => {
     const { received } = await streamBody('\n\n\n\n' + BODY + '\n\n', [1, 3])
     expect(received).toEqual(EVENTS)
   })
 
   test.each(['before', 'after'])(
-    'aborting a follower %s it starts closes only its HTTP request',
+    'aborting a send %s it starts closes only its HTTP request',
     async (when) => {
       const client = makeClient()
       const controller = new AbortController()
       if (when === 'before') controller.abort()
-      const request = AssistantService(client).resumeMessage(
+      const request = AssistantService(client).sendMessage(
         CHAT_UUID,
-        'run-id',
-        null,
+        'hello',
+        {},
         () => {},
         { signal: controller.signal }
       )

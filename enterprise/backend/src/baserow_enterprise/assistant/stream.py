@@ -24,9 +24,8 @@ async def stream_run_messages(
     run: ChatRun,
     user: AbstractUser,
     *,
-    cursor: str | None = None,
+    human_message: dict[str, Any],
     tab_id: str = "",
-    human_message: dict[str, Any] | None = None,
 ) -> AsyncIterator[str]:
     """
     Streams a run's output as Kuma's cumulative JSON records; disconnecting closes
@@ -35,24 +34,23 @@ async def stream_run_messages(
 
     :param run: The run to follow.
     :param user: The user following it.
-    :param cursor: The last cursor received, or None to replay from the start.
     :param tab_id: The following tab, which receives navigation only if it sent
         the message.
-    :param human_message: The message a new send just saved: it is sent first,
-        replaces the run.created echo, and nothing is replayed.
+    :param human_message: The message this send just saved: it is sent first,
+        replacing the run.created echo. Reconnects use the core stream endpoint.
     :return: The JSON records, each followed by a blank line.
     """
 
     identity = {"id": str(run.id), "chat_id": run.chat_id}
     message_id = str(uuid4())
-    initial = human_message or {"type": "chat-run-state"}
-    yield json.dumps({**initial, "_run": {**identity, "status": run.status}}) + "\n\n"
+    yield (
+        json.dumps({**human_message, "_run": {**identity, "status": run.status}})
+        + "\n\n"
+    )
     started = AiStartedMessage(message_id=message_id)
     yield json.dumps({**started.model_dump(), "_run": identity}) + "\n\n"
     text, segment = "", None
-    async for event in follow_run(
-        run, user, cursor=cursor, replay=human_message is None
-    ):
+    async for event in follow_run(run, user, replay=False):
         kind, data = event.get("kind"), event.get("data") or {}
         if kind == "run.heartbeat":
             yield "\n\n"
@@ -82,8 +80,6 @@ async def stream_run_messages(
                 record = {"type": "ai/navigation", "location": data["location"]}
         elif kind == ChatRunEventKind.RUN_CREATED:
             metadata["status"] = ChatRunStatus.QUEUED
-            if human_message is None and data.get("human_message"):
-                record = data["human_message"]
         elif kind == ChatRunEventKind.RUN_STARTED:
             metadata["status"] = ChatRunStatus.RUNNING
         elif kind == ChatRunEventKind.RUN_FINISHED:

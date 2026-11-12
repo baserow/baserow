@@ -61,11 +61,8 @@ async def create_a_database(
         return
     yield {
         0: DeltaToolCall(
-            name="create_builders",
-            json_args=(
-                '{"builders": [{"name": "Kuma DB", "type": "database"}], '
-                '"thought": "Create it"}'
-            ),
+            name="create_database",
+            json_args='{"name": "Kuma DB", "thought": "Create it"}',
             tool_call_id="call-1",
         )
     }

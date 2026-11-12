@@ -1,6 +1,7 @@
 from typing import Any
 from uuid import UUID
 
+from django.core.cache import cache
 from django.db import DEFAULT_DB_ALIAS
 from django.http import StreamingHttpResponse
 
@@ -13,7 +14,6 @@ from rest_framework.status import HTTP_204_NO_CONTENT
 from rest_framework.views import APIView
 
 from baserow.api.chat_runs.errors import (
-    ERROR_CHAT_RUN_DOES_NOT_EXIST,
     ERROR_CHAT_RUN_IN_PROGRESS,
     ERROR_CHAT_RUN_LIMIT,
 )
@@ -32,7 +32,6 @@ from baserow.api.sessions import (
 from baserow.config.db_routers import set_db_alias
 from baserow.core.chat_runs.exceptions import (
     ChatRunAlreadyActive,
-    ChatRunDoesNotExist,
     ChatRunLimitReached,
 )
 from baserow.core.chat_runs.handler import ChatRunHandler
@@ -156,8 +155,8 @@ class AssistantChatView(APIView):
         tags=["AI Assistant"],
         operation_id="send_message_to_assistant_chat",
         description=(
-            "Send a message to the specified AI assistant chat, or follow the run "
-            "answering one, and stream back the response.\n\n"
+            "Send a message to the specified AI assistant chat and stream back "
+            "the response. Reconnect through the core chat-run stream endpoint.\n\n"
         ),
         request=AssistantMessageRequestSerializer,
         responses={
@@ -174,9 +173,7 @@ class AssistantChatView(APIView):
                     "ERROR_ASSISTANT_CONFIGURED_MODEL_NOT_AVAILABLE",
                 ]
             ),
-            404: get_error_schema(
-                ["ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST", "ERROR_CHAT_RUN_DOES_NOT_EXIST"]
-            ),
+            404: get_error_schema(["ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"]),
             409: get_error_schema(["ERROR_CHAT_RUN_IN_PROGRESS"]),
             429: get_error_schema(["ERROR_CHAT_RUN_LIMIT"]),
         },
@@ -194,62 +191,51 @@ class AssistantChatView(APIView):
             AssistantModelNotSupportedError: ERROR_ASSISTANT_MODEL_NOT_SUPPORTED,
             ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
             ChatRunLimitReached: ERROR_CHAT_RUN_LIMIT,
-            ChatRunDoesNotExist: ERROR_CHAT_RUN_DOES_NOT_EXIST,
         }
     )
     def post(
         self, request: Request, chat_uuid: UUID, data: dict[str, Any]
     ) -> StreamingHttpResponse:
         """
-        Sends a message, or follows the run answering one, and streams its output.
+        Saves a new message and streams the background run answering it.
 
         :param request: The authenticated API request.
         :param chat_uuid: The client-generated chat identifier.
-        :param data: The validated request: a message with its UI context, or a
-            run to follow.
+        :param data: The validated message and UI context.
         :return: A streaming response containing assistant events.
-        :raises ChatRunDoesNotExist: When run_id names a run of another chat or type.
         """
 
         # A lagging replica could revive a disabled model or a revoked membership.
         set_db_alias(DEFAULT_DB_ALIAS)
         handler = AssistantHandler()
-        human_message = None
-        if "run_id" in data:
-            run = ChatRunService().get_run(request.user, data["run_id"])
-            chat = handler.get_chat(request.user, chat_uuid)
-            if run.run_type != ASSISTANT_RUN_TYPE or run.chat_id != chat.id:
-                raise ChatRunDoesNotExist()
-        else:
-            ui_context = UIContext.from_validate_request(request, data["ui_context"])
-            workspace = CoreHandler().get_workspace(ui_context.workspace.id)
-            CoreHandler().check_permissions(
-                request.user,
-                ChatAssistantChatOperationType.type,
-                workspace=workspace,
-                context=workspace,
-            )
-            # Reject a foreign chat uuid before resolving this workspace's model.
-            handler.get_existing_chat(request.user, workspace, chat_uuid)
-            check_lm_ready_or_raise(
-                model_profile=resolve_assistant_model(workspace=workspace)
-            )
-            set_untrusted_client_session_id_from_request_or_raise_if_invalid(
-                request.user, request
-            )
-            run, human_message = handler.send_message(
-                request.user,
-                workspace,
-                chat_uuid,
-                data["content"],
-                ui_context,
-                data["tab_id"],
-            )
+        ui_context = UIContext.from_validate_request(request, data["ui_context"])
+        workspace = CoreHandler().get_workspace(ui_context.workspace.id)
+        CoreHandler().check_permissions(
+            request.user,
+            ChatAssistantChatOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+        # Reject a foreign chat uuid before resolving this workspace's model.
+        handler.get_existing_chat(request.user, workspace, chat_uuid)
+        check_lm_ready_or_raise(
+            model_profile=resolve_assistant_model(workspace=workspace)
+        )
+        set_untrusted_client_session_id_from_request_or_raise_if_invalid(
+            request.user, request
+        )
+        run, human_message = handler.send_message(
+            request.user,
+            workspace,
+            chat_uuid,
+            data["content"],
+            ui_context,
+            data["tab_id"],
+        )
         response = StreamingHttpResponse(
             stream_run_messages(
                 run,
                 request.user,
-                cursor=data.get("cursor"),
                 tab_id=data["tab_id"],
                 human_message=human_message,
             ),
@@ -350,6 +336,10 @@ class AssistantChatView(APIView):
         active = ChatRunHandler().get_active_run(ASSISTANT_RUN_TYPE, chat.id)
         if active is not None:
             ChatRunService().request_cancel(request.user, active.id)
+        else:
+            # TODO ZDM: remove after old HTTP replies have drained in the next release.
+            # Stop may reach this backend while the reply still runs on an old one.
+            cache.set(f"assistant:chat:{chat.uuid}:cancelled", True, timeout=300)
 
         return Response(status=HTTP_204_NO_CONTENT)
 

@@ -25,17 +25,17 @@ def test_a_stopped_run_finishes_only_after_its_running_tool_ends(
     order: list[str] = []
     cancelled = threading.Event()
 
-    def stop_while_listing(user, workspace) -> list:
+    def stop_while_finding(ctx, builder_type, name) -> None:
         ChatRunHandler().request_cancel(run.id)
         cancelled.wait(5)
         # A drain that skipped this tool would finish the run meanwhile.
         time.sleep(0.1)
         order.append("tool finished")
-        return []
+        return None
 
     mocker.patch(
-        "baserow_enterprise.assistant.tools.core.helpers.list_builder_items",
-        side_effect=stop_while_listing,
+        "baserow_enterprise.assistant.tools.core.helpers.find_builder",
+        side_effect=stop_while_finding,
     )
     finish_run = ChatRunHandler.finish_run
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 from uuid import UUID, uuid4
 
 from django.contrib.auth.models import AbstractUser
+from django.core.cache import cache
 from django.http.response import HttpResponseBase, StreamingHttpResponse
 from django.urls import reverse
 
@@ -76,17 +77,6 @@ def _send(
     )
 
 
-def _resume(
-    api_client: APIClient, token: str, chat_uuid: UUID, run_id: str, **extra: Any
-) -> HttpResponseBase:
-    return api_client.post(
-        _url(chat_uuid),
-        {"run_id": run_id, **extra},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-
 async def _initial_record(response: StreamingHttpResponse) -> dict[str, Any]:
     iterator = response.streaming_content
     try:
@@ -134,6 +124,25 @@ def test_sending_saves_the_message_and_enqueues_its_run(
     }
     assert UUID(run.context["action_group_id"]).version == 4
     assert run.context["ui_context"]["timezone"] == "Europe/Rome"
+
+
+@pytest.mark.django_db
+def test_an_old_tab_can_send_without_run_metadata(api_client, member):
+    _, token, workspace = member
+    response = api_client.post(
+        _url(uuid4()),
+        {
+            "content": "Hello",
+            "ui_context": {"workspace": {"id": workspace.id, "name": workspace.name}},
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+    run = ChatRun.objects.get(id=_run_id(response))
+    assert run.context["origin_tab_id"] == ""
+    assert AssistantChatMessage.objects.get(chat_id=run.chat_id).content == "Hello"
 
 
 TRUNCATED_TITLE = "Plan my week " + "x" * 47
@@ -199,23 +208,6 @@ def test_a_too_long_message_leaves_nothing_behind(api_client, member):
 
 
 @pytest.mark.django_db
-def test_resume_only_attaches_without_message_or_task(api_client, member, mocker):
-    _, token, workspace = member
-    chat_uuid = uuid4()
-    first = _send(api_client, token, workspace, chat_uuid)
-    run_id = _run_id(first)
-    model = mocker.patch(
-        "baserow_enterprise.api.assistant.views.resolve_assistant_model"
-    )
-    response = _resume(api_client, token, chat_uuid, run_id, tab_id="tab-1")
-    assert response.status_code == 200
-    assert _run_id(response) == run_id
-    assert AssistantChatMessage.objects.filter(chat__uuid=chat_uuid).count() == 1
-    assert ChatRun.objects.count() == 1
-    model.assert_not_called()
-
-
-@pytest.mark.django_db
 def test_core_stream_follows_kuma_with_its_permissions(
     api_client, member, enterprise_data_fixture
 ):
@@ -239,44 +231,19 @@ def test_core_stream_follows_kuma_with_its_permissions(
     assert response.status_code == 404
 
 
-UI_CONTEXT = {"workspace": {"id": 1, "name": "W"}}
-RUN_ID = str(uuid4())
-VALID_CURSOR = f"{uuid4().hex}:1-0"
-
-
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "body,error",
-    [
-        ({"run_id": RUN_ID, "content": "Hi"}, "cannot contain a new message"),
-        ({"run_id": RUN_ID, "ui_context": UI_CONTEXT}, "cannot contain a new message"),
-        ({"content": "Hi"}, "requires content and ui_context"),
-        ({"ui_context": UI_CONTEXT}, "requires content and ui_context"),
-        (
-            {"content": "Hi", "ui_context": UI_CONTEXT, "cursor": VALID_CURSOR},
-            "A cursor requires run_id",
-        ),
-        ({"run_id": RUN_ID, "cursor": "broken"}, "Invalid chat run cursor"),
-    ],
+    "body,missing", [({}, "content"), ({"content": "Hi"}, "ui_context")]
 )
-def test_a_post_must_either_send_a_message_or_follow_a_run(
-    api_client, member, body, error
-):
+def test_a_post_requires_a_new_message(api_client, member, body, missing):
     _, token, _ = member
     response = api_client.post(
         _url(uuid4()), body, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
     )
     assert response.status_code == 400
-    assert error in str(response.json()["detail"])
-
-
-@pytest.mark.django_db
-def test_resume_cannot_follow_a_different_chat(api_client, member):
-    user, token, workspace = member
-    first = _send(api_client, token, workspace, uuid4())
-    other = AssistantChat.objects.create(user=user, workspace=workspace)
-    response = _resume(api_client, token, other.uuid, _run_id(first))
-    assert response.status_code == 404
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response.json()["detail"][missing][0]["code"] == "required"
+    assert not ChatRun.objects.exists()
 
 
 @pytest.mark.django_db
@@ -424,7 +391,9 @@ def test_cancel_stops_the_chats_active_run(api_client, member):
 
 
 @pytest.mark.django_db
-def test_cancelling_an_idle_chat_is_harmless(api_client, member):
+def test_stop_keeps_the_old_http_cancellation_signal(api_client, member, settings):
+    settings.BASEROW_USE_LOCAL_CACHE = True
+
     user, token, workspace = member
     chat = AssistantChat.objects.create(user=user, workspace=workspace)
     response = api_client.delete(
@@ -433,3 +402,4 @@ def test_cancelling_an_idle_chat_is_harmless(api_client, member):
     )
     assert response.status_code == 204
     assert not ChatRun.objects.exists()
+    assert cache.get(f"assistant:chat:{chat.uuid}:cancelled") is True
