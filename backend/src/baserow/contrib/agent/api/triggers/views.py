@@ -193,18 +193,23 @@ class AgentTriggerView(APIView):
     @map_exceptions(TRIGGER_EXCEPTIONS)
     @require_request_data_type(dict)
     def patch(self, request: Request, agent_id: int, trigger_id: int) -> Response:
-        """Validates the service values against the trigger's own type first."""
+        """
+        Validates service values against the trigger's own type, which only
+        they need to look up before the update.
+        """
 
-        trigger = AgentTriggerService().get_trigger(request.user, agent_id, trigger_id)
+        service_type_name = None
+        if "service" in request.data:
+            trigger = AgentTriggerService().get_trigger(
+                request.user, agent_id, trigger_id
+            )
+            service_type_name = trigger.service.get_type().type
         data = validate_data(
             UpdateAgentTriggerSerializer,
             request.data,
             partial=True,
             return_validated=True,
-            context={
-                **SERIALIZER_CONTEXT,
-                "service_type_name": trigger.service.get_type().type,
-            },
+            context={**SERIALIZER_CONTEXT, "service_type_name": service_type_name},
         )
         service_values = pop_service_values(data)
         trigger = action_type_registry.get_by_type(UpdateAgentTriggerActionType).do(

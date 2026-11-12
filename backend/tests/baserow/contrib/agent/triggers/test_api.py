@@ -192,6 +192,29 @@ def test_list_triggers_query_count_does_not_grow_with_the_triggers(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "payload,trigger_loads",
+    [({"name": "Digest"}, 1), ({"service": {"interval": "HOUR"}}, 2)],
+)
+def test_update_loads_the_trigger_twice_only_to_validate_service_values(
+    data_fixture, periodic_trigger, api_client, api_user, payload, trigger_loads
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    url = agent_url(agent, "triggers:item", trigger_id=periodic_trigger(agent).id)
+
+    with CaptureQueriesContext(connection) as queries:
+        response = api_client.patch(url, payload)
+
+    assert response.status_code == 200
+    loads = [
+        query
+        for query in queries.captured_queries
+        if query["sql"].startswith('SELECT "agent_agenttrigger"')
+    ]
+    assert len(loads) == trigger_loads
+
+
+@pytest.mark.django_db
 def test_create_trigger_returns_it_and_registers_the_action(
     data_fixture, api_client, api_user, mocker
 ):
