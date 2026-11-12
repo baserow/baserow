@@ -1562,7 +1562,7 @@ def test_local_baserow_table_service_type_get_context_data_schema_excludes_field
                     "type": "array",
                 },
             },
-            "title": f"Table{service.table_id}Schema",
+            "title": service.table.name,
             "type": "object",
         }
 
@@ -1615,7 +1615,7 @@ def test_local_baserow_table_service_type_get_context_data_schema_excludes_field
                 "type": "array",
             },
         },
-        "title": f"Table{service.table_id}Schema",
+        "title": service.table.name,
         "type": "object",
     }
 
@@ -1660,7 +1660,7 @@ def test_local_baserow_table_service_type_get_context_data_schema_cache_invalida
                 "type": "array",
             },
         },
-        "title": f"Table{service.table_id}Schema",
+        "title": service.table.name,
         "type": "object",
     }
 
@@ -1718,7 +1718,7 @@ def test_local_baserow_table_service_type_get_context_data_schema_cache_invalida
                 "type": "array",
             },
         },
-        "title": f"Table{service.table_id}Schema",
+        "title": service.table.name,
         "type": "object",
     }
 
