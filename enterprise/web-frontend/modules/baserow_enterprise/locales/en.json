@@ -877,7 +877,16 @@
     "crossoriginTypeAnonymous": "Anonymous",
     "crossoriginTypeCredentials": "Use credentials"
   },
+  "htmlElement": {
+    "source": "HTML source",
+    "sourceHelp": "Add HTML for custom content, layouts or widgets. Add JavaScript in application settings → Custom CSS/JS. To load a third-party script, choose “Add an external script” and paste the URL from the script’s src attribute.",
+    "placeholder": "Empty HTML source...",
+    "previewTitle": "HTML preview"
+  },
   "elementType": {
+    "html": "HTML",
+    "htmlDescription": "Place HTML directly on the page for custom layouts and widget integrations.",
+    "errorHtmlContentMissing": "Missing HTML content",
     "graph": "Graph",
     "graphDescription": "Display formula-driven data as a graph.",
     "errorUserSourceHasNoLoginOption": "The selected user source has no login option",

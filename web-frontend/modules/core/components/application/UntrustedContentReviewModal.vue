@@ -77,6 +77,7 @@ const modal = ref(null)
 const loading = ref(false)
 const error = reactive({ visible: false, title: '', message: '' })
 const typeLabels = {
+  html: 'untrustedContentReviewModal.typeHtml',
   iframe: 'untrustedContentReviewModal.typeIframe',
   builder_code_action: 'untrustedContentReviewModal.typeCodeAction',
   automation_code_node: 'untrustedContentReviewModal.typeCodeNode',
@@ -87,6 +88,10 @@ const typeLabels = {
 }
 
 const typeDetails = {
+  html: {
+    icon: 'iconoir-code-brackets',
+    risk: 'untrustedContentReviewModal.riskHtml',
+  },
   iframe: {
     icon: 'iconoir-internet',
     risk: 'untrustedContentReviewModal.riskIframe',

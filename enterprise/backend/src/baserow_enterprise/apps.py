@@ -393,11 +393,13 @@ class BaserowEnterpriseConfig(AppConfig):
             AuthFormElementType,
             FileInputElementType,
             GraphElementType,
+            HTMLElementType,
         )
 
         element_type_registry.register(AuthFormElementType())
         element_type_registry.register(FileInputElementType())
         element_type_registry.register(GraphElementType())
+        element_type_registry.register(HTMLElementType())
 
         from baserow.contrib.database.data_sync.registries import (
             two_way_sync_strategy_type_registry,

@@ -23,16 +23,63 @@ from baserow.core.formula.types import (
     BaserowFormula,
     BaserowFormulaObject,
 )
+from baserow.core.import_export.untrusted_content import UntrustedContentTypeMixin
+from baserow.core.models import Workspace
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.models import (
     AuthFormElement,
     FileInputElement,
     GraphElement,
+    HTMLElement,
 )
-from baserow_enterprise.features import BUILDER_FILE_INPUT, BUILDER_GRAPH_ELEMENT
+from baserow_enterprise.features import (
+    BUILDER_FILE_INPUT,
+    BUILDER_GRAPH_ELEMENT,
+    BUILDER_HTML_ELEMENT,
+)
 from baserow_premium.charts import ChartSeriesChartType
 from baserow_premium.license.handler import LicenseHandler
+
+
+class HTMLElementType(UntrustedContentTypeMixin, ElementType):
+    display_name = _("HTML")
+    type = "html"
+    model_class = HTMLElement
+    allowed_fields = ["html"]
+    serializer_field_names = ["html"]
+    simple_formula_fields = ["html"]
+
+    class SerializedDict(ElementDict):
+        html: BaserowFormulaObject
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            "html": FormulaSerializerField(
+                help_text=HTMLElement._meta.get_field("html").help_text,
+            ),
+        }
+
+    def get_import_report_entry(
+        self, instance: HTMLElement
+    ) -> dict[str, str | int] | None:
+        if not instance.html["formula"].strip():
+            return None
+        return {
+            "type": self.type,
+            "id": instance.id,
+            "page_id": instance.page_id,
+            "page_name": instance.page.name,
+        }
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        return not LicenseHandler.workspace_has_feature(BUILDER_HTML_ELEMENT, workspace)
+
+    def get_pytest_params(
+        self, pytest_data_fixture: Any
+    ) -> dict[str, BaserowFormulaObject]:
+        return {"html": BaserowFormulaObject.create("'<div id=\"widget\"></div>'")}
 
 
 class GraphElementSeriesSerializer(serializers.Serializer):

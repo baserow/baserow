@@ -27,6 +27,7 @@ from baserow_enterprise.builder.elements.element_types import (
     FileInputElementType,
     GraphElementSeriesSerializer,
     GraphElementType,
+    HTMLElementType,
 )
 from baserow_enterprise.builder.elements.models import FileInputElement
 
@@ -263,10 +264,11 @@ def test_graph_element_series_reports_required_formula_fields():
 
 
 @pytest.mark.django_db
-def test_public_elements_exclude_unlicensed_graph_element(
-    api_client, enterprise_data_fixture, enable_enterprise
+@pytest.mark.parametrize("element_type", [GraphElementType, HTMLElementType])
+def test_public_elements_exclude_unlicensed_element(
+    api_client, enterprise_data_fixture, enable_enterprise, element_type
 ):
-    """Ensure a graph saved before a downgrade isn't exposed publicly afterward."""
+    """Ensure a licensed element saved before a downgrade isn't exposed publicly afterward."""
 
     user = enterprise_data_fixture.create_user()
     source_builder = enterprise_data_fixture.create_builder_application(user=user)
@@ -275,7 +277,7 @@ def test_public_elements_exclude_unlicensed_graph_element(
     )
     page = enterprise_data_fixture.create_builder_page(builder=published_builder)
     heading = enterprise_data_fixture.create_builder_heading_element(page=page)
-    graph = enterprise_data_fixture.create_builder_element(GraphElementType, page=page)
+    licensed = enterprise_data_fixture.create_builder_element(element_type, page=page)
     enterprise_data_fixture.create_builder_custom_domain(
         domain_name="test.getbaserow.io",
         builder=source_builder,
@@ -289,7 +291,7 @@ def test_public_elements_exclude_unlicensed_graph_element(
 
     assert response.status_code == HTTP_200_OK
     assert [element["id"] for element in response.json()] == [heading.id]
-    assert graph.id not in {element["id"] for element in response.json()}
+    assert licensed.id not in {element["id"] for element in response.json()}
 
 
 @pytest.mark.django_db

@@ -54,31 +54,24 @@
           />
         </template>
       </client-only>
-      <button
+      <ElementPreviewHint
         v-if="shouldShowEditorEmbedHint"
-        v-tooltip="$t('iframeElementForm.editorEmbedHint')"
-        type="button"
         class="iframe-element__editor-hint"
-        :aria-label="$t('iframeElementForm.editorEmbedHint')"
-        tooltip-position="bottom-left"
-        @focus="$event.currentTarget.tooltipOpen($event)"
-        @blur="$event.currentTarget.tooltipClose()"
-        @keydown.esc.stop="$event.currentTarget.tooltipClose()"
-        @mousedown.stop
-      >
-        <i class="iconoir-info-empty" aria-hidden="true" />
-      </button>
+        :message="$t('iframeElementForm.editorEmbedHint')"
+      />
     </template>
   </div>
 </template>
 
 <script>
+import ElementPreviewHint from '@baserow/modules/builder/components/elements/ElementPreviewHint'
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'IFrameElement',
+  components: { ElementPreviewHint },
   mixins: [element],
   props: {
     /**

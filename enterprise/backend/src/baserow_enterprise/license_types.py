@@ -8,6 +8,7 @@ from baserow_enterprise.features import (
     BUILDER_FILE_INPUT,
     BUILDER_GRAPH_ELEMENT,
     BUILDER_GROUPED_AGGREGATE_ROWS,
+    BUILDER_HTML_ELEMENT,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
     CODE_RUNNER,
@@ -104,6 +105,7 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
     order = 100
     features = [
         *COMMON_ADVANCED_FEATURES,
+        BUILDER_HTML_ELEMENT,
         ENTERPRISE_SETTINGS,
         SECURE_FILE_SERVE,
         DATA_SCANNER,
