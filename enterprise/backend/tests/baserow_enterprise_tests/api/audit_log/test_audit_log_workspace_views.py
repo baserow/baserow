@@ -164,12 +164,14 @@ def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
             "actor_id": admin.id,
             "actor_type": UserSubjectType.type,
             "value": admin.email,
+            "user_type": "human",
         },
         {
             "id": f"{UserSubjectType.type}:{identity.id}",
             "actor_id": identity.id,
             "actor_type": UserSubjectType.type,
             "value": identity.first_name,
+            "user_type": "identity",
         },
     ]
 

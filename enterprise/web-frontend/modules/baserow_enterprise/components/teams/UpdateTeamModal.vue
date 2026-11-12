@@ -35,7 +35,7 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
-import IdentityService from '@baserow/modules/core/services/identity'
+import SubjectService from '@baserow/modules/core/services/subject'
 import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
@@ -105,20 +105,19 @@ export default {
       this.subjectsLoading = true
       this.subjectsLoaded = false
       try {
-        const [{ data: teamSubjects }, { data: identitiesResponse }] =
-          await Promise.all([
-            TeamService(this.$client).fetchAllSubjects(this.team.id),
-            this.canListIdentities
-              ? IdentityService(this.$client).list(this.workspace.id)
-              : Promise.resolve({ data: [] }),
-          ])
+        const [{ data: teamSubjects }, identitiesResponse] = await Promise.all([
+          TeamService(this.$client).fetchAllSubjects(this.team.id),
+          this.canListIdentities
+            ? SubjectService(this.$client).listAll(this.workspace.id, {
+                userType: 'identity',
+              })
+            : Promise.resolve([]),
+        ])
         const userSubjectType = this.$registry.get('subject', 'auth.User')
         const users = this.workspace.users.map((member) =>
           makeTeamSubject(member, userSubjectType)
         )
-        const identities = (
-          identitiesResponse.results || identitiesResponse
-        ).map((identity) =>
+        const identities = identitiesResponse.map((identity) =>
           makeTeamSubject(
             identity,
             userSubjectType,

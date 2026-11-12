@@ -138,8 +138,14 @@ def test_identity_is_stored_as_typed_row_history_actor(data_fixture):
         "id": identity.id,
         "type": UserSubjectType.type,
         "name": identity.first_name,
+        "user_type": "identity",
     }
     assert RowHistorySerializer(entry).data["user"]["id"] == identity.id
+
+    identity.delete()
+    entry.refresh_from_db()
+    assert entry.actor_user_type == "identity"
+    assert entry.actor_name
 
 
 @pytest.mark.django_db

@@ -47,6 +47,7 @@ class TeamSubjectType(SubjectType):
             subject_email=Value(None, output_field=CharField()),
             subject_count=Count("subjects"),
             subject_user_type=Value(None, output_field=CharField()),
+            subject_role_uid=Value(None, output_field=CharField()),
         ).values(
             "subject_id",
             "subject_type",
@@ -55,6 +56,7 @@ class TeamSubjectType(SubjectType):
             "subject_email",
             "subject_count",
             "subject_user_type",
+            "subject_role_uid",
         )
 
     def are_in_workspace(

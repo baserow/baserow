@@ -59,9 +59,9 @@ exports[`teamSubjects > shows users and identities at the same size in the teams
     <!--v-if-->
     <!--v-if--><span class="avatar__initials">A</span>
   </div>
-  <div class="avatar avatar--rounded avatar--large avatar--blue subject-sample-field-list__avatar">
+  <div class="avatar avatar--large avatar--purple identity-avatar subject-sample-field-list__avatar"><i class="iconoir-lock avatar__icon"></i>
     <!--v-if-->
-    <!--v-if--><span class="avatar__initials">W</span>
+    <!--v-if-->
   </div>
   <!--v-if-->
 </div>"
