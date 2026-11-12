@@ -13,7 +13,7 @@ class Subject(models.Model):
 
     def get_type(self):
         """Return the registered actor type represented by this retained identity."""
-        from baserow.core.subject.registries import subject_type_registry
+        from baserow.core.registries import subject_type_registry
 
         return subject_type_registry.get(self.type)
 

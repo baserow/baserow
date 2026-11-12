@@ -32,11 +32,8 @@ Collaborator assignment never grants access. Mentions continue to use User IDs.
 
 ## Subject types
 
-The base type and registry live in `core/subject/registries.py`. UserSubjectType
-lives in `core/user/subject_types.py`, and AnonymousUserSubjectType lives in
-`core/subject/subject_types.py`. The original
-`core.registries` and `core.subjects` imports remain compatibility re-exports;
-callers can migrate and these aliases can be removed in a follow-up.
+The base type and registry live in `core/registries.py`. UserSubjectType and
+AnonymousUserSubjectType live in `core/subjects.py`.
 
 Persistent attribution is an explicit `SubjectType` capability:
 `supports_persistent_subjects` defaults to false. Types own lifecycle synchronization, actor resolution,

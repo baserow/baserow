@@ -6,7 +6,7 @@ from django.db.models import Q
 
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.models import Subject, User
-from baserow.core.subject.registries import subject_type_registry
+from baserow.core.registries import subject_type_registry
 
 
 class SubjectHandler:

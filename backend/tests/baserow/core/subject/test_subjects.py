@@ -405,17 +405,3 @@ def test_subject_lifecycle_registration_is_idempotent(data_fixture, monkeypatch)
     user.save(update_fields=["first_name"])
     assert synchronized_ids == [user.pk]
     assert Subject.objects.get(pk=user.pk).name == "Renamed"
-
-
-def test_legacy_subject_imports_share_types_and_registry():
-    """Compatibility imports must not introduce separate types or registry state."""
-    from baserow.core import registries, subjects
-    from baserow.core.subject import registries as subject_registries
-    from baserow.core.subject import subject_types
-    from baserow.core.user.subject_types import UserSubjectType
-
-    assert registries.SubjectType is subject_registries.SubjectType
-    assert registries.SubjectTypeRegistry is subject_registries.SubjectTypeRegistry
-    assert registries.subject_type_registry is subject_registries.subject_type_registry
-    assert subjects.UserSubjectType is UserSubjectType
-    assert subjects.AnonymousUserSubjectType is subject_types.AnonymousUserSubjectType
