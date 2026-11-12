@@ -686,11 +686,26 @@ export class LocalBaserowDeleteRowServiceType extends WorkflowActionServiceTypeM
   }
 }
 
+// Passed as values, so every translation keeps the placeholders for the consumer.
 export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
   returnsList(service) {
     return true
+  }
+
+  /**
+   * @param {object} service The trigger service.
+   * @returns {object} The count of the event's rows and the name of their table.
+   */
+  getEventContextSchema(service) {
+    return {
+      ...super.getEventContextSchema(service),
+      table: {
+        type: 'string',
+        title: this.app.$i18n.t('serviceType.eventTable'),
+      },
+    }
   }
 
   getErrorMessage({ service }) {
@@ -729,7 +744,7 @@ export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceType
 
 export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
-    return 'rows_created'
+    return 'local_baserow_rows_created'
   }
 
   get name() {
@@ -755,7 +770,7 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowRowsS
 
 export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
-    return 'rows_updated'
+    return 'local_baserow_rows_updated'
   }
 
   get name() {
@@ -781,7 +796,7 @@ export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowRowsS
 
 export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
-    return 'rows_deleted'
+    return 'local_baserow_rows_deleted'
   }
 
   get name() {
@@ -807,7 +822,7 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowRowsS
 
 export class LocalBaserowFieldsUpdatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
   static getType() {
-    return 'fields_updated'
+    return 'local_baserow_fields_updated'
   }
 
   get name() {

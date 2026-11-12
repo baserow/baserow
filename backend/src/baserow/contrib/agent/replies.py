@@ -75,6 +75,7 @@ from .constants import (
     OUTPUT_RETRIES,
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
+    TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
@@ -378,8 +379,8 @@ class AgentResponder:
 
     def _get_instructions(self, web_search_tool: WebSearchTool | None) -> str:
         """
-        Combine saved instructions with this reply's workspace access and web search
-        context.
+        Combine saved instructions with this reply's workspace access, trigger and
+        web search context.
 
         :param web_search_tool: The web search this attempt offers, if any.
         :return: The instructions.
@@ -389,6 +390,8 @@ class AgentResponder:
         instructions = request.instructions
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
+        if request.started_by_trigger:
+            instructions += f"\n\n{TRIGGER_CONVERSATION_INSTRUCTIONS}"
         if (
             request.resume is not None
             or (request.allowed_tool_names and request.ask_first_tool_names)
