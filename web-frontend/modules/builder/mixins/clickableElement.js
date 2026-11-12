@@ -32,7 +32,6 @@ export default {
         return
       }
 
-      event.stopPropagation()
       return this.fireEvent(
         this.elementType.getEventByName(this.element, 'click')
       )

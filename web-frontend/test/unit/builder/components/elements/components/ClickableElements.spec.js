@@ -4,6 +4,8 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement.vue'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement.vue'
 import ImageElement from '@baserow/modules/builder/components/elements/components/ImageElement.vue'
+import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement.vue'
+import clickOutside from '@baserow/modules/core/directives/clickOutside'
 
 describe('Clickable display elements', () => {
   let testApp
@@ -87,6 +89,51 @@ describe('Clickable display elements', () => {
 
   const notifications = () => testApp.store.getters['builderToast/all']
 
+  const mountCompactMenu = async () => {
+    const element = {
+      id: 30,
+      page_id: 1,
+      type: 'menu',
+      styles: {},
+      orientation: 'horizontal',
+      alignment: 'left',
+      variant: {
+        desktop: 'compact',
+        tablet: 'compact',
+        smartphone: 'compact',
+      },
+      menu_items: [
+        {
+          id: 1,
+          uid: 'menu-item-1',
+          type: 'link',
+          name: 'Menu page',
+          variant: 'link',
+          navigation_type: 'custom',
+          navigate_to_url: { mode: 'raw', formula: 'https://example.com' },
+          parent_menu_item: null,
+          children: [],
+        },
+      ],
+    }
+    const page = { id: 1, elements: [element], workflowActions: [] }
+    const builder = { id: 1, theme: {}, pages: [page] }
+    return testApp.mount(MenuElement, {
+      props: { element },
+      global: {
+        directives: { clickOutside },
+        provide: {
+          workspace: {},
+          builder,
+          currentPage: page,
+          elementPage: page,
+          mode: 'public',
+          applicationContext: { builder, page, element, mode: 'public' },
+        },
+      },
+    })
+  }
+
   describe.each([
     ['heading', HeadingElement, '.ab-heading'],
     ['text', TextElement, '.ab-text'],
@@ -139,6 +186,28 @@ describe('Clickable display elements', () => {
       await wrapper.trigger('keyup', { key: ' ' })
       await flushPromises()
       expect(notifications()).toHaveLength(0)
+    })
+
+    test('dismisses an open compact menu while executing its workflow', async () => {
+      const wrapper = await mountElement(component, type)
+      const menu = await mountCompactMenu()
+      await menu
+        .get('.menu-element__compact-menu-trigger-icon')
+        .trigger('click')
+      expect(menu.get('.menu-element__container--compact').text()).toContain(
+        'Menu page'
+      )
+
+      await wrapper.get(contentSelector).trigger('mousedown')
+      await wrapper.get(contentSelector).trigger('click')
+      await flushPromises()
+
+      expect(notifications()).toMatchObject([
+        { type: 'info-primary', title: 'Clicked', message: 'Action completed' },
+      ])
+      expect(menu.find('.menu-element__container--compact').exists()).toBe(
+        false
+      )
     })
   })
 
