@@ -1,5 +1,37 @@
 const PENDING = Symbol('preHydrationInput')
 const USE_EVENTS = ['input', 'change']
+const USED_BEFORE_HYDRATION = '__baserowUsedBeforeHydration'
+
+/**
+ * Inline script for the document head. It records the inputs the user uses before
+ * the page is hydrated, and once the HTML is parsed, resets the other inputs to their
+ * server value. Firefox restores the previous values on reload, which would
+ * otherwise be shown until the hydration.
+ */
+export const usedBeforeHydrationScript = `(function () {
+  var used = (window.${USED_BEFORE_HYDRATION} = new WeakSet());
+  ${JSON.stringify(USE_EVENTS)}.forEach(function (name) {
+    document.addEventListener(name, function (event) {
+      used.add(event.target);
+    }, true);
+  });
+  document.addEventListener('readystatechange', function () {
+    if (document.readyState !== 'interactive') {
+      return;
+    }
+    document.querySelectorAll('input, textarea').forEach(function (el) {
+      if (used.has(el)) {
+        return;
+      }
+      if (el.checked !== el.defaultChecked) {
+        el.checked = el.defaultChecked;
+      }
+      if (el.value !== el.defaultValue) {
+        el.value = el.defaultValue;
+      }
+    });
+  });
+})();`
 
 const isCheckable = (el) => el.type === 'checkbox'
 
@@ -41,7 +73,7 @@ const replayCheck = (el, checked) => {
  * replaced by the state value, and the component never sees the events. This
  * directive records what the user did before hydration and replays the matching
  * events once the element is hydrated, so the component state matches what the
- * user sees.
+ * user sees. A value the browser restored on reload (Firefox does) is reset instead.
  */
 export default {
   created(el) {
@@ -49,11 +81,17 @@ export default {
     if (!el.parentNode) {
       return
     }
-    const pending = { used: false }
-    if (isCheckable(el)) {
-      pending.value = el.checked !== el.defaultChecked ? el.checked : null
-    } else {
-      pending.value = el.value !== el.defaultValue ? el.value : null
+    const pending = { used: false, value: null }
+    const checkable = isCheckable(el)
+    const changed = checkable
+      ? el.checked !== el.defaultChecked
+      : el.value !== el.defaultValue
+    if (changed && window[USED_BEFORE_HYDRATION]?.has(el)) {
+      pending.value = checkable ? el.checked : el.value
+    } else if (changed && checkable) {
+      el.checked = el.defaultChecked
+    } else if (changed) {
+      el.value = el.defaultValue
     }
     // The listeners are attached before `mounted`, which can be delayed by an async
     // sibling. If the user uses the hydrated input meanwhile, the component already

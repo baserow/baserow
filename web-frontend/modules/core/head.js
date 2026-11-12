@@ -1,3 +1,5 @@
+import { usedBeforeHydrationScript } from './directives/preHydrationInput'
+
 export default {
   title: 'Baserow',
   titleTemplate: '%s | Baserow',
@@ -45,5 +47,8 @@ export default {
       sizes: '192x192',
       key: 'favicon-192',
     },
+  ],
+  script: [
+    { key: 'used-before-hydration', innerHTML: usedBeforeHydrationScript },
   ],
 }
