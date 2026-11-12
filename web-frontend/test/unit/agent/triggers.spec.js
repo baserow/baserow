@@ -15,37 +15,11 @@ import {
   agentData,
   choose,
   completeConfiguration,
+  deferredReply,
+  periodicTrigger,
   useFakeTimers,
   workspace,
 } from './helpers'
-
-const schema = {
-  type: 'object',
-  properties: {
-    triggered_at: { type: 'string', title: 'Previous scheduled run' },
-    next_run_at: { type: 'string', title: 'Next scheduled run' },
-  },
-}
-
-const periodicTrigger = (extra = {}) => ({
-  id: 1,
-  type: 'periodic',
-  name: '',
-  enabled: true,
-  message: { formula: "'Periodic trigger'", mode: 'simple', version: '0.1' },
-  service: {
-    id: 5,
-    type: 'periodic',
-    interval: 'HOUR',
-    minute: 0,
-    hour: 0,
-    day_of_week: 0,
-    day_of_month: 1,
-    timezone: 'UTC',
-    schema,
-  },
-  ...extra,
-})
 
 const patches = (testApp) =>
   testApp.mock.history.patch.map(({ url, data }) => [url, JSON.parse(data)])
@@ -426,14 +400,12 @@ describe('Agent triggers', () => {
   })
 
   test('offers to add a trigger only once the list has loaded', async () => {
-    let answerList
-    testApp.mock
-      .onGet('/agent/10/triggers/')
-      .replyOnce(() => new Promise((resolve) => (answerList = resolve)))
+    const list = deferredReply()
+    testApp.mock.onGet('/agent/10/triggers/').replyOnce(list.reply)
     const wrapper = await mountSection([])
     expect(wrapper.find('.agent-triggers__add').exists()).toBe(false)
 
-    answerList([500, {}])
+    list.resolve(500, {})
     await flushPromises()
     expect(wrapper.text()).toContain('agent.triggersLoadError')
     expect(wrapper.find('.agent-triggers__add').exists()).toBe(false)

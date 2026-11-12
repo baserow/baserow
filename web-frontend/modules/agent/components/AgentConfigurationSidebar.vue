@@ -92,7 +92,7 @@
         :read-only="!editable"
         class="agent-configuration__form"
       >
-        <form class="agent-configuration__body" @submit.prevent>
+        <div class="agent-configuration__body">
           <component
             :is="selectedSection.component"
             ref="sectionComponent"
@@ -109,7 +109,7 @@
             @flush="$emit('flush')"
             @reload="$emit('reload')"
           />
-        </form>
+        </div>
       </ReadOnlyForm>
       <div
         v-if="saveError"
