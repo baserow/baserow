@@ -97,7 +97,6 @@ class UIContextSerializer(serializers.Serializer):
 
 class AssistantMessageRequestSerializer(serializers.Serializer):
     content = serializers.CharField(
-        max_length=100_000,
         help_text="The content of the message.",
     )
     ui_context = UIContextSerializer(
@@ -132,6 +131,7 @@ class AssistantChatSerializer(serializers.ModelSerializer):
             "user_id",
             "workspace_id",
             "title",
+            "status",
             "created_on",
             "updated_on",
         )

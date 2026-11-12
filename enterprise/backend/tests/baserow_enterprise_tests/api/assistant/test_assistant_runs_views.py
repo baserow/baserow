@@ -197,14 +197,15 @@ def test_a_user_cannot_exceed_the_active_run_cap(api_client, member):
 
 
 @pytest.mark.django_db
-def test_a_too_long_message_leaves_nothing_behind(api_client, member):
+def test_sending_does_not_add_a_new_message_length_limit(api_client, member):
     _, token, workspace = member
     chat_uuid = uuid4()
     response = _send(api_client, token, workspace, chat_uuid, "a" * 100_001)
-    assert response.status_code == 400
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert not AssistantChat.objects.filter(uuid=chat_uuid).exists()
-    assert not ChatRun.objects.exists()
+    assert response.status_code == 200
+    run = ChatRun.objects.get(id=_run_id(response))
+    assert (
+        AssistantChatMessage.objects.get(chat_id=run.chat_id).content == "a" * 100_001
+    )
 
 
 @pytest.mark.django_db

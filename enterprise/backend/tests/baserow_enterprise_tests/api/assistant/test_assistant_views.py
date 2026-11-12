@@ -92,6 +92,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
             "user_id": user.id,
             "workspace_id": workspace.id,
             "title": f"Chat {i}",
+            "status": AssistantChat.Status.IDLE,
             "created_on": "2024-01-14T12:00:00Z",
             "updated_on": "2024-01-14T12:00:00Z",
         }
@@ -114,6 +115,7 @@ def test_list_assistant_chats(api_client, enterprise_data_fixture):
         "user_id": user.id,
         "workspace_id": workspace.id,
         "title": "Chat 2",
+        "status": AssistantChat.Status.IDLE,
         "created_on": "2024-01-14T12:00:00Z",
         "updated_on": "2024-01-14T12:00:00Z",
     }
