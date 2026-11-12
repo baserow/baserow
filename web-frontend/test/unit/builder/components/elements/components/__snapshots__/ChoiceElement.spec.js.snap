@@ -313,6 +313,7 @@ exports[`ChoiceElement > as manual radio 1`] = `
           
           <div
             class="ab-radio"
+            data-builder-interactive=""
           >
             <input
               aria-disabled="false"
@@ -331,6 +332,7 @@ exports[`ChoiceElement > as manual radio 1`] = `
           </div>
           <div
             class="ab-radio"
+            data-builder-interactive=""
           >
             <input
               aria-disabled="false"

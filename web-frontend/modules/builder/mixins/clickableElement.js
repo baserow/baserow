@@ -1,7 +1,8 @@
 import element from '@baserow/modules/builder/mixins/element'
 
+// Custom controls declare ownership while clicks still reach document handlers.
 const interactiveSelector =
-  'a, button, input, select, textarea, label, summary, [role="button"], [role="link"], [tabindex], [contenteditable="true"]'
+  'a, button, input, select, textarea, label, summary, [role="button"], [role="link"], [tabindex], [contenteditable="true"], [data-builder-interactive]'
 
 export default {
   mixins: [element],

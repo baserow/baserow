@@ -4,6 +4,7 @@ import flushPromises from 'flush-promises'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import PageElement from '@baserow/modules/builder/components/page/PageElement.vue'
 import MenuElement from '@baserow/modules/builder/components/elements/components/MenuElement.vue'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 describe('Clickable containers', () => {
   let testApp
@@ -48,6 +49,7 @@ describe('Clickable containers', () => {
     outerType = 'simple_container',
     innerType = 'column',
     childType = 'text',
+    elementValues = {},
     actionIds = [10, 11, 12],
     contextMode = 'public',
     applicationContextAdditions = {},
@@ -56,10 +58,11 @@ describe('Clickable containers', () => {
     const elements = [
       createElement(10, outerType),
       createElement(11, innerType),
-      createElement(12, childType),
+      { ...createElement(12, childType), ...elementValues },
     ]
     const page = reactive({
       id: 1,
+      path: '/',
       shared: false,
       elements: [],
       workflowActions: [],
@@ -99,13 +102,19 @@ describe('Clickable containers', () => {
         builder,
         page,
         mode: contextMode,
+        dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
         recordIndexPath: [],
         ...applicationContextAdditions,
       },
     }
     const wrapper = await testApp.mount(PageElement, {
       props: { element: elements[0] },
-      global: { provide },
+      global: {
+        provide,
+        // The calendar grid loads third-party CSS asynchronously. Keep the real
+        // picker controls and Context, which own the interactions under test.
+        stubs: { DatePicker: { template: '<div />' } },
+      },
     })
     return { wrapper, provide }
   }
@@ -274,6 +283,216 @@ describe('Clickable containers', () => {
         false
       )
     })
+
+    test('edits a child rating input without triggering a parent action', async () => {
+      const { wrapper } = await mountTree({
+        outerType,
+        innerType,
+        childType: 'rating_input',
+        actionIds: [10, 11],
+        elementValues: {
+          value: { mode: 'raw', formula: '0' },
+          max_value: 5,
+          color: 'primary',
+          rating_style: 'star',
+        },
+      })
+      const rating = getElement(wrapper, 12)
+      expect(rating.findAll('.rating__star--selected')).toHaveLength(0)
+
+      await rating.findAll('.rating__star')[2].trigger('click')
+      await flushPromises()
+
+      expect(rating.findAll('.rating__star--selected')).toHaveLength(3)
+      expect(notifications()).toHaveLength(0)
+    })
+
+    test('treats a read-only rating as noninteractive child content', async () => {
+      const { wrapper } = await mountTree({
+        outerType,
+        innerType,
+        childType: 'rating',
+        actionIds: [10, 11],
+        elementValues: {
+          value: { mode: 'raw', formula: '0' },
+          max_value: 5,
+          color: 'primary',
+          rating_style: 'star',
+        },
+      })
+      const rating = getElement(wrapper, 12)
+      expect(rating.findAll('.rating__star--selected')).toHaveLength(0)
+
+      await rating.findAll('.rating__star')[2].trigger('click')
+      await flushPromises()
+
+      expect(rating.findAll('.rating__star--selected')).toHaveLength(0)
+      expect(notificationTitles()).toEqual(['Element 11'])
+    })
+
+    test('opens and closes a child compact menu without triggering a parent action', async () => {
+      const { wrapper } = await mountTree({
+        outerType,
+        innerType,
+        childType: 'menu',
+        actionIds: [10, 11],
+        elementValues: {
+          alignment: 'left',
+          variant: {
+            desktop: 'compact',
+            tablet: 'compact',
+            smartphone: 'compact',
+          },
+          menu_items: [
+            {
+              id: 1,
+              uid: 'menu-item-1',
+              type: 'link',
+              name: 'Menu page',
+              variant: 'link',
+              navigation_type: 'custom',
+              navigate_to_url: { mode: 'raw', formula: 'https://example.com' },
+              parent_menu_item: null,
+              children: [],
+            },
+          ],
+        },
+      })
+      const menu = getElement(wrapper, 12)
+
+      await menu
+        .get('.menu-element__compact-menu-trigger-icon')
+        .trigger('click')
+      expect(menu.get('.menu-element__container--compact').text()).toContain(
+        'Menu page'
+      )
+      expect(notifications()).toHaveLength(0)
+
+      await menu.get('.menu-element__compact-menu-close').trigger('click')
+      await flushPromises()
+
+      expect(menu.find('.menu-element__container--compact').exists()).toBe(
+        false
+      )
+      expect(notifications()).toHaveLength(0)
+    })
+
+    test('opens a child calendar without triggering a parent and keeps outside dismissal', async () => {
+      const { wrapper } = await mountTree({
+        outerType,
+        innerType,
+        childType: 'datetime_picker',
+        actionIds: [10, 11],
+        elementValues: {
+          date_format: 'ISO',
+          time_format: '24',
+          include_time: false,
+        },
+      })
+      const picker = getElement(wrapper, 12)
+      const calendar = () =>
+        picker.get('.ab-datetime-picker__calendar--context')
+      expect(calendar().classes()).toContain('visibility-hidden')
+
+      await picker.get('.iconoir-calendar').trigger('click')
+      await flushPromises()
+
+      expect(calendar().classes()).not.toContain('visibility-hidden')
+      expect(notifications()).toHaveLength(0)
+
+      await getSurface(wrapper, 10).trigger('mousedown')
+      await getSurface(wrapper, 10).trigger('click')
+      await flushPromises()
+
+      expect(calendar().classes()).toContain('visibility-hidden')
+      expect(notificationTitles()).toEqual(['Element 10'])
+    })
+  })
+
+  test('selects a radio option from its root without triggering parent actions', async () => {
+    const { wrapper } = await mountTree({
+      childType: 'choice',
+      actionIds: [10, 11],
+      elementValues: {
+        option_type: 'manual',
+        show_as_dropdown: false,
+        multiple: false,
+        options: [
+          { id: 1, value: 'alpha', name: 'Alpha' },
+          { id: 2, value: 'beta', name: 'Beta' },
+        ],
+      },
+    })
+    const radios = getElement(wrapper, 12).findAll('.ab-radio')
+    expect(radios.map((radio) => radio.get('input').element.checked)).toEqual([
+      false,
+      false,
+    ])
+
+    await radios[1].trigger('click')
+    await flushPromises()
+
+    expect(radios.map((radio) => radio.get('input').element.checked)).toEqual([
+      false,
+      true,
+    ])
+    expect(notifications()).toHaveLength(0)
+  })
+
+  test('expands an inline submenu without triggering parent actions', async () => {
+    const { wrapper } = await mountTree({
+      childType: 'menu',
+      actionIds: [10, 11],
+      elementValues: {
+        alignment: 'left',
+        orientation: 'vertical',
+        variant: {
+          desktop: 'expanded',
+          tablet: 'expanded',
+          smartphone: 'expanded',
+        },
+        menu_items: [
+          {
+            id: 1,
+            uid: 'menu-parent',
+            type: 'link',
+            name: 'Section',
+            variant: 'link',
+            parent_menu_item: null,
+            children: [
+              {
+                id: 2,
+                uid: 'menu-child',
+                type: 'link',
+                name: 'Child page',
+                variant: 'link',
+                navigation_type: 'custom',
+                navigate_to_url: {
+                  mode: 'raw',
+                  formula: 'https://example.com',
+                },
+                parent_menu_item: 1,
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+    })
+    const menu = getElement(wrapper, 12)
+    expect(menu.find('.menu-element__sub-link').exists()).toBe(false)
+
+    await menu.get('.menu-element__menu-item-with-children').trigger('click')
+    await flushPromises()
+
+    expect(menu.get('.menu-element__sub-link').text()).toBe('Child page')
+    expect(notifications()).toHaveLength(0)
+
+    await menu.get('.menu-element__menu-item-with-children').trigger('click')
+    await flushPromises()
+
+    expect(menu.find('.menu-element__sub-link').exists()).toBe(false)
+    expect(notifications()).toHaveLength(0)
   })
 
   test.each([
