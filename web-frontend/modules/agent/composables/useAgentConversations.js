@@ -17,6 +17,8 @@ import {
 // The API's order, so positions compare with the pages it returns.
 const byNewest = (a, b) =>
   Date.parse(b.updated_on) - Date.parse(a.updated_on) || b.id - a.id
+const byListPosition = (a, b) =>
+  Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || byNewest(a, b)
 const pick = (source, fields) =>
   Object.fromEntries(fields.map((field) => [field, source[field]]))
 
@@ -108,8 +110,11 @@ export function useAgentConversations(agent, configuration) {
     permission('agent_application.delete_conversation')
   )
 
-  // Every conversation down to `loadedUntil`, newest first.
+  // Every conversation down to `loadedUntil`, pinned first, then newest first.
   const conversations = ref([])
+  const conversationFilter = ref('all')
+  // Changing the list filter must keep the open conversation and its draft.
+  const unlistedConversation = ref(null)
   const localConversations = ref([])
   // Where the next page continues, null once every conversation is loaded.
   const conversationsCursor = ref(null)
@@ -131,22 +136,31 @@ export function useAgentConversations(agent, configuration) {
   let loadingWaitingScope = null
 
   const conversationItems = computed(() => [
-    ...localConversations.value.filter((item) =>
-      drafts[item.uuid]?.content.trim()
+    ...conversations.value.filter((item) => item.pinned && matchesFilter(item)),
+    ...localConversations.value.filter(
+      (item) =>
+        conversationFilter.value === 'all' && drafts[item.uuid]?.content.trim()
     ),
-    ...conversations.value,
+    ...conversations.value.filter(
+      (item) => !item.pinned && matchesFilter(item)
+    ),
   ])
   const selectedConversation = computed(() =>
-    [...localConversations.value, ...conversations.value].find(
-      (item) => item.uuid === selectedUuid.value
-    )
+    [
+      ...localConversations.value,
+      ...conversations.value,
+      unlistedConversation.value,
+    ].find((item) => item?.uuid === selectedUuid.value)
   )
   const currentHistory = computed(() => histories[selectedUuid.value] || null)
   const currentDraft = computed(() => drafts[selectedUuid.value] || null)
   const findConversation = (conversationUuid) =>
-    conversations.value.find((item) => item.uuid === conversationUuid)
+    conversations.value.find((item) => item.uuid === conversationUuid) ||
+    (unlistedConversation.value?.uuid === conversationUuid
+      ? unlistedConversation.value
+      : null)
   const isInLoadedRange = (conversation) =>
-    !conversationsCursor.value || byNewest(conversation, loadedUntil) <= 0
+    !conversationsCursor.value || byListPosition(conversation, loadedUntil) <= 0
 
   const replyFollower = computed(() => {
     const id = selectedConversation.value?.id
@@ -236,7 +250,7 @@ export function useAgentConversations(agent, configuration) {
         Object.assign(current, conversation)
       }
     }
-    conversations.value = [...known.values()].sort(byNewest)
+    conversations.value = [...known.values()].sort(byListPosition)
   }
 
   /**
@@ -260,7 +274,13 @@ export function useAgentConversations(agent, configuration) {
         ;({ data } = await service.getConversations(
           agentId,
           data ? data.next_cursor : cursor,
-          { realtimeRecovery: reload }
+          {
+            realtimeRecovery: reload,
+            ...(conversationFilter.value === 'pinned' ? { pinned: true } : {}),
+            ...(conversationFilter.value === 'waiting'
+              ? { has_pending_approvals: true }
+              : {}),
+          }
         ))
         if (
           !scopeIsCurrent(currentScope) ||
@@ -274,21 +294,23 @@ export function useAgentConversations(agent, configuration) {
         reload &&
         data.next_cursor &&
         until &&
-        byNewest(data.results.at(-1), until) < 0
+        data.results.length &&
+        byListPosition(data.results.at(-1), until) < 0
       )
       if (changes !== conversationChanges) {
         return fetchConversations(cursor, reload)
       }
+      // Unpinning and filters also drop conversations, so only a 404 means deleted.
       if (reload) {
         const listed = new Set(results.map(({ uuid }) => uuid))
         conversations.value
           .filter(({ uuid }) => !listed.has(uuid))
-          .forEach(({ uuid }) => removeConversation(uuid))
+          .forEach(({ uuid }) => unlistConversation(uuid))
       }
       mergeConversations(results)
       conversationsCursor.value = data.next_cursor
       if (results.length)
-        loadedUntil = pick(results.at(-1), ['updated_on', 'id'])
+        loadedUntil = pick(results.at(-1), ['pinned', 'updated_on', 'id'])
     } catch {
       if (scopeIsCurrent(currentScope) && request === conversationsRequest) {
         conversationsError.value = true
@@ -302,6 +324,76 @@ export function useAgentConversations(agent, configuration) {
         }
       }
     }
+  }
+
+  function matchesFilter(conversation) {
+    return conversationFilter.value === 'waiting'
+      ? isWaiting(conversation)
+      : conversationFilter.value !== 'pinned' || conversation.pinned
+  }
+
+  function unlistConversation(conversationUuid) {
+    if (selectedUuid.value === conversationUuid) {
+      unlistedConversation.value = findConversation(conversationUuid)
+    }
+    conversations.value = conversations.value.filter(
+      (item) => item.uuid !== conversationUuid
+    )
+  }
+
+  function isInOrder(listed, index) {
+    return (
+      (index === 0 || byListPosition(listed[index - 1], listed[index]) < 0) &&
+      (index === listed.length - 1 ||
+        byListPosition(listed[index], listed[index + 1]) < 0)
+    )
+  }
+
+  /**
+   * List a known conversation where the filter and the loaded pages put it, or
+   * unlist it. Beyond the loaded pages, the next page lists it.
+   */
+  function placeConversation(conversation) {
+    conversationChanges++
+    const listed = conversations.value
+    const index = listed.findIndex((item) => item.uuid === conversation.uuid)
+    const belongs = matchesFilter(conversation) && isInLoadedRange(conversation)
+    if (belongs && index !== -1 && isInOrder(listed, index)) return
+    if (index !== -1) listed.splice(index, 1)
+    if (!belongs) {
+      if (selectedUuid.value === conversation.uuid) {
+        unlistedConversation.value = conversation
+      }
+      return
+    }
+    if (unlistedConversation.value?.uuid === conversation.uuid) {
+      unlistedConversation.value = null
+    }
+    const position = listed.findIndex(
+      (item) => byListPosition(conversation, item) < 0
+    )
+    listed.splice(position === -1 ? listed.length : position, 0, conversation)
+  }
+
+  /** Take a conversation's newest copy, listed where it now belongs. */
+  function receiveConversation(incoming) {
+    const current = findConversation(incoming.uuid)
+    if (!current) return placeConversation(incoming)
+    if (byNewest(current, incoming) >= 0) Object.assign(current, incoming)
+    placeConversation(current)
+  }
+
+  async function setConversationFilter(value) {
+    if (value === conversationFilter.value) return
+    unlistedConversation.value = selectedConversation.value?.local
+      ? null
+      : selectedConversation.value
+    conversationFilter.value = value
+    conversations.value = []
+    conversationsCursor.value = null
+    loadedUntil = null
+    conversationsReloadPending = false
+    return fetchConversations()
   }
 
   /** Read the loaded conversations again after missing events that changed them. */
@@ -385,9 +477,10 @@ export function useAgentConversations(agent, configuration) {
       if (page === 1) {
         followReplies(findConversation(conversationUuid), data.results.at(-1))
       }
-    } catch {
+    } catch (error) {
       if (scopeIsCurrent(currentScope) && history.request === request) {
         history.error = true
+        if (isDeletedElsewhere(error)) removeConversation(conversationUuid)
       }
     } finally {
       if (scopeIsCurrent(currentScope) && history.request === request) {
@@ -449,10 +542,11 @@ export function useAgentConversations(agent, configuration) {
         }
         page++
       }
-    } catch {
+    } catch (error) {
       if (scopeIsCurrent(currentScope) && history.request === request) {
         history.error = true
         history.refreshError = true
+        if (isDeletedElsewhere(error)) removeConversation(conversationUuid)
       }
     } finally {
       if (scopeIsCurrent(currentScope) && history.request === request) {
@@ -509,7 +603,7 @@ export function useAgentConversations(agent, configuration) {
       if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
       // Deleted while sending, so it must not come back.
       if (drafts[conversationUuid] !== draft) return
-      mergeConversations([data.conversation])
+      receiveConversation(data.conversation)
       localConversations.value = localConversations.value.filter(
         (item) => item.uuid !== conversationUuid
       )
@@ -534,6 +628,7 @@ export function useAgentConversations(agent, configuration) {
       followReplies(data.conversation, data.reply)
     } catch (error) {
       if (!scopeIsCurrent(currentScope)) return
+      if (isDeletedElsewhere(error)) return removeConversation(conversationUuid)
       const code = error.response?.data?.error
       draft.error = SEND_ERRORS[code] || 'agent.messageSaveError'
       // The server rejected the message outright, so it can be edited and resent.
@@ -638,12 +733,21 @@ export function useAgentConversations(agent, configuration) {
     if (!canReadConversations.value || loadingWaitingScope === scope) return
     const currentScope = scope
     const clickedFrom = selectedUuid.value
+    if (conversationFilter.value === 'pinned') {
+      await setConversationFilter('waiting')
+      if (!scopeIsCurrent(currentScope)) return
+    }
+    const filter = conversationFilter.value
     loadingWaitingScope = currentScope
     try {
       while (!waitingAfterSelected() && moreWaitingUnloaded()) {
         const cursor = conversationsCursor.value
         await loadMoreConversations()
-        if (!scopeIsCurrent(currentScope)) return
+        if (
+          !scopeIsCurrent(currentScope) ||
+          conversationFilter.value !== filter
+        )
+          return
         if (conversationsCursor.value === cursor) break
       }
       if (selectedUuid.value !== clickedFrom) return
@@ -688,7 +792,8 @@ export function useAgentConversations(agent, configuration) {
         conversation.uuid,
         values
       )
-      applyConversationValues(conversation, pick(data, fields))
+      // A filter switch can have replaced the object this request changed.
+      receiveConversation(data)
     } catch (error) {
       applyConversationValues(conversation, previous)
       if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
@@ -696,9 +801,14 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
+  /** Change values locally, moving the conversation only if it is listed. */
   function applyConversationValues(conversation, values) {
     conversationChanges++
     Object.assign(conversation, values)
+    // An unlisted copy can be stale, so only a server copy lists it again.
+    if (conversations.value.includes(conversation)) {
+      placeConversation(conversation)
+    }
   }
 
   function isDeletedElsewhere(error) {
@@ -710,13 +820,22 @@ export function useAgentConversations(agent, configuration) {
 
   /** Drop a conversation, selecting the one that takes its place in the list. */
   function removeConversation(conversationUuid) {
-    const index = conversationItems.value.findIndex(
+    const removed = findConversation(conversationUuid)
+    let index = conversationItems.value.findIndex(
       (item) => item.uuid === conversationUuid
     )
+    // A selected conversation the filter hides continues with the one after it.
+    if (index === -1 && removed) {
+      index = conversationItems.value.findIndex(
+        (item) => !item.local && byListPosition(removed, item) < 0
+      )
+    }
     conversationChanges++
     conversations.value = conversations.value.filter(
       (item) => item.uuid !== conversationUuid
     )
+    if (unlistedConversation.value?.uuid === conversationUuid)
+      unlistedConversation.value = null
     delete histories[conversationUuid]
     delete drafts[conversationUuid]
     if (selectedUuid.value !== conversationUuid) return
@@ -755,6 +874,8 @@ export function useAgentConversations(agent, configuration) {
   function clearConversations() {
     ++conversationsRequest
     conversations.value = []
+    unlistedConversation.value = null
+    conversationFilter.value = 'all'
     conversationsCursor.value = null
     loadedUntil = null
     conversationsReloadPending = false
@@ -788,27 +909,24 @@ export function useAgentConversations(agent, configuration) {
       if (!update || !canReadConversations.value) return
       if (update.kind === 'deleted') return removeConversation(update.uuid)
       const conversation = findConversation(update.uuid)
-      if (update.kind === 'updated') {
-        if (conversation) applyConversationValues(conversation, update.values)
-        return
-      }
-      // Past the loaded range, the next page lists it.
-      if (!conversation) {
-        if (isInLoadedRange(update.conversation)) {
-          mergeConversations([update.conversation])
-        }
-        return
-      }
-      // A rename's own event can arrive after this one, so only take the activity.
-      mergeConversations([
-        pick(update.conversation, [
+      // A listed copy takes only what changed, as a rename or pin can arrive later.
+      if (!conversations.value.includes(conversation)) {
+        receiveConversation(update.conversation)
+      } else if (update.kind === 'updated') {
+        applyConversationValues(conversation, update.values)
+      } else {
+        const activity = pick(update.conversation, [
           'id',
           'uuid',
           'run_id',
           'updated_on',
           'pending_approval_count',
-        ]),
-      ])
+        ])
+        if (byNewest(conversation, activity) >= 0) {
+          applyConversationValues(conversation, activity)
+        }
+      }
+      if (!conversation || update.kind === 'updated') return
       if (update.uuid === selectedUuid.value) {
         followReplies(conversation)
         // A followed run's finished record brings its approvals with the reply.
@@ -864,9 +982,10 @@ export function useAgentConversations(agent, configuration) {
   const stopListening = runType.listen({
     /** Apply the saved reply its run ended with, or read it when it has none. */
     replyFinished(follower) {
-      const conversation = conversations.value.find(
-        (item) => item.id === follower.chatId
-      )
+      const conversation = [
+        ...conversations.value,
+        unlistedConversation.value,
+      ].find((item) => item?.id === follower.chatId)
       if (!conversation) return
       if (conversation.run_id === follower.runId) conversation.run_id = null
       const history = histories[conversation.uuid]
@@ -884,9 +1003,10 @@ export function useAgentConversations(agent, configuration) {
       for (const [conversationUuid, history] of Object.entries(histories)) {
         if (conversationUuid !== selectedUuid.value) history.stale = true
       }
-      const conversation = conversations.value.find(
-        (item) => item.id === chatId
-      )
+      const conversation = [
+        ...conversations.value,
+        unlistedConversation.value,
+      ].find((item) => item?.id === chatId)
       if (conversation) refreshMessages(conversation.uuid)
     },
   })
@@ -900,6 +1020,8 @@ export function useAgentConversations(agent, configuration) {
     canUpdateConversation,
     canDeleteConversation,
     conversationItems,
+    conversationFilter,
+    setConversationFilter,
     conversationsLoading,
     conversationsError,
     conversationsNext,

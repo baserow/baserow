@@ -8,7 +8,6 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
-from baserow.core.pagination import KeysetCursor
 from baserow.core.signals import application_pending_count_updated, application_updated
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
@@ -33,6 +32,7 @@ from .signals import (
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
+    AgentConversationCursor,
     AgentConversationUpdated,
     AgentMessageCreated,
     AgentReplyRequest,
@@ -140,7 +140,9 @@ class AgentService:
         self,
         user: AbstractUser,
         agent_id: int,
-        cursor: KeysetCursor | None = None,
+        cursor: AgentConversationCursor | None = None,
+        pinned: bool | None = None,
+        has_pending_approvals: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
         Return only the user's own conversations, never another owner's.
@@ -150,13 +152,17 @@ class AgentService:
         :param cursor: The last conversation of the previous page, to continue after.
         :raises PermissionException: When the user may not read conversations of the
             agent.
-        :return: The user's conversations, most recently updated first.
+        :param pinned: Only pinned or unpinned conversations, or both when omitted.
+        :param has_pending_approvals: Only conversations with or without pending calls.
+        :return: The user's conversations, pinned first, then most recently active.
         """
 
         agent = self._get_authorized_agent(
             user, agent_id, ReadAgentConversationsOperationType.type
         )
-        return self.handler.list_conversations(agent, user, cursor)
+        return self.handler.list_conversations(
+            agent, user, cursor, pinned, has_pending_approvals
+        )
 
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
@@ -182,7 +188,11 @@ class AgentService:
 
     @transaction.atomic
     def update_conversation(
-        self, user: AbstractUser, agent_id: int, conversation_uuid: UUID, **values: str
+        self,
+        user: AbstractUser,
+        agent_id: int,
+        conversation_uuid: UUID,
+        **values: str | bool,
     ) -> AgentConversationUpdated:
         """
         Update one of the user's conversations and tell their other sessions what

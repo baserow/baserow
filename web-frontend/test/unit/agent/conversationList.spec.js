@@ -34,7 +34,7 @@ describe('Agent conversation list', () => {
     form.appendChild(wrapper.element)
 
     wrapper.get('.agent-conversations__item').element.click()
-    wrapper.get('.agent-conversations__more').element.click()
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
     wrapper.get('.agent-conversations__footer button').element.click()
     await wrapper.setProps({ error: true })
     wrapper.get('.alert button').element.click()
@@ -56,17 +56,15 @@ describe('Agent conversation list', () => {
     selected.element.focus()
 
     await wrapper.setProps({ loading: true, items: [draft, saved] })
-    const more = wrapper.get('.agent-conversations__more')
-    more.element.click()
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
 
     expect(wrapper.get('[aria-current="true"]').element).toBe(selected.element)
     expect(document.activeElement).toBe(selected.element)
-    expect(wrapper.findAll('li')).toHaveLength(2)
+    expect(wrapper.findAll('.agent-conversations__row')).toHaveLength(2)
     expect(wrapper.get('.agent-conversations__draft').text()).toBe(
       'agent.draft'
     )
     expect(wrapper.find('.skeleton').exists()).toBe(false)
-    expect(more.element.disabled).toBe(true)
     expect(wrapper.emitted('load-more')).toBeUndefined()
   })
 
@@ -215,5 +213,41 @@ describe('Agent conversation list', () => {
     await input.trigger('keydown', { key: 'Enter' })
     expect(rows()[0]).toBe(renaming)
     expect(wrapper.emitted('update')).toEqual([[saved, { title: 'Renamed' }]])
+  })
+
+  test('fills a tall viewport, pauses on error, and disconnects its observer', async () => {
+    let intersect
+    const disconnect = vi.fn()
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback) {
+          intersect = callback
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {
+          disconnect()
+        }
+      }
+    )
+    try {
+      const wrapper = await mountList([saved])
+      await wrapper.setProps({ hasMore: true })
+      intersect([{ isIntersecting: true }])
+      expect(wrapper.emitted('load-more')).toHaveLength(1)
+      await wrapper.setProps({ loading: true })
+      intersect([{ isIntersecting: true }])
+      await wrapper.setProps({ loading: false, error: true })
+      intersect([{ isIntersecting: true }])
+      expect(wrapper.emitted('load-more')).toHaveLength(1)
+      expect(
+        wrapper.get('.agent-conversations__private').attributes('aria-label')
+      ).toBe('agent.privateConversation')
+      wrapper.unmount()
+      expect(disconnect).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

@@ -152,10 +152,15 @@ describe('Agent tool approvals', () => {
       const composer = useI18n(...args)
       return {
         ...composer,
-        t: (key, values, ...rest) =>
-          key === 'agent.alwaysAllowTools'
-            ? `Always allow ${values.tools}`
-            : composer.t(key, values, ...rest),
+        t: (key, values, ...rest) => {
+          if (key === 'agent.alwaysAllowTools') {
+            return `Always allow ${values.tools}`
+          }
+          if (key === 'agent.alwaysAllowAllPendingTools') {
+            return 'Always allow all pending tools'
+          }
+          return composer.t(key, values, ...rest)
+        },
       }
     })
   }
@@ -617,6 +622,7 @@ describe('Agent tool approvals', () => {
     expect(alwaysAllow(wrapper).text()).toBe(
       'Always allow agent.toolCreateRows'
     )
+    expect(alwaysAllow(wrapper).attributes('title')).toBeUndefined()
 
     await alwaysAllow(wrapper).trigger('click')
     await flushPromises()
@@ -634,16 +640,18 @@ describe('Agent tool approvals', () => {
     expect(alwaysAllow(wrapper).exists()).toBe(false)
   })
 
-  test('always allow names each distinct tool it stops asking for', async () => {
+  test('always allow summarizes multiple tools and names only distinct pending tools on hover', async () => {
     showAlwaysAllowTools()
     const wrapper = await openWaitingReply([
       approval(1),
       approval(2, 'pending', { tool: 'delete_rows' }),
       approval(3),
+      approval(4, 'approved', { tool: 'update_rows' }),
     ])
 
-    expect(alwaysAllow(wrapper).text()).toBe(
-      'Always allow agent.toolCreateRows and agent.toolDeleteRows'
+    expect(alwaysAllow(wrapper).text()).toBe('Always allow all pending tools')
+    expect(alwaysAllow(wrapper).attributes('title')).toBe(
+      'agent.toolCreateRows and agent.toolDeleteRows'
     )
   })
 

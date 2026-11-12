@@ -2,11 +2,14 @@ from dataclasses import dataclass, field
 from typing import NotRequired, TypedDict
 from uuid import UUID
 
+from django.db.models import F, Value
+
 from pydantic_ai import Conversation, DeferredToolResults, WebSearchTool
 
 from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.chat_runs.types import ChatRunStep, ChatRunWaitingCall
 from baserow.core.models import Workspace
+from baserow.core.pagination import KeysetCursor, RowLessThan
 from baserow.core.types import Subject
 
 from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
@@ -80,8 +83,21 @@ class AgentConfigurationUpdated:
 @dataclass
 class AgentConversationUpdated:
     conversation: AgentConversation
-    original_values: dict[str, str]
-    new_values: dict[str, str]
+    original_values: dict[str, str | bool]
+    new_values: dict[str, str | bool]
+
+
+@dataclass(frozen=True)
+class AgentConversationCursor(KeysetCursor):
+    """A position in pinned-first, then most recently active conversation order."""
+
+    pinned: bool = False
+
+    def get_filter(self, field_name: str):
+        return RowLessThan(
+            (F("pinned"), F(field_name), F("id")),
+            (Value(self.pinned), Value(self.value), Value(self.id)),
+        )
 
 
 @dataclass(frozen=True)

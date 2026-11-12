@@ -210,13 +210,17 @@ class UpdateAgentConversationActionType(UndoableActionType):
         agent_id: int
         conversation_id: int
         conversation_uuid: str
-        original_values: dict[str, str]
-        new_values: dict[str, str]
+        original_values: dict[str, str | bool]
+        new_values: dict[str, str | bool]
 
     @classmethod
     @transaction.atomic
     def do(
-        cls, user: AbstractUser, agent_id: int, conversation_uuid: UUID, **values: str
+        cls,
+        user: AbstractUser,
+        agent_id: int,
+        conversation_uuid: UUID,
+        **values: str | bool,
     ) -> AgentConversation:
         """
         Update a conversation, such as its title. The description names it by id

@@ -302,12 +302,22 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
         description=(
-            "Lists the authenticated user's own conversations with the agent, most "
-            "recently active first, each with its number of tool calls waiting for "
-            "the user's approval."
+            "Lists the authenticated user's own conversations with the agent, pinned "
+            "first, then most recently active within each group. Each includes its "
+            "number of tool calls waiting for the user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
+            OpenApiParameter(
+                "pinned",
+                OpenApiTypes.BOOL,
+                description="Only pinned or unpinned conversations. Omit for both.",
+            ),
+            OpenApiParameter(
+                "has_pending_approvals",
+                OpenApiTypes.BOOL,
+                description="Only conversations with or without calls waiting for approval.",
+            ),
             OpenApiParameter(
                 "limit",
                 OpenApiTypes.INT,
@@ -340,6 +350,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 request.user,
                 agent_id,
                 query_params.get("cursor"),
+                pinned=query_params.get("pinned"),
+                has_pending_approvals=query_params.get("has_pending_approvals"),
             )[: limit + 1]
         )
         page = conversations[:limit]
@@ -360,7 +372,11 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
                 "results": AgentConversationSerializer(
                     page, many=True, context=context
                 ).data,
-                "next_cursor": encode_keyset_cursor(next_cursor),
+                "next_cursor": (
+                    f"{int(page[-1].pinned)}:{encode_keyset_cursor(next_cursor)}"
+                    if next_cursor
+                    else None
+                ),
             }
         )
 
@@ -396,8 +412,8 @@ class AgentConversationView(APIView):
         tags=["Agent applications"],
         operation_id="update_agent_conversation",
         description=(
-            "Updates one of the authenticated user's conversations, for now only its "
-            "title. It keeps its place in the list, which is ordered by activity."
+            "Updates the title or pinned state of one of the authenticated user's "
+            "conversations, without changing its last activity time."
         ),
         parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
         request=AgentConversationUpdateSerializer,
@@ -408,7 +424,9 @@ class AgentConversationView(APIView):
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
-    @validate_body(AgentConversationUpdateSerializer, return_validated=True)
+    @validate_body(
+        AgentConversationUpdateSerializer, partial=True, return_validated=True
+    )
     def patch(
         self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
     ) -> Response:

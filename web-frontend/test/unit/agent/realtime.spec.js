@@ -3,6 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import service from '@baserow/modules/core/services/chatRuns'
 import { registerRealtimeEvents } from '@baserow/modules/agent/realtime'
 import {
+  filterConversations,
   agentData,
   composer,
   conversation,
@@ -102,7 +103,7 @@ describe('Agent conversation realtime updates', () => {
       page([storedMessage(1, 'Older')])
     )
     const wrapper = await mount()
-    await wrapper.get('.agent-conversations__more').trigger('click')
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
     await flushPromises()
     await selectConversation(wrapper, second.title)
     await wrapper.get('.agent-chat__older').trigger('click')
@@ -559,11 +560,11 @@ describe('Agent conversation realtime updates', () => {
     d: conversation('paged-d', 'D', '2026-10-14T10:01:00Z'),
   }
   const loadMore = async (wrapper) => {
-    await wrapper.get('.agent-conversations__more').trigger('click')
+    await wrapper.get('.agent-conversations__content').trigger('scroll')
     await flushPromises()
   }
   const hasMore = (wrapper) =>
-    wrapper.find('.agent-conversations__more').exists()
+    wrapper.find('.infinite-scroll__loading-wrapper').isVisible()
 
   test('lists a restored conversation only inside the loaded pages', async () => {
     const { a, b, c, d } = paged
@@ -644,5 +645,130 @@ describe('Agent conversation realtime updates', () => {
     expect(testApp.mock.history.get.slice(reads).map(({ url }) => url)).toEqual(
       [`/agent/10/conversations/${second.uuid}/messages/`]
     )
+  })
+
+  test('places conversations pinned elsewhere without reading the list again', async () => {
+    const { a, b, d } = paged
+    mockConversations(testApp, conversationsPage([a, b], 'after-b'))
+    mockMessages(testApp, a.uuid, page([message('m', 'Hello')]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'A')
+    await composer(wrapper).setValue('Unsent')
+    const reads = testApp.mock.history.get.length
+    const pinElsewhere = (item, pinned) =>
+      receivers.agent_conversation_updated(
+        { store: testApp.store },
+        {
+          agent_id: agentData.id,
+          conversation_uuid: item.uuid,
+          values: { pinned },
+          conversation: { ...item, pinned },
+        }
+      )
+
+    pinElsewhere(d, true)
+    pinElsewhere(b, true)
+    await flushPromises()
+    expect(conversationTitles(wrapper)).toEqual(['B', 'D', 'A'])
+
+    // Past the loaded pages once unpinned, so the next page lists it.
+    pinElsewhere(d, false)
+    await flushPromises()
+    expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
+    expect(testApp.mock.history.get).toHaveLength(reads)
+    expect(composer(wrapper).element.value).toBe('Unsent')
+    expect(selected(wrapper).text()).toBe('A')
+  })
+
+  test('keeps an open conversation unpinned while offline, with its draft', async () => {
+    const { a, b, c } = paged
+    mockConversations(
+      testApp,
+      conversationsPage([{ ...c, pinned: true }, a], 'after-a'),
+      conversationsPage([a, b], 'after-b')
+    )
+    mockMessages(testApp, c.uuid, page([message('m', 'Hello')]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'C')
+    await composer(wrapper).setValue('Unsent')
+
+    await reconnect(c.id)
+
+    expect(conversationTitles(wrapper)).toEqual(['A', 'B'])
+    expect(messages(wrapper)).toEqual(['Hello'])
+    expect(composer(wrapper).element.value).toBe('Unsent')
+  })
+
+  test('closes an open conversation deleted while offline, also when filtered', async () => {
+    const { a, b } = paged
+    const pinnedA = { ...a, pinned: true }
+    mockConversations(
+      testApp,
+      conversationsPage([pinnedA, b]),
+      conversationsPage([pinnedA]),
+      conversationsPage([])
+    )
+    mockMessages(testApp, a.uuid, page([message('m', 'Hello')]), [
+      404,
+      { error: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST' },
+    ])
+    testApp.dontFailOnErrorResponses()
+    const wrapper = await mount()
+    await filterConversations(wrapper, 'agent.pinned')
+    await selectConversation(wrapper, 'A')
+    await composer(wrapper).setValue('Unsent')
+
+    await reconnect(a.id)
+
+    expect(conversationTitles(wrapper)).toEqual([])
+    expect(messages(wrapper)).toEqual([])
+    expect(composer(wrapper).element.value).toBe('')
+  })
+
+  test('selects the next waiting conversation when the hidden open one is deleted', async () => {
+    const [a, b, c, d] = Object.values(paged).map((item) => ({
+      ...item,
+      pending_approval_count: 1,
+    }))
+    mockConversations(
+      testApp,
+      conversationsPage([]),
+      conversationsPage([a, b, c, d])
+    )
+    mockMessages(testApp, b.uuid, page([]))
+    mockMessages(testApp, c.uuid, page([]))
+    const wrapper = await mount()
+    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await selectConversation(wrapper, 'B')
+    await update(b.uuid, { updatedOn: b.updated_on })
+
+    receivers.agent_conversation_deleted(
+      { store: testApp.store },
+      { agent_id: agentData.id, conversation_uuid: b.uuid }
+    )
+    await flushPromises()
+
+    expect(selected(wrapper).text()).toContain('C')
+  })
+
+  test('removes a decided conversation from the waiting filter without closing it', async () => {
+    const waiting = { ...first, pending_approval_count: 1 }
+    mockConversations(
+      testApp,
+      conversationsPage([waiting]),
+      conversationsPage([waiting])
+    )
+    mockMessages(testApp, first.uuid, page([message('m', 'Hello')]))
+    const wrapper = await mount()
+    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await selectConversation(wrapper, first.title)
+    await composer(wrapper).setValue('Draft')
+    await update(first.uuid)
+    expect(conversationTitles(wrapper)).toEqual([])
+    expect(wrapper.get('.agent-conversations__empty').text()).toBe(
+      'agent.noMatchingConversations'
+    )
+    expect(composer(wrapper).element.value).toBe('Draft')
+    expect(messages(wrapper)).toEqual(['Hello'])
   })
 })

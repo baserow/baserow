@@ -78,6 +78,20 @@ def _notify_owner(
     )
 
 
+def _serialize_listed(
+    conversation: AgentConversation, conversation_runs: dict[int, UUID | str]
+) -> dict:
+    """Serialize the conversation as the conversation list shows it."""
+
+    context = {
+        "conversation_runs": conversation_runs,
+        "conversation_pending_approvals": (
+            AgentHandler().get_conversation_pending_approval_counts([conversation.id])
+        ),
+    }
+    return AgentConversationSerializer(conversation, context=context).data
+
+
 @receiver(agent_conversation_activity)
 def conversation_activity(
     sender,
@@ -91,17 +105,13 @@ def conversation_activity(
     # A deleted conversation is already gone from every list.
     if conversation.trashed:
         return
-    context = {
-        "conversation_runs": {conversation.id: str(run_id)} if run_id else {},
-        "conversation_pending_approvals": (
-            AgentHandler().get_conversation_pending_approval_counts([conversation.id])
-        ),
-    }
     _notify_owner(
         conversation,
         user,
         "agent_conversation_activity",
-        conversation=AgentConversationSerializer(conversation, context=context).data,
+        conversation=_serialize_listed(
+            conversation, {conversation.id: str(run_id)} if run_id else {}
+        ),
     )
 
 
@@ -110,12 +120,23 @@ def conversation_updated(
     sender,
     conversation: AgentConversation,
     user: AbstractUser,
-    values: dict[str, str],
+    values: dict[str, str | bool],
     **kwargs,
 ) -> None:
-    """Send the changed values, so the owner's lists show them without a re-read."""
+    """
+    Send the changed values, and the whole conversation for the lists that have not
+    loaded it, so the owner's lists show the change without a re-read.
+    """
 
-    _notify_owner(conversation, user, "agent_conversation_updated", values=values)
+    _notify_owner(
+        conversation,
+        user,
+        "agent_conversation_updated",
+        values=values,
+        conversation=_serialize_listed(
+            conversation, AgentHandler().get_conversation_runs([conversation.id])
+        ),
+    )
 
 
 @receiver(agent_conversation_deleted)
