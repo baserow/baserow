@@ -8,7 +8,7 @@ import baserow.core.formula.field
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0070_semantic_search"),
+        ("baserow_enterprise", "0071_semantic_search_action"),
         ("builder", "0082_builder_untrusted_content"),
     ]
 
