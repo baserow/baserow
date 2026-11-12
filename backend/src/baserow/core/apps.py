@@ -781,10 +781,6 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(UpdateMCPEndpointOperationType())
         operation_type_registry.register(DeleteMCPEndpointOperationType())
 
-        from baserow.core.mcp.object_scopes import MCPEndpointObjectScopeType
-
-        object_scope_type_registry.register(MCPEndpointObjectScopeType())
-
         plugin_dir.register(DebugModeHealthCheck)
         if getattr(settings, "HEROKU_ENABLED", False):
             plugin_dir.register(HerokuExternalFileStorageConfiguredHealthCheck)
