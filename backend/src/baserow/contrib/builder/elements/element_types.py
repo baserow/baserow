@@ -153,6 +153,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         column_weights: list
         column_stacking: Dict[str, str]
 
+    def get_event_names(self, instance: ColumnElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     @property
     def serializer_field_names(self):
         return super().serializer_field_names + [
@@ -431,6 +434,9 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         pass
+
+    def get_event_names(self, instance: SimpleContainerElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}

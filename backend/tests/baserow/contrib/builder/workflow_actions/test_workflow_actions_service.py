@@ -9,6 +9,7 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.workflow_actions.exceptions import (
     BuilderWorkflowActionCannotBeDispatched,
     InvalidWorkflowActionEvent,
@@ -31,11 +32,15 @@ from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("element_type", ["button", "heading", "text", "image"])
+@pytest.mark.parametrize(
+    "element_type", ["button", "heading", "text", "image", "column", "simple_container"]
+)
 def test_create_workflow_action(data_fixture, element_type):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    element = getattr(data_fixture, f"create_builder_{element_type}_element")(page=page)
+    element = data_fixture.create_builder_element(
+        type(element_type_registry.get(element_type)), page=page
+    )
     event = EventTypes.CLICK
     workflow_action_type = NotificationWorkflowActionType()
     workflow_action = (
@@ -359,11 +364,15 @@ def test_dispatch_workflow_action_no_permissions(data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("element_type", ["button", "heading", "text", "image"])
+@pytest.mark.parametrize(
+    "element_type", ["button", "heading", "text", "image", "column", "simple_container"]
+)
 def test_create_workflow_action_with_invalid_event(data_fixture, element_type):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    element = getattr(data_fixture, f"create_builder_{element_type}_element")(page=page)
+    element = data_fixture.create_builder_element(
+        type(element_type_registry.get(element_type)), page=page
+    )
     workflow_action_type = NotificationWorkflowActionType()
 
     with pytest.raises(InvalidWorkflowActionEvent) as exc_info:
@@ -428,11 +437,15 @@ def test_create_workflow_action_without_element_only_accepts_static_events(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("element_type", ["button", "heading", "text", "image"])
+@pytest.mark.parametrize(
+    "element_type", ["button", "heading", "text", "image", "column", "simple_container"]
+)
 def test_update_workflow_action_with_invalid_event(data_fixture, element_type):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    element = getattr(data_fixture, f"create_builder_{element_type}_element")(page=page)
+    element = data_fixture.create_builder_element(
+        type(element_type_registry.get(element_type)), page=page
+    )
     workflow_action = data_fixture.create_notification_workflow_action(
         page=page, element=element, event=EventTypes.CLICK
     )

@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Images, text and headings can trigger actions when clicked in the Application Builder.",
+    "message": "Images, text, headings, columns and containers can trigger actions when clicked in the Application Builder.",
     "issue_origin": "github",
     "issue_number": 2748,
     "domain": "builder",

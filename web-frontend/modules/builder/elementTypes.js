@@ -1179,6 +1179,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return ColumnElementForm
   }
 
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
+  }
+
   getPublicResponsiveStyles(builder) {
     const { mobile, tablet } = getBuilderBreakpoints(builder)
 
@@ -1285,6 +1289,10 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
 
   get generalFormComponent() {
     return SimpleContainerElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
   }
 
   getDefaultValues(page, values, parentElement = null) {

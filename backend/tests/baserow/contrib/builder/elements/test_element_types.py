@@ -32,6 +32,7 @@ from baserow.contrib.builder.elements.element_types import (
     LinkElementType,
     RatingInputElementType,
     RecordSelectorElementType,
+    SimpleContainerElementType,
     TextElementType,
     collection_element_types,
 )
@@ -1722,6 +1723,10 @@ def test_element_type_get_event_names(data_fixture):
     heading = data_fixture.create_builder_heading_element(page=page)
     text = data_fixture.create_builder_text_element(page=page)
     image = data_fixture.create_builder_image_element(page=page)
+    column = data_fixture.create_builder_column_element(page=page)
+    container = data_fixture.create_builder_element(
+        SimpleContainerElementType, page=page
+    )
     button = data_fixture.create_builder_button_element(page=page)
     form = data_fixture.create_builder_form_container_element(page=page)
     table = data_fixture.create_builder_table_element(
@@ -1753,6 +1758,8 @@ def test_element_type_get_event_names(data_fixture):
     assert get_event_names(heading) == ["click"]
     assert get_event_names(text) == ["click"]
     assert get_event_names(image) == ["click"]
+    assert get_event_names(column) == ["click"]
+    assert get_event_names(container) == ["click"]
     assert get_event_names(button) == ["click"]
     assert get_event_names(form) == ["submit"]
     assert get_event_names(table) == [f"{button_field.uid}_click"]
