@@ -170,6 +170,34 @@ describe('McpOAuthConnections', () => {
     })
   })
 
+  test('install links and config fallbacks work with a non-Latin URL', async () => {
+    const unicodeUrl = 'https://例子.test/mcp'
+    const wrapper = await mount({
+      oauth_enabled: true,
+      mcp_url: unicodeUrl,
+      connections: [],
+    })
+    const tabLinks = wrapper.findAll('.tabs__link')
+
+    await tabLinks[1].trigger('click')
+    const cursor = new URL(
+      wrapper.find('[data-test="mcp-oauth-cursor-install"]').attributes('href')
+    )
+    expect(JSON.parse(atob(cursor.searchParams.get('config')))).toEqual({
+      url: 'https://xn--fsqu00a.test/mcp',
+    })
+    expect(wrapper.text()).toContain(`"url": "${unicodeUrl}"`)
+
+    await tabLinks[2].trigger('click')
+    const vsCode = new URL(
+      wrapper.find('[data-test="mcp-oauth-vscode-install"]').attributes('href')
+    )
+    expect(JSON.parse(vsCode.searchParams.get('config'))).toEqual({
+      type: 'http',
+      url: 'https://xn--fsqu00a.test/mcp',
+    })
+  })
+
   test('lists connections with badge, workspace and tool count', async () => {
     const wrapper = await mount({
       oauth_enabled: true,

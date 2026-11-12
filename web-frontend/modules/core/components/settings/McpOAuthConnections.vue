@@ -52,7 +52,7 @@
         <pre><code class="mcp-oauth-connections__code">claude mcp add --transport http baserow {{ mcpUrl }}</code></pre>
       </Tab>
       <Tab title="Cursor">
-        <div class="mcp-oauth-connections__install">
+        <div v-if="cursorInstallUrl" class="mcp-oauth-connections__install">
           <Button
             tag="a"
             type="secondary"
@@ -76,7 +76,7 @@
 }</code></pre>
       </Tab>
       <Tab title="VS Code">
-        <div class="mcp-oauth-connections__install">
+        <div v-if="vsCodeInstallUrl" class="mcp-oauth-connections__install">
           <Button
             tag="a"
             type="secondary"
@@ -277,12 +277,27 @@ const docsUrl = 'https://baserow.io/user-docs/mcp-server'
 
 // One-click installs for the editors that support them. Both carry this
 // instance's URL, so they also work on self-hosted Baserow.
+// The URL with an ASCII hostname (punycode) and percent-encoded path, so a
+// non-Latin instance URL can go through `btoa()`. Null if it doesn't parse.
+const asciiMcpUrl = computed(() => {
+  try {
+    return new URL(mcpUrl.value).href
+  } catch {
+    return null
+  }
+})
 const cursorInstallUrl = computed(() => {
-  const config = btoa(JSON.stringify({ url: mcpUrl.value }))
+  if (!asciiMcpUrl.value) {
+    return null
+  }
+  const config = btoa(JSON.stringify({ url: asciiMcpUrl.value }))
   return `https://cursor.com/install-mcp?name=baserow&config=${encodeURIComponent(config)}`
 })
 const vsCodeInstallUrl = computed(() => {
-  const config = JSON.stringify({ type: 'http', url: mcpUrl.value })
+  if (!asciiMcpUrl.value) {
+    return null
+  }
+  const config = JSON.stringify({ type: 'http', url: asciiMcpUrl.value })
   return `https://vscode.dev/redirect/mcp/install?name=baserow&config=${encodeURIComponent(config)}`
 })
 
