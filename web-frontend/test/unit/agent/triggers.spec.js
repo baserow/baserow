@@ -425,6 +425,25 @@ describe('Agent triggers', () => {
     expect(wrapper.text()).toContain('agent.noTriggers')
   })
 
+  test('offers to add a trigger only once the list has loaded', async () => {
+    let answerList
+    testApp.mock
+      .onGet('/agent/10/triggers/')
+      .replyOnce(() => new Promise((resolve) => (answerList = resolve)))
+    const wrapper = await mountSection([])
+    expect(wrapper.find('.agent-triggers__add').exists()).toBe(false)
+
+    answerList([500, {}])
+    await flushPromises()
+    expect(wrapper.text()).toContain('agent.triggersLoadError')
+    expect(wrapper.find('.agent-triggers__add').exists()).toBe(false)
+
+    await wrapper.get('.alert button').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('agent.noTriggers')
+    expect(wrapper.find('.agent-triggers__add').exists()).toBe(true)
+  })
+
   test('offers only the available trigger types that are enabled and creates the picked one', async () => {
     const service = periodicTrigger().service
     const defaults = {

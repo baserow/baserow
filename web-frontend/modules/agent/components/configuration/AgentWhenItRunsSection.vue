@@ -3,7 +3,7 @@
     <div class="agent-triggers__header">
       <h3 class="agent-triggers__title">{{ $t('agent.triggers') }}</h3>
       <ButtonText
-        v-if="editable && availableTypes.length"
+        v-if="canAddTriggers"
         type="primary"
         size="small"
         button-type="button"
@@ -92,4 +92,12 @@ const {
   updateTrigger,
   deleteTrigger,
 } = useAgentTriggers(agent)
+// A trigger added before the list loaded would be dropped by the list reply.
+const canAddTriggers = computed(
+  () =>
+    props.editable &&
+    availableTypes.value.length > 0 &&
+    !loading.value &&
+    !loadError.value
+)
 </script>
