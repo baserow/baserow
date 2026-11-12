@@ -1,12 +1,12 @@
 """
-Kuma model selection, shared request profiles, and output/adapter overrides.
+Kuma model selection, shared request profiles, and output overrides.
 
 Contains:
 - ``resolve_assistant_model()``: Freezes model selection for one logical request.
 - ``ResolvedAssistantModelProfile``: The frozen selection and role-based behavior.
 - ``check_lm_ready_or_raise()``: Cached live compatibility check of that selection.
 - ``get_model_settings(model, role)``: Per-model, per-role settings.
-- ``AssistantModelConfiguration``: Output and adapter overrides.
+- ``AssistantModelConfiguration``: Output overrides.
 
 Usage::
 
@@ -77,7 +77,6 @@ from baserow_enterprise.assistant.exceptions import (
     AssistantModelDisabledError,
     AssistantModelNotSupportedError,
 )
-from baserow_enterprise.assistant.groq_model import GroqGPTOSSModel
 from baserow_enterprise.assistant.models import AssistantChat
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 
@@ -97,7 +96,6 @@ class AssistantModelConfiguration:
     """Provider/model exceptions to the assistant's default behavior."""
 
     native_output_roles: frozenset[str] = frozenset()
-    model_class: type[Model] | None = None
 
     def get_output_type(
         self, output_type: type[BaseModel], role: str
@@ -113,24 +111,15 @@ _DEFAULT_MODEL_CONFIGURATION = AssistantModelConfiguration()
 _MODEL_CONFIGURATIONS: dict[str, AssistantModelConfiguration] = {
     "groq:openai/gpt-oss-120b": AssistantModelConfiguration(
         native_output_roles=frozenset({DOCUMENTATION}),
-        model_class=GroqGPTOSSModel,
     ),
     "groq:openai/gpt-oss-20b": AssistantModelConfiguration(
         native_output_roles=frozenset({DOCUMENTATION}),
-        model_class=GroqGPTOSSModel,
     ),
 }
 _PROVIDER_SETTINGS_SANITIZERS = dict.fromkeys(
     ("google", "google-gla", "google-cloud", "google-vertex"),
     sanitize_google_model_settings,
 )
-
-
-def get_model_class(model: str, default: type[Model]) -> type[Model]:
-    """Select an assistant adapter, or retain the provider's model class."""
-
-    configuration = _MODEL_CONFIGURATIONS.get(model, _DEFAULT_MODEL_CONFIGURATION)
-    return configuration.model_class or default
 
 
 def get_model_settings(model: str, role: str) -> ModelSettings:

@@ -36,11 +36,11 @@ def configured_agent(data_fixture):
         agent = data_fixture.create_agent_application(user=user, **kwargs)
         provider, _ = AIProviderConfig.objects.get_or_create(
             workspace=agent.workspace,
-            provider_type="openai",
+            provider_type=agent.provider_type,
             defaults={"api_key": "test-key"},
         )
         AIProviderModel.objects.get_or_create(
-            provider_config=provider, model_identifier="test-model"
+            provider_config=provider, model_identifier=agent.model_identifier
         )
         return agent
 

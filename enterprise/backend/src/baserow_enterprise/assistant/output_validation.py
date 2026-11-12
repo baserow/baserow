@@ -141,19 +141,23 @@ _MAX_CORRECTED_ARGUMENTS_LENGTH = 2000
 
 
 def _corrected_tool_call(
-    ctx: RunContext[AssistantDeps] | None, answer: str
+    ctx: RunContext[AssistantDeps] | None,
+    answer: str,
+    tool_call: tuple[str, dict] | None = None,
 ) -> tuple[str, str] | None:
     """
     Read the tool call printed in an answer, with its ``thought`` at the top level.
 
     :param ctx: The agent run context, or None outside an agent run.
     :param answer: The answer that looks like a tool call.
+    :param tool_call: An already parsed call, if the strict detector found one.
     :return: The tool name and the arguments to call it with as compact JSON, or
         None when the answer does not repair into a call to one of the run's
         tools or the arguments are too long to repeat.
     """
 
-    tool_call = repair_printed_tool_call(answer)
+    if tool_call is None:
+        tool_call = repair_printed_tool_call(answer)
     tool_manager = ctx.tool_manager if ctx is not None else None
     if tool_call is None or tool_manager is None:
         return None
@@ -275,8 +279,9 @@ def validate_final_answer(ctx: RunContext[AssistantDeps], answer: str) -> str:
         into a call to one of the run's tools, the message gives that exact call.
     """
 
-    if get_printed_tool_call(ctx, answer) is not None or _looks_like_tool_call(answer):
-        corrected_call = _corrected_tool_call(ctx, answer)
+    printed_call = get_printed_tool_call(ctx, answer)
+    if printed_call is not None or _looks_like_tool_call(answer):
+        corrected_call = _corrected_tool_call(ctx, answer, printed_call)
         if corrected_call is not None:
             tool_name, arguments_json = corrected_call
             raise ModelRetry(

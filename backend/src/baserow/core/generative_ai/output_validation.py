@@ -1,9 +1,30 @@
 """Output checks shared by clients that let models call tools."""
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 from pydantic_ai import ModelRetry, RunContext
+
+ModelOutputValidator = Callable[[RunContext[Any], str], str]
+
+
+def parse_tool_call_envelope(value: Any) -> tuple[str, dict[str, Any]] | None:
+    """
+    Read a decoded JSON object containing exactly a tool name and arguments.
+
+    :param value: The decoded value, without repairing or validating arguments.
+    :return: The tool name and arguments, or None for another shape.
+    """
+
+    if (
+        isinstance(value, dict)
+        and value.keys() == {"name", "arguments"}
+        and isinstance(value["name"], str)
+        and isinstance(value["arguments"], dict)
+    ):
+        return value["name"], value["arguments"]
+    return None
 
 
 def get_printed_tool_call(
@@ -27,20 +48,15 @@ def get_printed_tool_call(
     if not callable(get_tool_def):
         return None
     try:
-        call = json.loads(answer)
+        call = parse_tool_call_envelope(json.loads(answer))
     except (ValueError, RecursionError):
         return None
-    if (
-        not isinstance(call, dict)
-        or call.keys() != {"name", "arguments"}
-        or not isinstance(call["name"], str)
-        or not isinstance(call["arguments"], dict)
-    ):
+    if call is None:
         return None
-    tool_def = get_tool_def(call["name"])
+    tool_def = get_tool_def(call[0])
     if tool_def is None or tool_def.kind == "output":
         return None
-    return call["name"], call["arguments"]
+    return call
 
 
 def validate_tool_call_output(ctx: RunContext[Any], answer: str) -> str:

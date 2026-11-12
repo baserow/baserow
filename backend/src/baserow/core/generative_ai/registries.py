@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import os
 from collections import Counter
-from dataclasses import dataclass
+from collections.abc import Callable
+from copy import deepcopy
+from dataclasses import dataclass, field
 from functools import cached_property
 from inspect import Parameter, signature
 from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
@@ -31,9 +33,24 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent, WebSearchTool
     from pydantic_ai.messages import UserContent
     from pydantic_ai.models import Model
-    from pydantic_ai.settings import ThinkingLevel
+    from pydantic_ai.settings import ModelSettings, ThinkingLevel
 
     from baserow_premium.fields.ai_file import AIFile
+
+    from .output_validation import ModelOutputValidator
+
+
+@dataclass(frozen=True)
+class GenerativeAIModelConfiguration:
+    """Provider-owned request behavior for one model, without credentials."""
+
+    model_class: type[Model] | None = None
+    settings_overrides: dict[str, ModelSettings] = field(default_factory=dict)
+    output_validator: ModelOutputValidator | None = None
+    settings_sanitizer: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+
+
+_DEFAULT_MODEL_CONFIGURATION = GenerativeAIModelConfiguration()
 
 
 def call_with_supported_kwargs(method: Any, **kwargs) -> Any:
@@ -865,6 +882,49 @@ class GenerativeAIModelType(Instance):
 
         raise NotImplementedError("The get_ai_model function must be implemented.")
 
+    def get_model_configuration(
+        self, model_name: str
+    ) -> GenerativeAIModelConfiguration:
+        """
+        Return the provider's request behavior for a model.
+
+        :param model_name: The provider's model identifier.
+        :return: The model's configuration, preserving SDK defaults otherwise.
+        """
+
+        return _DEFAULT_MODEL_CONFIGURATION
+
+    def get_model_class(self, model_name: str, default: type[Model]) -> type[Model]:
+        """Select the configured adapter or the provider's usual SDK model."""
+
+        return self.get_model_configuration(model_name).model_class or default
+
+    def get_model_settings(self, model_name: str, role: str) -> ModelSettings:
+        """
+        Combine task defaults with the provider's overrides for this model.
+
+        :param model_name: The provider's model identifier.
+        :param role: The task performed by the model.
+        :return: Independent settings, including independent nested values.
+        """
+
+        from .model_profiles import get_role_defaults
+
+        result = get_role_defaults(role)
+        overrides = self.get_model_configuration(model_name).settings_overrides
+        result.update(deepcopy(overrides.get(role, {})))
+        return result
+
+    def get_output_validator(self, model_name: str) -> ModelOutputValidator | None:
+        """
+        Return the model's text-output correction, when one is needed.
+
+        :param model_name: The provider's model identifier.
+        :return: A validator that may raise ModelRetry, or None.
+        """
+
+        return self.get_model_configuration(model_name).output_validator
+
     def _prepare_model_settings(
         self, temperature: Optional[float] = None
     ) -> dict[str, Any]:
@@ -892,25 +952,8 @@ class GenerativeAIModelType(Instance):
     ) -> dict[str, Any]:
         """Remove settings a concrete provider/model cannot accept."""
 
-        return model_settings
-
-    def sanitize_default_model_settings(
-        self, model: "Model", model_settings: dict[str, Any]
-    ) -> dict[str, Any]:
-        """
-        Adapt task defaults to the model's capabilities and reasoning effort.
-
-        Call this before applying explicit request overrides. Providers can let
-        the SDK choose an output budget, cap it at a known output limit, or remove
-        default sampling settings incompatible with the selected reasoning mode.
-        A context window is not an output limit.
-
-        :param model: The configured model, including its SDK capability profile.
-        :param model_settings: Task defaults and the selected reasoning effort.
-        :return: A new mapping of compatible defaults.
-        """
-
-        return dict(model_settings)
+        sanitizer = self.get_model_configuration(model).settings_sanitizer
+        return sanitizer(model_settings) if sanitizer is not None else model_settings
 
     def get_reasoning_efforts(
         self, model_name: str, model: "Model"

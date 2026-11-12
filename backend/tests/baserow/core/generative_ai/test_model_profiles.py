@@ -1,11 +1,49 @@
 import pytest
 
 from baserow.core.generative_ai.model_profiles import (
+    AGENT,
     DOCUMENTATION,
     ORCHESTRATOR,
     SUBAGENT,
     get_model_settings,
 )
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+
+
+def test_model_defaults_are_selected_by_the_provider(mocker):
+    provider = generative_ai_model_type_registry.get("openai")
+    get_settings = mocker.patch.object(
+        provider,
+        "get_model_settings",
+        create=True,
+        return_value={"timeout": 45},
+    )
+
+    assert get_model_settings("openai:custom/task-model", AGENT) == {"timeout": 45}
+    get_settings.assert_called_once_with("custom/task-model", AGENT)
+
+
+@pytest.mark.parametrize(
+    "model,budget",
+    [
+        ("groq:openai/gpt-oss-20b", 16384),
+        ("groq:openai/gpt-oss-120b", 16384),
+        ("groq:allam-2-7b", None),
+        ("groq:qwen/qwen3-32b", None),
+        ("groq:custom/gpt-oss-120b", None),
+        ("groq:gpt-oss-120b", None),
+        ("openai:openai/gpt-oss-120b", None),
+        ("openai:gpt-5", None),
+        ("anthropic:claude-sonnet-4-6", None),
+        ("google:gemini-2.0-flash", None),
+    ],
+)
+def test_agent_defaults_only_override_the_groq_gpt_oss_budget(model, budget):
+    settings = get_model_settings(model, AGENT)
+
+    assert settings == ({"max_tokens": budget} if budget is not None else {})
+    settings["timeout"] = 1
+    assert "timeout" not in get_model_settings(model, AGENT)
 
 
 def test_shared_defaults_do_not_apply_kumas_temperature_override(settings):

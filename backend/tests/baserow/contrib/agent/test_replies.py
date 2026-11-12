@@ -77,6 +77,7 @@ from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
@@ -209,6 +210,37 @@ def test_failed_input_summary_keeps_the_call_without_logging_payloads(
     output = "".join(str(entry) for entry in logs)
     assert "PRIVATE_INPUT_ERROR_CANARY" not in output
     assert "PRIVATE_INPUT_ARGUMENT_CANARY" not in output
+
+
+@pytest.mark.django_db
+def test_provider_output_validator_is_used_without_agent_provider_rules(
+    data_fixture, configured_agent, mocker
+):
+    from pydantic_ai import ModelRetry
+
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    validated = []
+
+    def validate(ctx, output):
+        validated.append(output)
+        if output == "Rejected text":
+            raise ModelRetry("Please correct the answer.")
+        return output
+
+    provider = generative_ai_model_type_registry.get(agent.provider_type)
+    get_validator = mocker.patch.object(
+        provider, "get_output_validator", create=True, return_value=validate
+    )
+    received = respond(mocker, ("Rejected text",), ("Corrected answer",))
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Corrected answer")
+    assert validated == ["Rejected text", "Corrected answer"]
+    assert len(received) == 2
+    get_validator.assert_called_once_with(agent.model_identifier)
 
 
 @pytest.mark.django_db
@@ -610,11 +642,48 @@ def test_empty_groq_stream_logs_the_original_error_in_debug_mode(
 
 
 @pytest.mark.django_db
-def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
-    data_fixture, configured_agent, mocker
+@pytest.mark.parametrize(
+    "provider,model_name",
+    [
+        ("openai", "test-model"),
+        ("openai", "openai/gpt-oss-120b"),
+        ("groq", "qwen/qwen3-32b"),
+        ("groq", "allam-2-7b"),
+    ],
+)
+def test_other_models_can_answer_with_tool_json_without_correction(
+    data_fixture, configured_agent, mocker, provider, model_name
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(
+        user=user, provider_type=provider, model_identifier=model_name
+    )
+    table = allow_tools(data_fixture, agent)
+    printed_call = json.dumps(
+        {
+            "name": "create_rows",
+            "arguments": {"table_id": table.id, "rows": [{"Name": "Example"}]},
+        }
+    )
+    received = respond(mocker, (printed_call,))
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", printed_call)
+    assert row_names(table) == []
+    assert len(received) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
+    data_fixture, configured_agent, mocker, model_name
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(
+        user=user, provider_type="groq", model_identifier=model_name
+    )
     table = allow_tools(data_fixture, agent)
     printed_call = json.dumps(
         {
@@ -642,11 +711,14 @@ def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
 def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent, mocker, model_name
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(
+        user=user, provider_type="groq", model_identifier=model_name
+    )
     table = allow_tools(data_fixture, agent)
     printed_call = json.dumps(
         {
@@ -671,11 +743,14 @@ def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
 def test_printed_table_call_after_invalid_input_still_requires_approval(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent, mocker, model_name
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(
+        user=user, provider_type="groq", model_identifier=model_name
+    )
     existing = allow_tools(
         data_fixture, agent, ("create_tables",), ask_first=("create_tables",)
     )

@@ -1,6 +1,5 @@
 import asyncio
 import json
-from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -18,7 +17,6 @@ def send_request(
     provider_type: str,
     model_name: str,
     effort: str | None,
-    defaults: dict | None = None,
 ) -> dict:
     """
     Build the model and its settings the way Agent replies do, then capture the
@@ -27,7 +25,6 @@ def send_request(
     :param provider_type: The generative AI model type.
     :param model_name: The model's name.
     :param effort: The chosen reasoning effort.
-    :param defaults: Optional task defaults to adapt before sending the request.
     :return: The keyword arguments of the SDK call.
     """
 
@@ -37,17 +34,10 @@ def send_request(
         None,
         {"api_key": "test-key", "organization": None, "base_url": None},
     )
-    model_settings = {
-        **(defaults or {}),
-        **model_type.prepare_model_settings(model_name),
-    }
+    model_settings = model_type.prepare_model_settings(model_name)
     thinking = model_type.get_thinking_level(model_name, model, effort)
     if thinking is not None:
         model_settings["thinking"] = thinking
-    if defaults is not None:
-        model_settings = model_type.sanitize_default_model_settings(
-            model, model_settings
-        )
     model_settings = model_type.sanitize_model_settings(model_name, model_settings)
 
     sent = {}
@@ -230,153 +220,6 @@ def test_other_groq_models_keep_their_thinking_settings(model_name):
     settings = {"thinking": False, "groq_reasoning_format": "parsed"}
 
     assert model_type.sanitize_model_settings(model_name, settings) == settings
-
-
-@pytest.mark.parametrize(
-    "model_name,effort,expected_max_tokens",
-    [
-        ("gpt-4-turbo", None, None),
-        ("gpt-4.1", None, None),
-        ("gpt-5.1", None, 16384),
-        ("gpt-5.1", "high", 16384),
-        ("o3", "medium", 16384),
-    ],
-)
-def test_openai_task_defaults_preserve_legacy_limits(
-    model_name, effort, expected_max_tokens
-):
-    from openai import Omit
-
-    settings = {"max_tokens": 16384, "temperature": 0.3}
-    sent = send_request("openai", model_name, effort, settings)
-
-    if expected_max_tokens is None:
-        assert isinstance(sent["max_output_tokens"], Omit)
-        assert sent["temperature"] == 0.3
-    else:
-        assert sent["max_output_tokens"] == expected_max_tokens
-    assert settings == {"max_tokens": 16384, "temperature": 0.3}
-
-
-@pytest.mark.parametrize(
-    "model_name,effort,max_tokens,thinking_type",
-    [
-        ("claude-3-7-sonnet-latest", None, 4096, None),
-        ("claude-3-7-sonnet-latest", "high", 20480, "enabled"),
-        ("claude-sonnet-4-6", None, 16384, None),
-        ("claude-sonnet-4-6", "high", 16384, "adaptive"),
-    ],
-)
-def test_anthropic_task_defaults_respect_reasoning_and_legacy_limits(
-    model_name, effort, max_tokens, thinking_type
-):
-    sent = send_request(
-        "anthropic",
-        model_name,
-        effort,
-        {"max_tokens": 16384, "temperature": 0.3, "top_p": 0.8, "top_k": 10},
-    )
-
-    assert sent["max_tokens"] == max_tokens
-    if thinking_type:
-        assert sent["thinking"]["type"] == thinking_type
-        if thinking_type == "enabled":
-            assert sent["thinking"]["budget_tokens"] < sent["max_tokens"]
-        assert not {"temperature", "top_p", "top_k"}.intersection(
-            sent.get("extra_body") or {}
-        )
-    else:
-        assert not isinstance(sent["thinking"], dict)
-        assert sent["extra_body"]["temperature"] == 0.3
-
-
-@pytest.mark.parametrize("maximum,expected", [(8192, 8192), (None, 16384), (0, 16384)])
-def test_anthropic_defaults_cap_at_a_known_output_limit_without_mutating_input(
-    maximum, expected
-):
-    model_type = generative_ai_model_type_registry.get("anthropic")
-    model = SimpleNamespace(profile={"anthropic_max_output_tokens": maximum})
-    settings = {"max_tokens": 16384, "temperature": 0.3}
-
-    sanitized = model_type.sanitize_default_model_settings(model, settings)
-
-    assert sanitized == {"max_tokens": expected, "temperature": 0.3}
-    assert settings == {"max_tokens": 16384, "temperature": 0.3}
-
-
-@pytest.mark.parametrize(
-    "model_name,thinking,max_tokens",
-    [
-        ("us.anthropic.claude-3-7-sonnet-20250219-v1:0", None, None),
-        ("us.anthropic.claude-3-7-sonnet-20250219-v1:0", "medium", 16384),
-        ("us.anthropic.claude-3-7-sonnet-20250219-v1:0", "high", 20480),
-        ("us.anthropic.claude-sonnet-4-6", "high", 16384),
-    ],
-)
-def test_bedrock_claude_task_defaults_leave_room_for_reasoning(
-    model_name, thinking, max_tokens
-):
-    from pydantic_ai.providers.bedrock import BedrockProvider
-
-    model_type = generative_ai_model_type_registry.get("bedrock")
-    model = SimpleNamespace(profile=BedrockProvider.model_profile(model_name))
-    settings = {
-        "max_tokens": 16384,
-        "temperature": 0.3,
-        "top_p": 0.8,
-        "top_k": 10,
-        "thinking": thinking,
-    }
-
-    sanitized = model_type.sanitize_default_model_settings(model, settings)
-
-    assert sanitized.get("max_tokens") == max_tokens
-    assert sanitized["thinking"] == thinking
-    if thinking:
-        assert not {"temperature", "top_p", "top_k"}.intersection(sanitized)
-    else:
-        assert sanitized["temperature"] == 0.3
-    assert settings["max_tokens"] == 16384
-    assert settings["temperature"] == 0.3
-
-
-@pytest.mark.parametrize(
-    "model_name",
-    [
-        "meta.llama3-8b-instruct-v1:0",
-        "meta.llama3-70b-instruct-v1:0",
-        "meta.llama3-3-70b-instruct-v1:0",
-    ],
-)
-def test_non_claude_bedrock_models_keep_provider_output_limits(model_name):
-    from pydantic_ai.providers.bedrock import BedrockProvider
-
-    model_type = generative_ai_model_type_registry.get("bedrock")
-    model = SimpleNamespace(profile=BedrockProvider.model_profile(model_name))
-    settings = {"max_tokens": 16384, "temperature": 0.3}
-
-    assert model_type.sanitize_default_model_settings(model, settings) == {
-        "temperature": 0.3
-    }
-    assert settings == {"max_tokens": 16384, "temperature": 0.3}
-
-
-@pytest.mark.parametrize("maximum,expected", [(8192, 8192), (None, None), (0, None)])
-def test_bedrock_claude_defaults_respect_known_output_limits(maximum, expected):
-    model_type = generative_ai_model_type_registry.get("bedrock")
-    model = SimpleNamespace(
-        profile={
-            "bedrock_thinking_variant": "anthropic",
-            "anthropic_max_output_tokens": maximum,
-        }
-    )
-    settings = {"max_tokens": 16384, "temperature": 0.3}
-
-    sanitized = model_type.sanitize_default_model_settings(model, settings)
-
-    assert sanitized.get("max_tokens") == expected
-    assert sanitized["temperature"] == 0.3
-    assert settings == {"max_tokens": 16384, "temperature": 0.3}
 
 
 @pytest.mark.django_db

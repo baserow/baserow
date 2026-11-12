@@ -56,8 +56,8 @@ from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
-from baserow.core.generative_ai.model_profiles import ORCHESTRATOR, get_model_settings
-from baserow.core.generative_ai.output_validation import validate_tool_call_output
+from baserow.core.generative_ai.model_profiles import AGENT
+from baserow.core.generative_ai.output_validation import ModelOutputValidator
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolErrorCode
@@ -149,9 +149,7 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     model = model_type.get_ai_model(
         request.model_identifier, request.workspace, settings_override
     )
-    model_settings = get_model_settings(
-        f"{request.provider_type}:{request.model_identifier}", ORCHESTRATOR
-    )
+    model_settings = model_type.get_model_settings(request.model_identifier, AGENT)
     model_settings.update(
         model_type.prepare_model_settings(
             request.model_identifier, model_settings.get("temperature")
@@ -162,7 +160,6 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     )
     if thinking is not None:
         model_settings["thinking"] = thinking
-    model_settings = model_type.sanitize_default_model_settings(model, model_settings)
     # The provider removes what this model cannot accept, thinking included.
     model_settings = model_type.sanitize_model_settings(
         request.model_identifier, model_settings
@@ -452,8 +449,11 @@ class AgentResponder:
         )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
-        agent.output_validator(self._validate_output)
         request = self._request
+        model_type = generative_ai_model_type_registry.get(request.provider_type)
+        validator = model_type.get_output_validator(request.model_identifier)
+        if validator is not None:
+            agent.output_validator(partial(self._validate_output, validator))
         resume = request.resume
         # A paused run carries its own history, and pydantic-ai refuses both.
         history = build_history(request.history) if resume is None else None
@@ -470,15 +470,18 @@ class AgentResponder:
             async for event in events:
                 self._on_event(event)
 
-    def _validate_output(
-        self, ctx: RunContext, output: str | DeferredToolRequests
+    async def _validate_output(
+        self,
+        validator: ModelOutputValidator,
+        ctx: RunContext,
+        output: str | DeferredToolRequests,
     ) -> str | DeferredToolRequests:
         """Correct printed tool calls within the run and discard rejected text."""
 
         if not isinstance(output, str):
             return output
         try:
-            return validate_tool_call_output(ctx, output)
+            return validator(ctx, output)
         except ModelRetry:
             # This text already streamed, but is not an answer. Clear it even
             # when retries are exhausted; completed tool steps stay visible.

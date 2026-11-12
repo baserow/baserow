@@ -8,10 +8,12 @@ from pydantic_ai import Agent
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelRequest
 from pydantic_ai.models import ModelRequestParameters
+from pydantic_ai.models.groq import GroqModel
 
 from baserow.contrib.agent.replies import create_reply_model
 from baserow.contrib.agent.types import AgentReplyRequest
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
+from baserow.core.generative_ai.groq import GroqGPTOSSModel
 
 
 @pytest.fixture
@@ -46,12 +48,115 @@ def configured_reply_model(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "provider,model_name,effort",
+    [
+        ("groq", "allam-2-7b", None),
+        ("groq", "qwen/qwen3-32b", "off"),
+        ("google", "gemini-2.0-flash", None),
+        ("google", "gemini-2.5-pro", "high"),
+        ("openai", "gpt-4.1", None),
+        ("openai", "gpt-5", "high"),
+        ("anthropic", "claude-sonnet-4-6", "high"),
+    ],
+)
+def test_other_agent_models_keep_provider_defaults(
+    configured_reply_model, provider, model_name, effort
+):
+    model, model_settings = configured_reply_model(provider, model_name, effort)
+
+    assert not {
+        "max_tokens",
+        "temperature",
+        "timeout",
+        "parallel_tool_calls",
+    }.intersection(model_settings)
+    if effort is not None:
+        assert "thinking" in model_settings
+    if provider == "groq":
+        assert type(model) is GroqModel
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+def test_groq_agent_tool_round_preserves_native_reasoning(
+    configured_reply_model, monkeypatch, model_name
+):
+    sent = []
+    writes = []
+
+    async def send(transport, request):
+        sent.append(json.loads(request.content))
+        message = (
+            {
+                "role": "assistant",
+                "reasoning": "Create the requested table.",
+                "tool_calls": [
+                    {
+                        "id": "create-1",
+                        "type": "function",
+                        "function": {
+                            "name": "create_table",
+                            "arguments": '{"name":"Projects"}',
+                        },
+                    }
+                ],
+            }
+            if len(sent) == 1
+            else {"role": "assistant", "content": "Created Projects."}
+        )
+        return httpx.Response(
+            200,
+            json={
+                "id": "reply",
+                "object": "chat.completion",
+                "created": 1,
+                "model": model_name,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": message,
+                        "finish_reason": "tool_calls" if len(sent) == 1 else "stop",
+                    }
+                ],
+            },
+        )
+
+    def create_table(name: str) -> str:
+        writes.append(name)
+        return name
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", send)
+    model, model_settings = configured_reply_model("groq", model_name, "high")
+    assert type(model) is GroqGPTOSSModel
+
+    async def run():
+        async with model:
+            return await Agent(model, tools=[create_table]).run(
+                "Create Projects.", model_settings=model_settings
+            )
+
+    assert asyncio.run(run()).output == "Created Projects."
+    assert writes == ["Projects"]
+    assert len(sent) == 2
+    assistant = next(m for m in sent[1]["messages"] if m["role"] == "assistant")
+    assert assistant["reasoning"] == "Create the requested table."
+    assert "<think>" not in assistant.get("content", "")
+    assert assistant["tool_calls"][0]["id"] == "create-1"
+    assert sent[1]["messages"][-1]["tool_call_id"] == "create-1"
+    for request in sent:
+        assert request["max_tokens"] == 16384
+        assert request["reasoning_effort"] == "high"
+        assert "reasoning_format" not in request
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("effort", [None, "high"], ids=["default", "high"])
 @pytest.mark.parametrize("exhausted", [False, True], ids=["answer", "token-limit"])
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
 def test_groq_agent_stream_uses_shared_budget_and_supported_reasoning(
-    configured_reply_model, monkeypatch, effort, exhausted
+    configured_reply_model, monkeypatch, effort, exhausted, model_name
 ):
-    model_name = "openai/gpt-oss-120b"
     sent = []
 
     async def send(transport, request):
@@ -103,24 +208,25 @@ def test_groq_agent_stream_uses_shared_budget_and_supported_reasoning(
     # without retrying a run that might already have made changes through tools.
     assert len(sent) == 1
     assert sent[0]["max_tokens"] == 16384
-    assert sent[0]["temperature"] == 0.3
+    assert "temperature" not in sent[0]
     assert sent[0].get("reasoning_effort") == effort
     assert "reasoning_format" not in sent[0]
-    assert model_settings["timeout"] == 30
-    assert model_settings["parallel_tool_calls"] is False
+    assert "timeout" not in model_settings
+    assert "parallel_tool_calls" not in model_settings
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "model_name,temperature",
+    "model_name",
     [
-        ("gemini-3.1-pro-preview", None),
-        ("gemini-flash-latest", None),
-        ("gemini-2.5-flash", 0.3),
+        "gemini-3.1-pro-preview",
+        "gemini-flash-latest",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
     ],
 )
-def test_google_agent_sanitizes_shared_sampling_defaults(
-    configured_reply_model, monkeypatch, model_name, temperature
+def test_google_agent_keeps_provider_output_and_sampling_defaults(
+    configured_reply_model, monkeypatch, model_name
 ):
     sent = []
 
@@ -155,10 +261,9 @@ def test_google_agent_sanitizes_shared_sampling_defaults(
     assert response.parts[0].content == "Ready."
     assert len(sent) == 1
     config = sent[0]["generationConfig"]
-    assert config["maxOutputTokens"] == 16384
-    assert config.get("temperature") == temperature
-    if temperature is None:
-        assert "temperature" not in config
+    assert "maxOutputTokens" not in config
+    assert "temperature" not in config
+    assert "timeout" not in model_settings
 
 
 @pytest.mark.django_db
@@ -199,16 +304,13 @@ def test_anthropic_agent_retains_provider_options_and_compatible_thinking_budget
         asyncio.run(request())
 
     assert "files-api-2025-04-14" in sent["betas"]
-    assert sent["timeout"] == 30
+    assert "timeout" not in model_settings
+    assert "max_tokens" not in model_settings
     if thinking_type:
         assert sent["thinking"]["type"] == thinking_type
     else:
         assert not isinstance(sent["thinking"], dict)
     if thinking_type == "enabled":
         assert sent["max_tokens"] > sent["thinking"]["budget_tokens"]
-    else:
-        assert sent["max_tokens"] == 16384
-    if thinking_type or model_name == "claude-sonnet-5":
-        assert "temperature" not in (sent.get("extra_body") or {})
-    else:
-        assert sent["extra_body"]["temperature"] == 0.3
+    assert sent["max_tokens"] == model.profile.get("anthropic_max_output_tokens", 16384)
+    assert "temperature" not in (sent.get("extra_body") or {})

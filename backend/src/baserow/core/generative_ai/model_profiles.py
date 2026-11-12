@@ -4,6 +4,10 @@ from copy import deepcopy
 
 from pydantic_ai.settings import ModelSettings
 
+from .exceptions import GenerativeAITypeDoesNotExist
+from .registries import generative_ai_model_type_registry
+
+AGENT = "agent"
 ORCHESTRATOR = "orchestrator"
 SUBAGENT = "subagent"  # database, builder, automations
 DOCUMENTATION = "documentation"  # source-backed answers without action tools
@@ -14,6 +18,7 @@ SUGGESTIONS = "suggestions"  # onboarding prompt suggestions (creative)
 
 # These are task budgets, not the models' maximum supported output lengths.
 _DEFAULT_PROFILE: dict[str, ModelSettings] = {
+    AGENT: {},
     ORCHESTRATOR: {
         "temperature": 0.3,
         "timeout": 30,
@@ -53,14 +58,11 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
     },
 }
 
-# Settings historically match provider plus the last model-name segment.
-_MODEL_SETTINGS_OVERRIDES: dict[tuple[str, str], dict[str, ModelSettings]] = {
-    ("groq", "gpt-oss-120b"): {
-        # Groq GPT-OSS accepts reasoning_effort, but rejects reasoning_format.
-        SUBAGENT: {"extra_body": {"reasoning_effort": "high"}},
-        DOCUMENTATION: {"extra_body": {"reasoning_effort": "high"}},
-    },
-}
+
+def get_role_defaults(role: str) -> ModelSettings:
+    """Return independent task defaults, preserving SDK defaults for unknown roles."""
+
+    return deepcopy(_DEFAULT_PROFILE.get(role, {}))
 
 
 def get_model_settings(model: str, role: str) -> ModelSettings:
@@ -75,9 +77,9 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     :return: A fresh settings mapping, including fresh nested values.
     """
 
-    provider, sep, after_provider = model.partition(":")
-    model_name = after_provider.rsplit("/", 1)[-1] if sep else model
-    overrides = _MODEL_SETTINGS_OVERRIDES.get((provider, model_name), {})
-    result = deepcopy(_DEFAULT_PROFILE.get(role, {}))
-    result.update(deepcopy(overrides.get(role, {})))
-    return result
+    provider, _, model_name = model.partition(":")
+    try:
+        model_type = generative_ai_model_type_registry.get(provider)
+    except GenerativeAITypeDoesNotExist:
+        return get_role_defaults(role)
+    return model_type.get_model_settings(model_name, role)

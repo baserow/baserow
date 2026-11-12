@@ -66,6 +66,8 @@ from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
 
 from baserow.core.generative_ai.anthropic import get_retry_after
+from baserow.core.generative_ai.output_validation import parse_tool_call_envelope
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 
 # Transient Groq errors that are safe to retry.
 _RETRYABLE_MESSAGES = frozenset(
@@ -186,14 +188,7 @@ def repair_printed_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
             call = json.loads(_fix_closing_brackets(text))
         except (ValueError, RecursionError):
             return None
-    if (
-        isinstance(call, dict)
-        and call.keys() == {"name", "arguments"}
-        and isinstance(call["name"], str)
-        and isinstance(call["arguments"], dict)
-    ):
-        return call["name"], call["arguments"]
-    return None
+    return parse_tool_call_envelope(call)
 
 
 def _recover_failed_generation(failed_gen: str, model_name: str = "") -> ModelResponse:
@@ -385,9 +380,8 @@ def _make_groq(name: str, creds: dict[str, str | None]) -> Model:
     from pydantic_ai.models.groq import GroqModel
     from pydantic_ai.providers.groq import GroqProvider
 
-    from baserow_enterprise.assistant.model_profiles import get_model_class
-
-    model_class = get_model_class(f"groq:{name}", GroqModel)
+    model_type = generative_ai_model_type_registry.get("groq")
+    model_class = model_type.get_model_class(name, GroqModel)
     return model_class(name, provider=GroqProvider(api_key=creds["api_key"]))
 
 

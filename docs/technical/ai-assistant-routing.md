@@ -127,29 +127,38 @@ Docs synthesis on Groq GPT-OSS 20B and 120B uses strict native JSON output, avoi
 invented output-tool names. Typed result validation and retrieved-source checks
 still apply. Other models retain their existing output protocol.
 
-Kuma's output protocols and legacy adapters remain in its `model_profiles.py`.
+Kuma's output protocols remain in its `model_profiles.py`.
 Role-based request defaults and model setting overrides live in
 `baserow.core.generative_ai.model_profiles`, shared with Agent applications.
+Provider types own model-specific request behavior through
+`get_model_configuration()`: adapter selection, role-setting overrides, output
+validation, and settings sanitization. The shared settings helper and Agent ask
+the existing provider registry for these choices. Groq declares its GPT-OSS
+configurations together; callers do not select behavior by provider/model name.
 Kuma retains its configured orchestrator temperature and title length. Tools
 request settings and an output type from the resolved profile using their role,
 without inspecting model names.
 
-Agent replies use the shared orchestrator defaults, including a 16,384-token
-output budget, then apply the provider's options and the selected reasoning effort.
-Providers adapt these task defaults before sending the request: Claude reasoning
-needs answer headroom and compatible sampling, while non-reasoning OpenAI models
-and non-Claude Bedrock models keep their SDK/provider output defaults. Known
-Claude output limits cap the task budget. Context-window sizes are not output
-limits. Groq GPT-OSS sends reasoning effort without the unsupported
-`reasoning_format` parameter. These settings reduce premature exhaustion but do
-not guarantee that a response will fit; reasoning can consume the output budget.
+Agent replies use a separate role that retains the provider's defaults except
+for a 16,384-token output budget on Groq GPT-OSS 20B and 120B. They apply the
+provider's options and the selected reasoning effort without inheriting Kuma's
+orchestrator timeout, sampling, or parallelism settings. Groq GPT-OSS sends
+reasoning effort without the unsupported `reasoning_format` parameter. Both
+clients use the core GPT-OSS adapter to replay reasoning in Groq's separate
+reasoning field rather than visible `<think>` text. The budget reduces premature
+exhaustion but cannot guarantee completion; reasoning consumes output tokens.
 
 Kuma and Agent replies share detection of whole-answer JSON calls naming an
-offered tool. Agent retries these outputs up to three times within the same run,
+offered tool. Agent enables this correction only for Groq GPT-OSS 20B and 120B
+and retries these outputs up to three times within the same run,
 clears rejected text from the reply, and leaves completed tool steps intact.
 Printed JSON is never executed directly. A corrected tool call still passes
 validation, permissions, and Ask first approval. The guard leaves prose, fenced
 examples, and unrelated JSON unchanged; Kuma retains its additional answer checks.
+The output-shape check cannot distinguish an intended JSON example from an
+accidental printed call. Intent-aware correction and measurement of tool-call
+reliability are follow-up work; this change keeps the existing correction policy
+scoped to the affected models.
 
 ## Verification
 

@@ -9,6 +9,7 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_MODE_MODEL,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.generative_ai.groq import GroqGPTOSSModel
 from baserow.core.generative_ai.model_profiles import (
     get_model_settings as get_shared_model_settings,
 )
@@ -194,6 +195,41 @@ def test_older_google_profiles_keep_supported_sampling_settings():
     model_settings = get_model_settings("google:gemini-2.5-flash", ORCHESTRATOR)
 
     assert "temperature" in model_settings
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+def test_database_and_legacy_groq_profiles_use_the_shared_adapter(
+    data_fixture, monkeypatch, model_name
+):
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "groq",
+        workspace=workspace,
+        api_key="database-key",
+        models_data=[
+            {
+                "model_identifier": model_name,
+                "feature_types": [AI_PROVIDER_FEATURE_KUMA],
+            }
+        ],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        workspace=workspace,
+        model=provider.models.get(),
+    )
+
+    database_model = resolve_assistant_model(workspace=workspace).create_model().wrapped
+    monkeypatch.setenv("GROQ_API_KEY", "legacy-key")
+    legacy_model = (
+        resolve_assistant_model(model=f"groq:{model_name}").create_model().wrapped
+    )
+
+    assert type(database_model) is type(legacy_model) is GroqGPTOSSModel
+    assert database_model.client.api_key == "database-key"
+    assert legacy_model.client.api_key == "legacy-key"
 
 
 @pytest.mark.django_db
