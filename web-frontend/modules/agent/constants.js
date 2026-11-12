@@ -24,6 +24,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   WEB_SEARCH_ENABLED: 'web_search_enabled',
   WEB_SEARCH_AVAILABLE: 'web_search_available',
   WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
+  AVAILABLE_TRIGGER_TYPES: 'available_trigger_types',
 })
 
 // Null keeps the model's default reasoning.
@@ -33,6 +34,9 @@ export const REASONING_EFFORTS = Object.freeze([
   { value: 'medium', label: 'agent.reasoningEffortMedium' },
   { value: 'high', label: 'agent.reasoningEffortHigh' },
 ])
+
+// Mirrors the backend's AGENT_TRIGGER_NAME_MAX_LENGTH.
+export const TRIGGER_NAME_MAX_LENGTH = 75
 
 export const CONFIGURATION_SAVE_RESULT = Object.freeze({
   REJECTED_IDENTITY: 'rejected_identity',
@@ -63,6 +67,8 @@ export const API_ERROR_CODE = Object.freeze({
   AGENT_CONVERSATION_WAITING_FOR_APPROVAL:
     'ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL',
   AGENT_TOOL_APPROVAL_NOT_PENDING: 'ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING',
+  AGENT_TRIGGER_DOES_NOT_EXIST: 'ERROR_AGENT_TRIGGER_DOES_NOT_EXIST',
+  TRIGGER_SERVICE_MISCONFIGURED: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
 })
 
 export const MCP_SERVER_INTEGRATION_TYPE = 'mcp_server'

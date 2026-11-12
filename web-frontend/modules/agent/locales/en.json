@@ -313,9 +313,30 @@
     "waitingForApprovalSteps": "Waiting for your approval on {count} steps",
     "approvalsWaiting": "{count} approval waiting | {count} approvals waiting",
     "approvalPlaceholder": "Approve or reject the steps above to continue.",
-    "conversationWaitingForApproval": "Approve or reject the steps above before sending a new message."
+    "conversationWaitingForApproval": "Approve or reject the steps above before sending a new message.",
+    "whenItRuns": "When it runs",
+    "whenItRunsDescription": "Triggers that start the agent on their own.",
+    "triggers": "Triggers",
+    "addTrigger": "Add trigger",
+    "noTriggers": "Without a trigger the agent only runs when you chat with it.",
+    "triggersLoadError": "The triggers could not be loaded.",
+    "searchTriggerTypes": "Search triggers",
+    "noTriggerTypes": "No triggers found",
+    "triggerEnabled": "Trigger enabled",
+    "triggerMessage": "Opening message",
+    "triggerDefaultMessage": "{trigger} fired at",
+    "triggerMessageHelper": "What the agent receives when this trigger fires. Use the trigger’s data or write fixed text.",
+    "triggerMessagePlaceholder": "Describe what the agent should do when this trigger fires…",
+    "triggerMisconfigured": "These settings can’t be saved. Check the values above.",
+    "triggerData": "Trigger",
+    "triggerFiredAt": "Fired at",
+    "triggerDataProvides": "Data it provides",
+    "triggerDataValues": "{count} value | {count} values",
+    "deleteTrigger": "Delete trigger",
+    "renameTrigger": "Rename trigger"
   },
   "trashType": {
-    "agent_conversation": "conversation"
+    "agent_conversation": "conversation",
+    "agent_trigger": "trigger"
   }
 }
