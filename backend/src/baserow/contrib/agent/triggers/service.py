@@ -157,11 +157,13 @@ class AgentTriggerService:
         service_values: dict | None = None,
         on_overlap: str | None = None,
         name: str | None = None,
+        service_type_name: str | None = None,
     ) -> AgentTriggerUpdated:
         """
-        Change a trigger's name, switch, message, overlap rule or service values,
-        for a user who may update and read its Agent's configuration. Switching it
-        off cancels its queued replies.
+        Change a trigger's name, switch, message, overlap rule, type or service
+        values, for a user who may update and read its Agent's configuration.
+        Switching it off cancels its queued replies. Another type replaces the
+        service with a new one, as on create.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -172,14 +174,16 @@ class AgentTriggerService:
         :param on_overlap: The new overlap rule, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
+        :param service_type_name: The service type the trigger should have, whose
+            service then starts from `service_values`, or None to keep its own.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
             is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
-        :raises AgentTriggerTypeNotAvailable: When it would switch on or reschedule
-            a trigger of a type the Agent's configuration doesn't offer.
+        :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
+            reschedule a type the Agent's configuration doesn't offer.
         :raises ServiceMisconfigured: When the service values are invalid.
         :return: The updated trigger and the names of the parts that changed.
         """
@@ -189,11 +193,18 @@ class AgentTriggerService:
         trigger = self._get_authorized_trigger(
             user, agent_id, trigger_id, *WRITE_OPERATIONS, for_update=True
         )
+        service_type = trigger.service.get_type()
+        changes_type = service_type_name not in (None, service_type.type)
         prepared_service_values = None
-        if service_values is not None:
-            service = trigger.service.specific
-            prepared_service_values = service.get_type().prepare_values(
-                service_values, user, service
+        if changes_type:
+            self.handler.check_type_available(trigger.agent, service_type_name)
+            service_type = service_type_registry.get(service_type_name)
+            prepared_service_values = service_type.prepare_values(
+                service_values or {}, user, None
+            )
+        elif service_values is not None:
+            prepared_service_values = service_type.prepare_values(
+                service_values, user, trigger.service.specific
             )
         return self.handler.update_trigger(
             trigger,
@@ -202,6 +213,7 @@ class AgentTriggerService:
             prepared_service_values=prepared_service_values,
             on_overlap=on_overlap,
             name=name,
+            service_type=service_type if changes_type else None,
         )
 
     @transaction.atomic

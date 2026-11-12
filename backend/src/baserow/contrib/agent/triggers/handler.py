@@ -168,29 +168,48 @@ class AgentTriggerHandler:
         prepared_service_values: dict | None = None,
         on_overlap: str | None = None,
         name: str | None = None,
+        service_type: TriggerServiceTypeMixin | None = None,
     ) -> AgentTriggerUpdated:
         """
         Update a trigger, re-arming its service when its values change or the
         trigger is switched on: arming also replaces any schedule a concurrent run
         wrote meanwhile. Values that change nothing aren't written, as saving the
         service could put back a run time a concurrent run already moved on.
-        Switching it off cancels its queued replies.
+        Switching it off cancels its queued replies. Another service type replaces
+        the service with a new one of that type and clears the last skip, which
+        the old type caused; the trigger keeps its id, so its conversations stay
+        linked, and its other settings.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param prepared_service_values: The service values to set, already passed
-            through ``prepare_values``, or None to leave the service as it is.
+            through ``prepare_values`` of the type the service ends up with, or
+            None to leave the service as it is.
         :param on_overlap: The new overlap rule, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
+        :param service_type: The service type the trigger should have, or None to
+            keep its own.
         :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
             type that isn't available.
         :return: The updated trigger and the names of the parts that changed:
-            ``name``, ``enabled``, ``message``, ``on_overlap`` and ``service``.
+            ``name``, ``enabled``, ``message``, ``on_overlap``, ``type`` and
+            ``service``.
         """
 
-        service_changed = self._update_service(trigger, prepared_service_values)
+        replaced_service = None
+        if (
+            service_type is not None
+            and service_type.type != trigger.service.get_type().type
+        ):
+            replaced_service = trigger.service.specific
+            trigger.service = ServiceHandler().create_service(
+                service_type, **(prepared_service_values or {})
+            )
+            service_changed = True
+        else:
+            service_changed = self._update_service(trigger, prepared_service_values)
         rearm = service_changed
         changed_fields = []
         if name is not None and name != trigger.name:
@@ -206,8 +225,17 @@ class AgentTriggerHandler:
         if on_overlap is not None and on_overlap != trigger.on_overlap:
             trigger.on_overlap = on_overlap
             changed_fields.append("on_overlap")
-        if changed_fields:
-            trigger.save(update_fields=[*changed_fields, "updated_on"])
+        saved_fields = [*changed_fields]
+        if replaced_service is not None:
+            trigger.last_skipped_on, trigger.last_skipped_reason = None, ""
+            saved_fields += ["service", "last_skipped_on", "last_skipped_reason"]
+            changed_fields.append("type")
+        if saved_fields:
+            trigger.save(update_fields=[*saved_fields, "updated_on"])
+        if replaced_service is not None:
+            ServiceHandler().delete_service(
+                replaced_service.get_type(), replaced_service
+            )
         if "enabled" in changed_fields and not trigger.enabled:
             self.cancel_queued_replies(trigger)
         if rearm:
