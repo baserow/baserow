@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 17:15+0000\n"
+"POT-Creation-Date: 2026-11-12 16:23+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,29 +18,29 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow/contrib/agent/actions.py:27
+#: src/baserow/contrib/agent/actions.py:32
 msgid "Create agent conversation"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:28
+#: src/baserow/contrib/agent/actions.py:33
 #, python-format
 msgid "Conversation (%(conversation_id)s) created in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:79
+#: src/baserow/contrib/agent/actions.py:84
 msgid "Create agent message"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:80
+#: src/baserow/contrib/agent/actions.py:85
 #, python-format
 msgid "Message (%(message_id)s) created in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:131
+#: src/baserow/contrib/agent/actions.py:136
 msgid "Decide agent tool approvals"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:132
+#: src/baserow/contrib/agent/actions.py:137
 #, python-format
 msgid "Held steps of reply (%(reply_id)s) decided in agent (%(agent_id)s)."
 msgstr ""
@@ -70,4 +70,33 @@ msgstr ""
 #: src/baserow/contrib/agent/actions.py:329
 #, python-format
 msgid "Configuration updated for agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/triggers/actions.py:24
+msgid "Create agent trigger"
+msgstr ""
+
+#: src/baserow/contrib/agent/triggers/actions.py:26
+#, python-format
+msgid ""
+"Trigger (%(trigger_id)s) of type %(trigger_type)s created in agent "
+"(%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/triggers/actions.py:103
+msgid "Update agent trigger"
+msgstr ""
+
+#: src/baserow/contrib/agent/triggers/actions.py:104
+#, python-format
+msgid "Trigger (%(trigger_id)s) updated in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/triggers/actions.py:192
+msgid "Delete agent trigger"
+msgstr ""
+
+#: src/baserow/contrib/agent/triggers/actions.py:193
+#, python-format
+msgid "Trigger (%(trigger_id)s) deleted in agent (%(agent_id)s)."
 msgstr ""

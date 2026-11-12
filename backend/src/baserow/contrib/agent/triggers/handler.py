@@ -162,7 +162,7 @@ class AgentTriggerHandler:
             trigger.enabled = enabled
             changed_fields.append("enabled")
             rearm = rearm or enabled
-        if message is not None:
+        if message is not None and message != trigger.message:
             trigger.message = message
             changed_fields.append("message")
         if changed_fields:

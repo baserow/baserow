@@ -367,7 +367,7 @@ def test_update_without_service_values_leaves_the_service_alone(
 
 
 @pytest.mark.django_db
-def test_update_with_the_saved_service_values_neither_reschedules_nor_audits(
+def test_update_with_the_saved_values_neither_reschedules_nor_audits(
     data_fixture, periodic_trigger, api_client, api_user, mocker
 ):
     agent = data_fixture.create_agent_application(user=api_user)
@@ -379,7 +379,12 @@ def test_update_with_the_saved_service_values_neither_reschedules_nor_audits(
 
     response = api_client.patch(
         agent_url(agent, "triggers:item", trigger_id=trigger.id),
-        {"service": {"type": "periodic", "minute": "1"}},
+        {
+            "name": "",
+            "enabled": True,
+            "message": MESSAGE,
+            "service": {"type": "periodic", "minute": "1"},
+        },
     )
 
     assert response.status_code == 200, response.json()
