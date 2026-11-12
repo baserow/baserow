@@ -896,6 +896,16 @@ def test_periodic_service_defaults_to_utc(data_fixture):
     assert service.timezone == "UTC"
 
 
+@pytest.mark.parametrize(
+    "service_timezone,expected",
+    [("Europe/Rome", "Europe/Rome"), ("", "UTC")],
+)
+def test_periodic_service_names_its_timezone(service_timezone, expected):
+    service = CorePeriodicService(timezone=service_timezone)
+
+    assert CorePeriodicTriggerServiceType().get_timezone_name(service) == expected
+
+
 @pytest.mark.django_db
 def test_periodic_service_prepare_values_validates_timezone(data_fixture):
     user = data_fixture.create_user()

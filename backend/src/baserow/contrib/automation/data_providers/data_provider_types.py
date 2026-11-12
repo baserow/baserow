@@ -46,20 +46,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             raise InvalidFormulaContext(message) from exc
 
         service = previous_node.service.specific
-
-        if service.get_type().returns_list(service):
-            previous_node_result = previous_node_result["results"]
-            if len(rest) >= 2:
-                prepared_path = [
-                    rest[0],
-                    *service.get_type().prepare_value_path(service, rest[1:]),
-                ]
-            else:
-                prepared_path = rest
-        else:
-            prepared_path = service.get_type().prepare_value_path(service, rest)
-
-        return get_value_at_path(previous_node_result, prepared_path)
+        return service.get_type().get_result_value(service, previous_node_result, rest)
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -169,21 +156,7 @@ class CurrentNodeDataProviderType(AutomationDataProviderType):
             raise InvalidFormulaContext(message)
 
         service = node.service.specific
-        service_type = service.get_type()
-
-        if service_type.returns_list(service):
-            result = result["results"]
-            if len(path) >= 2:
-                prepared_path = [
-                    path[0],
-                    *service_type.prepare_value_path(service, path[1:]),
-                ]
-            else:
-                prepared_path = path
-        else:
-            prepared_path = service_type.prepare_value_path(service, path)
-
-        return get_value_at_path(result, prepared_path)
+        return service.get_type().get_result_value(service, result, path)
 
     def import_path(self, path, id_mapping, **kwargs):
         """
