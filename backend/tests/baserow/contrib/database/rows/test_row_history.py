@@ -625,6 +625,43 @@ def test_update_rows_insert_entries_in_linked_rows_history(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.row_history
+def test_update_rows_truncates_long_primary_values_in_linked_rows_history(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(
+        user=user, database=database
+    )
+    primary_a = table_a.get_primary_field()
+    primary_b = table_b.get_primary_field()
+    link_b_to_a = link_a_to_b.link_row_related_field
+
+    row_handler = RowHandler()
+    row_b1 = row_handler.force_create_row(user, table_b, {primary_b.id: "b" * 500})
+    row_a1 = row_handler.force_create_row(user, table_a, {primary_a.id: "a" * 500})
+
+    action_type_registry.get_by_type(UpdateRowsActionType).do(
+        user, table_a, [{"id": row_a1.id, link_a_to_b.db_column: [row_b1.id]}]
+    )
+
+    truncated_a = "a" * 79 + "…"
+    truncated_b = "b" * 79 + "…"
+    entry_a = RowHistory.objects.get(table=table_a, row_id=row_a1.id)
+    assert entry_a.fields_metadata[link_a_to_b.db_column]["linked_rows"] == {
+        str(row_b1.id): {"value": truncated_b}
+    }
+    assert entry_a.fields_metadata[link_a_to_b.db_column]["primary_value"] == (
+        truncated_a
+    )
+    entry_b = RowHistory.objects.get(table=table_b, row_id=row_b1.id)
+    assert entry_b.fields_metadata[link_b_to_a.db_column]["linked_rows"] == {
+        str(row_a1.id): {"value": truncated_a}
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.row_history
 def test_update_rows_dont_insert_entries_in_linked_rows_history_without_related_field(
     data_fixture,
 ):
