@@ -187,7 +187,7 @@ class ChartWidgetType(SeriesConfigMixin, DisplayWidgetTypeMixin, WidgetType):
             ).delete()
 
             updated_widget.new_values["series_config"] = series_config
-        return updated_widget
+        return super().after_update(updated_widget, **kwargs)
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         if instance is None:
@@ -407,7 +407,7 @@ class PieChartWidgetType(SeriesConfigMixin, DisplayWidgetTypeMixin, WidgetType):
             ).delete()
 
             updated_widget.new_values["series_config"] = series_config
-        return updated_widget
+        return super().after_update(updated_widget, **kwargs)
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         if instance is None:

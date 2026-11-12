@@ -1191,3 +1191,22 @@ def test_filter_status_tracks_source_conditions_and_empty_groups(
     stored_filter.delete()
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     assert handler.dispatch_data_source(source, context) == {"result": "70"}
+
+
+def test_context_provider_collects_nested_references_without_evaluating():
+    from baserow.contrib.dashboard.data_providers import (
+        DashboardDataSourceContextDataProviderType,
+    )
+
+    provider = DashboardDataSourceContextDataProviderType()
+    assert provider.get_referenced_fields(
+        [
+            BaserowFormulaObject.create(
+                "concat(get('data_source_context.13.field_886.*.value'), "
+                "get('data_source_context.13.field_887.*.value'))"
+            ),
+            BaserowFormulaObject.create(
+                "get('data_source_context.14.field_888.*.value')", mode="raw"
+            ),
+        ]
+    ) == {13: {"field_886", "field_887"}}

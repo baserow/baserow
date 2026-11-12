@@ -265,6 +265,7 @@ class DashboardDataSourceHandler:
 
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
         from baserow.contrib.dashboard.widgets.models import Widget
+        from baserow.contrib.dashboard.widgets.types import UpdatedWidget
 
         updated = UpdatedDashboardDataSource(
             data_source,
@@ -275,13 +276,13 @@ class DashboardDataSourceHandler:
             data_source.dashboard, base_queryset=Widget.objects_and_trash.all()
         ):
             widget = widget.specific
-            widget_type = widget.get_type()
-            if (
-                widget_type.is_display_widget
-                and (source := widget_type.get_data_source(widget)) is not None
-                and source.id == data_source.id
-            ):
-                widget_type.after_data_source_update(widget, updated, original_table_id)
+            widget.get_type().after_update(
+                UpdatedWidget(
+                    widget,
+                    {"data_source": {"table_id": original_table_id}},
+                    {"data_source": updated},
+                )
+            )
         return updated
 
     def delete_data_source(self, data_source: DashboardDataSource):

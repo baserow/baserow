@@ -12,6 +12,7 @@ test('summary sources expose the shared filter control and save permanent condit
   const source = {
     id: 4,
     integration_id: 10,
+    type: 'local_baserow_aggregate_rows',
     table_id: 2,
     field_id: 3,
     aggregation_type: 'sum',

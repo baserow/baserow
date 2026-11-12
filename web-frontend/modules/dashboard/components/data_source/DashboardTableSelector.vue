@@ -1,26 +1,13 @@
 <template>
-  <Dropdown
+  <LocalBaserowTableSelector
     :model-value="modelValue"
-    show-search
-    fixed-items
+    :databases="databases"
+    :service-type="$registry.get('service', dataSource.type)"
+    :display-view-dropdown="false"
+    horizontal
     :error="error"
     @update:model-value="selectTable"
-  >
-    <DropdownSection
-      v-for="database in databases"
-      :key="database.id"
-      :title="`${database.name} (${database.id})`"
-    >
-      <DropdownItem
-        v-for="table in database.tables"
-        :key="table.id"
-        :name="table.name"
-        :value="table.id"
-        indented
-        >{{ table.name }}</DropdownItem
-      >
-    </DropdownSection>
-  </Dropdown>
+  />
   <Modal ref="confirmation" small @hidden="pendingTableId = null">
     <h2 class="box__title">{{ $t('dashboardTableSelector.confirmTitle') }}</h2>
     <p>{{ $t('dashboardTableSelector.confirmMessage') }}</p>
@@ -36,6 +23,8 @@
 </template>
 
 <script setup>
+import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
+
 const props = defineProps({
   modelValue: { type: Number, default: null },
   databases: { type: Array, required: true },
