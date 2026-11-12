@@ -1,16 +1,18 @@
 from abc import ABC
 
-from baserow.core.mcp.object_scopes import MCPEndpointObjectScopeType
 from baserow.core.operations import WorkspaceCoreOperationType
-from baserow.core.registries import OperationType
 
 
 class CreateMCPEndpointOperationType(WorkspaceCoreOperationType):
     type = "workspace.create_mcp_endpoint"
 
 
-class MCPEndpointOperationType(OperationType, ABC):
-    context_scope_name = MCPEndpointObjectScopeType.type
+class MCPEndpointOperationType(WorkspaceCoreOperationType, ABC):
+    """
+    Checked against the endpoint's workspace: endpoints belong to one user, and a
+    member with a role only on a database or table gets the read only role on the
+    workspace, not on the endpoints inside it.
+    """
 
 
 class ReadMCPEndpointOperationType(MCPEndpointOperationType):

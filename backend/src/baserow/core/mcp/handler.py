@@ -60,7 +60,7 @@ class MCPEndpointHandler:
             user,
             ReadMCPEndpointOperationType.type,
             workspace=workspace,
-            context=endpoint,
+            context=endpoint.workspace,
         )
 
         return endpoint
@@ -190,7 +190,7 @@ class MCPEndpointHandler:
                 user,
                 UpdateMCPEndpointOperationType.type,
                 workspace=workspace,
-                context=endpoint,
+                context=endpoint.workspace,
             )
             # The client may have been renamed since the first consent.
             endpoint.name = name
@@ -222,7 +222,7 @@ class MCPEndpointHandler:
             user,
             UpdateMCPEndpointOperationType.type,
             workspace=endpoint.workspace,
-            context=endpoint,
+            context=endpoint.workspace,
         )
 
         endpoint.name = name
@@ -260,7 +260,7 @@ class MCPEndpointHandler:
                 user,
                 UpdateMCPEndpointOperationType.type,
                 workspace=endpoint.workspace,
-                context=endpoint,
+                context=endpoint.workspace,
             )
 
         enabled = {tool.name for tool in mcp_tool_registry.get_enabled_tools()}
@@ -303,7 +303,7 @@ class MCPEndpointHandler:
             user,
             DeleteMCPEndpointOperationType.type,
             workspace=endpoint.workspace,
-            context=endpoint,
+            context=endpoint.workspace,
         )
 
         endpoint.delete()

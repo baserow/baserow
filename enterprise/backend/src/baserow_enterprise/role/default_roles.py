@@ -404,6 +404,10 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ReadWorkspaceOperationType,
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
+        ReadMCPEndpointOperationType,
+        CreateMCPEndpointOperationType,
+        UpdateMCPEndpointOperationType,
+        DeleteMCPEndpointOperationType,
     ]
 )
 default_roles[VIEWER_ROLE_UID].extend(
@@ -413,10 +417,6 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadFieldOperationType,
         ListenToAllRestrictedViewEventsOperationType,
         ListenToAllDatabaseTableEventsOperationType,
-        ReadMCPEndpointOperationType,
-        CreateMCPEndpointOperationType,
-        UpdateMCPEndpointOperationType,
-        DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
         ReadAgentConversationsOperationType,
         UpdateAgentConversationOperationType,
