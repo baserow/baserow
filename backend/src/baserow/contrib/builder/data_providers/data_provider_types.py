@@ -325,7 +325,7 @@ class DataSourceDataProviderType(BuilderDataProviderType):
 
         service = data_source.service.specific
 
-        if service.get_type().returns_list:
+        if service.get_type().returns_list(service):
             dispatch_result = dispatch_result["results"]
             if len(rest) >= 2:
                 prepared_path = [
@@ -394,9 +394,10 @@ class DataSourceDataProviderType(BuilderDataProviderType):
             # The data source has probably been deleted
             raise InvalidRuntimeFormula() from exc
 
-        service_type = data_source.service.specific.get_type()
+        service = data_source.service.specific
+        service_type = service.get_type()
 
-        if service_type.returns_list:
+        if service_type.returns_list(service):
             if rest:
                 # We remove the row id from the path
                 _, *rest = rest
@@ -616,7 +617,8 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
         data_source = DataSourceHandler().get_data_source_with_cache(
             dispatch_context.page, data_source_id
         )
-        returns_list = data_source.service.specific.get_type().returns_list
+        service = data_source.service.specific
+        returns_list = service.get_type().returns_list(service)
         source_path = ["0"] if returns_list else []
 
         if returns_list:
@@ -696,9 +698,10 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             # The data source is probably not accessible so we raise an invalid formula
             raise InvalidRuntimeFormula() from exc
 
-        service_type = data_source.service.specific.get_type()
+        service = data_source.service.specific
+        service_type = service.get_type()
 
-        if service_type.returns_list:
+        if service_type.returns_list(service):
             if schema_property:
                 path = [schema_property, *path]
         else:
@@ -778,7 +781,7 @@ class PreviousActionProviderType(BuilderDataProviderType):
             dispatch_result = cache.get(cache_key)
             service = workflow_action.service.specific
             service_type = service.get_type()
-            if service_type.returns_list:
+            if service_type.returns_list(service):
                 dispatch_result = dispatch_result["results"]
                 if len(rest) >= 2:
                     prepared_path = [
@@ -878,8 +881,9 @@ class PreviousActionProviderType(BuilderDataProviderType):
         except WorkflowActionDoesNotExist as exc:
             raise InvalidRuntimeFormula() from exc
 
-        service_type = previous_action.service.specific.get_type()
-        if service_type.returns_list and rest:
+        service = previous_action.service.specific
+        service_type = service.get_type()
+        if service_type.returns_list(service) and rest:
             _, *rest = rest
 
         return {

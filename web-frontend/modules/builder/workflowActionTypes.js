@@ -392,8 +392,8 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     return this.serviceType.prepareValuePath(workflowAction.service, path)
   }
 
-  get returnsList() {
-    return Boolean(this.serviceType.returnsList)
+  returnsList(workflowAction) {
+    return Boolean(this.serviceType.returnsList(workflowAction.service))
   }
 
   get serviceType() {
@@ -521,7 +521,7 @@ export class LocalBaserowCreateRowsWorkflowActionType extends LocalBaserowWorkfl
     )
   }
 
-  get returnsList() {
+  returnsList(workflowAction) {
     return true
   }
 }
@@ -559,7 +559,7 @@ export class LocalBaserowUpdateRowsWorkflowActionType extends LocalBaserowWorkfl
     )
   }
 
-  get returnsList() {
+  returnsList(workflowAction) {
     return true
   }
 }

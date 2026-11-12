@@ -60,12 +60,12 @@ describe('collectionElementForm', () => {
   test('selectedDataSourceSupportsPagination is true only when the service type supports it', () => {
     expect(
       collectionElementForm.computed.selectedDataSourceSupportsPagination.call({
-        selectedDataSourceType: { supportsPagination: true },
+        selectedDataSourceType: { supportsPagination: () => true },
       })
     ).toBe(true)
     expect(
       collectionElementForm.computed.selectedDataSourceSupportsPagination.call({
-        selectedDataSourceType: { supportsPagination: false },
+        selectedDataSourceType: { supportsPagination: () => false },
       })
     ).toBe(false)
     expect(

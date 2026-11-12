@@ -96,8 +96,9 @@ export default {
     },
     image() {
       if (this.dataSourceType && !this.integrationType) {
-        // A service without an integration is shown with its own icon.
-        return null
+        // A service without an integration is shown with its own image, or
+        // else its icon.
+        return this.dataSourceType.image
       }
       return this.integrationType?.image || 'default.png'
     },

@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Adds an HTTP request data source that reads JSON from an API, as one record or a list",
+    "issue_origin": "github",
+    "issue_number": 5564,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-10-29"
+}

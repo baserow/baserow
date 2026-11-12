@@ -125,26 +125,40 @@ provide('mode', mode)
 provide('formulaComponent', ApplicationBuilderFormulaInput)
 provide('applicationContext', applicationContext)
 
+/**
+ * What the content of the data sources depends on. A test of a data source only
+ * changes its sample data and the schema built from it, which leave the content
+ * as it is, so they don't fetch it again.
+ */
+const withoutTestResults = (dataSourcesToWatch) =>
+  dataSourcesToWatch.map(({ sample_data, schema, ...rest }) =>
+    _.cloneDeep(rest)
+  )
+
 // Watchers
 watch(
-  dataSources,
-  () => {
-    $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-      page: props.page,
-      data: dispatchContext.value,
-      mode,
-    })
+  () => withoutTestResults(dataSources.value),
+  (newDataSources, oldDataSources) => {
+    if (!_.isEqual(newDataSources, oldDataSources)) {
+      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+        page: props.page,
+        data: dispatchContext.value,
+        mode,
+      })
+    }
   },
   { deep: true }
 )
 
 watch(
-  sharedDataSources,
-  () => {
-    $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-      page: sharedPage.value,
-      data: dispatchContext.value,
-    })
+  () => withoutTestResults(sharedDataSources.value),
+  (newDataSources, oldDataSources) => {
+    if (!_.isEqual(newDataSources, oldDataSources)) {
+      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+        page: sharedPage.value,
+        data: dispatchContext.value,
+      })
+    }
   },
   { deep: true }
 )

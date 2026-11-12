@@ -1013,7 +1013,7 @@ export class ElementType extends Registerable {
 
     if (fullDataPath.length) {
       let preparedPath
-      if (mainDataSourceType.returnsList) {
+      if (mainDataSourceType.returnsList(mainDataSource)) {
         if (fullDataPath.length >= 2) {
           // not include the first path item as it's the row index
           // and the prepareValuePath is only able to support property level.

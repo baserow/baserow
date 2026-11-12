@@ -28,6 +28,7 @@
         }"
         @values-changed="onValuesChanged"
         @submitted="onFormSubmit($event)"
+        @saved="emitDataSourceUpdated"
       />
 
       <div class="actions">
@@ -87,8 +88,9 @@ export default {
   },
   computed: {
     submitIsDisabled() {
+      // The form can report a change while it mounts, before its ref is set.
       return (
-        this.loading || !this.changed || this.$refs.dataSourceForm.v$.$anyError
+        this.loading || !this.changed || this.$refs.dataSourceForm?.v$.$anyError
       )
     },
     dataSources() {
@@ -152,6 +154,18 @@ export default {
       actionCreateDataSource: 'dataSource/create',
       actionUpdateDataSource: 'dataSource/update',
     }),
+    /**
+     * The elements using the data source fetch its data again. Also called when
+     * the data source form saves before a test.
+     */
+    emitDataSourceUpdated() {
+      this.$store.dispatch('element/emitElementEvent', {
+        event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,
+        elements: this.elements,
+        dataSourceId: this.dataSource.id,
+        builder: this.builder,
+      })
+    },
     onShow() {
       this.currentDefaultValues = { ...this.dataSource }
     },
@@ -196,13 +210,7 @@ export default {
             values: differences,
           })
           this.$emit('updated', updatedDataSource)
-          // Send data source update element event
-          this.$store.dispatch('element/emitElementEvent', {
-            event: ELEMENT_EVENTS.DATA_SOURCE_AFTER_UPDATE,
-            elements: this.elements,
-            dataSourceId: this.dataSource.id,
-            builder: this.builder,
-          })
+          this.emitDataSourceUpdated()
           saved = true
         }
         this.changed = false

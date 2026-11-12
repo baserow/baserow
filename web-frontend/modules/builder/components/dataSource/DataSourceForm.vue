@@ -75,13 +75,17 @@
         v-if="serviceType.canBeTested"
         :data-source="dataSource"
         :page="page"
+        :show-button="!serviceType.hasOwnTestButton"
       />
     </template>
   </div>
 </template>
 
 <script>
+import _ from 'lodash'
+import { getCurrentInstance } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
+import { useDataSourceTest } from '@baserow/modules/builder/composables/useDataSourceTest'
 import IntegrationDropdown from '@baserow/modules/core/components/integrations/IntegrationDropdown'
 import GroupedDropdown from '@baserow/modules/core/components/GroupedDropdown'
 import DataSourceTestForm from '@baserow/modules/builder/components/dataSource/DataSourceTestForm'
@@ -96,7 +100,12 @@ export default {
   components: { GroupedDropdown, IntegrationDropdown, DataSourceTestForm },
   mixins: [form, applicationContext],
   provide() {
-    return { dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES }
+    return {
+      dataProvidersAllowed: DATA_PROVIDERS_ALLOWED_DATA_SOURCES,
+      // Shared by the service form, which can have a Test button of its own,
+      // and the test form showing the result.
+      dataSourceTest: this.dataSourceTest,
+    }
   },
   props: {
     builder: {
@@ -122,8 +131,17 @@ export default {
       default: false,
     },
   },
-  setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+  // The test saved the data source.
+  emits: ['saved'],
+  setup(props) {
+    const instance = getCurrentInstance()
+    const dataSourceTest = useDataSourceTest({
+      dataSource: () => props.dataSource,
+      page: () => props.page,
+      applicationContext: () => instance.proxy.applicationContext,
+      beforeTest: () => instance.proxy.saveBeforeTest(),
+    })
+    return { v$: useVuelidate({ $lazy: true }), dataSourceTest }
   },
   data() {
     return {
@@ -252,9 +270,11 @@ export default {
           children: serviceTypes.map(this.getServiceTypeOption),
         })
       )
-      return [...integrationGroups, ...otherGroups].filter(
-        ({ children }) => children.length > 0
-      )
+      // The menu sorts groups by their order, then by label: the integration
+      // groups, like Local Baserow, come first.
+      return [...integrationGroups, ...otherGroups]
+        .filter(({ children }) => children.length > 0)
+        .map((group, index) => ({ ...group, order: index }))
     },
   },
   methods: {
@@ -287,6 +307,32 @@ export default {
         ? this.$refs.subForm.isFormValid(deep)
         : true
       return !thisFormInvalid && this.areChildFormsValid(deep) && subFormValid
+    },
+    /**
+     * The test dispatches the saved data source, so what the form changed is
+     * saved first. Returns false when the form isn't valid, as there is then
+     * nothing that can be saved and tested.
+     */
+    async saveBeforeTest() {
+      if (!this.isFormValid(true)) {
+        this.touch(true)
+        return false
+      }
+      // Compared the way the modal does when it saves.
+      const changes = Object.fromEntries(
+        Object.entries(this.getFormValues(true)).filter(
+          ([key, value]) => !_.isEqual(value, this.dataSource[key])
+        )
+      )
+      if (Object.keys(changes).length) {
+        await this.$store.dispatch('dataSource/update', {
+          page: this.page,
+          dataSourceId: this.dataSource.id,
+          values: changes,
+        })
+        this.$emit('saved')
+      }
+      return true
     },
     getServiceTypeDeactivatedReason(serviceType) {
       return (
