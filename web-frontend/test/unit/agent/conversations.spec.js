@@ -778,6 +778,42 @@ describe('Agent conversations', () => {
     })
   })
 
+  test('lists a conversation pinned while switching to the Pinned filter', async () => {
+    const a = conversation('a', 'A')
+    const b = conversation('b', 'B')
+    mockConversations(testApp, conversationsPage([a, b]), conversationsPage([]))
+    const pin = deferredReply()
+    testApp.mock.onPatch('/agent/10/conversations/b/').reply(pin.reply)
+    const wrapper = await mount()
+    await chooseFromMenu(wrapper, 'B', 'agent.pin')
+    await filterConversations(wrapper, 'agent.pinned')
+
+    pin.resolve(200, { ...b, pinned: true })
+    await flushPromises()
+
+    expect(conversationTitles(wrapper)).toEqual(['B'])
+  })
+
+  test('drops a conversation deleted elsewhere when sending to it', async () => {
+    const a = conversation('a', 'A')
+    const b = conversation('b', 'B')
+    mockConversations(testApp, conversationsPage([a, b]))
+    mockMessages(testApp, a.uuid, page([message('m', 'Hello')]))
+    mockMessages(testApp, b.uuid, page([]))
+    mockSendMessage(testApp, a.uuid, [
+      404,
+      { error: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST' },
+    ])
+    testApp.dontFailOnErrorResponses()
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'A')
+
+    await sendMessage(wrapper, 'Still there?')
+
+    expect(conversationTitles(wrapper)).toEqual(['B'])
+    expect(selected(wrapper).text()).toBe('B')
+  })
+
   test('pins through PATCH, restores a failed unpin, and preserves the open conversation', async () => {
     const a = conversation('a', 'A')
     const b = conversation('b', 'B')

@@ -300,18 +300,12 @@ export function useAgentConversations(agent, configuration) {
       if (changes !== conversationChanges) {
         return fetchConversations(cursor, reload)
       }
+      // Unpinning and filters also drop conversations, so only a 404 means deleted.
       if (reload) {
         const listed = new Set(results.map(({ uuid }) => uuid))
         conversations.value
           .filter(({ uuid }) => !listed.has(uuid))
-          .forEach(({ uuid }) => {
-            if (
-              conversationFilter.value === 'all' &&
-              isInLoadedRange(findConversation(uuid))
-            ) {
-              removeConversation(uuid)
-            } else unlistConversation(uuid)
-          })
+          .forEach(({ uuid }) => unlistConversation(uuid))
       }
       mergeConversations(results)
       conversationsCursor.value = data.next_cursor
@@ -345,6 +339,48 @@ export function useAgentConversations(agent, configuration) {
     conversations.value = conversations.value.filter(
       (item) => item.uuid !== conversationUuid
     )
+  }
+
+  function isInOrder(listed, index) {
+    return (
+      (index === 0 || byListPosition(listed[index - 1], listed[index]) < 0) &&
+      (index === listed.length - 1 ||
+        byListPosition(listed[index], listed[index + 1]) < 0)
+    )
+  }
+
+  /**
+   * List a known conversation where the filter and the loaded pages put it, or
+   * unlist it. Beyond the loaded pages, the next page lists it.
+   */
+  function placeConversation(conversation) {
+    conversationChanges++
+    const listed = conversations.value
+    const index = listed.findIndex((item) => item.uuid === conversation.uuid)
+    const belongs = matchesFilter(conversation) && isInLoadedRange(conversation)
+    if (belongs && index !== -1 && isInOrder(listed, index)) return
+    if (index !== -1) listed.splice(index, 1)
+    if (!belongs) {
+      if (selectedUuid.value === conversation.uuid) {
+        unlistedConversation.value = conversation
+      }
+      return
+    }
+    if (unlistedConversation.value?.uuid === conversation.uuid) {
+      unlistedConversation.value = null
+    }
+    const position = listed.findIndex(
+      (item) => byListPosition(conversation, item) < 0
+    )
+    listed.splice(position === -1 ? listed.length : position, 0, conversation)
+  }
+
+  /** Take a conversation's newest copy, listed where it now belongs. */
+  function receiveConversation(incoming) {
+    const current = findConversation(incoming.uuid)
+    if (!current) return placeConversation(incoming)
+    if (byNewest(current, incoming) >= 0) Object.assign(current, incoming)
+    placeConversation(current)
   }
 
   async function setConversationFilter(value) {
@@ -441,9 +477,10 @@ export function useAgentConversations(agent, configuration) {
       if (page === 1) {
         followReplies(findConversation(conversationUuid), data.results.at(-1))
       }
-    } catch {
+    } catch (error) {
       if (scopeIsCurrent(currentScope) && history.request === request) {
         history.error = true
+        if (isDeletedElsewhere(error)) removeConversation(conversationUuid)
       }
     } finally {
       if (scopeIsCurrent(currentScope) && history.request === request) {
@@ -505,10 +542,11 @@ export function useAgentConversations(agent, configuration) {
         }
         page++
       }
-    } catch {
+    } catch (error) {
       if (scopeIsCurrent(currentScope) && history.request === request) {
         history.error = true
         history.refreshError = true
+        if (isDeletedElsewhere(error)) removeConversation(conversationUuid)
       }
     } finally {
       if (scopeIsCurrent(currentScope) && history.request === request) {
@@ -565,7 +603,7 @@ export function useAgentConversations(agent, configuration) {
       if (!scopeIsCurrent(currentScope) || !canReadConversations.value) return
       // Deleted while sending, so it must not come back.
       if (drafts[conversationUuid] !== draft) return
-      mergeConversations([data.conversation])
+      receiveConversation(data.conversation)
       localConversations.value = localConversations.value.filter(
         (item) => item.uuid !== conversationUuid
       )
@@ -590,6 +628,7 @@ export function useAgentConversations(agent, configuration) {
       followReplies(data.conversation, data.reply)
     } catch (error) {
       if (!scopeIsCurrent(currentScope)) return
+      if (isDeletedElsewhere(error)) return removeConversation(conversationUuid)
       const code = error.response?.data?.error
       draft.error = SEND_ERRORS[code] || 'agent.messageSaveError'
       // The server rejected the message outright, so it can be edited and resent.
@@ -753,7 +792,8 @@ export function useAgentConversations(agent, configuration) {
         conversation.uuid,
         values
       )
-      applyConversationValues(conversation, pick(data, fields))
+      // A filter switch can have replaced the object this request changed.
+      receiveConversation(data)
     } catch (error) {
       applyConversationValues(conversation, previous)
       if (isDeletedElsewhere(error)) removeConversation(conversation.uuid)
@@ -761,11 +801,14 @@ export function useAgentConversations(agent, configuration) {
     }
   }
 
+  /** Change values locally, moving the conversation only if it is listed. */
   function applyConversationValues(conversation, values) {
     conversationChanges++
     Object.assign(conversation, values)
-    // Pinning does not change activity time, but it does change list position.
-    conversations.value = [...conversations.value].sort(byListPosition)
+    // An unlisted copy can be stale, so only a server copy lists it again.
+    if (conversations.value.includes(conversation)) {
+      placeConversation(conversation)
+    }
   }
 
   function isDeletedElsewhere(error) {
@@ -777,9 +820,16 @@ export function useAgentConversations(agent, configuration) {
 
   /** Drop a conversation, selecting the one that takes its place in the list. */
   function removeConversation(conversationUuid) {
-    const index = conversationItems.value.findIndex(
+    const removed = findConversation(conversationUuid)
+    let index = conversationItems.value.findIndex(
       (item) => item.uuid === conversationUuid
     )
+    // A selected conversation the filter hides continues with the one after it.
+    if (index === -1 && removed) {
+      index = conversationItems.value.findIndex(
+        (item) => !item.local && byListPosition(removed, item) < 0
+      )
+    }
     conversationChanges++
     conversations.value = conversations.value.filter(
       (item) => item.uuid !== conversationUuid
@@ -859,34 +909,24 @@ export function useAgentConversations(agent, configuration) {
       if (!update || !canReadConversations.value) return
       if (update.kind === 'deleted') return removeConversation(update.uuid)
       const conversation = findConversation(update.uuid)
-      if (update.kind === 'updated') {
-        if (conversation) applyConversationValues(conversation, update.values)
-        // A newly pinned conversation might be outside the pages already loaded.
-        if (Object.hasOwn(update.values, 'pinned')) reloadConversations()
-        return
-      }
-      // Past the loaded range, the next page lists it.
-      if (!conversation) {
-        if (
-          matchesFilter(update.conversation) &&
-          isInLoadedRange(update.conversation)
-        ) {
-          mergeConversations([update.conversation])
+      // A listed copy takes only what changed, as a rename or pin can arrive later.
+      if (!conversations.value.includes(conversation)) {
+        receiveConversation(update.conversation)
+      } else if (update.kind === 'updated') {
+        applyConversationValues(conversation, update.values)
+      } else {
+        const activity = pick(update.conversation, [
+          'id',
+          'uuid',
+          'run_id',
+          'updated_on',
+          'pending_approval_count',
+        ])
+        if (byNewest(conversation, activity) >= 0) {
+          applyConversationValues(conversation, activity)
         }
-        return
       }
-      // A rename or pin event can arrive after this one, so only take activity.
-      const activity = pick(update.conversation, [
-        'id',
-        'uuid',
-        'run_id',
-        'updated_on',
-        'pending_approval_count',
-      ])
-      if (byNewest(conversation, activity) >= 0) {
-        Object.assign(conversation, activity)
-        mergeConversations([conversation])
-      }
+      if (!conversation || update.kind === 'updated') return
       if (update.uuid === selectedUuid.value) {
         followReplies(conversation)
         // A followed run's finished record brings its approvals with the reply.

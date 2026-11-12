@@ -647,29 +647,108 @@ describe('Agent conversation realtime updates', () => {
     )
   })
 
-  test('fetches an older conversation pinned elsewhere into the first group', async () => {
-    const pinned = { ...second, pinned: true }
+  test('places conversations pinned elsewhere without reading the list again', async () => {
+    const { a, b, d } = paged
+    mockConversations(testApp, conversationsPage([a, b], 'after-b'))
+    mockMessages(testApp, a.uuid, page([message('m', 'Hello')]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'A')
+    await composer(wrapper).setValue('Unsent')
+    const reads = testApp.mock.history.get.length
+    const pinElsewhere = (item, pinned) =>
+      receivers.agent_conversation_updated(
+        { store: testApp.store },
+        {
+          agent_id: agentData.id,
+          conversation_uuid: item.uuid,
+          values: { pinned },
+          conversation: { ...item, pinned },
+        }
+      )
+
+    pinElsewhere(d, true)
+    pinElsewhere(b, true)
+    await flushPromises()
+    expect(conversationTitles(wrapper)).toEqual(['B', 'D', 'A'])
+
+    // Past the loaded pages once unpinned, so the next page lists it.
+    pinElsewhere(d, false)
+    await flushPromises()
+    expect(conversationTitles(wrapper)).toEqual(['B', 'A'])
+    expect(testApp.mock.history.get).toHaveLength(reads)
+    expect(composer(wrapper).element.value).toBe('Unsent')
+    expect(selected(wrapper).text()).toBe('A')
+  })
+
+  test('keeps an open conversation unpinned while offline, with its draft', async () => {
+    const { a, b, c } = paged
     mockConversations(
       testApp,
-      conversationsPage([first], 'older'),
-      conversationsPage([pinned, first], 'older')
+      conversationsPage([{ ...c, pinned: true }, a], 'after-a'),
+      conversationsPage([a, b], 'after-b')
     )
-    mockMessages(testApp, first.uuid, page([message('m', 'Hello')]))
+    mockMessages(testApp, c.uuid, page([message('m', 'Hello')]))
     const wrapper = await mount()
-    await selectConversation(wrapper, first.title)
+    await selectConversation(wrapper, 'C')
     await composer(wrapper).setValue('Unsent')
-    receivers.agent_conversation_updated(
+
+    await reconnect(c.id)
+
+    expect(conversationTitles(wrapper)).toEqual(['A', 'B'])
+    expect(messages(wrapper)).toEqual(['Hello'])
+    expect(composer(wrapper).element.value).toBe('Unsent')
+  })
+
+  test('closes an open conversation deleted while offline, also when filtered', async () => {
+    const { a, b } = paged
+    const pinnedA = { ...a, pinned: true }
+    mockConversations(
+      testApp,
+      conversationsPage([pinnedA, b]),
+      conversationsPage([pinnedA]),
+      conversationsPage([])
+    )
+    mockMessages(testApp, a.uuid, page([message('m', 'Hello')]), [
+      404,
+      { error: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST' },
+    ])
+    testApp.dontFailOnErrorResponses()
+    const wrapper = await mount()
+    await filterConversations(wrapper, 'agent.pinned')
+    await selectConversation(wrapper, 'A')
+    await composer(wrapper).setValue('Unsent')
+
+    await reconnect(a.id)
+
+    expect(conversationTitles(wrapper)).toEqual([])
+    expect(messages(wrapper)).toEqual([])
+    expect(composer(wrapper).element.value).toBe('')
+  })
+
+  test('selects the next waiting conversation when the hidden open one is deleted', async () => {
+    const [a, b, c, d] = Object.values(paged).map((item) => ({
+      ...item,
+      pending_approval_count: 1,
+    }))
+    mockConversations(
+      testApp,
+      conversationsPage([]),
+      conversationsPage([a, b, c, d])
+    )
+    mockMessages(testApp, b.uuid, page([]))
+    mockMessages(testApp, c.uuid, page([]))
+    const wrapper = await mount()
+    await filterConversations(wrapper, 'agent.waitingForApprovalFilter')
+    await selectConversation(wrapper, 'B')
+    await update(b.uuid, { updatedOn: b.updated_on })
+
+    receivers.agent_conversation_deleted(
       { store: testApp.store },
-      {
-        agent_id: agentData.id,
-        conversation_uuid: second.uuid,
-        values: { pinned: true },
-      }
+      { agent_id: agentData.id, conversation_uuid: b.uuid }
     )
     await flushPromises()
-    expect(conversationTitles(wrapper)).toEqual([second.title, first.title])
-    expect(composer(wrapper).element.value).toBe('Unsent')
-    expect(selected(wrapper).text()).toBe(first.title)
+
+    expect(selected(wrapper).text()).toContain('C')
   })
 
   test('removes a decided conversation from the waiting filter without closing it', async () => {

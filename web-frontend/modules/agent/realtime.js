@@ -32,6 +32,7 @@ export const registerRealtimeEvents = (realtime) => {
     notifyConversationChange(store, data, {
       kind: 'updated',
       values: data.values,
+      conversation: data.conversation,
     })
   )
   realtime.registerEvent('agent_conversation_deleted', ({ store }, data) =>
