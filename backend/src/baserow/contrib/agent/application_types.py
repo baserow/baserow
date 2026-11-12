@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.transaction import Atomic
 from django.urls import URLResolver, include, path
 
+from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
 from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
@@ -90,15 +91,23 @@ class AgentApplicationType(ApplicationType):
         return None, None
 
     def supports_integration_type(self, integration_type) -> bool:
-        """Only MCP servers: an Agent uses no other integration."""
+        """MCP servers, and the integrations its action types' services use."""
 
+        from baserow.contrib.agent.action_tools.registries import (
+            agent_action_type_registry,
+        )
         from baserow.contrib.integrations.mcp.integration_types import (
             MCPServerIntegrationType,
         )
+        from baserow.core.services.registries import service_type_registry
 
-        return (
-            super().supports_integration_type(integration_type)
-            and integration_type.type == MCPServerIntegrationType.type
+        return super().supports_integration_type(integration_type) and (
+            integration_type.type == MCPServerIntegrationType.type
+            or any(
+                service_type_registry.get(action_type.type).integration_type
+                == integration_type.type
+                for action_type in agent_action_type_registry.get_all()
+            )
         )
 
     def get_api_urls(self) -> list[URLResolver]:
@@ -227,6 +236,9 @@ class AgentApplicationType(ApplicationType):
                 )
             ],
             web_search_enabled=application.web_search_enabled,
+            actions=AgentActionHandler().export_actions(
+                application, import_export_config, files_zip, storage
+            ),
             triggers=AgentTriggerHandler().export_triggers(
                 application, import_export_config, files_zip, storage
             ),
@@ -327,6 +339,14 @@ class AgentApplicationType(ApplicationType):
                 storage=storage,
                 import_export_config=import_export_config,
             )
+        AgentActionHandler().import_actions(
+            application,
+            serialized_values.get("actions", []),
+            id_mapping,
+            import_export_config,
+            files_zip,
+            storage,
+        )
         AgentTriggerHandler().import_triggers(
             application,
             serialized_values.get("triggers", []),

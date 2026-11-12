@@ -159,6 +159,15 @@ class ServiceType(
 
         return False
 
+    def get_configuration_errors(self, service: ServiceSubClass) -> dict[str, str]:
+        """Return statically detectable errors, without resolving or dispatching.
+
+        Consumers can keep incomplete drafts and omit them from execution. Formula
+        context references and integration ownership are checked by their caller.
+        """
+
+        return {}
+
     def raise_if_deactivated(self, workspace: Workspace) -> None:
         """Reject use of a deactivated service type when called by its consumer."""
 

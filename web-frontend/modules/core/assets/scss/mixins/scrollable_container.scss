@@ -6,3 +6,24 @@
     display: none;
   }
 }
+
+@mixin thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: $palette-neutral-500 transparent;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 10px;
+    background-color: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: $palette-neutral-500;
+    background-clip: content-box;
+    border: 2px solid transparent;
+  }
+}

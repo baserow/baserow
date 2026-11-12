@@ -82,6 +82,7 @@ from baserow.contrib.integrations.core.models import (
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
+    SMTPIntegration,
     generate_inbound_email_token,
 )
 from baserow.contrib.integrations.core.utils import (
@@ -1676,6 +1677,26 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
     def requires_integration(self, service: CoreSMTPEmailService) -> bool:
         return not self._should_use_instance_smtp(service)
+
+    def get_configuration_errors(self, service: CoreSMTPEmailService) -> dict[str, str]:
+        errors = {}
+        required = ["to_emails"]
+        if service.use_instance_smtp_settings:
+            if self.instance_smtp_unavailable_reason():
+                errors["use_instance_smtp_settings"] = "unavailable"
+        else:
+            required.append("from_email")
+            if service.integration_id and service.integration is not None:
+                integration = service.integration.specific
+                if isinstance(integration, SMTPIntegration):
+                    if not integration.host or not 1 <= integration.port <= 65535:
+                        errors["integration_id"] = "invalid"
+                    if integration.use_tls and integration.use_ssl:
+                        errors["integration_id"] = "invalid"
+        for field in required:
+            if not getattr(service, field)["formula"].strip():
+                errors[field] = "required"
+        return errors
 
     def prepare_values(self, values, user: AbstractUser, instance=None):
         values = super().prepare_values(values, user, instance)

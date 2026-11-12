@@ -1,0 +1,219 @@
+.agent-actions__header,
+.agent-action-inputs__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.agent-actions__header h3,
+.agent-action-inputs__header h4,
+.agent-action-card__service h4 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-actions__empty,
+.agent-action-inputs__help {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-700;
+}
+
+.agent-actions__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.agent-action-card {
+  background: $palette-neutral-25;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.agent-action-card__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.agent-action-card__title {
+  flex: 1;
+  font-size: 13px;
+  color: $palette-neutral-1200;
+}
+
+.agent-action-card__saving {
+  @include loading-spinner($palette-neutral-700, 14px);
+}
+
+.agent-action-card__body {
+  padding: 12px;
+}
+
+.agent-action-card__approval {
+  margin-bottom: 16px;
+}
+
+.agent-action-card__service {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid $palette-neutral-200;
+
+  h4 {
+    margin-bottom: 12px;
+  }
+}
+
+.agent-action-card__error {
+  margin: 12px 0 0;
+  color: $palette-red-800;
+  font-size: 12px;
+}
+
+.agent-action-card__footer,
+.agent-action-inputs__footer {
+  padding: 12px;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+.agent-action-inputs {
+  margin-top: 20px;
+}
+
+.agent-action-inputs__item {
+  margin-bottom: 8px;
+  background: $palette-neutral-0;
+  border: 1px solid $palette-neutral-200;
+
+  @include rounded($rounded-md);
+}
+
+.agent-action-inputs__row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+
+  > .control {
+    min-width: 0;
+    margin-bottom: 0;
+  }
+}
+
+.agent-action-inputs__details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  > .control {
+    min-width: 0;
+    margin-bottom: 0;
+  }
+}
+
+.agent-action-inputs__requirement {
+  flex-shrink: 0;
+  min-width: 100px;
+  margin-left: 4px;
+  border-radius: 14px;
+  box-shadow: none;
+
+  .dropdown__selected {
+    height: 28px;
+    padding: 0 10px;
+    border-color: $palette-neutral-200;
+    border-radius: 14px;
+    font-size: 12px;
+    line-height: 28px;
+  }
+
+  .dropdown__items {
+    min-width: 140px;
+    right: 0;
+    left: auto;
+  }
+}
+
+.agent-card-list__toggle-all {
+  margin-bottom: 12px;
+}
+
+.agent-action-inputs__toggle {
+  min-height: 28px;
+}
+
+.agent-action-card__toggle,
+.agent-action-inputs__toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $palette-neutral-1200;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 4px;
+  }
+}
+
+.agent-action-card__title,
+.agent-action-inputs__name {
+  @extend %ellipsis;
+
+  min-width: 0;
+}
+
+.agent-action-inputs__summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.agent-action-inputs__item--expanded .agent-action-inputs__summary {
+  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.agent-action-inputs__type {
+  margin-left: auto;
+  color: $palette-neutral-700;
+  font-size: 12px;
+}
+
+.agent-action-inputs__editor {
+  padding: 12px;
+}
+
+.agent-service-picker {
+  --grouped-menu-panel-height: auto;
+
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+
+  .grouped-menu {
+    max-width: 100%;
+  }
+
+  .grouped-menu__menu-list .menu-list__items {
+    max-height: 320px;
+  }
+}
