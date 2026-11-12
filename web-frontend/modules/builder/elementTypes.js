@@ -37,7 +37,11 @@ import ColumnElementForm from '@baserow/modules/builder/components/elements/comp
 import DefaultStyleForm from '@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'
 import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement'
 import ButtonElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'
-import { ClickEvent, SubmitEvent } from '@baserow/modules/builder/eventTypes'
+import {
+  ChangeEvent,
+  ClickEvent,
+  SubmitEvent,
+} from '@baserow/modules/builder/eventTypes'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { isFormulaValid, resolveFormula } from '@baserow/modules/core/formula'
 import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
@@ -1942,6 +1946,10 @@ export class ChoiceElementType extends FormElementType {
     return 'choice'
   }
 
+  getEvents(element) {
+    return [new ChangeEvent({ app: this.app })]
+  }
+
   get name() {
     return this.app.$i18n.t('elementType.choice')
   }
@@ -2230,6 +2238,10 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
 ) {
   static getType() {
     return 'record_selector'
+  }
+
+  getEvents(element) {
+    return [new ChangeEvent({ app: this.app })]
   }
 
   get fetchAtLoad() {

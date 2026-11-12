@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Images, text, headings, columns and containers can trigger actions when clicked in the Application Builder.",
+    "message": "Images, text, headings, columns and containers can trigger actions when clicked in the Application Builder. Choice and Record selector elements can trigger actions when their selection changes.",
     "issue_origin": "github",
     "issue_number": 2748,
     "domain": "builder",

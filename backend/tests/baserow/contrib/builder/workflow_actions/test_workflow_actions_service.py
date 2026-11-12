@@ -33,15 +33,24 @@ from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "element_type", ["button", "heading", "text", "image", "column", "simple_container"]
+    "element_type,event",
+    [
+        ("button", EventTypes.CLICK),
+        ("heading", EventTypes.CLICK),
+        ("text", EventTypes.CLICK),
+        ("image", EventTypes.CLICK),
+        ("column", EventTypes.CLICK),
+        ("simple_container", EventTypes.CLICK),
+        ("choice", EventTypes.CHANGE),
+        ("record_selector", EventTypes.CHANGE),
+    ],
 )
-def test_create_workflow_action(data_fixture, element_type):
+def test_create_workflow_action(data_fixture, element_type, event):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_element(
         type(element_type_registry.get(element_type)), page=page
     )
-    event = EventTypes.CLICK
     workflow_action_type = NotificationWorkflowActionType()
     workflow_action = (
         BuilderWorkflowActionService()
@@ -102,25 +111,36 @@ def test_delete_workflow_action_no_permissions(data_fixture):
 
 
 @pytest.mark.django_db
-def test_update_workflow_action(data_fixture):
+@pytest.mark.parametrize(
+    "element_type,event",
+    [
+        ("button", EventTypes.CLICK),
+        ("choice", EventTypes.CHANGE),
+        ("record_selector", EventTypes.CHANGE),
+    ],
+)
+def test_update_workflow_action(data_fixture, element_type, event):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_button_element(page=page)
-    event = EventTypes.CLICK
+    element_type_class = type(element_type_registry.get(element_type))
+    element = data_fixture.create_builder_element(element_type_class, page=page)
     workflow_action = data_fixture.create_notification_workflow_action(
         page=page, element=element, event=event
     )
 
-    element_changed = data_fixture.create_builder_button_element()
+    element_changed = data_fixture.create_builder_element(element_type_class)
 
     workflow_action = (
         BuilderWorkflowActionService()
-        .update_workflow_action(user, workflow_action, element=element_changed)
+        .update_workflow_action(
+            user, workflow_action, element=element_changed, event=event
+        )
         .workflow_action
     )
 
     workflow_action.refresh_from_db()
     assert workflow_action.element_id == element_changed.id
+    assert workflow_action.event == event
 
 
 @pytest.mark.django_db
@@ -365,9 +385,21 @@ def test_dispatch_workflow_action_no_permissions(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "element_type", ["button", "heading", "text", "image", "column", "simple_container"]
+    "element_type,valid_event",
+    [
+        ("button", EventTypes.CLICK),
+        ("heading", EventTypes.CLICK),
+        ("text", EventTypes.CLICK),
+        ("image", EventTypes.CLICK),
+        ("column", EventTypes.CLICK),
+        ("simple_container", EventTypes.CLICK),
+        ("choice", EventTypes.CHANGE),
+        ("record_selector", EventTypes.CHANGE),
+    ],
 )
-def test_create_workflow_action_with_invalid_event(data_fixture, element_type):
+def test_create_workflow_action_with_invalid_event(
+    data_fixture, element_type, valid_event
+):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_element(
@@ -382,7 +414,7 @@ def test_create_workflow_action_with_invalid_event(data_fixture, element_type):
 
     assert str(exc_info.value) == (
         f"The event 'hover' is not valid for the {element_type} element. "
-        "Valid events: click."
+        f"Valid events: {valid_event}."
     )
     assert BuilderWorkflowAction.objects.count() == 0
 
@@ -418,15 +450,16 @@ def test_create_workflow_action_with_dynamic_event(data_fixture):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("event", [EventTypes.CLICK, EventTypes.CHANGE])
 def test_create_workflow_action_without_element_only_accepts_static_events(
-    data_fixture,
+    data_fixture, event
 ):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     workflow_action_type = NotificationWorkflowActionType()
 
     workflow_action = BuilderWorkflowActionService().create_workflow_action(
-        user, workflow_action_type, page=page, event=EventTypes.CLICK
+        user, workflow_action_type, page=page, event=event
     )
     assert workflow_action.element is None
 
@@ -438,16 +471,28 @@ def test_create_workflow_action_without_element_only_accepts_static_events(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "element_type", ["button", "heading", "text", "image", "column", "simple_container"]
+    "element_type,valid_event",
+    [
+        ("button", EventTypes.CLICK),
+        ("heading", EventTypes.CLICK),
+        ("text", EventTypes.CLICK),
+        ("image", EventTypes.CLICK),
+        ("column", EventTypes.CLICK),
+        ("simple_container", EventTypes.CLICK),
+        ("choice", EventTypes.CHANGE),
+        ("record_selector", EventTypes.CHANGE),
+    ],
 )
-def test_update_workflow_action_with_invalid_event(data_fixture, element_type):
+def test_update_workflow_action_with_invalid_event(
+    data_fixture, element_type, valid_event
+):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     element = data_fixture.create_builder_element(
         type(element_type_registry.get(element_type)), page=page
     )
     workflow_action = data_fixture.create_notification_workflow_action(
-        page=page, element=element, event=EventTypes.CLICK
+        page=page, element=element, event=valid_event
     )
 
     with pytest.raises(InvalidWorkflowActionEvent):
@@ -456,7 +501,7 @@ def test_update_workflow_action_with_invalid_event(data_fixture, element_type):
         )
 
     workflow_action.refresh_from_db()
-    assert workflow_action.event == EventTypes.CLICK
+    assert workflow_action.event == valid_event
 
 
 @pytest.mark.django_db

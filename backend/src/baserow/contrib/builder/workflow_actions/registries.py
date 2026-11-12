@@ -215,7 +215,9 @@ class BuilderWorkflowActionType(
         if element_id:
             imported_element_id = id_mapping["builder_page_elements"][element_id]
             import_context = ElementHandler().get_import_context_addition(
-                imported_element_id, cache.get("imported_element_map", None)
+                imported_element_id,
+                cache.get("imported_element_map", None),
+                include_target=serialized_values["event"] != EventTypes.CHANGE,
             )
 
         # `parent` is the target page; expose its builder so `deserialize_property`

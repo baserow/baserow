@@ -8,7 +8,7 @@
   >
     <ABDropdown
       v-if="element.show_as_dropdown"
-      v-model="inputValue"
+      :model-value="inputValue"
       class="choice-element"
       :placeholder="
         canHaveOptions ? placeholderResolved : $t('choiceElement.addOptions')
@@ -17,7 +17,7 @@
       :multiple="element.multiple"
       :clearable="!element.multiple && !element.required"
       @hide="onFormElementTouch"
-      @update:model-value="handleFormElementChange"
+      @update:model-value="onSelectionChange"
     >
       <!--
       -- The selected option(s) are rendered here rather than by the dropdown
@@ -45,6 +45,7 @@
         :key="option.id"
         :name="optionLabel(option)"
         :value="option.value"
+        :disabled="workflowActionsInProgress"
       >
         <span
           class="ab-dropdownitem__item-name-text"
@@ -66,6 +67,7 @@
             v-for="option in optionsResolved"
             :key="option.id"
             :read-only="isEditMode"
+            :disabled="workflowActionsInProgress"
             :error="displayFormDataError"
             :model-value="inputValue.includes(option.value)"
             @update:model-value="onOptionChange(option, $event)"
@@ -83,6 +85,7 @@
             v-for="option in optionsResolved"
             :key="option.id"
             :read-only="isEditMode"
+            :disabled="workflowActionsInProgress"
             :error="displayFormDataError"
             :model-value="option.value === inputValue"
             @update:model-value="onOptionChange(option, $event)"
@@ -102,12 +105,12 @@
 </template>
 
 <script>
-import formElement from '@baserow/modules/builder/mixins/formElement'
+import changeableFormElement from '@baserow/modules/builder/mixins/changeableFormElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'ChoiceElement',
-  mixins: [formElement],
+  mixins: [changeableFormElement],
   props: {
     /**
      * @type {Object}
@@ -171,16 +174,17 @@ export default {
       return option.name || (option.value ? `${option.value}` : '')
     },
     onOptionChange(option, value) {
+      let newValue = this.inputValue
       if (value) {
         if (this.element.multiple) {
-          this.inputValue = [...this.inputValue, option.value]
+          newValue = [...this.inputValue, option.value]
         } else {
-          this.inputValue = option.value
+          newValue = option.value
         }
       } else if (this.element.multiple) {
-        this.inputValue = this.inputValue.filter((v) => v !== option.value)
+        newValue = this.inputValue.filter((v) => v !== option.value)
       }
-      this.handleFormElementChange()
+      return this.onSelectionChange(newValue)
     },
   },
 }

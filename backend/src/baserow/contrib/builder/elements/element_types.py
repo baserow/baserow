@@ -598,6 +598,9 @@ class RecordSelectorElementType(
         multiple: bool
         option_name_suffix: BaserowFormulaObject
 
+    def get_event_names(self, instance: RecordSelectorElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
+
     @property
     def serializer_field_overrides(self):
         from baserow.core.formula.serializers import FormulaSerializerField
@@ -1915,6 +1918,9 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         option_type: str
         formula_value: BaserowFormulaObject
         formula_name: BaserowFormulaObject
+
+    def get_event_names(self, instance: ChoiceElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     @property
     def serializer_field_overrides(self):

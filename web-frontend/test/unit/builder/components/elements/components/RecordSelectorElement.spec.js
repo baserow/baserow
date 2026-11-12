@@ -46,8 +46,15 @@ describe('RecordSelectorElement', () => {
       id: 1,
       dataSources: [{ id: 1, type: 'csv_file_reader' }],
       elements: [],
+      workflowActions: [],
     }
-    const sharedPage = { id: 2, dataSources: [], elements: [], shared: true }
+    const sharedPage = {
+      id: 2,
+      dataSources: [],
+      elements: [],
+      workflowActions: [],
+      shared: true,
+    }
     const builder = {
       id: 1,
       theme: { primary_color: '#ccc' },
@@ -117,11 +124,13 @@ describe('RecordSelectorElement', () => {
         },
       ],
       elements: [],
+      workflowActions: [],
     }
     const sharedPage = {
       id: 2,
       dataSources: [],
       elements: [],
+      workflowActions: [],
       shared: true,
     }
     const builder = {
@@ -229,11 +238,13 @@ describe('RecordSelectorElement', () => {
         },
       ],
       elements: [],
+      workflowActions: [],
     }
     const sharedPage = {
       id: 2,
       dataSources: [],
       elements: [],
+      workflowActions: [],
       shared: true,
     }
     const builder = {
@@ -336,11 +347,13 @@ describe('RecordSelectorElement', () => {
         },
       ],
       elements: [],
+      workflowActions: [],
     }
     const sharedPage = {
       id: 2,
       dataSources: [],
       elements: [],
+      workflowActions: [],
       shared: true,
     }
     const builder = {
@@ -405,11 +418,13 @@ describe('RecordSelectorElement', () => {
         },
       ],
       elements: [],
+      workflowActions: [],
     }
     const sharedPage = {
       id: 2,
       dataSources: [],
       elements: [],
+      workflowActions: [],
       shared: true,
     }
     const builder = {
@@ -482,11 +497,13 @@ describe('RecordSelectorElement', () => {
         },
       ],
       elements: [],
+      workflowActions: [],
     }
     const sharedPage = {
       id: 2,
       dataSources: [],
       elements: [],
+      workflowActions: [],
       shared: true,
     }
     const builder = {

@@ -1728,6 +1728,8 @@ def test_element_type_get_event_names(data_fixture):
         SimpleContainerElementType, page=page
     )
     button = data_fixture.create_builder_button_element(page=page)
+    choice = data_fixture.create_builder_choice_element(page=page)
+    record_selector = data_fixture.create_builder_record_selector_element(page=page)
     form = data_fixture.create_builder_form_container_element(page=page)
     table = data_fixture.create_builder_table_element(
         page=page,
@@ -1761,6 +1763,8 @@ def test_element_type_get_event_names(data_fixture):
     assert get_event_names(column) == ["click"]
     assert get_event_names(container) == ["click"]
     assert get_event_names(button) == ["click"]
+    assert get_event_names(choice) == ["change"]
+    assert get_event_names(record_selector) == ["change"]
     assert get_event_names(form) == ["submit"]
     assert get_event_names(table) == [f"{button_field.uid}_click"]
     assert get_event_names(menu) == [f"{button_item_uid}_click"]
