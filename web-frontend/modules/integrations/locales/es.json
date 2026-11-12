@@ -69,6 +69,9 @@
         "ai": "IA"
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Filas creadas en {tableName}",
+        "localBaserowRowsUpdatedInTable": "Filas actualizadas en {tableName}",
+        "localBaserowRowsDeletedInTable": "Filas eliminadas en {tableName}",
         "localBaserowGetRow": "Obtener una sola fila",
         "localBaserowListRows": "Enumerar varias filas",
         "localBaserowAggregateRows": "Resumir campo",

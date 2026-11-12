@@ -124,9 +124,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",
-        "localBaserowRowsCreatedLabel": "Filas creadas en {tableName}",
-        "localBaserowRowsUpdatedLabel": "Filas actualizadas en {tableName}",
-        "localBaserowRowsDeletedLabel": "Filas eliminadas en {tableName}",
         "localBaserowCreateRowLabel": "Crear una fila en {tableName}",
         "localBaserowUpdateRowLabel": "Actualizar una fila en {tableName}",
         "localBaserowDeleteRowLabel": "Eliminar filas en {tableName}",

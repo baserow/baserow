@@ -12,6 +12,9 @@
         "slackBot": "Bot Slack"
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Des lignes sont créées dans {tableName}",
+        "localBaserowRowsUpdatedInTable": "Des lignes sont mises à jour dans {tableName}",
+        "localBaserowRowsDeletedInTable": "Des lignes sont supprimées dans {tableName}",
         "localBaserowGetRow": "Obtenir une ligne",
         "localBaserowListRows": "Lister plusieurs lignes",
         "localBaserowAggregateRows": "Résumer une colonne",

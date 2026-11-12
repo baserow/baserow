@@ -28,6 +28,9 @@
         "slackBotWarning": "Будь-хто, хто має права на створення в цьому застосунку, може надсилати повідомлення через цього бота та замінювати його токен. Використовуйте бота, доступом до якого ви готові поділитися."
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Рядки створюються в {tableName}",
+        "localBaserowRowsUpdatedInTable": "Рядки оновлюються в {tableName}",
+        "localBaserowRowsDeletedInTable": "Рядки видаляються в {tableName}",
         "localBaserowGetRow": "Отримати один рядок",
         "localBaserowGetRowDescription": "Прочитати один рядок з таблиці Baserow.",
         "localBaserowListRows": "Отримати декілька рядків",
