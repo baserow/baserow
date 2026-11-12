@@ -4,22 +4,14 @@
       :title="$t('groupedAggregateRowsDataSourceForm.data')"
       class="margin-bottom-2"
     >
-      <FormGroup
-        :label="$t('groupedAggregateRowsDataSourceForm.sourceFieldLabel')"
-        class="margin-bottom-2"
-        small-label
-        required
-        horizontal
-        horizontal-narrow
-      >
-        <DashboardTableSelector
-          v-model="computedTableId"
-          :databases="databases"
-          :data-source="{ ...dataSource, filters: values.filters }"
-          :store-prefix="storePrefix"
-          :error="fieldHasErrors('table_id')"
-        />
-      </FormGroup>
+      <DashboardTableSelector
+        v-model="computedTableId"
+        :databases="databases"
+        :data-source="{ ...dataSource, filters: values.filters }"
+        :store-prefix="storePrefix"
+        :error="fieldHasErrors('table_id')"
+      />
+
       <FormGroup
         v-if="values.table_id && !fieldHasErrors('table_id')"
         :label="$t('groupedAggregateRowsDataSourceForm.viewFieldLabel')"

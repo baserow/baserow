@@ -159,15 +159,13 @@ def test_reset_failure_rolls_back_table_and_conditions(monkeypatch, table_change
     user, _, _, source, owner, table, field = table_change
     before = deepcopy(owner.target_filters)
     original_table_id = source.service.specific.table_id
-    reset = DisplayWidgetTypeMixin.after_data_source_update
+    reset = DisplayWidgetTypeMixin.after_update
 
-    def fail_after_reset(self, instance, updated, original_table_id):
-        reset(self, instance, updated, original_table_id)
+    def fail_after_reset(self, updated_widget, **kwargs):
+        reset(self, updated_widget, **kwargs)
         raise RuntimeError("Reset failed")
 
-    monkeypatch.setattr(
-        DisplayWidgetTypeMixin, "after_data_source_update", fail_after_reset
-    )
+    monkeypatch.setattr(DisplayWidgetTypeMixin, "after_update", fail_after_reset)
     with pytest.raises(RuntimeError, match="Reset failed"):
         DashboardDataSourceService().update_data_source(
             user,

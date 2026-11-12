@@ -9,20 +9,27 @@ class DisplayWidgetTypeMixin:
     def get_data_source(self, widget):
         return widget.data_source
 
-    def after_data_source_update(
-        self, instance, updated_data_source, original_table_id
-    ):
+    def after_update(self, updated_widget, **kwargs):
         """
-        Clear conditions targeting this display when its source changes table.
-        Keep links, but remove old-table conditions and alternative conditions.
-        Collect original links for undo and changed filter widgets for notification.
+        Clear old-table conditions when data_source is among the updated fields.
+        Keep links and collect original conditions for undo and notifications.
         """
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
         from baserow.contrib.dashboard.widgets.models import Widget
 
-        source = updated_data_source.data_source
-        if original_table_id == getattr(source.service.specific, "table_id", None):
-            return
+        updated_widget = super().after_update(updated_widget, **kwargs)
+        if "data_source" not in updated_widget.new_values:
+            return updated_widget
+        instance = updated_widget.widget
+        updated_data_source = updated_widget.new_values["data_source"]
+        original_table_id = updated_widget.original_values["data_source"]["table_id"]
+        source = self.get_data_source(instance)
+        if (
+            source is None
+            or source.id != updated_data_source.data_source.id
+            or original_table_id == getattr(source.service.specific, "table_id", None)
+        ):
+            return updated_widget
 
         for widget in WidgetHandler().get_widgets_for_update(
             instance.dashboard, base_queryset=Widget.objects_and_trash.all()
@@ -57,6 +64,8 @@ class DisplayWidgetTypeMixin:
                     existing for existing in changed if existing.id != widget.id
                 ]
                 changed.append(widget)
+
+        return updated_widget
 
     def after_import(self, widget, id_mapping, **kwargs):
         """Finalize the display's source once, even when widgets share that source."""

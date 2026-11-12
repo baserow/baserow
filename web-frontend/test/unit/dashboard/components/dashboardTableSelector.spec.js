@@ -36,7 +36,11 @@ async function mountSelector({
   return testApp.mount(DashboardTableSelector, {
     props: {
       modelValue: 10,
-      dataSource: { id: 2, filters: own ? [{ field: 4 }] : [] },
+      dataSource: {
+        id: 2,
+        type: 'local_baserow_aggregate_rows',
+        filters: own ? [{ field: 4 }] : [],
+      },
       databases: [
         {
           id: 5,
@@ -94,7 +98,9 @@ test('changes directly without conditions to clear', async () => {
 test('dismisses a pending confirmation when another source is selected', async () => {
   const wrapper = await mountSelector({ own: true })
   await selectNext(wrapper)
-  await wrapper.setProps({ dataSource: { id: 99, filters: [] } })
+  await wrapper.setProps({
+    dataSource: { id: 99, type: 'local_baserow_aggregate_rows', filters: [] },
+  })
   expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   await vi.waitFor(() =>
     expect(wrapper.find('.modal__box').exists()).toBe(false)
