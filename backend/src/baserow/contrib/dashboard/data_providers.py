@@ -13,7 +13,7 @@ dashboard_data_provider_type_registry = DataProviderTypeRegistry()
 class WidgetDataProviderType(DataProviderType):
     type = "widget_data"
 
-    def is_valid(self, path):
+    def is_valid(self, path, validation_context=None):
         if not (
             1 <= len(path) <= 2
             and path[0].isascii()
@@ -62,7 +62,7 @@ class WidgetDataProviderType(DataProviderType):
 class DashboardDataSourceContextDataProviderType(DataProviderType):
     type = "data_source_context"
 
-    def is_valid(self, path):
+    def is_valid(self, path, validation_context=None):
         if len(path) < 2 or not re.fullmatch(r"[1-9][0-9]{0,18}", path[0]):
             raise BaserowFormulaSyntaxError(
                 "Choose dashboard data source context data."
