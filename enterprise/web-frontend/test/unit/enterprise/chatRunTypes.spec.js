@@ -51,6 +51,26 @@ describe('Kuma HTTP record adapter', () => {
     return destroyRunsTestApp(testApp)
   })
 
+  test.each([
+    [
+      'send',
+      runRecord(
+        'chat-run-state',
+        {},
+        { cancel_requested: true, cursor: cursor(1) }
+      ),
+    ],
+    ['core', { kind: 'run.cancel_requested', data: {}, cursor: cursor(1) }],
+  ])(
+    'a stop received on the %s stream marks the run as stopping',
+    async (_, record) => {
+      await acceptRecord(store, record)
+      expect(
+        store.getters['chatRuns/getFollower']('run-1').view.cancelRequested
+      ).toBe(true)
+    }
+  )
+
   test('cumulative records replace text rather than appending it twice', async () => {
     await acceptRecord(
       store,

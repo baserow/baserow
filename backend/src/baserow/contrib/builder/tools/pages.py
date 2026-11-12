@@ -97,8 +97,12 @@ def create_pages_with_options(
     builder = get_builder_in_workspace(ctx, builder_id)
     created: list[dict] = []
     errors: list[str] = []
+    stopped = None
     with transaction.atomic():
-        for page_create in pages:
+        for index, page_create in enumerate(pages):
+            if ctx.is_cancelled():
+                stopped = index
+                break
             ctx.update_status(
                 _("Creating page %(name)s...") % {"name": page_create.name}
             )
@@ -112,6 +116,8 @@ def create_pages_with_options(
             created.append(PageItem.from_orm(page).model_dump())
 
     result: dict[str, Any] = {"created_pages": created}
+    if stopped is not None:
+        result["stopped_after"] = stopped
     if errors:
         result["errors"] = errors
     return result
