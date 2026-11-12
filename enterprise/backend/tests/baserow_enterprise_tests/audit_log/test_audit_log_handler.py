@@ -39,11 +39,17 @@ def test_identity_action_is_recorded_in_audit_log(
         "id": identity.id,
         "type": UserSubjectType.type,
         "name": identity.first_name,
+        "user_type": "identity",
     }
     assert (
         AuditLogSerializer(entry).data["user"] == f"Automation writer ({identity.id})"
     )
     assert not Action.objects.filter(type="create_rows").exists()
+
+    identity.delete()
+    entry.refresh_from_db()
+    assert entry.actor_user_type == "identity"
+    assert entry.actor_name
 
 
 @pytest.mark.django_db

@@ -39,6 +39,7 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
     # made by an old version, and actor names fit the existing user_email column.
     actor_id = models.PositiveIntegerField(db_column="user_id", null=True)
     actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)
+    actor_user_type = models.CharField(max_length=8, null=True)
     actor_name = models.CharField(
         db_column="user_email", max_length=254, null=True, blank=True
     )

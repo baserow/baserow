@@ -74,6 +74,22 @@ describe('WorkflowHistory', () => {
     )
   })
 
+  test('retains a deleted Identity identity in the run header', async () => {
+    const wrapper = await mountHistory({
+      ...baseItem,
+      triggered_by: {
+        id: 42,
+        type: 'auth.User',
+        user_type: 'identity',
+        name: 'Writer',
+      },
+    })
+    expect(wrapper.find('.workflow-history__started-by').text()).toBe(
+      'historySidePanel.startedBy:Writer'
+    )
+    expect(wrapper.find('.iconoir-lock').exists()).toBe(true)
+  })
+
   test('shows nothing when nobody is recorded', async () => {
     const wrapper = await mountHistory(baseItem)
     expect(wrapper.find('.workflow-history__started-by').exists()).toBe(false)
