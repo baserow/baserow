@@ -1,4 +1,5 @@
 from django.db import IntegrityError, connection, transaction
+from django.db.migrations.loader import MigrationLoader
 from django.utils import timezone
 
 import pytest
@@ -603,3 +604,109 @@ def test_0137_keeps_a_tool_revoked_while_it_runs(migrator, teardown_table_metada
     ]
 
     NewMCPEndpoint.objects.all().delete()
+def _core_migration_targets(name):
+    # Other apps go to their latest state that doesn't need a later core migration.
+    graph = MigrationLoader(connection).graph
+    core_plan = set(graph.forwards_plan(("core", name)))
+
+    def needs_later_core(node):
+        return any(
+            dependency[0] == "core" and dependency not in core_plan
+            for dependency in graph.forwards_plan(node)
+        )
+
+    targets = []
+    for node in graph.leaf_nodes():
+        while node is not None and node[0] != "core" and needs_later_core(node):
+            parents = [
+                parent.key
+                for parent in graph.node_map[node].parents
+                if parent.key[0] == node[0]
+            ]
+            node = parents[0] if parents else None
+        if node is not None and node[0] != "core":
+            targets.append(node)
+    return targets + [("core", name)]
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0138_identity_upgrade_and_guarded_rollback(migrator, teardown_table_metadata):
+    previous = _core_migration_targets("0137_mcpendpoint_rename_create_dashboards")
+    current = _core_migration_targets("0138_user_identities")
+    old_state = migrator.migrate(previous)
+    OldWorkspace = old_state.apps.get_model("core", "Workspace")
+    OldAgent = old_state.apps.get_model("core", "Agent")
+    workspace = OldWorkspace.objects.create(name="Old process")
+    OldUser = old_state.apps.get_model("auth", "User")
+    OldProfile = old_state.apps.get_model("core", "UserProfile")
+    human = OldUser.objects.create(username="human@example.com")
+    OldProfile.objects.create(user_id=human.id, timezone="UTC")
+
+    new_state = migrator.migrate(current)
+    Profile = new_state.apps.get_model("core", "UserProfile")
+    assert Profile._base_manager.get(user_id=human.id).user_type == "human"
+    with pytest.raises(LookupError):
+        new_state.apps.get_model("core", "Agent")
+    # Old processes still query this table, including workspace deletion's cascade.
+    assert OldAgent.objects.filter(workspace_id=workspace.id).count() == 0
+    workspace.delete()
+
+    User = new_state.apps.get_model("auth", "User")
+    identity = User.objects.create(username="identity@example.invalid", is_active=True)
+    Profile._base_manager.create(
+        user_id=identity.id, user_type="identity", trashed=True, timezone="UTC"
+    )
+    with pytest.raises(RuntimeError, match="while identities exist"):
+        migrator.migrate(previous)
+    assert Profile._base_manager.get(user_id=identity.id).user_type == "identity"
+    assert User.objects.get(id=identity.id).is_active
+    assert "core_agent" in connection.introspection.table_names()
+
+    Profile._base_manager.filter(user_id=identity.id).delete()
+    User.objects.filter(id=identity.id).delete()
+    reversed_state = migrator.migrate(previous)
+    OldProfile = reversed_state.apps.get_model("core", "UserProfile")
+    assert "user_type" not in {field.name for field in OldProfile._meta.fields}
+    assert "core_agent" in connection.introspection.table_names()
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0138_discards_legacy_agents_without_converting_references(
+    migrator, teardown_table_metadata
+):
+    previous = _core_migration_targets("0137_mcpendpoint_rename_create_dashboards")
+    old_state = migrator.migrate(previous)
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Agent = old_state.apps.get_model("core", "Agent")
+    TrashEntry = old_state.apps.get_model("core", "TrashEntry")
+    Action = old_state.apps.get_model("core", "Action")
+    workspace = Workspace.objects.create(name="Legacy data")
+    agent = Agent.objects.create(workspace=workspace, name="Legacy")
+    trash = TrashEntry.objects.create(
+        workspace=workspace,
+        trash_item_type="agent",
+        trash_item_id=agent.id,
+        name="Legacy",
+    )
+    action = Action.objects.create(
+        type="batch_assign_role",
+        scope="workspace",
+        params={
+            "assignments": [
+                {"subject_type_name": "core.Agent", "subject_id": agent.id}
+            ]
+        },
+    )
+    users_before = old_state.apps.get_model("auth", "User").objects.count()
+
+    new_state = migrator.migrate(_core_migration_targets("0138_user_identities"))
+
+    assert Agent.objects.count() == 0
+    assert new_state.apps.get_model("auth", "User").objects.count() == users_before
+    # Disposable legacy references are not reinterpreted as User IDs.
+    action.refresh_from_db()
+    assert action.params["assignments"][0]["subject_type_name"] == "core.Agent"
+    # A trash entry of the removed type would block the permanent deletion job.
+    assert not TrashEntry.objects.filter(id=trash.id).exists()
+    action.delete()
+    workspace.delete()

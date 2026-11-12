@@ -49,7 +49,7 @@ def test_restore_item_action_type(data_fixture):
 @pytest.mark.parametrize(
     "item_type,expected_type",
     [
-        ("agent", "identity"),
+        ("identity", "identity"),
         ("workspace", "workspace"),
         ("removed_type", "removed_type"),
     ],

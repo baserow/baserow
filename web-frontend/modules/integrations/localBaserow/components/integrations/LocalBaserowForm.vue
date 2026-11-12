@@ -19,13 +19,13 @@
               :description="$t('localBaserowForm.currentUserDescription')"
             />
           </DropdownSection>
-          <DropdownSection :title="agentSubjectType.getTabDisplayName()">
+          <DropdownSection :title="$t('subjectType.identities')">
             <DropdownItem
               v-for="identity in results"
               :key="identity.id"
               :name="identity.name"
               :value="identity.id"
-              :icon="agentSubjectType.iconClass"
+              :icon="userSubjectType.identityIconClass"
               :description="identity.description"
             />
             <DropdownItem
@@ -48,11 +48,8 @@
 import form from '@baserow/modules/core/mixins/form'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import DropdownSection from '@baserow/modules/core/components/DropdownSection'
-import AgentService from '@baserow/modules/core/services/agent'
-import {
-  AgentSubjectType,
-  UserSubjectType,
-} from '@baserow/modules/core/subjectTypes.jsx'
+import IdentityService from '@baserow/modules/core/services/identity'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes.jsx'
 
 export default {
   components: { PaginatedDropdown, DropdownSection },
@@ -84,15 +81,12 @@ export default {
     userSubjectType() {
       return this.$registry.get('subject', UserSubjectType.getType())
     },
-    agentSubjectType() {
-      return this.$registry.get('subject', AgentSubjectType.getType())
-    },
     currentUserKey() {
       return this.userSubjectType.getKey({ id: this.currentUserId })
     },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
-      // A trashed agent isn't selectable, so show nothing selected and let the
+      // A trashed identity isn't selectable, so show nothing selected and let the
       // user pick another subject.
       if (subject?.trashed) {
         return null
@@ -124,18 +118,18 @@ export default {
     async fetchIdentityPage(page, search) {
       const workspaceId = this.application.workspace.id
       const [response, roles] = await Promise.all([
-        AgentService(this.$client).listPage(workspaceId, { page, search }),
+        IdentityService(this.$client).listPage(workspaceId, { page, search }),
         this.fetchRoles(workspaceId),
       ])
       if (!search) {
         this.hasIdentities = response.data.count > 0
       }
-      const results = response.data.results.map((agent) => {
-        const role = roles.find(({ uid }) => uid === agent.role_uid)
+      const results = response.data.results.map((identity) => {
+        const role = roles.find(({ uid }) => uid === identity.role_uid)
         return {
-          id: this.agentSubjectType.getKey(agent),
-          subject_id: this.agentSubjectType.getId(agent),
-          name: agent.name,
+          id: this.userSubjectType.getKey(identity),
+          subject_id: identity.id,
+          name: identity.name,
           description: role
             ? this.$t('localBaserowForm.identityRole', { role: role.name })
             : null,
@@ -162,7 +156,7 @@ export default {
         this.values.authorized_subject_type = UserSubjectType.getType()
       } else {
         this.values.authorized_subject_id = item.subject_id
-        this.values.authorized_subject_type = AgentSubjectType.getType()
+        this.values.authorized_subject_type = UserSubjectType.getType()
       }
     },
   },

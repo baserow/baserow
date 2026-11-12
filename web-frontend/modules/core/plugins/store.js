@@ -17,7 +17,7 @@ import integrationStoreModule from '../store/integration'
 import presenceStoreModule from '../store/presence'
 import aiProviderStoreModule from '../store/aiProvider'
 import guidedTourStoreModule from '../store/guidedTour'
-import agentStoreModule from '../store/agent'
+import identityStoreModule from '../store/identity'
 import chatRunsStoreModule from '../store/chatRuns'
 import templatesAdminStoreModule from '../store/templatesAdmin'
 
@@ -43,7 +43,7 @@ export default defineNuxtPlugin({
         presence: presenceStoreModule,
         aiProvider: aiProviderStoreModule,
         guidedTour: guidedTourStoreModule,
-        agent: agentStoreModule,
+        identity: identityStoreModule,
         chatRuns: chatRunsStoreModule,
         templatesAdmin: templatesAdminStoreModule,
       },

@@ -13,7 +13,7 @@ from baserow.contrib.automation.automation_init_application import (
     AutomationApplicationTypeInitApplication,
 )
 from baserow.contrib.automation.tools.workflows import get_automation_in_workspace
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.applications import (
     ApplicationName,
     create_application,
@@ -21,6 +21,7 @@ from baserow.core.tools.applications import (
 )
 
 
+@tool_execution
 def create_automation(
     ctx: ToolContext,
     name: Annotated[
@@ -44,6 +45,7 @@ def create_automation(
     return {"created_automation": {"id": automation.id, "name": automation.name}}
 
 
+@tool_execution
 def update_automation(
     ctx: ToolContext,
     automation_id: Annotated[

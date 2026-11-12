@@ -9,10 +9,9 @@ from django.db.models import QuerySet
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent, Workspace
+from baserow.core.models import Workspace
 from baserow.core.registries import (
     permission_manager_type_registry,
     subject_type_registry,
@@ -66,7 +65,6 @@ class FieldPermissionsHandler:
     allowed_subject_types = {
         UserSubjectType.type,
         TeamSubjectType.type,
-        AgentSubjectType.type,
     }
 
     @classmethod
@@ -76,20 +74,18 @@ class FieldPermissionsHandler:
         search: str = "",
         exclude_user_ids: list[int] | None = None,
         exclude_team_ids: list[int] | None = None,
-        exclude_agent_ids: list[int] | None = None,
     ) -> QuerySet:
-        """Return selectable workspace users, agents, and teams for field permissions.
+        """Return selectable workspace users, identities, and teams for field permissions.
 
         The returned dictionaries share the response shape expected by the field
         permission subject-options API and are ordered consistently across all
         subject types.
 
-        :param workspace: The workspace whose users, agents, and teams can be selected.
+        :param workspace: The workspace whose users, identities, and teams can be selected.
         :param search: An optional case-insensitive name, username, or email search.
         :param exclude_user_ids: User IDs to omit from the result.
         :param exclude_team_ids: Team IDs to omit from the result.
-        :param exclude_agent_ids: Agent IDs to omit from the result.
-        :return: A queryset of user, agent, and team option dictionaries.
+        :return: A queryset of user, identity, and team option dictionaries.
         """
 
         return SubjectOptionsHandler.get_options(
@@ -99,7 +95,6 @@ class FieldPermissionsHandler:
             exclude_ids={
                 UserSubjectType.type: exclude_user_ids or [],
                 TeamSubjectType.type: exclude_team_ids or [],
-                AgentSubjectType.type: exclude_agent_ids or [],
             },
             order_by=("subject_name", "subject_type", "subject_id"),
         )
@@ -129,7 +124,7 @@ class FieldPermissionsHandler:
         scoped to the base :class:`Field` content type.
 
         :param field: The field whose selected subjects should be returned.
-        :return: Ordered user, agent, and team role assignments for the field.
+        :return: Ordered user, identity, and team role assignments for the field.
         """
 
         field_content_type = ContentType.objects.get_for_model(Field)
@@ -216,14 +211,14 @@ class FieldPermissionsHandler:
         cls,
         workspace: Workspace,
         subject_identifiers: list[FieldPermissionSubjectIdentifier],
-    ) -> list[AbstractUser | Team | Agent]:
+    ) -> list[AbstractUser | Team]:
         """Resolve supported subject identifiers within a workspace.
 
         Missing subjects and subjects outside the workspace intentionally produce
         the same exception so callers cannot use this operation to enumerate them.
 
         :param workspace: The workspace every resolved subject must belong to.
-        :param subject_identifiers: User, agent, and team identifiers to resolve.
+        :param subject_identifiers: User, identity, and team identifiers to resolve.
         :return: Unique subjects in deterministic type-and-ID order.
         :raises SubjectUnsupported: If an identifier uses an unsupported type.
         :raises SubjectNotExist: If a subject is missing or outside the workspace.
@@ -239,7 +234,7 @@ class FieldPermissionsHandler:
         subjects_by_identifier = {}
         for subject_type_name, subject_ids in identifiers_by_type.items():
             subject_type = subject_type_registry.get(subject_type_name)
-            subjects = list(subject_type.model_class.objects.filter(id__in=subject_ids))
+            subjects = list(subject_type.get_queryset().filter(id__in=subject_ids))
             if len(subjects) != len(subject_ids) or not all(
                 subject_type.are_in_workspace(subjects, workspace)
             ):
@@ -265,7 +260,7 @@ class FieldPermissionsHandler:
         reading assignments that will all be removed.
 
         :param field: The field whose marker assignments should be synchronized.
-        :param subject_identifiers: The complete desired user, agent, and team selection.
+        :param subject_identifiers: The complete desired user, identity, and team selection.
         :return: The synchronized marker assignments in deterministic order.
         """
 
@@ -368,7 +363,7 @@ class FieldPermissionsHandler:
         :param field: The field for which the permissions are being updated.
         :param role: The role to set for the field permissions.
         :param allow_in_forms: Whether the field can be updated in forms.
-        :param subjects: The users, agents, and teams allowed to edit when the role is CUSTOM.
+        :param subjects: The users, identities, and teams allowed to edit when the role is CUSTOM.
             If omitted while updating an existing CUSTOM permission, the current list
             is preserved.
         :return: A FieldPermissionUpdated object containing the updated permissions and

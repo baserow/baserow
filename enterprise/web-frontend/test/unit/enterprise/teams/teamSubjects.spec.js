@@ -14,20 +14,20 @@ const row = {
     },
     {
       subject_id: 2,
-      subject_type: 'core.Agent',
+      subject_type: 'auth.User',
       subject_label: 'Writer',
     },
   ],
 }
 
 describe('teamSubjects', () => {
-  test('tells users and agents with the same id apart', () => {
+  test('keys a team subject by its type and id', () => {
     expect(
       getTeamSubjectKey({ subject_id: 1, subject_type: 'auth.User' })
-    ).not.toBe(getTeamSubjectKey({ subject_id: 1, subject_type: 'core.Agent' }))
+    ).toBe('auth.User:1')
   })
 
-  test('shows users and agents at the same size in the teams table', async () => {
+  test('shows users and identities at the same size in the teams table', async () => {
     const wrapper = await mountSuspended(SubjectSampleField, {
       props: { row, column: { key: 'subject_sample' } },
     })

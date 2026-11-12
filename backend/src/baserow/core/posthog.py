@@ -116,7 +116,7 @@ def capture_event_action_done(
     subject_type = (
         subject_type_registry.get_by_model(user) if user is not None else None
     )
-    if subject_type is not None and not subject_type.is_interactive_user:
+    if subject_type is not None and not subject_type.is_interactive_user(user):
         return
 
     # Only capture do commands for now because the undo might make it more difficult

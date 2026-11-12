@@ -21,14 +21,15 @@ from baserow.contrib.agent.constants import (
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.action.registries import action_type_registry
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.ai_provider.resolution import (
     clear_ai_provider_state_cache,
     load_ai_provider_state,
 )
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.models import WorkspaceUser
 from baserow.core.signals import application_updated
+from baserow.core.subjects import UserSubjectType
 
 from .utils import agent_url
 
@@ -86,8 +87,10 @@ def test_application_readiness_uses_bulk_provider_state(
     agents = []
     for _ in range(workspace_count):
         ready = configured_agent()
-        identity = Agent.objects.create(workspace=ready.workspace, name="Investor")
-        ready.run_as_subject_type = "core.Agent"
+        identity = IdentityHandler().create_identity(
+            workspace=ready.workspace, name="Investor"
+        )
+        ready.run_as_subject_type = "auth.User"
         ready.run_as_subject_id = identity.id
         ready.save()
         agents.extend(
@@ -232,8 +235,8 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    first = Agent.objects.create(workspace=agent.workspace, name="First")
-    second = Agent.objects.create(workspace=agent.workspace, name="Second")
+    first = IdentityHandler().create_identity(workspace=agent.workspace, name="First")
+    second = IdentityHandler().create_identity(workspace=agent.workspace, name="Second")
     registered = mocker.spy(
         UpdateAgentConfigurationActionType, "send_action_done_signal"
     )
@@ -252,7 +255,7 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
     ]
     for identity in (first, second, None):
         run_as = {
-            "run_as_subject_type": AgentSubjectType.type if identity else None,
+            "run_as_subject_type": UserSubjectType.type if identity else None,
             "run_as_subject_id": identity.id if identity else None,
         }
         snapshots.append({**snapshots[-1], **run_as})
@@ -290,8 +293,10 @@ def test_configuration_audit_snapshots_record_tools_and_ignore_reordered_lists(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     registered = mocker.spy(
         UpdateAgentConfigurationActionType, "send_action_done_signal"
@@ -334,8 +339,10 @@ def test_tool_configuration_updates_the_timestamp_only_when_values_change(
 ):
     with freeze_time() as clock:
         agent = configured_agent(user=api_user)
-        identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-        agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+        identity = IdentityHandler().create_identity(
+            workspace=agent.workspace, name="Investor"
+        )
+        agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
         agent.save()
         url = agent_url(agent, "configuration")
         created_on = agent.updated_on
@@ -465,12 +472,14 @@ def test_run_as_identity_is_set_reported_and_cleared(
     configured_agent, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
     url = agent_url(agent, "configuration")
-    run_as = {"type": "core.Agent", "id": identity.id, "name": "Investor"}
+    run_as = {"type": "auth.User", "id": identity.id, "name": "Investor"}
 
     response = api_client.patch(
-        url, {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id}
+        url, {"run_as_subject_type": "auth.User", "run_as_subject_id": identity.id}
     )
     assert response.json()["run_as"] == {
         **run_as,
@@ -478,8 +487,8 @@ def test_run_as_identity_is_set_reported_and_cleared(
         "status": "active",
     }
 
-    identity.trashed = True
-    identity.save()
+    identity.profile.trashed = True
+    identity.profile.save(update_fields=["trashed"])
     assert api_client.get(url).json()["run_as"] == {
         **run_as,
         "trashed": True,
@@ -510,16 +519,17 @@ def test_configuration_preserves_unavailable_run_as_without_disclosing_subject(
     configured_agent, data_fixture, api_client, api_user, case
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(
+    identity = IdentityHandler().create_identity(
         workspace=agent.workspace, name="PRIVATE_IDENTITY_NAME"
     )
-    agent.run_as_subject_type = "core.Agent"
+    agent.run_as_subject_type = "auth.User"
     agent.run_as_subject_id = identity.id
     if case == "missing":
         identity.delete()
     elif case == "foreign":
-        identity.workspace = data_fixture.create_workspace()
-        identity.save()
+        WorkspaceUser.objects_and_identities.filter(user=identity).update(
+            workspace=data_fixture.create_workspace()
+        )
     elif case == "unknown_type":
         agent.run_as_subject_type = "unknown.subject"
     elif case == "user":
@@ -549,12 +559,14 @@ def test_configuration_serializes_the_resolved_identity_snapshot(
     configured_agent, django_assert_num_queries
 ):
     agent = configured_agent()
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type = "core.Agent"
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type = "auth.User"
     agent.run_as_subject_id = identity.id
     configuration = AgentHandler().get_configuration(agent)
     assert configuration.run_as.status is AgentRunAsState.ACTIVE
-    identity.name = "Renamed"
+    identity.first_name = "Renamed"
     identity.save()
 
     with django_assert_num_queries(0):
@@ -569,12 +581,18 @@ def test_run_as_subject_options_use_agent_scope_and_support_search_and_paginatio
     configured_agent, data_fixture, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
-    first = Agent.objects.create(workspace=agent.workspace, name="Review Alpha")
-    second = Agent.objects.create(workspace=agent.workspace, name="Review Beta")
-    Agent.objects.create(workspace=agent.workspace, name="Other identity")
-    Agent.objects.create(workspace=agent.workspace, name="Review trash", trashed=True)
+    first = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Review Alpha"
+    )
+    second = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Review Beta"
+    )
+    IdentityHandler().create_identity(workspace=agent.workspace, name="Other identity")
+    data_fixture.create_identity(
+        workspace=agent.workspace, name="Review trash", trashed=True
+    )
     other_workspace = data_fixture.create_workspace()
-    Agent.objects.create(workspace=other_workspace, name="Review foreign")
+    IdentityHandler().create_identity(workspace=other_workspace, name="Review foreign")
     params = {
         "search": "review",
         "size": 1,
@@ -591,8 +609,8 @@ def test_run_as_subject_options_use_agent_scope_and_support_search_and_paginatio
     assert first_page.json()["count"] == second_page.json()["count"] == 2
     results = first_page.json()["results"] + second_page.json()["results"]
     assert [(item["subject_type"], item["subject_id"]) for item in results] == [
-        ("core.Agent", first.id),
-        ("core.Agent", second.id),
+        ("auth.User", first.id),
+        ("auth.User", second.id),
     ]
 
 
@@ -643,7 +661,7 @@ def test_run_as_recovery_only_pins_authenticated_reads(
     [
         ("other-workspace", "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST"),
         ("trashed", "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST"),
-        ("user", "ERROR_REQUEST_BODY_VALIDATION"),
+        ("user", "ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST"),
         ("id-only", "ERROR_REQUEST_BODY_VALIDATION"),
     ],
 )
@@ -651,7 +669,7 @@ def test_run_as_rejects_subjects_the_agent_cannot_act_as(
     data_fixture, configured_agent, api_client, api_user, case, error
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=(
             data_fixture.create_workspace()
             if case == "other-workspace"
@@ -663,7 +681,7 @@ def test_run_as_rejects_subjects_the_agent_cannot_act_as(
     values = (
         {"run_as_subject_type": "auth.User", "run_as_subject_id": api_user.id}
         if case == "user"
-        else {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id}
+        else {"run_as_subject_type": "auth.User", "run_as_subject_id": identity.id}
     )
     if case == "id-only":
         del values["run_as_subject_type"]
@@ -695,8 +713,10 @@ def test_allowed_tools_are_replaced_and_validated(
     configured_agent, api_client, api_user, tools, expected, write_tool
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     url = agent_url(agent, "configuration")
 
@@ -749,8 +769,10 @@ def test_no_workspace_access_clears_tools_in_the_configuration_update(
 ):
     with freeze_time() as clock:
         agent = configured_agent(user=api_user)
-        identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-        agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+        identity = IdentityHandler().create_identity(
+            workspace=agent.workspace, name="Investor"
+        )
+        agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
         agent.save()
         AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
         previous_updated_on = agent.updated_on
@@ -786,7 +808,9 @@ def test_selecting_an_identity_does_not_reactivate_legacy_default_tools(
     configured_agent, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
     # Previous versions inserted read tools even with No workspace access.
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     url = agent_url(agent, "configuration")
@@ -795,7 +819,7 @@ def test_selecting_an_identity_does_not_reactivate_legacy_default_tools(
     assert agent.allowed_tools.count() == 2  # Reading does not mutate saved data.
     response = api_client.patch(
         url,
-        {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id},
+        {"run_as_subject_type": "auth.User", "run_as_subject_id": identity.id},
     )
 
     assert response.status_code == 200
@@ -810,13 +834,15 @@ def test_unavailable_selected_identity_keeps_its_tool_configuration(
     configured_agent, api_client, api_user, state
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     if state == "trashed":
-        identity.trashed = True
-        identity.save()
+        identity.profile.trashed = True
+        identity.profile.save(update_fields=["trashed"])
     else:
         identity.delete()
 
@@ -835,8 +861,10 @@ def test_clearing_workspace_access_rolls_back_both_identity_and_tools_on_failure
     configured_agent, api_user, mocker
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     handler = AgentHandler()
     handler.set_allowed_tools(agent, ["create_rows"])
@@ -862,8 +890,10 @@ def test_newly_allowed_change_tools_ask_first_unless_set_explicitly(
     configured_agent, api_client, api_user, mocker
 ):
     agent = configured_agent(user=api_user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     url = agent_url(agent, "configuration")
     registered = mocker.spy(

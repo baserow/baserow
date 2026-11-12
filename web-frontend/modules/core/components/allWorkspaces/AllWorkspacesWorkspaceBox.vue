@@ -311,7 +311,7 @@ export default {
       return getWorkspaceMembersCount(
         this.workspace,
         this.$hasPermission(
-          'workspace.list_agents',
+          'workspace.list_identities',
           this.workspace,
           this.workspace.id
         )

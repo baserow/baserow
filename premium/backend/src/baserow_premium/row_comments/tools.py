@@ -16,7 +16,7 @@ from baserow.core.prosemirror.utils import (
     prosemirror_doc_from_plain_text,
     prosemirror_doc_to_plain_text,
 )
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import item_error_message
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.row_comments.actions import CreateRowCommentActionType
@@ -66,6 +66,7 @@ def _from_plain_text(text: str) -> dict[str, Any]:
     }
 
 
+@tool_execution
 def list_row_comments(
     ctx: ToolContext,
     table_id: Annotated[int, Field(description="The ID of the row's table.")],
@@ -99,6 +100,7 @@ def list_row_comments(
     }
 
 
+@tool_execution
 def create_row_comments(
     ctx: ToolContext,
     table_id: Annotated[int, Field(description="The ID of the rows' table.")],

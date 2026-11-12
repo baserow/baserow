@@ -12,8 +12,6 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.license_types import EnterpriseLicenseType
 
@@ -146,8 +144,12 @@ def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
     other_user = enterprise_data_fixture.create_user(email="other@test.com")
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     other_workspace = enterprise_data_fixture.create_workspace(user=other_user)
-    agent = Agent.objects.create(workspace=workspace, name="Workspace robot")
-    Agent.objects.create(workspace=other_workspace, name="Other robot")
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Workspace robot"
+    )
+    enterprise_data_fixture.create_identity(
+        workspace=other_workspace, name="Other robot"
+    )
 
     response = api_client.get(
         reverse("api:enterprise:audit_log:actors") + f"?workspace_id={workspace.id}",
@@ -164,10 +166,10 @@ def test_workspace_audit_log_actor_filter_returns_only_workspace_actors(
             "value": admin.email,
         },
         {
-            "id": f"{AgentSubjectType.type}:{agent.id}",
-            "actor_id": agent.id,
-            "actor_type": AgentSubjectType.type,
-            "value": agent.name,
+            "id": f"{UserSubjectType.type}:{identity.id}",
+            "actor_id": identity.id,
+            "actor_type": UserSubjectType.type,
+            "value": identity.first_name,
         },
     ]
 
@@ -210,15 +212,15 @@ def test_workspace_audit_log_actor_filter_includes_disabled_and_deletion_schedul
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_workspace_audit_log_actor_filter_includes_trashed_agents(
+def test_workspace_audit_log_actor_filter_includes_trashed_identities(
     api_client, enterprise_data_fixture
 ):
-    """Historical agent actors remain selectable after being trashed."""
+    """Historical identity actors remain selectable after being trashed."""
 
     enterprise_data_fixture.enable_enterprise()
     admin, token = enterprise_data_fixture.create_user_and_token(email="admin@test.com")
     workspace = enterprise_data_fixture.create_workspace(user=admin)
-    agent = Agent.objects.create(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Trashed robot", trashed=True
     )
 
@@ -233,7 +235,7 @@ def test_workspace_audit_log_actor_filter_includes_trashed_agents(
         (actor["actor_type"], actor["actor_id"]) for actor in response.json()["results"]
     } == {
         (UserSubjectType.type, admin.id),
-        (AgentSubjectType.type, agent.id),
+        (UserSubjectType.type, identity.id),
     }
 
 

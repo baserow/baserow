@@ -10,6 +10,9 @@ class SubjectOptionsQueryParamsSerializer(serializers.Serializer):
         required=False, allow_blank=True, allow_null=True, default=None
     )
     workspace_id = serializers.IntegerField(min_value=1, required=False, default=None)
+    user_type = serializers.ChoiceField(
+        choices=["human", "identity", "all"], default="human"
+    )
     subject_types = serializers.CharField(required=False, allow_blank=False)
 
     def validate_subject_types(self, value):
@@ -25,6 +28,9 @@ class SubjectOptionsQueryParamsSerializer(serializers.Serializer):
 
 
 class SubjectOptionSerializer(serializers.Serializer):
+    user_type = serializers.CharField(
+        source="subject_user_type", read_only=True, allow_null=True
+    )
     id = serializers.SerializerMethodField()
     subject_id = serializers.IntegerField(read_only=True)
     subject_type = serializers.CharField(read_only=True)

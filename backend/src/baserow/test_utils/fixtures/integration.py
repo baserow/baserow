@@ -7,11 +7,11 @@ from baserow.core.integrations.registries import integration_type_registry
 
 class IntegrationFixtures:
     def create_local_baserow_integration(self, **kwargs):
-        authorized_agent = kwargs.pop("authorized_agent", None)
+        authorized_identity = kwargs.pop("authorized_identity", None)
         authorized_user = kwargs.pop("authorized_user", None)
-        if authorized_agent is not None:
-            kwargs["authorized_subject_type"] = "core.Agent"
-            kwargs["authorized_subject_id"] = authorized_agent.id
+        if authorized_identity is not None:
+            kwargs["authorized_subject_type"] = "auth.User"
+            kwargs["authorized_subject_id"] = authorized_identity.id
         else:
             if authorized_user is None:
                 if not kwargs.get("user", None):

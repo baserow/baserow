@@ -34,7 +34,7 @@ from baserow.contrib.database.table.operations import (
     ListRowsDatabaseTableOperationType,
 )
 from baserow.contrib.database.tools.tables import get_table
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 
 
 class RowUpdate(BaseModel):
@@ -91,6 +91,7 @@ def _validate_rows(
     return data["items"]
 
 
+@tool_execution
 def list_table_rows(
     ctx: ToolContext,
     table_id: Annotated[
@@ -124,6 +125,7 @@ def list_table_rows(
     }
 
 
+@tool_execution
 def create_rows(
     ctx: ToolContext,
     table_id: Annotated[
@@ -152,6 +154,7 @@ def create_rows(
     return list(serialize_rows_for_response(created, model, user_field_names=True))
 
 
+@tool_execution
 def update_rows(
     ctx: ToolContext,
     table_id: Annotated[
@@ -182,6 +185,7 @@ def update_rows(
     )
 
 
+@tool_execution
 def delete_rows(
     ctx: ToolContext,
     table_id: Annotated[

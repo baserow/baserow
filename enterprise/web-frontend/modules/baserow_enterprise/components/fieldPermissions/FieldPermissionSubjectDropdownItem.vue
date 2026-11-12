@@ -18,12 +18,12 @@
     >
       <div class="select__item-name">
         <div class="field-permission-subjects__dropdown-option">
-          <Avatar
+          <component
+            :is="$registry.get('subject', result.subjectType).avatarComponent"
             v-if="result.subjectType === userSubjectType"
-            rounded
+            :subject="result.subject"
             size="large"
-            :initials="nameAbbreviation(result.label)"
-          ></Avatar>
+          />
           <span
             v-else
             class="field-permission-subjects__team-icon field-permission-subjects__team-icon--dropdown"
@@ -48,7 +48,6 @@
 </template>
 
 <script>
-import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 import dropdownItem from '@baserow/modules/core/mixins/dropdownItem'
 
 const USER_SUBJECT_TYPE = 'auth.User'
@@ -66,9 +65,6 @@ export default {
     return {
       userSubjectType: USER_SUBJECT_TYPE,
     }
-  },
-  methods: {
-    nameAbbreviation,
   },
 }
 </script>

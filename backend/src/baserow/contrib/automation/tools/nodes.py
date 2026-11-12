@@ -41,7 +41,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import item_error_message
 
 
@@ -250,6 +250,7 @@ def describe_workflow_nodes(
     return nodes
 
 
+@tool_execution
 def list_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -426,6 +427,7 @@ def node_table_ids(nodes: list[TriggerNodeCreate | ActionNodeCreate]) -> set[int
     return table_ids
 
 
+@tool_execution
 def add_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -550,6 +552,7 @@ def _reload_graph(workflow: AutomationWorkflow) -> None:
     AutomationNodeHandler().invalidate_node_cache(workflow)
 
 
+@tool_execution
 def update_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -626,6 +629,7 @@ def update_nodes(
     return result
 
 
+@tool_execution
 def delete_nodes(
     ctx: ToolContext,
     node_ids: Annotated[

@@ -329,7 +329,7 @@ def broadcast_to_permitted_users(
         workspace_user.user
         for workspace_user in WorkspaceUser.objects.filter(
             workspace=workspace
-        ).select_related("user")
+        ).select_related("user__profile")
     ]
 
     scope_type = object_scope_type_registry.get(scope_name)
@@ -520,7 +520,7 @@ def _send_ai_provider_workspace_update(
     workspace, base_payload, provider_payload = rendered
     workspace_users = (
         workspace.workspaceuser_set.order_by("id")
-        .select_related("user")
+        .select_related("user__profile")
         .iterator(chunk_size=AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE)
     )
     for workspace_user_batch in grouper(
@@ -804,7 +804,7 @@ def _get_application_readers(application: "Application") -> list["AbstractUser"]
         workspace_user.user
         for workspace_user in WorkspaceUser.objects.filter(
             workspace=workspace
-        ).select_related("user")
+        ).select_related("user__profile")
     ]
     return CoreHandler().check_permission_for_multiple_actors(
         users_in_workspace,

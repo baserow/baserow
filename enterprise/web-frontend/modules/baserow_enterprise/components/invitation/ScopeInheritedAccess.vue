@@ -68,7 +68,7 @@ import nameAbbreviation from '@baserow/modules/core/filters/nameAbbreviation'
 /**
  * Who else reaches the object, summarised per level above it: the workspace,
  * and for a table or view the database, and for a view the table. A member or
- * agent is counted once, under the level their effective role comes from, so
+ * identity is counted once, under the level their effective role comes from, so
  * whoever is blocked on a level above isn't counted at all. Those with a role on
  * the object itself, directly or through a team, are listed as direct access
  * instead, as are those whose own row there has no effect. Managing a level above
@@ -92,7 +92,7 @@ export default {
       required: true,
     },
     /**
-     * The effective access of every member and agent with access to the object,
+     * The effective access of every member and identity with access to the object,
      * as returned by the effective access endpoint.
      */
     effectiveAccess: {
@@ -224,10 +224,7 @@ export default {
       }
       return this.targetType.getScopeTypeName(scopeType, scope).toLowerCase()
     },
-    /**
-     * Counts the members per role, then the agents per role, of the enabled
-     * subject types, in the order of the roles.
-     */
+    /** Counts the subjects per role, in the order of the roles. */
     getCounts(access, roles) {
       const counts = []
       for (const subjectType of this.enabledSubjectTypes) {
@@ -244,13 +241,7 @@ export default {
           }
           counts.push({
             key: `${subjectType.type}:${role.uid}`,
-            label: subjectType.isUser()
-              ? this.$t('shareScope.roleCount', { count, role: role.name })
-              : this.$t(
-                  'shareScope.identityRoleCount',
-                  { count, role: role.name },
-                  count
-                ),
+            label: this.$t('shareScope.roleCount', { count, role: role.name }),
           })
         }
       }

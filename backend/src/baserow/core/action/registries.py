@@ -404,7 +404,7 @@ class UndoableActionTypeMixin:
         subject_type = subject_type_registry.get_by_model(user)
         # Non-interactive subjects must not create an Action, but still emit
         # action_done so consumers such as the audit log record the action.
-        if not subject_type.is_interactive_user:
+        if not subject_type.is_interactive_user(user):
             serialized_params = json.loads(
                 json.dumps(
                     cls.params_to_serializable(params),

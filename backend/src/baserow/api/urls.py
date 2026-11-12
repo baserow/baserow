@@ -12,12 +12,12 @@ from baserow.core.services.registries import service_type_registry
 
 from .abuse_reports import urls as abuse_reports_urls
 from .admin import urls as admin_urls
-from .agents import urls as agents_urls
 from .ai_provider import urls as ai_provider_urls
 from .applications import urls as application_urls
 from .auth_provider import urls as auth_provider_urls
 from .chat_runs import urls as chat_runs_urls
 from .health import urls as health_urls
+from .identities import urls as identities_urls
 from .integrations import urls as integrations_urls
 from .jobs import urls as jobs_urls
 from .last_viewed import urls as last_viewed_urls
@@ -49,7 +49,7 @@ urlpatterns = (
         ),
         path("settings/", include(settings_urls, namespace="settings")),
         path("abuse-reports/", include(abuse_reports_urls, namespace="abuse_reports")),
-        path("agents/", include(agents_urls, namespace="agents")),
+        path("identities/", include(identities_urls, namespace="identities")),
         path("chat-runs/", include(chat_runs_urls, namespace="chat_runs")),
         path("auth-provider/", include(auth_provider_urls, namespace="auth_provider")),
         path("two-factor-auth/", include(two_factor_urls, namespace="two_factor_auth")),

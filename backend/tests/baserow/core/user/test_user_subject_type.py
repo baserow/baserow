@@ -2,7 +2,7 @@ from typing import NamedTuple
 
 import pytest
 
-from baserow.core.models import User, Workspace
+from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
 from baserow.core.subjects import UserSubjectType
 
 
@@ -21,7 +21,7 @@ def test_user_subject_type_is_in_workspace(data_fixture):
 
     fake_user = FakeUser(9999999)
 
-    assert UserSubjectType().is_interactive_user
+    assert UserSubjectType().is_interactive_user(user_in_workspace)
     assert UserSubjectType().is_in_workspace(user_not_in_workspace, workspace) is False
     assert UserSubjectType().is_in_workspace(user_in_workspace, workspace) is True
     assert UserSubjectType().is_in_workspace(fake_user, workspace) is False
@@ -66,6 +66,28 @@ def test_user_subject_type_uses_prefetched_workspace_memberships(
             False,
             False,
         ]
+
+
+@pytest.mark.django_db
+def test_user_subject_type_rechecks_prefetched_memberships_with_identities(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    member = data_fixture.create_user(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace)
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+    subjects = [member, identity]
+
+    with django_assert_num_queries(2):
+        assert UserSubjectType().are_in_workspace(subjects, workspace) == [True, True]
+
+    WorkspaceUser.objects.filter(workspace=workspace, user=member).delete()
+    UserProfile.objects.filter(user_id=identity.id).update(to_be_deleted=True)
+
+    with django_assert_num_queries(2):
+        assert UserSubjectType().are_in_workspace(subjects, workspace) == [False, False]
 
 
 @pytest.mark.django_db

@@ -22,13 +22,13 @@ describe('LocalBaserowForm', () => {
       name: 'Acme',
       users: [],
     })
-    testApp.mock.onGet('/agents/workspace/1/').reply(200, {
+    testApp.mock.onGet('/identities/workspace/1/').reply(200, {
       count: 2,
       next: null,
       previous: null,
       results: [
-        { id: 10, name: 'Writer agent', role_uid: 'MEMBER' },
-        { id: 11, name: 'Reader agent', role_uid: 'UNKNOWN' },
+        { id: 10, name: 'Writer identity', role_uid: 'MEMBER' },
+        { id: 11, name: 'Reader identity', role_uid: 'UNKNOWN' },
       ],
     })
   })
@@ -83,8 +83,8 @@ describe('LocalBaserowForm', () => {
       {
         title: 'subjectType.identities',
         items: [
-          ['Writer agent', 'localBaserowForm.identityRole'],
-          ['Reader agent', null],
+          ['Writer identity', 'localBaserowForm.identityRole'],
+          ['Reader identity', null],
         ],
       },
     ])
@@ -92,7 +92,7 @@ describe('LocalBaserowForm', () => {
 
   test('tells when the workspace has no identities yet', async () => {
     testApp.mock
-      .onGet('/agents/workspace/1/')
+      .onGet('/identities/workspace/1/')
       .reply(200, { count: 0, next: null, previous: null, results: [] })
     const wrapper = await mountComponent()
     await openDropdown(wrapper)
@@ -108,30 +108,38 @@ describe('LocalBaserowForm', () => {
   test('emits the selected identity as typed subject', async () => {
     const wrapper = await mountComponent()
     await openDropdown(wrapper)
-    await selectItem(wrapper, 'Writer agent')
+    await selectItem(wrapper, 'Writer identity')
 
-    expect(wrapper.find('.dropdown__selected-text').text()).toBe('Writer agent')
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'Writer identity'
+    )
     expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
       authorized_subject_id: 10,
-      authorized_subject_type: 'core.Agent',
+      authorized_subject_type: 'auth.User',
     })
   })
 
-  test('shows the saved agent as selected', async () => {
-    const wrapper = await mountComponent({
-      authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
-    })
-    await flushPromises()
-
-    expect(wrapper.find('.dropdown__selected-text').text()).toBe('Reader agent')
-  })
-
-  test('shows nothing selected for a saved trashed agent', async () => {
+  test('shows the saved identity as selected', async () => {
     const wrapper = await mountComponent({
       authorized_subject: {
         id: 11,
-        type: 'core.Agent',
-        name: 'Reader agent',
+        type: 'auth.User',
+        name: 'Reader identity',
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'Reader identity'
+    )
+  })
+
+  test('shows nothing selected for a saved trashed identity', async () => {
+    const wrapper = await mountComponent({
+      authorized_subject: {
+        id: 11,
+        type: 'auth.User',
+        name: 'Reader identity',
         trashed: true,
       },
     })
@@ -171,7 +179,11 @@ describe('LocalBaserowForm', () => {
 
   test('emits the current user as an explicit authorization subject', async () => {
     const wrapper = await mountComponent({
-      authorized_subject: { id: 11, type: 'core.Agent', name: 'Reader agent' },
+      authorized_subject: {
+        id: 11,
+        type: 'auth.User',
+        name: 'Reader identity',
+      },
     })
     await openDropdown(wrapper)
     await selectItem(wrapper, 'localBaserowForm.currentUser')
