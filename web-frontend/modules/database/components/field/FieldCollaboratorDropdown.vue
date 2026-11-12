@@ -64,10 +64,20 @@
           :color="''"
         ></FieldCollaboratorDropdownItem>
         <FieldCollaboratorDropdownItem
-          v-for="collaborator in results"
+          v-for="collaborator in people"
           :key="collaborator.id"
           :name="collaborator.name"
           :value="collaborator.id"
+        ></FieldCollaboratorDropdownItem>
+        <li v-if="identities.length" class="select-collaborators__group">
+          {{ $t('fieldmultipleCollaboratorsDropdown.identities') }}
+        </li>
+        <FieldCollaboratorDropdownItem
+          v-for="collaborator in identities"
+          :key="collaborator.id"
+          :name="collaborator.name"
+          :value="collaborator.id"
+          user-type="identity"
         ></FieldCollaboratorDropdownItem>
       </ul>
       <div v-if="isNotFound" class="select__description">
@@ -102,6 +112,16 @@ export default {
     },
   },
   computed: {
+    people() {
+      return this.results.filter(
+        (collaborator) => !this.isIdentity(collaborator)
+      )
+    },
+    identities() {
+      return this.results.filter((collaborator) =>
+        this.isIdentity(collaborator)
+      )
+    },
     isNotFound() {
       return this.results.length === 0 && this.query !== ''
     },
@@ -112,6 +132,13 @@ export default {
     },
   },
   methods: {
+    isIdentity(collaborator) {
+      return (
+        collaborator.user_type === 'identity' ||
+        this.$store.getters['workspace/getCollaboratorById'](collaborator.id)
+          ?.user_type === 'identity'
+      )
+    },
     filterItems(search) {
       return this.collaborators.filter((collaborator) => {
         return collaborator.name.toLowerCase().includes(search.toLowerCase())

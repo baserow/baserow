@@ -158,6 +158,7 @@ from baserow.contrib.database.views.models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
     FormView,
     View,
+    ViewDefaultValue,
 )
 from baserow.contrib.database.workflow_actions.handler import (
     DatabaseWorkflowActionHandler,
@@ -185,7 +186,7 @@ from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.utils import file_chunk_generator
-from baserow.core.models import UserFile, WorkspaceUser
+from baserow.core.models import UserFile, UserProfile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import (
     ExportZipFile,
@@ -193,6 +194,7 @@ from baserow.core.storage import (
     get_default_storage,
 )
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.identity import IDENTITY_EMAIL_DOMAIN
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.utils import grouper, list_to_comma_separated_string
@@ -556,8 +558,8 @@ class TextFieldType(CollationSortMixin, FieldType):
 class LongTextFieldType(CollationSortMixin, FieldType):
     type = "long_text"
     model_class = LongTextField
-    allowed_fields = ["long_text_enable_rich_text"]
-    serializer_field_names = ["long_text_enable_rich_text"]
+    allowed_fields = ["long_text_enable_rich_text", "long_text_include_identities"]
+    serializer_field_names = allowed_fields
     public_serializer_field_names = serializer_field_names
     api_exceptions_map = {
         RichTextImageLimitExceeded: ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,
@@ -7879,17 +7881,20 @@ class MultipleCollaboratorsFieldType(
     type = "multiple_collaborators"
     model_class = MultipleCollaboratorsField
     can_get_unique_values = False
-    allowed_fields = ["notify_user_when_added"]
-    request_serializer_field_names = ["notify_user_when_added"]
+    allowed_fields = ["notify_user_when_added", "include_identities"]
+    request_serializer_field_names = allowed_fields
     request_serializer_field_overrides = {
         "notify_user_when_added": serializers.BooleanField(required=False),
+        "include_identities": serializers.BooleanField(required=False),
     }
     serializer_field_names = [
         "available_collaborators",
         *request_serializer_field_names,
     ]
     serializer_field_overrides = {
-        "available_collaborators": AvailableCollaboratorsSerializer(),
+        "available_collaborators": AvailableCollaboratorsSerializer(
+            include_identities_source="include_identities"
+        ),
         **request_serializer_field_overrides,
     }
     is_many_to_many_field = True
@@ -7897,6 +7902,108 @@ class MultipleCollaboratorsFieldType(
 
     def can_represent_collaborators(self, field):
         return True
+
+    def _stops_including_identities(
+        self, old_field: Field, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        return (
+            isinstance(old_field, MultipleCollaboratorsField)
+            and old_field.include_identities
+            and new_field_attrs.get("include_identities") is False
+        )
+
+    def should_backup_field_data_for_same_type_update(
+        self, old_field: MultipleCollaboratorsField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        return self._stops_including_identities(old_field, new_field_attrs)
+
+    def should_update_search_data(
+        self, old_field: MultipleCollaboratorsField, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        return self._stops_including_identities(old_field, new_field_attrs)
+
+    def after_update(
+        self,
+        from_field,
+        to_field,
+        from_model,
+        to_model,
+        user,
+        connection,
+        altered_column,
+        before,
+        to_field_kwargs,
+    ):
+        super().after_update(
+            from_field,
+            to_field,
+            from_model,
+            to_model,
+            user,
+            connection,
+            altered_column,
+            before,
+            to_field_kwargs,
+        )
+        if self._stops_including_identities(
+            from_field, {"include_identities": to_field.include_identities}
+        ):
+            self._delete_identity_values(to_field, to_model)
+
+    def _delete_identity_values(
+        self, field: MultipleCollaboratorsField, model: Type[GeneratedTableModel]
+    ) -> None:
+        """
+        Removes every identity from the cells and the view defaults of the field,
+        so hidden values can't keep counting in filters, formulas and aggregations.
+
+        :param field: The field that stopped including identities.
+        :param model: The generated model of the field's table.
+        """
+
+        identity_profiles = UserProfile.objects_and_trash.filter(
+            user_type=UserProfile.UserType.IDENTITY
+        )
+        through_model = model._meta.get_field(field.db_column).remote_field.through
+        user_field_name = through_model._meta.get_fields()[2].name
+        through_model.objects.filter(
+            **{f"{user_field_name}_id__in": identity_profiles.values("user_id")}
+        ).delete()
+
+        view_defaults = [
+            view_default
+            for view_default in ViewDefaultValue.objects.filter(field_id=field.id)
+            if isinstance(view_default.value, list)
+        ]
+        identity_ids = set(
+            identity_profiles.filter(
+                user_id__in=[
+                    user["id"]
+                    for view_default in view_defaults
+                    for user in view_default.value
+                ]
+            ).values_list("user_id", flat=True)
+        )
+        for view_default in view_defaults:
+            humans = [
+                user for user in view_default.value if user["id"] not in identity_ids
+            ]
+            if len(humans) != len(view_default.value):
+                view_default.value = humans
+                view_default.save(update_fields=["value"])
+
+    def _get_collaborators(self, field: MultipleCollaboratorsField) -> QuerySet:
+        """
+        Returns the users the field accepts: the human members of its workspace
+        and, when the field includes them, the active identities.
+
+        :param field: The collaborators field.
+        :return: The users that can be assigned in the field.
+        """
+
+        return CoreHandler().get_workspace_collaborators(
+            field.table.database.workspace_id, field.include_identities
+        )
 
     def get_serializer_field(self, instance, **kwargs):
         from baserow.contrib.database.api.fields.serializers import (
@@ -7944,7 +8051,8 @@ class MultipleCollaboratorsFieldType(
                 return value
 
             users_by_id = {
-                user.id: user for user in get_user_model().objects.filter(id__in=value)
+                user.id: user
+                for user in self._get_collaborators(field).filter(id__in=value)
             }
             users = [
                 users_by_id[user_id] for user_id in value if user_id in users_by_id
@@ -7977,10 +8085,9 @@ class MultipleCollaboratorsFieldType(
             return []
 
         user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
-        workspace = instance.table.database.workspace
-        workspace_users_count = WorkspaceUser.objects.filter(
-            user_id__in=user_ids, workspace_id=workspace.id
-        ).count()
+        workspace_users_count = (
+            self._get_collaborators(instance).filter(id__in=user_ids).count()
+        )
 
         if workspace_users_count != len(user_ids):
             raise AllProvidedCollaboratorIdsMustBeValidUsers(user_ids)
@@ -8000,11 +8107,11 @@ class MultipleCollaboratorsFieldType(
             all_user_ids = all_user_ids.union(user_ids)
             values_by_row[row_index] = user_ids
 
-        workspace = instance.table.database.workspace
-
-        selected_ids = WorkspaceUser.objects.filter(
-            user_id__in=all_user_ids, workspace_id=workspace.id
-        ).values_list("user_id", flat=True)
+        selected_ids = (
+            self._get_collaborators(instance)
+            .filter(id__in=all_user_ids)
+            .values_list("id", flat=True)
+        )
 
         if len(selected_ids) != len(all_user_ids):
             invalid_ids = sorted(list(all_user_ids - set(selected_ids)))
@@ -8035,7 +8142,13 @@ class MultipleCollaboratorsFieldType(
         if not value:
             return [] if rich_value else ""
 
-        result = [f"{user.first_name} <{user.email}>" for user in value]
+        # An identity has no real email, so its export only says what it is.
+        result = [
+            f"{user.first_name} <identity>"
+            if user.email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
+            else f"{user.first_name} <{user.email}>"
+            for user in value
+        ]
         if rich_value:
             return result
         else:
@@ -8127,9 +8240,7 @@ class MultipleCollaboratorsFieldType(
             "db_constraint": False,
         }
         additional_filters = {
-            "id__in": WorkspaceUser.objects.filter(
-                workspace_id=instance.table.database.workspace_id
-            ).values_list("user_id", flat=True)
+            "id__in": self._get_collaborators(instance).values_list("id", flat=True)
         }
 
         MultipleSelectManyToManyField(
@@ -8159,7 +8270,16 @@ class MultipleCollaboratorsFieldType(
             through_model_fields = through_model._meta.get_fields()
             current_field_name = through_model_fields[1].name
             relation_field_name = through_model_fields[2].name
-            users_relation = through_model.objects.select_related(relation_field_name)
+            users_relation = through_model.objects.filter(
+                **{
+                    f"{relation_field_name}_id__in": CoreHandler()
+                    .get_workspace_collaborators(
+                        row.baserow_table.database.workspace_id,
+                        include_identities=True,
+                    )
+                    .values("id")
+                }
+            ).select_related(relation_field_name)
             for relation in users_relation:
                 cache[cache_entry][
                     getattr(relation, f"{current_field_name}_id")
@@ -8177,12 +8297,11 @@ class MultipleCollaboratorsFieldType(
             # containing a mapping of the row ids to collaborator emails.
             cache[cache_entry] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                workspace_id=workspace_id
-            ).select_related("user")
-
-            for workspaceuser in workspaceusers_from_workspace:
-                cache[cache_entry][workspaceuser.user.email] = workspaceuser.user.id
+            collaborators = CoreHandler().get_workspace_collaborators(
+                workspace_id, include_identities=True
+            )
+            for user in collaborators:
+                cache[cache_entry][user.email] = user.id
 
         through_model = row._meta.get_field(field_name).remote_field.through
         through_model_fields = through_model._meta.get_fields()
@@ -8213,9 +8332,9 @@ class MultipleCollaboratorsFieldType(
         cache_entry = f"collaborator_id_to_email_export_{workspace_id}"
         if cache_entry not in cache:
             cache[cache_entry] = dict(
-                WorkspaceUser.objects.filter(workspace_id=workspace_id).values_list(
-                    "user_id", "user__email"
-                )
+                CoreHandler()
+                .get_workspace_collaborators(workspace_id, include_identities=True)
+                .values_list("id", "email")
             )
 
         id_to_email = cache[cache_entry]
@@ -8232,19 +8351,17 @@ class MultipleCollaboratorsFieldType(
         cache_key = f"collaborator_email_to_id_import_{workspace_id}"
         if cache_key not in cache:
             cache[cache_key] = {
-                workspace_user["user__email"]: workspace_user
-                for workspace_user in WorkspaceUser.objects.filter(
-                    workspace_id=workspace_id
+                user.email: {"id": user.id, "name": user.first_name}
+                for user in CoreHandler().get_workspace_collaborators(
+                    workspace_id, include_identities=True
                 )
-                .select_related("user")
-                .values("user__email", "user__first_name", "user_id")
             }
 
         email_to_id = cache[cache_key]
         return [
             {
-                "id": email_to_id[email]["user_id"],
-                "name": email_to_id[email]["user__first_name"],
+                "id": email_to_id[email]["id"],
+                "name": email_to_id[email]["name"],
             }
             for email in value
             if isinstance(email, str) and email in email_to_id
@@ -8258,11 +8375,9 @@ class MultipleCollaboratorsFieldType(
         cache_entry_name = f"field_{instance.id}_collaborators"
 
         if cache_entry_name not in cache:
-            table = Table.objects.get(id=instance.table_id)
-            workspaceusers_ids = WorkspaceUser.objects.filter(
-                workspace=table.database.workspace_id
-            ).values_list("user_id", flat=True)
-            cache[cache_entry_name] = list(workspaceusers_ids)
+            cache[cache_entry_name] = list(
+                self._get_collaborators(instance).values_list("id", flat=True)
+            )
 
         collaborators = cache[cache_entry_name]
 

@@ -22,6 +22,11 @@ export default {
   mixins: [viewFilter, availableCollaborators],
   emits: ['input'],
   computed: {
+    workspaceId() {
+      return this.isPublicView
+        ? null
+        : this.$store.getters['workspace/getSelected']?.id
+    },
     copy() {
       const value = this.filter.value
       return value === '' ? null : parseInt(value) || null

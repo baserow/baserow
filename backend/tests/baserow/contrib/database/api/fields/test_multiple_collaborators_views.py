@@ -33,7 +33,7 @@ def test_multiple_collaborators_field_type_create(api_client, data_fixture):
     assert response_json["type"] == "multiple_collaborators"
     assert response_json["notify_user_when_added"] is False
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name}
+        {"id": user.id, "name": user.first_name, "user_type": "human"}
     ]
 
 
@@ -68,8 +68,8 @@ def test_multiple_collaborators_field_type_update(api_client, data_fixture):
     assert response_json["name"] == "New collaborator 1"
     assert response_json["type"] == "multiple_collaborators"
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name},
-        {"id": user_2.id, "name": user_2.first_name},
+        {"id": user.id, "name": user.first_name, "user_type": "human"},
+        {"id": user_2.id, "name": user_2.first_name, "user_type": "human"},
     ]
 
 

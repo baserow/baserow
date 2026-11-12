@@ -38,7 +38,9 @@ export default {
         openLinkOnClick: true,
         enableImages: this.enableImages,
         workspaceUsers:
-          this.enableMentions && workspace ? workspace.users : null,
+          this.enableMentions && workspace
+            ? this.$store.getters['workspace/getCollaborators'](workspace.id)
+            : null,
         loggedUserId,
       })
     },
