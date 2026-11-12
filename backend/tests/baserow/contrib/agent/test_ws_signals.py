@@ -253,6 +253,7 @@ def test_renames_pins_deletions_and_restores_notify_only_the_owner(
                 "type": "agent_conversation_updated",
                 **event,
                 "values": {"title": "Renamed", "pinned": True},
+                "conversation": update_of(conversation)["conversation"],
             },
             ignore_web_socket_id="source-tab",
         ),

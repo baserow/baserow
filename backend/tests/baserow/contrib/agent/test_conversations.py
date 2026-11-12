@@ -765,6 +765,11 @@ def test_pin_uses_the_update_endpoint_without_changing_activity(
     old.refresh_from_db()
     assert old.updated_on == updated_on
     assert changed.call_args.kwargs["values"] == {"pinned": True}
+    # Form bodies fill omitted booleans with False unless validated as partial.
+    renamed = api_client.patch(
+        url, "title=Renamed", content_type="application/x-www-form-urlencoded"
+    ).json()
+    assert (renamed["title"], renamed["pinned"]) == ("Renamed", True)
     assert api_client.patch(url, {"pinned": False}).json()["pinned"] is False
     assert [row["id"] for row in api_client.get(list_url).json()["results"]] == [
         recent.id,

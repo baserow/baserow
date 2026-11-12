@@ -412,8 +412,8 @@ class AgentConversationView(APIView):
         tags=["Agent applications"],
         operation_id="update_agent_conversation",
         description=(
-            "Updates one of the authenticated user's conversations, for now only its "
-            "title. It keeps its place in the list, which is ordered by activity."
+            "Updates the title or pinned state of one of the authenticated user's "
+            "conversations, without changing its last activity time."
         ),
         parameters=[AGENT_ID_PATH_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
         request=AgentConversationUpdateSerializer,
@@ -424,7 +424,9 @@ class AgentConversationView(APIView):
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
-    @validate_body(AgentConversationUpdateSerializer, return_validated=True)
+    @validate_body(
+        AgentConversationUpdateSerializer, partial=True, return_validated=True
+    )
     def patch(
         self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
     ) -> Response:

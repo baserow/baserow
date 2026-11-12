@@ -1,4 +1,7 @@
-from django.contrib.postgres.operations import AddIndexConcurrently
+from django.contrib.postgres.operations import (
+    AddIndexConcurrently,
+    RemoveIndexConcurrently,
+)
 from django.db import migrations, models
 
 
@@ -23,5 +26,9 @@ class Migration(migrations.Migration):
                 fields=["agent", "owner_user", "-pinned", "-updated_on", "-id"],
                 name="agent_conversation_pinned_idx",
             ),
+        ),
+        RemoveIndexConcurrently(
+            model_name="agentconversation",
+            name="agent_conversation_owner_idx",
         ),
     ]

@@ -73,10 +73,6 @@ class AgentConversation(
         ordering = ("-pinned", "-updated_on", "-id")
         indexes = [
             models.Index(
-                fields=["agent", "owner_user", "-updated_on", "-id"],
-                name="agent_conversation_owner_idx",
-            ),
-            models.Index(
                 fields=["agent", "owner_user", "-pinned", "-updated_on", "-id"],
                 name="agent_conversation_pinned_idx",
             ),
