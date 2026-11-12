@@ -842,6 +842,9 @@ class HeadingElementType(ElementType):
         value: BaserowFormulaObject
         level: int
 
+    def get_event_names(self, instance: HeadingElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     def get_graph_point_label(self, instance: HeadingElement) -> str:
         value = instance.value
         if isinstance(value, dict):
@@ -908,6 +911,9 @@ class TextElementType(ElementType):
     class SerializedDict(ElementDict):
         value: BaserowFormulaObject
         format: str
+
+    def get_event_names(self, instance: TextElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
@@ -1286,6 +1292,9 @@ class ImageElementType(ElementType):
         image_file_id: int
         image_url: BaserowFormulaObject
         alt_text: BaserowFormulaObject
+
+    def get_event_names(self, instance: ImageElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     def get_pytest_params(self, pytest_data_fixture):
         return {

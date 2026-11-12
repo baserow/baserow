@@ -1,3 +1,4 @@
+import { useNuxtApp } from '#app'
 import {
   CheckboxElementType,
   ChoiceElementType,
@@ -1358,6 +1359,8 @@ describe('elementTypes tests', () => {
   describe('HeadingElementType isInError tests', () => {
     test('Returns true if Heading Element has errors, false otherwise', () => {
       const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1, workflowActions: [] }
+      const builder = { pages: [page] }
 
       // Heading with missing value is invalid
       expect(
@@ -1368,21 +1371,22 @@ describe('elementTypes tests', () => {
       ).toBe(true)
 
       // Heading with value is valid
-      expect(
-        elementType.isInError(
-          { value: { formula: "'Foo Heading'" } },
-          {
-            page: {},
-            element: { value: { formula: "'Foo Heading'" } },
-          }
-        )
-      ).toBe(false)
+      const element = {
+        id: 1,
+        page_id: page.id,
+        value: { formula: "'Foo Heading'" },
+      }
+      expect(elementType.isInError(element, { page, builder, element })).toBe(
+        false
+      )
     })
   })
 
   describe('TextElementType isInError tests', () => {
     test('Returns true if Text Element has errors, false otherwise', () => {
       const elementType = testApp.$registry.get('element', 'text')
+      const page = { id: 1, workflowActions: [] }
+      const builder = { pages: [page] }
 
       // Text with missing value is invalid
       expect(
@@ -1393,15 +1397,14 @@ describe('elementTypes tests', () => {
       ).toBe(true)
 
       // Text with value is valid
-      expect(
-        elementType.isInError(
-          { value: { formula: "'Foo Text'" } },
-          {
-            page: {},
-            element: { value: { formula: "'Foo Text'" } },
-          }
-        )
-      ).toBe(false)
+      const element = {
+        id: 1,
+        page_id: page.id,
+        value: { formula: "'Foo Text'" },
+      }
+      expect(elementType.isInError(element, { page, builder, element })).toBe(
+        false
+      )
     })
   })
 
@@ -1454,23 +1457,30 @@ describe('elementTypes tests', () => {
   describe('ImageElementType isInError tests', () => {
     test('Returns true if Image Element has errors, false otherwise', () => {
       const elementType = testApp.$registry.get('element', 'image')
+      const page = { id: 1, workflowActions: [] }
+      const builder = { pages: [page] }
 
       // Image with image_source_type of 'upload' must have an image_file url
-      const element = { image_source_type: IMAGE_SOURCE_TYPES.UPLOAD }
-      expect(elementType.isInError(element, { element })).toBe(true)
+      const element = {
+        id: 1,
+        page_id: page.id,
+        image_source_type: IMAGE_SOURCE_TYPES.UPLOAD,
+      }
+      const context = { page, builder, element }
+      expect(elementType.isInError(element, context)).toBe(true)
 
       // Otherwise it is valid
       element.image_file = { url: 'http://localhost' }
-      expect(elementType.isInError(element, { element })).toBe(false)
+      expect(elementType.isInError(element, context)).toBe(false)
 
       // Image with image_source_type of 'url' must have an image_url
       delete element.image_file
       element.image_source_type = IMAGE_SOURCE_TYPES.URL
-      expect(elementType.isInError(element, { element })).toBe(true)
+      expect(elementType.isInError(element, context)).toBe(true)
 
       // Otherwise it is valid
       element.image_url = { formula: "'http://localhost'" }
-      expect(elementType.isInError(element, { element })).toBe(false)
+      expect(elementType.isInError(element, context)).toBe(false)
     })
   })
 

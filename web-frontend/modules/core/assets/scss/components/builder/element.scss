@@ -52,6 +52,10 @@
   opacity: 0.3;
 }
 
+.element--clickable {
+  cursor: pointer;
+}
+
 .element--alignment-vertical-top {
   align-items: flex-start;
 }

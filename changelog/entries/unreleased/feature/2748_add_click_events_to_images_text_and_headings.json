@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Images, text and headings can trigger actions when clicked in the Application Builder.",
+    "issue_origin": "github",
+    "issue_number": 2748,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-12"
+}

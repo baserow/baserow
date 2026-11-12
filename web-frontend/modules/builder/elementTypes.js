@@ -1629,6 +1629,10 @@ export class HeadingElementType extends ElementType {
     return HeadingElementForm
   }
 
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
+  }
+
   /**
    * A value is mandatory for the Heading element. Return true if the value
    * is empty to indicate an error, otherwise return false.
@@ -1675,6 +1679,10 @@ export class TextElementType extends ElementType {
 
   get generalFormComponent() {
     return TextElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
   }
 
   /**
@@ -1820,6 +1828,10 @@ export class ImageElementType extends ElementType {
 
   get generalFormComponent() {
     return ImageElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
   }
 
   /**
