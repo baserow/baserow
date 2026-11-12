@@ -56,13 +56,14 @@ describe('Tabs', () => {
         Tab,
       },
       slots: {
-        default: '<Tab title="Agents" highlight="tour-target">Content</Tab>',
+        default:
+          '<Tab title="Identities" highlight="tour-target">Content</Tab>',
       },
     })
 
     const tabItem = wrapper.get('.tabs__item')
     expect(tabItem.attributes('data-highlight')).toBe('tour-target')
-    expect(tabItem.get('.tabs__link').text()).toBe('Agents')
+    expect(tabItem.get('.tabs__link').text()).toBe('Identities')
   })
 
   it.each(['', 'badge="New"'])(
@@ -73,7 +74,7 @@ describe('Tabs', () => {
           Tab,
         },
         slots: {
-          default: `<Tab title="Agents" development-stage="beta" ${badge}>Content</Tab>`,
+          default: `<Tab title="Identities" development-stage="beta" ${badge}>Content</Tab>`,
         },
       })
 
@@ -87,14 +88,14 @@ test('shows an optional tab badge without changing its navigation label', async 
   const wrapper = await mountSuspended(Tabs, {
     slots: {
       default:
-        '<Tab title="Members">Members</Tab><Tab title="Agents" badge="New">Agents</Tab>',
+        '<Tab title="Members">Members</Tab><Tab title="Identities" badge="New">Identities</Tab>',
     },
   })
   const links = wrapper.findAll('.tabs__link')
   expect(links[0].find('.badge').exists()).toBe(false)
   expect(links[1].get('.badge').text()).toBe('New')
   await links[1].trigger('click')
-  expect(wrapper.get('.tabs__item--active').text()).toContain('Agents')
+  expect(wrapper.get('.tabs__item--active').text()).toContain('Identities')
   wrapper.unmount()
 })
 

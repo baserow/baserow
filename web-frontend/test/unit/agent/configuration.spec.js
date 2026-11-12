@@ -619,14 +619,14 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
+          id: 'auth.User:7',
           subject_id: 7,
-          subject_type: 'core.Agent',
+          subject_type: 'auth.User',
           name: 'Investor',
         },
       ])
     )
-    const investor = { type: 'core.Agent', id: 7, name: 'Investor' }
+    const investor = { type: 'auth.User', id: 7, name: 'Investor' }
     mockSaves(
       testApp,
       completeConfiguration({ run_as: { ...investor, trashed: false } }),
@@ -650,14 +650,14 @@ describe('Agent configuration', () => {
     await select('agent.noWorkspaceAccess')
 
     expect(savedValues(testApp)).toEqual([
-      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
       { run_as_subject_type: null, run_as_subject_id: null },
     ])
     expect(body().text()).toContain('agent.noWorkspaceAccessHelper')
   })
 
   const investor = {
-    type: 'core.Agent',
+    type: 'auth.User',
     id: 7,
     name: 'Investor',
     trashed: false,
@@ -742,9 +742,9 @@ describe('Agent configuration', () => {
         200,
         page([
           {
-            id: 'core.Agent:8',
+            id: 'auth.User:8',
             subject_id: 8,
-            subject_type: 'core.Agent',
+            subject_type: 'auth.User',
             name: 'Support',
           },
         ])
@@ -886,8 +886,8 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
-          subject_type: 'core.Agent',
+          id: 'auth.User:7',
+          subject_type: 'auth.User',
           subject_id: 7,
           name: 'Investor',
         },
@@ -909,8 +909,8 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:8',
-          subject_type: 'core.Agent',
+          id: 'auth.User:8',
+          subject_type: 'auth.User',
           subject_id: 8,
           name: 'Investor replacement',
         },
@@ -971,8 +971,8 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
-          subject_type: 'core.Agent',
+          id: 'auth.User:7',
+          subject_type: 'auth.User',
           subject_id: 7,
           name: 'Investor',
         },
@@ -998,7 +998,7 @@ describe('Agent configuration', () => {
     expect(savedValues(testApp)).toEqual([
       {
         instructions: 'Keep my draft',
-        run_as_subject_type: 'core.Agent',
+        run_as_subject_type: 'auth.User',
         run_as_subject_id: 7,
       },
       { instructions: 'Keep my draft' },
@@ -1020,14 +1020,14 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
-          subject_type: 'core.Agent',
+          id: 'auth.User:7',
+          subject_type: 'auth.User',
           subject_id: 7,
           name: 'Investor',
         },
         {
-          id: 'core.Agent:8',
-          subject_type: 'core.Agent',
+          id: 'auth.User:8',
+          subject_type: 'auth.User',
           subject_id: 8,
           name: 'Support',
         },
@@ -1046,8 +1046,8 @@ describe('Agent configuration', () => {
     patch.resolve(400, { error: 'ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST' })
     await flushPromises()
     expect(savedValues(testApp)).toEqual([
-      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
-      { run_as_subject_type: 'core.Agent', run_as_subject_id: 8 },
+      { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
+      { run_as_subject_type: 'auth.User', run_as_subject_id: 8 },
     ])
     expect(
       wrapper.get('.agent-configuration .dropdown__selected-text').text()
@@ -1061,8 +1061,8 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
-          subject_type: 'core.Agent',
+          id: 'auth.User:7',
+          subject_type: 'auth.User',
           subject_id: 7,
           name: 'Investor',
         },
@@ -1084,7 +1084,7 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
     expect(savedValues(testApp)).toEqual(
-      Array(2).fill({ run_as_subject_type: 'core.Agent', run_as_subject_id: 7 })
+      Array(2).fill({ run_as_subject_type: 'auth.User', run_as_subject_id: 7 })
     )
     expect(wrapper.find('.agent-configuration__save-status').exists()).toBe(
       false
@@ -1114,8 +1114,8 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
-          subject_type: 'core.Agent',
+          id: 'auth.User:7',
+          subject_type: 'auth.User',
           subject_id: 7,
           name: 'Investor',
         },
@@ -1624,9 +1624,9 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
+          id: 'auth.User:7',
           subject_id: 7,
-          subject_type: 'core.Agent',
+          subject_type: 'auth.User',
           name: 'Investor',
         },
       ])
@@ -1659,7 +1659,7 @@ describe('Agent configuration', () => {
       'agent.workspaceToolsDescription'
     )
     expect(savedValues(testApp)).toEqual([
-      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
     ])
   })
 
@@ -1670,9 +1670,9 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
+          id: 'auth.User:7',
           subject_id: 7,
-          subject_type: 'core.Agent',
+          subject_type: 'auth.User',
           name: 'Investor',
         },
       ])
@@ -1689,7 +1689,7 @@ describe('Agent configuration', () => {
     await flushPromises()
     expect(toggle.attributes('aria-checked')).toBe('true')
     expect(savedValues(testApp)).toEqual([
-      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
     ])
 
     patch.resolve(200, withTools([]))
@@ -1697,7 +1697,7 @@ describe('Agent configuration', () => {
 
     expect(toggle.attributes('aria-checked')).toBe('true')
     expect(savedValues(testApp)).toEqual([
-      { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
+      { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
       { allowed_tools: ['list_tables'], ask_first_tools: [] },
     ])
   })
@@ -1711,9 +1711,9 @@ describe('Agent configuration', () => {
       200,
       page([
         {
-          id: 'core.Agent:7',
+          id: 'auth.User:7',
           subject_id: 7,
-          subject_type: 'core.Agent',
+          subject_type: 'auth.User',
           name: 'Investor',
         },
       ])
@@ -1734,7 +1734,7 @@ describe('Agent configuration', () => {
     )
     expect(savedValues(testApp)).toEqual([
       {
-        run_as_subject_type: 'core.Agent',
+        run_as_subject_type: 'auth.User',
         run_as_subject_id: 7,
         allowed_tools: [],
         ask_first_tools: [],

@@ -346,3 +346,20 @@ def test_get_workspace_user_sorts(api_client, data_fixture):
     assert response_json[2]["name"] == user_1.first_name
     assert response_json[2]["email"] == user_1.email
     assert "created_on" in response_json[2]
+
+
+@pytest.mark.django_db
+def test_list_workspace_users_hides_identities(api_client, data_fixture):
+    """Identity users test plan 3.2.1."""
+
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+
+    response = api_client.get(
+        reverse("api:workspaces:users:list", kwargs={"workspace_id": workspace.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert [member["user_id"] for member in response.json()] == [user.id]

@@ -10,7 +10,6 @@ from baserow.contrib.database.table.operations import (
 from baserow.contrib.database.table.signals import table_usage_updated
 from baserow.contrib.database.ws.pages import TablePageType
 from baserow.core.exceptions import PermissionException
-from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import Workspace
 from baserow.core.object_scopes import WorkspaceObjectScopeType
 from baserow.core.registries import (
@@ -52,12 +51,9 @@ def unsubscribe_subject_from_tables_currently_subscribed_to(
     subject_type = subject_type_registry.get(subject_type_name)
     scope_type = object_scope_type_registry.get(scope_type_name)
 
-    if issubclass(subject_type.model_class, TrashableModelMixin):
-        subject_type_qs = subject_type.model_class.objects_and_trash
-    else:
-        subject_type_qs = subject_type.model_class.objects
-
-    subject = subject_type_qs.get(pk=subject_id)
+    subject = subject_type_registry.get_subject(
+        subject_type_name, subject_id, include_trash=True
+    )
     scope = scope_type.model_class.objects.get(pk=scope_id)
 
     users = subject_type.get_users_included_in_subject(subject)

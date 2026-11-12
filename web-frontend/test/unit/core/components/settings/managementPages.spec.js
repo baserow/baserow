@@ -22,8 +22,8 @@ describe('Management pages', () => {
     [true, 3],
     [false, 1],
   ])(
-    'members retain their identity and permitted total (agents visible: %s)',
-    async (canListAgents, memberCount) => {
+    'members retain their identity and permitted total (identities visible: %s)',
+    async (canListIdentities, memberCount) => {
       app.mock.onGet('/workspaces/users/workspace/1/').reply(200, [
         {
           id: 10,
@@ -42,12 +42,12 @@ describe('Management pages', () => {
       })
       const wrapper = await app.mount(MembersTable, {
         props: {
-          workspace: { ...workspace, users: [{ id: 42 }], agents_count: 2 },
+          workspace: { ...workspace, users: [{ id: 42 }], identities_count: 2 },
         },
         global: {
           mocks: {
             $hasPermission: (operation) =>
-              operation !== 'workspace.list_agents' || canListAgents,
+              operation !== 'workspace.list_identities' || canListIdentities,
             $t: (key, params) =>
               key === 'membersSettings.membersTable.title'
                 ? `${params.userAmount} members`
@@ -190,7 +190,7 @@ describe('Management pages', () => {
   test.each([
     ['settings-members', true],
     ['settings-teams', true],
-    ['settings-agents', true],
+    ['settings-identities', true],
     ['dashboard', false],
   ])('Members sidebar selection on %s is %s', async (name, active) => {
     const wrapper = mount(SidebarMenu, {

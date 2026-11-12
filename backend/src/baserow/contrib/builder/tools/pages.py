@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 
 from baserow.core.exceptions import PermissionException
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import (
     PERMISSION_DENIED_MESSAGE,
     ToolInputError,
@@ -37,6 +37,7 @@ from .types import (
 from .types.limits import MAX_ITEMS_PER_CALL
 
 
+@tool_execution
 def list_pages(
     ctx: ToolContext,
     builder_id: Annotated[
@@ -117,6 +118,7 @@ def create_pages_with_options(
     return result
 
 
+@tool_execution
 def create_pages(
     ctx: ToolContext,
     builder_id: Annotated[
@@ -136,6 +138,7 @@ def create_pages(
     return create_pages_with_options(ctx, builder_id, pages, BuilderWriteOptions())
 
 
+@tool_execution
 def update_page(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -244,6 +247,7 @@ def setup_page_with_options(
     return result
 
 
+@tool_execution
 def setup_page(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],

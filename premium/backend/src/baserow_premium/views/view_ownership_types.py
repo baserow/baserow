@@ -13,6 +13,7 @@ from baserow.contrib.database.views.registries import ViewOwnershipType
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.user.identity import is_human
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
@@ -89,7 +90,7 @@ class PersonalViewOwnershipType(ViewOwnershipType):
         ownership type of the view
         """
 
-        if not LicenseHandler.user_has_feature(
+        if not is_human(user) or not LicenseHandler.user_has_feature(
             PREMIUM, user, view.table.database.workspace
         ):
             raise PermissionDenied()
@@ -99,4 +100,6 @@ class PersonalViewOwnershipType(ViewOwnershipType):
         return view
 
     def view_created(self, user: AbstractUser, view: "View", workspace: Workspace):
+        if not is_human(user):
+            raise PermissionDenied()
         LicenseHandler.raise_if_user_doesnt_have_feature(PREMIUM, user, workspace)

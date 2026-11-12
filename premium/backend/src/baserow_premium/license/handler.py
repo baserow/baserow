@@ -27,6 +27,7 @@ from baserow.core.exceptions import IsNotAdminError
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.registries import plugin_registry
+from baserow.core.user.identity import is_human
 from baserow.core.utils import get_baserow_saas_base_url
 from baserow.ws.signals import broadcast_to_users
 from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
@@ -630,6 +631,9 @@ class LicenseHandler:
                 "The user already has a seat on this license."
             )
 
+        if not is_human(user):
+            raise CantManuallyChangeSeatsError("Only people can occupy license seats.")
+
         if not license_object.license_type.seats_manually_assigned:
             raise CantManuallyChangeSeatsError()
 
@@ -734,7 +738,8 @@ class LicenseHandler:
             # license or when filling there is a high chance they want to put
             # themselves on the plan.
             if (
-                requesting_user.id not in already_in_license
+                is_human(requesting_user)
+                and requesting_user.id not in already_in_license
                 and requesting_user.id not in [user.id for user in users_to_add]
             ):
                 users_to_add[0] = requesting_user

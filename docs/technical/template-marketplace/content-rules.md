@@ -111,7 +111,7 @@ workspace export; see #6116.
 | Database | Collaborator cells (`MultipleCollaboratorsFieldType.set_import_serialized_value`) and user filters (`UserIsViewFilterType`, `MultipleCollaboratorsHasViewFilterType`) map by email; memberless target gives nobody | done | core/database |
 | Database | Form conditions (`FormViewType`) and conditional color filters (`ConditionalColorValueProviderType.set_import_serialized_value`) are exported with raw user ids; the filter import maps by email, so they become empty | done | core/database |
 | Database, premium | View owners: `ViewType.import_serialized` maps `owned_by` against members; `PersonalViewOwnershipType.can_import_view` skips personal views | done | core/database |
-| Enterprise | `RoleAssignmentSerializationProcessorType` skips role assignments, of users, teams and agents, when `include_permission_data` is `False` | done | core/database |
+| Enterprise | `RoleAssignmentSerializationProcessorType` skips role assignments, of users, teams and identities, when `include_permission_data` is `False` | done | core/database |
 | Automation | `AutomationWorkflowHandler.export_workflow` exports no `notification_recipient_emails` unless `is_duplicate`; `import_workflow_only` maps them to target workspace users | done | WAB |
 
 ## Who services run as
@@ -119,7 +119,7 @@ workspace export; see #6116.
 | Module | What enforces it | Status | Owner |
 | --- | --- | --- | --- |
 | Core | Template creation and content update must not send `application_imported` with the author, or the template's integrations run as the author | to do | core/database |
-| Integrations | An integration running as an agent (#6064): `authorized_subject_type` and `authorized_subject_id` are in `LocalBaserowIntegrationType.sensitive_fields`, so they are removed unless publishing | in #6064 | WAB |
+| Integrations | An integration running as an identity (#6064): `authorized_subject_type` and `authorized_subject_id` are in `LocalBaserowIntegrationType.sensitive_fields`, so they are removed unless publishing | in #6064 | WAB |
 | Integrations | `authorized_user` is in `LocalBaserowIntegrationType.sensitive_fields`, so it is exported as `None` wherever the config is passed; the dashboard path relies on `import_serialized` mapping against `import_workspace_id` members | done | core/database |
 | Integrations | `LocalBaserowIntegrationType.after_import` sets the installer when install sends `application_imported` with the installer, as `CoreHandler.install_template` does | done | core/database |
 | Enterprise | `LocalBaserowTableDataSyncType.import_serialized` always clears `authorized_user_id` | done | core/database |

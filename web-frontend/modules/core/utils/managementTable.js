@@ -10,7 +10,7 @@ export function getManagementTableLayout(columns, roleColumnKey) {
 
   return {
     fixedLayout: true,
-    // Members need space for both identity columns; teams and agents need less.
+    // Members need space for both identity columns; teams and identities need less.
     minTableWidth: columns.some(({ key }) => key === 'email')
       ? '1000px'
       : '700px',

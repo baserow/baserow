@@ -29,8 +29,6 @@ from baserow.contrib.database.rows.registries import (
 from baserow.contrib.database.trash.trash_types import RowTrashableItemType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import ActionType, action_type_registry
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.actions import RestoreFromTrashActionType
 from baserow.test_utils.helpers import setup_interesting_test_table
@@ -114,34 +112,34 @@ def test_update_rows_insert_multiple_entries_in_row_history(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.row_history
-def test_agent_is_stored_as_typed_row_history_actor(data_fixture):
+def test_identity_is_stored_as_typed_row_history_actor(data_fixture):
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user)
     table = data_fixture.create_database_table(user=user, database=database)
     field = data_fixture.create_text_field(table=table, name="Name")
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=database.workspace,
-        name="A" * 160,
+        name="A" * 150,
         role_uid="ADMIN",
     )
     row = RowHandler().force_create_row(user, table, {field.id: "Before"})
 
     UpdateRowsActionType.do(
-        agent,
+        identity,
         table,
         [{"id": row.id, f"field_{field.id}": "After"}],
     )
 
     entry = RowHistory.objects.get()
-    assert entry.actor_id == agent.id
-    assert entry.actor_type == AgentSubjectType.type
-    assert entry.actor_name == agent.name
+    assert entry.actor_id == identity.id
+    assert entry.actor_type == UserSubjectType.type
+    assert entry.actor_name == identity.first_name
     assert RowHistorySerializer(entry).data["actor"] == {
-        "id": agent.id,
-        "type": AgentSubjectType.type,
-        "name": agent.name,
+        "id": identity.id,
+        "type": UserSubjectType.type,
+        "name": identity.first_name,
     }
-    assert RowHistorySerializer(entry).data["user"] is None
+    assert RowHistorySerializer(entry).data["user"]["id"] == identity.id
 
 
 @pytest.mark.django_db

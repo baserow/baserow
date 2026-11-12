@@ -48,7 +48,7 @@ from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry, WorkspaceUser
+from baserow.core.models import TrashEntry, UserProfile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import AnyInt, AnyStr
@@ -2418,6 +2418,7 @@ def setup_table_with_collaborator_pk(user, data_fixture):
             for (i, char) in enumerate(all_chars, start=1)
         ]
     )
+    UserProfile.objects.bulk_create([UserProfile(user=usr) for usr in users])
     WorkspaceUser.objects.bulk_create(
         [
             WorkspaceUser(workspace=workspace, user=usr, order=i)

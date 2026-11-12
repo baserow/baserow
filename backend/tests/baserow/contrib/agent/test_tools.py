@@ -21,7 +21,7 @@ from baserow.contrib.agent.registries import AgentToolType, agent_tool_type_regi
 from baserow.contrib.database.views.models import FormView
 from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.chat_runs.tool_input import MAX_INPUT_PREVIEW_SIZE
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
@@ -114,7 +114,9 @@ def workspace_data(data_fixture):
     database = data_fixture.create_database_application(name="Work")
     table = data_fixture.create_database_table(database=database, name="Tasks")
     name = data_fixture.create_text_field(table=table, name="Name", primary=True)
-    identity = Agent.objects.create(workspace=database.workspace, name="Ops")
+    identity = IdentityHandler().create_identity(
+        workspace=database.workspace, name="Ops"
+    )
     return SimpleNamespace(
         ctx=ToolContext(user=identity, workspace=database.workspace),
         table=table,
@@ -241,18 +243,7 @@ def test_row_writes_keep_values_out_of_the_step_input():
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "name",
-    [
-        pytest.param(
-            name,
-            marks=pytest.mark.xfail(
-                strict=True,
-                reason="Agent trash/user attribution requires the broader fix in #6259",
-            ),
-        )
-        if name == "delete_fields"
-        else name
-        for name in TOOLS
-    ],
+    list(TOOLS),
 )
 def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
     _, arguments = TOOLS[name]
@@ -378,7 +369,7 @@ def test_agent_form_creation_does_not_notify_user_with_same_id(
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(table=table, name="Name", primary=True)
     workspace = table.database.workspace
-    identity = Agent.objects.create(id=user.id, workspace=workspace, name="Ops")
+    identity = IdentityHandler().create_identity(workspace=workspace, name="Ops")
 
     result = call_tool(
         agent_tool_type_registry.get("create_views"),
@@ -1002,7 +993,7 @@ def test_an_unexpected_preview_error_leaves_the_call_unnamed(
 @pytest.mark.django_db
 def test_tool_calls_track_identity_usage_with_the_existing_throttle(workspace_data):
     identity = workspace_data.ctx.user
-    assert identity.last_active is None
+    assert identity.profile.last_active is None
 
     with freeze_time() as clock:
         result = call_tool(
@@ -1011,8 +1002,8 @@ def test_tool_calls_track_identity_usage_with_the_existing_throttle(workspace_da
             {"table_id": workspace_data.table.id},
         )
         assert "error" not in result.return_value
-        identity.refresh_from_db()
-        first_activity = identity.last_active
+        identity.profile.refresh_from_db()
+        first_activity = identity.profile.last_active
         assert first_activity is not None
 
         clock.tick(30)
@@ -1022,8 +1013,8 @@ def test_tool_calls_track_identity_usage_with_the_existing_throttle(workspace_da
             {"table_id": workspace_data.table.id},
         )
         assert "error" not in result.return_value
-        identity.refresh_from_db()
-        assert identity.last_active == first_activity
+        identity.profile.refresh_from_db()
+        assert identity.profile.last_active == first_activity
 
 
 @pytest.mark.django_db

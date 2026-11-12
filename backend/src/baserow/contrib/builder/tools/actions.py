@@ -14,7 +14,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import ToolInputError, raise_if_permission_denied
 
 from . import BuilderWriteOptions, helpers
@@ -31,6 +31,7 @@ from .types import ActionChanges, ActionCreate, ActionItem
 from .types.limits import MAX_ITEMS_PER_CALL
 
 
+@tool_execution
 def list_element_actions(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -118,6 +119,7 @@ def create_actions_with_options(
     return result
 
 
+@tool_execution
 def create_element_actions(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -226,6 +228,7 @@ def update_action_values(
     return action, formula_errors
 
 
+@tool_execution
 def update_element_action(
     ctx: ToolContext,
     action_id: Annotated[

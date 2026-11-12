@@ -16,9 +16,11 @@ from baserow.core.mcp.groups import (
 )
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.registries import FunctionMCPTool, MCPTool
-from baserow.core.tools import ToolContext, applications
+from baserow.core.tools import ToolContext, applications, tool_execution
 
 
+# FunctionMCPTool only accepts functions that start a tool execution.
+@tool_execution
 def list_database_applications(
     ctx: ToolContext,
     page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,

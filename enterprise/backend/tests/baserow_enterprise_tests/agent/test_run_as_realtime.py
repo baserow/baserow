@@ -5,9 +5,9 @@ import pytest
 
 from baserow.config.celery import clear_local
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
-from baserow.core.agents.service import AgentService as IdentityService
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.service import IdentityService
+from baserow.core.subjects import UserSubjectType
 from baserow.ws.tasks import broadcast_to_permitted_users
 from baserow_enterprise.role.constants import BUILDER_ROLE_UID, VIEWER_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -37,8 +37,10 @@ def test_identity_invalidation_reaches_application_builders_without_workspace_li
     enterprise_data_fixture.create_agent_application(
         workspace=enterprise_data_fixture.create_workspace(user=external)
     )
-    identity = Agent.objects.create(workspace=workspace, name="PRIVATE IDENTITY")
-    application.run_as_subject_type = AgentSubjectType.type
+    identity = IdentityHandler().create_identity(
+        workspace=workspace, name="PRIVATE IDENTITY"
+    )
+    application.run_as_subject_type = UserSubjectType.type
     application.run_as_subject_id = identity.id
     application.save()
     roles = RoleAssignmentHandler()
@@ -65,7 +67,7 @@ def test_identity_invalidation_reaches_application_builders_without_workspace_li
     sent = mocker.patch("baserow.ws.tasks.broadcast_to_users")
 
     with django_capture_on_commit_callbacks(execute=True):
-        IdentityService().update_agent(admin, identity, name="PRIVATE NEW NAME")
+        IdentityService().update_identity(admin, identity, name="PRIVATE NEW NAME")
 
     queued.assert_called_once_with(workspace.id, identity.id)
     refreshes.assert_called_once()
@@ -84,7 +86,7 @@ def test_identity_invalidation_reaches_application_builders_without_workspace_li
         assert set(payload["agent_ids"]) == expected_ids
     sent.assert_called_once()
     assert set(sent.call_args.args[0]) == {admin.id}
-    assert sent.call_args.args[1]["type"] == "agent_updated"
+    assert sent.call_args.args[1]["type"] == "identity_updated"
 
     # A deleted workspace must not produce a stale invalidation either.
     workspace.trashed = True
@@ -107,10 +109,10 @@ def test_identity_invalidation_batches_queries_and_tasks_across_applications(
     workspace = enterprise_data_fixture.create_workspace(
         user=admin, members=[builder, viewer]
     )
-    identity = Agent.objects.create(workspace=workspace, name="Identity")
+    identity = IdentityHandler().create_identity(workspace=workspace, name="Identity")
     application = enterprise_data_fixture.create_agent_application(
         workspace=workspace,
-        run_as_subject_type=AgentSubjectType.type,
+        run_as_subject_type=UserSubjectType.type,
         run_as_subject_id=identity.id,
     )
     roles = RoleAssignmentHandler()
@@ -137,7 +139,7 @@ def test_identity_invalidation_batches_queries_and_tasks_across_applications(
                 enterprise_data_fixture.create_agent_application(workspace=workspace)
         queued.reset_mock()
         with django_capture_on_commit_callbacks(execute=True):
-            IdentityService().update_agent(
+            IdentityService().update_identity(
                 admin, identity, name=f"Renamed with {application_count} applications"
             )
         queued.assert_called_once_with(workspace.id, identity.id)
@@ -170,14 +172,14 @@ def test_team_rename_does_not_invalidate_identity_choices_per_member(
     admin = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     identities = [
-        Agent.objects.create(workspace=workspace, name=f"Identity {index}")
+        IdentityHandler().create_identity(workspace=workspace, name=f"Identity {index}")
         for index in range(5)
     ]
     team = enterprise_data_fixture.create_team(workspace=workspace, members=identities)
     for identity in identities:
         enterprise_data_fixture.create_agent_application(
             workspace=workspace,
-            run_as_subject_type=AgentSubjectType.type,
+            run_as_subject_type=UserSubjectType.type,
             run_as_subject_id=identity.id,
         )
     queued = mocker.patch(
@@ -190,12 +192,12 @@ def test_team_rename_does_not_invalidate_identity_choices_per_member(
             team,
             "Renamed team",
             subjects=[
-                {"subject_id": identity.id, "subject_type": AgentSubjectType.type}
+                {"subject_id": identity.id, "subject_type": UserSubjectType.type}
                 for identity in identities
             ],
         )
     queued.assert_not_called()
     assert management.call_count == len(identities)
-    assert {call.args[4]["agent"]["id"] for call in management.call_args_list} == {
+    assert {call.args[4]["identity"]["id"] for call in management.call_args_list} == {
         identity.id for identity in identities
     }

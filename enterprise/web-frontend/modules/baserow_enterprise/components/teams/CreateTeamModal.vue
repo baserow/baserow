@@ -30,8 +30,8 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
-import AgentService from '@baserow/modules/core/services/agent'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import IdentityService from '@baserow/modules/core/services/identity'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
   makeTeamSubject,
@@ -52,15 +52,15 @@ export default {
     return {
       loading: false,
       invitedSubjects: [],
-      agents: [],
+      identities: [],
     }
   },
   computed: {
-    canListAgents() {
+    canListIdentities() {
       return (
-        this.$featureFlagIsEnabled(FF_AGENTS) &&
+        this.$featureFlagIsEnabled(FF_IDENTITIES) &&
         this.$hasPermission(
-          'workspace.list_agents',
+          'workspace.list_identities',
           this.workspace,
           this.workspace.id
         )
@@ -68,15 +68,14 @@ export default {
     },
     availableSubjects() {
       const userSubjectType = this.$registry.get('subject', 'auth.User')
-      const agentSubjectType = this.$registry.get('subject', 'core.Agent')
       return [
         ...this.workspace.users.map((member) =>
           makeTeamSubject(member, userSubjectType)
         ),
-        ...this.agents.map((agent) =>
+        ...this.identities.map((identity) =>
           makeTeamSubject(
-            agent,
-            agentSubjectType,
+            identity,
+            userSubjectType,
             this.$t('manageTeamForm.identityLabel')
           )
         ),
@@ -107,13 +106,13 @@ export default {
       this.invitedSubjects = this.invitedSubjects.concat(selections)
     },
     async showSubjectAssignmentModal() {
-      this.agents = []
+      this.identities = []
       try {
-        if (this.canListAgents) {
-          const { data } = await AgentService(this.$client).list(
+        if (this.canListIdentities) {
+          const { data } = await IdentityService(this.$client).list(
             this.workspace.id
           )
-          this.agents = data.results || data
+          this.identities = data.results || data
         }
       } catch (error) {
         this.handleError(error, 'team')

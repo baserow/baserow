@@ -1,11 +1,201 @@
 from unittest.mock import MagicMock, patch
 
-from django.db import OperationalError, connection, migrations
+from django.db import (
+    NotSupportedError,
+    OperationalError,
+    connection,
+    migrations,
+    models,
+)
+from django.db.migrations.state import ModelState, ProjectState
+from django.db.migrations.writer import MigrationWriter
 
 import pytest
 
-from baserow.core.migration_utils import LockTimeoutMigration, set_lock_timeout
+from baserow.core.migration_utils import (
+    LockTimeoutMigration,
+    RetryableAddIndexConcurrently,
+    set_lock_timeout,
+)
 from baserow.core.psycopg import errors
+
+
+@pytest.fixture
+def concurrent_index_state():
+    before = ProjectState()
+    before.add_model(
+        ModelState(
+            "core",
+            "IndexRecovery",
+            fields=[
+                ("id", models.AutoField(primary_key=True)),
+                ("active", models.BooleanField(default=False)),
+            ],
+            options={"db_table": "migration_index_recovery"},
+        )
+    )
+    operation = RetryableAddIndexConcurrently(
+        model_name="indexrecovery",
+        index=models.Index(
+            fields=["-id"],
+            condition=models.Q(active=True),
+            include=["active"],
+            name="migration_recovery_idx",
+        ),
+    )
+    after = before.clone()
+    operation.state_forwards("core", after)
+    return operation, before, after
+
+
+@pytest.fixture
+def concurrent_index_table(concurrent_index_state):
+    _, before, _ = concurrent_index_state
+    model = before.apps.get_model("core", "IndexRecovery")
+    with connection.schema_editor(atomic=False) as editor:
+        editor.create_model(model)
+    try:
+        yield concurrent_index_state
+    finally:
+        with connection.schema_editor(atomic=False) as editor:
+            editor.delete_model(model)
+
+
+def recovery_index_state(schema="public"):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT c.oid, i.indisvalid AND i.indisready, pg_get_indexdef(c.oid) "
+            "FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "JOIN pg_index i ON i.indexrelid = c.oid "
+            "WHERE c.relname = 'migration_recovery_idx' AND n.nspname = %s",
+            [schema],
+        )
+        return cursor.fetchone()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_index_forward_and_reverse_can_be_repeated(concurrent_index_table):
+    operation, before, after = concurrent_index_table
+    with connection.schema_editor(atomic=False) as editor:
+        operation.database_forwards("core", editor, before, after)
+        initial = recovery_index_state()
+        assert initial[1] is True
+        assert "(id DESC) INCLUDE (active) WHERE active" in initial[2]
+
+        operation.database_forwards("core", editor, before, after)
+        assert recovery_index_state() == initial  # No needless index rebuild.
+        operation.database_backwards("core", editor, after, before)
+        assert recovery_index_state() is None
+        operation.database_backwards("core", editor, after, before)
+        assert recovery_index_state() is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_index_recovery_uses_the_tables_schema(concurrent_index_table):
+    operation, before, after = concurrent_index_table
+    with connection.cursor() as cursor:
+        cursor.execute("SHOW search_path")
+        original_path = cursor.fetchone()[0]
+        cursor.execute("CREATE SCHEMA migration_index_shadow")
+        cursor.execute("CREATE TABLE migration_index_shadow.other (id integer)")
+        cursor.execute(
+            "CREATE INDEX migration_recovery_idx ON migration_index_shadow.other (id)"
+        )
+        cursor.execute("SET search_path = migration_index_shadow, public")
+    try:
+        shadow = recovery_index_state("migration_index_shadow")
+        with connection.schema_editor(atomic=False) as editor:
+            operation.database_forwards("core", editor, before, after)
+            assert recovery_index_state()[1] is True
+            operation.database_backwards("core", editor, after, before)
+        assert recovery_index_state() is None
+        assert recovery_index_state("migration_index_shadow") == shadow
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT set_config('search_path', %s, false)", [original_path]
+            )
+            cursor.execute("DROP SCHEMA migration_index_shadow CASCADE")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_index_recovery_refuses_an_index_on_another_table(
+    concurrent_index_table,
+):
+    operation, before, after = concurrent_index_table
+    with connection.cursor() as cursor:
+        cursor.execute("CREATE TABLE migration_index_other (id integer)")
+        cursor.execute(
+            "CREATE INDEX migration_recovery_idx ON migration_index_other (id)"
+        )
+    try:
+        initial = recovery_index_state()
+        with connection.schema_editor(atomic=False) as editor:
+            with pytest.raises(ValueError, match="not an index on"):
+                operation.database_forwards("core", editor, before, after)
+            with pytest.raises(ValueError, match="not an index on"):
+                operation.database_backwards("core", editor, after, before)
+        assert recovery_index_state() == initial
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("DROP TABLE migration_index_other")
+
+
+@pytest.mark.django_db
+def test_concurrent_index_refuses_transactions(concurrent_index_state):
+    operation, before, after = concurrent_index_state
+    with connection.schema_editor(atomic=False) as editor:
+        with pytest.raises(NotSupportedError, match="set atomic = False"):
+            operation.database_forwards("core", editor, before, after)
+        with pytest.raises(NotSupportedError, match="set atomic = False"):
+            operation.database_backwards("core", editor, after, before)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_index_respects_database_router(
+    concurrent_index_table, django_assert_num_queries
+):
+    operation, before, after = concurrent_index_table
+    with (
+        patch("django.db.router.allow_migrate", return_value=False),
+        connection.schema_editor(atomic=False) as editor,
+        django_assert_num_queries(0),
+    ):
+        operation.database_forwards("core", editor, before, after)
+        operation.database_backwards("core", editor, after, before)
+    assert recovery_index_state() is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_index_sql_collection_does_not_need_the_table(
+    concurrent_index_state, django_assert_num_queries
+):
+    operation, before, after = concurrent_index_state
+    with (
+        connection.schema_editor(atomic=False, collect_sql=True) as editor,
+        django_assert_num_queries(0),
+    ):
+        operation.database_forwards("core", editor, before, after)
+        operation.database_backwards("core", editor, after, before)
+    assert len(editor.collected_sql) == 2
+    assert editor.collected_sql[0].startswith("CREATE INDEX CONCURRENTLY")
+    assert editor.collected_sql[1].startswith("DROP INDEX CONCURRENTLY")
+
+
+def test_concurrent_index_serialization_preserves_operation_and_state(
+    concurrent_index_state,
+):
+    operation, before, after = concurrent_index_state
+    migration = migrations.Migration("test_index", "core")
+    migration.operations = [operation]
+    namespace = {}
+    # Round-trip only the migration source generated from this test's operation.
+    exec(MigrationWriter(migration).as_string(), namespace)  # noqa: S102
+    restored = namespace["Migration"].operations[0]
+    assert isinstance(restored, RetryableAddIndexConcurrently)
+    assert restored.deconstruct() == operation.deconstruct()
+    restored.state_forwards("core", before)
+    assert before.models == after.models
 
 
 def get_lock_timeout(cursor) -> str:

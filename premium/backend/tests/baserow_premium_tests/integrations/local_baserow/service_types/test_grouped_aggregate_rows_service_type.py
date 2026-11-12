@@ -5372,12 +5372,20 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture, mode):
     integration = data_fixture.create_local_baserow_integration(
         application=dashboard, user=user
     )
+    source_service = data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+        view=view,
+        filter_type="OR",
+        bucket_limit=3,
+    )
 
     serialized_service = {
         "filter_type": "AND",
         "filters": [],
         "filter_groups": [],
-        "id": 999,
+        "id": source_service.id,
         "integration_id": integration.id,
         "service_aggregation_group_bys": [
             {"field_id": field_3.id},
@@ -5422,7 +5430,13 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture, mode):
     )
     assert instance.filter_type == "AND"
     assert instance.service_filters.count() == 0
-    assert instance.id != 999
+    assert instance.id != source_service.id
+    assert (
+        LocalBaserowGroupedAggregateRows.objects.filter(
+            id__in=[source_service.id, instance.id]
+        ).count()
+        == 2
+    )
     assert instance.integration_id == integration.id
     assert instance.table_id == table.id
     assert instance.view_id == view.id
@@ -5448,6 +5462,13 @@ def test_grouped_aggregate_rows_service_import_serialized(data_fixture, mode):
     assert sorts[1].direction == "DESC"
     assert sorts[1].sort_on == "SERIES"
     assert sorts[1].reference == f"field_{field_2.id}_min"
+
+    source_service.refresh_from_db()
+    assert source_service.filter_type == "OR"
+    assert source_service.bucket_limit == 3
+    assert not source_service.service_aggregation_series.exists()
+    assert not source_service.service_aggregation_group_bys.exists()
+    assert not source_service.service_aggregation_sorts.exists()
 
 
 def test_grouped_aggregate_rows_rejects_unknown_grouping_mode():

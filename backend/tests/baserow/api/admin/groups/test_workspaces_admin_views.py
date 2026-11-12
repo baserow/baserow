@@ -186,6 +186,28 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
 
 
 @pytest.mark.django_db
+def test_admin_workspace_users_and_free_seats_exclude_identities(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token(is_staff=True)
+    workspace = data_fixture.create_workspace(user=user, seats_taken=1)
+    data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+
+    response = api_client.get(
+        reverse("api:admin:workspaces:list"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    result = response.json()["results"][0]
+    assert result["id"] == workspace.id
+    assert result["free_users"] == 0
+    assert result["users"] == [
+        {"id": user.id, "email": user.email, "permissions": "ADMIN"}
+    ]
+
+
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_workspace(api_client, data_fixture):
     normal_user, normal_token = data_fixture.create_user_and_token()

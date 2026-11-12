@@ -48,7 +48,7 @@ from baserow.contrib.database.views.operations import (
 )
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import ToolInputError, item_error_message
 
 
@@ -136,6 +136,7 @@ def _sort_item(sort: ViewSort) -> dict[str, Any]:
     return {"id": sort.id, "field_id": sort.field_id, "order": sort.order}
 
 
+@tool_execution
 def set_view_sorts(
     ctx: ToolContext,
     view_id: Annotated[int, Field(description="The ID of the view.")],
@@ -202,6 +203,7 @@ def set_view_sorts(
     return {"sorts": result}
 
 
+@tool_execution
 def set_field_visibility(
     ctx: ToolContext,
     view_id: Annotated[int, Field(description="The ID of the view.")],
@@ -274,6 +276,7 @@ def _delete_each(
     return {result_key: deleted, "errors": errors}
 
 
+@tool_execution
 def delete_views(
     ctx: ToolContext,
     view_ids: Annotated[
@@ -292,6 +295,7 @@ def delete_views(
     return _delete_each(view_ids, "view_id", "deleted_views", delete)
 
 
+@tool_execution
 def delete_view_filters(
     ctx: ToolContext,
     filter_ids: Annotated[
@@ -355,6 +359,7 @@ def _colour_conf(ctx: ToolContext, view: View, colour: RowColour) -> dict[str, A
     }
 
 
+@tool_execution
 def add_row_colours(
     ctx: ToolContext,
     view_id: Annotated[int, Field(description="The ID of the view.")],
@@ -387,6 +392,7 @@ def add_row_colours(
     return {"decoration_id": decoration.id}
 
 
+@tool_execution
 def delete_row_colours(
     ctx: ToolContext,
     decoration_ids: Annotated[
