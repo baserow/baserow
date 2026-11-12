@@ -704,3 +704,28 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         9,
         None,
     )
+
+
+@pytest.mark.django_db
+def test_duplicate_keeps_shared_conversations_on_the_copied_trigger(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    shared = data_fixture.create_agent_conversation(
+        agent=agent, owner_user=None, trigger=trigger, title="Started by a trigger"
+    )
+    data_fixture.create_agent_message(
+        conversation=shared, role=AgentMessage.Role.TRIGGER, content="Daily digest"
+    )
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    conversation = copied.conversations.get()
+    assert (conversation.owner_user_id, conversation.title) == (
+        None,
+        "Started by a trigger",
+    )
+    assert conversation.trigger == copied.triggers.get()
+    assert conversation.messages.get().role == AgentMessage.Role.TRIGGER

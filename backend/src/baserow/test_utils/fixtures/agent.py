@@ -25,7 +25,15 @@ class AgentApplicationFixtures:
     def create_agent_conversation(
         self, user: AbstractUser | None = None, **kwargs
     ) -> AgentConversation:
-        if user is None:
+        """
+        Create a conversation owned by `user`, or a shared one when `owner_user`
+        is passed as None.
+
+        :param user: The owner, created when neither it nor `owner_user` is given.
+        :return: The created conversation.
+        """
+
+        if user is None and "owner_user" not in kwargs:
             user = self.create_user()
         if "agent" not in kwargs:
             kwargs["agent"] = self.create_agent_application(user=user)
@@ -92,3 +100,22 @@ class AgentApplicationFixtures:
         if "service" not in kwargs:
             kwargs["service"] = self.create_core_periodic_service()
         return AgentTrigger.objects.create(agent=agent, **kwargs)
+
+    def create_shared_agent_conversation(
+        self, agent: AgentApplication | None = None, **kwargs
+    ) -> AgentConversation:
+        """
+        Create a trigger-started conversation: no owner, so every reader of the
+        agent's conversations sees it.
+
+        :param agent: The agent the conversation belongs to, created when None.
+        :return: The conversation, started by a new trigger unless one is given.
+        """
+
+        if agent is None:
+            agent = self.create_agent_application()
+        if "trigger" not in kwargs:
+            kwargs["trigger"] = self.create_agent_trigger(agent=agent)
+        kwargs.setdefault("uuid", uuid4())
+        kwargs.setdefault("title", "Started by a trigger")
+        return AgentConversation.objects.create(agent=agent, owner_user=None, **kwargs)

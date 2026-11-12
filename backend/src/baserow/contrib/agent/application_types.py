@@ -10,7 +10,10 @@ from baserow.contrib.agent.api.serializers import AgentApplicationSerializer
 from baserow.contrib.agent.constants import AgentRunAsState
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
-from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
+from baserow.contrib.agent.operations import (
+    CreateAgentMessageOperationType,
+    ReadAgentConfigurationOperationType,
+)
 from baserow.contrib.agent.registries import (
     agent_data_provider_type_registry,
     agent_tool_type_registry,
@@ -43,7 +46,7 @@ class AgentApplicationType(ApplicationType):
 
     @staticmethod
     def _includes_conversations(import_export_config: ImportExportConfig) -> bool:
-        """Conversations are private, so only internal full-data copies carry them."""
+        """Conversations can quote private data: only full-data duplicates copy them."""
 
         return (
             import_export_config.is_duplicate
@@ -107,8 +110,9 @@ class AgentApplicationType(ApplicationType):
         self, users: list[AbstractUser], applications: list[AgentApplication]
     ) -> dict[int, dict[int, int]]:
         """
-        Count the held calls waiting for each user's decision in their own
-        conversations with each Agent.
+        Count the held calls waiting for each user's decision: in their own
+        conversations with each Agent, and in its shared ones when they may send
+        it messages.
 
         :param users: The users to count for.
         :param applications: The Agents to count in.
@@ -116,10 +120,26 @@ class AgentApplicationType(ApplicationType):
             out users and Agents with none.
         """
 
-        return AgentHandler().get_pending_approval_counts(
-            [user.id for user in users],
-            [application.id for application in applications],
+        handler = AgentHandler()
+        agent_ids = [application.id for application in applications]
+        counts = handler.get_pending_approval_counts(
+            [user.id for user in users], agent_ids
         )
+        shared_counts = handler.get_shared_pending_approval_counts(agent_ids)
+        for application in applications:
+            if application.id not in shared_counts:
+                continue
+            for user in CoreHandler().check_permission_for_multiple_actors(
+                users,
+                CreateAgentMessageOperationType.type,
+                application.workspace,
+                context=application,
+            ):
+                user_counts = counts.setdefault(user.id, {})
+                user_counts[application.id] = (
+                    user_counts.get(application.id, 0) + shared_counts[application.id]
+                )
+        return counts
 
     def export_safe_transaction_context(self, application: AgentApplication) -> Atomic:
         return transaction.atomic()
@@ -317,6 +337,6 @@ class AgentApplicationType(ApplicationType):
         )
         if self._includes_conversations(import_export_config):
             AgentHandler().import_conversations(
-                application, serialized_values.get("conversations", [])
+                application, serialized_values.get("conversations", []), id_mapping
             )
         return application

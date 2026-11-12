@@ -58,6 +58,8 @@ def update_of(
     conversation: AgentConversation,
     run_id: UUID | None = None,
     pending_approval_count: int = 0,
+    trigger_type: str | None = None,
+    trigger_name: str | None = None,
 ) -> dict:
     return {
         "type": "agent_conversation_activity",
@@ -72,6 +74,10 @@ def update_of(
             "run_id": str(run_id) if run_id else None,
             "pending_approval_count": pending_approval_count,
             "pinned": conversation.pinned,
+            "shared": conversation.owner_user_id is None,
+            "trigger_id": conversation.trigger_id,
+            "trigger_type": trigger_type,
+            "trigger_name": trigger_name,
         },
     }
 
@@ -381,3 +387,52 @@ def test_every_decision_tells_the_owner_s_other_sessions_what_is_left_to_decide(
         )
 
     assert broadcast.call_args_list == expected
+
+
+@pytest.mark.django_db
+def test_shared_conversation_events_reach_every_reader_of_the_agent(
+    data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user(web_socket_id="source-tab")
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_shared_agent_conversation(agent=agent)
+    to_owner = mocker.patch("baserow.contrib.agent.ws.signals.broadcast_to_users.delay")
+    to_readers = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_permitted_users.delay"
+    )
+    activity = update_of(conversation, trigger_type="periodic", trigger_name="")
+
+    with django_capture_on_commit_callbacks(execute=True):
+        agent_conversation_activity.send(None, conversation=conversation, user=None)
+        action_type_registry.get_by_type(UpdateAgentConversationActionType).do(
+            user, agent.id, conversation.uuid, title="Renamed"
+        )
+
+    conversation.refresh_from_db()
+    to_owner.assert_not_called()
+    assert to_readers.call_args_list == [
+        call(
+            agent.workspace_id,
+            "agent_application.read_conversations",
+            "application",
+            agent.id,
+            activity,
+            ignore_web_socket_id=None,
+        ),
+        call(
+            agent.workspace_id,
+            "agent_application.read_conversations",
+            "application",
+            agent.id,
+            {
+                "type": "agent_conversation_updated",
+                "agent_id": agent.id,
+                "conversation_uuid": str(conversation.uuid),
+                "values": {"title": "Renamed"},
+                "conversation": update_of(
+                    conversation, trigger_type="periodic", trigger_name=""
+                )["conversation"],
+            },
+            ignore_web_socket_id="source-tab",
+        ),
+    ]

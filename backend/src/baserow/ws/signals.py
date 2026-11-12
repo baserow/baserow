@@ -359,7 +359,7 @@ def applications_reordered(sender, workspace, order, user, **kwargs):
 
 @receiver(signals.application_pending_count_updated)
 def application_pending_count_updated(
-    sender: Any, application: Application, user_ids: list[int], **kwargs: Any
+    sender: Any, application: Application, user_ids: list[int] | None, **kwargs: Any
 ) -> None:
     """
     Once the change is committed, sends each user their new pending count of the
@@ -368,7 +368,8 @@ def application_pending_count_updated(
 
     :param sender: What sent the signal.
     :param application: The application whose pending counts changed.
-    :param user_ids: The ids of the users whose count changed.
+    :param user_ids: The ids of the users whose count changed, or None when it
+        may have changed for everyone who can read the application.
     :param kwargs: The remaining signal arguments, which this receiver ignores.
     """
 

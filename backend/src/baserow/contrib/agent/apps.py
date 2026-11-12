@@ -13,6 +13,7 @@ class AgentConfig(AppConfig):
             operation_type_registry,
         )
         from baserow.core.search.registries import workspace_search_registry
+        from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
         from .actions import (
@@ -65,6 +66,7 @@ class AgentConfig(AppConfig):
             UpdateAgentTriggerActionType,
         )
         from .triggers.data_providers import TriggerDataProviderType
+        from .triggers.dispatcher import agent_trigger_dispatcher
         from .triggers.trash_types import AgentTriggerTrashableItemType
 
         application_type_registry.register(AgentApplicationType())
@@ -115,6 +117,7 @@ class AgentConfig(AppConfig):
             DeleteRowsAgentToolType,
         ):
             agent_tool_type_registry.register(tool_type())
+        service_type_registry.add_trigger_listener(agent_trigger_dispatcher.on_event)
 
         import baserow.contrib.agent.receivers  # noqa: F401
         import baserow.contrib.agent.triggers.receivers  # noqa: F401

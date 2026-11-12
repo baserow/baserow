@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
-from django.db import DEFAULT_DB_ALIAS
 
 from asgiref.sync import sync_to_async
 from pydantic_ai.models import Model
@@ -18,8 +17,13 @@ from baserow.core.models import Workspace
 from baserow.core.signals import application_pending_count_updated
 
 from .api.serializers import AgentMessageSerializer
-from .constants import AGENT_NOT_ALLOWED, AGENT_NOT_READY, AGENT_RUN_TYPE
-from .exceptions import AgentConversationDoesNotExist, AgentNotReady
+from .constants import (
+    AGENT_NOT_ALLOWED,
+    AGENT_NOT_READY,
+    AGENT_RUN_TYPE,
+    AGENT_TRIGGER_OFF,
+)
+from .exceptions import AgentConversationDoesNotExist, AgentNotReady, AgentTriggerOff
 from .handler import AgentHandler
 from .models import AgentReplyStatus
 from .replies import AgentResponder, create_reply_model
@@ -32,7 +36,7 @@ if TYPE_CHECKING:
 
 
 class AgentChatRunType(ChatRunType):
-    """An Agent's reply to one message in a private conversation."""
+    """An Agent's reply to one message in a conversation."""
 
     type = AGENT_RUN_TYPE
 
@@ -47,24 +51,33 @@ class AgentChatRunType(ChatRunType):
         return settings.BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE
 
     def can_read(self, user: AbstractUser, run: ChatRun) -> bool:
-        """Only the owner, while they may still read the Agent's conversations."""
+        """
+        :param user: The user asking.
+        :param run: The run writing a reply in a conversation.
+        :return: Whether the user may read it: the owner, or any reader of the
+            Agent's conversations for a shared one.
+        """
 
         return AgentService().can_read_conversation(user, run.chat_id)
 
     def can_cancel(self, user: AbstractUser, run: ChatRun) -> bool:
-        return self.can_read(user, run)
+        """
+        :param user: The user asking.
+        :param run: The run writing a reply in a conversation.
+        :return: Whether the user may stop it: the owner, or for a shared
+            conversation a reader who may also update the Agent.
+        """
+
+        return AgentService().can_cancel_conversation_run(user, run.chat_id)
 
     def can_follow_chat(self, user: AbstractUser, chat_id: int) -> bool:
-        """One query, as it runs on the websocket's shared thread."""
+        """
+        :param user: The user following the conversation.
+        :param chat_id: The id of the conversation.
+        :return: Whether the user may follow its runs.
+        """
 
-        # A replica can lag behind the conversation that this tab's send just created.
-        return (
-            AgentHandler()
-            .get_accessible_conversations(user)
-            .using(DEFAULT_DB_ALIAS)
-            .filter(id=chat_id)
-            .exists()
-        )
+        return AgentService().can_follow_conversation(user, chat_id)
 
     async def execute(self, run: ChatRun, journal: "ChatRunJournal") -> ChatRunOutcome:
         """Check access and configuration again: both can change while the run waits."""
@@ -75,6 +88,8 @@ class AgentChatRunType(ChatRunType):
             return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED)
         except AgentNotReady:
             return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_NOT_READY)
+        except AgentTriggerOff:
+            return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_TRIGGER_OFF)
         except PermissionException:
             return ChatRunOutcome(ChatRunStatus.FAILED, AGENT_NOT_ALLOWED)
         return await AgentResponder(request, journal, model, model_settings).answer()
@@ -121,8 +136,9 @@ class AgentChatRunType(ChatRunType):
         result: AgentReplyResult | None,
     ) -> dict | None:
         """
-        Save how the reply ended and tell all the owner's sessions, with their
-        pending count when the reply now waits for approvals.
+        Save how the reply ended and tell every session that sees the conversation,
+        with the pending counts of those who may decide when the reply now waits for
+        approvals.
 
         :param run: The run that wrote the reply.
         :param status: The final status.
@@ -143,6 +159,6 @@ class AgentChatRunType(ChatRunType):
             application_pending_count_updated.send(
                 self,
                 application=conversation.agent,
-                user_ids=[conversation.owner_user_id],
+                user_ids=conversation.pending_count_user_ids,
             )
         return dict(AgentMessageSerializer(reply).data)

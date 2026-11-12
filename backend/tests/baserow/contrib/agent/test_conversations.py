@@ -31,8 +31,9 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
-from baserow.core.exceptions import FeatureDisabledException
+from baserow.core.exceptions import FeatureDisabledException, PermissionException
 from baserow.core.models import TrashEntry
+from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
 from baserow.core.trash.handler import TrashHandler
 
@@ -71,6 +72,10 @@ def test_first_message_creates_a_private_conversation(
             "run_id": run_id,
             "pending_approval_count": 0,
             "pinned": False,
+            "shared": False,
+            "trigger_id": None,
+            "trigger_type": None,
+            "trigger_name": None,
         },
         "message": {
             "id": message.id,
@@ -468,12 +473,23 @@ def test_deleting_a_user_removes_their_conversations(data_fixture, configured_ag
     agent = configured_agent(
         workspace=data_fixture.create_workspace(user=owner, members=[participant])
     )
-    data_fixture.create_agent_conversation(user=participant, agent=agent)
+    deleted = data_fixture.create_agent_conversation(user=participant, agent=agent)
     retained = data_fixture.create_agent_conversation(user=owner, agent=agent)
+    shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    trashed_shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    for conversation in [deleted, trashed_shared]:
+        TrashHandler.trash(participant, agent.workspace, agent, conversation)
 
     participant.delete()
 
-    assert list(AgentConversation.objects.all()) == [retained]
+    assert set(AgentConversation.objects_and_trash.all()) == {
+        retained,
+        shared,
+        trashed_shared,
+    }
+    assert list(TrashEntry.objects.values_list("trash_item_id", flat=True)) == [
+        trashed_shared.id
+    ]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -844,3 +860,100 @@ def test_conversation_filters_and_cursors_cover_the_pin_boundary(
         {"cursor": "2:1_1"},
     ]:
         assert api_client.get(url, params).status_code == 400
+
+
+@pytest.mark.django_db
+def test_shared_conversations_are_listed_and_read_by_every_member(
+    data_fixture, configured_agent, api_client, api_user
+):
+    member = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=api_user, members=[member])
+    agent = configured_agent(workspace=workspace)
+    private = data_fixture.create_agent_conversation(user=api_user, agent=agent)
+    shared = data_fixture.create_shared_agent_conversation(
+        agent=agent, trigger=data_fixture.create_agent_trigger(agent=agent, name="Tick")
+    )
+    data_fixture.create_agent_message(
+        conversation=shared, role="trigger", content="Tick"
+    )
+    service = AgentService()
+
+    listed = api_client.get(agent_url(agent, "conversations")).json()["results"]
+    messages = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=shared.uuid)
+    ).json()["results"]
+
+    assert [
+        (
+            item["uuid"],
+            item["shared"],
+            item["trigger_id"],
+            item["trigger_type"],
+            item["trigger_name"],
+        )
+        for item in listed
+    ] == [
+        (str(shared.uuid), True, shared.trigger_id, "periodic", "Tick"),
+        (str(private.uuid), False, None, None, None),
+    ]
+    assert [(item["role"], item["content"]) for item in messages] == [
+        ("trigger", "Tick")
+    ]
+    assert [item.uuid for item in service.list_conversations(member, agent.id)] == [
+        shared.uuid
+    ]
+    assert service.list_messages(member, agent.id, shared.uuid)[0] == shared
+    with pytest.raises(PermissionException):
+        service.list_conversations(outsider, agent.id)
+    with pytest.raises(AgentConversationDoesNotExist):
+        service.list_messages(member, agent.id, private.uuid)
+
+
+@pytest.mark.django_db
+def test_shared_conversations_accept_decisions_but_no_messages(
+    data_fixture, configured_agent, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+    shared = data_fixture.create_shared_agent_conversation(agent=agent)
+    approval = data_fixture.create_agent_tool_approval(conversation=shared)
+
+    sent = api_client.post(
+        agent_url(agent, "messages", conversation_uuid=shared.uuid),
+        {"uuid": str(uuid4()), "content": "Hello"},
+    )
+    decided = api_client.post(
+        agent_url(agent, "approvals", conversation_uuid=shared.uuid),
+        {"decisions": [{"id": approval.id, "approved": True}]},
+    )
+
+    assert sent.status_code == 409
+    assert sent.json()["error"] == "ERROR_AGENT_CONVERSATION_READ_ONLY"
+    assert not AgentMessage.objects.filter(role="user").exists()
+    assert decided.status_code == 200
+    approval.refresh_from_db()
+    assert (approval.status, approval.decided_by_id) == ("approved", api_user.id)
+    # The resumed reply stays unattended: its run belongs to nobody.
+    assert ChatRun.objects.get().created_by_id is None
+
+
+@pytest.mark.django_db
+def test_a_trashed_shared_conversation_has_no_owner_and_counts_no_approvals(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_shared_agent_conversation(agent=agent)
+    pending_count_updated = mocker.patch.object(
+        application_pending_count_updated, "send"
+    )
+
+    action_type_registry.get_by_type(DeleteAgentConversationActionType).do(
+        user, agent.id, conversation.uuid
+    )
+    entry = TrashEntry.objects.get()
+    TrashHandler.restore_item(user, "agent_conversation", entry.trash_item_id)
+
+    assert entry.trash_item_owner is None
+    pending_count_updated.assert_not_called()
+    assert AgentConversation.objects.filter(id=conversation.id).exists()

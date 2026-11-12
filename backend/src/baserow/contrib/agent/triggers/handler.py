@@ -1,3 +1,6 @@
+import json
+from datetime import datetime
+from typing import Any
 from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
@@ -10,7 +13,11 @@ from baserow.contrib.agent.constants import (
 )
 from baserow.contrib.agent.models import AgentApplication, AgentTrigger
 from baserow.contrib.agent.types import AgentTriggerUpdated
+from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.validator import ensure_string
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
@@ -21,6 +28,7 @@ from baserow.core.services.registries import (
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
 
+from .data_providers import AgentTriggerDispatchContext
 from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
 
 
@@ -246,6 +254,45 @@ class AgentTriggerHandler:
         service_type = service.get_type()
         self.check_type_available(trigger.agent, service_type.type)
         service_type.arm(service)
+
+    def payload_as_message(self, event_payload: dict[str, Any]) -> str:
+        """
+        :param event_payload: The payload the trigger's service produced.
+        :return: The payload as a fenced JSON block, which opens the conversation
+            when the trigger's message has no text of its own.
+        """
+
+        payload = json.dumps(event_payload, default=str, indent=2)
+        return f"Trigger data:\n```json\n{payload}\n```"[:AGENT_TEXT_MAX_LENGTH]
+
+    def resolve_message(
+        self,
+        trigger: AgentTrigger,
+        event_payload: dict[str, Any],
+        fired_at: datetime,
+    ) -> str:
+        """
+        Resolve the trigger's message formula against the event payload. A blank
+        result opens the conversation with the payload itself, so a trigger with
+        no message still tells the agent what happened.
+
+        :param trigger: The trigger that fired, with its agent and service.
+        :param event_payload: The payload its service produced for this event.
+        :param fired_at: When the dispatcher handled the event.
+        :return: The message that opens the conversation, cut to the length the
+            API accepts for a message.
+        """
+
+        content = ensure_string(
+            resolve_formula(
+                BaserowFormulaObject.to_formula(trigger.message),
+                formula_runtime_function_registry,
+                AgentTriggerDispatchContext(trigger, event_payload, fired_at),
+            )
+        )
+        if not content.strip():
+            return self.payload_as_message(event_payload)
+        return content[:AGENT_TEXT_MAX_LENGTH]
 
     def export_triggers(
         self,

@@ -57,7 +57,11 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
-from baserow.contrib.agent.replies import AgentResponder, create_reply_model
+from baserow.contrib.agent.replies import (
+    AgentResponder,
+    build_history,
+    create_reply_model,
+)
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import (
@@ -81,6 +85,7 @@ from baserow.core.generative_ai.registries import generative_ai_model_type_regis
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
@@ -1153,11 +1158,12 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
     elif change == "deny_reading":
         mocker.patch.object(
             CoreHandler,
-            "check_permissions",
+            "check_multiple_permissions",
             autospec=True,
-            side_effect=lambda handler, actor, operation, **kwargs: (
-                operation != ReadAgentConversationsOperationType.type
-            ),
+            side_effect=lambda handler, checks, *args, **kwargs: {
+                check: check.operation_name != ReadAgentConversationsOperationType.type
+                for check in checks
+            },
         )
     else:
         TrashHandler.trash(owner, agent.workspace, agent, agent)
@@ -1165,6 +1171,37 @@ def test_only_the_owner_reads_follows_and_stops_a_reply(
     assert not run_type.can_read(user, reply_run)
     assert not run_type.can_cancel(user, reply_run)
     assert run_type.can_follow_chat(user, reply_run.chat_id) is can_follow
+
+
+@pytest.mark.django_db
+def test_a_shared_reply_is_followed_by_members_and_stopped_with_agent_update_access(
+    data_fixture, configured_agent, mocker
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    outsider = data_fixture.create_user()
+    agent = configured_agent(
+        workspace=data_fixture.create_workspace(user=admin, members=[member])
+    )
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
+    run = run_of(conversation)
+    run_type = AgentChatRunType()
+    check = mocker.spy(CoreHandler, "check_multiple_permissions")
+
+    assert run.created_by is None
+    assert run_type.can_read(member, run)
+    assert run_type.can_follow_chat(member, conversation.id)
+    assert run_type.can_cancel(member, run)
+    assert [permission.operation_name for permission in check.call_args.args[1]] == [
+        ReadAgentConversationsOperationType.type,
+        UpdateApplicationOperationType.type,
+    ]
+    assert not run_type.can_read(outsider, run)
+    assert not run_type.can_cancel(outsider, run)
+    assert not run_type.can_follow_chat(outsider, conversation.id)
 
 
 @pytest.mark.django_db
@@ -2464,3 +2501,85 @@ def test_an_approved_mcp_call_does_not_run_once_the_tool_is_turned_off(
         (part.tool_call_id, part.outcome, part.content)
         for part in received[-1][-1].parts
     ] == [("call_mcp", "denied", DISALLOWED_TOOL_CALL_NOTE)]
+
+
+def test_history_treats_a_trigger_message_like_a_prompt():
+    messages = [
+        AgentMessage(role="trigger", content="Tick"),
+        AgentMessage(role="assistant", content="Done", status="completed"),
+        AgentMessage(role="user", content="More?"),
+    ]
+
+    assert [
+        (type(message).__name__, message.parts[0].content)
+        for message in build_history(messages)
+    ] == [
+        ("ModelRequest", "Tick"),
+        ("ModelResponse", "Done"),
+        ("ModelRequest", "More?"),
+    ]
+
+
+@pytest.mark.django_db
+def test_an_unattended_reply_waits_for_a_member_to_approve_an_ask_first_call(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent()
+    table = allow_tools(
+        data_fixture, agent, ("list_tables", "create_rows"), ask_first=("create_rows",)
+    )
+    agent_with_mcp_tool(data_fixture, agent, mocker, [])
+    trigger = data_fixture.create_agent_trigger(
+        agent=agent,
+        service=data_fixture.create_core_periodic_service(timezone="Europe/Rome"),
+    )
+    respond(mocker, ({0: add_row(table)},))
+    requested = mocker.spy(AgentHandler, "get_reply_request")
+
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
+    run_reply(run_of(conversation))
+
+    request = requested.spy_return
+    assert (
+        request.allowed_tool_names,
+        request.ask_first_tool_names,
+        len(request.mcp_servers),
+        request.timezone,
+        request.prompt,
+    ) == (["list_tables", "create_rows"], ["create_rows"], 1, "Europe/Rome", "Tick")
+    reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
+    assert reply_state(reply.id) == ("waiting", "", "")
+    assert row_names(table) == []
+
+    member = data_fixture.create_user(workspace=agent.workspace)
+    run_reply(decide(member, reply, approved=True))
+
+    assert reply_state(reply.id) == ("completed", "", "Done.")
+    assert row_names(table) == ["Plan"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["disable", "trash", "delete"])
+def test_an_unattended_reply_stops_once_its_trigger_is_gone(
+    data_fixture, configured_agent, change
+):
+    agent = configured_agent()
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    conversation = (
+        AgentHandler().start_trigger_conversation(trigger, "Tick").conversation
+    )
+    if change == "disable":
+        trigger.enabled = False
+        trigger.save(update_fields=["enabled"])
+    elif change == "trash":
+        trigger.trashed = True
+        trigger.save(update_fields=["trashed"])
+    else:
+        trigger.delete()
+
+    run_reply(run_of(conversation))
+
+    reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
+    assert reply_state(reply.id) == ("failed", "trigger_off", "")

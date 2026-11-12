@@ -13,6 +13,7 @@ from baserow.core.exceptions import (
     UserInvalidWorkspacePermissionsError,
     WorkspaceDoesNotExist,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Application, TrashEntry, Workspace
 from baserow.core.trash.exceptions import (
     CannotDeleteAlreadyDeletedItem,
@@ -20,6 +21,7 @@ from baserow.core.trash.exceptions import (
     PermanentDeletionMaxLocksExceededException,
 )
 from baserow.core.trash.handler import TrashHandler, _get_trash_entry
+from baserow.core.trash.trash_types import ApplicationTrashableItemType
 
 
 @pytest.mark.django_db
@@ -617,3 +619,22 @@ def test_emptying_trash_keeps_the_private_items_of_other_users(data_fixture):
     assert dict(
         TrashEntry.objects.values_list("trash_item_id", "should_be_permanently_deleted")
     ) == {shared.id: True, private.id: False}
+
+
+@pytest.mark.django_db
+def test_restoring_checks_every_operation_its_item_type_needs(data_fixture, mocker):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    TrashHandler.trash(user, database.workspace, database, database)
+    mocker.patch.object(
+        ApplicationTrashableItemType,
+        "get_restore_operation_types",
+        return_value=["application.restore", "application.update"],
+    )
+    checks = mocker.spy(CoreHandler, "check_permissions")
+
+    TrashHandler.restore_item(user, "application", database.id)
+
+    assert [
+        (call.args[2], call.kwargs["include_trash"]) for call in checks.call_args_list
+    ] == [("application.restore", True), ("application.update", True)]

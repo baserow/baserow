@@ -76,7 +76,10 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
 class AgentConversation(
     TrashableModelMixin, BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
 ):
-    """A conversation with an agent, private to the user who started it."""
+    """
+    A conversation with an agent: private to the user who started it, or shared
+    (no owner) when a trigger started it.
+    """
 
     agent = models.ForeignKey(
         AgentApplication, on_delete=models.CASCADE, related_name="conversations"
@@ -85,12 +88,40 @@ class AgentConversation(
     title = models.CharField(max_length=250)
     owner_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
         on_delete=models.CASCADE,
         related_name="agent_conversations",
     )
-    # Reads are already narrowed to one owner's conversations by the index below.
+    trigger = models.ForeignKey(
+        AgentTrigger,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="conversations",
+    )
+    # Both indexes below lead with the agent, so reads never need one on trashed.
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
+
+    @property
+    def is_shared(self) -> bool:
+        """
+        :return: Whether a trigger started the conversation: it has no owner and
+            everyone who may read the agent's conversations reads it.
+        """
+
+        return self.owner_user_id is None
+
+    @property
+    def pending_count_user_ids(self) -> list[int] | None:
+        """
+        :return: The users whose pending count the conversation's held calls add
+            to: its owner, or None for everyone who may read the agent when it's
+            shared, since those who may decide them depends on their role.
+        """
+
+        return None if self.is_shared else [self.owner_user_id]
 
     class Meta:
         ordering = ("-pinned", "-updated_on", "-id")
@@ -98,6 +129,10 @@ class AgentConversation(
             models.Index(
                 fields=["agent", "owner_user", "-pinned", "-updated_on", "-id"],
                 name="agent_conversation_pinned_idx",
+            ),
+            models.Index(
+                fields=["agent", "-pinned", "-updated_on", "-id"],
+                name="agent_conversation_shared_idx",
             ),
         ]
 
@@ -119,7 +154,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
     class Role(models.TextChoices):
         USER = "user", "User"
         ASSISTANT = "assistant", "Assistant"
-        SYSTEM = "system", "System"
+        TRIGGER = "trigger", "Trigger"
 
     conversation = models.ForeignKey(
         AgentConversation, on_delete=models.CASCADE, related_name="messages"

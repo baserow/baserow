@@ -26,6 +26,7 @@ from baserow.contrib.agent.validators import (
 )
 from baserow.core.chat_runs.constants import ChatRunStepStatus
 from baserow.core.generative_ai.constants import ReasoningEffort
+from baserow.core.services.registries import service_type_registry
 from baserow.core.tools.errors import ToolErrorCode
 
 READINESS_CHOICES = [state.value for state in AgentReadinessState]
@@ -304,7 +305,26 @@ class AgentConversationSerializer(serializers.ModelSerializer):
     )
     pending_approval_count = serializers.SerializerMethodField(
         help_text="The number of held tool calls in this conversation waiting for "
-        "the owner's decision."
+        "a decision."
+    )
+    shared = serializers.SerializerMethodField(
+        help_text="Whether a trigger started this conversation. A shared conversation "
+        "is read by everyone who may read the agent's conversations, accepts no "
+        "messages, and its held tool calls are decided by anyone who may send the "
+        "agent messages."
+    )
+    trigger_id = serializers.IntegerField(
+        read_only=True,
+        allow_null=True,
+        help_text="The trigger that started this conversation, or null.",
+    )
+    trigger_type = serializers.SerializerMethodField(
+        help_text="The service type of the trigger that started this conversation, "
+        "such as periodic, or null."
+    )
+    trigger_name = serializers.SerializerMethodField(
+        help_text="The current name of the trigger that started this conversation, "
+        "blank when it shows its type's default, or null."
     )
 
     class Meta:
@@ -318,6 +338,10 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "run_id",
             "pending_approval_count",
             "pinned",
+            "shared",
+            "trigger_id",
+            "trigger_type",
+            "trigger_name",
         )
 
     @extend_schema_field(serializers.UUIDField(allow_null=True))
@@ -329,6 +353,41 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_pending_approvals", {}).get(
             conversation.id, 0
         )
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_shared(self, conversation: AgentConversation) -> bool:
+        """
+        :param conversation: The serialized conversation.
+        :return: Whether a trigger started it, so it has no owner.
+        """
+
+        return conversation.is_shared
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_trigger_type(self, conversation: AgentConversation) -> str | None:
+        """
+        Name the service type of the trigger that started the conversation, so a
+        list can show its icon.
+
+        :param conversation: The conversation being serialized.
+        :return: The type name, or None once the trigger is permanently deleted.
+        """
+
+        trigger = conversation.trigger
+        if trigger is None:
+            return None
+        return service_type_registry.get_by_model(trigger.service.specific_class).type
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_trigger_name(self, conversation: AgentConversation) -> str | None:
+        """
+        :param conversation: The conversation being serialized.
+        :return: The name of the trigger that started it, or None once the trigger
+            is permanently deleted.
+        """
+
+        trigger = conversation.trigger
+        return None if trigger is None else trigger.name
 
 
 class AgentConversationUpdateSerializer(
@@ -373,7 +432,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
         many=True,
         read_only=True,
         help_text="The reply's held tool calls, joined to their steps by step_id, "
-        "with the owner's decision on each.",
+        "with the decision on each.",
     )
     run_id = serializers.SerializerMethodField(
         help_text=(

@@ -156,6 +156,17 @@ class TrashableItemType(ModelInstanceMixin, Instance, ABC):
 
         pass
 
+    def get_restore_operation_types(self, trashed_item: Any) -> list[str]:
+        """
+        Returns every operation the user needs, on the restore operation context, to
+        restore this item. Override it when some items need more than the others.
+
+        :param trashed_item: The item being restored.
+        :return: The operation type names to check.
+        """
+
+        return [self.get_restore_operation_type()]
+
     def get_restore_operation_context(self, trash_entry, trashed_item) -> str:
         """
         Returns the context to use when checking permission for restoring an item
