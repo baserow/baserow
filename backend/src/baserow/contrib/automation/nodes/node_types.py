@@ -784,7 +784,7 @@ class AutomationTriggerNodeType(AutomationNodeType):
         return super().after_register()
 
     def before_unregister(self):
-        service_type_registry.get(self.service_type).stop_listening()
+        service_type_registry.get(self.service_type).stop_listening(self.on_event)
         return super().before_unregister()
 
     def before_create(

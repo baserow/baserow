@@ -33,9 +33,6 @@ from rest_framework import serializers
 
 from advocate.connection import UnacceptableAddressException
 from baserow.config.celery import app as celery_app
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeMisconfiguredService,
-)
 from baserow.contrib.integrations.core.api.inbound_email.views import (
     CoreInboundEmailWebhookView,
 )
@@ -127,6 +124,7 @@ from baserow.core.services.exceptions import (
     RemoteRefusedDispatchException,
     RuntimeDispatchException,
     ServiceImproperlyConfiguredDispatchException,
+    ServiceMisconfigured,
     UnexpectedDispatchException,
     UnreachableAddressDispatchException,
 )
@@ -2610,14 +2608,14 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
                 and minute is not None
                 and minute < settings.INTEGRATIONS_PERIODIC_MINUTE_MIN
             ):
-                raise AutomationNodeMisconfiguredService(
+                raise ServiceMisconfigured(
                     "The `minute` value must be greater "
                     f"or equal to {settings.INTEGRATIONS_PERIODIC_MINUTE_MIN}."
                 )
 
         service_timezone = values.get("timezone", None)
         if service_timezone is not None and service_timezone not in get_timezones():
-            raise AutomationNodeMisconfiguredService(
+            raise ServiceMisconfigured(
                 f"The timezone `{service_timezone}` is not a valid timezone."
             )
 
@@ -2634,24 +2632,16 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
         **kwargs,
     ) -> CorePeriodicService:
         """
-        Initialize the runtime-only `next_run_at` when publishing. Draft services are
-        never dispatched, so this value is intentionally omitted from serialization.
+        Arms the copy when publishing. `next_run_at` is runtime state that is
+        never serialized, so every other import produces an unscheduled service.
 
         :param serialized_values: The deserialized values.
+        :param id_mapping: The map of exported ids to newly created ids.
+        :param import_export_config: The configuration of this import, if any.
         :return: The created service.
         """
 
-        if import_export_config and import_export_config.is_publishing:
-            serialized_values["next_run_at"] = calculate_next_periodic_run(
-                interval=serialized_values.get("interval"),
-                minute=serialized_values.get("minute"),
-                hour=serialized_values.get("hour"),
-                day_of_week=serialized_values.get("day_of_week"),
-                day_of_month=serialized_values.get("day_of_month"),
-                tz=serialized_values.get("timezone"),
-            )
-
-        return super().create_instance_from_serialized(
+        service = super().create_instance_from_serialized(
             serialized_values,
             id_mapping,
             files_zip=files_zip,
@@ -2659,6 +2649,32 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
             cache=cache,
             **kwargs,
         )
+
+        if import_export_config and import_export_config.is_publishing:
+            self.arm(service)
+
+        return service
+
+    def arm(self, service: CorePeriodicService) -> None:
+        """
+        Schedules the next run from now. A service without an interval hasn't
+        been configured yet, so it has no schedule and nothing is written.
+
+        :param service: The periodic service to schedule.
+        """
+
+        if not service.interval:
+            return
+
+        service.next_run_at = calculate_next_periodic_run(
+            interval=service.interval,
+            minute=service.minute,
+            hour=service.hour,
+            day_of_week=service.day_of_week,
+            day_of_month=service.day_of_month,
+            tz=service.timezone,
+        )
+        service.save(update_fields=["next_run_at"])
 
     def can_be_immediately_dispatched(self, service):
         return True
@@ -2684,13 +2700,21 @@ class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
             "periodic-service-type-task", terminate=True
         )
 
-    def start_listening(self, on_event: Callable):
-        super().start_listening(on_event)
+    def connect(self) -> None:
+        """
+        Schedules the beat task once Celery finalizes.
+        """
+
         celery_app.on_after_finalize.connect(self._setup_periodic_task)
 
-    def stop_listening(self):
-        super().stop_listening()
+    def disconnect(self) -> None:
+        """
+        Stops scheduling the beat task and cancels it if it was scheduled.
+        """
+
+        celery_app.on_after_finalize.disconnect(self._setup_periodic_task)
         self._cancel_periodic_task()
+        self._cancel_periodic_task = lambda: None
 
     def _localize(
         self, service: CorePeriodicService, value: Optional[datetime]
@@ -3408,29 +3432,49 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         id_mapping: Dict[str, Dict[str, str]],
         import_export_config: Optional[ImportExportConfig] = None,
         **kwargs,
-    ):
+    ) -> CoreHTTPTriggerService:
         """
-        Handle the is_public and uid fields during import based on publishing
-        context.
+        Publishing keeps the uid, so the published URL is the one shown next to
+        the draft, and arms the copy. Every other import (duplicating, installing
+        a template, importing an exported application) gets its own uid, since
+        the newest public service with a uid receives that URL's requests.
+
+        :param parent: The parent of the imported service.
+        :param serialized_values: The exported values.
+        :param id_mapping: The map of exported ids to newly created ids.
+        :param import_export_config: The configuration of this import, if any.
+        :return: The imported service.
         """
 
-        if import_export_config and import_export_config.is_publishing:
-            # Publishing must keep the uid so the published URL is the one
-            # shown next to the draft.
-            serialized_values["is_public"] = True
-        else:
-            # Every other import (duplicating, installing a template,
-            # importing an exported application) gets its own URL, since the
-            # newest service with a uid receives that URL's requests.
+        is_publishing = bool(
+            import_export_config and import_export_config.is_publishing
+        )
+        if not is_publishing:
             serialized_values["uid"] = str(uuid.uuid4())
 
-        return super().import_serialized(
+        service = super().import_serialized(
             parent,
             serialized_values,
             id_mapping,
             import_export_config=import_export_config,
             **kwargs,
         )
+
+        if is_publishing:
+            self.arm(service)
+
+        return service
+
+    def arm(self, service: CoreHTTPTriggerService) -> None:
+        """
+        Makes the webhook URL answer real requests: `process_webhook_request`
+        only looks up public services for non-test calls.
+
+        :param service: The HTTP trigger service to expose.
+        """
+
+        service.is_public = True
+        service.save(update_fields=["is_public"])
 
 
 class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
@@ -3663,31 +3707,50 @@ class CoreInboundEmailTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         id_mapping: Dict[str, Dict[str, str]],
         import_export_config: Optional[ImportExportConfig] = None,
         **kwargs,
-    ):
+    ) -> CoreInboundEmailTriggerService:
         """
-        Handle the is_public field during import based on publishing context.
+        Publishing keeps the token, so the published address is the one shown
+        next to the draft, and arms the copy. Every other configured import gets
+        a new address: the token is the address's only secret, and keeping it
+        would let an import of someone's export take over their trigger's mail,
+        since the newest public service with a token wins.
+
+        :param parent: The parent of the imported service.
+        :param serialized_values: The exported values.
+        :param id_mapping: The map of exported ids to newly created ids.
+        :param import_export_config: The configuration of this import, if any.
+        :return: The imported service.
         """
 
-        if import_export_config:
-            if import_export_config.is_publishing:
-                # Publishing must keep the token so the published address is
-                # the one shown next to the draft.
-                serialized_values["is_public"] = True
-            else:
-                # Every other import (duplicating, installing a template,
-                # importing an exported application) gets a new address. The
-                # token is the address's only secret: keeping it would let an
-                # import of someone's export take over their trigger's mail,
-                # since the newest published service with a token wins.
-                serialized_values["token"] = generate_inbound_email_token()
+        is_publishing = bool(
+            import_export_config and import_export_config.is_publishing
+        )
+        if import_export_config and not is_publishing:
+            serialized_values["token"] = generate_inbound_email_token()
 
-        return super().import_serialized(
+        service = super().import_serialized(
             parent,
             serialized_values,
             id_mapping,
             import_export_config=import_export_config,
             **kwargs,
         )
+
+        if is_publishing:
+            self.arm(service)
+
+        return service
+
+    def arm(self, service: CoreInboundEmailTriggerService) -> None:
+        """
+        Makes the inbound address deliver real mail: `process_inbound_email`
+        only looks up public services for non-test addresses.
+
+        :param service: The inbound email trigger service to expose.
+        """
+
+        service.is_public = True
+        service.save(update_fields=["is_public"])
 
 
 class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
