@@ -37,12 +37,14 @@ class AdminUserTemplateSerializer(TemplateSerializer):
     )
     state = serializers.ChoiceField(
         source="admin_state",
-        choices=USER_TEMPLATE_ADMIN_STATES,
+        choices=UserTemplateState.choices,
         read_only=True,
-        help_text="The tab of the admin page the template is on.",
+        help_text="The tab of the admin page the template is on, or private once "
+        "an admin unblocked it.",
     )
     reason = serializers.SerializerMethodField(
-        help_text="Why an admin rejected the template, for a rejected one."
+        help_text="Why an admin rejected or blocked the template, for a rejected "
+        "or blocked one."
     )
     listed = serializers.SerializerMethodField(
         help_text="Whether a revision of the template is listed for everybody, "
@@ -117,6 +119,8 @@ class AdminUserTemplateSerializer(TemplateSerializer):
     def get_reason(self, instance: Template) -> Optional[str]:
         if instance.admin_state == UserTemplateState.REJECTED:
             return instance.reject_reason or None
+        if instance.admin_state == UserTemplateState.BLOCKED:
+            return instance.get_root().blocked_reason or None
         return None
 
     @extend_schema_field(serializers.BooleanField())
@@ -163,6 +167,12 @@ class AdminRejectUserTemplateSerializer(AdminApproveUserTemplateSerializer):
     )
 
 
+class AdminBlockUserTemplateSerializer(serializers.Serializer):
+    reason = serializers.CharField(
+        max_length=1000, help_text="Why the template is blocked, shown to its author."
+    )
+
+
 class AdminUserTemplatesQueryParamsSerializer(serializers.Serializer):
     state = serializers.ChoiceField(choices=USER_TEMPLATE_ADMIN_STATES)
 
@@ -173,3 +183,4 @@ class AdminUserTemplateCountsSerializer(serializers.Serializer):
         help_text="The listed templates without an edit in review or rejected."
     )
     rejected = serializers.IntegerField(help_text="The rejected templates.")
+    blocked = serializers.IntegerField(help_text="The blocked templates.")

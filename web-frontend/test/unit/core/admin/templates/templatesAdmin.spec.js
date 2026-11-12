@@ -1,5 +1,5 @@
 import { flushPromises } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -10,6 +10,7 @@ import TemplateNameField from '@baserow/modules/core/components/admin/templates/
 import TemplateAuthorField from '@baserow/modules/core/components/admin/templates/fields/TemplateAuthorField'
 import TemplatesAdminTable from '@baserow/modules/core/components/admin/templates/TemplatesAdminTable'
 import SidebarAdminItem from '@baserow/modules/core/components/sidebar/SidebarAdminItem'
+import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 
 vi.mock('lodash/debounce', () => ({
   default: vi.fn((fn) => Object.assign(fn, { cancel: () => {} })),
@@ -21,6 +22,7 @@ const REVIEW_FIELDS = {
   'public:true': { can_reject: true, reject_unlists: true },
   'rejected:false': { can_reject: false, reject_unlists: false },
   'rejected:true': { can_reject: true, reject_unlists: true },
+  'blocked:false': { can_reject: false, reject_unlists: false },
 }
 
 const row = (state, listed = false, canApprove = true) => ({
@@ -70,12 +72,14 @@ describe('TemplatesAdminTable', () => {
     rows,
     {
       count = rows.length,
-      counts = { in_review: 1, public: 1, rejected: 0 },
+      counts = { in_review: 1, public: 1, rejected: 0, blocked: 0 },
       component = TemplatesAdminTable,
     } = {}
   ) => {
     testApp.mock.onGet('/admin/templates/').reply(200, { count, results: rows })
-    testApp.mock.onGet('/admin/templates/counts/').reply(200, counts)
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(counts ? 200 : 500, counts ?? {})
     testApp.mock.onGet('/applications/workspace/9/').reply(200, [])
     const wrapper = await testApp.mount(component)
     await flushPromises()
@@ -166,7 +170,7 @@ describe('TemplatesAdminTable', () => {
   test('lists the templates of the chosen tab with its counts', async () => {
     const wrapper = await mountTable(
       [{ id: 3, revision_id: 7, name: 'Sprint', author: null, reason: 'Spam' }],
-      { counts: { in_review: 4, public: 12, rejected: 2 } }
+      { counts: { in_review: 4, public: 12, rejected: 2, blocked: 1 } }
     )
     const listStates = () =>
       requestsTo('/admin/templates/').map((request) => request.params.state)
@@ -187,11 +191,21 @@ describe('TemplatesAdminTable', () => {
     expect(requestsTo('/admin/templates/counts/').length).toBe(2)
     expect(headers()).toContain('templatesAdmin.reason')
     expect(headers()).not.toContain('templatesAdmin.submitted')
+
+    await wrapper.findAll('.tabs__item').at(3).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('.tabs__item').at(3).text()).toBe(
+      'templatesAdmin.tabCount - 1'
+    )
+    expect(listStates()).toEqual(['in_review', 'rejected', 'blocked'])
+    expect(requestsTo('/admin/templates/counts/').length).toBe(3)
+    expect(headers()).toContain('templatesAdmin.reason')
   })
 
   test('tells when the tab has no templates', async () => {
     const wrapper = await mountTable([], {
-      counts: { in_review: 0, public: 0, rejected: 0 },
+      counts: { in_review: 0, public: 0, rejected: 0, blocked: 0 },
     })
 
     expect(wrapper.find('.data-table__empty').text()).toBe(
@@ -200,7 +214,10 @@ describe('TemplatesAdminTable', () => {
   })
 
   const clickAction = async (wrapper, template, action) => {
-    if (template.state === 'public') {
+    if (['block', 'unblock'].includes(action)) {
+      await openMenu(wrapper)
+      await clickMenuItem(`templatesAdmin.${action}`)
+    } else if (template.state === 'public') {
       await openMenu(wrapper)
       await clickMenuItem('templatesAdmin.unlistFromBrowser')
     } else {
@@ -316,6 +333,75 @@ describe('TemplatesAdminTable', () => {
       await expectRefreshed()
     }
   )
+
+  test.each([
+    ['public', 'block', { reason: 'Spam' }],
+    ['blocked', 'unblock', undefined],
+  ])(
+    'moderates a %s template with %s from its menu, then refreshes',
+    async (state, action, body) => {
+      const template = row(state, state === 'public')
+      testApp.mock
+        .onPost(`/admin/templates/3/${action}/`)
+        .reply(200, { ...template, state: 'blocked' })
+      const wrapper = await mountTable([template])
+
+      await clickAction(wrapper, template, action)
+      if (body) {
+        const modal = document.body.querySelector('.user-template-modal')
+        expect(modal.querySelector('h2').textContent).toBe(
+          'rejectTemplateModal.blockTitle'
+        )
+        expect(bodyButton('rejectTemplateModal.block').disabled).toBe(true)
+        await submitReject('block', '  Spam ')
+      }
+
+      expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+        `/admin/templates/3/${action}/`,
+      ])
+      expect(
+        body && JSON.parse(testApp.mock.history.post[0].data)
+      ).toStrictEqual(body)
+      expect(testApp.store.state.toast.items).toEqual([])
+      await expectRefreshed()
+    }
+  )
+
+  test('loads the counts that failed to load once a template was blocked', async () => {
+    testApp.mock.onPost('/admin/templates/3/block/').reply(200, row('blocked'))
+    const wrapper = await mountTable([row('public', true)], { counts: null })
+    testApp.mock
+      .onGet('/admin/templates/counts/')
+      .reply(200, { in_review: 0, public: 0, rejected: 0, blocked: 1 })
+
+    await clickAction(wrapper, row('public', true), 'block')
+    await submitReject('block')
+
+    expect(wrapper.findAll('.tabs__item').at(3).text()).toBe(
+      'templatesAdmin.tabCount - 1'
+    )
+  })
+
+  test('keeps the block copy while the modal closes, and each open sets its own', async () => {
+    const blocked = row('public', true)
+    const reviewed = { ...row('in_review'), id: 4, revision_id: 8 }
+    const wrapper = await mountTable([blocked, reviewed])
+    const title = () =>
+      document.body.querySelector('.user-template-modal h2').textContent
+
+    await clickAction(wrapper, blocked, 'block')
+    bodyButton('action.cancel').click()
+    await nextTick()
+
+    expect(title()).toBe('rejectTemplateModal.blockTitle')
+    expect(bodyButton('rejectTemplateModal.block')).toBeDefined()
+
+    await new Promise((resolve) => setTimeout(resolve))
+    await clickAction(wrapper, reviewed, 'reject')
+
+    expect(title()).toBe('rejectTemplateModal.title')
+    expect(bodyButton('rejectTemplateModal.reject')).toBeDefined()
+  })
 
   test.each([['approve'], ['reject']])(
     "doesn't let the %s of a template affect the preview of another one",
@@ -511,10 +597,16 @@ describe('TemplatesAdminTable', () => {
       'ERROR_TEMPLATE_ALREADY_REJECTED',
       'alreadyUnlistedTitle',
     ],
+    [
+      'block',
+      row('public', true),
+      'ERROR_TEMPLATE_DOES_NOT_EXIST',
+      'changedTitle',
+    ],
   ])(
     'tells that the template changed when the %s fails, then refreshes',
     async (action, template, error, title) => {
-      const endpoint = action === 'approve' ? 'approve' : 'reject'
+      const endpoint = action === 'unlist' ? 'reject' : action
       testApp.mock
         .onPost(`/admin/templates/3/${endpoint}/`)
         .reply(400, { error, detail: 'Changed.' })
@@ -543,7 +635,11 @@ describe('TemplatesAdminTable', () => {
         'templatesAdmin.submitted',
       ],
       ['templatesAdmin.review'],
-      ['templateInstall.download', 'templatesAdmin.delete'],
+      [
+        'templateInstall.download',
+        'templatesAdmin.block',
+        'templatesAdmin.delete',
+      ],
       '',
     ],
     [
@@ -561,6 +657,7 @@ describe('TemplatesAdminTable', () => {
         'templateInstall.copyLink',
         'templateInstall.download',
         'templatesAdmin.unlistFromBrowser',
+        'templatesAdmin.block',
         'templatesAdmin.delete',
       ],
       '14 times',
@@ -574,6 +671,21 @@ describe('TemplatesAdminTable', () => {
       [
         'templatesAdmin.approveAfterAll',
         'templateInstall.download',
+        'templatesAdmin.block',
+        'templatesAdmin.delete',
+      ],
+      '',
+    ],
+    [
+      3,
+      'blocked',
+      'templatesAdmin.reason',
+      ['templatesAdmin.template', 'templatesAdmin.author'],
+      [],
+      [
+        'templatesAdmin.preview',
+        'templateInstall.download',
+        'templatesAdmin.unblock',
         'templatesAdmin.delete',
       ],
       '',
@@ -608,6 +720,231 @@ describe('TemplatesAdminTable', () => {
       await openMenu(wrapper)
 
       expect(menuLabels()).toEqual(items)
+    }
+  )
+
+  test('offers Download of a blocked template to its author too', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    const wrapper = await mountTable([
+      {
+        ...row('blocked'),
+        author: { id: 1, first_name: '', email: 'ada@example.com' },
+      },
+    ])
+    await wrapper.findAll('.tabs__item').at(3).trigger('click')
+    await flushPromises()
+
+    await openMenu(wrapper)
+    expect(menuLabels()).toContain('templateInstall.download')
+  })
+
+  test('previews a blocked template and unblocks it there, then refreshes', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    testApp.mock
+      .onPost('/admin/templates/3/unblock/')
+      .reply(200, row('private'))
+    const wrapper = await mountTable([
+      { ...row('blocked'), type: 'user', reason: 'Spam' },
+    ])
+
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.preview')
+    expect(previewButtons()).toEqual([])
+    expect(document.body.querySelector('.template-details__state')).not.toBe(
+      null
+    )
+    document.body
+      .querySelector('.template-install__actions .button-icon')
+      .click()
+    await flushPromises()
+    await clickMenuItem('templatesAdmin.unblock')
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/admin/templates/3/unblock/',
+    ])
+    await expectRefreshed()
+  })
+
+  test('refreshes the list and counts when a block from the preview ends after the preview closed', async () => {
+    const errors = []
+    const onRejection = (reason) => errors.push(String(reason))
+    process.on('unhandledRejection', onRejection)
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    const blocked = heldBack()
+    testApp.mock.onPost('/admin/templates/3/block/').reply(blocked.reply)
+    const wrapper = await mountTable([
+      { ...row('blocked'), type: 'user', reason: 'Spam' },
+    ])
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.preview')
+    document.body
+      .querySelector('.template-install__actions .button-icon')
+      .click()
+    await flushPromises()
+    await clickMenuItem('templateDetails.changeBlockReason')
+    await submitReject('changeBlockReason', 'Spam, again')
+    await escape()
+    document.body.querySelector('.template-details__back-link').click()
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(document.body.querySelector('.template-details')).toBe(null)
+    await openMenu(wrapper)
+    const unblock = menuLinks().find(
+      (link) => label(link) === 'templatesAdmin.unblock'
+    )
+    expect(unblock.classList.contains('disabled')).toBe(true)
+
+    blocked.send([200, { ...row('blocked'), reason: 'Spam, again' }])
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve))
+    process.off('unhandledRejection', onRejection)
+
+    expect(errors).toEqual([])
+    await expectRefreshed()
+  })
+
+  const shown = { ...row('public', true), type: 'user', categories: [] }
+
+  const openSharedMenu = async (open) => {
+    testApp.mock
+      .onGet('/templates/')
+      .reply(({ params }) => [
+        200,
+        params?.listed ? { count: 1, next: null, results: [shown] } : [],
+      ])
+    testApp.mock.onGet('/templates/sprint-a1b2c3/').reply(200, shown)
+    await open()
+    await flushPromises()
+    document.body
+      .querySelector('.public-template-list .template-list__card')
+      .click()
+    await flushPromises()
+    document.body
+      .querySelector('.template-install__actions .button-icon')
+      .click()
+    await flushPromises()
+  }
+
+  const blockFromTemplates = async (open) => {
+    testApp.mock
+      .onPost('/admin/templates/3/block/')
+      .reply(200, { ...shown, state: 'blocked', reason: 'Spam' })
+    await openSharedMenu(open)
+    await clickMenuItem('templatesAdmin.block')
+    await submitReject('block')
+  }
+
+  test('refreshes the list and counts after a block from the shared templates', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    const wrapper = await mountTable([row('public', true)])
+
+    await openMenu(wrapper)
+    await blockFromTemplates(() =>
+      clickMenuItem('templatesAdmin.viewInTemplates')
+    )
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/admin/templates/3/block/',
+    ])
+    expect(requestsTo('/admin/templates/').length).toBe(2)
+    expect(requestsTo('/admin/templates/counts/').length).toBe(2)
+  })
+
+  test('keeps Block of the row menu and the shared templates disabled while the row menu blocks the template', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    testApp.mock.onPost('/admin/templates/3/block/').reply(heldBack().reply)
+    const wrapper = await mountTable([row('public', true)])
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.block')
+    await submitReject('block')
+    await escape()
+    const blockLink = () =>
+      menuLinks().find((link) => label(link) === 'templatesAdmin.block')
+
+    await openMenu(wrapper)
+    expect(blockLink().classList.contains('disabled')).toBe(true)
+    await clickMenuItem('templatesAdmin.block')
+    expect(document.body.querySelector('.user-template-modal')).toBe(null)
+    await openMenu(wrapper)
+    await openSharedMenu(() => clickMenuItem('templatesAdmin.viewInTemplates'))
+
+    expect(blockLink().classList.contains('disabled')).toBe(true)
+  })
+
+  test('refreshes the badge after a block from the templates modal', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    const modal = ref(null)
+    const PageWithModal = defineComponent({
+      render: () => [
+        h(SidebarAdminItem, {
+          adminType: testApp.getRegistry().get('admin', 'templates'),
+        }),
+        h(TemplateModal, { ref: modal }),
+      ],
+    })
+    await mountTable([], { component: PageWithModal })
+    expect(requestsTo('/admin/templates/counts/').length).toBe(1)
+
+    await blockFromTemplates(() => modal.value.showShared('Sprint'))
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/admin/templates/3/block/',
+    ])
+    expect(requestsTo('/admin/templates/counts/').length).toBe(2)
+  })
+
+  test('sends one unblock of a template at a time from its row menu', async () => {
+    const unblocked = heldBack()
+    testApp.mock.onPost('/admin/templates/3/unblock/').reply(unblocked.reply)
+    const wrapper = await mountTable([{ ...row('blocked'), reason: 'Spam' }])
+
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.unblock')
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.unblock')
+    unblocked.send([200, row('private')])
+    await flushPromises()
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
+      '/admin/templates/3/unblock/',
+    ])
+  })
+
+  test.each([
+    ['saved', false],
+    ['saved while its menu is open again', true],
+  ])(
+    'closes the preview of a blocked template when its new block reason is %s',
+    async (_, reopensMenu) => {
+      testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+      const { reply, send } = heldBack()
+      testApp.mock.onPost('/admin/templates/3/block/').reply(reply)
+      const wrapper = await mountTable([
+        { ...row('blocked'), type: 'user', reason: 'Spam' },
+      ])
+      const openPreviewMenu = async () => {
+        document.body
+          .querySelector('.template-install__actions .button-icon')
+          .click()
+        await flushPromises()
+      }
+
+      await openMenu(wrapper)
+      await clickMenuItem('templatesAdmin.preview')
+      await openPreviewMenu()
+      await clickMenuItem('templateDetails.changeBlockReason')
+      await submitReject('changeBlockReason', 'Scam')
+      if (reopensMenu) {
+        await escape()
+        await openPreviewMenu()
+        expect(menuLabels()).toContain('templateDetails.changeBlockReason')
+      }
+      send([200, { ...row('blocked'), reason: 'Scam' }])
+      await flushPromises()
+
+      expect(JSON.parse(testApp.mock.history.post[0].data).reason).toBe('Scam')
+      await expectRefreshed()
+      expect(document.body.querySelector('.template-details')).toBe(null)
     }
   )
 
@@ -790,6 +1127,7 @@ describe('TemplatesAdminTable', () => {
 
     expect(menuLabels()).toEqual([
       'templateInstall.download',
+      'templatesAdmin.block',
       'templatesAdmin.delete',
     ])
   })

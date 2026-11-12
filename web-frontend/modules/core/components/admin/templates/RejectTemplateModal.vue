@@ -3,13 +3,7 @@
     ref="confirmModal"
     :template="template"
     :title="$t(titleKey, { name: template.name })"
-    :confirm-label="
-      $t(
-        template.reject_unlists
-          ? 'rejectTemplateModal.unlist'
-          : 'rejectTemplateModal.reject'
-      )
-    "
+    :confirm-label="$t(confirmKey)"
     :confirm-disabled="!trimmedReason"
     danger
     :request="(template) => request(template, trimmedReason)"
@@ -27,7 +21,13 @@
         ref="reasonInput"
         v-model="reason"
         :maxlength="MAX_REASON_LENGTH"
-        :placeholder="$t('rejectTemplateModal.reasonPlaceholder')"
+        :placeholder="
+          $t(
+            block
+              ? 'rejectTemplateModal.blockPlaceholder'
+              : 'rejectTemplateModal.reasonPlaceholder'
+          )
+        "
       ></FormInput>
     </FormGroup>
   </UserTemplateConfirmModal>
@@ -46,6 +46,11 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  block: {
+    type: Boolean,
+    required: false,
+    default: false,
+  },
   request: {
     type: Function,
     required: true,
@@ -58,13 +63,28 @@ const reasonInput = ref(null)
 const reason = ref('')
 
 const trimmedReason = computed(() => reason.value.trim())
+const changesBlockReason = computed(
+  () => props.block && props.template.state === 'blocked'
+)
 
-const titleKey = computed(() =>
-  props.template.reject_unlists
+const titleKey = computed(() => {
+  if (changesBlockReason.value) {
+    return 'rejectTemplateModal.changeBlockReasonTitle'
+  }
+  if (props.block) {
+    return 'rejectTemplateModal.blockTitle'
+  }
+  return props.template.reject_unlists
     ? 'rejectTemplateModal.unlistTitle'
     : 'rejectTemplateModal.title'
-)
+})
 const description = computed(() => {
+  if (changesBlockReason.value) {
+    return 'rejectTemplateModal.changeBlockReasonDescription'
+  }
+  if (props.block) {
+    return 'rejectTemplateModal.blockDescription'
+  }
   if (props.template.reject_unlists) {
     return 'rejectTemplateModal.unlistDescription'
   }
@@ -73,8 +93,20 @@ const description = computed(() => {
     : 'rejectTemplateModal.description'
 })
 
+const confirmKey = computed(() => {
+  if (changesBlockReason.value) {
+    return 'rejectTemplateModal.changeBlockReason'
+  }
+  if (props.block) {
+    return 'rejectTemplateModal.block'
+  }
+  return props.template.reject_unlists
+    ? 'rejectTemplateModal.unlist'
+    : 'rejectTemplateModal.reject'
+})
+
 async function show(...args) {
-  reason.value = ''
+  reason.value = (changesBlockReason.value && props.template.reason) || ''
   rememberFocus()
   confirmModal.value.show(...args)
   await nextTick()

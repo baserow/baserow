@@ -1,57 +1,66 @@
 <template>
   <div class="template-install">
-    <!-- Without a workspace there is nothing to pick. The user creates one here,
-    or else is told how to get one. -->
-    <p v-if="hasNoWorkspace" class="template-install__no-workspace">
-      {{
-        $hasPermission('create_workspace')
-          ? $t('templateInstall.noWorkspace')
-          : $t('templateInstall.noWorkspaceAskInvite')
-      }}
-    </p>
-    <Dropdown
-      v-else-if="isAuthenticated"
-      :model-value="selectedWorkspaceId"
-      class="template-install__workspace"
-      :placeholder="$t('templateInstall.selectWorkspace')"
-      :fixed-items="true"
-      @update:model-value="chooseWorkspace"
-    >
-      <DropdownItem
-        v-for="workspaceItem in workspaces"
-        :key="workspaceItem.id"
-        :name="workspaceItem.name"
-        :value="workspaceItem.id"
-        :disabled="!canInstallInto(workspaceItem)"
-        :description="
-          canInstallInto(workspaceItem)
-            ? null
-            : $t('templateInstall.workspaceNoPermission')
-        "
-      ></DropdownItem>
-    </Dropdown>
+    <template v-if="installable">
+      <!-- Without a workspace there is nothing to pick. The user creates one
+      here, or else is told how to get one. -->
+      <p v-if="hasNoWorkspace" class="template-install__no-workspace">
+        {{
+          $hasPermission('create_workspace')
+            ? $t('templateInstall.noWorkspace')
+            : $t('templateInstall.noWorkspaceAskInvite')
+        }}
+      </p>
+      <Dropdown
+        v-else-if="isAuthenticated"
+        :model-value="selectedWorkspaceId"
+        class="template-install__workspace"
+        :placeholder="$t('templateInstall.selectWorkspace')"
+        :fixed-items="true"
+        @update:model-value="chooseWorkspace"
+      >
+        <DropdownItem
+          v-for="workspaceItem in workspaces"
+          :key="workspaceItem.id"
+          :name="workspaceItem.name"
+          :value="workspaceItem.id"
+          :disabled="!canInstallInto(workspaceItem)"
+          :description="
+            canInstallInto(workspaceItem)
+              ? null
+              : $t('templateInstall.workspaceNoPermission')
+          "
+        ></DropdownItem>
+      </Dropdown>
+    </template>
     <div class="template-install__actions">
-      <Button
-        v-if="hasNoWorkspace && $hasPermission('create_workspace')"
-        class="template-install__create-workspace"
-        full-width
-        @click="createWorkspaceModal.show()"
-        >{{ $t('templateInstall.createWorkspace') }}</Button
-      >
-      <Button
-        v-else
-        class="template-install__use"
-        full-width
-        :loading="installing"
-        :disabled="
-          installing ||
-          (isAuthenticated &&
-            (selectedWorkspace === null || !canInstallInto(selectedWorkspace)))
-        "
-        @click="use"
-        >{{ $t('templateInstall.use') }}</Button
-      >
+      <template v-if="installable">
+        <Button
+          v-if="hasNoWorkspace && $hasPermission('create_workspace')"
+          class="template-install__create-workspace"
+          full-width
+          @click="createWorkspaceModal.show()"
+          >{{ $t('templateInstall.createWorkspace') }}</Button
+        >
+        <Button
+          v-else
+          class="template-install__use"
+          full-width
+          :loading="installing"
+          :disabled="
+            installing ||
+            (isAuthenticated &&
+              (selectedWorkspace === null ||
+                !canInstallInto(selectedWorkspace)))
+          "
+          @click="use"
+          >{{ $t('templateInstall.use') }}</Button
+        >
+      </template>
       <ButtonIcon
+        v-if="
+          hasOtherMenuItems ||
+          (installableUserTemplate && $featureFlagIsEnabled(FF_USER_TEMPLATES))
+        "
         ref="moreButton"
         type="secondary"
         icon="iconoir-more-vert"
@@ -75,7 +84,7 @@
         </li>
         <li
           v-if="
-            template.type === 'user' && $featureFlagIsEnabled(FF_USER_TEMPLATES)
+            installableUserTemplate && $featureFlagIsEnabled(FF_USER_TEMPLATES)
           "
           class="context__menu-item"
           :class="{
@@ -107,7 +116,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, useSlots } from 'vue'
+import { computed, onMounted, ref, useSlots, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
@@ -115,6 +124,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
+import { canInstall } from '@baserow/modules/core/utils/userTemplate'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
 import TemplateService from '@baserow/modules/core/services/template'
 import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
@@ -171,8 +181,23 @@ const createWorkspaceModal = ref(null)
 const installing = ref(false)
 const { isDownloading, download } = useUserTemplateDownload()
 
+const installable = computed(() =>
+  canInstall(props.template, store.getters['auth/isStaff'])
+)
+
 // A separator goes after the slot items, when there are any.
 const hasMenuItems = computed(() => !!slots['menu-items'])
+
+const installableUserTemplate = computed(
+  () => installable.value && props.template.type === 'user'
+)
+const hasOtherMenuItems = computed(
+  () =>
+    hasMenuItems.value ||
+    !!slots['menu-items-end'] ||
+    props.showCopyLink ||
+    !!props.copyLinkUrl
+)
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
 
@@ -228,7 +253,7 @@ function chooseWorkspace(workspaceId) {
  * into is then replaced with one it can, unless the user picked it.
  */
 async function loadPermissions() {
-  if (!isAuthenticated.value) {
+  if (!isAuthenticated.value || !installable.value) {
     return
   }
   await fetchPermissionsOfWorkspaces(store, workspaces.value)
@@ -242,6 +267,7 @@ async function loadPermissions() {
 }
 
 onMounted(loadPermissions)
+watch(installable, (now) => now && loadPermissions())
 
 async function goToLogin() {
   const current = router.currentRoute.value

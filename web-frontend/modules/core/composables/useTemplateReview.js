@@ -37,6 +37,7 @@ const SERVICE_METHODS = {
   reject: 'reject',
   unlist: 'reject',
 }
+const MODERATIONS = ['block', 'unblock']
 
 export function useTemplateReview() {
   const { $client, $i18n } = useNuxtApp()
@@ -59,6 +60,10 @@ export function useTemplateReview() {
       reviewed_on: reviewedOn,
     } = template
     try {
+      if (MODERATIONS.includes(action)) {
+        const { data } = await service[action](id, ...args)
+        return data
+      }
       await service[SERVICE_METHODS[action]](
         id,
         revisionId,
@@ -67,6 +72,7 @@ export function useTemplateReview() {
         listed,
         reviewedOn
       )
+      return true
     } catch (error) {
       const code = error.handler?.code
       const changed =
@@ -76,6 +82,7 @@ export function useTemplateReview() {
         throw error
       }
       notifyChanged(error, changed, name)
+      return false
     }
   }
 

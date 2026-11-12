@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 
 import PublicTemplateList from '@baserow/modules/core/components/template/PublicTemplateList'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
@@ -63,6 +63,10 @@ import TemplateService from '@baserow/modules/core/services/template'
 import { fetchWorkspacesAndApplications } from '@baserow/modules/core/utils/workspace'
 import { keyboardShortcutsToPriorityEventBus } from '@baserow/modules/core/utils/events'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  TEMPLATE_MODERATION,
+  useTemplateModeration,
+} from '@baserow/modules/core/composables/useTemplateModeration'
 
 const route = useRoute()
 const router = useRouter()
@@ -165,18 +169,28 @@ watch(
   }
 )
 
-/**
- * Loads a public template that the page doesn't know, like one opened from the
- * list before a reload, which the browser history goes back to.
- */
-async function fetchPublicTemplate(slug) {
+async function fetchPublicTemplate(slug, { notifyDeleted = true } = {}) {
   try {
     const { data: template } = await TemplateService($client).fetch(slug)
     publicTemplates.value[slug] = template
   } catch (e) {
-    notifyIf(e, 'template')
+    const deleted = e.response?.status === 404
+    if (deleted && slug === currentSlug.value) {
+      showList.value = true
+    }
+    if (!deleted || notifyDeleted) {
+      notifyIf(e, 'template')
+    }
   }
 }
+
+provide(
+  TEMPLATE_MODERATION,
+  useTemplateModeration(({ slug }) => {
+    publicTemplateList.value?.refresh()
+    return fetchPublicTemplate(slug, { notifyDeleted: false })
+  })
+)
 
 function selectTemplate(template) {
   showList.value = false

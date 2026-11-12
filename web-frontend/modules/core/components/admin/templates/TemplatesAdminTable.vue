@@ -34,29 +34,38 @@
       <TemplateReviewModal
         ref="reviewModal"
         :template="reviewRow"
+        :preview-only="previewing"
         :can-close="!rejecting"
         @reject="showRejectModal"
-        @reviewed="(id) => reviewed(slotProps.refresh, id)"
+        @reviewed="reviewed"
       ></TemplateReviewModal>
       <RejectTemplateModal
         ref="rejectModal"
         :template="rejectRow"
         :request="reject"
-        @done="(id) => reviewed(slotProps.refresh, id)"
+        @done="reviewed"
         @hidden="rejectHidden"
+      ></RejectTemplateModal>
+      <RejectTemplateModal
+        ref="blockModal"
+        :template="blockRow"
+        block
+        :request="block"
       ></RejectTemplateModal>
       <TemplateAdminContext
         ref="adminContext"
         :template="contextRow"
         @view="showInTemplates"
+        @preview="showPreviewModal"
         @unlist="showRejectModal"
+        @block="showBlockModal"
         @delete="showDeleteModal"
-        @changed="(id) => reviewed(slotProps.refresh, id)"
+        @changed="reviewed"
       ></TemplateAdminContext>
       <DeleteUserTemplateModal
         ref="deleteModal"
         :template="deletedRow"
-        @deleted="(id) => deleted(id, slotProps)"
+        @deleted="(id) => deleted(id, slotProps.deleteRow)"
       ></DeleteUserTemplateModal>
       <TemplateModal ref="templateModal"></TemplateModal>
     </template>
@@ -64,7 +73,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, provide, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
@@ -82,6 +91,10 @@ import TemplateAdminContext from '@baserow/modules/core/components/admin/templat
 import DeleteUserTemplateModal from '@baserow/modules/core/components/template/DeleteUserTemplateModal'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
+import {
+  TEMPLATE_MODERATION,
+  useTemplateModeration,
+} from '@baserow/modules/core/composables/useTemplateModeration'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const TABS = [
@@ -100,6 +113,11 @@ const TABS = [
     name: 'templatesAdmin.rejectedTab',
     empty: 'templatesAdmin.rejectedEmpty',
   },
+  {
+    state: 'blocked',
+    name: 'templatesAdmin.blockedTab',
+    empty: 'templatesAdmin.blockedEmpty',
+  },
 ]
 
 const { $client, $i18n, $store } = useNuxtApp()
@@ -110,15 +128,23 @@ const crudTable = ref(null)
 const tabIndex = ref(0)
 const counts = computed(() => $store.getters['templatesAdmin/counts'])
 const reviewRow = ref({})
+const previewing = ref(false)
 const reviewModal = ref(null)
 const rejectRow = ref({})
 const rejecting = ref(false)
 const rejectModal = ref(null)
+const blockRow = ref({})
+const blockModal = ref(null)
 const contextRow = ref(null)
 const adminContext = ref(null)
 const deletedRow = ref({})
 const deleteModal = ref(null)
 const templateModal = ref(null)
+
+const moderation = useTemplateModeration(({ id }) => refreshRows(id), {
+  showsCounts: true,
+})
+provide(TEMPLATE_MODERATION, moderation)
 
 const state = computed(() => TABS[tabIndex.value].state)
 const filters = computed(() => ({ state: state.value }))
@@ -135,9 +161,9 @@ const tabs = computed(() =>
   }))
 )
 
-async function fetchCounts({ force = false } = {}) {
+async function fetchCounts() {
   try {
-    await $store.dispatch('templatesAdmin/fetchCounts', { force })
+    await $store.dispatch('templatesAdmin/fetchCounts')
   } catch (error) {
     notifyIf(error, 'template')
   }
@@ -151,11 +177,22 @@ function showReviewModal(row) {
     return
   }
   reviewRow.value = row
+  previewing.value = false
+  reviewModal.value.show()
+}
+
+function showPreviewModal(row) {
+  reviewRow.value = row
+  previewing.value = true
   reviewModal.value.show()
 }
 
 function reject(template, reason) {
   return decide(template, template.reject_unlists ? 'unlist' : 'reject', reason)
+}
+
+function block(template, reason) {
+  return moderation.moderate(template, 'block', reason)
 }
 
 function showRejectModal(row) {
@@ -165,6 +202,14 @@ function showRejectModal(row) {
   rejectRow.value = row
   rejecting.value = true
   rejectModal.value.show()
+}
+
+function showBlockModal(row) {
+  if (moderation.isModerating(row.id)) {
+    return
+  }
+  blockRow.value = row
+  blockModal.value.show()
 }
 
 async function rejectHidden() {
@@ -200,18 +245,20 @@ function showDeleteModal(row) {
  * Drops the deleted template from the list right away, then refreshes the list
  * and the counts, also when it was already deleted, for example by its author.
  */
-function deleted(id, { deleteRow, refresh }) {
+function deleted(id, deleteRow) {
   deleteRow(id)
-  reviewed(refresh, id)
+  reviewed(id)
 }
 
-async function reviewed(refresh, id) {
+function reviewed(id) {
+  return moderation.refresh({ id })
+}
+
+async function refreshRows(id) {
   if (reviewRow.value.id === id) {
-    reviewModal.value.hide()
+    reviewModal.value?.hide()
   }
-  const refreshed = refresh()
-  fetchCounts({ force: true })
-  await refreshed
+  await crudTable.value?.refresh()
   await focusRow(id)
 }
 
@@ -245,12 +292,16 @@ const STATE_COLUMNS = {
       TemplateUsedField,
       true
     ),
-  rejected: () =>
-    new CrudTableColumn(
-      'reason',
-      () => $i18n.t('templatesAdmin.reason'),
-      TemplateReasonField
-    ),
+  rejected: reasonColumn,
+  blocked: reasonColumn,
+}
+
+function reasonColumn() {
+  return new CrudTableColumn(
+    'reason',
+    () => $i18n.t('templatesAdmin.reason'),
+    TemplateReasonField
+  )
 }
 
 const columns = computed(() => [

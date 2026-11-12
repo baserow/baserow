@@ -42,7 +42,7 @@ class TemplateUpdated(Exception):
 
 class TemplateBlocked(Exception):
     """
-    Raised when a blocked user template is installed, downloaded or reviewed.
+    Raised when an action on a blocked user template is refused.
     """
 
 
@@ -67,6 +67,12 @@ class TemplateNotReviewable(Exception):
 class TemplateRejectReasonRequired(Exception):
     """
     Raised when an admin rejects a user template without a reason.
+    """
+
+
+class TemplateBlockReasonRequired(Exception):
+    """
+    Raised when an admin blocks a user template without a reason.
     """
 
 

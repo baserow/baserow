@@ -8,6 +8,7 @@ from baserow.core.models import Template
 from baserow.core.user_templates.actions import (
     UpdateUserTemplateVisibilityActionType,
 )
+from baserow.core.user_templates.exceptions import TemplateBlocked
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.test_utils.helpers import (
     stale_cached_settings,
@@ -144,12 +145,12 @@ def change_outcome(root, before):
                 ("unchanged", "unchanged"),
                 ("review", "review"),
             ),
-            (["blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
-            (["public_blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
-            (["rejected", "blocked"], ("unchanged", "unchanged"), ("draft", "draft")),
+            (["blocked"], ("refused", "refused"), ("draft", "draft")),
+            (["public_blocked"], ("refused", "refused"), ("draft", "draft")),
+            (["rejected", "blocked"], ("refused", "refused"), ("draft", "draft")),
             (
                 ["blocked", "in_review"],
-                ("unchanged", "unchanged"),
+                ("refused", "refused"),
                 ("review", "review"),
             ),
         ],
@@ -176,17 +177,22 @@ def test_owner_is_told_whether_a_change_goes_to_review(
     }
     before = list(Template.objects.values().order_by("id"))
 
-    if action == "make_public":
+    expected = {"make_public": make_public_does, "update": update_does}
+    outcome = expected[action][require_approval]
+    if outcome == "refused":
+        with pytest.raises(TemplateBlocked):
+            make_public(user, root)
+    elif action == "make_public":
         make_public(user, root)
     else:
         create_revision(data_fixture, user, root, base_revision=latest)
 
-    expected = {"make_public": make_public_does, "update": update_does}
-    outcome = expected[action][require_approval]
-    assert change_outcome(root, before) == outcome
-    assert told == {outcome == "review"}
+    changed = change_outcome(root, before)
+    assert changed == ("unchanged" if outcome == "refused" else outcome)
+    blocked = Template.objects.get(id=root.id).blocked_at is not None
+    assert told == {outcome == "review" and not blocked}
     if action == "make_public":
-        assert handler.make_public_submits(latest) is (outcome != "unchanged")
+        assert handler.make_public_submits(latest) is (changed != "unchanged")
 
 
 @pytest.mark.django_db

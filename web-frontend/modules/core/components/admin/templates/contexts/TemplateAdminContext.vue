@@ -13,6 +13,9 @@
             'context__menu-item-link--delete': ITEMS[item.name].danger,
             'context__menu-item-link--loading':
               item.name === 'download' && isDownloading(template),
+            disabled:
+              ITEMS[item.name].moderates &&
+              moderation.isModerating(template.id),
           }"
           @click.prevent="ACTIONS[item.name]()"
         >
@@ -26,32 +29,46 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useRouter, useRuntimeConfig } from '#app'
 
 import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
+import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const TEMPLATE_ADMIN_MENU_ITEMS = {
-  in_review: [{ name: 'download' }, { name: 'delete', separator: true }],
+  in_review: [
+    { name: 'download' },
+    { name: 'block', separator: true },
+    { name: 'delete', separator: true },
+  ],
   public: [
     { name: 'view' },
     { name: 'copyLink' },
     { name: 'download' },
     { name: 'unlist', separator: true },
+    { name: 'block' },
     { name: 'delete', separator: true },
   ],
   rejected: [
     { name: 'approve' },
     { name: 'download', separator: true },
+    { name: 'block', separator: true },
+    { name: 'delete', separator: true },
+  ],
+  blocked: [
+    { name: 'preview' },
+    { name: 'download' },
+    { name: 'unblock', separator: true },
     { name: 'delete', separator: true },
   ],
 }
 
 const ITEMS = {
   view: { label: 'templatesAdmin.viewInTemplates', icon: 'iconoir-view-grid' },
+  preview: { label: 'templatesAdmin.preview', icon: 'iconoir-eye-empty' },
   copyLink: { label: 'templateInstall.copyLink', icon: 'iconoir-link' },
   download: { label: 'templateInstall.download', icon: 'iconoir-download' },
   unlist: {
@@ -59,6 +76,16 @@ const ITEMS = {
     icon: 'iconoir-eye-off',
   },
   approve: { label: 'templatesAdmin.approveAfterAll', icon: 'iconoir-check' },
+  block: {
+    label: 'templatesAdmin.block',
+    icon: 'iconoir-warning-triangle',
+    moderates: true,
+  },
+  unblock: {
+    label: 'templatesAdmin.unblock',
+    icon: 'iconoir-undo',
+    moderates: true,
+  },
   delete: { label: 'templatesAdmin.delete', icon: 'iconoir-bin', danger: true },
 }
 
@@ -69,11 +96,19 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['view', 'unlist', 'delete', 'changed'])
+const emit = defineEmits([
+  'view',
+  'preview',
+  'unlist',
+  'block',
+  'delete',
+  'changed',
+])
 
 const router = useRouter()
 const config = useRuntimeConfig()
 const { decide } = useTemplateReview()
+const moderation = inject(TEMPLATE_MODERATION)
 const { isDownloading, download } = useUserTemplateDownload()
 const { copyLink } = useCopyLink()
 
@@ -94,6 +129,10 @@ const ACTIONS = {
   view() {
     hide()
     emit('view', props.template)
+  },
+  preview() {
+    hide()
+    emit('preview', props.template)
   },
   copyLink() {
     return copyLink(
@@ -127,6 +166,19 @@ const ACTIONS = {
     try {
       await decide(template, 'approve')
       emit('changed', template.id)
+    } catch (error) {
+      notifyIf(error, 'template')
+    }
+  },
+  block() {
+    hide()
+    emit('block', props.template)
+  },
+  async unblock() {
+    const template = props.template
+    hide()
+    try {
+      await moderation.moderate(template, 'unblock')
     } catch (error) {
       notifyIf(error, 'template')
     }

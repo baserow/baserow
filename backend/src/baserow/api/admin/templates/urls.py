@@ -2,7 +2,9 @@ from django.urls import re_path
 
 from baserow.api.admin.templates.views import (
     AdminApproveUserTemplateView,
+    AdminBlockUserTemplateView,
     AdminRejectUserTemplateView,
+    AdminUnblockUserTemplateView,
     AdminUserTemplateCountsView,
     AdminUserTemplatesView,
 )
@@ -21,5 +23,15 @@ urlpatterns = [
         r"^(?P<template_id>[0-9]+)/reject/$",
         AdminRejectUserTemplateView.as_view(),
         name="reject",
+    ),
+    re_path(
+        r"^(?P<template_id>[0-9]+)/block/$",
+        AdminBlockUserTemplateView.as_view(),
+        name="block",
+    ),
+    re_path(
+        r"^(?P<template_id>[0-9]+)/unblock/$",
+        AdminUnblockUserTemplateView.as_view(),
+        name="unblock",
     ),
 ]

@@ -660,23 +660,30 @@ describe('UpdateUserTemplateModal', () => {
       expect(wrapper.emitted('updated')[0][0].template).toBe(3)
     })
 
-    test('is handled as updated when it failed after the revision', async () => {
-      const wrapper = await startContentUpdate()
+    test.each([
+      ['Failed', 'failedAfterUpdated'],
+      ['TemplateBlocked', 'blockedAfterUpdated'],
+    ])(
+      'is handled as updated when it failed after the revision (%s)',
+      async (code, title) => {
+        const wrapper = await startContentUpdate()
 
-      await updateJob(testApp.store, 7, {
-        state: 'failed',
-        human_readable_error: 'Failed',
-        revision: 8,
-      })
+        await updateJob(testApp.store, 7, {
+          state: 'failed',
+          error_code: code,
+          human_readable_error: 'Failed',
+          revision: 8,
+        })
 
-      expect(isModalOpen(wrapper)).toBe(false)
-      expect(wrapper.emitted('updated')).toHaveLength(1)
-      expect(testApp.store.state.toast.items[0]).toMatchObject({
-        type: 'warning',
-        title: 'updateUserTemplateModal.failedAfterUpdated',
-      })
-      expect(refreshed).toBe(1)
-    })
+        expect(isModalOpen(wrapper)).toBe(false)
+        expect(wrapper.emitted('updated')).toHaveLength(1)
+        expect(testApp.store.state.toast.items[0]).toMatchObject({
+          type: 'warning',
+          title: `updateUserTemplateModal.${title}`,
+        })
+        expect(refreshed).toBe(1)
+      }
+    )
 
     test('shows why the job failed', async () => {
       const wrapper = await startContentUpdate()

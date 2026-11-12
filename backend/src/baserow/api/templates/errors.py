@@ -40,6 +40,11 @@ ERROR_TEMPLATE_PRIVATE_LINK_BLOCKED = (
     HTTP_400_BAD_REQUEST,
     "The template is blocked, so its private link can't be changed.",
 )
+ERROR_TEMPLATE_BLOCKED_UPDATE = (
+    "ERROR_TEMPLATE_BLOCKED",
+    HTTP_400_BAD_REQUEST,
+    "The template is blocked, so its visibility and private link can't be changed.",
+)
 ERROR_TEMPLATE_UPDATED = (
     "ERROR_TEMPLATE_UPDATED",
     HTTP_400_BAD_REQUEST,

@@ -480,9 +480,11 @@ export default {
         // making it public is what failed, if that was asked.
         this.handleUpdated(
           'toast/warning',
-          this.job.make_public
-            ? 'updateUserTemplateModal.failedPublicAfterUpdated'
-            : 'updateUserTemplateModal.failedAfterUpdated'
+          this.job.error_code === 'TemplateBlocked'
+            ? 'updateUserTemplateModal.blockedAfterUpdated'
+            : this.job.make_public
+              ? 'updateUserTemplateModal.failedPublicAfterUpdated'
+              : 'updateUserTemplateModal.failedAfterUpdated'
         )
         return
       }

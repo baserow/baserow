@@ -249,6 +249,7 @@
                 </a>
               </li>
               <li
+                v-if="canInstall(focusedTemplate, isStaff)"
                 class="context__menu-item"
                 :class="{
                   'context__menu-item--with-separator': !focusedPrivateLinkUrl,
@@ -299,6 +300,7 @@ import TemplateService from '@baserow/modules/core/services/template'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
+  canInstall,
   canMakePrivate,
   canMakePublic,
   makePublicResubmits,
@@ -350,6 +352,7 @@ const emit = defineEmits([
 const { $client, $i18n, $priorityBus, $router, $store } = useNuxtApp()
 const { copyLink } = useCopyLink()
 const config = useRuntimeConfig()
+const isStaff = computed(() => $store.getters['auth/isStaff'])
 
 const searchInput = ref(null)
 const actionsContext = ref(null)
