@@ -43,6 +43,20 @@ def test_a_whole_answer_calling_an_offered_tool_is_retried(ctx, answer):
     )
 
 
+@pytest.mark.parametrize("name", ["create_tables", "another_tool", "final_result"])
+def test_repairable_printed_calls_still_require_an_offered_function_tool(ctx, name):
+    answer = json.dumps({"name": name, "arguments": {"tables": []}})
+    answer = answer[:-1] + '"' + answer[-1]
+
+    if name == "create_tables":
+        with pytest.raises(ModelRetry, match="Use the tool interface"):
+            validate_tool_call_output(ctx, answer)
+        assert get_printed_tool_call(ctx, answer) == (name, {"tables": []})
+    else:
+        assert validate_tool_call_output(ctx, answer) == answer
+        assert get_printed_tool_call(ctx, answer) is None
+
+
 @pytest.mark.parametrize(
     "answer",
     [

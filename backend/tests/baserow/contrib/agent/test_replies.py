@@ -17,7 +17,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent, ConversationTypeAdapter
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
@@ -29,7 +29,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters
-from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+from pydantic_ai.models.function import DeltaThinkingPart, DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
 
@@ -165,6 +165,49 @@ def respond(
         return_value=(FunctionModel(stream_function=stream), {}),
     )
     return received
+
+
+@pytest.mark.parametrize("response", ["empty", "thinking-only"])
+@pytest.mark.parametrize(
+    "provider,model_name,attempts",
+    [
+        ("openai", "gpt-5", 2),
+        ("anthropic", "claude-sonnet-4-6", 2),
+        ("groq", "qwen/qwen3-32b", 2),
+        ("groq", "openai/gpt-oss-20b", 4),
+        ("groq", "openai/gpt-oss-120b", 4),
+    ],
+)
+def test_output_retry_budget_follows_provider_validator(
+    mocker, provider, model_name, attempts, response
+):
+    calls = []
+
+    async def stream(messages, info):
+        calls.append(messages)
+        if response == "thinking-only":
+            yield {0: DeltaThinkingPart(content="Still thinking.")}
+        else:
+            yield ""
+
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=None,
+        instructions="",
+        provider_type=provider,
+        model_identifier=model_name,
+        prompt="Hi",
+    )
+    responder = AgentResponder(
+        request, mocker.Mock(), FunctionModel(stream_function=stream), {}
+    )
+
+    with pytest.raises(
+        UnexpectedModelBehavior, match="Exceeded maximum output retries"
+    ):
+        asyncio.run(responder._run_model(None))
+
+    assert len(calls) == attempts
 
 
 def tool_call(tool_name: str, call_id: str, **arguments: object) -> DeltaToolCall:
@@ -680,8 +723,9 @@ def test_other_models_can_answer_with_tool_json_without_correction(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+@pytest.mark.parametrize("malformed", [False, True], ids=["valid", "stray-quote"])
 def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
-    data_fixture, configured_agent, mocker, model_name
+    data_fixture, configured_agent, mocker, model_name, malformed
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
@@ -697,6 +741,8 @@ def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
             "arguments": {"table_id": table.id, "rows": [{"Name": "Not executed"}]},
         }
     )
+    if malformed:
+        printed_call = printed_call[:-1] + '"' + printed_call[-1]
     received = respond(
         mocker,
         ({0: add_row(table)},),
@@ -718,8 +764,9 @@ def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+@pytest.mark.parametrize("malformed", [False, True], ids=["valid", "stray-quote"])
 def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes(
-    data_fixture, configured_agent, mocker, model_name
+    data_fixture, configured_agent, mocker, model_name, malformed
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
@@ -735,6 +782,8 @@ def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes
             "arguments": {"table_id": table.id, "rows": [{"Name": "Not executed"}]},
         }
     )
+    if malformed:
+        printed_call = printed_call[:-1] + '"' + printed_call[-1]
     received = respond(
         mocker, ({0: add_row(table)},), *((printed_call,) for _ in range(5))
     )
@@ -753,8 +802,9 @@ def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+@pytest.mark.parametrize("malformed", [False, True], ids=["valid", "stray-quote"])
 def test_printed_table_call_after_invalid_input_still_requires_approval(
-    data_fixture, configured_agent, mocker, model_name
+    data_fixture, configured_agent, mocker, model_name, malformed
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
@@ -798,11 +848,14 @@ def test_printed_table_call_after_invalid_input_still_requires_approval(
             }
         ],
     }
+    printed_call = json.dumps({"name": "create_tables", "arguments": corrected})
+    if malformed:
+        printed_call = printed_call[:-1] + '"' + printed_call[-1]
     received = respond(
         mocker,
         ({0: tool_call("create_tables", "bad_1", **invalid)},),
         ({0: tool_call("create_tables", "bad_2", **invalid)},),
-        (json.dumps({"name": "create_tables", "arguments": corrected}),),
+        (printed_call,),
         ({0: tool_call("create_tables", "corrected", **corrected)},),
         ("Created Tasks.",),
     )

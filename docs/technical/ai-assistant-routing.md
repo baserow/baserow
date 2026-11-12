@@ -149,9 +149,12 @@ reasoning field rather than visible `<think>` text. The budget reduces premature
 exhaustion but cannot guarantee completion; reasoning consumes output tokens.
 
 Kuma and Agent replies share detection of whole-answer JSON calls naming an
-offered tool. Agent enables this correction only for Groq GPT-OSS 20B and 120B
-and retries these outputs up to three times within the same run,
-clears rejected text from the reply, and leaves completed tool steps intact.
+offered tool, including Kuma's existing narrow repairs for stray quotes between
+closing brackets. Those repairs never complete arbitrary truncated calls. Agent
+enables this correction only for Groq GPT-OSS 20B and 120B and retries these
+outputs up to three times within the same run. Other models keep the SDK's
+default output-retry budget. Agent clears rejected text from the reply and
+leaves completed tool steps intact.
 Printed JSON is never executed directly. A corrected tool call still passes
 validation, permissions, and Ask first approval. The guard leaves prose, fenced
 examples, and unrelated JSON unchanged; Kuma retains its additional answer checks.

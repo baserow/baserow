@@ -5,13 +5,15 @@ from dataclasses import dataclass
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.messages import ModelMessage
 
-from baserow.core.generative_ai.output_validation import get_printed_tool_call
+from baserow.core.generative_ai.output_validation import (
+    get_printed_tool_call,
+    repair_printed_tool_call,
+)
 from baserow_enterprise.assistant.action_memory import (
     MutationEvidence,
     get_mutation_evidence,
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.retrying_model import repair_printed_tool_call
 from baserow_enterprise.assistant.tools.toolset import move_thought_to_top_level
 
 _UNAVAILABLE_TOOL_PATTERNS = (

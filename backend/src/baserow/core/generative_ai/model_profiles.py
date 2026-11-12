@@ -49,7 +49,6 @@ _DEFAULT_PROFILE: dict[str, ModelSettings] = {
         "temperature": 0.7,
         # Gemini rejects deadlines under 10s, so stay clear of the floor.
         "timeout": 15,
-        "max_tokens": 250,
     },
     SUGGESTIONS: {
         "temperature": 0.6,

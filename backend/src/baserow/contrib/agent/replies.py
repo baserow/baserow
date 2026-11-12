@@ -437,10 +437,16 @@ class AgentResponder:
         """
 
         self._web_search_tool = web_search_tool
+        request = self._request
+        model_type = generative_ai_model_type_registry.get(request.provider_type)
+        validator = model_type.get_output_validator(request.model_identifier)
+        retries = {"tools": TOOL_RETRIES}
+        if validator is not None:
+            retries["output"] = OUTPUT_RETRIES
         agent = Agent(
             instructions=self._get_instructions(web_search_tool),
             output_type=[str, DeferredToolRequests],
-            retries={"tools": TOOL_RETRIES, "output": OUTPUT_RETRIES},
+            retries=retries,
             capabilities=[
                 WebSearch(native=partial(self._offered_web_search, web_search_tool))
             ]
@@ -449,9 +455,6 @@ class AgentResponder:
         )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
-        request = self._request
-        model_type = generative_ai_model_type_registry.get(request.provider_type)
-        validator = model_type.get_output_validator(request.model_identifier)
         if validator is not None:
             agent.output_validator(partial(self._validate_output, validator))
         resume = request.resume

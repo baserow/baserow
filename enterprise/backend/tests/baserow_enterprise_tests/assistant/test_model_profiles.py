@@ -152,8 +152,12 @@ def test_kuma_retains_its_own_title_budget(mocker):
 
     profile = resolve_assistant_model(model="groq:openai/gpt-oss-120b")
 
-    assert profile.get_settings(TITLE)["max_tokens"] == 300
-    assert get_shared_model_settings(profile.model_string, TITLE)["max_tokens"] == 250
+    assert profile.get_settings(TITLE) == {
+        "temperature": 0.7,
+        "timeout": 15,
+        "max_tokens": 300,
+    }
+    assert "max_tokens" not in get_shared_model_settings(profile.model_string, TITLE)
 
 
 @pytest.mark.parametrize("provider", ["google-gla", "google-vertex"])
