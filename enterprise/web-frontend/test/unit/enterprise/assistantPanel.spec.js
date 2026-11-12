@@ -51,9 +51,9 @@ describe('AssistantPanel', () => {
       props: { workspace },
     })
     await store.dispatch('assistant/createChat', workspace.id)
-    store.commit('assistant/SET_ASSISTANT_RUNNING', {
-      chat: store.getters['assistant/currentChat'],
-      value: true,
+    store.commit('assistant/UPDATE_CHAT', {
+      id: store.getters['assistant/currentChat'].id,
+      updates: { running: true },
     })
     return { wrapper }
   }
@@ -127,9 +127,9 @@ describe('AssistantPanel', () => {
     )
     expect(wrapper.find('.chat-message__actions').exists()).toBe(false)
 
-    store.commit('assistant/SET_ASSISTANT_RUNNING', {
-      chat: store.getters['assistant/currentChat'],
-      value: false,
+    store.commit('assistant/UPDATE_CHAT', {
+      id: store.getters['assistant/currentChat'].id,
+      updates: { running: false },
     })
     await flushPromises()
     expect(wrapper.get('.chat-message__bubble').attributes('aria-busy')).toBe(
@@ -142,9 +142,9 @@ describe('AssistantPanel', () => {
     vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
     vi.setSystemTime(new Date('2026-11-03T10:03:00Z'))
     const { wrapper } = await mountWithRunningChat()
-    store.commit('assistant/SET_ASSISTANT_RUNNING', {
-      chat: store.getters['assistant/currentChat'],
-      value: false,
+    store.commit('assistant/UPDATE_CHAT', {
+      id: store.getters['assistant/currentChat'].id,
+      updates: { running: false },
     })
     store.commit('assistant/SET_MESSAGES', [
       {
@@ -371,6 +371,24 @@ describe('AssistantPanel', () => {
 
       expect(push).not.toHaveBeenCalled()
       expect(unhandled).not.toHaveBeenCalled()
+    })
+
+    test('closing the panel while a navigation target loads prevents late navigation', async () => {
+      let finishRead
+      testApp.mock
+        .onGet(`/applications/${database.id}/`)
+        .reply(() => new Promise((resolve) => (finishRead = resolve)))
+      store.commit('assistant/SET_UI_LOCATION', {
+        type: 'database-table',
+        database_id: database.id,
+        table_id: newTable.id,
+      })
+      await vi.advanceTimersByTimeAsync(11000)
+      await store.dispatch('assistant/setPanelOpen', false)
+      finishRead([200, { ...database, tables: [newTable] }])
+      await flushPromises()
+
+      expect(push).not.toHaveBeenCalled()
     })
 
     test('fetches a new view of a table whose views are loaded and opens it', async () => {

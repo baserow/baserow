@@ -66,7 +66,7 @@ async function openKuma(
   return kuma;
 }
 
-/** Counts prompts sent to Kuma; resumes post to the same URL without content. */
+/** Counts new prompts; reconnecting through the core GET stream must not add any. */
 function countPrompts(page: Page): () => number {
   let prompts = 0;
   page.on("request", (request) => {

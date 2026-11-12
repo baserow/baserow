@@ -58,12 +58,13 @@ from baserow_enterprise.assistant.agents import (
     main_agent,
 )
 from baserow_enterprise.assistant.assistant import (
+    AgentAnswer,
     Assistant,
     BackgroundAssistant,
     _get_workspace_license_type,
 )
 from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
-from baserow_enterprise.assistant.deps import AssistantDeps, QueueEventKind
+from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.exceptions import (
     AssistantConfiguredModelNotAvailableError,
     AssistantModelDisabledError,
@@ -1336,7 +1337,7 @@ async def test_answer_candidates_stream_separately_from_native_thinking(
         "Final answer",
         result,
     )
-    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    messages = [queue.get_nowait() for _ in range(queue.qsize())]
     expected = [("ai/message", "Final "), ("ai/message", "Final answer")]
     if include_thinking:
         expected = [
@@ -1369,7 +1370,7 @@ async def test_new_model_responses_clear_the_previous_answer_candidate(next_part
         yield PartStartEvent(index=0, part=next_part)
 
     assert await assistant._consume_agent_events(events(), queue) is None
-    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    messages = [queue.get_nowait() for _ in range(queue.qsize())]
     assert [(message.type, message.content) for message in messages] == [
         ("ai/message", "Rejected candidate"),
         ("ai/reasoning", ""),
@@ -1416,7 +1417,7 @@ def test_tool_prefaces_become_reasoning_without_entering_the_final_answer(
         )
 
     assert result[0] == answer
-    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    messages = [queue.get_nowait() for _ in range(queue.qsize())]
     assert (messages[0].type, messages[0].content) == ("ai/message", preface)
     reasoning = [m.content for m in messages if isinstance(m, AiReasoningChunk)]
     assert preface in reasoning
@@ -1457,7 +1458,7 @@ def test_rejected_answer_candidate_is_cleared_before_retry_thinking(
     with patch.object(assistant, "_model", FunctionModel(stream_function=stream)):
         async_to_sync(run)()
 
-    messages = [queue.get_nowait().message for _ in range(queue.qsize())]
+    messages = [queue.get_nowait() for _ in range(queue.qsize())]
     assert [(message.type, message.content) for message in messages] == [
         ("ai/message", rejected),
         ("ai/reasoning", ""),
@@ -1496,10 +1497,9 @@ def test_exhausted_output_retries_still_answer_and_keep_the_run(
     events = []
     while not queue.empty():
         events.append(queue.get_nowait())
-    kinds = [event.kind for event in events]
-    result = next(event for event in events if event.kind == QueueEventKind.RESULT)
+    result = next(event for event in events if isinstance(event, AgentAnswer))
     history = ModelMessagesTypeAdapter.validate_json(result.messages_json)
-    assert QueueEventKind.ERROR not in kinds
+    assert not any(isinstance(event, Exception) for event in events)
     assert "may already have been made" in result.answer
     assert any(
         isinstance(part, ToolCallPart) and part.tool_name == "list_builders"

@@ -131,6 +131,25 @@ describe('Kuma durable streamed send and resume', () => {
     ])
   })
 
+  test('refreshing the chat list during send preserves and then clears pending state', async () => {
+    const sending = send()
+    await flushPromises()
+    const chatId = store.getters['assistant/currentChatId']
+    service.fetchChats.mockResolvedValue({
+      results: [{ uuid: chatId, title: 'Saved' }],
+    })
+    await store.dispatch('assistant/fetchChats', workspace.id)
+    expect(store.getters['assistant/currentChat'].running).toBe(true)
+
+    await emit('human', human, { status: 'queued' })
+    expect(store.getters['assistant/currentChat'].running).toBe(false)
+    await emit('ai/message', answer, { status: 'completed', cursor: cursor(1) })
+    finish()
+
+    expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
+    expect(store.getters['assistant/currentChat'].running).toBe(false)
+  })
+
   test.each(['reopen', 'focus'])(
     '%s keeps current feedback from history instead of the finished follower snapshot',
     async (refresh) => {
@@ -342,6 +361,36 @@ describe('Kuma durable streamed send and resume', () => {
     expect(await sending).toBe(SEND_OUTCOME.ACCEPTED)
   })
 
+  test('logout while recovering a lost send ignores the late history response', async () => {
+    const sending = store.dispatch('assistant/startRun', {
+      message: 'Hi',
+      workspace,
+    })
+    await flushPromises()
+    let finishRead
+    service.fetchChatMessages.mockImplementation(
+      () => new Promise((resolve) => (finishRead = resolve))
+    )
+    fail(new Error('offline before metadata'))
+    await flushPromises()
+
+    store.commit('auth/LOGOFF')
+    testApp.authenticate({ id: 2, first_name: 'Another user' })
+    finishRead({
+      chat_id: 7,
+      messages: [human],
+      active_run: {
+        id: 'run-1',
+        status: 'running',
+        human_message_id: human.id,
+      },
+    })
+
+    expect(await sending).toEqual({ outcome: SEND_OUTCOME.FAILED, runId: null })
+    expect(follower()).toBeNull()
+    expect(api.stream).not.toHaveBeenCalled()
+  })
+
   test('a busy chat drops the draft and follows the run it already has', async () => {
     await open()
     service.sendMessage.mockRejectedValue(
@@ -385,7 +434,7 @@ describe('Kuma durable streamed send and resume', () => {
 
   test.each([
     [429, 'ERROR_CHAT_RUN_LIMIT', 'assistant.runLimitReached'],
-    [400, 'ERROR_REQUEST_BODY_VALIDATION', 'assistant.runMessageTooLong'],
+    [400, 'ERROR_REQUEST_BODY_VALIDATION', 'assistant.runFailedToStart'],
     [400, 'ERROR_ASSISTANT_MODEL_DISABLED', 'Refused.'],
   ])('a %i %s refusal reads as %s', async (status, code, content) => {
     await open()

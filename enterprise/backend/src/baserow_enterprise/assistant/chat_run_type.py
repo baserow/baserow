@@ -20,9 +20,10 @@ from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 
-from .assistant import BackgroundAssistant, assistant_message_payload
+from .assistant import BackgroundAssistant
 from .exceptions import AssistantModelNotSupportedError
 from .history import NOT_STARTED_ANSWER, append_turn, unfinished_answer
+from .messages import assistant_message_payload
 from .model_profiles import (
     ResolvedAssistantModelProfile,
     check_lm_ready_or_raise,
@@ -398,7 +399,7 @@ class AssistantChatRunType(ChatRunType):
             )
             trace_id = tracer.trace_id
 
-        artifacts: dict[str, Any] = {"sources": result.sources}
+        artifacts: dict[str, Any] = {"sources": list(result.sources)}
         if result.onboarding_target is not None:
             artifacts["onboarding_target"] = result.onboarding_target
         if status != ChatRunStatus.COMPLETED:

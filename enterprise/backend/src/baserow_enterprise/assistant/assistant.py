@@ -1,8 +1,9 @@
 import asyncio
 import re
 import time
+from collections.abc import AsyncIterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, AsyncGenerator
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractUser
 
@@ -11,6 +12,7 @@ from pydantic_ai import Agent, UnexpectedModelBehavior, capture_run_messages
 from pydantic_ai._thinking_part import split_content_into_text_and_thinking
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 from pydantic_ai.messages import (
+    AgentStreamEvent,
     FunctionToolCallEvent,
     FunctionToolResultEvent,
     ModelMessage,
@@ -24,7 +26,7 @@ from pydantic_ai.messages import (
     ThinkingPartDelta,
 )
 from pydantic_ai.models import Model
-from pydantic_ai.run import AgentRunResultEvent
+from pydantic_ai.run import AgentRunResult, AgentRunResultEvent
 from pydantic_ai.tool_manager import ToolManager
 from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.usage import UsageLimits
@@ -43,8 +45,6 @@ from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
     AgentMode,
     AssistantDeps,
-    QueueEvent,
-    QueueEventKind,
     ToolHelpers,
     bind_tool_helpers,
 )
@@ -77,13 +77,13 @@ from baserow_enterprise.assistant.tools.registries import assistant_tool_registr
 from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
 from baserow_premium.license.registries import LicenseType, license_type_registry
 
-from .models import AssistantChat, AssistantChatMessage
+from .messages import list_chat_messages as read_chat_messages
+from .models import AssistantChat
 from .types import (
     AiMessage,
     AiMessageChunk,
     AiReasoningChunk,
     AnyNavigationType,
-    AssistantMessageUnion,
     HumanMessage,
     UIContext,
 )
@@ -174,10 +174,17 @@ def _is_provider_outage(exc: Exception) -> bool:
     return isinstance(exc, ModelAPIError)
 
 
-@dataclass
-class _QueuedRunResult:
-    answer: str | None = None
-    messages_json: bytes = b""
+@dataclass(frozen=True)
+class AgentAnswer:
+    """An accepted answer and its model history, handed over together."""
+
+    answer: str
+    messages_json: bytes
+
+
+# Stream messages, one accepted answer or error, then None to close the queue.
+AssistantQueueEvent = AiMessageChunk | AiReasoningChunk | AgentAnswer | Exception | None
+AssistantAgentEvent = AgentStreamEvent | AgentRunResultEvent[str]
 
 
 def _strip_think_tags(text: str) -> str:
@@ -237,10 +244,10 @@ def _get_workspace_license_type(
         return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class AgentRunContext:
     deps: AssistantDeps
-    toolset: AbstractToolset
+    toolset: AbstractToolset[AssistantDeps]
     model: Model
 
 
@@ -302,50 +309,6 @@ def _mode_for_ui_context(ui_context: UIContext) -> AgentMode:
     return AgentMode.DATABASE
 
 
-def to_assistant_message(message: AssistantChatMessage) -> HumanMessage | AiMessage:
-    """
-    Projects a saved chat message to the message the chat shows.
-
-    :param message: The saved message, with `prediction` selected for AI messages.
-    :return: The human or AI message.
-    """
-
-    if message.role == AssistantChatMessage.Role.HUMAN:
-        return HumanMessage(
-            content=message.content, id=message.id, timestamp=message.created_on
-        )
-
-    sentiment_data = {}
-    if getattr(message, "prediction", None):
-        sentiment_data = {
-            "can_submit_feedback": True,
-            "human_sentiment": message.prediction.get_human_sentiment_display(),
-        }
-    run_state = message.artifacts.get("run") or {}
-    return AiMessage(
-        content=message.content,
-        id=message.id,
-        timestamp=message.created_on,
-        sources=message.artifacts.get("sources"),
-        run_status=run_state.get("status"),
-        error_code=run_state.get("error_code"),
-        onboarding_target=message.artifacts.get("onboarding_target"),
-        **sentiment_data,
-    )
-
-
-def assistant_message_payload(message: AssistantChatMessage) -> dict[str, Any]:
-    """
-    Projects a saved chat message to the JSON the chat run events carry, the same
-    shape the chat messages API returns.
-
-    :param message: The saved message, with `prediction` selected for AI messages.
-    :return: The message as a JSON-serializable dict.
-    """
-
-    return to_assistant_message(message).model_dump(mode="json")
-
-
 class Assistant:
     """Orchestrates a single assistant chat session.
 
@@ -357,7 +320,7 @@ class Assistant:
         self,
         chat: AssistantChat,
         model_profile: ResolvedAssistantModelProfile | None = None,
-    ):
+    ) -> None:
         """Initialize an assistant from one resolved model snapshot.
 
         :param chat: The persisted chat this assistant will serve.
@@ -415,7 +378,7 @@ class Assistant:
 
     def list_chat_messages(
         self, last_message_id: int | None = None, limit: int = 100
-    ) -> list[AssistantMessageUnion]:
+    ) -> list[HumanMessage | AiMessage]:
         """Return this chat's recent persisted messages, oldest-first.
 
         :param last_message_id: An exclusive message-ID pagination cursor.
@@ -423,36 +386,9 @@ class Assistant:
         :return: The projected assistant messages in chronological order.
         """
 
-        return self.list_chat_messages_for_chat(
+        return read_chat_messages(
             self._chat, last_message_id=last_message_id, limit=limit
         )
-
-    @staticmethod
-    def list_chat_messages_for_chat(
-        chat: AssistantChat,
-        last_message_id: int | None = None,
-        limit: int = 100,
-    ) -> list[AssistantMessageUnion]:
-        """Return recent chat messages, oldest-first.
-
-        This projection deliberately does not construct an ``Assistant`` or an
-        AI model, so loading chat history never allocates a provider client.
-
-        :param chat: The chat whose persisted messages should be projected.
-        :param last_message_id: If set, only return messages with ``id``
-            below this value (cursor-based pagination).
-        :param limit: Maximum number of messages to return.
-        :return: The projected assistant messages in chronological order.
-        """
-
-        queryset = (
-            chat.messages.all().select_related("prediction").order_by("-created_on")
-        )
-        if last_message_id is not None:
-            queryset = queryset.filter(id__lt=last_message_id)
-
-        messages = [to_assistant_message(message) for message in queryset[:limit]]
-        return list(reversed(messages))
 
     # ------------------------------------------------------------------
     # Message history (pydantic-ai ModelMessage round-trips)
@@ -502,38 +438,27 @@ class Assistant:
         self,
         answer: str,
         messages_json: bytes,
-        queue: asyncio.Queue[QueueEvent],
+        queue: asyncio.Queue[AssistantQueueEvent],
     ) -> None:
         """Push the final answer and result events onto *queue*."""
 
-        await queue.put(
-            QueueEvent(
-                kind=QueueEventKind.STREAM,
-                message=AiMessageChunk(content=answer, sources=self._deps.sources),
-            )
-        )
-        queue.put_nowait(
-            QueueEvent(
-                kind=QueueEventKind.RESULT,
-                answer=answer,
-                messages_json=messages_json,
-            )
-        )
+        await queue.put(AiMessageChunk(content=answer, sources=self._deps.sources))
+        queue.put_nowait(AgentAnswer(answer=answer, messages_json=messages_json))
 
     async def _run_agent(
         self,
         user_prompt: str,
         message_history: list[ModelMessage] | None,
-        queue: asyncio.Queue[QueueEvent],
+        queue: asyncio.Queue[AssistantQueueEvent],
     ) -> None:
         """Execute the main agent via ``_stream_agent_run``.
 
-        Pushes ``STREAM``, ``RESULT``, ``ERROR``, and ``DONE`` events
-        onto *queue*, which ``_stream_queue`` consumes.
+        Pushes streamed messages and the accepted answer or error onto *queue*,
+        followed by None so the consumer also finishes when execution fails.
 
         :param user_prompt: The user message to answer.
         :param message_history: Prior conversation to resume from, if any.
-        :param queue: The queue consumed by ``_stream_queue``.
+        :param queue: The queue consumed by the background assistant.
         :raises RuntimeError: If the stream ends without a result event.
         """
 
@@ -584,16 +509,16 @@ class Assistant:
             if not _is_provider_outage(exc):
                 # Loguru logs don't reach Sentry.
                 exception_capturer(exc)
-            queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
+            queue.put_nowait(exc)
         finally:
-            queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
+            queue.put_nowait(None)
 
     async def _stream_agent_run(
         self,
         user_prompt: str,
         message_history: list[ModelMessage] | None,
-        queue: asyncio.Queue[QueueEvent],
-    ) -> tuple[str, Any] | None:
+        queue: asyncio.Queue[AssistantQueueEvent],
+    ) -> tuple[str, AgentRunResult[str]] | None:
         """Run a single agent streaming pass.
 
         Streams reasoning/text chunks to *queue* and returns
@@ -619,8 +544,10 @@ class Assistant:
                 return await self._consume_agent_events(events, queue)
 
     async def _consume_agent_events(
-        self, events: Any, queue: asyncio.Queue[QueueEvent]
-    ) -> tuple[str, Any] | None:
+        self,
+        events: AsyncIterable[AssistantAgentEvent],
+        queue: asyncio.Queue[AssistantQueueEvent],
+    ) -> tuple[str, AgentRunResult[str]] | None:
         """Stream thinking separately from tentative answer text.
 
         Text can precede a tool call or fail output validation. Reclassify it when
@@ -632,39 +559,32 @@ class Assistant:
         text = ""
         response_started = False
         async for event in events:
-            if isinstance(event, AgentRunResultEvent):
-                answer = event.result.output
-                if isinstance(answer, str):
-                    answer = _strip_think_tags(answer)
-                return answer, event.result
-
-            if isinstance(event, FunctionToolCallEvent):
-                # The response's text was a preface, not its answer. Move it once,
-                # even when the tool has no thought or several calls arrive together.
-                tool_reasoning = "\n\n".join(
-                    part for part in (text, _extract_tool_thought(event)) if part
-                )
-                text = ""
-                if tool_reasoning:
-                    if reasoning:
-                        tool_reasoning = f"\n\n{tool_reasoning}"
-                    reasoning = await self._append_reasoning(
-                        queue, reasoning, tool_reasoning
+            match event:
+                case AgentRunResultEvent(result=result):
+                    return _strip_think_tags(result.output), result
+                case FunctionToolCallEvent():
+                    # A tool preface becomes reasoning once, even for a batch of calls.
+                    tool_reasoning = "\n\n".join(
+                        part for part in (text, _extract_tool_thought(event)) if part
                     )
-                continue
-
-            if isinstance(event, FunctionToolResultEvent):
-                reasoning = ""
-                continue
-
-            # Rejected text emits no special event. The next response must clear
-            # it even when its first part is an empty thought or a tool call.
-            if isinstance(event, PartStartEvent) and event.index == 0:
-                reasoning = ""
-                text = ""
-                if response_started:
-                    await self._enqueue_reasoning(queue, "")
-                response_started = True
+                    text = ""
+                    if tool_reasoning:
+                        separator = "\n\n" if reasoning else ""
+                        reasoning = await self._append_reasoning(
+                            queue, reasoning, separator + tool_reasoning
+                        )
+                    continue
+                case FunctionToolResultEvent():
+                    reasoning = ""
+                    continue
+                case PartStartEvent(index=0):
+                    # Rejected text has no event; the next response clears it even
+                    # when its first part is an empty thought or another tool call.
+                    reasoning = ""
+                    text = ""
+                    if response_started:
+                        await self._enqueue_reasoning(queue, "")
+                    response_started = True
 
             if delta := self._get_content_delta(event):
                 content, is_thinking = delta
@@ -674,11 +594,8 @@ class Assistant:
                     text += content
                     if visible_text := _strip_think_tags(text):
                         await queue.put(
-                            QueueEvent(
-                                kind=QueueEventKind.STREAM,
-                                message=AiMessageChunk(
-                                    content=visible_text, sources=self._deps.sources
-                                ),
+                            AiMessageChunk(
+                                content=visible_text, sources=self._deps.sources
                             )
                         )
 
@@ -686,7 +603,7 @@ class Assistant:
 
     async def _append_reasoning(
         self,
-        queue: asyncio.Queue[QueueEvent],
+        queue: asyncio.Queue[AssistantQueueEvent],
         reasoning: str,
         content: str,
     ) -> str:
@@ -698,58 +615,29 @@ class Assistant:
         return reasoning
 
     @staticmethod
-    def _get_content_delta(event: Any) -> tuple[str, bool] | None:
+    def _get_content_delta(event: AssistantAgentEvent) -> tuple[str, bool] | None:
         """Extract content and whether it belongs to native thinking."""
 
-        if isinstance(event, PartStartEvent) and isinstance(
-            event.part, (TextPart, ThinkingPart)
-        ):
-            if content := event.part.content:
-                return content, isinstance(event.part, ThinkingPart)
-        if isinstance(event, PartDeltaEvent) and isinstance(
-            event.delta, (TextPartDelta, ThinkingPartDelta)
-        ):
-            if content := event.delta.content_delta:
-                return content, isinstance(event.delta, ThinkingPartDelta)
+        match event:
+            case (
+                PartStartEvent(part=TextPart(content=content))
+                | PartDeltaEvent(delta=TextPartDelta(content_delta=content))
+            ) if content:
+                return content, False
+            case (
+                PartStartEvent(part=ThinkingPart(content=content))
+                | PartDeltaEvent(delta=ThinkingPartDelta(content_delta=content))
+            ) if content:
+                return content, True
         return None
 
     @staticmethod
     async def _enqueue_reasoning(
-        queue: asyncio.Queue[QueueEvent], content: str
+        queue: asyncio.Queue[AssistantQueueEvent], content: str
     ) -> None:
         """Push an ``AiReasoningChunk`` onto *queue*."""
 
-        await queue.put(
-            QueueEvent(
-                kind=QueueEventKind.STREAM,
-                message=AiReasoningChunk(content=content),
-            )
-        )
-
-    async def _stream_queue(
-        self,
-        queue: asyncio.Queue[QueueEvent],
-        result: _QueuedRunResult,
-    ) -> AsyncGenerator[AssistantMessageUnion, None]:
-        """Yield stream messages while collecting the completed run.
-
-        :param queue: The queue fed by the agent task.
-        :param result: The holder the completed answer is collected into.
-        :return: An async generator of streamed assistant messages.
-        :raises Exception: The error carried by an ERROR queue event.
-        """
-
-        while True:
-            event = await queue.get()
-            if event.kind == QueueEventKind.DONE:
-                return
-            if event.kind == QueueEventKind.RESULT:
-                result.answer = event.answer
-                result.messages_json = event.messages_json
-            elif event.kind == QueueEventKind.ERROR:
-                raise event.error
-            else:
-                yield event.message
+        await queue.put(AiReasoningChunk(content=content))
 
 
 _STOPPED_RUN_OUTCOMES = {
@@ -784,10 +672,9 @@ class BackgroundAssistant(Assistant):
         self._origin_tab_id = origin_tab_id
         self._latest_text = ""
         self._loaded_history: list[ModelMessage] = []
-        self._answer: str | None = None
-        self._answer_history = b""
+        self._answer: AgentAnswer | None = None
         self._title: str | None = None
-        self._onboarding_target: dict | None = None
+        self._onboarding_target: dict[str, Any] | None = None
         self._tool_executor = ToolExecutor()
         super().__init__(chat, model_profile=model_profile)
         self._toolset = ShieldedToolset(self._toolset, self._tool_executor)
@@ -815,8 +702,8 @@ class BackgroundAssistant(Assistant):
         self,
         user_prompt: str,
         message_history: list[ModelMessage] | None,
-        queue: asyncio.Queue[QueueEvent],
-    ) -> tuple[str, Any] | None:
+        queue: asyncio.Queue[AssistantQueueEvent],
+    ) -> tuple[str, AgentRunResult[str]] | None:
         """
         Runs the agent pass with the run's tool helpers bound, so no model call of
         the pass starts once the run is cancelled, and with its sync tools in the
@@ -867,7 +754,7 @@ class BackgroundAssistant(Assistant):
             )
         return self._outcome(prompt)
 
-    async def _wind_down(self, work: asyncio.Task) -> None:
+    async def _wind_down(self, work: asyncio.Task[None]) -> None:
         """
         Stops the agent: tools see the cancel flag and the agent task is
         cancelled. Then it waits for every tool call the agent started, with no
@@ -916,30 +803,34 @@ class BackgroundAssistant(Assistant):
         self._tool_helpers.request_context["ui_context"] = ui_context.format()
         self._loaded_history = await self._load_message_history() or []
 
-        queue: asyncio.Queue[QueueEvent] = asyncio.Queue()
+        queue: asyncio.Queue[AssistantQueueEvent] = asyncio.Queue()
         agent_task = asyncio.create_task(
             self._run_agent(prompt, self._loaded_history or None, queue)
         )
-        result = _QueuedRunResult()
         try:
-            async for message in self._stream_queue(queue, result):
-                self._report_message(message)
+            while True:
+                match await queue.get():
+                    case None:
+                        break
+                    case AgentAnswer() as answer:
+                        self._answer = answer
+                    case Exception() as error:
+                        raise error
+                    case AiMessageChunk() | AiReasoningChunk() as message:
+                        self._report_message(message)
         finally:
             agent_task.cancel()
             await asyncio.gather(agent_task, return_exceptions=True)
-        self._answer = result.answer
-        self._answer_history = result.messages_json
 
-    def _report_message(self, message: AssistantMessageUnion) -> None:
+    def _report_message(self, message: AiMessageChunk | AiReasoningChunk) -> None:
         """
         Reports the agent's cumulative text; the journal saves only what changed.
 
         :param message: A message the agent streamed.
         """
 
-        if isinstance(message, (AiReasoningChunk, AiMessageChunk)):
-            self._latest_text = message.content
-            self._journal.emit_text(message.content, variant=message.type)
+        self._latest_text = message.content
+        self._journal.emit_text(message.content, variant=message.type)
 
     def _report_progress(self, progress: str) -> None:
         """
@@ -961,17 +852,16 @@ class BackgroundAssistant(Assistant):
         :return: The confirmation the navigation tool gives the model.
         """
 
-        if not self._tool_helpers.is_cancelled:
-            if self._onboarding_target is None and location.type == "database-table":
-                self._onboarding_target = location.model_dump(mode="json")
-            self._journal.emit(
-                NAVIGATION_EVENT,
-                {
-                    "location": location.model_dump(mode="json"),
-                    "origin_tab_id": self._origin_tab_id,
-                },
-                flush_now=True,
-            )
+        if self._tool_helpers.is_cancelled:
+            return NAVIGATED
+        serialized = location.model_dump(mode="json")
+        if self._onboarding_target is None and location.type == "database-table":
+            self._onboarding_target = serialized
+        self._journal.emit(
+            NAVIGATION_EVENT,
+            {"location": serialized, "origin_tab_id": self._origin_tab_id},
+            flush_now=True,
+        )
         return NAVIGATED
 
     async def _report_title(self, prompt: str) -> None:
@@ -1004,7 +894,7 @@ class BackgroundAssistant(Assistant):
         if self._answer is not None:
             return ChatRunOutcome(
                 status=ChatRunStatus.COMPLETED,
-                result=self._result(self._answer, self._answer_history),
+                result=self._result(self._answer.answer, self._answer.messages_json),
             )
         status, error_code = _STOPPED_RUN_OUTCOMES.get(
             self._journal.stop_reason, (ChatRunStatus.FAILED, ChatRunErrorCode.FAILED)
@@ -1044,7 +934,7 @@ class BackgroundAssistant(Assistant):
         return AssistantRunResult(
             text=text,
             message_history=message_history,
-            sources=list(self._deps.sources),
+            sources=tuple(self._deps.sources),
             trace_id=self._telemetry.trace_id,
             title=self._title,
             onboarding_target=self._onboarding_target,

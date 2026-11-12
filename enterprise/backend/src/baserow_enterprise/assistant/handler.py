@@ -1,12 +1,12 @@
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
-from django.db.models import Count
+from django.db.models import Count, QuerySet
 
 from baserow.api.sessions import get_untrusted_client_session_id
 from baserow.core.chat_runs.handler import ChatRunHandler
@@ -14,11 +14,11 @@ from baserow.core.chat_runs.models import ChatRun
 from baserow.core.db import IsolationLevel, transaction_atomic
 from baserow.core.models import Workspace
 
-from .assistant import Assistant, assistant_message_payload
 from .exceptions import AssistantChatDoesNotExist
+from .messages import assistant_message_payload, list_chat_messages
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .runs import ASSISTANT_RUN_TYPE
-from .types import AiMessage, AssistantMessageUnion, HumanMessage, UIContext
+from .runs import ASSISTANT_RUN_TYPE, AssistantRunContext
+from .types import AiMessage, HumanMessage, UIContext
 
 PROVISIONAL_TITLE_LENGTH = 60
 
@@ -56,13 +56,13 @@ class ChatSnapshot:
     A chat's title, messages, active run and latest run, read at one point in time.
     """
 
-    messages: list[AssistantMessageUnion]
-    active_run: Optional[ChatRun]
-    latest_run: Optional[ChatRun]
+    messages: list[HumanMessage | AiMessage]
+    active_run: ChatRun | None
+    latest_run: ChatRun | None
     chat_title: str
 
 
-def _snapshot_transaction() -> AbstractContextManager:
+def _snapshot_transaction() -> AbstractContextManager[None]:
     """
     :return: A repeatable-read transaction on the primary, or nothing inside a
         caller's transaction, whose isolation can't change.
@@ -155,7 +155,9 @@ class AssistantHandler:
             )
         return chat
 
-    def list_chats(self, user: AbstractUser, workspace_id: int) -> list[AssistantChat]:
+    def list_chats(
+        self, user: AbstractUser, workspace_id: int
+    ) -> QuerySet[AssistantChat]:
         """
         List all AI assistant chats for the user in the specified workspace.
         """
@@ -171,7 +173,9 @@ class AssistantHandler:
             .order_by("-updated_on", "id")
         )
 
-    def get_chat_message_by_id(self, user: AbstractUser, message_id: int) -> AiMessage:
+    def get_chat_message_by_id(
+        self, user: AbstractUser, message_id: int
+    ) -> AssistantChatMessage:
         """
         Get a specific message from the AI assistant chat by its ID.
 
@@ -198,7 +202,7 @@ class AssistantHandler:
         :return: A list of messages from the AI assistant chat.
         """
 
-        return Assistant.list_chat_messages_for_chat(chat)
+        return list_chat_messages(chat)
 
     def get_chat_snapshot(self, chat: AssistantChat) -> ChatSnapshot:
         """
@@ -264,19 +268,20 @@ class AssistantHandler:
                 chat=chat, role=AssistantChatMessage.Role.HUMAN, content=content
             )
             serialized = assistant_message_payload(human_message)
+            context: AssistantRunContext = {
+                "human_message_id": human_message.id,
+                "client_session_id": get_untrusted_client_session_id(user),
+                "action_group_id": str(uuid4()),
+                "ui_context": ui_context.model_dump(mode="json"),
+                "origin_tab_id": tab_id,
+                "generate_title": generate_title,
+            }
             run = ChatRunHandler().start_run(
                 ASSISTANT_RUN_TYPE,
                 chat.id,
                 workspace,
                 user,
-                {
-                    "human_message_id": human_message.id,
-                    "client_session_id": get_untrusted_client_session_id(user),
-                    "action_group_id": str(uuid4()),
-                    "ui_context": ui_context.model_dump(mode="json"),
-                    "origin_tab_id": tab_id,
-                    "generate_title": generate_title,
-                },
+                dict(context),
                 {"human_message": serialized},
             )
         return run, serialized

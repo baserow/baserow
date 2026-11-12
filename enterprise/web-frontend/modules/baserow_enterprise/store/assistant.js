@@ -40,11 +40,11 @@ const CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
  * How Kuma took a message: a run answers it, the chat still answers another
  * one, or it was refused, which the chat explains.
  */
-export const SEND_OUTCOME = {
+export const SEND_OUTCOME = Object.freeze({
   ACCEPTED: 'accepted',
   BUSY: 'busy',
   FAILED: 'failed',
-}
+})
 
 /**
  * @returns {string} Why Kuma refused to start answering, for the chat.
@@ -54,9 +54,9 @@ function refusalMessage(error, i18n) {
   if (handler?.isTooManyRequests()) {
     return i18n.t('assistant.runLimitReached')
   }
-  // The UI builds the rest of the body, so only the message's length can fail.
+  // Invalid UI context is also a body error; it doesn't imply a long prompt.
   if (handler?.hasRequestBodyValidationError()) {
-    return i18n.t('assistant.runMessageTooLong')
+    return i18n.t('assistant.runFailedToStart')
   }
   const detail = handler?.detail
   return typeof detail === 'string' && detail
@@ -68,10 +68,10 @@ export const state = () => ({
   currentChatId: null,
   messages: [],
   chats: [],
-  isLoadingChats: false,
+  chatsRequestId: null,
   uiLocation: null,
-  // A chat whose read is in flight; choosing another chat meanwhile drops it.
-  openingChatId: null,
+  // Request identity also distinguishes two reads of the same chat.
+  openingChatRequest: null,
   // A message asked for from outside the panel, like the prompt on the workspace
   // homepage. The panel picks it up when it mounts, which is the only moment it
   // can send it, and it survives `reset` for that reason.
@@ -83,27 +83,15 @@ export const state = () => ({
 export const mutations = {
   SET_CURRENT_CHAT_ID(state, id) {
     state.currentChatId = id
-    state.openingChatId = null
+    state.openingChatRequest = null
   },
 
-  SET_OPENING_CHAT_ID(state, id) {
-    state.openingChatId = id
+  SET_OPENING_CHAT_REQUEST(state, request) {
+    state.openingChatRequest = request
   },
 
   SET_PENDING_PROMPT(state, prompt) {
     state.pendingPrompt = prompt
-  },
-
-  SET_CHAT_LOADING(state, { chat, value }) {
-    chat.loading = value
-  },
-
-  SET_ASSISTANT_RUNNING(state, { chat, value }) {
-    chat.running = value
-  },
-
-  SET_ASSISTANT_CANCELLING(state, { chat, value }) {
-    chat.cancelling = value
   },
 
   SET_MESSAGES(state, messages) {
@@ -130,16 +118,16 @@ export const mutations = {
   },
 
   SET_CHATS(state, chats) {
+    const local = new Map(state.chats.map((chat) => [chat.id, chat]))
     const fetched = chats.map((chat) => ({
       id: chat.uuid,
       chatId: chat.chat_id ?? null,
       title: chat.title,
       createdAt: chat.created_on,
       updatedAt: chat.updated_on,
-      loading: false,
-      running: false,
-      reasoning: false,
-      cancelling: false,
+      // History reads must not re-enable sending before a pending POST settles.
+      loading: local.get(chat.uuid)?.loading ?? false,
+      running: local.get(chat.uuid)?.running ?? false,
     }))
     // A new chat is saved with its first message, so the fetched list can miss it.
     const current = state.chats.find((c) => c.id === state.currentChatId)
@@ -148,8 +136,8 @@ export const mutations = {
     state.chats = [...unsaved, ...fetched]
   },
 
-  SET_CHATS_LOADING(state, loading) {
-    state.isLoadingChats = loading
+  SET_CHATS_REQUEST_ID(state, requestId) {
+    state.chatsRequestId = requestId
   },
 
   REMOVE_CHAT(state, chatId) {
@@ -246,6 +234,7 @@ export const actions = {
     commit('CLEAR_MESSAGES')
     commit('SET_CURRENT_CHAT_ID', null)
     commit('SET_CHATS', [])
+    commit('SET_CHATS_REQUEST_ID', null)
   },
 
   createChat({ commit }) {
@@ -259,17 +248,25 @@ export const actions = {
 
   async selectChat({ state, commit, dispatch }, chat) {
     const { $client } = this
-    commit('SET_OPENING_CHAT_ID', chat.id)
-    commit('SET_CHAT_LOADING', { chat, value: true })
+    const requestId = uuidv4()
+    commit('SET_OPENING_CHAT_REQUEST', { id: requestId, chatId: chat.id })
+    commit('UPDATE_CHAT', { id: chat.id, updates: { loading: true } })
 
     try {
       const snapshot = await assistant($client).fetchChatMessages(chat.id)
-      if (state.openingChatId !== chat.id) return
+      if (state.openingChatRequest?.id !== requestId) return
       commit('SET_CURRENT_CHAT_ID', chat.id)
       commit('SET_MESSAGES', snapshot.messages.map(parseMessage))
       await dispatch('followChatRuns', { chat, snapshot })
     } finally {
-      commit('SET_CHAT_LOADING', { chat, value: false })
+      const pending = state.openingChatRequest
+      if (pending?.id === requestId) {
+        commit('SET_OPENING_CHAT_REQUEST', null)
+      }
+      // An earlier read must not clear a newer read's spinner for the same chat.
+      if (pending?.chatId !== chat.id || pending.id === requestId) {
+        commit('UPDATE_CHAT', { id: chat.id, updates: { loading: false } })
+      }
     }
   },
 
@@ -408,16 +405,21 @@ export const actions = {
     storeChatUuid(null)
   },
 
-  async fetchChats({ commit }, workspaceId) {
+  async fetchChats({ state, commit }, workspaceId) {
     const { $client } = this
-    commit('SET_CHATS_LOADING', true)
+    const requestId = uuidv4()
+    commit('SET_CHATS_REQUEST_ID', requestId)
 
     try {
       const { results: chats } =
         await assistant($client).fetchChats(workspaceId)
-      commit('SET_CHATS', chats)
+      if (state.chatsRequestId === requestId) {
+        commit('SET_CHATS', chats)
+      }
     } finally {
-      commit('SET_CHATS_LOADING', false)
+      if (state.chatsRequestId === requestId) {
+        commit('SET_CHATS_REQUEST_ID', null)
+      }
     }
   },
 
@@ -431,11 +433,8 @@ export const actions = {
    * @throws Anything but a failed request, such as a run type's bug.
    */
   async startRun({ state, commit, dispatch, getters }, { message, workspace }) {
-    let chat = state.chats.find((c) => c.id === state.currentChatId)
-    if (!chat) {
-      await dispatch('createChat', workspace.id)
-      chat = state.chats.find((c) => c.id === state.currentChatId)
-    }
+    const chatId = getters.currentChat?.id ?? (await dispatch('createChat'))
+    const chat = state.chats.find((chat) => chat.id === chatId)
     const draftId = uuidv4()
     const previousIds = new Set(state.messages.map((m) => m.id))
     commit('ADD_MESSAGE', {
@@ -445,7 +444,7 @@ export const actions = {
       content: message,
       loading: false,
     })
-    commit('SET_ASSISTANT_RUNNING', { chat, value: true })
+    commit('UPDATE_CHAT', { id: chat.id, updates: { running: true } })
     const controller = new AbortController()
     // Logout must abort this response until a follower adopts it.
     const unwatchAuth = this.watch(
@@ -492,7 +491,7 @@ export const actions = {
           { root: true }
         )
       }
-      commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+      commit('UPDATE_CHAT', { id: chat.id, updates: { running: false } })
       resolveAccepted({ outcome: SEND_OUTCOME.ACCEPTED, runId })
     }
     assistant(this.$client)
@@ -536,6 +535,12 @@ export const actions = {
             const snapshot = await assistant(this.$client).fetchChatMessages(
               chat.id
             )
+            // Logout can happen while this read is in flight, even if another
+            // user has signed in by the time it completes.
+            if (controller.signal.aborted) {
+              resolveAccepted({ outcome: SEND_OUTCOME.FAILED, runId: null })
+              return
+            }
             const candidate = snapshot.active_run || snapshot.latest_run
             const savedHuman = snapshot.messages.find(
               (m) =>
@@ -581,7 +586,7 @@ export const actions = {
             { runId, controller },
             { root: true }
           )
-        commit('SET_ASSISTANT_RUNNING', { chat, value: false })
+        commit('UPDATE_CHAT', { id: chat.id, updates: { running: false } })
       })
     return accepted
   },
@@ -709,7 +714,7 @@ export const getters = {
 
   chats: (state) => state.chats,
 
-  isLoadingChats: (state) => state.isLoadingChats,
+  isLoadingChats: (state) => state.chatsRequestId !== null,
 
   uiContext: (state, getters, rootState, rootGetters) => {
     const scope = rootGetters['undoRedo/getCurrentScope']

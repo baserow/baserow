@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any, TypedDict
 
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 
@@ -12,13 +13,24 @@ NOTHING_RAN_ERROR_CODES = frozenset(
 )
 
 
+class AssistantRunContext(TypedDict):
+    """The sending request data restored by the worker, stored as JSON."""
+
+    human_message_id: int
+    client_session_id: str | None
+    action_group_id: str
+    ui_context: dict[str, Any]
+    origin_tab_id: str
+    generate_title: bool
+
+
 @dataclass(frozen=True)
 class AssistantRunResult:
     """What a Kuma run produced, saved by its run type when the run ends."""
 
     text: str
     message_history: bytes
-    sources: list[str] = field(default_factory=list)
+    sources: tuple[str, ...] = ()
     trace_id: str | None = None
     title: str | None = None
-    onboarding_target: dict | None = None
+    onboarding_target: dict[str, Any] | None = None

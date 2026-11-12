@@ -4,7 +4,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from enum import Enum, auto
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable
 
 from pydantic_ai import Tool
@@ -17,9 +17,7 @@ if TYPE_CHECKING:
     from baserow_enterprise.assistant.model_profiles import (
         ResolvedAssistantModelProfile,
     )
-    from baserow_enterprise.assistant.tools.navigation.types import (
-        AnyNavigationRequestType,
-    )
+    from baserow_enterprise.assistant.types import AnyNavigationType
     from baserow_premium.license.registries import LicenseType
 
 
@@ -33,22 +31,6 @@ class AgentMode(str, Enum):
     EXPLAIN = "explain"
 
 
-class QueueEventKind(Enum):
-    STREAM = auto()
-    RESULT = auto()
-    ERROR = auto()
-    DONE = auto()
-
-
-@dataclass
-class QueueEvent:
-    kind: QueueEventKind
-    message: Any = None
-    answer: str = ""
-    messages_json: bytes = b""
-    error: Exception | None = None
-
-
 @dataclass
 class ToolHelpers:
     """
@@ -59,9 +41,9 @@ class ToolHelpers:
     """
 
     update_status: Callable[[str], None]
-    navigate_to: Callable[["AnyNavigationRequestType"], str]
+    navigate_to: Callable[["AnyNavigationType"], str]
     model_profile: "ResolvedAssistantModelProfile"
-    request_context: dict = field(default_factory=dict)
+    request_context: dict[str, Any] = field(default_factory=dict)
     _cancel_event: threading.Event = field(default_factory=threading.Event)
 
     def raise_if_cancelled(self) -> None:
@@ -165,7 +147,7 @@ class AssistantDeps:
     verified_tool_outcomes: list[dict[str, Any]] = field(default_factory=list)
     pending_question: str | None = None
 
-    def extend_sources(self, new_sources: list[str]):
+    def extend_sources(self, new_sources: list[str]) -> None:
         """
         Extend the current list of sources with new ones, avoiding
         duplicates.
