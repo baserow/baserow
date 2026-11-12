@@ -3,6 +3,8 @@ from datetime import timezone as dt_timezone
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 import pytest
@@ -164,6 +166,26 @@ def test_list_triggers_serializes_type_message_service_and_schema(
         item["service"]["hour"],
     ) == ("periodic", "DAY", 9)
     assert list(item["schema"]["properties"]) == ["triggered_at", "next_run_at"]
+
+
+@pytest.mark.django_db
+def test_list_triggers_query_count_does_not_grow_with_the_triggers(
+    data_fixture, periodic_trigger, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    url = agent_url(agent, "triggers:list")
+    periodic_trigger(agent)
+    api_client.get(url)
+
+    with CaptureQueriesContext(connection) as one_trigger:
+        api_client.get(url)
+    for _ in range(4):
+        periodic_trigger(agent)
+    with CaptureQueriesContext(connection) as five_triggers:
+        response = api_client.get(url)
+
+    assert len(response.json()) == 5
+    assert len(five_triggers) == len(one_trigger)
 
 
 @pytest.mark.django_db

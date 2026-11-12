@@ -51,15 +51,26 @@ class AgentTriggerHandler:
         except AgentTrigger.DoesNotExist as exc:
             raise AgentTriggerDoesNotExist from exc
 
-    def list_triggers(self, agent: AgentApplication) -> QuerySet[AgentTrigger]:
+    def list_triggers(self, agent: AgentApplication) -> list[AgentTrigger]:
         """
-        Return the agent's triggers with their services, oldest first.
+        Return the agent's triggers with their specific services, oldest first,
+        loaded with one query per service type rather than one per trigger.
 
         :param agent: The agent the triggers belong to.
         :return: The triggers that aren't trashed.
         """
 
-        return AgentTrigger.objects.filter(agent=agent).select_related("service")
+        triggers = list(AgentTrigger.objects.filter(agent=agent))
+        services = ServiceHandler().get_services(
+            base_queryset=Service.objects.filter(
+                id__in=[trigger.service_id for trigger in triggers]
+            )
+        )
+        services_by_id = {service.id: service for service in services}
+        for trigger in triggers:
+            if trigger.service_id in services_by_id:
+                trigger.service = services_by_id[trigger.service_id]
+        return triggers
 
     def available_trigger_types(self, agent: AgentApplication) -> list[str]:
         """

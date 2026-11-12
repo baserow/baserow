@@ -44,7 +44,7 @@ def test_create_trigger_creates_an_armed_service(data_fixture):
     assert trigger.message["formula"] == "'Daily digest'"
     assert (service.interval, service.hour) == (PERIODIC_INTERVAL_DAY, 9)
     assert service.next_run_at == datetime(2026, 1, 1, 9, 0, tzinfo=timezone.utc)
-    assert AgentTriggerHandler().list_triggers(agent).get() == trigger
+    assert AgentTriggerHandler().list_triggers(agent) == [trigger]
 
 
 @pytest.mark.django_db
