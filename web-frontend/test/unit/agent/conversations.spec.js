@@ -768,12 +768,12 @@ describe('Agent conversations', () => {
     )
     expect(reads.at(-2).params).toEqual({
       cursor: null,
-      limit: 20,
+      limit: 100,
       has_pending_approvals: true,
     })
     expect(reads.at(-1).params).toEqual({
       cursor: null,
-      limit: 20,
+      limit: 100,
       pinned: true,
     })
   })

@@ -1,6 +1,7 @@
 import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
 
-const CONVERSATION_PAGE_SIZE = 20
+// Fill tall conversation lists in one request with lightweight list metadata.
+const CONVERSATION_PAGE_SIZE = 100
 const MESSAGE_PAGE_SIZE = 50
 
 export default (client) => ({
