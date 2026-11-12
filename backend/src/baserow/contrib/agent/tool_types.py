@@ -123,7 +123,7 @@ class UpdateDatabaseAgentToolType(DatabaseAgentToolType):
         return StepPreview(
             {
                 **database_reference(ctx, arguments["database_id"]),
-                "name": arguments["name"],
+                "new_name": arguments["name"],
             }
         )
 

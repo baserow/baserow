@@ -148,6 +148,7 @@
     "toolCreateDatabaseDone": "Created database",
     "toolCreateDatabaseDoneDatabase": "Created database: {database}",
     "toolUpdateDatabaseRequestedDatabase": "Rename database: {database}",
+    "toolUpdateDatabaseRequestedRename": "Rename database: {database} → {newName}",
     "toolUpdateDatabaseRunning": "Renaming database",
     "toolUpdateDatabaseRunningDatabase": "Renaming database: {database}",
     "toolUpdateDatabaseDone": "Renamed database",

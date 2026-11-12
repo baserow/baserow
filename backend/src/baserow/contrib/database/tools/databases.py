@@ -66,10 +66,7 @@ def update_database(
     ctx: ToolContext,
     database_id: Annotated[
         int,
-        Field(
-            description="The ID of the database, from list_databases, "
-            "list_applications or create_database."
-        ),
+        Field(description="The ID of the database to rename."),
     ],
     name: Annotated[
         ApplicationName,

@@ -147,6 +147,10 @@ def test_database_writes_recheck_the_identity_role(
             "update_database",
             {"database_id": database.id, "name": "After downgrade"},
         ),
+        (
+            "update_database",
+            {"database_id": database.id, "name": "Sales renamed"},
+        ),
     ):
         refused = call(name, **arguments)
         assert refused.return_value["error"]["code"] == "permission_denied"
@@ -187,7 +191,7 @@ def test_database_rename_preview_keeps_a_hidden_database_id(
 
     assert refused.return_value["error"]["code"] == "not_found"
     assert run.emit.await_args.args[0].input == {
-        "values": {"database_id": hidden.id, "name": "New name"}
+        "values": {"database_id": hidden.id, "new_name": "New name"}
     }
     hidden.refresh_from_db()
     assert hidden.name == "Secret"

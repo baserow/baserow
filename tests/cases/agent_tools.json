@@ -26,7 +26,7 @@
       "name": "update_database",
       "arguments": { "database_id": 1, "name": "Projects" },
       "input": {},
-      "preview": { "values": { "database": "Work", "name": "Projects" } },
+      "preview": { "values": { "database": "Work", "new_name": "Projects" } },
       "facts": { "database": "Projects", "changed": true }
     },
     {

@@ -4,6 +4,7 @@ import * as vueI18n from 'vue-i18n'
 import service from '@baserow/modules/core/services/chatRuns'
 import { registerRealtimeEvents } from '@baserow/modules/agent/realtime'
 import { pendingApprovals } from '@baserow/modules/agent/utils/replies'
+import agentEn from '@baserow/modules/agent/locales/en.json'
 import {
   agentData,
   composer,
@@ -173,6 +174,49 @@ describe('Agent tool approvals', () => {
   }
   const openWaitingReply = (approvals, ...later) =>
     openReply(reply('waiting', approvals), ...later)
+
+  test('a collapsed rename approval shows the current and proposed names', async () => {
+    const { createI18n } = await vi.importActual('vue-i18n')
+    const english = createI18n({
+      legacy: false,
+      locale: 'en',
+      messages: { en: agentEn },
+    }).global.t
+    const useI18n = vueI18n.useI18n
+    vi.spyOn(vueI18n, 'useI18n').mockImplementation((...args) => {
+      const composer = useI18n(...args)
+      return {
+        ...composer,
+        t: (key, ...values) =>
+          key.startsWith('agent.toolUpdateDatabase')
+            ? english(key, ...values)
+            : composer.t(key, ...values),
+      }
+    })
+    const rename = {
+      ...heldStep(1, 'waiting'),
+      tool: 'update_database',
+      input: {
+        values: { database: 'Marketing Ops', new_name: 'Growth Team' },
+      },
+    }
+    const wrapper = await openReply(
+      reply('waiting', [{ ...approval(1), tool: 'update_database' }], {
+        steps: [rename],
+      })
+    )
+    const [item] = items(wrapper)
+
+    expect(item.get('.agent-approval__item-title').text()).toBe(
+      'Rename database: Marketing Ops → Growth Team'
+    )
+    expect(item.find('pre').exists()).toBe(false)
+    await item.get('.agent-approval__details-toggle').trigger('click')
+    expect(JSON.parse(item.get('pre').text())).toEqual({
+      database: 'Marketing Ops',
+      new_name: 'Growth Team',
+    })
+  })
 
   test.each(['approved', 'rejected'])(
     'keeps a saved %s decision when an older message snapshot arrives',

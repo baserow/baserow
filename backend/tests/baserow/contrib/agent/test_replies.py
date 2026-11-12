@@ -1636,7 +1636,7 @@ def test_database_changes_wait_for_approval_before_persisting(
     preview = {"name": "Projects"}
     if tool_name == "update_database":
         arguments["database_id"] = database.id
-        preview["database"] = original_name
+        preview = {"database": original_name, "new_name": "Projects"}
     respond(
         mocker,
         (

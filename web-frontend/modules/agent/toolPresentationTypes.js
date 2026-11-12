@@ -5,6 +5,7 @@ import {
 } from '@baserow/modules/core/toolPresentationTypes'
 
 const countIsKnown = (count) => Number.isSafeInteger(count) && count >= 0
+const trimmedName = (name) => (typeof name === 'string' ? name.trim() : '')
 
 /** The table a call's request names, or '' when it names none. */
 const requestedTable = (input) =>
@@ -97,8 +98,9 @@ export class ListDatabasesToolPresentationType extends DatabaseToolPresentationT
 /** Database creation and renaming show the requested or confirmed name. */
 class DatabaseApplicationToolPresentationType extends DatabaseToolPresentationType {
   getRequestedDatabase(input) {
-    const name = input?.values?.[this.constructor.definition.requestName]
-    return typeof name === 'string' ? name.trim() : ''
+    return trimmedName(
+      input?.values?.[this.constructor.definition.targetNameKey]
+    )
   }
 
   getRequestedActivity({ input }, t) {
@@ -112,18 +114,12 @@ class DatabaseApplicationToolPresentationType extends DatabaseToolPresentationTy
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
       return this.getRequestedActivity({ input }, t)
     }
-    const database =
-      status === STEP_STATUS.DONE
-        ? typeof facts.database === 'string'
-          ? facts.database.trim()
-          : ''
-        : this.getRequestedDatabase(input)
-    const activity =
-      status === STEP_STATUS.RUNNING
-        ? 'Running'
-        : facts.changed === false
-          ? 'Unchanged'
-          : 'Done'
+    let database = this.getRequestedDatabase(input)
+    let activity = 'Running'
+    if (status === STEP_STATUS.DONE) {
+      database = trimmedName(facts.database)
+      activity = facts.changed === false ? 'Unchanged' : 'Done'
+    }
     return t(`${this.labelKey}${activity}${database ? 'Database' : ''}`, {
       database,
     })
@@ -134,7 +130,7 @@ export class CreateDatabaseToolPresentationType extends DatabaseApplicationToolP
   static definition = {
     type: 'create_database',
     label: 'CreateDatabase',
-    requestName: 'name',
+    targetNameKey: 'name',
   }
 }
 
@@ -142,7 +138,20 @@ export class UpdateDatabaseToolPresentationType extends DatabaseApplicationToolP
   static definition = {
     type: 'update_database',
     label: 'UpdateDatabase',
-    requestName: 'database',
+    targetNameKey: 'database',
+  }
+
+  getRequestedActivity({ input }, t) {
+    const database = this.getRequestedDatabase(input)
+    // Stored previews from earlier replies used `name` for the proposed name.
+    const newName = trimmedName(input?.values?.new_name ?? input?.values?.name)
+    if (database && newName) {
+      return t('agent.toolUpdateDatabaseRequestedRename', {
+        database,
+        newName,
+      })
+    }
+    return super.getRequestedActivity({ input }, t)
   }
 }
 

@@ -129,8 +129,9 @@ describe('Agent tool presentations', () => {
   test.each(
     cases.tools
       .filter(
-        ({ name, input }) =>
-          step(name).changes_data && input.requested_count !== undefined
+        ({ name }) =>
+          step(name).changes_data &&
+          !['create_database', 'update_database'].includes(name)
       )
       .map(({ name }) => name)
   )('a held %s call names its requested count', (tool) => {
@@ -150,9 +151,9 @@ describe('Agent tool presentations', () => {
     ],
     [
       'update_database',
-      { database: 'Tasks', name: 'Projects' },
+      { database: 'Tasks', new_name: 'Projects' },
       { database: 'Projects', changed: true },
-      'Rename database: Tasks',
+      'Rename database: Tasks → Projects',
       'Renaming database: Tasks',
       'Renamed database: Projects',
     ],
@@ -172,9 +173,21 @@ describe('Agent tool presentations', () => {
     }
   )
 
+  test('older rename previews also show both names before approval', () => {
+    const activity = toolActivity(
+      step('update_database', 'waiting', {
+        input: { values: { database: 'Tasks', name: 'Projects' } },
+      }),
+      registry,
+      t
+    )
+
+    expect(activity.title).toBe('Rename database: Tasks → Projects')
+  })
+
   test('a rename that changed nothing does not claim to have renamed a database', () => {
     const data = step('update_database', 'done', {
-      input: { values: { database: 'Projects', name: 'Projects' } },
+      input: { values: { database: 'Projects', new_name: 'Projects' } },
       facts: { database: 'Projects', changed: false },
     })
 
@@ -185,13 +198,13 @@ describe('Agent tool presentations', () => {
 
   test('a database request with no readable name keeps its ID in the preview', () => {
     const data = step('update_database', 'waiting', {
-      input: { values: { database_id: 42, name: 'Projects' } },
+      input: { values: { database_id: 42, new_name: 'Projects' } },
     })
 
     expect(toolActivity(data, registry, t)).toMatchObject({
       title: 'Rename database',
       input: {
-        values: { database_id: 42, name: 'Projects' },
+        values: { database_id: 42, new_name: 'Projects' },
         truncated: false,
       },
     })
