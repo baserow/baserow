@@ -667,7 +667,7 @@ SIMPLE_JWT = {
 # Encrypts the secrets Baserow stores to send to other services, such as the
 # tokens of MCP servers. Independent from SECRET_KEY, which only derives the key
 # while this isn't set. Old keys stay in the fallbacks until no secret uses them.
-BASEROW_ENCRYPTION_KEY = os.getenv("BASEROW_ENCRYPTION_KEY") or ""
+BASEROW_ENCRYPTION_KEY = (os.getenv("BASEROW_ENCRYPTION_KEY") or "").strip()
 BASEROW_ENCRYPTION_KEY_FALLBACKS = [
     key.strip()
     for key in (os.getenv("BASEROW_ENCRYPTION_KEY_FALLBACKS") or "").split(",")

@@ -1,7 +1,7 @@
 from io import StringIO
 
 from django.core.exceptions import FieldError, ImproperlyConfigured
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.db import connection
 from django.test import override_settings
 
@@ -20,6 +20,7 @@ from baserow.core.encryption import (
 KEY_A = "a" * 40
 KEY_B = "b" * 40
 TOKEN_CONTEXT = "integrations.mcpserverintegration.oauth_access_token"
+REFRESH_CONTEXT = "integrations.mcpserverintegration.oauth_refresh_token"
 
 
 def stored(integration, column="oauth_access_token"):
@@ -84,8 +85,9 @@ def test_a_secret_copied_into_another_column_cant_be_read(data_fixture):
     # Someone with write access to the database moves it to another column.
     write_stored(integration, stored(integration), "oauth_refresh_token")
 
+    assert reload(integration).oauth_refresh_token == ""
     with pytest.raises(DecryptionError):
-        reload(integration)
+        decrypt(stored(integration, "oauth_refresh_token"), REFRESH_CONTEXT)
 
 
 @pytest.mark.django_db
@@ -119,8 +121,9 @@ def test_a_new_key_reads_old_secrets_through_the_fallbacks(data_fixture):
     ):
         assert reload(integration).oauth_access_token == "access-1"
     with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        assert reload(integration).oauth_access_token == ""
         with pytest.raises(DecryptionError, match=old_id):
-            reload(integration)
+            decrypt(stored(integration), TOKEN_CONTEXT)
 
 
 @pytest.mark.django_db
@@ -171,7 +174,8 @@ def test_reencrypting_reports_secrets_it_cant_read(data_fixture):
 
     with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
         out, err = StringIO(), StringIO()
-        call_command("reencrypt_secrets", stdout=out, stderr=err)
+        with pytest.raises(CommandError, match="1 secrets"):
+            call_command("reencrypt_secrets", stdout=out, stderr=err)
 
     assert "(missing key): 1" in out.getvalue()
     assert f"{integration.id}:" in err.getvalue()
@@ -190,3 +194,90 @@ def test_a_tampered_secret_cant_be_read():
 
     with pytest.raises(DecryptionError):
         decrypt(tampered, TOKEN_CONTEXT)
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENCRYPTION_KEY=KEY_A)
+def test_writing_a_ciphertext_stores_it_as_is_and_never_decrypts_it(data_fixture):
+    victim = data_fixture.create_mcp_server_integration(
+        auth_header_name="Authorization", auth_header_value="Bearer victim"
+    )
+    attacker = data_fixture.create_mcp_server_integration()
+    attacker.auth_header_value = stored(victim, "auth_header_value")
+    attacker.save()
+
+    assert reload(attacker).auth_header_value == stored(victim, "auth_header_value")
+    assert "Bearer victim" not in str(reload(attacker).auth_header_value)
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENCRYPTION_KEY=KEY_A)
+def test_a_secret_that_looks_encrypted_can_be_saved(data_fixture):
+    integration = data_fixture.create_mcp_server_integration(
+        auth_header_name="X-Key", auth_header_value="enc:v1:deadbeef:abc"
+    )
+
+    assert reload(integration).auth_header_value == "enc:v1:deadbeef:abc"
+
+
+@pytest.mark.django_db
+def test_an_unreadable_secret_doesnt_break_loading_the_row(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_A):
+        write_stored(integration, encrypt("access-1", TOKEN_CONTEXT))
+    raw = stored(integration)
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        copy = reload(integration)
+        assert copy.oauth_access_token == ""
+        copy.name = "renamed"
+        copy.save()
+    # Saving the row keeps the stored value, so the old key can still read it.
+    assert stored(integration) == raw
+    with override_settings(
+        BASEROW_ENCRYPTION_KEY=KEY_B, BASEROW_ENCRYPTION_KEY_FALLBACKS=[KEY_A]
+    ):
+        assert reload(integration).oauth_access_token == "access-1"
+
+
+@pytest.mark.django_db
+def test_an_unreadable_secret_can_be_replaced(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_A):
+        write_stored(integration, encrypt("access-1", TOKEN_CONTEXT))
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        copy = reload(integration)
+        copy.oauth_access_token = "access-2"
+        copy.save()
+        assert reload(integration).oauth_access_token == "access-2"
+
+
+@pytest.mark.django_db
+def test_secrets_survive_a_secret_key_change_through_the_fallbacks(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+    with override_settings(BASEROW_ENCRYPTION_KEY="", SECRET_KEY="old-short-key"):
+        write_stored(integration, encrypt("access-1", TOKEN_CONTEXT))
+
+    with override_settings(
+        BASEROW_ENCRYPTION_KEY=KEY_A,
+        SECRET_KEY="new-secret-key",
+        BASEROW_ENCRYPTION_KEY_FALLBACKS=["old-short-key"],
+    ):
+        assert reload(integration).oauth_access_token == "access-1"
+    with override_settings(
+        BASEROW_ENCRYPTION_KEY="",
+        SECRET_KEY="new-secret-key",
+        SECRET_KEY_FALLBACKS=["old-short-key"],
+    ):
+        assert reload(integration).oauth_access_token == "access-1"
+
+
+@pytest.mark.django_db
+def test_plain_text_starting_like_a_secret_is_still_read(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+    write_stored(integration, "enc:abc")
+
+    assert reload(integration).oauth_access_token == "enc:abc"
+    call_command("reencrypt_secrets", stdout=StringIO())
+    assert reload(integration).oauth_access_token == "enc:abc"

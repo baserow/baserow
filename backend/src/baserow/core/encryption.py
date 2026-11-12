@@ -4,12 +4,15 @@ Encryption of the secrets Baserow stores to send to other services.
 A secret is stored as ``enc:v1:<key id>:<base64url(nonce + ciphertext + tag)>``,
 encrypted with AES-256-GCM. The key id says which key encrypted it, so old keys
 can stay around to decrypt while new values use the current key. The associated
-data binds a value to its column, so it can't be copied into another one.
+data binds a value to its column, so it can't be copied into another one. It
+doesn't bind it to its row: whoever can copy a value between rows can also
+change where that row sends it.
 """
 
 import base64
 import hashlib
 import os
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 
@@ -68,7 +71,10 @@ def _configured_key(value: str, name: str) -> bytes:
 
 @lru_cache(maxsize=4)
 def _build_key_ring(
-    primary: str, fallbacks: tuple[str, ...], secret_key: str
+    primary: str,
+    fallbacks: tuple[str, ...],
+    secret_key: str,
+    secret_key_fallbacks: tuple[str, ...],
 ) -> KeyRing:
     keys = {}
     if primary:
@@ -77,13 +83,21 @@ def _build_key_ring(
         primary_key = _derive(secret_key, _SECRET_KEY_INFO)
     primary_id = _key_id(primary_key)
     keys[primary_id] = primary_key
+
+    def add(key: bytes):
+        keys.setdefault(_key_id(key), key)
+
     for fallback in fallbacks:
-        key = _configured_key(fallback, "BASEROW_ENCRYPTION_KEY_FALLBACKS")
-        keys.setdefault(_key_id(key), key)
-    # Values written before BASEROW_ENCRYPTION_KEY was set stay readable.
-    if primary and secret_key:
-        key = _derive(secret_key, _SECRET_KEY_INFO)
-        keys.setdefault(_key_id(key), key)
+        # A fallback is an old BASEROW_ENCRYPTION_KEY or an old SECRET_KEY. A
+        # value shorter than the minimum can only be an old SECRET_KEY.
+        if len(fallback) >= MIN_KEY_LENGTH:
+            add(_derive(fallback, _KEY_INFO))
+        add(_derive(fallback, _SECRET_KEY_INFO))
+    # Values written while the key was derived from SECRET_KEY, or from a
+    # SECRET_KEY that has since changed, stay readable.
+    for old in (secret_key, *secret_key_fallbacks):
+        if old:
+            add(_derive(old, _SECRET_KEY_INFO))
     return KeyRing(primary_id, keys, derived_from_secret_key=not primary)
 
 
@@ -104,6 +118,7 @@ def get_key_ring() -> KeyRing:
         settings.BASEROW_ENCRYPTION_KEY,
         tuple(settings.BASEROW_ENCRYPTION_KEY_FALLBACKS),
         settings.SECRET_KEY,
+        tuple(getattr(settings, "SECRET_KEY_FALLBACKS", ())),
     )
     if ring.derived_from_secret_key and not _warned_about_secret_key:
         _warned_about_secret_key = True
@@ -119,8 +134,25 @@ def _associated_data(key_id: str, context: str) -> bytes:
     return f"baserow:{VERSION}:{key_id}:{context}".encode()
 
 
+_ENCRYPTED = re.compile(
+    rf"^{re.escape(PREFIX)}(?P<version>v[0-9]+):(?P<key_id>[0-9a-f]{{8}}):"
+    r"(?P<token>[A-Za-z0-9_-]+)$"
+)
+
+
+def encrypted_prefix(key_id: str) -> str:
+    """:return: How every value encrypted with this key starts."""
+
+    return f"{PREFIX}{VERSION}:{key_id}:"
+
+
 def is_encrypted(value: str) -> bool:
-    return value.startswith(PREFIX)
+    """
+    Only values in the exact format count, so plain text written before the
+    field was encrypted is read as is, even when it starts with the prefix.
+    """
+
+    return _ENCRYPTED.match(value) is not None
 
 
 def get_key_id(value: str) -> str | None:
@@ -129,10 +161,8 @@ def get_key_id(value: str) -> str | None:
     :return: The id of the key that encrypted it, or None when it's plain text.
     """
 
-    if not is_encrypted(value):
-        return None
-    parts = value.split(":", 3)
-    return parts[2] if len(parts) == 4 else None
+    match = _ENCRYPTED.match(value)
+    return match["key_id"] if match else None
 
 
 def encrypt(plaintext: str, context: str) -> str:
@@ -152,7 +182,7 @@ def encrypt(plaintext: str, context: str) -> str:
         nonce, plaintext.encode(), _associated_data(key_id, context)
     )
     token = base64.urlsafe_b64encode(nonce + sealed).decode().rstrip("=")
-    return f"{PREFIX}{VERSION}:{key_id}:{token}"
+    return f"{encrypted_prefix(key_id)}{token}"
 
 
 def decrypt(value: str, context: str) -> str:
@@ -166,10 +196,10 @@ def decrypt(value: str, context: str) -> str:
         configured, or it wasn't encrypted for this context.
     """
 
-    parts = value.split(":", 3)
-    if len(parts) != 4 or parts[1] != VERSION:
+    match = _ENCRYPTED.match(value)
+    if match is None or match["version"] != VERSION:
         raise DecryptionError(f"Unknown format of an encrypted value in {context}.")
-    key_id, token = parts[2], parts[3]
+    key_id, token = match["key_id"], match["token"]
     key = get_key_ring().keys.get(key_id)
     if key is None:
         raise DecryptionError(

@@ -9,6 +9,8 @@ from django.db.models.fields.related_descriptors import ReverseOneToOneDescripto
 from django.db.transaction import atomic
 from django.utils.translation import gettext_lazy as _
 
+from loguru import logger
+
 
 class SyncedDateTimeField(models.DateTimeField):
     def __init__(self, sync_with=None, sync_with_add=None, *args, **kwargs):
@@ -340,16 +342,45 @@ class MultipleFlagField(models.CharField):
         return name, path, args, kwargs
 
 
+class UndecryptableSecret(str):
+    """
+    Stands in for a stored secret that no configured key can decrypt. It reads as
+    empty, so the row still loads and the secret can be entered again, and saving
+    the row unchanged keeps the stored value for when the key is back.
+    """
+
+    def __new__(cls, stored: str):
+        secret = super().__new__(cls, "")
+        secret.stored = stored
+        return secret
+
+
 class EncryptedTextField(models.TextField):
     """
     Text encrypted at rest, for secrets Baserow sends to other services, never
     for values it looks up: each write uses a fresh nonce, so equal values are
     stored differently. Empty values stay empty, and plain text written before
     the field was encrypted is still read as is.
+
+    Values are only decrypted when read from the database. Whatever is written
+    is encrypted as given, so a stored ciphertext written back is never
+    decrypted for whoever wrote it.
     """
 
-    def _context(self) -> str:
-        return f"{self.model._meta.label_lower}.{self.name}"
+    def __init__(self, *args, context: str, **kwargs):
+        """
+        :param context: Binds the stored values to this field. It must never
+            change, also when the model, field or app is renamed, because the
+            values stored with the old context can't be decrypted any more.
+        """
+
+        self.context = context
+        super().__init__(*args, **kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        kwargs["context"] = self.context
+        return name, path, args, kwargs
 
     def check(self, **kwargs):
         errors = super().check(**kwargs)
@@ -376,23 +407,24 @@ class EncryptedTextField(models.TextField):
     def get_prep_value(self, value):
         from baserow.core.encryption import encrypt
 
-        value = super().get_prep_value(value)
+        if isinstance(value, UndecryptableSecret):
+            return value.stored
+        # Skips TextField.get_prep_value, which would go through to_python.
+        value = models.Field.get_prep_value(self, value)
         if value is None or value == "":
             return value
-        return encrypt(value, self._context())
-
-    def _decrypt(self, value):
-        from baserow.core.encryption import decrypt, is_encrypted
-
-        if isinstance(value, str) and is_encrypted(value):
-            return decrypt(value, self._context())
-        return value
+        return encrypt(str(value), self.context)
 
     def from_db_value(self, value, expression, connection):
-        return self._decrypt(value)
+        from baserow.core.encryption import DecryptionError, decrypt, is_encrypted
 
-    def to_python(self, value):
-        return self._decrypt(super().to_python(value))
+        if not isinstance(value, str) or not is_encrypted(value):
+            return value
+        try:
+            return decrypt(value, self.context)
+        except DecryptionError as exc:
+            logger.warning("{} It reads as empty until the key is configured.", exc)
+            return UndecryptableSecret(value)
 
     def value_to_string(self, obj):
         # Serialized dumps keep the secret encrypted.
