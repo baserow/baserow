@@ -11,8 +11,8 @@ from baserow.core.chat_runs.constants import ChatRunEventKind
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.stream import follow_run
 
+from . import runs
 from .history import NOT_STARTED_ANSWER, UNFINISHED_ANSWER
-from .runs import CHAT_TITLE_EVENT, NAVIGATION_EVENT, NOTHING_RAN_ERROR_CODES
 from .types import AiCancelledMessage, AiErrorMessage, AiStartedMessage
 
 
@@ -52,7 +52,7 @@ async def stream_run_messages(
     text, segment = "", None
     async for event in follow_run(run, user, replay=False):
         kind, data = event.get("kind"), event.get("data") or {}
-        if kind == "run.heartbeat":
+        if kind == ChatRunEventKind.RUN_HEARTBEAT:
             yield "\n\n"
             continue
         metadata = {**identity, "cursor": event.get("cursor")}
@@ -60,33 +60,34 @@ async def stream_run_messages(
         if replayed:
             metadata["replay"] = True
         record = {"type": "chat-run-state"}
-        if kind == ChatRunEventKind.TEXT_DELTA:
-            if data.get("segment") != segment:
-                text, segment = "", data.get("segment")
-            text += data.get("text", "")
-            record = _text_record(data.get("variant"), text)
-        elif kind == "run.baseline":
-            text, segment = data.get("text", ""), data.get("segment")
-            metadata.update(reset=True, replay=True)
-            record = _text_record(data.get("variant"), text)
-        elif kind == "run.replay_unavailable":
-            metadata["replay_unavailable"] = True
-        elif kind == ChatRunEventKind.PROGRESS:
-            record = {"type": "ai/thinking", "content": data.get("text", "")}
-        elif kind == CHAT_TITLE_EVENT:
-            record = {"type": "chat/title", "content": data.get("title", "")}
-        elif kind == NAVIGATION_EVENT:
-            if not replayed and data.get("origin_tab_id", "") == tab_id:
-                record = {"type": "ai/navigation", "location": data["location"]}
-        elif kind == ChatRunEventKind.RUN_CREATED:
-            metadata["status"] = ChatRunStatus.QUEUED
-        elif kind == ChatRunEventKind.RUN_STARTED:
-            metadata["status"] = ChatRunStatus.RUNNING
-        elif kind == ChatRunEventKind.RUN_FINISHED:
-            metadata.update(
-                status=data["status"], error_code=data.get("error_code", "")
-            )
-            record = data.get("message") or record
+        match kind:
+            case ChatRunEventKind.TEXT_DELTA:
+                if data.get("segment") != segment:
+                    text, segment = "", data.get("segment")
+                text += data.get("text", "")
+                record = _text_record(data.get("variant"), text)
+            case "run.baseline":
+                text, segment = data.get("text", ""), data.get("segment")
+                metadata.update(reset=True, replay=True)
+                record = _text_record(data.get("variant"), text)
+            case "run.replay_unavailable":
+                metadata["replay_unavailable"] = True
+            case ChatRunEventKind.PROGRESS:
+                record = {"type": "ai/thinking", "content": data.get("text", "")}
+            case runs.CHAT_TITLE_EVENT:
+                record = {"type": "chat/title", "content": data.get("title", "")}
+            case runs.NAVIGATION_EVENT:
+                if not replayed and data.get("origin_tab_id", "") == tab_id:
+                    record = {"type": "ai/navigation", "location": data["location"]}
+            case ChatRunEventKind.RUN_CREATED:
+                metadata["status"] = ChatRunStatus.QUEUED
+            case ChatRunEventKind.RUN_STARTED:
+                metadata["status"] = ChatRunStatus.RUNNING
+            case ChatRunEventKind.RUN_FINISHED:
+                metadata.update(
+                    status=data["status"], error_code=data.get("error_code", "")
+                )
+                record = data.get("message") or record
         yield json.dumps({**record, "_run": metadata}) + "\n\n"
         # Cursor-less: the follower drops a second record at the baseline's cursor.
         if kind == "run.baseline" and (progress := data.get("progress")):
@@ -96,14 +97,20 @@ async def stream_run_messages(
             )
         # Tabs and API clients that predate runs end their answer on these.
         if kind == ChatRunEventKind.RUN_FINISHED:
-            if data["status"] == ChatRunStatus.CANCELLED:
-                cancelled = AiCancelledMessage(message_id=message_id)
-                yield json.dumps({**cancelled.model_dump(), "_run": identity}) + "\n\n"
-            elif data["status"] == ChatRunStatus.FAILED:
-                error_code = data.get("error_code") or "unknown"
-                nothing_ran = error_code in NOTHING_RAN_ERROR_CODES
-                error = AiErrorMessage(
-                    code=error_code,
-                    content=NOT_STARTED_ANSWER if nothing_ran else UNFINISHED_ANSWER,
-                )
-                yield json.dumps({**error.model_dump(), "_run": identity}) + "\n\n"
+            match data["status"]:
+                case ChatRunStatus.CANCELLED:
+                    cancelled = AiCancelledMessage(message_id=message_id)
+                    yield (
+                        json.dumps({**cancelled.model_dump(), "_run": identity})
+                        + "\n\n"
+                    )
+                case ChatRunStatus.FAILED:
+                    error_code = data.get("error_code") or "unknown"
+                    nothing_ran = error_code in runs.NOTHING_RAN_ERROR_CODES
+                    error = AiErrorMessage(
+                        code=error_code,
+                        content=NOT_STARTED_ANSWER
+                        if nothing_ran
+                        else UNFINISHED_ANSWER,
+                    )
+                    yield json.dumps({**error.model_dump(), "_run": identity}) + "\n\n"
