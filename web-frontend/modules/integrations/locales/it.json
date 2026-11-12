@@ -67,6 +67,9 @@
         "ai": "IA"
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Vengono create righe in {tableName}",
+        "localBaserowRowsUpdatedInTable": "Le righe vengono aggiornate in {tableName}",
+        "localBaserowRowsDeletedInTable": "Le righe vengono eliminate in {tableName}",
         "localBaserowGetRow": "Leggi una singola riga",
         "localBaserowGetRowDescription": "Legge una singola riga da una tabella Baserow.",
         "localBaserowListRows": "Elenca multiple rows",

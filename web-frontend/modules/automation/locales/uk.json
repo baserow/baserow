@@ -121,9 +121,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "Тригери не можна видаляти, лише замінювати.",
-        "localBaserowRowsCreatedLabel": "Рядки створюються в {tableName}",
-        "localBaserowRowsUpdatedLabel": "Рядки оновлюються в {tableName}",
-        "localBaserowRowsDeletedLabel": "Рядки видаляються в {tableName}",
         "localBaserowCreateRowLabel": "Створити рядок у {tableName}",
         "localBaserowUpdateRowLabel": "Оновити рядок у {tableName}",
         "localBaserowDeleteRowLabel": "Видалення рядків у таблиці {tableName}",

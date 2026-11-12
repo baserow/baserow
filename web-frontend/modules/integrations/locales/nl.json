@@ -56,6 +56,9 @@
         "slackBot": "Slack"
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Rijen zijn aangemaakt in {tableName}",
+        "localBaserowRowsUpdatedInTable": "Rijen zijn bijgewerkt in {tableName}",
+        "localBaserowRowsDeletedInTable": "Rijen zijn verwijderd in {tableName}",
         "localBaserowGetRow": "Eén rij ophalen",
         "localBaserowListRows": "Rijen ophalen",
         "localBaserowAggregateRows": "Veld samenvatten",

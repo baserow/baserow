@@ -92,11 +92,12 @@ export class ServiceType extends Registerable {
 
   /**
    * The name a service goes by until it is given one, worded from how it is
-   * configured, like "Every day at 09:00".
+   * configured, like "Every day at 09:00" or "Rows are created in Orders".
    * @param {object|null} service The service to name.
+   * @param {object} formChoices What its form chooses from, like `databases`.
    * @returns {string} The name, the type's name when nothing more fits.
    */
-  getDefaultName(service) {
+  getDefaultName(service, formChoices = {}) {
     return this.name
   }
 

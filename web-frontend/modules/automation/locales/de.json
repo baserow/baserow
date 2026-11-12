@@ -130,9 +130,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "Auslöser können nicht gelöscht, sondern nur ersetzt werden.",
-        "localBaserowRowsCreatedLabel": "Zeilen werden in {tableName} erstellt",
-        "localBaserowRowsUpdatedLabel": "Zeilen werden in {tableName} aktualisiert",
-        "localBaserowRowsDeletedLabel": "Zeilen werden in {tableName} gelöscht",
         "localBaserowCreateRowLabel": "Eine Zeile in {tableName} erstellen",
         "localBaserowUpdateRowLabel": "Eine Zeile in {tableName} aktualisieren",
         "localBaserowDeleteRowLabel": "Zeilen in {tableName} löschen",

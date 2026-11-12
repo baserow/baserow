@@ -121,9 +121,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "Activeringen kunnen niet worden verwijderd, alleen vervangen.",
-        "localBaserowRowsCreatedLabel": "Rijen zijn aangemaakt in {tableName}",
-        "localBaserowRowsUpdatedLabel": "Rijen zijn bijgewerkt in {tableName}",
-        "localBaserowRowsDeletedLabel": "Rijen zijn verwijderd in {tableName}",
         "localBaserowCreateRowLabel": "Maak een rij aan in {tableName}",
         "localBaserowUpdateRowLabel": "Werk een rij bij in {tableName}",
         "localBaserowDeleteRowLabel": "Verwijder rijen in {tableName}",
