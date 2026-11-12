@@ -47,7 +47,6 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.registries import view_aggregation_type_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
@@ -1199,28 +1198,15 @@ class FormViewType(ViewType):
             form, import_export_config, cache, files_zip, storage
         )
 
-        def add_user_file(user_file):
-            if not user_file:
-                return None
-
-            name = user_file.name
-            namelist = (
-                [item["name"] for item in files_zip.info_list()]
-                if files_zip is not None
-                else []
-            )
-            if files_zip is not None and name not in namelist:
-                file_path = UserFileHandler().user_file_path(name)
-
-                chunk_generator = file_chunk_generator(storage, file_path)
-                files_zip.add(chunk_generator, name)
-
-            return {"name": name, "original_name": user_file.original_name}
-
+        user_file_handler = UserFileHandler()
         serialized["title"] = form.title
         serialized["description"] = form.description
-        serialized["cover_image"] = add_user_file(form.cover_image)
-        serialized["logo_image"] = add_user_file(form.logo_image)
+        serialized["cover_image"] = user_file_handler.export_user_file(
+            form.cover_image, files_zip, storage, cache=cache
+        )
+        serialized["logo_image"] = user_file_handler.export_user_file(
+            form.logo_image, files_zip, storage, cache=cache
+        )
         serialized["submit_text"] = form.submit_text
         serialized["submit_action"] = form.submit_action
         serialized["submit_action_message"] = form.submit_action_message
