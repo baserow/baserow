@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.test import override_settings
@@ -35,6 +36,50 @@ def test_embedder_treats_an_invalid_response_as_a_service_error():
     ):
         with pytest.raises(EmbeddingsServiceError):
             BaserowEmbedder("http://test")(["text"])
+
+
+@override_settings(BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST=3)
+def test_embedder_sends_the_configured_number_of_texts_per_request():
+    request_sizes = []
+
+    def embed(request):
+        texts = json.loads(request.content)["texts"]
+        request_sizes.append(len(texts))
+        return httpx.Response(
+            200, json={"embeddings": [[float(len(text))] for text in texts]}
+        )
+
+    real_client = httpx.Client
+    with patch(
+        "baserow.core.embeddings.httpxClient",
+        lambda **kwargs: real_client(transport=httpx.MockTransport(embed), **kwargs),
+    ):
+        embeddings = BaserowEmbedder("http://test", dimensions=1)(
+            ["a", "bb", "ccc", "dddd"]
+        )
+
+    assert request_sizes == [3, 1]
+    assert embeddings == [[1.0], [2.0], [3.0], [4.0]]
+
+
+@override_settings(BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST=256)
+def test_embedder_keeps_requests_within_the_body_limit_of_the_service():
+    def embed(request):
+        # Like the embeddings service.
+        if len(request.content) > 2**20:
+            return httpx.Response(413, json={"error": "Request body over 1 MiB"})
+        texts = json.loads(request.content)["texts"]
+        return httpx.Response(200, json={"embeddings": [[1.0]] * len(texts)})
+
+    real_client = httpx.Client
+    with patch(
+        "baserow.core.embeddings.httpxClient",
+        lambda **kwargs: real_client(transport=httpx.MockTransport(embed), **kwargs),
+    ):
+        # Chunks of 2000 characters, of three bytes each.
+        embeddings = BaserowEmbedder("http://test", dimensions=1)(["文" * 2000] * 256)
+
+    assert len(embeddings) == 256
 
 
 def test_embedder_pads_vectors():

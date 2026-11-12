@@ -520,7 +520,7 @@ caddy:
 | --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------- |
 | `baserow-embeddings.enabled`                                    | Set to true to enable the Baserow Embeddings service.           | `false`                    |
 | `baserow-embeddings.image.repository`                           | Docker image repository for the Embeddings service.             | `embeddings`               |
-| `baserow-embeddings.image.tag`                                  | Docker image tag for the Embeddings service, which is versioned separately from Baserow. | `1.1.0`                    |
+| `baserow-embeddings.image.tag`                                  | Docker image tag for the Embeddings service, which is versioned separately from Baserow. | `1.1.1`                    |
 | `baserow-embeddings.workingDir`                                 | Working directory for the container, empty to use the image's own.                       | `""`                       |
 | `baserow-embeddings.resources`                                  | Resource requests and limits for the Embeddings service.        |                            |
 | `baserow-embeddings.autoscaling.enabled`                        | Enable autoscaling for the Embeddings service.                  | `false`                    |
