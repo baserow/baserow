@@ -42,8 +42,7 @@ class TemplateUpdated(Exception):
 
 class TemplateBlocked(Exception):
     """
-    Raised when a blocked user template is installed, downloaded, reviewed or made
-    public or private.
+    Raised when an action on a blocked user template is refused.
     """
 
 

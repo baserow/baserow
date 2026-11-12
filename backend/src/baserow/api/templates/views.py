@@ -58,7 +58,7 @@ from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import Template, TemplateCategory
+from baserow.core.models import Template, TemplateCategory, is_instance_admin
 from baserow.core.user_templates.actions import (
     DeleteUserTemplateActionType,
     RotateUserTemplatePrivateLinkActionType,
@@ -304,7 +304,10 @@ class TemplateView(APIView):
             private_link_token=get_private_link_token(),
             allow_instance_admin=True,
         ).filter_by_root(slug=slug)
-        template = revisions.public_revisions().first()
+        public = revisions.public_revisions()
+        if is_instance_admin(request.user):
+            public = public.with_template_state()
+        template = public.first()
         if template is None or (
             request.user.is_authenticated
             and template.get_root().owner_id == request.user.id

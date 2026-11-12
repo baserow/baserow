@@ -239,10 +239,6 @@ class UserTemplateService:
         return handler.get_latest_revision_of_locked_root(root), rotated
 
     def _get_own_unblocked_root(self, user: AbstractUser, template_id: int) -> Template:
-        """
-        Locks the root of a template owned by the user, if it isn't blocked.
-        """
-
         root = UserTemplateHandler().get_own_template(
             user, template_id, for_update=True
         )

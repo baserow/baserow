@@ -245,6 +245,25 @@ describe('TemplateInstall', () => {
     })
   })
 
+  test('loads the workspace permissions only once the template can be installed', async () => {
+    signIn()
+    testApp.mock.onGet(/\/workspaces\/\d+\/permissions\//).reply(200, [])
+    const own = { ...template, type: 'user', is_own: true }
+    const wrapper = await testApp.mount(TemplateInstall, {
+      props: { template: { ...own, state: 'blocked' } },
+    })
+    const loaded = () =>
+      testApp.mock.history.get.filter(({ url }) =>
+        url.includes('/permissions/')
+      )
+    expect(loaded()).toHaveLength(0)
+
+    await wrapper.setProps({ template: { ...own, state: 'private' } })
+    await flushPromises()
+
+    expect(loaded()).toHaveLength(2)
+  })
+
   test('shows the copy link only when asked', async () => {
     let wrapper = await testApp.mount(TemplateInstall, {
       props: { template },

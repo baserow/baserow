@@ -7,7 +7,12 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Template, TemplateCategory, UserTemplateState
+from baserow.core.models import (
+    Template,
+    TemplateCategory,
+    UserTemplateState,
+    is_instance_admin,
+)
 from baserow.core.user_templates.handler import UserTemplateHandler
 
 
@@ -276,7 +281,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         shown_to_staff = (
             self.context.get("shows_state_to_staff", False)
             and instance.type == Template.Type.USER
-            and request.user.is_staff
+            and is_instance_admin(request.user)
         )
         if not (shown_to_staff or self._is_owner(instance)):
             return None, None

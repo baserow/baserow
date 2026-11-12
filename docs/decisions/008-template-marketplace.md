@@ -162,8 +162,10 @@ if it does not exist.
   it public or private. An admin can't approve or reject it while it's blocked.
   **Unblock** is a separate instance admin action that leaves the template private: not
   listed, any review withdrawn, the private link working again. The author makes it
-  public through review again, so content an admin judged harmful is never listed again
-  without a review. Unlike reject, block also suspends the private link.
+  public again through review when the instance requires approval or the template was
+  rejected since its last approval, which then keeps content an admin judged harmful
+  from being listed again without a review; otherwise it is listed at once. Unlike
+  reject, block also suspends the private link.
 - **Abuse reports** use the existing abuse report flow.
 
 ### 6. Install and download

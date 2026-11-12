@@ -28,7 +28,6 @@
         @delete="openDeleteModal"
         @make-public="openMakePublicModal"
         @make-private="makePrivate"
-        @moderated="moderated"
       ></TemplateDetails>
       <TemplateList
         v-show="selectedTemplate === null && tab === 'official'"
@@ -149,6 +148,10 @@ import TemplateService from '@baserow/modules/core/services/template'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
+import {
+  TEMPLATE_MODERATION,
+  useTemplateModeration,
+} from '@baserow/modules/core/composables/useTemplateModeration'
 
 import CreateUserTemplateModal from '@baserow/modules/core/components/template/CreateUserTemplateModal'
 import DeleteUserTemplateModal from '@baserow/modules/core/components/template/DeleteUserTemplateModal'
@@ -172,6 +175,13 @@ export default {
     UserTemplateList,
   },
   mixins: [modal],
+  provide() {
+    return {
+      [TEMPLATE_MODERATION]: useTemplateModeration((template) =>
+        this.showAsNow(template)
+      ),
+    }
+  },
   props: {
     // When no workspace is provided, the user must choose the workspace to install
     // the template into.
@@ -375,9 +385,12 @@ export default {
     templateCreated() {
       this.$refs.userTemplateList?.refresh()
     },
-    moderated() {
+    async showAsNow(template) {
       this.$refs.userTemplateList?.refresh()
       this.$refs.publicTemplateList?.refresh()
+      if (this.selectedTemplate?.id === template.id) {
+        await this.showCurrent(template)
+      }
     },
     async openUpdateModal(template, mode) {
       // Only one update runs at a time. Its modal is shown again instead, also
@@ -424,18 +437,21 @@ export default {
      * shown, in another tab for example, or because another revision of a public
      * template was listed since. The preview then shows the new revision.
      */
-    async templateOutdated() {
-      if (this.selectedOwnerActions) {
-        return this.templateUpdated({ template: this.selectedTemplate.id })
-      }
-      const { id, slug } = this.selectedTemplate
+    templateOutdated() {
+      return this.showAsNow(this.selectedTemplate)
+    },
+    async showCurrent({ id, slug }) {
       try {
         const { data } = await TemplateService(this.$client).fetch(slug)
-        if (!this.selectedOwnerActions && this.selectedTemplate?.id === id) {
+        if (this.selectedTemplate?.id === id) {
           this.selectedTemplate = data
         }
       } catch (error) {
-        notifyIf(error, 'templates')
+        if (error.response?.status !== 404) {
+          notifyIf(error, 'templates')
+        } else if (this.selectedTemplate?.id === id) {
+          this.selectTemplate(null)
+        }
       }
     },
     async openDeleteModal(template) {

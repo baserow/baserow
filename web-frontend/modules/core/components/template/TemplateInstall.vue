@@ -1,8 +1,5 @@
 <template>
   <div class="template-install">
-    <!-- The owner of a blocked template who isn't an instance admin can't
-    install it, so the template has none of the install controls, only the
-    menu. -->
     <template v-if="installable">
       <!-- Without a workspace there is nothing to pick. The user creates one
       here, or else is told how to get one. -->
@@ -119,7 +116,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, useSlots } from 'vue'
+import { computed, onMounted, ref, useSlots, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
@@ -256,7 +253,7 @@ function chooseWorkspace(workspaceId) {
  * into is then replaced with one it can, unless the user picked it.
  */
 async function loadPermissions() {
-  if (!isAuthenticated.value) {
+  if (!isAuthenticated.value || !installable.value) {
     return
   }
   await fetchPermissionsOfWorkspaces(store, workspaces.value)
@@ -270,6 +267,7 @@ async function loadPermissions() {
 }
 
 onMounted(loadPermissions)
+watch(installable, (now) => now && loadPermissions())
 
 async function goToLogin() {
   const current = router.currentRoute.value

@@ -599,8 +599,7 @@ class BlockUserTemplateAdminActionType(ActionType):
     @classmethod
     def do(cls, user: AbstractUser, template_id: int, reason: str) -> Template:
         """
-        Blocks the template. Blocking it again records the new reason. Not
-        undoable.
+        Blocks the template. Not undoable.
 
         :param user: The instance admin blocking the template.
         :param template_id: The id of the template, which is its root.
@@ -642,8 +641,7 @@ class UnblockUserTemplateAdminActionType(ActionType):
     @classmethod
     def do(cls, user: AbstractUser, template_id: int) -> Template:
         """
-        Unblocks the template. Nothing is recorded when it wasn't blocked. Not
-        undoable.
+        Unblocks the template. Not undoable.
 
         :param user: The instance admin unblocking the template.
         :param template_id: The id of the template, which is its root.

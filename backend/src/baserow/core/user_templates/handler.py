@@ -728,7 +728,7 @@ class UserTemplateHandler:
         self, admin: AbstractUser, template_id: int
     ) -> Template:
         """
-        Returns the locked root of a user template to review, block or unblock.
+        Returns the locked root of a user template an instance admin moderates.
 
         :param admin: The user who moderates the template.
         :param template_id: The id of the template, which is its root.
@@ -797,6 +797,15 @@ class UserTemplateHandler:
                 if state == UserTemplateState.IN_REVIEW
                 else Template.ReviewState.REJECTED
             ).with_can_approve()
+        elif state == UserTemplateState.BLOCKED:
+            rows = (
+                Template.objects.user()
+                .filter_by_root(
+                    marked_for_deletion_at__isnull=True, blocked_at__isnull=False
+                )
+                .latest_revisions()
+                .annotate(can_approve=Value(False), edited_since_submitted=Value(False))
+            )
         else:
             rows = (
                 Template.objects.user()
@@ -1340,10 +1349,8 @@ class UserTemplateHandler:
         self, root: Template, update_fields: Iterable[str] = ()
     ) -> Optional[int]:
         """
-        Makes a user template private, as its owner does and as unblocking it does.
-        A listed revision stays approved. The root is saved once, with the
-        `update_fields` the caller changed on it. The caller checks the user and
-        holds the lock of the root.
+        Makes a user template private. The caller checks the user and holds the
+        lock of the root.
 
         :param root: The root of the template, locked.
         :param update_fields: The fields of the root the caller changed.
@@ -1352,11 +1359,10 @@ class UserTemplateHandler:
         """
 
         self.drop_scheduled_make_public(root)
-        root_fields = list(update_fields)
         public_revision_id = root.public_revision_id
         if public_revision_id is not None:
-            root.public_revision = None
-            root_fields.append("public_revision")
+            self.withdraw_listing(root)
+        root_fields = list(update_fields)
         withdrawn = self.withdraw_review(root)
         if withdrawn is root:
             root_fields.append("review_state")
@@ -1371,12 +1377,11 @@ class UserTemplateHandler:
         self, admin: AbstractUser, template_id: int, reason: str
     ) -> Template:
         """
-        Blocks a user template in any state. Blocking it again changes the reason
-        and who blocked it, and keeps when. Must run in a transaction.
+        Blocks a user template. Must run in a transaction.
 
         :param admin: The instance admin who blocks the template.
         :param template_id: The id of the template, which is its root.
-        :param reason: Why the template is blocked, which its author sees.
+        :param reason: Why the template is blocked.
         :raises TemplateBlockReasonRequired: If the reason is blank.
         :raises: See `_get_template_for_moderation`.
         :return: The latest revision of the template.
@@ -1397,8 +1402,7 @@ class UserTemplateHandler:
         self, admin: AbstractUser, template_id: int
     ) -> tuple[Template, bool]:
         """
-        Lifts the block of a user template, which makes it private. Must run in a
-        transaction.
+        Unblocks a user template. Must run in a transaction.
 
         :param admin: The instance admin who unblocks the template.
         :param template_id: The id of the template, which is its root.
@@ -1832,8 +1836,7 @@ class UserTemplateHandler:
 
     def update_review_step(self, latest: Template) -> Optional[str]:
         """
-        What an update of a user template does to its review. A blocked one
-        keeps its review moving until unblocking withdraws it.
+        What an update of a user template does to its review.
 
         :param latest: The latest revision of the template, with its root.
         :return: "submit", "move", or None when the review is left as it is.
@@ -1848,7 +1851,6 @@ class UserTemplateHandler:
     def update_needs_review(self, latest: Template, require_approval: bool) -> bool:
         """
         Whether an update of a user template sends its new revision to review.
-        A blocked one isn't reviewed.
 
         :param latest: The latest revision of the template, see
             `get_template_state`.

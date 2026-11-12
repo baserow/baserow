@@ -6,6 +6,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import { heldBack } from '@baserow/test/helpers/heldBack'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
+import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 
 const projectTracker = {
   id: 1,
@@ -119,8 +120,8 @@ describe('TemplateModal navigation', () => {
         'delete',
         'make-public',
         'make-private',
-        'moderated',
       ],
+      inject: { moderation: { from: TEMPLATE_MODERATION } },
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
@@ -128,7 +129,7 @@ describe('TemplateModal navigation', () => {
         <a class="details__edit" @click="$emit('edit', 'details')" />
         <a class="details__delete" @click="$emit('delete', template)" />
         <a class="details__outdated" @click="$emit('outdated')" />
-        <a class="details__moderated" @click="$emit('moderated')" />
+        <a class="details__unblock" @click="moderation.moderate(template, 'unblock')" />
       </div>`,
     }),
     TemplateList: defineComponent({
@@ -519,29 +520,81 @@ describe('TemplateModal navigation', () => {
       expect(refreshPublicList).toHaveBeenCalledTimes(1)
     })
 
-    it('list the public templates again once staff block or unblock the opened one', async () => {
-      testApp.authenticate({ id: 1 })
+    it('list the templates again and show the opened one as it is now once staff unblock it, also after going back', async () => {
+      testApp.authenticate({ id: 1, is_staff: true })
+      const unblocked = heldBack()
+      testApp.mock
+        .onPost(`/admin/templates/${sprintTracker.id}/unblock/`)
+        .reply(unblocked.reply)
+      mockPublicTemplate({ is_own: true, state: 'private' })
+      const wrapper = await mountAndShow()
+      await openOwnTab(wrapper)
+      await tabs(wrapper)[1].trigger('click')
+      await wrapper.find('.public-list__own').trigger('click')
+      await flushPromises()
+      await wrapper.find('.details__unblock').trigger('click')
+      await wrapper.find('.details__back').trigger('click')
+      await wrapper.find('.public-list__own').trigger('click')
+      unblocked.send([200, { state: 'private', reason: null }])
+      await flushPromises()
+
+      expect(refreshList).toHaveBeenCalledTimes(1)
+      expect(refreshPublicList).toHaveBeenCalledTimes(1)
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(details.props('template').state).toBe('private')
+    })
+
+    it('close the opened template that was deleted since staff unblock it, with one toast', async () => {
+      testApp.authenticate({ id: 1, is_staff: true })
+      testApp.mock
+        .onPost(`/admin/templates/${sprintTracker.id}/unblock/`)
+        .reply(404, { error: 'ERROR_TEMPLATE_DOES_NOT_EXIST', detail: 'Gone.' })
       mockPublicTemplate()
       const wrapper = await mountAndShow()
       await tabs(wrapper)[1].trigger('click')
       await wrapper.find('.public-list__sprint-tracker').trigger('click')
       await flushPromises()
+      testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(404)
 
-      await wrapper.find('.details__moderated').trigger('click')
-
-      expect(refreshPublicList).toHaveBeenCalledTimes(1)
-    })
-
-    it('list the own templates again once staff block or unblock their own opened one', async () => {
-      testApp.authenticate({ id: 1, is_staff: true })
-      const wrapper = await mountAndShow()
-      await openOwnTab(wrapper)
-      await wrapper.find('.own-list__sprint-tracker').trigger('click')
+      await wrapper.find('.details__unblock').trigger('click')
       await flushPromises()
 
-      await wrapper.find('.details__moderated').trigger('click')
+      expect(testApp.store.state.toast.items).toMatchObject([
+        { title: 'templatesAdmin.changedTitle' },
+      ])
+      expect(wrapper.find('.details').exists()).toBe(false)
+    })
 
-      expect(refreshList).toHaveBeenCalledTimes(1)
+    it('keep the template opened since when the one staff unblocked turns out deleted', async () => {
+      testApp.authenticate({ id: 1, is_staff: true })
+      testApp.dontFailOnErrorResponses()
+      testApp.mock
+        .onPost(`/admin/templates/${sprintTracker.id}/unblock/`)
+        .reply(404, { error: 'ERROR_TEMPLATE_DOES_NOT_EXIST', detail: 'Gone.' })
+      const reload = heldBack()
+      testApp.mock
+        .onGet(`/templates/${sprintTracker.slug}/`)
+        .replyOnce(200, sprintTracker)
+        .onGet(`/templates/${sprintTracker.slug}/`)
+        .replyOnce(reload.reply)
+      testApp.mock
+        .onGet(`/templates/${launchPlan.slug}/`)
+        .reply(200, launchPlan)
+      const wrapper = await mountAndShow()
+      await tabs(wrapper)[1].trigger('click')
+      await wrapper.find('.public-list__sprint-tracker').trigger('click')
+      await flushPromises()
+      await wrapper.find('.details__unblock').trigger('click')
+      await flushPromises()
+      await wrapper.find('.details__back').trigger('click')
+      await wrapper.find('.public-list__launch-plan').trigger('click')
+      await flushPromises()
+
+      reload.send([404, { error: 'ERROR_TEMPLATE_DOES_NOT_EXIST' }])
+      await flushPromises()
+
+      const details = wrapper.findComponent({ name: 'TemplateDetails' })
+      expect(details.props('template').name).toBe('Launch Plan')
     })
 
     it('open the public template chosen last when an earlier one answers late', async () => {
@@ -737,7 +790,9 @@ describe('TemplateModal navigation', () => {
         workspace_id: 202,
         revision_id: 12,
       }
-      mockOwnTemplates([updated])
+      testApp.mock
+        .onGet(`/templates/${sprintTracker.slug}/`)
+        .reply(200, updated)
       const wrapper = await mountAndShow()
       await openOwnTab(wrapper)
       await wrapper.find('.own-list__sprint-tracker').trigger('click')

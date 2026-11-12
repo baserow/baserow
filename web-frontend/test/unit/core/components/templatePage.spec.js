@@ -5,6 +5,7 @@ import { clearNuxtData, useNuxtApp, useRouter } from '#app'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
+import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 
 const projectTracker = {
   id: 1,
@@ -44,12 +45,13 @@ describe('TemplatePage', () => {
     TemplateDetails: defineComponent({
       name: 'TemplateDetails',
       props: ['template', 'categories', 'showBack'],
-      emits: ['back', 'outdated', 'moderated'],
+      emits: ['back', 'outdated'],
+      inject: { moderation: { from: TEMPLATE_MODERATION } },
       template: `<div class="details">
         {{ template.name }}: {{ categories.map((c) => c.name).join(',') }}
         <a class="details__back" @click="$emit('back')" />
         <a class="details__outdated" @click="$emit('outdated')" />
-        <a class="details__moderated" @click="$emit('moderated')" />
+        <a class="details__unblock" @click="moderation.moderate(template, 'unblock')" />
       </div>`,
     }),
     TemplateList: defineComponent({
@@ -183,17 +185,99 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.details').text()).toBe('CRM 2: Sales')
   })
 
-  test('lists the public templates again once staff block or unblock the opened one', async () => {
-    const wrapper = await mountPage('project-tracker')
-    testApp.mock.onGet('/templates/crm-a1b2c3/').reply(200, crm)
+  test('lists the public templates again and shows the opened one as it is now once staff unblock it', async () => {
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, crm)
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, crm)
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, { ...crm, name: 'CRM 2' })
+    testApp.mock.onGet('/templates/').reply(200, categories)
+    testApp.mock.onPost('/admin/templates/5/unblock/').reply(200, {})
+    const wrapper = await testApp.mount(TemplatePage, {
+      route: '/template/crm-a1b2c3',
+      global: { stubs },
+    })
     await wrapper.find('.details__back').trigger('click')
     await wrapper.findAll('.segment-control__button')[1].trigger('click')
     await wrapper.find('.public-list__crm').trigger('click')
     await flushPromises()
 
-    await wrapper.find('.details__moderated').trigger('click')
+    await wrapper.find('.details__unblock').trigger('click')
+    await flushPromises()
 
     expect(refreshPublicList).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('.details').text()).toBe('CRM 2: Sales')
+  })
+
+  test('shows the list instead of the opened template deleted since staff unblock it, with one toast', async () => {
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, crm)
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(404)
+    testApp.mock.onGet('/templates/').reply(200, categories)
+    testApp.mock
+      .onPost('/admin/templates/5/unblock/')
+      .reply(404, { error: 'ERROR_TEMPLATE_DOES_NOT_EXIST', detail: 'Gone.' })
+    const wrapper = await testApp.mount(TemplatePage, {
+      route: '/template/crm-a1b2c3',
+      global: { stubs },
+    })
+
+    await wrapper.find('.details__unblock').trigger('click')
+    await flushPromises()
+
+    expect(testApp.store.state.toast.items).toMatchObject([
+      { title: 'templatesAdmin.changedTitle' },
+    ])
+    expect(wrapper.find('.details').exists()).toBe(false)
+  })
+
+  test('tells that the template of the URL was deleted, and shows the list', async () => {
+    const wrapper = await mountPage('project-tracker')
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/templates/crm-a1b2c3/').reply(404, {
+      error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
+    })
+
+    await useRouter().push('/template/crm-a1b2c3')
+    await flushPromises()
+
+    expect(wrapper.find('.details').exists()).toBe(false)
+    expect(testApp.store.state.toast.items).toHaveLength(1)
+  })
+
+  test('keeps the template opened since when the one staff unblocked turns out deleted', async () => {
+    const unblocked = { send: null }
+    testApp.mock
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(200, crm)
+      .onGet('/templates/crm-a1b2c3/')
+      .replyOnce(404)
+    testApp.mock.onGet('/templates/').reply(200, categories)
+    testApp.mock.onPost('/admin/templates/5/unblock/').reply(
+      () =>
+        new Promise((resolve) => {
+          unblocked.send = resolve
+        })
+    )
+    const wrapper = await testApp.mount(TemplatePage, {
+      route: '/template/crm-a1b2c3',
+      global: { stubs },
+    })
+    await wrapper.find('.details__unblock').trigger('click')
+    await useRouter().push('/template/project-tracker')
+    await flushPromises()
+
+    unblocked.send([
+      404,
+      { error: 'ERROR_TEMPLATE_DOES_NOT_EXIST', detail: 'Gone.' },
+    ])
+    await flushPromises()
+
+    expect(wrapper.find('.details').text()).toBe('Project Tracker: Business')
   })
 
   test('tells that a public template is no longer shared, and lists them again', async () => {

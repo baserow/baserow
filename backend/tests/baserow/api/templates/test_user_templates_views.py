@@ -401,7 +401,9 @@ def test_list_template_categories_ignores_the_parameters(api_client, data_fixtur
 
 
 @pytest.mark.django_db
-def test_get_user_template_shows_others_its_public_revision(api_client, data_fixture):
+def test_get_user_template_shows_others_its_public_revision(
+    api_client, data_fixture, django_assert_num_queries
+):
     owner, token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner, name="First", keywords="crm")
     public = data_fixture.create_user_template_revision(template, name="Second")
@@ -449,6 +451,8 @@ def test_get_user_template_shows_others_its_public_revision(api_client, data_fix
             ["Sales"],
             public.created_on,
         )
+    with django_assert_num_queries(4):
+        get_shown(staff_headers)
 
     for changes, state in [
         ({"public_revision": None}, "private"),

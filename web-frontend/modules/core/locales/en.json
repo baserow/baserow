@@ -708,6 +708,7 @@
     "updated": "Template updated",
     "failedAfterUpdated": "The template was updated, but something went wrong afterwards.",
     "failedPublicAfterUpdated": "The template was updated, but it couldn’t be made public, so it stays private. You can make it public from “Your templates”.",
+    "blockedAfterUpdated": "The template was updated, but an administrator blocked it, so it can’t be made public until they unblock it.",
     "cannotBeCancelled": "It’s not possible to cancel, because the template has already been updated.",
     "invalidKeptDetails": "The icon or a category of the template can’t be used anymore. Change them with “Edit details” first, then update the content.",
     "reviewTitle": "Saving sends this template back to review",

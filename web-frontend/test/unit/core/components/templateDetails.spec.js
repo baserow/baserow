@@ -1,13 +1,19 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { defineComponent, h, provide, ref, unref } from 'vue'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { heldBack } from '@baserow/test/helpers/heldBack'
 import {
   mockTemplateApplications,
   template,
 } from '@baserow/test/fixtures/templates'
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
+import {
+  TEMPLATE_MODERATION,
+  useTemplateModeration,
+} from '@baserow/modules/core/composables/useTemplateModeration'
 
 describe('TemplateDetails', () => {
   let testApp = null
@@ -25,6 +31,20 @@ describe('TemplateDetails', () => {
   const mountComponent = async (props = {}) => {
     const wrapper = await testApp.mount(TemplateDetails, {
       props: { template, ...props },
+      global: { stubs: { TableTemplate: true } },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  const mountModerated = async (shown, moderated = vi.fn(), props = {}) => {
+    const Owner = defineComponent({
+      setup() {
+        provide(TEMPLATE_MODERATION, useTemplateModeration(moderated))
+        return () => h(TemplateDetails, { template: unref(shown), ...props })
+      },
+    })
+    const wrapper = await testApp.mount(Owner, {
       global: { stubs: { TableTemplate: true } },
     })
     await flushPromises()
@@ -182,10 +202,11 @@ describe('TemplateDetails', () => {
         completed_onboarding: true,
         is_staff: isStaff,
       })
-      const wrapper = await mountComponent({
-        template: { ...template, type: 'user', state: 'blocked', is_own: true },
-        ownerActions: true,
-      })
+      const wrapper = await mountModerated(
+        { ...template, type: 'user', state: 'blocked', is_own: true },
+        vi.fn(),
+        { ownerActions: true }
+      )
 
       expect(wrapper.find('.template-details__state').exists()).toBe(true)
       expect(wrapper.find('.template-install__actions .button').exists()).toBe(
@@ -258,9 +279,7 @@ describe('TemplateDetails', () => {
     'offers Block to staff (%s) on %o: %s',
     async (isStaff, fields, offered) => {
       testApp.authenticate({ id: 1, preferences: {}, is_staff: isStaff })
-      const wrapper = await mountComponent({
-        template: { ...template, ...fields },
-      })
+      const wrapper = await mountModerated({ ...template, ...fields })
 
       expect((await menuLabels(wrapper)).includes('templatesAdmin.block')).toBe(
         offered
@@ -298,9 +317,19 @@ describe('TemplateDetails', () => {
     testApp.mock
       .onPost('/admin/templates/5/unblock/')
       .reply(200, { state: 'private', reason: null })
-    const wrapper = await mountComponent({
-      template: { ...template, type: 'user' },
+    const shown = ref({ ...template, type: 'user' })
+    const states = [
+      { state: 'blocked', reason: 'Spam' },
+      { state: 'blocked', reason: 'Spam, again' },
+      { state: 'private', reason: null },
+    ]
+    const moderated = vi.fn(() => {
+      shown.value = {
+        ...shown.value,
+        ...states[moderated.mock.calls.length - 1],
+      }
     })
+    const wrapper = await mountModerated(shown, moderated)
 
     await clickMenuItem(wrapper, 'templatesAdmin.block')
     await submitReason('Spam', 'rejectTemplateModal.block')
@@ -334,6 +363,66 @@ describe('TemplateDetails', () => {
     ])
     expect(wrapper.find('.template-details__state').exists()).toBe(false)
     expect(await menuLabels(wrapper)).toContain('templatesAdmin.block')
+  })
+
+  test('tells only that the template changed when staff block one deleted since', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    testApp.dontFailOnErrorResponses()
+    testApp.mock
+      .onPost('/admin/templates/5/block/')
+      .reply(404, { error: 'ERROR_TEMPLATE_DOES_NOT_EXIST', detail: 'Gone.' })
+    const wrapper = await mountModerated({ ...template, type: 'user' }, vi.fn())
+
+    await clickMenuItem(wrapper, 'templatesAdmin.block')
+    await submitReason('Spam', 'rejectTemplateModal.block')
+
+    expect(
+      testApp.store.state.toast.items.map(({ title }) => title)
+    ).toStrictEqual(['templatesAdmin.changedTitle'])
+  })
+
+  test('lets staff run one block or unblock of a template at a time', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    const unblocked = heldBack()
+    testApp.mock.onPost('/admin/templates/5/unblock/').reply(unblocked.reply)
+    const moderated = vi.fn()
+    const wrapper = await mountModerated(
+      { ...template, type: 'user', state: 'blocked', reason: 'Spam' },
+      moderated
+    )
+
+    await clickMenuItem(wrapper, 'templatesAdmin.unblock')
+    await clickMenuItem(wrapper, 'templateDetails.changeBlockReason')
+    await clickMenuItem(wrapper, 'templatesAdmin.unblock')
+    unblocked.send([200, { state: 'private', reason: null }])
+    await flushPromises()
+
+    expect(document.body.querySelector('.user-template-modal input')).toBe(null)
+    expect(testApp.mock.history.post.map(({ url }) => url)).toStrictEqual([
+      '/admin/templates/5/unblock/',
+    ])
+    expect(moderated).toHaveBeenCalledTimes(1)
+  })
+
+  test('keeps the next moderation waiting until the template was shown again', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    testApp.mock
+      .onPost('/admin/templates/5/unblock/')
+      .reply(200, { state: 'private', reason: null })
+    const shownAgain = heldBack()
+    const wrapper = await mountModerated(
+      { ...template, type: 'user', state: 'blocked', reason: 'Spam' },
+      () => shownAgain.reply()
+    )
+
+    await clickMenuItem(wrapper, 'templatesAdmin.unblock')
+    await clickMenuItem(wrapper, 'templatesAdmin.unblock')
+    shownAgain.send()
+    await flushPromises()
+
+    expect(testApp.mock.history.post.map(({ url }) => url)).toStrictEqual([
+      '/admin/templates/5/unblock/',
+    ])
   })
 
   test('shows "You" as author of an own template, by the server', async () => {

@@ -46,7 +46,8 @@
               </div>
               <Badge
                 v-if="isBlocked"
-                v-tooltip:[REASON_TOOLTIP_OPTIONS]="shown.reason || null"
+                v-tooltip:[REASON_TOOLTIP_OPTIONS]="template.reason || null"
+                tooltip-position="bottom-right"
                 class="template-details__state"
                 :color="blockedState.color"
                 rounded
@@ -92,7 +93,7 @@
         <div class="template-details__foot">
           <slot name="foot">
             <TemplateInstall
-              :template="shown"
+              :template="template"
               :workspace="workspace"
               :show-copy-link="!ownerActions && !isPrivateLink && !isBlocked"
               :copy-link-url="ownerActions ? privateLinkUrl : null"
@@ -154,6 +155,7 @@
                   >
                     <a
                       class="context__menu-item-link"
+                      :class="{ disabled: moderating }"
                       @click.prevent="askToBlock(hide)"
                     >
                       <i
@@ -169,6 +171,7 @@
                   <li v-if="isBlocked" class="context__menu-item">
                     <a
                       class="context__menu-item-link"
+                      :class="{ disabled: moderating }"
                       @click.prevent="unblock(hide)"
                     >
                       <i class="context__menu-item-icon iconoir-undo"></i>
@@ -193,10 +196,9 @@
             <RejectTemplateModal
               v-if="canBlock"
               ref="blockModal"
-              :template="shown"
+              :template="template"
               block
               :request="block"
-              @done="blocked"
             ></RejectTemplateModal>
           </slot>
         </div>
@@ -206,7 +208,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, inject, nextTick, ref } from 'vue'
 import { useNuxtApp, useRoute, useRuntimeConfig } from '#app'
 import { useStore } from 'vuex'
 
@@ -220,7 +222,7 @@ import {
 import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { getState } from '@baserow/modules/core/components/template/userTemplateStates'
-import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
+import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateInstall from '@baserow/modules/core/components/template/TemplateInstall'
@@ -268,7 +270,6 @@ const emit = defineEmits([
   'delete',
   'make-public',
   'make-private',
-  'moderated',
 ])
 
 const { $registry, $router, $i18n } = useNuxtApp()
@@ -290,64 +291,54 @@ const isOwner = computed(() => isOwnTemplate(props.template))
 const REASON_TOOLTIP_OPTIONS = {
   contentClasses: ['tooltip__content--expandable', 'template-details__reason'],
 }
-const moderated = ref(null)
-watch(
-  () => props.template,
-  () => {
-    moderated.value = null
-  }
-)
-const shown = computed(() => ({ ...props.template, ...moderated.value }))
-const isBlocked = computed(() => shown.value.state === 'blocked')
+const isBlocked = computed(() => props.template.state === 'blocked')
 const blockedState = computed(() => getState('blocked', $i18n.t))
 
+const moderation = inject(TEMPLATE_MODERATION, null)
 const canBlock = computed(
-  () => store.getters['auth/isStaff'] && props.template.type === 'user'
+  () =>
+    moderation !== null &&
+    store.getters['auth/isStaff'] &&
+    props.template.type === 'user'
+)
+const moderating = computed(
+  () => canBlock.value && moderation.isModerating(props.template.id)
 )
 const blockModal = ref(null)
-const { decide } = useTemplateReview()
 
 function askToBlock(hideMenu) {
   hideMenu()
-  blockModal.value.show()
+  if (!moderating.value) {
+    blockModal.value.show()
+  }
 }
 
-function block(template, reason) {
-  return decide(template, 'block', reason)
-}
-
-function moderate(row) {
-  moderated.value = { state: row.state, reason: row.reason }
-  emit('moderated')
+async function block(template, reason) {
+  const { name, state } = template
+  const row = await moderation.moderate(template, 'block', reason)
+  if (row) {
+    store.dispatch(
+      'toast/success',
+      state === 'blocked'
+        ? {
+            title: $i18n.t('templateDetails.blockReasonChangedTitle', { name }),
+          }
+        : {
+            title: $i18n.t('templateDetails.blockedTitle', { name }),
+            message: $i18n.t('templateDetails.blockedDescription'),
+          }
+    )
+  }
+  return row
 }
 
 async function unblock(hideMenu) {
   hideMenu()
   try {
-    const row = await decide(shown.value, 'unblock')
-    if (row) {
-      moderate(row)
-    }
+    await moderation.moderate(props.template, 'unblock')
   } catch (error) {
     notifyIf(error, 'template')
   }
-}
-
-function blocked(id, row) {
-  if (!row) {
-    return
-  }
-  const name = props.template.name
-  store.dispatch(
-    'toast/success',
-    isBlocked.value
-      ? { title: $i18n.t('templateDetails.blockReasonChangedTitle', { name }) }
-      : {
-          title: $i18n.t('templateDetails.blockedTitle', { name }),
-          message: $i18n.t('templateDetails.blockedDescription'),
-        }
-  )
-  moderate(row)
 }
 
 function changeVisibility(event, hideMenu) {

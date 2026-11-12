@@ -16,7 +16,6 @@
       class="templates__body"
       @loaded="(succeeded) => (loaded = succeeded)"
       @back="hide()"
-      @moderated="emit('reviewed', template.id)"
     >
       <template v-if="!previewOnly" #foot>
         <div class="templates-admin-review-actions">
@@ -52,7 +51,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 
 import TemplateDetails from '@baserow/modules/core/components/template/TemplateDetails'
@@ -156,8 +155,27 @@ async function show(...args) {
   details.value?.focus()
 }
 
-function hide(...args) {
-  modal.value.hide(...args)
+// A modal opened from the preview, like the block reason one, is still open when
+// it reports, and the preview can't close under it. An open menu is just closed.
+const hasModalOnTop = computed(() =>
+  modal.value?.children.some((child) => child.isModal && child.open)
+)
+
+async function hide(...args) {
+  if (hasModalOnTop.value) {
+    await new Promise((resolve) => {
+      const stop = watch(hasModalOnTop, (onTop) => {
+        if (!onTop) {
+          stop()
+          resolve()
+        }
+      })
+    })
+  }
+  modal.value?.children
+    .filter((child) => !child.isModal && child.open)
+    .forEach((child) => child.hide())
+  modal.value?.hide(...args)
 }
 
 function hidden() {

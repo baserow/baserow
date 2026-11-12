@@ -13,6 +13,9 @@
             'context__menu-item-link--delete': ITEMS[item.name].danger,
             'context__menu-item-link--loading':
               item.name === 'download' && isDownloading(template),
+            disabled:
+              ITEMS[item.name].moderates &&
+              moderation.isModerating(template.id),
           }"
           @click.prevent="ACTIONS[item.name]()"
         >
@@ -26,10 +29,11 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useRouter, useRuntimeConfig } from '#app'
 
 import { useTemplateReview } from '@baserow/modules/core/composables/useTemplateReview'
+import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -72,8 +76,16 @@ const ITEMS = {
     icon: 'iconoir-eye-off',
   },
   approve: { label: 'templatesAdmin.approveAfterAll', icon: 'iconoir-check' },
-  block: { label: 'templatesAdmin.block', icon: 'iconoir-warning-triangle' },
-  unblock: { label: 'templatesAdmin.unblock', icon: 'iconoir-undo' },
+  block: {
+    label: 'templatesAdmin.block',
+    icon: 'iconoir-warning-triangle',
+    moderates: true,
+  },
+  unblock: {
+    label: 'templatesAdmin.unblock',
+    icon: 'iconoir-undo',
+    moderates: true,
+  },
   delete: { label: 'templatesAdmin.delete', icon: 'iconoir-bin', danger: true },
 }
 
@@ -96,6 +108,7 @@ const emit = defineEmits([
 const router = useRouter()
 const config = useRuntimeConfig()
 const { decide } = useTemplateReview()
+const moderation = inject(TEMPLATE_MODERATION)
 const { isDownloading, download } = useUserTemplateDownload()
 const { copyLink } = useCopyLink()
 
@@ -147,31 +160,33 @@ const ACTIONS = {
     hide()
     emit('unlist', props.template)
   },
-  approve() {
-    return reviewAndRefresh('approve')
+  async approve() {
+    const template = props.template
+    hide()
+    try {
+      await decide(template, 'approve')
+      emit('changed', template.id)
+    } catch (error) {
+      notifyIf(error, 'template')
+    }
   },
   block() {
     hide()
     emit('block', props.template)
   },
-  unblock() {
-    return reviewAndRefresh('unblock')
+  async unblock() {
+    const template = props.template
+    hide()
+    try {
+      await moderation.moderate(template, 'unblock')
+    } catch (error) {
+      notifyIf(error, 'template')
+    }
   },
   delete() {
     hide()
     emit('delete', props.template)
   },
-}
-
-async function reviewAndRefresh(action) {
-  const template = props.template
-  hide()
-  try {
-    await decide(template, action)
-    emit('changed', template.id)
-  } catch (error) {
-    notifyIf(error, 'template')
-  }
 }
 
 function toggle(...args) {

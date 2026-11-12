@@ -382,6 +382,8 @@ def test_template_lists_read_only_the_later_revisions(data_fixture):
         data_fixture.set_user_template_revision_states(
             edited, ["public", "private", "private"]
         )
+        blocked = data_fixture.create_user_template()
+        data_fixture.set_user_template_state(blocked, "blocked")
     with connection.cursor() as cursor:
         cursor.execute("ANALYZE core_template")
         cursor.execute("SET LOCAL enable_seqscan = off")
@@ -390,9 +392,13 @@ def test_template_lists_read_only_the_later_revisions(data_fixture):
     rejected_tab = UserTemplateHandler().list_templates_for_admin(
         UserTemplateState.REJECTED
     )
+    blocked_tab = UserTemplateHandler().list_templates_for_admin(
+        UserTemplateState.BLOCKED
+    )
     owned = CoreHandler().list_templates(owner, owned=True)
 
     assert rows_filtered_per_row(rejected_tab) < templates // 4
+    assert rows_filtered_per_row(blocked_tab) < templates // 4
     assert rows_filtered_per_row(owned) < templates // 4
 
 

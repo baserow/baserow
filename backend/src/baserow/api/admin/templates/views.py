@@ -365,7 +365,7 @@ class AdminUnblockUserTemplateView(APIView):
     @map_exceptions(MODERATE_EXCEPTIONS)
     @transaction.atomic
     def post(self, request: Request, template_id: str) -> Response:
-        """Unblocks the template and responds with its row, private now."""
+        """Unblocks the template and responds with its row."""
 
         revision = action_type_registry.get_by_type(
             UnblockUserTemplateAdminActionType

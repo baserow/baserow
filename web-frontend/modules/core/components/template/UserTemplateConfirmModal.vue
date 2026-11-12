@@ -94,7 +94,7 @@ function show(...args) {
 }
 
 function hide(...args) {
-  modal.value.hide(...args)
+  modal.value?.hide(...args)
 }
 
 async function confirm() {

@@ -327,6 +327,7 @@ def per_review_action(rows):
                 (["blocked"], "blocked", 0, "refused", "refused"),
                 (["public_blocked"], "blocked", 0, "refused", "refused"),
                 (["blocked", "in_review"], "blocked", 1, "refused", "refused"),
+                (["blocked", "marked"], None, None, None, None),
                 (["marked"], None, None, None, None),
                 (["marked", "in_review"], None, None, None, None),
                 (["public", "marked"], None, None, None, None),
