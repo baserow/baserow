@@ -1,4 +1,5 @@
 import asyncio
+import ctypes
 import json
 import math
 import os
@@ -67,24 +68,39 @@ def inference_threads() -> int:
     return int(value)
 
 
+# Only the GPU image installs an onnxruntime that supports CUDA.
+gpu_image = "CUDAExecutionProvider" in ort.get_available_providers()
+
+
 def use_gpu() -> bool:
-    # Only the GPU image installs an onnxruntime that supports CUDA.
-    gpu_available = "CUDAExecutionProvider" in ort.get_available_providers()
-    value = os.environ.get("EMBEDDINGS_DEVICE", "").strip()
+    value = os.environ.get("EMBEDDINGS_DEVICE", "").strip().lower()
     if not value:
-        return gpu_available
+        return gpu_image
     if value not in ("cpu", "gpu"):
         raise ValueError("EMBEDDINGS_DEVICE must be cpu or gpu")
-    if value == "gpu" and not gpu_available:
+    if value == "gpu" and not gpu_image:
         raise ValueError("EMBEDDINGS_DEVICE=gpu requires the GPU image")
     return value == "gpu"
 
 
-gpu = use_gpu()
-if gpu:
+def load_cuda_libraries() -> None:
+    if not gpu_image:
+        return
     # The GPU image installs CUDA as Python packages, which onnxruntime only finds
     # when they are preloaded.
     ort.preload_dlls()
+    # A missing library is otherwise only a warning before falling back to the CPU.
+    # Loading them doesn't need a GPU, so the build checks this too.
+    ctypes.CDLL(
+        os.path.join(
+            os.path.dirname(ort.__file__), "capi", "libonnxruntime_providers_cuda.so"
+        )
+    )
+
+
+gpu = use_gpu()
+if gpu:
+    load_cuda_libraries()
 providers = ["CUDAExecutionProvider"] if gpu else []
 providers.append("CPUExecutionProvider")
 
@@ -94,7 +110,7 @@ model_path = os.path.join(MODEL_DIR, "model.onnx")
 session = ort.InferenceSession(model_path, session_options, providers=providers)
 # onnxruntime silently falls back to the CPU when CUDA fails to load.
 if gpu and session.get_providers()[0] != "CUDAExecutionProvider":
-    raise RuntimeError("No usable GPU, set EMBEDDINGS_DEVICE=cpu to use the CPU")
+    raise RuntimeError("CUDA could not be used, see the onnxruntime error above")
 inference_batch_size = GPU_BATCH_SIZE if gpu else CPU_BATCH_SIZE
 
 # Inference already uses every thread, so parallel requests would oversubscribe.

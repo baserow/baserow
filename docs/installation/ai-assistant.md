@@ -182,7 +182,7 @@ service and point Baserow at it.
 ### Run the embeddings container
 
 ```bash
-docker run -d --name baserow-embeddings -p 80:80 baserow/embeddings:1.1.0
+docker run -d --name baserow-embeddings -p 80:80 baserow/embeddings:1.1.1
 ```
 
 To embed large volumes faster, for example for semantic search on big tables, run the
@@ -190,7 +190,7 @@ GPU image on a host with an NVIDIA GPU and the NVIDIA Container Toolkit instead,
 `BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST=64` in Baserow:
 
 ```bash
-docker run -d --name baserow-embeddings --gpus all -p 80:80 baserow/embeddings:1.1.0-gpu
+docker run -d --name baserow-embeddings --gpus all -p 80:80 baserow/embeddings:1.1.1-gpu
 ```
 
 See the [embeddings README](https://github.com/baserow/baserow/blob/develop/embeddings/README.md)

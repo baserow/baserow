@@ -41,15 +41,15 @@ There are two images. Both create the same vectors, so they can be swapped witho
 
 | Image                          | Runs on               | Platforms                    | Size    |
 | ------------------------------ | --------------------- | ---------------------------- | ------- |
-| `baserow/embeddings:1.1.0`     | CPU                   | `linux/amd64`, `linux/arm64` | ~0.6 GB |
-| `baserow/embeddings:1.1.0-gpu` | NVIDIA GPU, with CUDA | `linux/amd64`                | ~2.2 GB |
+| `baserow/embeddings:1.1.1`     | CPU                   | `linux/amd64`, `linux/arm64` | ~0.6 GB |
+| `baserow/embeddings:1.1.1-gpu` | NVIDIA GPU, with CUDA | `linux/amd64`                | ~2.2 GB |
 
 The CPU image is enough for the AI assistant's knowledge base and for searching. The GPU image is only worth it to embed large volumes, like enabling semantic search on big tables.
 
 ### Run the CPU image
 
 ```bash
-docker run -p 127.0.0.1:8080:80 baserow/embeddings:1.1.0
+docker run -p 127.0.0.1:8080:80 baserow/embeddings:1.1.1
 ```
 
 The service will be available at `http://localhost:8080`.
@@ -59,7 +59,7 @@ The service will be available at `http://localhost:8080`.
 The host needs an NVIDIA driver of version 525 or newer and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
 ```bash
-docker run --gpus all -p 127.0.0.1:8080:80 baserow/embeddings:1.1.0-gpu
+docker run --gpus all -p 127.0.0.1:8080:80 baserow/embeddings:1.1.1-gpu
 ```
 
 -   It fails to start when no GPU is usable, instead of silently falling back to the CPU. Set `EMBEDDINGS_DEVICE=cpu` to run it without a GPU anyway.
@@ -76,7 +76,7 @@ CPU image:
 ```bash
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t baserow/embeddings:1.1.0 \
+  -t baserow/embeddings:1.1.1 \
   -t baserow/embeddings:latest \
   --push .
 ```
@@ -87,7 +87,7 @@ GPU image, which only supports `linux/amd64`:
 docker buildx build \
   --platform linux/amd64 \
   --build-arg REQUIREMENTS=requirements-gpu.txt \
-  -t baserow/embeddings:1.1.0-gpu \
+  -t baserow/embeddings:1.1.1-gpu \
   -t baserow/embeddings:latest-gpu \
   --push .
 ```

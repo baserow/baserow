@@ -27,8 +27,8 @@ RUN pip install --no-cache-dir --root-user-action=ignore --no-deps \
 
 COPY app.py .
 # --no-deps can't catch a missing dependency, so fail the build instead of startup.
-# There's no GPU while building.
-RUN EMBEDDINGS_DEVICE=cpu python -B -c "import app"
+# There's no GPU while building, but the CUDA libraries can be loaded.
+RUN EMBEDDINGS_DEVICE=cpu python -B -c "import app; app.load_cuda_libraries()"
 
 EXPOSE 80
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]

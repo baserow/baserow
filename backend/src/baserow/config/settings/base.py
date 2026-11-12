@@ -2148,8 +2148,8 @@ BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true
 
 BASEROW_EMBEDDINGS_API_URL = os.getenv("BASEROW_EMBEDDINGS_API_URL", "")
 # An embeddings service on a GPU is faster with more. It accepts at most 256.
-BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST = int(
-    os.getenv("BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST", "") or 8
+BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST = min(
+    max(int(os.getenv("BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST", "") or 8), 1), 256
 )
 
 # -- CACHALOT SETTINGS --

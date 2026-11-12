@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 
 import httpx
@@ -6,11 +8,37 @@ from loguru import logger
 
 from baserow.core.pgvector import DEFAULT_EMBEDDING_DIMENSIONS, is_pgvector_enabled
 
+# The embeddings service rejects larger request bodies.
+MAX_REQUEST_BYTES = 2**20
+
 
 class EmbeddingsServiceError(Exception):
     # The underlying `httpx` error is only logged because its message contains the
     # internal URL of the service, which must not reach whoever triggered the request.
     pass
+
+
+def _request_batches(texts: list[str], batch_size: int) -> list[list[str]]:
+    """
+    Splits the texts into the request bodies the embeddings service accepts. Texts
+    in, for example, Chinese take up to three bytes per character.
+    """
+
+    batches = []
+    size = 0
+    for text in texts:
+        # Encoded like `httpx` does, with a comma between texts.
+        text_size = len(json.dumps(text, ensure_ascii=False).encode()) + 1
+        if (
+            not batches
+            or len(batches[-1]) == batch_size
+            or size + text_size > MAX_REQUEST_BYTES
+        ):
+            batches.append([])
+            size = len('{"texts":[]}')
+        batches[-1].append(text)
+        size += text_size
+    return batches
 
 
 class BaserowEmbedder:
@@ -35,10 +63,8 @@ class BaserowEmbedder:
         embeddings = []
         client = httpxClient(base_url=self.api_url, timeout=self.timeout)
         try:
-            for i in range(0, len(texts), batch_size):
-                response = client.post(
-                    "/embed", json={"texts": texts[i : i + batch_size]}
-                )
+            for batch in _request_batches(texts, batch_size):
+                response = client.post("/embed", json={"texts": batch})
                 response.raise_for_status()
                 embeddings.extend(response.json()["embeddings"])
         # An invalid response, like the error page of a proxy, is retried like an
