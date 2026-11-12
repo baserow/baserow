@@ -146,7 +146,7 @@
     "replyNotAllowed": "You no longer have permission to send messages to this agent.",
     "replyFailed": "The agent couldn’t reply. Send your message again.",
     "replyInProgress": "The agent is still replying in this conversation.",
-    "agentsBusy": "Agents in this workspace are busy. Try again shortly.",
+    "agentsBusy": "Too many Agent replies are in progress. Try again shortly.",
     "toolListDatabasesRunning": "Listing databases",
     "toolListDatabasesDone": "Listed your databases",
     "toolCreateDatabaseRequestedDatabase": "Create database: {database}",

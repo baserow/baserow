@@ -80,7 +80,9 @@ class ChatRunHandler:
         """
 
         kind = chat_run_type_registry.get(run_type)
-        user_limit = kind.get_max_active_runs_per_user() if created_by else None
+        user_limit = (
+            kind.get_max_active_runs_per_user(created_by) if created_by else None
+        )
         workspace_limit = kind.get_max_active_runs_per_workspace(workspace)
         with transaction.atomic():
             # A fixed lock order keeps concurrent sends from deadlocking.
