@@ -54,17 +54,24 @@
           />
         </template>
       </client-only>
+      <ElementPreviewHint
+        v-if="shouldShowEditorEmbedHint"
+        class="iframe-element__editor-hint"
+        :message="$t('iframeElementForm.editorEmbedHint')"
+      />
     </template>
   </div>
 </template>
 
 <script>
+import ElementPreviewHint from '@baserow/modules/builder/components/elements/ElementPreviewHint'
 import element from '@baserow/modules/builder/mixins/element'
 import { IFRAME_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'IFrameElement',
+  components: { ElementPreviewHint },
   mixins: [element],
   props: {
     /**
@@ -90,6 +97,12 @@ export default {
       return (
         this.element.source_type === IFRAME_SOURCE_TYPES.URL &&
         Boolean(this.resolvedURL) &&
+        (this.isEditMode || this.applicationContext.mode === 'editing')
+      )
+    },
+    shouldShowEditorEmbedHint() {
+      return (
+        this.element.source_type === IFRAME_SOURCE_TYPES.EMBED &&
         (this.isEditMode || this.applicationContext.mode === 'editing')
       )
     },

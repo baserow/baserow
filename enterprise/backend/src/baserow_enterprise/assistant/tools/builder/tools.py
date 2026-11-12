@@ -7,39 +7,32 @@ Page-scoped ref tracking helpers are defined at the top of this module.
 
 from typing import Annotated, Any
 
-from django.db import transaction
 from django.utils.translation import gettext as _
 
 from pydantic import Field
 from pydantic_ai import ModelRetry, RunContext
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.handler import PageHandler
-from baserow.contrib.builder.workflow_actions.handler import (
-    BuilderWorkflowActionHandler,
+from baserow.contrib.builder.tools import BuilderWriteOptions, helpers
+from baserow.contrib.builder.tools import actions as shared_actions
+from baserow.contrib.builder.tools import data_sources as shared_data_sources
+from baserow.contrib.builder.tools import elements as shared_elements
+from baserow.contrib.builder.tools import pages as shared_pages
+from baserow.contrib.builder.tools import themes as shared_themes
+from baserow.contrib.builder.tools.errors import (
+    UnknownRefError,
+    is_input_error,
+    user_error_message,
 )
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.shared import (
-    ToolInputError,
-    permission_denied_result,
-    raise_if_permission_denied,
-    require_payload,
-)
-from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
-from baserow_enterprise.assistant.types import BuilderPageNavigationType
-from baserow_enterprise.builder.tools import BuilderWriteOptions, helpers
-from baserow_enterprise.builder.tools import actions as shared_actions
-from baserow_enterprise.builder.tools import data_sources as shared_data_sources
-from baserow_enterprise.builder.tools import elements as shared_elements
-from baserow_enterprise.builder.tools import pages as shared_pages
-from baserow_enterprise.builder.tools import themes as shared_themes
-from baserow_enterprise.builder.tools import user_sources as shared_user_sources
-from baserow_enterprise.builder.tools.errors import is_input_error, item_error
-from baserow_enterprise.builder.tools.formulas import BuilderFormulaError
-from baserow_enterprise.builder.tools.registries import assistant_element_type_registry
-from baserow_enterprise.builder.tools.themes import THEME_CATALOG, ThemeName
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.formulas import BuilderFormulaError
+from baserow.contrib.builder.tools.lookups import get_builder_in_workspace
+from baserow.contrib.builder.tools.registries import element_tool_type_registry
+from baserow.contrib.builder.tools.themes import THEME_CATALOG, ThemeName
+from baserow.contrib.builder.tools.types import (
     ActionChanges,
     ActionCreate,
     ActionItem,
@@ -49,6 +42,7 @@ from baserow_enterprise.builder.tools.types import (
     DisplayElementCreate,
     ElementItemCreate,
     ElementMove,
+    ElementStyleChanges,
     ElementStyleUpdate,
     ElementUpdate,
     FormElementCreate,
@@ -56,6 +50,24 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
 )
+from baserow.contrib.builder.tools.types.changes import name_key
+from baserow.contrib.builder.tools.types.table_columns import data_source_fields
+from baserow.contrib.builder.workflow_actions.handler import (
+    BuilderWorkflowActionHandler,
+)
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.formula.literals import FORMULA_PREFIX
+from baserow.core.tools.errors import validation_messages
+from baserow_enterprise.assistant.deps import AssistantDeps
+from baserow_enterprise.assistant.tools.shared import (
+    ToolInputError,
+    permission_denied_result,
+    raise_if_permission_denied,
+    require_payload,
+)
+from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
+from baserow_enterprise.assistant.types import BuilderPageNavigationType
+from baserow_enterprise.builder.tools import user_sources as shared_user_sources
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
 from . import agents
@@ -92,11 +104,70 @@ def _get_data_source_refs(tool_helpers, page_id: int) -> dict[str, int]:
     return _get_page_context(tool_helpers, page_id)["data_source_refs"].copy()
 
 
+def _not_on_page(page, element_ids) -> list[int]:
+    """The IDs of ``element_ids`` that this page's tools can't reach."""
+
+    reachable = set(
+        Element.objects.filter(helpers.on_page(page), id__in=element_ids).values_list(
+            "id", flat=True
+        )
+    )
+    return [element_id for element_id in element_ids if element_id not in reachable]
+
+
+def _named_field_beats_description(element: ElementItemCreate) -> None:
+    """
+    A new table column named like a field of its data source shows that field when
+    its value is only a ``$formula:`` description: the model often describes the
+    field it means. An explicit formula still wins.
+    """
+
+    if element.type != "table" or not element.fields:
+        return
+    table_fields = data_source_fields(element.data_source)
+    for column in element.fields:
+        if (
+            column.type == "text"
+            and column.value
+            and column.value.strip().lower().startswith(FORMULA_PREFIX)
+            and name_key(column.name) in table_fields
+        ):
+            column.value = None
+
+
+def _get_builder(ctx: RunContext[AssistantDeps], application_id: int) -> Builder:
+    """
+    The application builder ``application_id`` of the workspace, through the getter
+    MCP uses, so both answer alike: one the user can't see is not found.
+    """
+
+    try:
+        return get_builder_in_workspace(ctx.deps.tool_context(), application_id)
+    except ApplicationDoesNotExist:
+        raise ToolInputError(
+            f"Application with ID {application_id} not found in this workspace. "
+            "Use list_builders to find valid application IDs."
+        )
+
+
 def _page_not_found(page_id: int) -> ToolInputError:
     return ToolInputError(
         f"Page with ID {page_id} not found or not accessible. "
         "Use list_pages to find valid page IDs."
     )
+
+
+def item_error(exc: Exception) -> str:
+    """
+    The message Kuma gets for one item of a batch that failed with ``exc``. Kuma
+    keeps refs across calls, so an unknown ref gets the message for that.
+    """
+
+    if isinstance(exc, UnknownRefError):
+        return exc.message_with_known_refs
+    if isinstance(exc, DRFValidationError):
+        return validation_messages(exc)
+    return user_error_message(exc) or str(exc)
 
 
 def _input_item_error(exc: Exception) -> str:
@@ -182,12 +253,11 @@ def create_pages(
     """
 
     user = ctx.deps.user
-    workspace = ctx.deps.workspace
     tool_helpers = ctx.deps.tool_helpers
 
     require_payload("create_pages", "pages", pages)
 
-    builder = helpers.get_builder(user, workspace, application_id)
+    builder = _get_builder(ctx, application_id)
 
     # Skip duplicates
     existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
@@ -232,7 +302,7 @@ def create_pages(
             "(create_data_sources). Then add elements "
             "(create_display_elements, create_layout_elements, "
             "create_form_elements, create_collection_elements), "
-            "then actions for buttons/forms (create_actions)."
+            "then actions for buttons/forms (create_element_actions)."
         )
     return result
 
@@ -268,11 +338,14 @@ def update_page(
     except PageDoesNotExist:
         raise _page_not_found(page.page_id)
 
-    return {
+    response = {
         "status": "ok",
         "page": result["updated_page"],
         "updated_fields": page.get_updated_field_names(),
     }
+    if "navigations_to_fix" in result:
+        response["navigations_to_fix"] = result["navigations_to_fix"]
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -526,7 +599,7 @@ def list_elements(
     List all elements on a page.
 
     WHEN to use: Check existing elements, find element IDs or container structure.
-    NOT LISTED: What a button does when clicked, like the message it shows or the page it opens. Use list_actions for that.
+    NOT LISTED: What a button does when clicked, like the message it shows or the page it opens. Use list_element_actions for that.
     WHAT it does: Lists elements with id, type, parent_element_id, is_container. Tables also show their data_source_id and table_columns in display order: uid, name, type, and value (text, boolean, rating) or label (button). value and label are formulas: fixed text is quoted, and '' or "''" is an empty cell. Menus show their items in order: uid, name, type, page_id (or url, for a link to a custom address), and a top-level link's sub-links as children.
     RETURNS: Elements array.
 
@@ -609,7 +682,7 @@ def _create_elements_internal(
             known_refs=known_refs,
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_formula=True,
+            prepare_element=_named_field_beats_description,
             item_error=item_error,
         ),
     )
@@ -661,7 +734,7 @@ def _create_elements_internal(
     if actionable:
         next_steps.append(
             f"Elements {actionable} need workflow actions. "
-            "Call create_actions next: 'click' event for buttons, "
+            "Call create_element_actions next: 'click' event for buttons, "
             "'submit' event for form_container."
         )
     if next_steps:
@@ -699,7 +772,7 @@ def create_display_elements(
     Create display elements on a page: heading, text, button, link, image.
 
     For navigation, use a link (link_variant='button' gives a button appearance),
-    or create a button and then create_actions(type='open_page', event='click').
+    or create a button and then create_element_actions(type='open_page', event='click').
     Button elements do not accept navigation properties.
 
     PREREQUISITE: The page must already exist. Call create_pages first if it doesn't.
@@ -720,7 +793,7 @@ def create_display_elements(
       For intentional fixed-row access, supply an explicit runtime expression.
 
     ## After Creating Buttons
-    Buttons need a click action (open_page, notification, etc.) via create_actions.
+    Buttons need a click action (open_page, notification, etc.) via create_element_actions.
     Links use their navigation properties directly.
 
     ## Buttons/Links in Shared Headers
@@ -812,8 +885,8 @@ def create_form_elements(
     The form's submit action should be update_row with row_id referencing the page parameter.
 
     ## After Creating Forms
-    Form containers need a submit action (create_row, update_row) via create_actions.
-    ALWAYS call create_actions after creating form_container elements.
+    Form containers need a submit action (create_row, update_row) via create_element_actions.
+    ALWAYS call create_element_actions after creating form_container elements.
     """
 
     require_payload("create_form_elements", "elements", elements)
@@ -887,11 +960,11 @@ def update_element(
     - element_id: ID of the element to update (from list_elements).
     - Only set the properties you want to change — unset properties are left unchanged.
     - Unsupported properties reject the update without applying any changes.
-    - Button navigation belongs in create_actions(type='open_page', event='click'),
+    - Button navigation belongs in create_element_actions(type='open_page', event='click'),
       not in update_element. Links support navigation properties directly.
     - A button's text is what it says before it's clicked. What it shows or does when
       clicked, like the message of a notification, is a click action: find it with
-      list_actions and change it with update_action.
+      list_element_actions and change it with update_element_action.
 
     ## Table Columns
     - list_elements shows each table's columns with uid, name, type, and value or label.
@@ -930,7 +1003,7 @@ def update_element(
     - update_menu_items renames an item or points a link to a page; the item keeps
       its type, click actions and sub-links, and a new page drops the old page's
       parameters. A button can't link to a page: give it an open_page action with
-      create_actions.
+      create_element_actions.
     - reorder_menu_items lists every top-level item that stays; sub-links can't be
       reordered.
     - Remove an item only when the user asked for it: its sub-links go with it, undo
@@ -962,9 +1035,7 @@ def update_element(
     applied_formulas = [field for field in formulas if field not in not_applied]
 
     dependent_fields = element.get_formula_dependent_fields(element_type)
-    property_aliases = assistant_element_type_registry.get_for(
-        element_type
-    ).property_aliases
+    property_aliases = element_tool_type_registry.get_for(element_type).property_aliases
     updated_fields = []
     for field in element.get_updated_field_names():
         formula_field = property_aliases.get(field, field)
@@ -1052,19 +1123,19 @@ def update_element_style(
     You can combine reset with new values to reset-then-apply.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
-        _("Styling element %(id)d...") % {"id": style.element_id}
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
+    if _not_on_page(page, [style.element_id]):
+        raise ToolInputError(
+            f"Element with ID {style.element_id} not found. "
+            "Use list_elements to find valid element IDs."
+        )
+    shared = shared_elements.update_element_style(
+        ctx.deps.tool_context(),
+        style.element_id,
+        ElementStyleChanges(**style.model_dump(exclude={"element_id"})),
     )
-
-    with transaction.atomic():
-        element, element_type = helpers.update_element_style(user, page, style)
-
-    # Report which fields were explicitly set (not inherited from existing styles)
-    updated_fields = list(style.to_update_kwargs(element_type, {}).keys())
+    element_type = shared["updated_element"]["type"]
+    updated_fields = shared["updated_fields"]
     if not updated_fields:
         return {
             "status": "warning",
@@ -1116,48 +1187,25 @@ def move_elements(
     - place_in_container: Slot inside parent_element_id (e.g. "0", "1" for columns). Only valid together with parent_element_id; null = default. When moving to the root level leave it null.
     """
 
-    user = ctx.deps.user
-    tool_helpers = ctx.deps.tool_helpers
-
     if not moves:
         return {"moved_elements": []}
 
-    page = helpers.get_page(user, ctx.deps.workspace, page_id)
-    tool_helpers.update_status(
+    page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
+    ctx.deps.tool_helpers.update_status(
         _("Moving %(count)d elements on %(name)s...")
         % {"count": len(moves), "name": page.name}
     )
-
-    moved: list[dict] = []
-    errors: list[str] = []
-
-    for element_move in moves:
-        tool_helpers.raise_if_cancelled()
-        try:
-            with transaction.atomic():
-                element = helpers.move_element(user, page, element_move)
-            moved.append(
-                {
-                    "element_id": element.id,
-                    "parent_element_id": element.parent_element_id,
-                    "place_in_container": element.place_in_container,
-                }
-            )
-        except PermissionException:
-            errors.append(
-                f"Permission denied for element {element_move.element_id}; it was not moved. "
-                "Do not retry the denied operation."
-            )
-        except Exception as exc:
-            errors.append(f"element {element_move.element_id}: {exc}")
-        finally:
-            # Each move commits on its own and releases the graph lock, so the next
-            # one reads the graph again and takes the lock again.
-            helpers.forget_page_graphs(page)
-
-    result: dict[str, Any] = {"moved_elements": moved}
-    if errors:
-        result["errors"] = errors
+    elsewhere = set(_not_on_page(page, [move.element_id for move in moves]))
+    result = shared_elements.move_elements(
+        ctx.deps.tool_context(),
+        [move for move in moves if move.element_id not in elsewhere],
+    )
+    if elsewhere:
+        result.setdefault("errors", []).extend(
+            f"{element_id}: Element not found on page {page.id}. Use list_elements "
+            "to find valid element IDs."
+            for element_id in sorted(elsewhere)
+        )
     return result
 
 
@@ -1166,7 +1214,7 @@ def move_elements(
 # ---------------------------------------------------------------------------
 
 
-def list_actions(
+def list_element_actions(
     ctx: RunContext[AssistantDeps],
     page_id: Annotated[int, Field(description="The page ID.")],
     thought: Annotated[
@@ -1182,12 +1230,12 @@ def list_actions(
     """
 
     try:
-        return shared_actions.list_actions(ctx.deps.tool_context(), page_id)
+        return shared_actions.list_element_actions(ctx.deps.tool_context(), page_id)
     except PageDoesNotExist:
         raise _page_not_found(page_id)
 
 
-def create_actions(
+def create_element_actions(
     ctx: RunContext[AssistantDeps],
     page_id: Annotated[int, Field(description="The page ID.")],
     actions: Annotated[
@@ -1227,7 +1275,7 @@ def create_actions(
 
     tool_helpers = ctx.deps.tool_helpers
 
-    require_payload("create_actions", "actions", actions)
+    require_payload("create_element_actions", "actions", actions)
 
     page = helpers.get_page(ctx.deps.user, ctx.deps.workspace, page_id)
 
@@ -1260,7 +1308,7 @@ def create_actions(
     return result
 
 
-def add_action_field_mapping(
+def add_element_action_field_mapping(
     ctx: RunContext[AssistantDeps],
     action_id: Annotated[int, Field(description="The workflow action ID.")],
     field_id: Annotated[int, Field(description="The target table field ID.")],
@@ -1279,20 +1327,15 @@ def add_action_field_mapping(
 
     WHEN to use: Adding a new form input to an existing form that already has a row action.
     WHAT it does: Maps a table field to a formula value without recreating the action.
-    RETURNS: Updated field mappings list.
+    RETURNS: The updated action with its field mappings. A value that isn't a valid formula is refused and nothing changes.
     """
 
-    tool_helpers = ctx.deps.tool_helpers
-    tool_helpers.update_status(
-        _("Adding field mapping to action %(id)d...") % {"id": action_id}
-    )
-
-    return helpers.add_field_mapping_to_action(
-        ctx.deps.user, ctx.deps.workspace, action_id, field_id, value_formula
+    return shared_actions.add_element_action_field_mapping(
+        ctx.deps.tool_context(), action_id, field_id, value_formula
     )
 
 
-def update_action(
+def update_element_action(
     ctx: RunContext[AssistantDeps],
     action_id: Annotated[int, Field(description="The workflow action ID.")],
     changes: Annotated[
@@ -1309,7 +1352,7 @@ def update_action(
     WHEN to use: A notification, open_page, row or refresh_data_source action should do something else, like a new message (a notification's title), target page or row_id.
     WHAT it does: Changes the given values. Its type, element and event stay as they are. page_parameters and query_parameters replace the whole list; field_values change the named fields only.
     RETURNS: The updated action, with errors for values that kept their previous value.
-    DO NOT USE when: The action doesn't exist yet — use create_actions instead.
+    DO NOT USE when: The action doesn't exist yet — use create_element_actions instead.
     EXAMPLE: {"action_id": 12, "changes": {"title": "'Order placed'"}, "thought": "Change the message of the Buy button's notification."}. thought is required, however small the change.
 
     ## Dynamic Values with $formula:
@@ -1468,7 +1511,7 @@ def setup_page(
             known_refs=_get_element_refs(tool_helpers, page_id),
             known_data_source_refs=_get_data_source_refs(tool_helpers, page_id),
             known_shared_page_refs=shared_page_refs,
-            column_name_beats_formula=True,
+            prepare_element=_named_field_beats_description,
             defer_required_formulas=True,
             item_error=item_error,
             after_phase=after_phase,
@@ -1540,14 +1583,10 @@ def setup_user_source(
     HOW: If user mentions a specific table, use table_id. Otherwise use database_id to create a new users table.
     """
 
-    user = ctx.deps.user
-    workspace = ctx.deps.workspace
-
     try:
-        helpers.get_builder(user, workspace, application_id)
-    except Exception as exc:
-        raise_if_permission_denied(exc)
-        return {"error": f"Could not find application: {exc}"}
+        _get_builder(ctx, application_id)
+    except ToolInputError as exc:
+        return {"error": str(exc)}
 
     try:
         shared = shared_user_sources.setup_user_source(
@@ -1594,7 +1633,7 @@ def set_theme(
     {theme_list}
     """
 
-    helpers.get_builder(ctx.deps.user, ctx.deps.workspace, application_id)
+    _get_builder(ctx, application_id)
 
     try:
         shared_themes.set_theme(ctx.deps.tool_context(), application_id, theme_name)
@@ -1640,10 +1679,10 @@ TOOL_FUNCTIONS = [
     update_element,
     update_element_style,
     move_elements,
-    list_actions,
-    create_actions,
-    add_action_field_mapping,
-    update_action,
+    list_element_actions,
+    create_element_actions,
+    add_element_action_field_mapping,
+    update_element_action,
     setup_page,
     setup_user_source,
     set_theme,

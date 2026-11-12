@@ -9,9 +9,10 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
+from baserow.contrib.automation.automation_init_application import (
+    AutomationApplicationTypeInitApplication,
+)
 from baserow.contrib.automation.tools.workflows import get_automation_in_workspace
-from baserow.core.integrations.registries import integration_type_registry
-from baserow.core.integrations.service import IntegrationService
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import (
     ApplicationName,
@@ -37,12 +38,9 @@ def create_automation(
         automation = create_application(ctx, "automation", name)
         # Row actions read and write tables through it, so workflows can't run
         # without one.
-        IntegrationService().create_integration(
-            ctx.user,
-            integration_type_registry.get("local_baserow"),
-            automation,
-            name="Local Baserow",
-        )
+        AutomationApplicationTypeInitApplication(
+            ctx.user, automation
+        ).create_local_baserow_integration(audit_logged=True)
     return {"created_automation": {"id": automation.id, "name": automation.name}}
 
 

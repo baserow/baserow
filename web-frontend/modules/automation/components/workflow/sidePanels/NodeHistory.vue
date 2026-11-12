@@ -128,7 +128,14 @@
           retryLabel
         }}</span>
 
-        <div class="node-history__header-show-result">
+        <span
+          v-if="waitingUntilLabel"
+          class="node-history__header-info-pass"
+          :title="waitingUntilTitle"
+          >{{ waitingUntilLabel }}</span
+        >
+
+        <div v-if="hasResult" class="node-history__header-show-result">
           <a
             ref="nodeResultButtonContextToggle"
             role="button"
@@ -210,8 +217,10 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 
+import moment from '@baserow/modules/core/moment'
 import SampleDataModal from '@baserow/modules/core/components/SampleDataModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 
 const app = useNuxtApp()
 const store = useStore()
@@ -304,14 +313,25 @@ const retryLabel = computed(() => {
 
 /**
  * `skipped` is a node that ran without doing anything, e.g. a "Go to node"
- * whose condition resolved to false, so no jump was followed.
+ * whose condition resolved to false, so no jump was followed. `waiting` and
+ * `started` belong to a run still in progress: the node suspended itself
+ * until `resume_at` (e.g. a "Wait" node), or is running right now.
+ * `cancelled` is a node the run was stopped at, e.g. a wait that was never
+ * resumed because the run was cancelled.
  */
 const status = computed(() => {
   const childError = props.errorDescendantNodeIds.has(props.nodeHistory.node)
   if (hasOwnError.value || childError) return 'error'
   if (isRetried.value) return 'retried'
-  if (props.nodeHistory.status === 'skipped') return 'skipped'
-  return 'success'
+  switch (props.nodeHistory.status) {
+    case 'skipped':
+    case 'waiting':
+    case 'started':
+    case 'cancelled':
+      return props.nodeHistory.status
+    default:
+      return 'success'
+  }
 })
 
 const statusLabel = computed(() => {
@@ -322,6 +342,12 @@ const statusLabel = computed(() => {
       return app.$i18n.t('historySidePanel.statusRetriedBadge')
     case 'skipped':
       return app.$i18n.t('historySidePanel.statusSkippedBadge')
+    case 'waiting':
+      return app.$i18n.t('historySidePanel.statusWaitingBadge')
+    case 'started':
+      return app.$i18n.t('historySidePanel.statusRunningBadge')
+    case 'cancelled':
+      return app.$i18n.t('historySidePanel.statusCancelledBadge')
     default:
       return app.$i18n.t('historySidePanel.statusSuccessBadge')
   }
@@ -334,11 +360,44 @@ const statusBadgeColor = computed(() => {
     case 'retried':
       return 'yellow'
     case 'skipped':
+    case 'cancelled':
       return 'neutral'
+    case 'waiting':
+    case 'started':
+      return 'cyan'
     default:
       return 'green'
   }
 })
+
+/**
+ * When a waiting node is due to resume, in the user's time zone. The label
+ * shows the time of day, which is what a wait of up to a few hours needs; the
+ * full date sits in the title for a wait that crosses midnight.
+ */
+const waitingUntil = computed(() => {
+  if (status.value !== 'waiting' || !props.nodeHistory.resume_at) return null
+  return moment.utc(props.nodeHistory.resume_at).tz(getUserTimeZone())
+})
+
+const waitingUntilLabel = computed(() => {
+  if (!waitingUntil.value) return null
+  return app.$i18n.t('historySidePanel.waitingUntil', {
+    time: waitingUntil.value.format('HH:mm:ss'),
+  })
+})
+
+const waitingUntilTitle = computed(() =>
+  waitingUntil.value?.format('YYYY-MM-DD HH:mm:ss')
+)
+
+/**
+ * A node that is still waiting or running has not produced its result yet, and
+ * a waiting one the run was cancelled at never will.
+ */
+const hasResult = computed(
+  () => !['waiting', 'started', 'cancelled'].includes(props.nodeHistory.status)
+)
 
 const errorMessage = computed(() => props.nodeHistory.message)
 
@@ -411,9 +470,11 @@ const showNodeResultModal = async () => {
       nodeHistoryId,
     })
     let result = store.getters['automationHistory/getNodeResult'](nodeHistoryId)
+    // The node itself may be gone: its type decides, as the types of
+    // automation nodes return the same for all their services.
     if (result?._error) {
       result = result._error
-    } else if (nodeType.value.returnsList && result?.results) {
+    } else if (nodeType.value.returnsList() && result?.results) {
       result = result.results
     }
     resolvedSampleData.value = result

@@ -2122,3 +2122,35 @@ def test_a_serialized_mapping_says_whether_its_field_is_trashed(data_fixture):
     assert LocalBaserowTableServiceFieldMappingSerializer(mapping).data["trashed"] is (
         True
     )
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_field_mappings_with(data_fixture):
+    table = data_fixture.create_database_table()
+    name = data_fixture.create_text_field(table=table)
+    price = data_fixture.create_number_field(table=table)
+    trashed = data_fixture.create_text_field(table=table, trashed=True)
+    new = data_fixture.create_text_field(table=table)
+    service = data_fixture.create_local_baserow_upsert_row_service(table=table)
+    service.field_mappings.create(field=name, value="'a'", enabled=False)
+    service.field_mappings.create(field=price, value="'1'")
+    service.field_mappings.create(field=trashed, value="'t'")
+    service_type = LocalBaserowUpsertRowServiceType()
+
+    def by_field(mappings):
+        return {m["field_id"]: (m["enabled"], m["value"]) for m in mappings}
+
+    kept = by_field(service_type.field_mappings_with(service, {name.id: "'b'"}))
+    assert kept[name.id] == (False, "'b'")
+    assert kept[price.id][0] is True
+    # A mapping on a trashed field stays, so restoring the field brings it back.
+    assert trashed.id in kept
+
+    enabled = by_field(
+        service_type.field_mappings_with(
+            service, {name.id: "'b'", new.id: "'n'"}, enable=True
+        )
+    )
+    assert enabled[name.id] == (True, "'b'")
+    assert enabled[new.id] == (True, "'n'")
+    assert list(enabled)[-1] == new.id

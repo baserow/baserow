@@ -12,9 +12,6 @@ from pytest_unordered import unordered
 
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.models import AutomationWorkflow
-from baserow.contrib.automation.nodes.exceptions import (
-    AutomationNodeMisconfiguredService,
-)
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -34,6 +31,7 @@ from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import ServiceMisconfigured
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
 
@@ -185,9 +183,108 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
         "interval": PERIODIC_INTERVAL_MINUTE,
         "minute": 3,
     }
-    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+    with pytest.raises(ServiceMisconfigured) as e:
         CorePeriodicTriggerServiceType().prepare_values(values, user)
+    assert e.type is ServiceMisconfigured
     assert str(e.value) == "The `minute` value must be greater or equal to 5."
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "saved,values",
+    [
+        # Only the minute is sent, and the saved interval makes it a frequency.
+        ({"interval": PERIODIC_INTERVAL_MINUTE, "minute": 20}, {"minute": 5}),
+        # Only the interval is sent, and it turns the saved minute into a frequency.
+        (
+            {"interval": PERIODIC_INTERVAL_HOUR, "minute": 5},
+            {"interval": PERIODIC_INTERVAL_MINUTE},
+        ),
+        # The saved frequency is already under the minimum and is sent again.
+        (
+            {"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+            {"interval": PERIODIC_INTERVAL_MINUTE},
+        ),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_periodic_service_prepare_values_validates_minute_minimum_of_partial_update(
+    data_fixture, saved, values
+):
+    user = data_fixture.create_user()
+    service = data_fixture.create_core_periodic_service(**saved)
+
+    with pytest.raises(ServiceMisconfigured) as e:
+        CorePeriodicTriggerServiceType().prepare_values(values, user, service)
+    assert e.type is ServiceMisconfigured
+    assert str(e.value) == "The `minute` value must be greater or equal to 15."
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "saved,values",
+    [
+        # The frequency is lowered to exactly the minimum.
+        ({"interval": PERIODIC_INTERVAL_MINUTE, "minute": 20}, {"minute": 15}),
+        # The saved minute is high enough to become a frequency.
+        (
+            {"interval": PERIODIC_INTERVAL_HOUR, "minute": 20},
+            {"interval": PERIODIC_INTERVAL_MINUTE},
+        ),
+        # For any other interval it's the minute past the hour, which has no minimum.
+        ({"interval": PERIODIC_INTERVAL_HOUR, "minute": 20}, {"minute": 0}),
+        # A frequency under the minimum doesn't stop the interval being replaced.
+        (
+            {"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+            {"interval": PERIODIC_INTERVAL_HOUR},
+        ),
+        # Nor does it stop a change to a property that isn't part of the check.
+        (
+            {"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5},
+            {"timezone": "Europe/Amsterdam"},
+        ),
+        ({"interval": PERIODIC_INTERVAL_MINUTE, "minute": 5}, {}),
+    ],
+)
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_periodic_service_prepare_values_allows_partial_update_within_minute_minimum(
+    data_fixture, saved, values
+):
+    user = data_fixture.create_user()
+    service = data_fixture.create_core_periodic_service(**saved)
+
+    prepared = CorePeriodicTriggerServiceType().prepare_values(
+        dict(values), user, service
+    )
+
+    assert prepared == values
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.integrations.core.service_types.settings.INTEGRATIONS_PERIODIC_MINUTE_MIN",
+    15,
+)
+def test_periodic_service_prepare_values_validates_minute_minimum_when_creating(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    service_type = CorePeriodicTriggerServiceType()
+
+    # Without a minute the new service gets the model's default of 0.
+    with pytest.raises(ServiceMisconfigured) as e:
+        service_type.prepare_values({"interval": PERIODIC_INTERVAL_MINUTE}, user)
+    assert e.type is ServiceMisconfigured
+    assert str(e.value) == "The `minute` value must be greater or equal to 15."
+
+    # A minute on its own is the minute past the hour of an unconfigured service.
+    assert service_type.prepare_values({"minute": 0}, user) == {"minute": 0}
 
 
 @pytest.mark.django_db(transaction=True)
@@ -809,10 +906,11 @@ def test_periodic_service_prepare_values_validates_timezone(data_fixture):
     )
     assert prepared["timezone"] == "Europe/Amsterdam"
 
-    with pytest.raises(AutomationNodeMisconfiguredService) as e:
+    with pytest.raises(ServiceMisconfigured) as e:
         service_type.prepare_values(
             {"interval": PERIODIC_INTERVAL_WEEK, "timezone": "Middle/Earth"}, user
         )
+    assert e.type is ServiceMisconfigured
     assert str(e.value) == "The timezone `Middle/Earth` is not a valid timezone."
 
 

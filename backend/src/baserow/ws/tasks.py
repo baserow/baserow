@@ -838,6 +838,10 @@ def broadcast_application_created(
         [application.id], user_ids
     )
 
+    pending_counts_per_user = CoreHandler().get_pending_counts_per_user_and_application(
+        [users_in_workspace_id_map[user_id] for user_id in user_ids], [application]
+    )
+
     payload_map = {}
     for user_id in user_ids:
         user = users_in_workspace_id_map[user_id]
@@ -846,6 +850,9 @@ def broadcast_application_created(
             context={
                 "user": user,
                 "last_viewed_per_application": last_viewed_per_user.get(user_id, {}),
+                "pending_count_per_application": pending_counts_per_user.get(
+                    user_id, {}
+                ),
             },
         ).data
 
@@ -855,6 +862,51 @@ def broadcast_application_created(
         }
 
     broadcast_to_users_individual_payloads(payload_map, ignore_web_socket_id)
+
+
+@app.task(bind=True)
+def broadcast_application_pending_counts(
+    self, application_id: int, user_ids: list[int]
+) -> None:
+    """
+    Sends each user their own pending count of an application. This runs in a task so
+    that counting does not happen in the request that changed the count.
+
+    :param application_id: The id of the application whose counts changed.
+    :param user_ids: The ids of the users to send their count to.
+    """
+
+    from django.contrib.auth import get_user_model
+    from django.db import DEFAULT_DB_ALIAS
+
+    from baserow.config.db_routers import set_db_alias
+    from baserow.core.handler import CoreHandler
+    from baserow.core.models import Application
+
+    # This task is queued after commit and a lagging replica could miss that commit.
+    set_db_alias(DEFAULT_DB_ALIAS)
+
+    try:
+        application = Application.objects.get(id=application_id).specific
+    except Application.DoesNotExist:
+        return  # trashed in the meantime
+
+    users = list(get_user_model().objects.filter(id__in=user_ids))
+    pending_counts_per_user = CoreHandler().get_pending_counts_per_user_and_application(
+        users, [application]
+    )
+    broadcast_to_users_individual_payloads(
+        {
+            str(user.id): {
+                "type": "application_pending_count_updated",
+                "application_id": application.id,
+                "pending_count": pending_counts_per_user.get(user.id, {}).get(
+                    application.id, 0
+                ),
+            }
+            for user in users
+        }
+    )
 
 
 @app.task(bind=True)

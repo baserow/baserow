@@ -3,7 +3,21 @@
     <header
       class="layout__col-2-1 header header--space-between agent-application__header"
     >
-      <div class="agent-application__header-name">{{ agent.name }}</div>
+      <div class="agent-application__header-title">
+        <div class="agent-application__header-name">{{ agent.name }}</div>
+        <button
+          v-if="agent.pending_count > 0"
+          type="button"
+          class="agent-application__approvals"
+          @click="state.selectNextWaitingConversation"
+        >
+          <i
+            class="agent-application__approvals-icon iconoir-shield-check"
+            aria-hidden="true"
+          ></i>
+          {{ $t('agent.approvalsWaiting', { count: agent.pending_count }) }}
+        </button>
+      </div>
       <ButtonIcon
         v-if="state.canReadConfiguration"
         icon="iconoir-settings"
@@ -89,6 +103,13 @@
                 v-for="message in state.currentHistory.items"
                 :key="message.uuid"
                 :message="message"
+                :can-decide="state.canDecide"
+                :can-always-allow="state.canUpdateConfiguration"
+                :deciding="state.decidingReplies.has(message.uuid)"
+                @decide="
+                  (decisions, options) =>
+                    state.decideApprovals(message, decisions, options)
+                "
               />
             </template>
             <div v-else-if="showChatIntro" class="agent-chat__intro">
@@ -148,7 +169,12 @@
             class="agent-chat__composer"
             :model-value="state.currentDraft?.content || ''"
             :readonly="Boolean(state.currentDraft?.submission)"
-            :placeholder="$t('agent.messagePlaceholder', { name: agent.name })"
+            :disabled="state.waitingForApproval"
+            :placeholder="
+              state.waitingForApproval
+                ? $t('agent.approvalPlaceholder')
+                : $t('agent.messagePlaceholder', { name: agent.name })
+            "
             :described-by="
               sendErrorVisible ? 'agent-chat-send-error' : undefined
             "
@@ -160,6 +186,7 @@
             :running="replyRunning"
             :stopping="Boolean(state.replyFollower?.stopRequested)"
             :activity="composerActivity"
+            :activity-tone="state.waitingForApproval ? 'waiting' : 'default'"
             :error="sendErrorVisible ? $t(state.sendError) : ''"
             error-id="agent-chat-send-error"
             :send-label="$t(state.sendError ? 'action.retry' : 'agent.send')"
@@ -210,7 +237,10 @@ import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
 import { useAgentConfiguration } from '@baserow/modules/agent/composables/useAgentConfiguration'
 import { useAgentConversations } from '@baserow/modules/agent/composables/useAgentConversations'
-import { replyOutcome } from '@baserow/modules/agent/utils/replies'
+import {
+  AGENT_REPLY_STATUS,
+  replyOutcome,
+} from '@baserow/modules/agent/utils/replies'
 import {
   AGENT_READINESS,
   CONFIGURATION_ERROR,
@@ -263,8 +293,14 @@ const fieldLabels = {
 }
 const replyRunning = computed(() => Boolean(state.replyFollower))
 const composerActivity = computed(() => {
-  if (!replyRunning.value) return ''
-  // Calls run in call order, so the first unfinished one is executing.
+  if (!replyRunning.value) {
+    if (!state.waitingForApproval) return ''
+    const count = state.pendingApprovalCount
+    return count > 1
+      ? t('agent.waitingForApprovalSteps', { count })
+      : t('agent.waitingForApproval')
+  }
+  // Held calls are waiting; name the first call that can actually be running.
   const runningStep = state.replyFollower.view.steps?.find(
     (step) => step.status === STEP_STATUS.RUNNING
   )
@@ -307,6 +343,11 @@ watch(
       }
       announcement.value = t('agent.replying')
     } else if (previous?.finished) {
+      // A paused run ends completed; only its saved reply says it waits.
+      if (previous.view.message?.status === AGENT_REPLY_STATUS.WAITING) {
+        announcement.value = t('agent.waitingForApproval')
+        return
+      }
       const { note, error } = replyOutcome({
         status: previous.view.status,
         error_code: previous.view.errorCode,

@@ -148,4 +148,39 @@ export const registerRealtimeEvents = (realtime) => {
   ]) {
     realtime.registerEvent(event, refetchSelectedWorkflowHistory)
   }
+
+  // A node of a run still in progress started or stopped waiting. The run's
+  // entry is unchanged, only its node rows are refetched, and only when the
+  // panel already shows them. A run executes its nodes one after another, so
+  // its events come in pairs at most: a resume is followed within
+  // milliseconds by the suspend of the next wait. Several runs of the same
+  // workflow do execute at once though (e.g. one per created row), each with
+  // its own history id. Both cases are grouped into one refetch per run,
+  // like the run lifecycle events above.
+  const pendingHistoryIds = new Set()
+  const refreshNodeHistories = debounce(
+    (store, workflowId) => {
+      const workflowHistoryIds = [...pendingHistoryIds]
+      pendingHistoryIds.clear()
+      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+      if (selectedWorkflow?.id !== workflowId) return
+      for (const workflowHistoryId of workflowHistoryIds) {
+        store.dispatch('automationHistory/refreshNodeHistories', {
+          workflowHistoryId,
+        })
+      }
+    },
+    500,
+    { maxWait: 1000 }
+  )
+  realtime.registerEvent(
+    'automation_workflow_history_updated',
+    ({ store }, data) => {
+      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+      if (selectedWorkflow?.id === data.workflow_id) {
+        pendingHistoryIds.add(data.history_id)
+        refreshNodeHistories(store, data.workflow_id)
+      }
+    }
+  )
 }

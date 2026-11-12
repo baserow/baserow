@@ -36,8 +36,8 @@ from baserow_enterprise.assistant.tools.automation.tools import (
     list_workflows,
 )
 from baserow_enterprise.assistant.tools.builder.tools import (
-    list_actions,
     list_data_sources,
+    list_element_actions,
     list_elements,
     list_pages,
 )
@@ -562,7 +562,7 @@ def _check_list_actions(result: Any, seed: SeededWorkspace) -> None:
     assert_items(
         actions,
         {"id": int, "type": str, "element_id": int, "event": str},
-        "list_actions",
+        "list_element_actions",
     )
     assert {a["type"] for a in actions} == {"notification", "create_row"}
     create_row = next(a for a in actions if a["type"] == "create_row")
@@ -570,7 +570,7 @@ def _check_list_actions(result: Any, seed: SeededWorkspace) -> None:
     assert_items(
         create_row["field_mappings"],
         {"field_id": int, "field_name": str, "value": str},
-        "list_actions.field_mappings",
+        "list_element_actions.field_mappings",
     )
 
 
@@ -671,8 +671,8 @@ READ_TOOL_CASES: list[ReadToolCase] = [
         _check_list_elements,
     ),
     ReadToolCase(
-        "list_actions",
-        lambda ctx, s: list_actions(ctx, page_id=s.page.id, thought="contract"),
+        "list_element_actions",
+        lambda ctx, s: list_element_actions(ctx, page_id=s.page.id, thought="contract"),
         _check_list_actions,
     ),
 ]
@@ -741,9 +741,9 @@ EXEMPT_TOOLS: dict[str, str] = {
     "update_element": _WRITE,
     "update_element_style": _WRITE,
     "move_elements": _WRITE,
-    "create_actions": _WRITE,
-    "add_action_field_mapping": _WRITE,
-    "update_action": _WRITE,
+    "create_element_actions": _WRITE,
+    "add_element_action_field_mapping": _WRITE,
+    "update_element_action": _WRITE,
     "setup_page": _WRITE,
     "setup_user_source": _WRITE,
     "set_theme": _WRITE,

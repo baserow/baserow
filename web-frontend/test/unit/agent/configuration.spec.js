@@ -593,7 +593,7 @@ describe('Agent configuration', () => {
     mockConfiguration(testApp, incompleteConfiguration('model_identifier'))
     const wrapper = await mount()
 
-    const [instructionsSection, , settingsSection] = wrapper.findAll(
+    const [instructionsSection, , , settingsSection] = wrapper.findAll(
       '.menu-list__item-button'
     )
 
@@ -1330,16 +1330,46 @@ describe('Agent configuration', () => {
     )
   })
 
-  const withTools = (allowedTools, runAs = investor) =>
+  const withTools = (
+    allowedTools,
+    { askFirstTools = [], runAs = investor } = {}
+  ) =>
     completeConfiguration({
       run_as: runAs,
       allowed_tools: allowedTools,
+      ask_first_tools: askFirstTools,
       available_tools: [
         { name: 'list_tables', group: 'database', changes_data: false },
         { name: 'create_rows', group: 'database', changes_data: true },
         { name: 'delete_rows', group: 'database', changes_data: true },
       ],
     })
+  const inModal = (selector, text) =>
+    [...document.body.querySelectorAll(selector)].find((element) =>
+      element.textContent.includes(text)
+    )
+  const modalInputs = (column) => [
+    ...document.body.querySelectorAll(
+      `.agent-tool-permissions__${column} input`
+    ),
+  ]
+  const toolInput = (tool, column) =>
+    inModal('.agent-tool-permissions__tool', tool).querySelector(
+      `.agent-tool-permissions__${column} input`
+    )
+  const toolsSummary = () =>
+    document.body
+      .querySelector('.agent-tool-permissions__summary')
+      .textContent.trim()
+  const clickDone = () =>
+    inModal(
+      '.agent-tool-permissions__actions button',
+      'agent.toolsDone'
+    ).click()
+  const askSwitch = (wrapper) =>
+    wrapper.get('.agent-workspace-tools__ask [role="checkbox"]')
+  const groupCount = (wrapper) =>
+    wrapper.get('.agent-workspace-tools__group-count').text()
 
   test.each(['Enter', ' '])(
     'enables workspace tools with %s and opens named tool permissions',
@@ -1348,7 +1378,9 @@ describe('Agent configuration', () => {
       mockSaves(
         testApp,
         withTools(['list_tables']),
-        withTools(['list_tables', 'create_rows'])
+        withTools(['list_tables', 'create_rows'], {
+          askFirstTools: ['create_rows'],
+        })
       )
       const wrapper = await mount()
       await openSection(wrapper, 'agent.workspaceAccess')
@@ -1369,34 +1401,145 @@ describe('Agent configuration', () => {
       expect(document.activeElement).toBe(group.element)
       await group.trigger('click')
       await flushPromises()
-      const inputs = [
-        ...document.body.querySelectorAll(
-          '.agent-tool-permissions__tool input'
-        ),
-      ]
-      expect(inputs.map((input) => input.labels[0].textContent.trim())).toEqual(
-        ['agent.toolListTables', 'agent.toolCreateRows', 'agent.toolDeleteRows']
+      const label = (input) => input.labels[0].textContent.trim()
+      expect(modalInputs('allow').map(label)).toEqual([
+        'agent.toolListTables',
+        'agent.toolCreateRows',
+        'agent.toolDeleteRows',
+      ])
+      expect(modalInputs('ask-first').map(label)).toEqual(
+        Array(3).fill('agent.toolAskFirstLabel')
       )
-      inputs[1].click()
-      ;[
-        ...document.body.querySelectorAll(
-          '.agent-tool-permissions__actions button'
-        ),
-      ]
-        .find((button) => button.textContent.includes('agent.toolsDone'))
-        .click()
+      modalInputs('allow')[1].click()
+      clickDone()
       await flushPromises()
 
       expect(savedValues(testApp)).toEqual([
-        { allowed_tools: ['list_tables'] },
-        { allowed_tools: ['list_tables', 'create_rows'] },
+        { allowed_tools: ['list_tables'], ask_first_tools: [] },
+        {
+          allowed_tools: ['list_tables', 'create_rows'],
+          ask_first_tools: ['create_rows'],
+        },
       ])
     }
   )
 
+  test('enables database listing and asks before newly allowed database changes', async () => {
+    const availableTools = [
+      { name: 'list_databases', group: 'database', changes_data: false },
+      { name: 'create_database', group: 'database', changes_data: true },
+      { name: 'update_database', group: 'database', changes_data: true },
+    ]
+    const configuration = (allowedTools, askFirstTools = []) =>
+      completeConfiguration({
+        run_as: investor,
+        available_tools: availableTools,
+        allowed_tools: allowedTools,
+        ask_first_tools: askFirstTools,
+      })
+    mockConfiguration(testApp, configuration([]))
+    mockSaves(
+      testApp,
+      configuration(['list_databases']),
+      configuration(
+        ['list_databases', 'create_database', 'update_database'],
+        ['create_database', 'update_database']
+      )
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+
+    await tools.get('[role="switch"]').trigger('click')
+    await flushPromises()
+    await tools.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    expect(toolInput('agent.toolListDatabases', 'allow').checked).toBe(true)
+    expect(toolInput('agent.toolListDatabases', 'ask-first').checked).toBe(
+      false
+    )
+    for (const name of [
+      'agent.toolCreateDatabase',
+      'agent.toolUpdateDatabase',
+    ]) {
+      expect(toolInput(name, 'allow').checked).toBe(false)
+      toolInput(name, 'allow').click()
+      await flushPromises()
+      expect(toolInput(name, 'ask-first').checked).toBe(true)
+    }
+    clickDone()
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: ['list_databases'], ask_first_tools: [] },
+      {
+        allowed_tools: ['list_databases', 'create_database', 'update_database'],
+        ask_first_tools: ['create_database', 'update_database'],
+      },
+    ])
+  })
+
+  test('saves a newly allowed change tool without Ask first once unchecked', async () => {
+    mockConfiguration(testApp, withTools(['list_tables']))
+    mockSaves(testApp, withTools(['list_tables', 'create_rows']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await wrapper.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+
+    toolInput('agent.toolCreateRows', 'allow').click()
+    await flushPromises()
+    const askFirst = toolInput('agent.toolCreateRows', 'ask-first')
+    expect([askFirst.checked, askFirst.disabled]).toEqual([true, false])
+    expect(toolInput('agent.toolDeleteRows', 'ask-first').disabled).toBe(true)
+    expect(toolsSummary()).toBe('agent.toolsAskFirstSummary - 1')
+
+    askFirst.click()
+    await flushPromises()
+    expect(toolsSummary()).toBe('agent.toolsAskFirstSummary - 0')
+    clickDone()
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: ['list_tables', 'create_rows'], ask_first_tools: [] },
+    ])
+  })
+
+  test('keeps a pending tool choice whole when another member changes tools', async () => {
+    testApp.dontFailOnErrorResponses()
+    mockConfiguration(testApp, withTools(['list_tables']))
+    mockSaves(testApp, [500, {}], withTools(['list_tables', 'create_rows']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    await wrapper.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    toolInput('agent.toolCreateRows', 'allow').click()
+    await flushPromises()
+    toolInput('agent.toolCreateRows', 'ask-first').click()
+    clickDone()
+    await flushPromises()
+    mockConfiguration(
+      testApp,
+      withTools(['list_tables', 'delete_rows'], {
+        askFirstTools: ['delete_rows'],
+      })
+    )
+
+    await remoteUpdate(testApp, agent)
+    await wrapper
+      .get('.agent-configuration__save-status button')
+      .trigger('click')
+    await flushPromises()
+
+    expect(savedValues(testApp).at(-1)).toEqual({
+      allowed_tools: ['list_tables', 'create_rows'],
+      ask_first_tools: [],
+    })
+  })
+
   test('keeps workspace tool controls inactive for a read-only member', async () => {
     allowed.value = (operation) => operation !== 'application.update'
-    mockConfiguration(testApp, withTools(['list_tables']))
+    mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     const tools = wrapper.get('.agent-workspace-tools')
@@ -1406,9 +1549,11 @@ describe('Agent configuration', () => {
     expect(
       tools.get('button.agent-workspace-tools__group').element.disabled
     ).toBe(true)
+    expect(askSwitch(wrapper).attributes('aria-disabled')).toBe('true')
 
     await toggle.trigger('keydown', { key: 'Enter' })
     await toggle.trigger('keydown', { key: ' ' })
+    await askSwitch(wrapper).trigger('keydown', { key: 'Enter' })
     await tools.get('.segment-control__button').trigger('click')
     await flushPromises()
 
@@ -1419,7 +1564,7 @@ describe('Agent configuration', () => {
   test('clears workspace tools when no workspace access is selected', async () => {
     testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
     mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
-    mockSaves(testApp, withTools([], null))
+    mockSaves(testApp, withTools([], { runAs: null }))
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     await pickRunAs(wrapper, 'agent.noWorkspaceAccess')
@@ -1439,6 +1584,7 @@ describe('Agent configuration', () => {
         run_as_subject_type: null,
         run_as_subject_id: null,
         allowed_tools: [],
+        ask_first_tools: [],
       },
     ])
     await wrapper.get('button[aria-label="action.back"]').trigger('click')
@@ -1448,7 +1594,7 @@ describe('Agent configuration', () => {
   })
 
   test('requires an identity before tools can be enabled and keeps them off after selection', async () => {
-    mockConfiguration(testApp, withTools([], null))
+    mockConfiguration(testApp, withTools([], { runAs: null }))
     testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
       200,
       page([
@@ -1494,7 +1640,7 @@ describe('Agent configuration', () => {
 
   test('keeps explicit tool activation while the identity selection is still saving', async () => {
     const patch = deferredReply()
-    mockConfiguration(testApp, withTools([], null))
+    mockConfiguration(testApp, withTools([], { runAs: null }))
     testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
       200,
       page([
@@ -1527,12 +1673,15 @@ describe('Agent configuration', () => {
     expect(toggle.attributes('aria-checked')).toBe('true')
     expect(savedValues(testApp)).toEqual([
       { run_as_subject_type: 'core.Agent', run_as_subject_id: 7 },
-      { allowed_tools: ['list_tables'] },
+      { allowed_tools: ['list_tables'], ask_first_tools: [] },
     ])
   })
 
   test('does not reactivate legacy tool settings when selecting an identity from no workspace access', async () => {
-    mockConfiguration(testApp, withTools(['list_tables', 'create_rows'], null))
+    mockConfiguration(
+      testApp,
+      withTools(['list_tables', 'create_rows'], { runAs: null })
+    )
     testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
       200,
       page([
@@ -1563,6 +1712,7 @@ describe('Agent configuration', () => {
         run_as_subject_type: 'core.Agent',
         run_as_subject_id: 7,
         allowed_tools: [],
+        ask_first_tools: [],
       },
     ])
   })
@@ -1583,7 +1733,7 @@ describe('Agent configuration', () => {
     async (_, identity, errorMessage) => {
       mockConfiguration(
         testApp,
-        withTools(['list_tables', 'create_rows'], identity)
+        withTools(['list_tables', 'create_rows'], { runAs: identity })
       )
       const wrapper = await mount()
       expect(
@@ -1627,7 +1777,7 @@ describe('Agent configuration', () => {
   test('restores saved tools and clears the section error when the identity becomes available again', async () => {
     mockConfiguration(
       testApp,
-      withTools(['create_rows'], { ...investor, trashed: true })
+      withTools(['create_rows'], { runAs: { ...investor, trashed: true } })
     )
     const wrapper = await mount()
     expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(true)
@@ -1652,7 +1802,12 @@ describe('Agent configuration', () => {
   })
 
   test('disables an open tool permissions modal when edit access is revoked', async () => {
-    mockConfiguration(testApp, withTools(['list_tables']))
+    mockConfiguration(
+      testApp,
+      withTools(['list_tables', 'create_rows'], {
+        askFirstTools: ['create_rows'],
+      })
+    )
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     await wrapper.get('.agent-workspace-tools__group').trigger('click')
@@ -1661,16 +1816,13 @@ describe('Agent configuration', () => {
     allowed.value = (operation) => operation !== 'application.update'
     await flushPromises()
 
-    const inputs = [
-      ...document.body.querySelectorAll('.agent-tool-permissions__tool input'),
-    ]
-    expect(inputs).toHaveLength(3)
+    const inputs = [...modalInputs('allow'), ...modalInputs('ask-first')]
+    expect(inputs).toHaveLength(6)
     expect(inputs.every((input) => input.disabled)).toBe(true)
-    const done = [
-      ...document.body.querySelectorAll(
-        '.agent-tool-permissions__actions button'
-      ),
-    ].find((button) => button.textContent.includes('agent.toolsDone'))
+    const done = inModal(
+      '.agent-tool-permissions__actions button',
+      'agent.toolsDone'
+    )
     expect(done.disabled).toBe(true)
     done.click()
     expect(savedValues(testApp)).toEqual([])
@@ -1678,10 +1830,10 @@ describe('Agent configuration', () => {
 
   test('allows workspace tools with presets or one by one', async () => {
     const everything = ['list_tables', 'create_rows', 'delete_rows']
-    mockConfiguration(testApp, withTools(['list_tables']))
+    mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
     mockSaves(
       testApp,
-      withTools(everything),
+      withTools(everything, { askFirstTools: ['delete_rows'] }),
       withTools(['list_tables', 'create_rows']),
       withTools([])
     )
@@ -1689,12 +1841,8 @@ describe('Agent configuration', () => {
     await openSection(wrapper, 'agent.workspaceAccess')
     await flushPromises()
     const tools = () => wrapper.get('.agent-workspace-tools')
-    const inModal = (selector, text) =>
-      [...document.body.querySelectorAll(selector)].find((element) =>
-        element.textContent.includes(text)
-      )
     expect(tools().get('.segment-control__button--active').text()).toBe(
-      'agent.toolsReadOnly'
+      'agent.toolsCustom'
     )
 
     await tools()
@@ -1704,21 +1852,16 @@ describe('Agent configuration', () => {
     await flushPromises()
     await tools().get('.agent-workspace-tools__group').trigger('click')
     await flushPromises()
-    inModal('.agent-tool-permissions__tool', 'agent.toolDeleteRows')
-      .querySelector('input')
-      .click()
-    inModal(
-      '.agent-tool-permissions__actions button',
-      'agent.toolsDone'
-    ).click()
+    toolInput('agent.toolDeleteRows', 'allow').click()
+    clickDone()
     await flushPromises()
     await tools().get('.switch').trigger('click')
     await flushPromises()
 
     expect(savedValues(testApp)).toEqual([
-      { allowed_tools: everything },
-      { allowed_tools: ['list_tables', 'create_rows'] },
-      { allowed_tools: [] },
+      { allowed_tools: everything, ask_first_tools: ['delete_rows'] },
+      { allowed_tools: ['list_tables', 'create_rows'], ask_first_tools: [] },
+      { allowed_tools: [], ask_first_tools: [] },
     ])
     expect(wrapper.find('.agent-workspace-tools__group').exists()).toBe(false)
   })
@@ -1803,6 +1946,58 @@ describe('Agent configuration', () => {
     await flushPromises()
 
     expect(warning().text()).toBe('agent.reasoningEffortAdjusted')
+  })
+
+  test('asks before every allowed change or none, keeping read tools as they are', async () => {
+    const everything = ['list_tables', 'create_rows', 'delete_rows']
+    mockConfiguration(
+      testApp,
+      withTools(everything, { askFirstTools: ['list_tables', 'create_rows'] })
+    )
+    mockSaves(
+      testApp,
+      withTools(everything, { askFirstTools: everything }),
+      withTools(everything, { askFirstTools: ['list_tables'] })
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    expect(askSwitch(wrapper).attributes('aria-checked')).toBe('mixed')
+    expect(askSwitch(wrapper).classes()).toContain('switch--indeterminate')
+    expect(groupCount(wrapper)).toBe(
+      'agent.toolsSummary • agent.toolsAskCount - 2'
+    )
+
+    await askSwitch(wrapper).trigger('click')
+    await flushPromises()
+    expect(askSwitch(wrapper).attributes('aria-checked')).toBe('true')
+    await askSwitch(wrapper).trigger('keydown', { key: ' ' })
+    await flushPromises()
+
+    expect(askSwitch(wrapper).attributes('aria-checked')).toBe('false')
+    expect(groupCount(wrapper)).toBe(
+      'agent.toolsSummary • agent.toolsAskCount - 1'
+    )
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: everything, ask_first_tools: everything },
+      { allowed_tools: everything, ask_first_tools: ['list_tables'] },
+    ])
+  })
+
+  test('locks the ask switch while no change tool is allowed', async () => {
+    mockConfiguration(testApp, withTools(['list_tables']))
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const ask = askSwitch(wrapper)
+    expect(ask.attributes('aria-checked')).toBe('false')
+    expect(ask.attributes('aria-disabled')).toBe('true')
+    expect(ask.element.tabIndex).toBe(-1)
+
+    await ask.trigger('click')
+    await ask.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(groupCount(wrapper)).toBe('agent.toolsSummary')
+    expect(savedValues(testApp)).toEqual([])
   })
 
   test('renames the Agent through the application with the trimmed name', async () => {
@@ -1939,7 +2134,7 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(3)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(4)
   })
 
   test('warns when model availability cannot be loaded until retry', async () => {

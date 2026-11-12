@@ -1,6 +1,17 @@
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
+from baserow.contrib.builder.tools import (
+    actions,
+    applications,
+    data_sources,
+    elements,
+    pages,
+)
+from baserow.contrib.builder.tools.types import DataSourceCreate, ElementItemCreate
 from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.groups import (
@@ -14,14 +25,6 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolInputError, tool_error_message
 from baserow_enterprise.assistant.tools.builder import tools as kuma
 from baserow_enterprise.assistant.tools.core import tools as kuma_core
-from baserow_enterprise.builder.tools import (
-    actions,
-    applications,
-    data_sources,
-    elements,
-    pages,
-)
-from baserow_enterprise.builder.tools.types import DataSourceCreate, ElementItemCreate
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 READ_TOOLS = [
@@ -29,7 +32,7 @@ READ_TOOLS = [
     "list_pages",
     "list_data_sources",
     "list_elements",
-    "list_actions",
+    "list_element_actions",
 ]
 
 
@@ -87,8 +90,30 @@ def test_list_elements_includes_shared_elements(builder_ctx):
 
 
 @pytest.mark.django_db
+def test_list_elements_query_count_does_not_grow_with_the_elements(
+    data_fixture, builder_ctx
+):
+    def count_queries():
+        # The first call after a change fills the caches.
+        elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
+        with CaptureQueriesContext(connection) as queries:
+            elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
+        return len(queries)
+
+    data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+    few = count_queries()
+    for _ in range(20):
+        data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+        data_fixture.create_builder_heading_element(
+            page=builder_ctx["builder"].shared_page
+        )
+
+    assert count_queries() == few
+
+
+@pytest.mark.django_db
 def test_list_actions(builder_ctx):
-    result = actions.list_actions(builder_ctx["ctx"], builder_ctx["page"].id)
+    result = actions.list_element_actions(builder_ctx["ctx"], builder_ctx["page"].id)
 
     assert [a["id"] for a in result["workflow_actions"]] == [builder_ctx["action"].id]
     assert result["workflow_actions"][0]["element_id"] == builder_ctx["button"].id
@@ -110,8 +135,8 @@ def test_kuma_tools_return_what_the_shared_tools_return(builder_ctx):
     assert kuma.list_elements(kuma_ctx, page_id, "t") == (
         elements.list_elements(ctx, page_id)
     )
-    assert kuma.list_actions(kuma_ctx, page_id, "t") == (
-        actions.list_actions(ctx, page_id)
+    assert kuma.list_element_actions(kuma_ctx, page_id, "t") == (
+        actions.list_element_actions(ctx, page_id)
     )
     assert kuma_core.list_builders(kuma_ctx, ["application"], "t") == {
         "application": [
@@ -136,7 +161,7 @@ def test_read_tools_hide_other_workspaces(data_fixture, builder_ctx):
         (lambda: pages.list_pages(ctx, builder_id), ApplicationDoesNotExist),
         (lambda: data_sources.list_data_sources(ctx, page_id), PageDoesNotExist),
         (lambda: elements.list_elements(ctx, page_id), PageDoesNotExist),
-        (lambda: actions.list_actions(ctx, page_id), PageDoesNotExist),
+        (lambda: actions.list_element_actions(ctx, page_id), PageDoesNotExist),
     ]
     for call, exception in calls:
         with pytest.raises(exception) as error:
@@ -170,7 +195,7 @@ def test_kuma_tools_explain_a_missing_builder_or_page(data_fixture, builder_ctx)
         f"Application with ID {builder_id} not found in this workspace. "
         "Use list_builders to find valid application IDs."
     )
-    for tool in (kuma.list_data_sources, kuma.list_elements, kuma.list_actions):
+    for tool in (kuma.list_data_sources, kuma.list_elements, kuma.list_element_actions):
         with pytest.raises(ToolInputError) as error:
             tool(kuma_ctx, page_id, "t")
         assert str(error.value) == (

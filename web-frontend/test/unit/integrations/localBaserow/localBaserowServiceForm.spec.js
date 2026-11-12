@@ -62,4 +62,60 @@ describe('LocalBaserowServiceForm', () => {
     expect(selector.exists()).toBe(true)
     expect(selector.props('databases')).toHaveLength(1)
   })
+
+  test('choosing another table clears the view of the previous table', async () => {
+    const wrapper = await mountForm({
+      databases: [
+        {
+          id: 100,
+          name: 'Customers',
+          tables: [
+            { id: 1, name: 'Contacts' },
+            { id: 2, name: 'Companies' },
+          ],
+          views: [{ id: 10, table_id: 1, name: 'Active contacts' }],
+        },
+      ],
+      defaultValues: { table_id: 1, view_id: 10 },
+    })
+
+    await wrapper
+      .findComponent({ name: 'LocalBaserowTableSelector' })
+      .vm.$emit('update:modelValue', 2)
+    await wrapper.vm.$nextTick()
+
+    const emitted = wrapper.emitted('values-changed')
+    expect(emitted[emitted.length - 1][0]).toMatchObject({
+      table_id: 2,
+      view_id: null,
+    })
+  })
+
+  test('resetting to restored values keeps their view', async () => {
+    const databases = [
+      {
+        id: 100,
+        name: 'Customers',
+        tables: [
+          { id: 1, name: 'Contacts' },
+          { id: 2, name: 'Companies' },
+        ],
+        views: [
+          { id: 10, table_id: 1, name: 'Active contacts' },
+          { id: 20, table_id: 2, name: 'Big companies' },
+        ],
+      },
+    ]
+    const wrapper = await mountForm({
+      databases,
+      defaultValues: { table_id: 1, view_id: 10 },
+    })
+
+    // Like after an undo, which restores another table and its view.
+    await wrapper.setProps({ defaultValues: { table_id: 2, view_id: 20 } })
+    await wrapper.vm.reset()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.vm.values).toMatchObject({ table_id: 2, view_id: 20 })
+  })
 })

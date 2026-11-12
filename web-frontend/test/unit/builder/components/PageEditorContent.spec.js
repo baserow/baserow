@@ -1,5 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { nextTick, reactive } from 'vue'
+import { vi } from 'vitest'
 
 import PageEditorContent from '@baserow/modules/builder/components/PageEditorContent'
 
@@ -77,6 +78,49 @@ describe('PageEditorContent', () => {
     expect(wrapper.find('[data-test-id="page-preview"]').element).toBe(
       preview.element
     )
+    wrapper.unmount()
+  })
+
+  test('fetches the content again when a data source changes, not when it is tested', async () => {
+    const dataSource = {
+      id: 1,
+      type: 'http_get',
+      url: { formula: "'https://a.test'" },
+      schema: null,
+      sample_data: null,
+    }
+    const page = reactive({
+      id: 1,
+      _: { dataSourceLoading: false, dataSourceFetched: true },
+      dataSources: [dataSource],
+    })
+    const fetchAction = 'dataSourceContent/debouncedFetchPageDataSourceContent'
+    const { $store } = useNuxtApp()
+    const originalDispatch = $store.dispatch.bind($store)
+    // The fetch itself is left out: it would send a request once the test is
+    // over.
+    const dispatch = vi
+      .spyOn($store, 'dispatch')
+      .mockImplementation((action, ...args) =>
+        action === fetchAction ? undefined : originalDispatch(action, ...args)
+      )
+    const fetchCalls = () =>
+      dispatch.mock.calls.filter(([action]) => action === fetchAction).length
+
+    const wrapper = await mountEditor(page)
+    const callsAfterMount = fetchCalls()
+
+    // A test stores the sample data and the schema built from it.
+    page.dataSources[0].sample_data = { data: { name: 'Ada' } }
+    page.dataSources[0].schema = { type: 'object', properties: {} }
+    await nextTick()
+    expect(fetchCalls()).toBe(callsAfterMount)
+
+    page.dataSources[0].url.formula = "'https://b.test'"
+    await nextTick()
+    expect(fetchCalls()).toBe(callsAfterMount + 1)
+
+    dispatch.mockRestore()
     wrapper.unmount()
   })
 })

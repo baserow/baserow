@@ -1,7 +1,4 @@
 <template>
-  <!-- Keyed by the phase, so that the toast of a failed install closes itself like
-  the other error toasts, counted from when the failure shows. Not rendered while
-  the sidebar shows the progress. -->
   <Toast
     v-if="!hiddenBySidebar"
     :key="phase"
@@ -144,9 +141,8 @@ function remove() {
   store.dispatch('toast/remove', props.toast)
 }
 
-// A running install and the result with its link stay until dismissed.
 function autoClose() {
-  if (phase.value === 'failed') {
+  if (phase.value !== 'running') {
     remove()
   }
 }

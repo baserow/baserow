@@ -3,6 +3,7 @@ import { Registerable } from '@baserow/modules/core/registry'
 import AgentInstructionsSection from '@baserow/modules/agent/components/configuration/AgentInstructionsSection'
 import AgentSettingsSection from '@baserow/modules/agent/components/configuration/AgentSettingsSection'
 import AgentWorkspaceAccessSection from '@baserow/modules/agent/components/configuration/AgentWorkspaceAccessSection'
+import AgentConnectedAppsSection from '@baserow/modules/agent/components/configuration/AgentConnectedAppsSection'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 import {
   CONFIGURATION_ERROR,
@@ -12,6 +13,7 @@ import {
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)
 const WorkspaceAccessSection = markRaw(AgentWorkspaceAccessSection)
+const ConnectedAppsSection = markRaw(AgentConnectedAppsSection)
 
 /**
  * A section in the Agent configuration sidebar. Plugins can register additional
@@ -129,6 +131,32 @@ export class WorkspaceAccessAgentConfigurationSectionType extends AgentConfigura
 
   getOrder() {
     return 30
+  }
+}
+
+export class ConnectedAppsAgentConfigurationSectionType extends AgentConfigurationSectionType {
+  static getType() {
+    return 'connected_apps'
+  }
+
+  get name() {
+    return this.$t('agent.connectedApps')
+  }
+
+  get description() {
+    return this.$t('agent.connectedAppsDescription')
+  }
+
+  get icon() {
+    return 'iconoir-network-right'
+  }
+
+  get component() {
+    return ConnectedAppsSection
+  }
+
+  getOrder() {
+    return 40
   }
 }
 

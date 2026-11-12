@@ -61,7 +61,7 @@ describe('WorkflowAction', () => {
       },
       icon: 'iconoir-page',
       label: 'Read xls file',
-      returnsList: true,
+      returnsList: () => true,
       getType() {
         return 'xls_file_reader'
       },

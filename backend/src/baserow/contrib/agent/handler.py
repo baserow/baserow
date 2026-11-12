@@ -1,19 +1,52 @@
+from collections import defaultdict
+from collections.abc import Iterable
+from typing import Any
 from uuid import UUID, uuid4
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, IntegrityError, transaction
-from django.db.models import Prefetch, QuerySet
+from django.db.models import (
+    Case,
+    Count,
+    Max,
+    Prefetch,
+    QuerySet,
+    Value,
+    When,
+    prefetch_related_objects,
+)
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from loguru import logger
-from pydantic_ai import WebSearchTool
+from pydantic_ai import (
+    Conversation,
+    ConversationTypeAdapter,
+    ToolApproved,
+    ToolDenied,
+    WebSearchTool,
+)
 
+from baserow.contrib.integrations.mcp.exceptions import MCPServerNotConnected
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler
+from baserow.contrib.integrations.mcp.models import (
+    MCPAuthType,
+    MCPServerIntegration,
+    MCPServerTool,
+)
+from baserow.contrib.integrations.mcp.toolset import MCPServerSnapshot
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.ai_provider.resolution import ScopedAIProviderState
-from baserow.core.chat_runs.constants import ChatRunErrorCode
+from baserow.core.chat_runs.constants import ChatRunErrorCode, ChatRunStepStatus
 from baserow.core.chat_runs.handler import ChatRunHandler
-from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRunStatus
+from baserow.core.chat_runs.models import (
+    ACTIVE_CHAT_RUN_STATUSES,
+    ChatRun,
+    ChatRunStatus,
+)
+from baserow.core.chat_runs.steps import end_waiting_steps, stop_running_steps
+from baserow.core.chat_runs.types import ChatRunStep
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
@@ -27,7 +60,11 @@ from baserow.core.utils import extract_allowed, remove_unstorable_characters
 
 from .constants import (
     AGENT_RUN_TYPE,
+    DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
+    MCP_TOOL_CHANGED_CALL_NOTE,
+    REJECTED_TOOL_CALL_NOTE,
+    RUN_AS_LOST_TOOL_CALL_NOTE,
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
     AgentReadinessState,
@@ -37,17 +74,30 @@ from .exceptions import (
     AgentConversationDoesNotExist,
     AgentMessageConflict,
     AgentRunAsSubjectDoesNotExist,
+    AgentToolApprovalNotPending,
 )
-from .models import AgentAllowedTool, AgentApplication, AgentConversation, AgentMessage
+from .models import (
+    AgentAllowedTool,
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+    AgentReplyStatus,
+    AgentReplyTranscript,
+    AgentToolApproval,
+)
 from .registries import agent_tool_type_registry
 from .types import (
     AgentConfiguration,
     AgentConfigurationUpdated,
     AgentConversationUpdated,
     AgentMessageCreated,
+    AgentPausedRun,
     AgentReplyRequest,
     AgentReplyResult,
+    AgentReplyResume,
     AgentRunAsResolution,
+    AgentToolConfiguration,
+    AgentToolDecision,
 )
 
 
@@ -106,8 +156,10 @@ class AgentHandler:
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
-        allowed_tools = self.get_allowed_tool_names(agent)
-        with_tools = run_as.status == AgentRunAsState.ACTIVE and bool(allowed_tools)
+        tools = self.get_tool_configuration(agent)
+        with_tools = (
+            run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"])
+        ) or self.has_mcp_tools(agent)
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
             readiness=readiness,
@@ -119,7 +171,7 @@ class AgentHandler:
                 None if errors else self.get_applied_reasoning_effort(agent)
             ),
             run_as=run_as,
-            allowed_tools=allowed_tools,
+            **tools,
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
             web_search_blocked_by_tools=web_search_tool is None
@@ -165,7 +217,8 @@ class AgentHandler:
         Find the web search of the Agent's model, whether or not it's turned on.
 
         :param agent: The Agent.
-        :param with_function_tools: Whether the reply also offers workspace tools.
+        :param with_function_tools: Whether the reply also offers workspace or MCP
+            tools.
         :return: The tool, or None when the model can't search the web.
         """
 
@@ -218,33 +271,88 @@ class AgentHandler:
             readiness = AgentReadinessState.READY
         return readiness, errors
 
-    def get_allowed_tool_names(self, agent: AgentApplication) -> list[str]:
+    def get_tool_configuration(self, agent: AgentApplication) -> AgentToolConfiguration:
         """
-        Return configured tools, excluding intentionally unset workspace access.
+        Return the tools the Agent may call and those that wait for the owner's
+        approval, leaving out tools no longer registered.
 
         :param agent: The Agent to read.
-        :return: Registered tool names in registry order. An unavailable selected
-            identity retains its settings, but no selected identity means tools are off.
+        :return: The allowed tool names and the ask first tool names, in registry
+            order. An unavailable selected identity retains its settings, but no
+            selected identity means tools are off.
         """
 
         if not agent.run_as_subject_type or not agent.run_as_subject_id:
-            return []
-        names = set(agent.allowed_tools.values_list("name", flat=True))
-        return [name for name in agent_tool_type_registry.get_types() if name in names]
+            return {"allowed_tools": [], "ask_first_tools": []}
+        ask_first = dict(agent.allowed_tools.values_list("name", "ask_first"))
+        allowed_tools = [
+            name for name in agent_tool_type_registry.get_types() if name in ask_first
+        ]
+        return {
+            "allowed_tools": allowed_tools,
+            "ask_first_tools": [name for name in allowed_tools if ask_first[name]],
+        }
 
-    def set_allowed_tools(self, agent: AgentApplication, names: list[str]) -> None:
+    def set_allowed_tools(
+        self,
+        agent: AgentApplication,
+        names: list[str],
+        ask_first_names: list[str] | None = None,
+    ) -> None:
         """
         Let the Agent call exactly these tools.
 
         :param agent: The Agent to update.
         :param names: Registered tool names.
+        :param ask_first_names: The allowed tools that wait for the owner's
+            approval. When None, tools that stay allowed keep their setting and
+            newly allowed tools ask first when they change data.
         """
 
         agent.allowed_tools.exclude(name__in=names).delete()
         AgentAllowedTool.objects.bulk_create(
-            [AgentAllowedTool(agent=agent, name=name) for name in names],
+            [
+                AgentAllowedTool(
+                    agent=agent,
+                    name=name,
+                    ask_first=agent_tool_type_registry.get(name).changes_data,
+                )
+                for name in names
+            ],
             ignore_conflicts=True,
         )
+        if ask_first_names is not None:
+            # A Q over an empty list makes Django skip the whole update.
+            agent.allowed_tools.update(
+                ask_first=Case(
+                    When(name__in=ask_first_names, then=Value(True)),
+                    default=Value(False),
+                )
+            )
+
+    def stop_asking_first(
+        self, agent: AgentApplication, tool_names: Iterable[str]
+    ) -> list[str]:
+        """
+        Let allowed tools run without waiting for the owner's approval.
+
+        :param agent: The Agent, locked like for a configuration update.
+        :param tool_names: The tools to stop asking first. Those that aren't allowed
+            or don't ask first are skipped.
+        :return: The names of the tools that stopped asking first, in registry
+            order.
+        """
+
+        requested = set(tool_names)
+        stopped = [
+            name
+            for name in self.get_tool_configuration(agent)["ask_first_tools"]
+            if name in requested
+        ]
+        if stopped:
+            agent.allowed_tools.filter(name__in=stopped).update(ask_first=False)
+            agent.save(update_fields=["updated_on"])
+        return stopped
 
     def get_run_as_subject(
         self,
@@ -339,12 +447,14 @@ class AgentHandler:
         Save part of the configuration, accepting blank values as a draft.
 
         :param agent: The Agent to update.
-        :param values: The configuration values to set, by field name, and
-            ``allowed_tools``, the names of all the tools the Agent may call. The caller
-            must validate their types, lengths and tool names beforehand, and pass
-            the run-as type and id together. Clearing the identity clears tools;
-            without a selected identity, submitted tools remain off. Unknown field
-            names are ignored.
+        :param values: The configuration values to set, by field name,
+            ``allowed_tools``, the names of all the tools the Agent may call, and
+            ``ask_first_tools``, those of them that wait for the owner's approval.
+            The caller must validate their types, lengths and tool names
+            beforehand, and pass the run-as type and id together and
+            ``ask_first_tools`` only with ``allowed_tools``. Clearing the identity
+            clears tools; without a selected identity, submitted tools remain off.
+            Unknown field names are ignored.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
         :return: The Agent, its original and new configuration values, and the
@@ -353,6 +463,7 @@ class AgentHandler:
 
         allowed_tools = values.get("allowed_tools")
         had_run_as = bool(agent.run_as_subject_type and agent.run_as_subject_id)
+        ask_first_tools = values.get("ask_first_tools")
         allowed_fields = [
             *self.configuration_fields,
             *self.run_as_fields,
@@ -364,7 +475,7 @@ class AgentHandler:
             raise AgentRunAsSubjectDoesNotExist()
         original_values = {
             **{field: getattr(agent, field) for field in allowed_fields},
-            "allowed_tools": self.get_allowed_tool_names(agent),
+            **self.get_tool_configuration(agent),
         }
         changed_fields = []
         for field, value in values.items():
@@ -377,14 +488,18 @@ class AgentHandler:
         if not has_run_as or (not had_run_as and allowed_tools is None):
             # No workspace access deliberately turns tools off. Selecting an
             # identity later must not reactivate old default tool rows.
-            allowed_tools = []
-        tools_changed = allowed_tools is not None and set(allowed_tools) != set(
-            original_values["allowed_tools"]
+            allowed_tools, ask_first_tools = [], None
+        tools_changed = allowed_tools is not None and (
+            set(allowed_tools) != set(original_values["allowed_tools"])
+            or (
+                ask_first_tools is not None
+                and set(ask_first_tools) != set(original_values["ask_first_tools"])
+            )
         )
         if changed_fields or tools_changed:
             agent.save(update_fields=[*changed_fields, "updated_on"])
         if tools_changed or not has_run_as or not had_run_as:
-            self.set_allowed_tools(agent, allowed_tools)
+            self.set_allowed_tools(agent, allowed_tools, ask_first_tools)
         configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(
             agent=agent,
@@ -392,6 +507,7 @@ class AgentHandler:
             new_values={
                 **{field: getattr(agent, field) for field in allowed_fields},
                 "allowed_tools": configuration.allowed_tools,
+                "ask_first_tools": configuration.ask_first_tools,
             },
             configuration=configuration,
         )
@@ -676,14 +792,7 @@ class AgentHandler:
             content="",
             status=ChatRunStatus.RUNNING,
         )
-        run = ChatRunHandler().start_run(
-            AGENT_RUN_TYPE,
-            conversation.id,
-            conversation.agent.workspace,
-            conversation.owner_user,
-            context={"reply_id": reply.id},
-            created_event_data={},
-        )
+        run = self._start_reply_run(conversation, reply)
         return AgentMessageCreated(
             conversation,
             message,
@@ -692,6 +801,174 @@ class AgentHandler:
             conversation_run_id=run.id,
             created=True,
         )
+
+    def _start_reply_run(
+        self, conversation: AgentConversation, reply: AgentMessage
+    ) -> ChatRun:
+        """Start the run writing the reply, for the conversation's owner."""
+
+        return ChatRunHandler().start_run(
+            AGENT_RUN_TYPE,
+            conversation.id,
+            conversation.agent.workspace,
+            conversation.owner_user,
+            context={"reply_id": reply.id},
+            created_event_data={},
+        )
+
+    def get_waiting_reply(self, conversation: AgentConversation) -> AgentMessage | None:
+        """
+        Return the conversation's latest reply if it waits for the owner to decide
+        its held calls.
+
+        :param conversation: The conversation to look at.
+        :return: The waiting reply, with its conversation, or None.
+        """
+
+        reply = conversation.messages.filter(role=AgentMessage.Role.ASSISTANT).first()
+        if reply is None or reply.status != AgentReplyStatus.WAITING:
+            return None
+        return reply
+
+    def _pending_approvals(self) -> QuerySet[AgentToolApproval]:
+        """
+        :return: The held calls waiting for their conversation owner's decision.
+        """
+
+        return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
+
+    def get_conversation_pending_approval_counts(
+        self, conversation_ids: list[int]
+    ) -> dict[int, int]:
+        """
+        :param conversation_ids: The ids of the conversations to count in.
+        :return: The number of held calls waiting for the owner's decision by
+            conversation id, leaving out conversations with none.
+        """
+
+        return dict(
+            self._pending_approvals()
+            .filter(reply__conversation_id__in=conversation_ids)
+            .values("reply__conversation_id")
+            .annotate(count=Count("id"))
+            .values_list("reply__conversation_id", "count")
+        )
+
+    def conversation_has_pending_approvals(self, conversation_id: int) -> bool:
+        """
+        Check whether a conversation contributes to its owner's pending count.
+
+        :param conversation_id: The conversation, including one being restored.
+        :return: Whether any of its tool calls still needs a decision.
+        """
+
+        return (
+            self._pending_approvals()
+            .filter(reply__conversation_id=conversation_id)
+            .exists()
+        )
+
+    def get_pending_approval_counts(
+        self, user_ids: list[int], agent_ids: list[int]
+    ) -> dict[int, dict[int, int]]:
+        """
+        Count the held calls waiting for each user's decision in their untrashed
+        conversations with each Agent.
+
+        :param user_ids: The ids of the users who own the conversations.
+        :param agent_ids: The ids of the Agents to count in.
+        :return: The number of pending approvals by Agent id, by user id, leaving
+            out users and Agents with none.
+        """
+
+        counts: dict[int, dict[int, int]] = defaultdict(dict)
+        for user_id, agent_id, count in (
+            self._pending_approvals()
+            .filter(
+                reply__conversation__owner_user_id__in=user_ids,
+                reply__conversation__agent_id__in=agent_ids,
+                reply__conversation__trashed=False,
+            )
+            .values(
+                "reply__conversation__owner_user_id", "reply__conversation__agent_id"
+            )
+            .annotate(count=Count("id"))
+            .values_list(
+                "reply__conversation__owner_user_id",
+                "reply__conversation__agent_id",
+                "count",
+            )
+        ):
+            counts[user_id][agent_id] = count
+        return dict(counts)
+
+    def decide_approvals(
+        self,
+        conversation: AgentConversation,
+        user: AbstractUser,
+        decisions: list[AgentToolDecision],
+    ) -> tuple[AgentMessage, list[AgentToolApproval], bool]:
+        """
+        Save the owner's decisions on held calls of the conversation's waiting reply.
+
+        :param conversation: The conversation, locked so its reply can't change.
+        :param user: The user deciding.
+        :param decisions: Whether each held call may run, by approval id, with the
+            reason for a rejection.
+        :raises AgentToolApprovalNotPending: When an approval is decided already or
+            isn't held by the reply waiting in the conversation.
+        :return: The reply with its approvals, the approvals just decided, and
+            whether all of them are decided.
+        """
+
+        reply = self.get_waiting_reply(conversation)
+        if reply is None:
+            raise AgentToolApprovalNotPending
+        pending = {
+            approval.id: approval
+            for approval in AgentToolApproval.objects.select_for_update().filter(
+                reply=reply, status=AgentToolApproval.Status.PENDING
+            )
+        }
+        if not {decision["id"] for decision in decisions} <= pending.keys():
+            raise AgentToolApprovalNotPending
+        decided_on = timezone.now()
+        decided = []
+        for decision in decisions:
+            approval = pending.pop(decision["id"])
+            approval.status = (
+                AgentToolApproval.Status.APPROVED
+                if decision["approved"]
+                else AgentToolApproval.Status.REJECTED
+            )
+            approval.reason = decision.get("reason", "")
+            approval.decided_by = user
+            approval.decided_on = decided_on
+            decided.append(approval)
+        AgentToolApproval.objects.bulk_update(
+            decided, ["status", "reason", "decided_by", "decided_on"]
+        )
+        prefetch_related_objects([reply], "approvals")
+        return reply, decided, not pending
+
+    def resume_reply(self, reply: AgentMessage) -> ChatRun:
+        """
+        Start the run continuing a reply whose held calls are all decided.
+
+        Call it in the transaction that saved the last decision, so a refused run
+        leaves the decisions pending.
+
+        :param reply: The waiting reply, with its conversation, agent and owner.
+        :raises ChatRunLimitReached: When the workspace has its maximum of replies
+            running.
+        :return: The run continuing the reply.
+        """
+
+        conversation = reply.conversation
+        conversation.save(update_fields=["updated_on"])
+        reply.status = AgentReplyStatus.RUNNING
+        reply.save(update_fields=["status", "updated_on"])
+        return self._start_reply_run(conversation, reply)
 
     def get_active_reply_runs(self, conversation: AgentConversation) -> dict[int, UUID]:
         """
@@ -765,32 +1042,65 @@ class AgentHandler:
 
     def get_reply_request(self, reply: AgentMessage) -> AgentReplyRequest:
         """
-        Collect what the model needs to write a reply.
+        Collect what the model needs to write a reply, or to continue it once the
+        owner decided the calls its paused run held.
 
         :param reply: The reply, with its conversation and agent.
-        :return: The instructions, the model, the prompt and the earlier messages.
+        :return: The instructions, the model and the tools, with the prompt and the
+            earlier messages, or with the paused run and the owner's decisions.
         """
 
         conversation = reply.conversation
         agent = conversation.agent
-        # The prompt is the message right before its reply.
-        prompt, *history = conversation.messages.filter(id__lt=reply.id).order_by(
-            "-id"
-        )[: HISTORY_MESSAGE_LIMIT + 1]
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
+        transcript = self._get_paused_transcript(reply)
         acting_subject = (
-            run_as.subject if run_as.status == AgentRunAsState.ACTIVE else None
+            run_as.subject
+            if run_as.status == AgentRunAsState.ACTIVE
+            and (
+                transcript is None
+                or transcript.paused_as(run_as.subject_type, run_as.subject_id)
+            )
+            else None
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
-        allowed_tool_names = (
-            self.get_allowed_tool_names(agent) if acting_subject else []
+        tools: AgentToolConfiguration = (
+            self.get_tool_configuration(agent)
+            if acting_subject
+            else {"allowed_tools": [], "ask_first_tools": []}
+        )
+        mcp_servers = self.get_mcp_servers(agent)
+        resume = (
+            None
+            if transcript is None
+            else self._get_reply_resume(
+                reply,
+                ConversationTypeAdapter.validate_python(transcript.paused_conversation),
+                {
+                    **{name: "" for name in tools["allowed_tools"]},
+                    **{
+                        name: tool.approval_key
+                        for server in mcp_servers
+                        for name, tool in server.model_tool_names().items()
+                    },
+                },
+                DISALLOWED_TOOL_CALL_NOTE
+                if acting_subject
+                else RUN_AS_LOST_TOOL_CALL_NOTE,
+            )
+        )
+        prompt, history = (
+            (None, []) if resume is not None else self._get_reply_prompt(reply)
         )
         web_search_tool = (
-            self._get_web_search_tool(agent, bool(allowed_tool_names))
+            self._get_web_search_tool(
+                agent, bool(tools["allowed_tools"]) or bool(mcp_servers)
+            )
             if agent.web_search_enabled
+            and (transcript is None or transcript.paused_web_search)
             else None
         )
         return AgentReplyRequest(
@@ -799,17 +1109,199 @@ class AgentHandler:
             instructions=agent.instructions,
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
-            prompt=prompt.content,
-            history=list(reversed(history)),
+            prompt=prompt,
+            history=history,
+            resume=resume,
             run_as_unavailable=run_as.status
             in {AgentRunAsState.TRASHED, AgentRunAsState.MISSING},
             acting_subject=acting_subject,
-            allowed_tool_names=allowed_tool_names,
+            allowed_tool_names=tools["allowed_tools"],
+            ask_first_tool_names=tools["ask_first_tools"],
             timezone=conversation.owner_user.profile.timezone,
+            mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
         )
+
+    def has_mcp_tools(self, agent: AgentApplication) -> bool:
+        """
+        Whether a reply may offer MCP tools: one of the Agent's servers has a
+        tool turned on and, if it uses OAuth, an account connected. Unlike
+        `get_mcp_servers` it doesn't refresh a token, so it suits reads.
+
+        :param agent: The Agent.
+        :return: True when a server offers a tool.
+        """
+
+        return (
+            MCPServerTool.objects.filter(
+                integration__application_id=agent.id,
+                integration__trashed=False,
+                enabled=True,
+                removed=False,
+            )
+            .exclude(
+                integration__auth_type=MCPAuthType.OAUTH,
+                integration__oauth_connected_at__isnull=True,
+            )
+            .exists()
+        )
+
+    def get_mcp_servers(self, agent: AgentApplication) -> tuple[MCPServerSnapshot, ...]:
+        """
+        Read the Agent's MCP servers that have tools turned on. They don't depend
+        on the Agent's workspace identity: their tools act with the server's own
+        credential, not in the workspace.
+
+        :param agent: The Agent.
+        :return: One snapshot per server, in the integrations' order.
+        """
+
+        enabled_tools = Prefetch(
+            "tools",
+            queryset=MCPServerTool.objects.filter(enabled=True, removed=False),
+            to_attr="enabled_tools",
+        )
+        servers = MCPServerIntegration.objects.filter(
+            application_id=agent.id, trashed=False
+        ).prefetch_related(enabled_tools)
+        snapshots = []
+        for server in servers:
+            if not server.enabled_tools:
+                continue
+            try:
+                # Refreshes an OAuth token that expires soon, before the reply
+                # starts, so the reply itself never writes to the database.
+                connection = MCPServerHandler().get_connection(server)
+            except MCPServerNotConnected:
+                # Its tools can't be called until an editor connects again.
+                continue
+            snapshots.append(
+                MCPServerSnapshot.from_integration(
+                    server, server.enabled_tools, connection
+                )
+            )
+        return tuple(snapshots)
+
+    def _get_paused_transcript(
+        self, reply: AgentMessage
+    ) -> AgentReplyTranscript | None:
+        """
+        :param reply: The reply.
+        :return: Its transcript with the paused run, without the model messages, or
+            None when the reply isn't paused.
+        """
+
+        return (
+            AgentReplyTranscript.objects.filter(
+                reply=reply, paused_conversation__isnull=False
+            )
+            .only(
+                "paused_conversation",
+                "paused_web_search",
+                "paused_run_as_subject_type",
+                "paused_run_as_subject_id",
+            )
+            .first()
+        )
+
+    def _get_reply_prompt(self, reply: AgentMessage) -> tuple[str, list[AgentMessage]]:
+        """
+        Find what a reply answers: the message right before it.
+
+        :param reply: The reply.
+        :return: The prompt, and the recent messages before it, oldest first.
+        """
+
+        prompt, *history = reply.conversation.messages.filter(id__lt=reply.id).order_by(
+            "-id"
+        )[: HISTORY_MESSAGE_LIMIT + 1]
+        return prompt.content, history[::-1]
+
+    def _get_reply_resume(
+        self,
+        reply: AgentMessage,
+        paused_conversation: Conversation,
+        callable_tools: dict[str, str],
+        disallowed_note: str,
+    ) -> AgentReplyResume:
+        """
+        Continue a paused reply with the owner's decision on each held call, showing
+        its saved steps again and updating those of the held calls in place.
+
+        :param reply: The paused reply.
+        :param paused_conversation: Its paused run, holding the calls.
+        :param callable_tools: The tools the reply may call now, with the
+            approval key of the MCP ones.
+        :param disallowed_note: Tells the model why an approved call can't run.
+        :return: The paused run with the decisions and the saved steps.
+        """
+
+        held = paused_conversation.deferred_tool_requests
+        held_ids = {call.tool_call_id for call in held.approvals}
+        # Providers may reuse a call id in a later response, so the newest row holds it.
+        approvals = {
+            approval.tool_call_id: approval
+            for approval in reply.approvals.all()
+            if approval.tool_call_id in held_ids
+        }
+        # An undecided call gets no result, so the run fails instead of guessing.
+        results = {
+            tool_call_id: self._get_approval_result(
+                approval, callable_tools, disallowed_note
+            )
+            for tool_call_id, approval in approvals.items()
+            if approval.status != AgentToolApproval.Status.PENDING
+        }
+        return AgentReplyResume(
+            paused_conversation=paused_conversation,
+            deferred_tool_results=held.build_results(approvals=results),
+            saved_steps=reply.steps or [],
+            held_step_ids={
+                tool_call_id: approval.step_id
+                for tool_call_id, approval in approvals.items()
+            },
+            approved_ids=frozenset(
+                tool_call_id
+                for tool_call_id, approval in approvals.items()
+                if approval.status == AgentToolApproval.Status.APPROVED
+            ),
+        )
+
+    def _get_approval_result(
+        self,
+        approval: AgentToolApproval,
+        callable_tools: dict[str, str],
+        disallowed_note: str,
+    ) -> ToolApproved | ToolDenied:
+        """
+        Tell the model what the owner decided about a held call. An approved call
+        to a tool the reply may no longer call, or to an MCP tool whose server,
+        account or definition changed since it was held, is denied instead, and
+        its step then shows a permission failure rather than a rejection.
+
+        :param approval: The decided approval of the call.
+        :param callable_tools: The tools the reply may call now, with the
+            approval key of the MCP ones.
+        :param disallowed_note: Tells the model why an approved call can't run.
+        :return: Whether the call runs, or why it doesn't.
+        """
+
+        if approval.status == AgentToolApproval.Status.REJECTED:
+            return ToolDenied(
+                f"{REJECTED_TOOL_CALL_NOTE} Their reason: {approval.reason}"
+                if approval.reason
+                else REJECTED_TOOL_CALL_NOTE
+            )
+        if approval.tool_name not in callable_tools:
+            # An MCP tool doesn't act as the Agent's identity, so losing it isn't why.
+            return ToolDenied(
+                DISALLOWED_TOOL_CALL_NOTE if approval.tool_key else disallowed_note
+            )
+        if callable_tools[approval.tool_name] != approval.tool_key:
+            return ToolDenied(MCP_TOOL_CHANGED_CALL_NOTE)
+        return ToolApproved()
 
     def finish_reply(
         self,
@@ -819,19 +1311,23 @@ class AgentHandler:
         result: AgentReplyResult | None,
     ) -> AgentMessage | None:
         """
-        Save how a reply ended, with its text and activity, unless the reply no longer
-        exists. Characters PostgreSQL can't store are dropped from the text, and
-        blank text is saved empty. Steps come clean from ``ChatRunSteps``.
+        Save how a run of a reply ended, with its text, activity and, when the
+        responder reports the model it used, its transcript, unless the reply no
+        longer exists. A paused run leaves the reply waiting for the owner's approval
+        of its held calls. Characters PostgreSQL can't store are dropped from the
+        text; steps come clean from ``ChatRunSteps``. Blank text, no steps and a run
+        that never started keep what an earlier run of the reply saved, so a failed
+        resume still shows the paused reply.
 
         :param reply_id: The id of the reply.
-        :param status: The final status: completed, cancelled or failed.
+        :param status: The final status of the run: completed, cancelled or failed.
         :param error_code: Why the reply failed, or an empty string.
-        :param result: What the reply produced, or None when it never started.
+        :param result: What the run produced, or None when it never started.
         :return: The saved reply with its conversation, or None when it no longer
             exists.
         """
 
-        # The caller's lock on the run already serializes everything ending a reply.
+        # The caller's lock on the run or the reply serializes everything ending it.
         reply = (
             AgentMessage.objects.select_related("conversation")
             .filter(id=reply_id)
@@ -839,16 +1335,134 @@ class AgentHandler:
         )
         if reply is None:
             return None
-        reply.status = status
+        paused = result is not None and result.paused
+        reply.status = AgentReplyStatus.WAITING if paused else status
         reply.error_code = error_code
         content = remove_unstorable_characters(result.text if result else "")
-        reply.content = content if content.strip() else ""
-        reply.steps = result.steps if result else None
+        if content.strip():
+            reply.content = content
+        steps = (
+            result.steps
+            if result and result.steps
+            else stop_running_steps(reply.steps or [])
+        )
+        if not paused:
+            steps = self._end_held_steps(reply, steps, resumed=result is not None)
+        reply.steps = steps or None
         reply.save(
             update_fields=["status", "error_code", "content", "steps", "updated_on"]
         )
+        self._save_transcript(reply, result)
+        if paused:
+            last_pause = reply.approvals.aggregate(last=Max("pause"))["last"] or 0
+            AgentToolApproval.objects.bulk_create(
+                AgentToolApproval(
+                    reply=reply,
+                    tool_call_id=call.tool_call_id,
+                    step_id=call.step_id,
+                    pause=last_pause + 1,
+                    tool_name=call.tool_name,
+                    tool_key=result.tool_keys.get(call.tool_name, ""),
+                )
+                for call in result.waiting_calls
+            )
         reply.conversation.save(update_fields=["updated_on"])
         return reply
+
+    def _end_held_steps(
+        self, reply: AgentMessage, steps: list[ChatRunStep], resumed: bool
+    ) -> list[ChatRunStep]:
+        """
+        End the held calls of a reply that ends without resuming them, by the
+        owner's decision on each.
+
+        :param reply: The reply.
+        :param steps: Its steps.
+        :param resumed: Whether the reply resumed, so its approved calls may have
+            run.
+        :return: The steps with none left waiting.
+        """
+
+        if not any(step["status"] == ChatRunStepStatus.WAITING for step in steps):
+            return steps
+        decisions = {
+            approval.step_id: approval.status for approval in reply.approvals.all()
+        }
+        return end_waiting_steps(
+            steps,
+            rejected_step_ids={
+                step_id
+                for step_id, status in decisions.items()
+                if status == AgentToolApproval.Status.REJECTED
+            },
+            approved_step_ids={
+                step_id
+                for step_id, status in decisions.items()
+                if resumed and status == AgentToolApproval.Status.APPROVED
+            },
+        )
+
+    def _save_transcript(
+        self, reply: AgentMessage, result: AgentReplyResult | None
+    ) -> None:
+        """
+        Add a run's model messages to the reply's transcript and keep the paused
+        run only while the reply waits. A run without a model result keeps the
+        transcript of earlier runs.
+
+        :param reply: The reply the run wrote.
+        :param result: What the run produced, or None when it never started.
+        """
+
+        if result is None or not result.provider_type:
+            AgentReplyTranscript.objects.filter(reply=reply).update(
+                **self._paused_fields(None)
+            )
+            return
+        transcript = AgentReplyTranscript.objects.filter(reply=reply).first()
+        if transcript is None:
+            transcript = AgentReplyTranscript(
+                reply=reply,
+                provider_type=result.provider_type,
+                model_identifier=result.model_identifier,
+            )
+        for name, value in self._paused_fields(result.paused_run).items():
+            setattr(transcript, name, value)
+        if result.model_messages is not None:
+            transcript.provider_type = result.provider_type
+            transcript.model_identifier = result.model_identifier
+            # Each run of a paused reply adds only its new messages.
+            transcript.model_messages = [
+                *(transcript.model_messages or []),
+                *remove_unstorable_characters(result.model_messages),
+            ]
+            transcript.usage = result.usage
+        transcript.save()
+
+    def _paused_fields(self, paused_run: AgentPausedRun | None) -> dict[str, Any]:
+        """
+        :param paused_run: The run that paused, or None when the reply isn't paused.
+        :return: The transcript's paused run fields, cleared when there is none.
+        """
+
+        if paused_run is None:
+            return {
+                "paused_conversation": None,
+                "paused_web_search": False,
+                "paused_run_as_subject_type": None,
+                "paused_run_as_subject_id": None,
+            }
+        run_as = paused_run.run_as
+        return {
+            "paused_conversation": remove_unstorable_characters(
+                paused_run.conversation
+            ),
+            "paused_web_search": paused_run.web_search,
+            "paused_run_as_subject_type": None
+            if run_as is None
+            else subject_type_registry.get_by_model(run_as).type,
+            "paused_run_as_subject_id": None if run_as is None else run_as.pk,
+        }
 
     def refresh_unfinished_replies(
         self, messages: list[AgentMessage], active_runs: dict[int, UUID]
@@ -871,31 +1485,46 @@ class AgentHandler:
         ]
         if not ended:
             return messages
-        fresh = AgentMessage.objects.using(DEFAULT_DB_ALIAS).in_bulk(ended)
+        fresh = (
+            AgentMessage.objects.using(DEFAULT_DB_ALIAS)
+            .prefetch_related(
+                Prefetch(
+                    "approvals",
+                    queryset=AgentToolApproval.objects.using(DEFAULT_DB_ALIAS),
+                )
+            )
+            .in_bulk(ended)
+        )
         return [fresh.get(message.id, message) for message in messages]
 
     def mark_reply_interrupted(self, reply_id: int) -> AgentConversation | None:
         """
-        Show that a started reply did not complete, unless it already ended.
+        Show that a started reply did not complete, unless it already ended, the
+        way a run ending without a model result does.
 
         :param reply_id: The id of the reply.
         :return: The reply's conversation when this ended the reply, else None.
         """
 
-        ended = AgentMessage.objects.filter(
-            id=reply_id,
-            status__in=ACTIVE_CHAT_RUN_STATUSES,
-        ).update(
-            status=ChatRunStatus.FAILED,
-            error_code=ChatRunErrorCode.INTERRUPTED,
+        still_active = (
+            AgentMessage.objects.select_for_update()
+            .filter(id=reply_id, status__in=ACTIVE_CHAT_RUN_STATUSES)
+            .exists()
         )
-        if not ended:
+        if not still_active:
             return None
-        return AgentConversation.objects.filter(messages__id=reply_id).first()
+        reply = self.finish_reply(
+            reply_id,
+            ChatRunStatus.FAILED,
+            ChatRunErrorCode.INTERRUPTED,
+            AgentReplyResult(text=""),
+        )
+        return reply.conversation
 
     def export_conversations(self, agent: AgentApplication) -> list[dict]:
         """
-        Serialize the agent's conversations and messages for an internal copy.
+        Serialize the agent's conversations and messages for an internal copy. Reply
+        transcripts stay behind: they hold every tool result, and nothing reads them.
 
         :param agent: The agent whose conversations are exported.
         :return: The conversations, oldest first, each with its messages in the order
@@ -906,7 +1535,12 @@ class AgentHandler:
             AgentConversation.objects.filter(agent=agent)
             .order_by("id")
             .prefetch_related(
-                Prefetch("messages", queryset=AgentMessage.objects.order_by("id"))
+                Prefetch(
+                    "messages",
+                    queryset=AgentMessage.objects.order_by("id").prefetch_related(
+                        "approvals"
+                    ),
+                )
             )
         )
         return [
@@ -921,7 +1555,13 @@ class AgentHandler:
                         "content": message.content,
                         "status": message.status,
                         "error_code": message.error_code,
-                        "steps": message.steps,
+                        # Approvals aren't copied, so the copy gets held calls ended.
+                        "steps": self._end_held_steps(
+                            message,
+                            message.steps or [],
+                            resumed=message.status != AgentReplyStatus.WAITING,
+                        )
+                        or None,
                         "created_on": message.created_on.isoformat(),
                         "updated_on": message.updated_on.isoformat(),
                     }
@@ -937,7 +1577,7 @@ class AgentHandler:
         """
         Copy conversations with their messages into the agent with new uuids.
         Conversations of deleted owners are skipped, and a reply still being
-        written is ended as interrupted.
+        written or waiting for approvals is ended as interrupted.
 
         :param agent: The agent to copy the conversations into.
         :param serialized_conversations: The conversations from export_conversations.
@@ -974,7 +1614,11 @@ class AgentHandler:
             for serialized_message in data["messages"]:
                 status = serialized_message["status"]
                 error_code = serialized_message["error_code"]
-                if status in ACTIVE_CHAT_RUN_STATUSES:
+                # Approvals are not copied, so a waiting reply could never resume.
+                if (
+                    status in ACTIVE_CHAT_RUN_STATUSES
+                    or status == AgentReplyStatus.WAITING
+                ):
                     status = ChatRunStatus.FAILED
                     error_code = ChatRunErrorCode.INTERRUPTED
                 messages.append(
@@ -985,7 +1629,8 @@ class AgentHandler:
                         content=serialized_message["content"],
                         status=status,
                         error_code=error_code,
-                        steps=serialized_message.get("steps"),
+                        steps=stop_running_steps(serialized_message.get("steps") or [])
+                        or None,
                     )
                 )
                 message_data.append(serialized_message)

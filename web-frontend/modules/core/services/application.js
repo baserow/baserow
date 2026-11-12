@@ -1,3 +1,5 @@
+import { getRealtimeRecoveryRequestConfig } from '@baserow/modules/core/plugins/realtimeProtocol'
+
 export default (client) => {
   return {
     fetchAll(workspaceId = null) {
@@ -11,8 +13,10 @@ export default (client) => {
     asyncDuplicate(applicationId) {
       return client.post(`/applications/${applicationId}/duplicate/async/`)
     },
-    get(applicationId) {
-      return client.get(`/applications/${applicationId}/`)
+    get(applicationId, { realtimeRecovery = false } = {}) {
+      return client.get(`/applications/${applicationId}/`, {
+        ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
+      })
     },
     update(applicationId, values) {
       return client.patch(`/applications/${applicationId}/`, values)

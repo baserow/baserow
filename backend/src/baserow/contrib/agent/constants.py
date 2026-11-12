@@ -39,6 +39,26 @@ INTERRUPTED_CHANGES_NOTE = (
     "[Changes started before the interruption: {changes}. A stopped change may "
     "have completed; check before repeating it.]"
 )
+REJECTED_TOOL_CALL_NOTE = (
+    "The user reviewed this call and rejected it, so it did not run."
+)
+ASK_FIRST_INSTRUCTIONS = (
+    "Some of your tools ask the user before they run: the user sees the call with "
+    "its inputs and approves or rejects it. Make these calls directly instead of "
+    "asking for confirmation in your reply. When a call is rejected, it did not "
+    "run: say so plainly, follow the user's reason if they gave one, and don't "
+    "repeat the call unless they ask for it again."
+)
+DISALLOWED_TOOL_CALL_NOTE = "This tool is no longer allowed."
+MCP_TOOL_CHANGED_CALL_NOTE = (
+    "This tool, its server or the account it's called with changed after the call "
+    "was held, so the approval no longer applies. The call did not run."
+)
+RUN_AS_LOST_TOOL_CALL_NOTE = (
+    "You no longer act as the identity this call was held under, so it did not run. "
+    "Tools are unavailable for the rest of this reply; the user can ask again in a "
+    "new message."
+)
 UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS = (
     "The identity configured for your workspace access is no longer available. "
     "You cannot read or change workspace data. When a request needs workspace "

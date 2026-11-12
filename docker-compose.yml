@@ -114,6 +114,7 @@ x-backend-variables:
 
   BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT:
   BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS:
+  BASEROW_AUTOMATION_WAIT_MAX_SECONDS:
   BASEROW_AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES:
   BASEROW_AUTOMATION_HTTP_TRIGGER_RATE_LIMITS:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
@@ -127,6 +128,9 @@ x-backend-variables:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES:
+  BASEROW_AUTOMATION_RUN_STALL_TIMEOUT_MINUTES:
+  BASEROW_AUTOMATION_RUN_STALL_WARNING_MINUTES:
+  BASEROW_AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES:
   BASEROW_AUTOMATION_MAX_NODE_DISPATCHES_PER_RUN:
 
   BASEROW_EXTRA_ALLOWED_HOSTS:
@@ -323,10 +327,12 @@ x-backend-variables:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:
   BASEROW_EMBEDDINGS_API_URL:
+  BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST:
   BASEROW_SEMANTIC_SEARCH_CHUNK_SIZE:
   BASEROW_SEMANTIC_SEARCH_CHUNK_OVERLAP:
   BASEROW_SEMANTIC_SEARCH_MAX_CHUNKS_PER_CELL:
   BASEROW_SEMANTIC_SEARCH_TASK_TIME_BUDGET_SECONDS:
+  BASEROW_SEMANTIC_SEARCH_MAX_RESULTS:
   BASEROW_OAUTH_BACKEND_URL:
   BASEROW_TOTP_ISSUER_NAME:
   BASEROW_ENABLE_CAPTCHA:
@@ -360,7 +366,7 @@ services:
       local:
 
   backend:
-    image: baserow/backend:${BASEROW_VERSION:-2.4.1}
+    image: baserow/backend:${BASEROW_VERSION:-2.4.2}
     restart: unless-stopped
 
     environment:
@@ -374,7 +380,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:${BASEROW_VERSION:-2.4.1}
+    image: baserow/web-frontend:${BASEROW_VERSION:-2.4.2}
     restart: unless-stopped
     environment:
       BASEROW_PUBLIC_URL: ${BASEROW_PUBLIC_URL-http://localhost}
@@ -412,6 +418,7 @@ services:
       BASEROW_DEPENDANT_ROWS_REALTIME_UPDATE_LIMIT:
       BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
       BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS:
+      BASEROW_AUTOMATION_WAIT_MAX_SECONDS:
       BASEROW_REALTIME_REPLAY_MAX_EVENTS:
       BASEROW_FORMULA_RANGE_MAX_ITEMS:
       BASEROW_INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT:
@@ -437,6 +444,9 @@ services:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES:
+      BASEROW_AUTOMATION_RUN_STALL_TIMEOUT_MINUTES:
+      BASEROW_AUTOMATION_RUN_STALL_WARNING_MINUTES:
+      BASEROW_AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES:
       BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
       BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE:
       # Deprecated model selection; choose Kuma under Admin tools > AI providers > AI features.
@@ -447,7 +457,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:${BASEROW_VERSION:-2.4.1}
+    image: baserow/backend:${BASEROW_VERSION:-2.4.2}
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -469,7 +479,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:${BASEROW_VERSION:-2.4.1}
+    image: baserow/backend:${BASEROW_VERSION:-2.4.2}
     restart: unless-stopped
     command: celery-exportworker
     # Lets Celery's warm shutdown finish most Kuma runs before the container is killed.
@@ -493,7 +503,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:${BASEROW_VERSION:-2.4.1}
+    image: baserow/backend:${BASEROW_VERSION:-2.4.2}
     restart: unless-stopped
     command: celery-beat
     healthcheck:
@@ -527,7 +537,7 @@ services:
   # present. Runs as root because mox binds its sockets as root and then drops
   # privileges itself.
   email-receiver:
-    image: baserow/backend:${BASEROW_VERSION:-2.4.1}
+    image: baserow/backend:${BASEROW_VERSION:-2.4.2}
     profiles: ["inbound-email"]
     restart: unless-stopped
     user: root

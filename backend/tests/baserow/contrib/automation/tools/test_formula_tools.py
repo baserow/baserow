@@ -8,10 +8,9 @@ from baserow.contrib.automation.tools.formulas import (
     InvalidAutomationFormula,
     check_automation_formula,
     check_output_paths,
-    needs_formula,
     resolve_node_refs,
-    wrap_static_string,
 )
+from baserow.core.formula.literals import needs_formula, wrap_static_string
 
 
 def test_a_valid_formula_passes():
@@ -62,6 +61,23 @@ def test_an_invalid_formula_fails_with_a_message(formula, message):
 )
 def test_formulas_are_told_from_literals(value, is_formula):
     assert needs_formula(value) is is_formula
+
+
+@pytest.mark.parametrize(
+    "value,is_formula",
+    [("{{ name }}", True), ("Hi {{name}}!", True), ("{{", False), ("}} {{", False)],
+)
+def test_template_braces_are_a_formula(value, is_formula):
+    assert needs_formula(value) is is_formula
+
+
+def test_many_open_braces_without_a_close_are_checked_in_linear_time():
+    import time
+
+    value = "{{ " * 50_000
+    start = time.monotonic()
+    assert needs_formula(value) is False
+    assert time.monotonic() - start < 0.5
 
 
 def test_literals_are_quoted_once():

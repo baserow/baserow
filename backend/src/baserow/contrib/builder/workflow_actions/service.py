@@ -201,6 +201,10 @@ class BuilderWorkflowActionService:
             context=workflow_action,
         )
 
+        # A concurrent change to the same service waits for this one. The field
+        # mappings sent still replace the stored list as a whole.
+        self.handler.lock_service_for_update(workflow_action)
+
         has_type_changed = (
             "type" in kwargs and kwargs["type"] != workflow_action.get_type().type
         )

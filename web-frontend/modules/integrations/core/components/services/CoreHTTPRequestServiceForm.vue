@@ -34,57 +34,11 @@
       required
       class="margin-bottom-2"
     >
-      <template v-if="v$.values.query_params.$model.length">
-        <div class="row" style="--gap: 6px">
-          <label class="col col-5 control__label control__label--small">
-            {{ $t('coreHTTPRequestServiceForm.name') }}
-          </label>
-          <label class="col col-7 control__label control__label--small">
-            {{ $t('coreHTTPRequestServiceForm.value') }}
-          </label>
-        </div>
-        <div
-          v-for="(query_param, index) in v$.values.query_params.$model"
-          :key="query_param.id"
-          style="--gap: 6px"
-          class="row margin-bottom-1"
-        >
-          <div class="col col-5">
-            <FormInput
-              v-model="query_param.key"
-              :error="!!v$.values.query_params.$each.$message[index]?.[0]"
-              :placeholder="$t('coreHTTPRequestServiceForm.namePlaceholder')"
-              @blur="v$.values.query_params.$touch()"
-            />
-          </div>
-          <div class="col col-5">
-            <InjectedFormulaInput
-              v-model="query_param.value"
-              :placeholder="$t('coreHTTPRequestServiceForm.valuePlaceholder')"
-            />
-          </div>
-          <div class="col col-2">
-            <ButtonIcon
-              icon="iconoir-bin"
-              @click="deleteQueryParam(query_param)"
-            />
-          </div>
-          <div
-            v-show="v$.values.query_params.$each.$message[index]?.[0]"
-            class="error margin-left-1"
-          >
-            {{ v$.values.query_params.$each.$message[index]?.[0] }}
-          </div>
-        </div>
-      </template>
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        @click="createQueryParam"
-      >
-        {{ $t('coreHTTPRequestServiceForm.addQueryParam') }}
-      </ButtonText>
+      <HTTPKeyValueList
+        v-model="values.query_params"
+        key-prefix="param"
+        :add-label="$t('coreHTTPRequestServiceForm.addQueryParam')"
+      />
     </FormGroup>
 
     <FormGroup
@@ -93,54 +47,11 @@
       required
       class="margin-bottom-2"
     >
-      <template v-if="v$.values.headers.$model.length">
-        <div class="row" style="--gap: 6px">
-          <label class="col col-5 control__label control__label--small">
-            {{ $t('coreHTTPRequestServiceForm.name') }}
-          </label>
-          <label class="col col-7 control__label control__label--small">
-            {{ $t('coreHTTPRequestServiceForm.value') }}
-          </label>
-        </div>
-        <div
-          v-for="(header, index) in v$.values.headers.$model"
-          :key="header.id"
-          style="--gap: 6px"
-          class="row margin-bottom-1"
-        >
-          <div class="col col-5">
-            <FormInput
-              v-model="header.key"
-              :error="!!v$.values.headers.$each.$message[index]?.[0]"
-              :placeholder="$t('coreHTTPRequestServiceForm.namePlaceholder')"
-              @blur="v$.values.headers.$touch()"
-            />
-          </div>
-          <div class="col col-5">
-            <InjectedFormulaInput
-              v-model="header.value"
-              :placeholder="$t('coreHTTPRequestServiceForm.valuePlaceholder')"
-            />
-          </div>
-          <div class="col col-2">
-            <ButtonIcon icon="iconoir-bin" @click="deleteHeader(header)" />
-          </div>
-          <div
-            v-show="v$.values.headers.$each.$message[index]?.[0]"
-            class="error margin-left-1"
-          >
-            {{ v$.values.headers.$each.$message[index]?.[0] }}
-          </div>
-        </div>
-      </template>
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        @click="createHeader"
-      >
-        {{ $t('coreHTTPRequestServiceForm.addHeader') }}
-      </ButtonText>
+      <HTTPKeyValueList
+        v-model="values.headers"
+        key-prefix="header"
+        :add-label="$t('coreHTTPRequestServiceForm.addHeader')"
+      />
     </FormGroup>
 
     <FormGroup
@@ -178,54 +89,11 @@
       required
       small-label
     >
-      <template v-if="v$.values.form_data.$model.length">
-        <div class="row" style="--gap: 6px">
-          <label class="col col-5 control__label control__label--small">
-            {{ $t('coreHTTPRequestServiceForm.name') }}
-          </label>
-          <label class="col col-7 control__label control__label--small">
-            {{ $t('coreHTTPRequestServiceForm.value') }}
-          </label>
-        </div>
-        <div
-          v-for="(fdata, index) in v$.values.form_data.$model"
-          :key="fdata.id"
-          style="--gap: 6px"
-          class="row margin-bottom-1"
-        >
-          <div class="col col-5">
-            <FormInput
-              v-model="fdata.key"
-              :error="!!v$.values.form_data.$each.$message[index]?.[0]"
-              :placeholder="$t('coreHTTPRequestServiceForm.namePlaceholder')"
-              @blur="v$.values.form_data.$touch()"
-            />
-          </div>
-          <div class="col col-5">
-            <InjectedFormulaInput
-              v-model="fdata.value"
-              :placeholder="$t('coreHTTPRequestServiceForm.valuePlaceholder')"
-            />
-          </div>
-          <div class="col col-2">
-            <ButtonIcon icon="iconoir-bin" @click="deleteFormData(fdata)" />
-          </div>
-          <div
-            v-show="v$.values.form_data.$each.$message[index]?.[0]"
-            class="error margin-left-1"
-          >
-            {{ v$.values.form_data.$each.$message[index]?.[0] }}
-          </div>
-        </div>
-      </template>
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-plus"
-        @click="createFormData"
-      >
-        {{ $t('coreHTTPRequestServiceForm.addFormData') }}
-      </ButtonText>
+      <HTTPKeyValueList
+        v-model="values.form_data"
+        key-prefix="form"
+        :add-label="$t('coreHTTPRequestServiceForm.addFormData')"
+      />
     </FormGroup>
     <FormGroup
       class="margin-bottom-2"
@@ -251,20 +119,19 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import HTTPKeyValueList from '@baserow/modules/integrations/core/components/services/HTTPKeyValueList'
 import { useVuelidate } from '@vuelidate/core'
 import {
   required,
   integer,
   minValue,
   maxValue,
-  maxLength,
   helpers,
 } from '@vuelidate/validators'
-import { uuid } from '@baserow/modules/core/utils/string'
 
 export default {
   name: 'CoreHTTPRequestService',
-  components: { InjectedFormulaInput },
+  components: { InjectedFormulaInput, HTTPKeyValueList },
   mixins: [form],
   props: {},
   setup() {
@@ -315,112 +182,9 @@ export default {
       ]
     },
   },
-  methods: {
-    createHeader() {
-      this.v$.values.headers.$model.push({
-        key: `header${this.v$.values.headers.$model.length + 1}`,
-        value: { formula: '', mode: 'simple' },
-        id: uuid(),
-      })
-    },
-    deleteHeader({ id }) {
-      this.v$.values.headers.$model = this.v$.values.headers.$model.filter(
-        (header) => header.id !== id
-      )
-    },
-    createQueryParam() {
-      this.v$.values.query_params.$model.push({
-        key: `param${this.v$.values.query_params.$model.length + 1}`,
-        value: { formula: '', mode: 'simple' },
-        id: uuid(),
-      })
-    },
-    deleteQueryParam({ id }) {
-      this.v$.values.query_params.$model =
-        this.v$.values.query_params.$model.filter((param) => param.id !== id)
-    },
-    createFormData() {
-      this.v$.values.form_data.$model.push({
-        key: `form${this.v$.values.form_data.$model.length + 1}`,
-        value: { formula: '', mode: 'simple' },
-        id: uuid(),
-      })
-    },
-    deleteFormData({ id }) {
-      this.v$.values.form_data.$model = this.v$.values.form_data.$model.filter(
-        (f) => f.id !== id
-      )
-    },
-  },
   validations() {
-    const isValidParamOrHeaderName = (name) => {
-      const validNameRegex = /^[a-zA-Z0-9-_.]+$/
-
-      if (name[0] === '-' || name[0] === '_') {
-        return false
-      }
-
-      return validNameRegex.test(name)
-    }
     return {
       values: {
-        headers: {
-          $each: helpers.forEach({
-            key: {
-              required: helpers.withMessage(
-                this.$t('coreHTTPRequestServiceForm.nameFieldRequired'),
-                required
-              ),
-              maxLength: helpers.withMessage(
-                this.$t('error.maxLength', { max: 255 }),
-                maxLength(225)
-              ),
-              invalid: helpers.withMessage(
-                this.$t('coreHTTPRequestServiceForm.nameFieldInvalid'),
-                isValidParamOrHeaderName
-              ),
-            },
-            value: {},
-          }),
-        },
-        query_params: {
-          $each: helpers.forEach({
-            key: {
-              required: helpers.withMessage(
-                this.$t('coreHTTPRequestServiceForm.nameFieldRequired'),
-                required
-              ),
-              invalid: helpers.withMessage(
-                this.$t('coreHTTPRequestServiceForm.nameFieldInvalid'),
-                isValidParamOrHeaderName
-              ),
-              maxLength: helpers.withMessage(
-                this.$t('error.maxLength', { max: 255 }),
-                maxLength(225)
-              ),
-            },
-            value: {},
-          }),
-        },
-        form_data: {
-          $each: helpers.forEach({
-            key: {
-              required: helpers.withMessage(
-                this.$t('coreHTTPRequestServiceForm.nameFieldRequired'),
-                required
-              ),
-              invalid: helpers.withMessage(
-                this.$t('coreHTTPRequestServiceForm.nameFieldInvalid'),
-                isValidParamOrHeaderName
-              ),
-              maxLength: helpers.withMessage(
-                this.$t('error.maxLength', { max: 255 }),
-                maxLength(225)
-              ),
-            },
-            value: {},
-          }),
-        },
         timeout: {
           minValue: helpers.withMessage(
             this.$t('error.minValueField', { min: 1 }),

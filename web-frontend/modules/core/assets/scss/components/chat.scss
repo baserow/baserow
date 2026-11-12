@@ -292,6 +292,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-size: 16px;
 }
 
+.chat-step-group__icon--waiting {
+  color: $palette-yellow-800;
+}
+
 .chat-step-group__icon--done {
   color: $palette-green-800;
 }
@@ -302,6 +306,10 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
 
 .chat-step-group__icon--partial {
   color: $palette-yellow-600;
+}
+
+.chat-step-group__icon--rejected {
+  color: $palette-red-600;
 }
 
 .chat-step-group__icon--stopped,
@@ -383,7 +391,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   font-weight: 500;
 }
 
-.chat-step-group__input-values {
+.chat-tool-input__values {
   max-height: 320px;
   margin: 0;
   padding: 12px;
@@ -403,7 +411,7 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
-.chat-step-group__input-note {
+.chat-tool-input__note {
   margin: 8px 0 0;
   color: $palette-neutral-900;
 }
@@ -595,6 +603,15 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
+.chat-composer__activity--waiting {
+  background: $palette-yellow-50;
+  color: $palette-yellow-1000;
+
+  .chat-composer__activity-icon {
+    color: $palette-yellow-800;
+  }
+}
+
 .chat-composer__box {
   position: relative;
   z-index: 1;
@@ -628,7 +645,8 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
       opacity: 1;
     }
 
-    &[readonly] {
+    &[readonly],
+    &:disabled {
       color: $palette-neutral-700;
     }
   }

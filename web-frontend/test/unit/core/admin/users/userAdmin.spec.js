@@ -1,3 +1,4 @@
+import { onTestFinished } from 'vitest'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import UsersAdminTable from '@baserow/modules/core/components/admin/users/UsersAdminTable'
 import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
@@ -325,6 +326,37 @@ describe('User Admin Component Tests', () => {
     await ui.changePassword(longestValidPassword, longestValidPassword)
 
     await flushPromises()
+  })
+
+  test('changing your own password logs you back in with the new one', async () => {
+    const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
+    testApp.authenticate({ id: user.id, username: user.username })
+    const dispatch = spyOnLogin()
+
+    const newValidPassword = '12345678'
+    mockServer.expectUserUpdated(user, { password: newValidPassword })
+
+    await ui.changePassword(newValidPassword, newValidPassword)
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('auth/login', {
+      email: user.username,
+      password: newValidPassword,
+    })
+  })
+
+  test('changing another users password does not log you in again', async () => {
+    const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
+    testApp.authenticate({ id: user.id + 1, username: 'admin@baserow.io' })
+    const dispatch = spyOnLogin()
+
+    const newValidPassword = '12345678'
+    mockServer.expectUserUpdated(user, { password: newValidPassword })
+
+    await ui.changePassword(newValidPassword, newValidPassword)
+    await flushPromises()
+
+    expect(dispatch).not.toHaveBeenCalledWith('auth/login', expect.anything())
   })
 
   test('changing a users password displays an error if the server responds with one', async () => {
@@ -727,6 +759,25 @@ describe('User Admin Component Tests', () => {
         .find(startingIsActive ? '.iconoir-cancel' : '.iconoir-check')
         .exists()
     ).toBe(true)
+  }
+
+  /**
+   * Spies on the store's dispatch so logging in doesn't need a backend, while
+   * every other action still runs.
+   */
+  function spyOnLogin() {
+    const store = testApp.store
+    const originalDispatch = store.dispatch.bind(store)
+    const dispatch = vi
+      .spyOn(store, 'dispatch')
+      .mockImplementation((type, ...args) =>
+        type === 'auth/login'
+          ? Promise.resolve()
+          : originalDispatch(type, ...args)
+      )
+    // The store outlives a single test.
+    onTestFinished(() => dispatch.mockRestore())
+    return dispatch
   }
 
   async function whenThereIsAUserAndYouOpenUserAdmin(userSetup = {}) {

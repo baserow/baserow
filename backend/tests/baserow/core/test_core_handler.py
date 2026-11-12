@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from django.conf import settings
+from django.contrib.auth.models import AnonymousUser
 from django.core.files.storage import FileSystemStorage
 from django.db import OperationalError, transaction
 from django.test import override_settings
@@ -14,6 +15,7 @@ from django.test import override_settings
 import pytest
 from itsdangerous.exc import BadSignature
 
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.models import (
     BooleanField,
@@ -57,6 +59,7 @@ from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, plugin_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.models import UserFile
+from baserow.test_utils.helpers import stale_cached_settings
 
 
 @pytest.mark.django_db
@@ -75,15 +78,31 @@ def test_update_settings(data_fixture):
     with pytest.raises(IsNotAdminError):
         CoreHandler().update_settings(user_2, allow_new_signups=False)
 
-    settings = CoreHandler().update_settings(
+    settings, changed = CoreHandler().update_settings(
         user_1, allow_new_signups=False, instance_id="test"
     )
     assert settings.allow_new_signups is False
     assert settings.instance_id != "test"
+    assert changed == {"allow_new_signups": False}
 
     settings = Settings.objects.all().first()
     assert settings.instance_id != "test"
     assert settings.allow_new_signups is False
+
+
+@pytest.mark.django_db
+def test_update_settings_saves_only_the_received_settings(data_fixture):
+    admin = data_fixture.create_user(is_staff=True)
+
+    with stale_cached_settings(user_templates_require_approval=True):
+        updated, _ = CoreHandler().update_settings(admin, allow_new_signups=False)
+
+    stored = Settings.objects.get()
+    for instance in [updated, stored]:
+        assert (
+            instance.allow_new_signups,
+            instance.user_templates_require_approval,
+        ) == (False, True)
 
 
 @pytest.mark.django_db
@@ -943,6 +962,42 @@ def test_get_application(data_fixture):
     )
     assert database_1_copy.id == application_1.id
     assert isinstance(database_1_copy, Database)
+
+
+@pytest.mark.django_db
+def test_pending_counts_ask_each_type_once_for_all_signed_in_users(data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    dashboard = data_fixture.create_dashboard_application(workspace=database.workspace)
+
+    with (
+        patch.object(
+            DatabaseApplicationType,
+            "get_pending_counts",
+            return_value={user.id: {database.id: 2}},
+        ) as database_counts,
+        patch.object(
+            DashboardApplicationType,
+            "get_pending_counts",
+            return_value={user.id: {dashboard.id: 1}, other_user.id: {dashboard.id: 3}},
+        ) as dashboard_counts,
+    ):
+        assert CoreHandler().get_pending_counts_per_user_and_application(
+            [user, other_user, AnonymousUser()], [database, dashboard]
+        ) == {
+            user.id: {database.id: 2, dashboard.id: 1},
+            other_user.id: {dashboard.id: 3},
+        }
+        assert (
+            CoreHandler().get_pending_counts_per_user_and_application(
+                [AnonymousUser()], [database]
+            )
+            == {}
+        )
+
+    database_counts.assert_called_once_with([user, other_user], [database])
+    dashboard_counts.assert_called_once_with([user, other_user], [dashboard])
 
 
 @pytest.mark.django_db

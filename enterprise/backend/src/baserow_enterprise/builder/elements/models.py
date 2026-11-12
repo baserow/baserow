@@ -6,6 +6,10 @@ from baserow.contrib.builder.elements.models import Element, FormElement
 from baserow.core.formula.field import FormulaField, JSONFormulaField
 
 
+class HTMLElement(Element):
+    html = FormulaField(help_text="HTML content to render.")
+
+
 class AuthFormElement(Element):
     """
     An element to authenticate against a user source.

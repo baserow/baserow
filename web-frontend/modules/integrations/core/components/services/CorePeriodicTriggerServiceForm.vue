@@ -8,7 +8,11 @@
       small-label
       class="margin-bottom-2"
     >
-      <Dropdown v-model="values.interval" size="large">
+      <Dropdown
+        :model-value="values.interval"
+        size="large"
+        @update:model-value="chooseInterval"
+      >
         <DropdownItem
           :name="$t('periodicForm.everyMinuteDefault')"
           value="MINUTE"
@@ -32,7 +36,7 @@
             v-model="v$.values.minute.$model"
             size="large"
             type="number"
-            :min="1"
+            :min="minimumMinuteFrequency"
             :max="59"
             :placeholder="$t('periodicForm.minuteFrequencyPlaceholder')"
           />
@@ -142,6 +146,7 @@
 </template>
 
 <script>
+import { toRef } from 'vue'
 import { useVuelidate } from '@vuelidate/core'
 import { between, required, integer, helpers } from '@vuelidate/validators'
 import moment from '@baserow/modules/core/moment'
@@ -183,7 +188,16 @@ export default {
       return this.values.interval === 'MINUTE'
     },
     minimumMinuteFrequency() {
-      return this.$config.public.baserowIntegrationsPeriodicMinuteMin
+      // The runtime config holds a string unless an env var overrides it.
+      return Number(this.$config.public.baserowIntegrationsPeriodicMinuteMin)
+    },
+    /**
+     * The lowest `minute` the chosen interval accepts. For MINUTE it's a frequency,
+     * which can't go under the instance minimum. For every other interval it's the
+     * minute past the hour, which starts at 0.
+     */
+    minuteFloor() {
+      return this.showMinuteFrequencyField ? this.minimumMinuteFrequency : 0
     },
     showHourField() {
       return ['DAY', 'WEEK', 'MONTH'].includes(this.values.interval)
@@ -240,16 +254,21 @@ export default {
             required
           ),
           integer: helpers.withMessage(this.$t('error.integerField'), integer),
+          // The floor is passed as a ref so that the rule reads it when it runs.
+          // Vuelidate swaps in rebuilt rules a tick after the values change, which
+          // is after `values-changed` has been emitted. A floor baked into the
+          // rule would have the host judge a newly picked interval's minute
+          // against the previous interval's range, and refuse to save it.
           between: helpers.withMessage(
-            this.showMinuteFrequencyField
-              ? this.$t('error.minMaxValueField', {
-                  min: this.minimumMinuteFrequency,
-                  max: 59,
-                })
-              : this.$t('error.minMaxValueField', { min: 0, max: 59 }),
-            this.showMinuteFrequencyField
-              ? between(this.minimumMinuteFrequency, 59)
-              : between(0, 59)
+            ({ $params }) =>
+              this.$t('error.minMaxValueField', {
+                min: $params.min,
+                max: $params.max,
+              }),
+            between(
+              toRef(() => this.minuteFloor),
+              59
+            )
           ),
         },
         hour: {
@@ -275,19 +294,31 @@ export default {
       },
     }
   },
-  watch: {
-    'values.interval'(newInterval, oldInterval) {
-      if (newInterval === 'MINUTE' && oldInterval !== 'MINUTE') {
-        // When changing the interval *to* MINUTE, set the minute field to the
-        // minimum allowed frequency for this Baserow instance type.
-        this.values.minute = this.minimumMinuteFrequency
-      } else if (newInterval !== 'MINUTE' && oldInterval === 'MINUTE') {
-        // Otherwise if we're changing *from* MINUTE, then reset the `minute` to 0.
-        this.values.minute = 0
-      }
-    },
+  mounted() {
+    // A saved frequency can be lower than this instance allows, for example when
+    // the minimum was raised afterwards. It's kept as it is rather than rewritten,
+    // so it's pointed out straight away instead of once the field is edited.
+    if (this.v$.values.minute.$invalid) {
+      this.v$.values.minute.$touch()
+    }
   },
   methods: {
+    /**
+     * Sets the interval the user picked. Switching to MINUTE turns `minute` into a
+     * frequency, so it starts at the instance minimum; switching away from it
+     * turns `minute` back into the minute past the hour, starting at 0. Loading
+     * the saved values doesn't go through here, so they're kept as they are.
+     *
+     * @param {string} interval The picked interval.
+     */
+    chooseInterval(interval) {
+      if (interval === 'MINUTE' && this.values.interval !== 'MINUTE') {
+        this.values.minute = this.minimumMinuteFrequency
+      } else if (interval !== 'MINUTE' && this.values.interval === 'MINUTE') {
+        this.values.minute = 0
+      }
+      this.values.interval = interval
+    },
     getDefaultValues() {
       const defaultValues = form.methods.getDefaultValues.call(this)
       // A trigger without an interval has never been scheduled, so it has no

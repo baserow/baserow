@@ -5,8 +5,19 @@ from types import SimpleNamespace
 import pytest
 
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.tools.formulas import BuilderFormulaContext
+from baserow.contrib.builder.tools.types import (
+    CollectionElementCreate,
+    DataSourceCreate,
+    DisplayElementCreate,
+    ElementUpdate,
+    LayoutElementCreate,
+    TableColumnAdd,
+    TableFieldConfig,
+)
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
+from baserow.core.tools.formula_utils import formula_object
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_collection_elements,
     create_data_sources,
@@ -16,17 +27,6 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.assistant.tools.shared import agents as shared_agents
-from baserow_enterprise.builder.tools.formulas import BuilderFormulaContext
-from baserow_enterprise.builder.tools.types import (
-    CollectionElementCreate,
-    DataSourceCreate,
-    DisplayElementCreate,
-    ElementUpdate,
-    LayoutElementCreate,
-    TableColumnAdd,
-    TableFieldConfig,
-)
-from baserow_enterprise.tools.formula_utils import formula_object
 
 from .utils import make_test_ctx
 

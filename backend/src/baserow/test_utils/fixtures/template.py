@@ -1,3 +1,6 @@
+import secrets
+from typing import List, Optional
+
 from django.db.models import Max
 from django.utils import timezone
 
@@ -72,31 +75,86 @@ class TemplateFixtures:
 
         return self.create_template(type=root.type, root=root, slug="", **kwargs)
 
-    def set_user_template_state(self, template, state, revision=None):
+    def set_user_template_state(
+        self, template: Template, state: str, revision: Optional[Template] = None
+    ) -> Template:
         """
-        Puts a user template in `state`: "private", "shared", "public", "blocked",
-        "public_blocked" or "marked" for deletion. The shared or public revision
-        is `revision`, the template itself by default.
+        Puts a user template in `state`, like "public", "in_review" or
+        "resubmitted" (in review again after a rejection). "shared" turns its
+        private link on.
+
+        :param template: The user template.
+        :param state: The state to put it in.
+        :param revision: The revision made public or reviewed, the template itself
+            by default.
+        :return: The template, refreshed.
         """
 
         revision = revision or template
         now = timezone.now()
         changes = {
             "private": {},
-            "shared": {"shared_revision": revision},
+            "shared": {"private_link_token": secrets.token_hex(32)},
             "public": {"public_revision": revision},
             "blocked": {"blocked_at": now},
             "public_blocked": {"public_revision": revision, "blocked_at": now},
             "marked": {"marked_for_deletion_at": now},
+            "in_review": {},
+            "rejected": {},
+            "resubmitted": {},
+            "withdrawn_rejected": {},
         }[state]
+        review = {
+            "in_review": {
+                "review_state": Template.ReviewState.PENDING,
+                "submitted_on": now,
+            },
+            "rejected": {
+                "review_state": Template.ReviewState.REJECTED,
+                "reject_reason": "Reason",
+                "submitted_on": now,
+                "reviewed_on": now,
+            },
+            "resubmitted": {
+                "review_state": Template.ReviewState.PENDING,
+                "reject_reason": "Reason",
+                "submitted_on": now,
+                "reviewed_on": now,
+            },
+            "withdrawn_rejected": {
+                "review_state": Template.ReviewState.WITHDRAWN,
+                "reject_reason": "Reason",
+            },
+        }.get(state, {})
         if "public_revision" in changes:
             # Only an approved revision can be public, listed when it's reviewed.
-            Template.objects.filter(id=revision.id).update(
-                review_state=Template.ReviewState.APPROVED, reviewed_on=now
-            )
+            review = {"review_state": Template.ReviewState.APPROVED, "reviewed_on": now}
+        if review:
+            Template.objects.filter(id=revision.id).update(**review)
         Template.objects.filter(id=template.id).update(**changes)
         template.refresh_from_db()
         return template
+
+    def set_user_template_revision_states(
+        self, root: Template, states: List[str]
+    ) -> Template:
+        """
+        Gives the user template a revision per state.
+
+        :param root: The user template.
+        :param states: The states of its revisions, oldest first.
+        :return: The latest revision.
+        """
+
+        revision = root
+        for index, state in enumerate(states):
+            if state == "pruned":
+                Template.objects.filter(id=revision.id).update(pruned_at=timezone.now())
+                continue
+            if index:
+                revision = self.create_user_template_revision(root)
+            self.set_user_template_state(root, state, revision)
+        return revision
 
     def create_template_table(self, workspace, name="Content", row="Row"):
         """

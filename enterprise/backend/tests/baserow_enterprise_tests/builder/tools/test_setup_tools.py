@@ -15,29 +15,31 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.contrib.database.fields.models import Field
-from baserow.contrib.database.table.models import Table
-from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
-from baserow.core.integrations.models import Integration
-from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
-from baserow.core.user_sources.models import UserSource
-from baserow_enterprise.builder.elements.element_types import AuthFormElementType
-from baserow_enterprise.builder.elements.models import AuthFormElement
-from baserow_enterprise.builder.tools import (
+from baserow.contrib.builder.tools import (
     BuilderWriteOptions,
     helpers,
     pages,
     themes,
-    user_sources,
 )
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools import elements as shared_elements
+from baserow.contrib.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     ElementItemCreate,
     PageCreate,
     TableFieldConfig,
 )
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.database.fields.models import Field
+from baserow.contrib.database.table.models import Table
+from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.integrations.models import Integration
+from baserow.core.tools.errors import PERMISSION_DENIED_MESSAGE, ToolInputError
+from baserow.core.user_sources.models import UserSource
+from baserow_enterprise.assistant.tools.builder import tools as kuma_tools
+from baserow_enterprise.builder.elements.models import AuthFormElement
+from baserow_enterprise.builder.tools import login, user_sources
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 from baserow_enterprise.integrations.local_baserow.models import LocalBaserowUserSource
 
@@ -279,7 +281,9 @@ def test_setup_page_with_nothing_to_do_is_refused(builder_ctx):
 
 
 @pytest.mark.django_db
-def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
+def test_setup_page_stores_an_explicit_column_formula_in_every_mode(
+    builder_ctx,
+):
     def table_element():
         return ElementItemCreate(
             ref="list",
@@ -307,7 +311,7 @@ def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
         None,
         [table_element()],
         None,
-        BuilderWriteOptions(column_name_beats_formula=True),
+        BuilderWriteOptions(prepare_element=kuma_tools._named_field_beats_description),
     )
 
     def column_value(result):
@@ -315,21 +319,7 @@ def test_setup_page_stores_a_column_formula_unless_told_otherwise(builder_ctx):
         return element.fields.get().config["value"]["formula"]
 
     assert column_value(shared) == "get('current_record.id')"
-    assert "get('current_record.id')" not in column_value(kuma)
-
-
-@pytest.mark.django_db
-def test_setup_page_refused_with_nothing_done_raises(builder_ctx, monkeypatch):
-    def deny(*args, **kwargs):
-        raise PermissionException()
-
-    monkeypatch.setattr(helpers, "create_element", deny)
-
-    with pytest.raises(PermissionException):
-        setup(
-            builder_ctx,
-            elements=[ElementItemCreate(ref="h", type="heading", value="Title")],
-        )
+    assert column_value(kuma) == "get('current_record.id')"
 
 
 @pytest.mark.django_db
@@ -522,7 +512,9 @@ def test_enterprise_only_types_behave_as_the_rest_api_does(
 def test_a_refused_auth_form_gets_the_message_of_the_rest_api(
     api_client, data_fixture, builder_ctx, monkeypatch, users_table
 ):
-    monkeypatch.setattr(AuthFormElementType, "is_deactivated", lambda self, ws: True)
+    monkeypatch.setattr(
+        element_type_registry.get("auth_form"), "is_deactivated", lambda ws: True
+    )
 
     _user_source, rest_form = _rest_results(
         api_client, data_fixture, builder_ctx, users_table
@@ -741,7 +733,7 @@ def test_setup_user_source_writes_nothing_when_the_login_page_fails(
     def fail(*args, **kwargs):
         raise ToolInputError("No login page.")
 
-    monkeypatch.setattr(helpers, "create_login_page", fail)
+    monkeypatch.setattr(login, "create_login_page", fail)
     fields = Field.objects.filter(table=users_table).count()
     tables = Table.objects.count()
     setup = (
@@ -1191,3 +1183,46 @@ def test_setup_page_stores_page_parameters_in_page_order(data_fixture, builder_c
     ).specific
     assert [param["name"] for param in link.page_parameters] == ["a", "b"]
     assert [param["name"] for param in action.page_parameters] == ["a", "b"]
+
+
+@pytest.mark.django_db
+def test_the_highest_values_the_rest_api_takes_are_stored(builder_ctx):
+    result = setup(
+        builder_ctx,
+        elements=[
+            ElementItemCreate(ref="h", type="heading", value="x", level=6),
+            ElementItemCreate(ref="c", type="column", column_amount=6, column_gap=2000),
+            ElementItemCreate(ref="i", type="input_text", rows=100),
+        ],
+    )
+
+    assert not result.get("errors")
+    ids = {element["ref"]: element["id"] for element in result["created_elements"]}
+    assert Element.objects.get(id=ids["h"]).specific.level == 6
+    column = Element.objects.get(id=ids["c"]).specific
+    assert (column.column_amount, column.column_gap) == (6, 2000)
+    assert Element.objects.get(id=ids["i"]).specific.rows == 100
+
+
+@pytest.mark.django_db
+def test_an_auth_form_login_button_label_is_stored_as_text(data_fixture, builder_ctx):
+    user_source = data_fixture.create_user_source_with_first_type(
+        application=builder_ctx["builder"]
+    )
+
+    result = shared_elements.create_elements(
+        builder_ctx["ctx"],
+        builder_ctx["page"].id,
+        [
+            ElementItemCreate(
+                ref="login",
+                type="auth_form",
+                user_source_id=user_source.id,
+                login_button_label="Sign in",
+            )
+        ],
+    )
+
+    login = AuthFormElement.objects.get(id=result["ref_to_id_map"]["login"])
+    assert login.login_button_label["formula"] == "'Sign in'"
+    assert login.login_button_label["mode"] == BASEROW_FORMULA_MODE_ADVANCED

@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 
 import pytest
 
 from baserow.api.jobs.serializers import JobSerializer
+from baserow.core.context import private_link_token
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.registries import job_type_registry
@@ -52,11 +52,6 @@ def fake_build(side_effect=None):
     return patch.object(
         UserTemplateHandler, "build_template_archive", autospec=True, side_effect=build
     )
-
-
-def create_public_template(data_fixture, owner):
-    template = create_template(data_fixture, owner)
-    return data_fixture.set_user_template_state(template, "public")
 
 
 def add_revision(data_fixture, root):
@@ -118,10 +113,7 @@ def lose_access(data_fixture, change, template, user):
         # The template stays public, but the user can't sign in anymore.
         User.objects.filter(id=user.id).update(is_active=False)
     else:
-        # Unlike install, which still finishes.
-        Template.objects.filter(id=template.id).update(
-            marked_for_deletion_at=timezone.now()
-        )
+        data_fixture.set_user_template_state(template, "marked")
 
 
 @pytest.mark.django_db
@@ -133,7 +125,7 @@ def test_download_job_fails_when_access_is_lost_before_it_runs(
     data_fixture, change, with_archive
 ):
     user = data_fixture.create_user()
-    template = create_public_template(data_fixture, data_fixture.create_user())
+    template = create_template(data_fixture, data_fixture.create_user(), "public")
     if with_archive:
         # The reused archive isn't handed out either.
         store_template_archive(template)
@@ -151,11 +143,31 @@ def test_download_job_fails_when_access_is_lost_before_it_runs(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "change,state", [("rotate", JOB_FINISHED), ("remove", JOB_FAILED)]
+)
+def test_download_admitted_through_private_link_when_the_link_changes(
+    data_fixture, change, state
+):
+    template = create_template(data_fixture, data_fixture.create_user(), "shared")
+    with private_link_token(template.private_link_token):
+        job = request_download(data_fixture.create_user(), template)
+    if change == "rotate":
+        UserTemplateHandler().rotate_private_link(template)
+    else:
+        UserTemplateHandler().set_private_link(template, False)
+
+    with fake_build():
+        assert run_job(job).state == state
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "actor,shown,error",
     [
         # The owner may download a revision that isn't the public one.
         ("owner", "old", None),
         ("owner", "other_template", TemplateDoesNotExist),
+        ("staff", "old", None),
         ("user", "public", None),
         ("user", "old", TemplateUpdated),
     ],
@@ -165,7 +177,11 @@ def test_get_downloadable_revision(data_fixture, actor, shown, error):
     template = create_template(data_fixture, owner)
     revision = add_revision(data_fixture, template)
     data_fixture.set_user_template_state(template, "public", revision=revision)
-    user = owner if actor == "owner" else data_fixture.create_user()
+    user = (
+        owner
+        if actor == "owner"
+        else data_fixture.create_user(is_staff=actor == "staff")
+    )
     shown = {
         "old": template,
         "public": revision,
@@ -182,3 +198,21 @@ def test_get_downloadable_revision(data_fixture, actor, shown, error):
     else:
         with pytest.raises(error):
             get()
+
+
+@pytest.mark.django_db
+def test_get_downloadable_revision_through_private_link(
+    data_fixture, django_assert_num_queries
+):
+    template = data_fixture.set_user_template_state(
+        create_template(data_fixture, data_fixture.create_user()), "shared"
+    )
+    latest = add_revision(data_fixture, template)
+    user = data_fixture.create_user()
+
+    with django_assert_num_queries(3):
+        revision = UserTemplateHandler().get_downloadable_revision(
+            user, template.slug, latest.id, template.private_link_token
+        )
+
+    assert revision.id == latest.id

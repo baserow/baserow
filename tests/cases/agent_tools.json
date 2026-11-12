@@ -5,9 +5,30 @@
     "invalid_input",
     "invalid_formula",
     "conflict",
-    "failed"
+    "failed",
+    "not_run"
   ],
   "tools": [
+    {
+      "name": "list_databases",
+      "arguments": {},
+      "input": {},
+      "facts": {}
+    },
+    {
+      "name": "create_database",
+      "arguments": { "name": "Projects" },
+      "input": {},
+      "preview": { "values": { "name": "Projects" } },
+      "facts": { "database": "Projects" }
+    },
+    {
+      "name": "update_database",
+      "arguments": { "database_id": 1, "name": "Projects" },
+      "input": {},
+      "preview": { "values": { "database": "Work", "new_name": "Projects" } },
+      "facts": { "database": "Projects", "changed": true }
+    },
     {
       "name": "list_tables",
       "arguments": {},
@@ -24,13 +45,15 @@
       "name": "list_table_rows",
       "arguments": { "table_id": 1 },
       "input": {},
-      "facts": { "table": "Tasks", "count": 1 }
+      "preview": { "values": { "table": "Tasks" } },
+      "facts": { "count": 1 }
     },
     {
       "name": "list_views",
       "arguments": { "table_id": 1 },
       "input": {},
-      "facts": { "table": "Tasks" }
+      "preview": { "values": { "table": "Tasks" } },
+      "facts": {}
     },
     {
       "name": "create_tables",
@@ -40,10 +63,10 @@
           { "name": "Projects", "primary_field_name": "Title", "fields": [] }
         ]
       },
-      "input": {
-        "requested_count": 1,
+      "input": { "requested_count": 1 },
+      "preview": {
         "values": {
-          "database_id": 1,
+          "database": "Work",
           "tables": [
             { "name": "Projects", "primary_field_name": "Title", "fields": [] }
           ]
@@ -57,28 +80,39 @@
         "table_id": 1,
         "fields": [{ "name": "Notes", "type": "text" }]
       },
-      "input": {
-        "requested_count": 1,
+      "input": { "requested_count": 1 },
+      "preview": {
         "values": {
-          "table_id": 1,
+          "table": "Tasks",
           "fields": [{ "name": "Notes", "type": "text" }]
         }
       },
-      "facts": { "table": "Tasks", "count": 1 }
+      "facts": { "count": 1 }
     },
     {
       "name": "update_fields",
       "arguments": { "fields": [{ "field_id": 1, "name": "Effort" }] },
-      "input": {
-        "requested_count": 1,
-        "values": { "fields": [{ "field_id": 1, "name": "Effort" }] }
+      "input": { "requested_count": 1 },
+      "preview": {
+        "values": {
+          "fields": [
+            {
+              "field": "Hours",
+              "table": "Tasks",
+              "changes": { "name": "Effort" }
+            }
+          ]
+        }
       },
       "facts": { "count": 1 }
     },
     {
       "name": "delete_fields",
       "arguments": { "field_ids": [1] },
-      "input": { "requested_count": 1, "values": { "field_ids": [1] } },
+      "input": { "requested_count": 1 },
+      "preview": {
+        "values": { "fields": [{ "field": "Hours", "table": "Tasks" }] }
+      },
       "facts": { "count": 1 }
     },
     {
@@ -87,14 +121,14 @@
         "table_id": 1,
         "views": [{ "name": "Board", "type": "grid" }]
       },
-      "input": {
-        "requested_count": 1,
+      "input": { "requested_count": 1 },
+      "preview": {
         "values": {
-          "table_id": 1,
+          "table": "Tasks",
           "views": [{ "name": "Board", "type": "grid" }]
         }
       },
-      "facts": { "table": "Tasks", "count": 1 }
+      "facts": { "count": 1 }
     },
     {
       "name": "create_view_filters",
@@ -113,15 +147,16 @@
           }
         ]
       },
-      "input": {
-        "requested_count": 1,
+      "input": { "requested_count": 1 },
+      "preview": {
         "values": {
-          "view_filters": [
+          "views": [
             {
-              "view_id": 1,
+              "view": "Grid",
+              "table": "Tasks",
               "filters": [
                 {
-                  "field_id": 1,
+                  "field": "Hours",
                   "type": "number",
                   "operator": "higher_than",
                   "value": 1
@@ -137,19 +172,29 @@
       "name": "create_rows",
       "arguments": { "table_id": 1, "rows": [{ "Name": "Plan" }] },
       "input": { "requested_count": 1 },
-      "facts": { "table": "Tasks", "count": 1 }
+      "preview": {
+        "values": { "table": "Tasks", "rows": [{ "Name": "Plan" }] }
+      },
+      "facts": { "count": 1 }
     },
     {
       "name": "update_rows",
       "arguments": { "table_id": 1, "rows": [{ "id": 1, "Name": "Done" }] },
       "input": { "requested_count": 1 },
-      "facts": { "table": "Tasks", "count": 1 }
+      "preview": {
+        "values": {
+          "table": "Tasks",
+          "rows": [{ "row": "Draft", "values": { "Name": "Done" } }]
+        }
+      },
+      "facts": { "count": 1 }
     },
     {
       "name": "delete_rows",
       "arguments": { "table_id": 1, "row_ids": [1] },
       "input": { "requested_count": 1 },
-      "facts": { "table": "Tasks", "count": 1 }
+      "preview": { "values": { "table": "Tasks", "rows": ["Draft"] } },
+      "facts": { "count": 1 }
     }
   ]
 }

@@ -26,13 +26,13 @@ class UntrustedContentTypeMixin:
             **kwargs,
         )
         if cache is not None:
-            cache.setdefault("import_report", []).append(
-                self.get_import_report_entry(instance)
-            )
+            entry = self.get_import_report_entry(instance)
+            if entry is not None:
+                cache.setdefault("import_report", []).append(entry)
         return instance
 
     def get_import_report_entry(self, instance):
-        """Describe the imported active content without copying executable code."""
+        """Describe the active content without copying source, or return None if empty."""
 
         raise NotImplementedError
 

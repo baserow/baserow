@@ -18,6 +18,7 @@ class AgentConfig(AppConfig):
         from .actions import (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
+            DecideAgentToolApprovalsActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
             UpdateAgentConversationActionType,
@@ -37,6 +38,7 @@ class AgentConfig(AppConfig):
         from .registries import agent_tool_type_registry
         from .search_types import AgentSearchType
         from .tool_types import (
+            CreateDatabaseAgentToolType,
             CreateFieldsAgentToolType,
             CreateRowsAgentToolType,
             CreateTablesAgentToolType,
@@ -45,9 +47,11 @@ class AgentConfig(AppConfig):
             DeleteFieldsAgentToolType,
             DeleteRowsAgentToolType,
             GetTableSchemaAgentToolType,
+            ListDatabasesAgentToolType,
             ListTableRowsAgentToolType,
             ListTablesAgentToolType,
             ListViewsAgentToolType,
+            UpdateDatabaseAgentToolType,
             UpdateFieldsAgentToolType,
             UpdateRowsAgentToolType,
         )
@@ -69,6 +73,7 @@ class AgentConfig(AppConfig):
         for action in (
             CreateAgentConversationActionType,
             CreateAgentMessageActionType,
+            DecideAgentToolApprovalsActionType,
             UpdateAgentConversationActionType,
             DeleteAgentConversationActionType,
             UpdateAgentConfigurationActionType,
@@ -77,10 +82,13 @@ class AgentConfig(AppConfig):
         trash_item_type_registry.register(AgentConversationTrashableItemType())
         chat_run_type_registry.register(AgentChatRunType())
         for tool_type in (
+            ListDatabasesAgentToolType,
             ListTablesAgentToolType,
             GetTableSchemaAgentToolType,
             ListTableRowsAgentToolType,
             ListViewsAgentToolType,
+            CreateDatabaseAgentToolType,
+            UpdateDatabaseAgentToolType,
             CreateTablesAgentToolType,
             CreateFieldsAgentToolType,
             UpdateFieldsAgentToolType,

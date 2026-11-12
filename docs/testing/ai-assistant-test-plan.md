@@ -7,11 +7,20 @@
 Run the unit test suite (no LLM needed):
 
 ```bash
-just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ -v
+just b test -n auto \
+  ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
+  ../enterprise/backend/tests/baserow_enterprise_tests/builder/tools/ \
+  tests/baserow/contrib/builder/tools/ \
+  tests/baserow/core/tools/ \
+  tests/baserow/contrib/database/tools/ \
+  tests/baserow/contrib/automation/tools/ \
+  tests/baserow/contrib/dashboard/tools/ -v
 ```
 
-All tests must pass. These cover: assistant orchestrator, all tool modules,
-telemetry event emission, history compaction, and streaming.
+All tests must pass. The `assistant/` folder covers the assistant orchestrator,
+Kuma's tool adapters, telemetry event emission, history compaction, and
+streaming. The other folders cover the shared tools Kuma and the MCP server both
+call.
 
 ### 2. Automated tests (evals, optional)
 

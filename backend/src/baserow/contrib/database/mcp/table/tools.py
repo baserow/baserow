@@ -44,7 +44,7 @@ class ListApplicationsMcpTool(FunctionMCPTool):
     # types are listed by their own groups' tools.
     type = "list_applications"
     group = GROUP_DATABASE_READ
-    title = "List applications"
+    title = "List databases"
     read_only = True
     function = list_database_applications
 
@@ -58,7 +58,7 @@ class ListDatabasesMcpTool(MCPTool):
 
     type = "list_databases"
     group = GROUP_DATABASE_READ
-    title = "List databases"
+    title = "List all databases"
     read_only = True
     input_schema = ListDatabasesInput
 

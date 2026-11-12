@@ -123,6 +123,7 @@ MIDDLEWARE = [
     "baserow.core.cache.LocalCacheMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "baserow.api.user_sources.middleware.AddUserSourceUserMiddleware",
+    "baserow.api.templates.middleware.TemplatePrivateLinkMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "baserow.middleware.BaserowCustomHttp404Middleware",
@@ -605,6 +606,7 @@ BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 120))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 PUBLIC_DASHBOARD_AUTHORIZATION_HEADER = "Baserow-Dashboard-Authorization"
+TEMPLATE_PRIVATE_LINK_TOKEN_HEADER = "Baserow-Template-Authorization"
 
 CORS_ORIGIN_ALLOW_ALL = True
 CLIENT_SESSION_ID_HEADER = "ClientSessionId"
@@ -621,6 +623,7 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     WEBSOCKET_ID_HEADER,
     PUBLIC_VIEW_AUTHORIZATION_HEADER,
     PUBLIC_DASHBOARD_AUTHORIZATION_HEADER,
+    TEMPLATE_PRIVATE_LINK_TOKEN_HEADER,
     CLIENT_SESSION_ID_HEADER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_HEADER,
     USER_SOURCE_AUTHENTICATION_HEADER,
@@ -672,8 +675,11 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.4.1",
+    "VERSION": "2.4.2",
     "SERVE_INCLUDE_SCHEMA": False,
+    # ReDoc 3 is incompatible with drf-spectacular's classic script template.
+    # Pin the bundle so CDN releases cannot silently break the documentation.
+    "REDOC_DIST": "https://cdn.jsdelivr.net/npm/redoc@2.5.4",
     "TAGS": [
         {"name": "Settings"},
         {"name": "User"},
@@ -782,6 +788,7 @@ SPECTACULAR_SETTINGS = {
             "multiple_select_has_not",
         ],
         "EventTypesEnum": ["rows.created", "rows.updated", "rows.deleted"],
+        "UserTemplateStateEnum": "baserow.core.models.UserTemplateState.choices",
     },
 }
 
@@ -1278,6 +1285,14 @@ AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
 AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RESPONSE_TIMEOUT_MAX_SECONDS", 20)
 )
+# The longest a single Wait node may pause a run; a longer wait fails the node
+# rather than being shortened. This bounds one node, not the run: the waits of
+# a run (and the work between them) still count towards
+# AUTOMATION_WORKFLOW_TIMEOUT_HOURS, and the hourly sweep times out a run that
+# exceeds it. 6 hours leaves room for a few waits inside the default 24.
+AUTOMATION_WAIT_MAX_SECONDS = int(
+    os.getenv("BASEROW_AUTOMATION_WAIT_MAX_SECONDS", 6 * 60 * 60)
+)
 # The largest request body the HTTP trigger accepts. Every accepted body is kept
 # in the workflow's history and sample data, so larger ones are refused.
 AUTOMATION_HTTP_TRIGGER_MAX_BODY_SIZE_BYTES = int(
@@ -1386,6 +1401,25 @@ AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS = int(
 )
 AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES", 60)
+)
+# A started run that made no progress (no node started or completed) for this
+# many minutes lost its next task (a lost publish or a dead worker) and is
+# failed by the stall sweep. Elapsed time cannot tell a lost task from one
+# stuck in a queue backlog, so this stays well above a normal backlog. It must
+# also stay above the broker's visibility timeout (3600 s by default with
+# Redis): a task a hard-killed worker had reserved but not started is only
+# redelivered after it, and the run then recovers. 75 minutes is that timeout
+# plus the same margin as AUTOMATION_PENDING_NODE_STALE_SECONDS.
+AUTOMATION_RUN_STALL_TIMEOUT_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_TIMEOUT_MINUTES", 75)
+)
+# A started run that made no progress for this many minutes is only counted in
+# a warning log, to tell a backed-up queue apart from a lost task.
+AUTOMATION_RUN_STALL_WARNING_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_WARNING_MINUTES", 5)
+)
+AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES = int(
+    os.getenv("BASEROW_AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES", 5)
 )
 # The maximum number of node dispatches allowed in a single workflow run.
 # This protects against infinite dispatches due to a misconfigured node.
@@ -1956,7 +1990,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
-    from baserow.core.sentry import drop_expected_asyncio_disconnect_events
+    from baserow.core.sentry import before_send, redact_private_link_tokens
     from baserow.core.sentry_transport import ConsoleSentryTransport
 
     # Exclude integrations whose module-level imports are incompatible:
@@ -1978,6 +2012,8 @@ if SENTRY_DSN:
         "code_verifier",
         "refresh_token",
         "access_token",
+        TEMPLATE_PRIVATE_LINK_TOKEN_HEADER.lower(),
+        "private_link_token",
     ]
     sentry_transport = None
 
@@ -2026,7 +2062,8 @@ if SENTRY_DSN:
         ],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_disconnect_events,
+        before_send=before_send,
+        before_send_transaction=redact_private_link_tokens,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
         transport=sentry_transport,
@@ -2110,6 +2147,10 @@ BASEROW_MAX_HEALTHY_CELERY_QUEUE_SIZE = int(
 BASEROW_USE_LOCAL_CACHE = str_to_bool(os.getenv("BASEROW_USE_LOCAL_CACHE", "true"))
 
 BASEROW_EMBEDDINGS_API_URL = os.getenv("BASEROW_EMBEDDINGS_API_URL", "")
+# An embeddings service on a GPU is faster with more. It accepts at most 256.
+BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST = min(
+    max(int(os.getenv("BASEROW_EMBEDDINGS_TEXTS_PER_REQUEST", "") or 8), 1), 256
+)
 
 # -- CACHALOT SETTINGS --
 

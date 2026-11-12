@@ -502,7 +502,9 @@ class DataSourceHandler:
             ):
                 # We ignore data sources that have no used properties at all.
                 # It means they are not used at least for the current user.
-                if data_source.service.get_type().returns_list:
+                if data_source.service.get_type().returns_list(
+                    data_source.service.specific
+                ):
                     data_sources_dispatch[data_source.id] = {
                         "has_next_page": False,
                         "results": [],

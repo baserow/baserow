@@ -5,6 +5,11 @@ import {
 } from '@baserow/modules/core/toolPresentationTypes'
 
 const countIsKnown = (count) => Number.isSafeInteger(count) && count >= 0
+const trimmedName = (name) => (typeof name === 'string' ? name.trim() : '')
+
+/** The table a call's request names, or '' when it names none. */
+const requestedTable = (input) =>
+  typeof input?.values?.table === 'string' ? input.values.table.trim() : ''
 
 /** Database presenters share count/table formatting; Core knows neither field. */
 class DatabaseToolPresentationType extends ToolPresentationType {
@@ -29,13 +34,29 @@ class DatabaseToolPresentationType extends ToolPresentationType {
   }
 
   getInput({ input }) {
-    return this.constructor.definition.read ? null : input
+    return input
+  }
+
+  /** Titled by what the call asks to do: counted changes by count, reads by table. */
+  getRequestedActivity({ input }, t) {
+    const { counted, table: titledByTable } = this.constructor.definition
+    const table = titledByTable ? requestedTable(input) : ''
+    if (counted !== true) {
+      return table
+        ? t(`${this.labelKey}RequestedTable`, { table })
+        : this.getLabel(t)
+    }
+    const count = input.requested_count
+    if (!countIsKnown(count)) return this.getLabel(t)
+    return table
+      ? t(`${this.labelKey}RequestedCountTable`, { count, table }, count)
+      : t(`${this.labelKey}RequestedCount`, { count }, count)
   }
 
   getActivity({ status, input, facts }, t) {
     const { counted, table } = this.constructor.definition
     if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
-      return this.getLabel(t)
+      return this.getRequestedActivity({ input }, t)
     }
     const count =
       status === STEP_STATUS.RUNNING ? input.requested_count : facts.count
@@ -49,20 +70,88 @@ class DatabaseToolPresentationType extends ToolPresentationType {
     }
     const hasCount =
       (counted === true || counted === status) && countIsKnown(count)
-    const hasTable =
-      status === STEP_STATUS.DONE &&
-      table &&
-      typeof facts.table === 'string' &&
-      facts.table.trim()
+    // Facts name tables that were created or read; other calls name the table asked for.
+    const tableName =
+      (typeof facts.table === 'string' && facts.table.trim()) ||
+      requestedTable(input)
+    const hasTable = status === STEP_STATUS.DONE && table && tableName
     const key = `${this.labelKey}${status === STEP_STATUS.RUNNING ? 'Running' : 'Done'}${hasCount ? 'Count' : ''}${hasTable ? 'Table' : ''}`
     return t(
       key,
       {
         ...(hasCount ? { count } : {}),
-        ...(hasTable ? { table: facts.table } : {}),
+        ...(hasTable ? { table: tableName } : {}),
       },
       hasCount ? count : undefined
     )
+  }
+}
+
+export class ListDatabasesToolPresentationType extends DatabaseToolPresentationType {
+  static definition = {
+    type: 'list_databases',
+    label: 'ListDatabases',
+    read: true,
+  }
+}
+
+/** Database creation and renaming show the requested or confirmed name. */
+class DatabaseApplicationToolPresentationType extends DatabaseToolPresentationType {
+  getRequestedDatabase(input) {
+    return trimmedName(
+      input?.values?.[this.constructor.definition.targetNameKey]
+    )
+  }
+
+  getRequestedActivity({ input }, t) {
+    const database = this.getRequestedDatabase(input)
+    return database
+      ? t(`${this.labelKey}RequestedDatabase`, { database })
+      : this.getLabel(t)
+  }
+
+  getActivity({ status, input, facts }, t) {
+    if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
+      return this.getRequestedActivity({ input }, t)
+    }
+    let database = this.getRequestedDatabase(input)
+    let activity = 'Running'
+    if (status === STEP_STATUS.DONE) {
+      database = trimmedName(facts.database)
+      activity = facts.changed === false ? 'Unchanged' : 'Done'
+    }
+    return t(`${this.labelKey}${activity}${database ? 'Database' : ''}`, {
+      database,
+    })
+  }
+}
+
+export class CreateDatabaseToolPresentationType extends DatabaseApplicationToolPresentationType {
+  static definition = {
+    type: 'create_database',
+    label: 'CreateDatabase',
+    targetNameKey: 'name',
+  }
+}
+
+export class UpdateDatabaseToolPresentationType extends DatabaseApplicationToolPresentationType {
+  static definition = {
+    type: 'update_database',
+    label: 'UpdateDatabase',
+    targetNameKey: 'database',
+  }
+
+  getRequestedActivity({ input }, t) {
+    const database = this.getRequestedDatabase(input)
+    // Stored previews from earlier replies used `name` for the proposed name.
+    const newName = trimmedName(input?.values?.new_name ?? input?.values?.name)
+    if (database && newName) {
+      return t('agent.toolUpdateDatabaseRequestedRename', {
+        database,
+        newName,
+      })
+    }
+    return super.getRequestedActivity({ input }, t)
   }
 }
 
@@ -177,6 +266,47 @@ export class DeleteRowsToolPresentationType extends DatabaseToolPresentationType
   }
 }
 
+const MCP_TOOL_NAME = /^mcp\d+_/
+const text = (value) =>
+  typeof value === 'string' && value.trim() ? value.trim() : null
+
+/**
+ * Calls to the tools of an MCP server. Their names are made at runtime from the
+ * server's id, so this type claims them by prefix. The server's name and the
+ * tool's reviewed title name the call; its arguments are only shown for a call
+ * waiting for approval, credentials masked by the backend.
+ */
+export class MCPServerToolPresentationType extends ToolPresentationType {
+  static getType() {
+    return 'mcp_server_tool'
+  }
+
+  matchesTool(name) {
+    return MCP_TOOL_NAME.test(name)
+  }
+
+  getLabel(t) {
+    return t('agent.toolMCP')
+  }
+
+  getInput({ input }) {
+    return input?.values ? input : null
+  }
+
+  getActivity({ status, input }, t) {
+    const tool = text(input.tool)
+    const server = text(input.server)
+    if (!tool || !server) return this.getLabel(t)
+    const key =
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolMCPRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolMCPDone'
+          : 'agent.toolMCPNamed'
+    return t(key, { tool, server })
+  }
+}
+
 /** A search the AI provider runs itself, so it has no tool to allow or configure. */
 export class WebSearchToolPresentationType extends ToolPresentationType {
   static getType() {
@@ -225,10 +355,13 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
 
 export const agentToolPresentationTypes = [
   WebSearchToolPresentationType,
+  ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,
   ListTableRowsToolPresentationType,
   ListViewsToolPresentationType,
+  CreateDatabaseToolPresentationType,
+  UpdateDatabaseToolPresentationType,
   CreateTablesToolPresentationType,
   CreateFieldsToolPresentationType,
   UpdateFieldsToolPresentationType,
@@ -238,4 +371,5 @@ export const agentToolPresentationTypes = [
   CreateRowsToolPresentationType,
   UpdateRowsToolPresentationType,
   DeleteRowsToolPresentationType,
+  MCPServerToolPresentationType,
 ]

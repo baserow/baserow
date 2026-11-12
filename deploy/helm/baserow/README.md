@@ -270,7 +270,7 @@ caddy:
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | ----------------------- |
 | `global.baserow.imageRegistry`                                     | Global Docker image registry                                                            | `baserow`               |
 | `global.baserow.imagePullSecrets`                                  | Global Docker registry secret names as an array                                         | `[]`                    |
-| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.4.1`                |
+| `global.baserow.image.tag`                                         | Global Docker image tag                                                                 | `2.4.2`                |
 | `global.baserow.serviceAccount.shared`                             | Set to true to share the service account between all application components.            | `true`                  |
 | `global.baserow.serviceAccount.create`                             | Set to true to create a service account to share between all application components.    | `true`                  |
 | `global.baserow.serviceAccount.name`                               | Configure a name for service account to share between all application components.       | `baserow`               |
@@ -520,7 +520,7 @@ caddy:
 | --------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------- |
 | `baserow-embeddings.enabled`                                    | Set to true to enable the Baserow Embeddings service.           | `false`                    |
 | `baserow-embeddings.image.repository`                           | Docker image repository for the Embeddings service.             | `embeddings`               |
-| `baserow-embeddings.image.tag`                                  | Docker image tag for the Embeddings service, which is versioned separately from Baserow. | `1.1.0`                    |
+| `baserow-embeddings.image.tag`                                  | Docker image tag for the Embeddings service, which is versioned separately from Baserow. | `1.1.1`                    |
 | `baserow-embeddings.workingDir`                                 | Working directory for the container, empty to use the image's own.                       | `""`                       |
 | `baserow-embeddings.resources`                                  | Resource requests and limits for the Embeddings service.        |                            |
 | `baserow-embeddings.autoscaling.enabled`                        | Enable autoscaling for the Embeddings service.                  | `false`                    |

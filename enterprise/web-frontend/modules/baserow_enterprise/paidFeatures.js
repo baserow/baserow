@@ -382,7 +382,7 @@ export class SemanticSearchPaidFeature extends PaidFeature {
   }
 
   getImage() {
-    return null
+    return '/img/features/semantic_search.png'
   }
 
   getContent() {
@@ -439,5 +439,31 @@ export class DateDependencyPaidFeature extends PaidFeature {
 
   getContent() {
     return this.app.$i18n.t('enterpriseFeatures.dateDependencyContent')
+  }
+}
+
+export class BuilderHTMLElementPaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_html_element'
+  }
+
+  getPlan() {
+    return 'Enterprise'
+  }
+
+  getIconClass() {
+    return 'iconoir-code-brackets'
+  }
+
+  getName() {
+    return this.app.$i18n.t('elementType.html')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t('elementType.htmlDescription')
   }
 }

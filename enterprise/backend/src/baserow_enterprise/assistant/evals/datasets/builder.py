@@ -30,6 +30,9 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.theme.models import ColorThemeConfigBlock
+from baserow.contrib.builder.tools.themes import builder_uses_theme
+from baserow.contrib.builder.tools.types.changes import name_key
+from baserow.contrib.builder.tools.types.menu_items import new_menu_link
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
     NotificationWorkflowAction,
@@ -68,9 +71,6 @@ from baserow_enterprise.assistant.evals.types import (
     EvalRunOutput,
     EvalScenario,
 )
-from baserow_enterprise.builder.tools.themes import builder_uses_theme
-from baserow_enterprise.builder.tools.types.changes import name_key
-from baserow_enterprise.builder.tools.types.menu_items import new_menu_link
 
 # ---------------------------------------------------------------------------
 # Prompts — verbatim from the legacy files
@@ -2372,6 +2372,10 @@ PROMPT_DEMO_PAGE = (
 
 PROMPT_TEAM_APP = "Create an app for my team."
 
+# Same request in wording that no prompt or tool description quotes, so the case
+# can't pass by matching an example.
+PROMPT_VOLUNTEERS_TOOL = "Put together a tool our volunteers can use."
+
 
 def _check_asks_when_named_table_missing(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
@@ -2549,6 +2553,18 @@ register_case(
         dataset="kuma-builder",
         # Nothing pins what the app is for: one question first, not a guess.
         prompt=PROMPT_TEAM_APP,
+        scenario="builder-blank-app",
+        checks=_check_asks_once_when_goal_unclear,
+        mode=AgentMode.APPLICATION,
+        max_iters=15,
+    )
+)
+
+register_case(
+    EvalCase(
+        id="builder/asks-once-when-goal-unclear-unquoted",
+        dataset="kuma-builder",
+        prompt=PROMPT_VOLUNTEERS_TOOL,
         scenario="builder-blank-app",
         checks=_check_asks_once_when_goal_unclear,
         mode=AgentMode.APPLICATION,
@@ -3265,6 +3281,7 @@ def _changes_actions_scenario(fx: Fixtures) -> EvalScenario:
         ui_context=build_builder_ui_context(user, workspace, builder),
         refs={
             "builder": builder,
+            "home": home,
             "save_button": save_button,
             "open_button": open_button,
             "save_action_id": save_action.id,
@@ -3277,13 +3294,31 @@ def _actions_of(button) -> list[BuilderWorkflowAction]:
     return list(BuilderWorkflowAction.objects.filter(element_id=button.id))
 
 
+def _home_buttons_unchanged(scenario: EvalScenario) -> CheckResult:
+    """The Home page still holds only the Save and Open buttons, with their text."""
+
+    refs = scenario.refs
+    buttons = [
+        (element.id, _render_saved_formula(getattr(element.specific, "value", None)))
+        for element in Element.objects.filter(page=refs["home"]).order_by("id")
+    ]
+    return CheckResult(
+        "Home page still has only the Save and Open buttons, unchanged",
+        buttons == [(refs["save_button"].id, "Save"), (refs["open_button"].id, "Open")],
+        hint=f"buttons: {buttons}",
+    )
+
+
 def _check_changes_notification_title(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     actions = _actions_of(scenario.refs["save_button"])
     action = actions[0].specific if len(actions) == 1 else None
     return [
-        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
         CheckResult(
             "Save button still has one action, the same one",
             len(actions) == 1 and actions[0].id == scenario.refs["save_action_id"],
@@ -3300,6 +3335,7 @@ def _check_changes_notification_title(
             [a.id for a in _actions_of(scenario.refs["open_button"])]
             == [scenario.refs["open_action_id"]],
         ),
+        _home_buttons_unchanged(scenario),
     ]
 
 
@@ -3313,7 +3349,10 @@ def _check_changes_open_page_parameter(
         for parameter in (getattr(action, "page_parameters", None) or [])
     }
     return [
-        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
         CheckResult(
             "Open button still has one action, the same one",
             len(actions) == 1 and actions[0].id == scenario.refs["open_action_id"],
@@ -3412,7 +3451,10 @@ def _check_changes_row_action_mapping(
         else {}
     )
     return [
-        CheckResult("called update_action", tool_called(output, "update_action") >= 1),
+        CheckResult(
+            "called update_element_action",
+            tool_called(output, "update_element_action") >= 1,
+        ),
         CheckResult(
             "Close button still has one action, the same one",
             len(actions) == 1 and actions[0].id == scenario.refs["action_id"],

@@ -7,6 +7,10 @@ import pytest
 from baserow.api.sessions import set_client_undo_redo_action_group_id
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.tools.themes import (
+    apply_theme,
+    builder_uses_theme,
+)
 from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.database.models import Database
 from baserow.core.action.handler import ActionHandler
@@ -30,10 +34,6 @@ from baserow_enterprise.assistant.tools.core.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.audit_log.models import AuditLogEntry
-from baserow_enterprise.builder.tools.themes import (
-    apply_theme,
-    builder_uses_theme,
-)
 
 from .utils import make_test_ctx
 
@@ -350,20 +350,42 @@ def test_update_tool_renames_its_type(data_fixture, tool, id_argument, make):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "tool,id_argument,make",
+    "tool,id_argument,make,hint",
     [
-        (update_database, "database_id", "create_automation_application"),
-        (update_automation, "automation_id", "create_dashboard_application"),
-        (update_dashboard, "dashboard_id", "create_builder_application"),
-        (update_builder, "builder_id", "create_database_application"),
+        (
+            update_database,
+            "database_id",
+            "create_automation_application",
+            "as automation. Use update_automation",
+        ),
+        (
+            update_automation,
+            "automation_id",
+            "create_dashboard_application",
+            "as dashboard. Use update_dashboard",
+        ),
+        (
+            update_dashboard,
+            "dashboard_id",
+            "create_builder_application",
+            "as application. Use update_builder",
+        ),
+        (
+            update_builder,
+            "builder_id",
+            "create_database_application",
+            "as database. Use update_database",
+        ),
     ],
 )
-def test_update_tool_refuses_another_type(data_fixture, tool, id_argument, make):
+def test_update_tool_refuses_another_type(data_fixture, tool, id_argument, make, hint):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     other = getattr(data_fixture, make)(workspace=workspace, name="Other")
 
-    with pytest.raises(ToolInputError, match=f"with ID {other.id} not found"):
+    with pytest.raises(
+        ToolInputError, match=f"with ID {other.id} is not of this type.*{hint}"
+    ):
         tool(
             make_test_ctx(user, workspace),
             **{id_argument: other.id},
@@ -435,6 +457,21 @@ def test_update_builder_sets_the_login_page(data_fixture):
 
 
 @pytest.mark.django_db
+def test_an_unknown_application_id_is_not_found(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    other_workspace_database = data_fixture.create_database_application()
+
+    with pytest.raises(ToolInputError, match="not found in this workspace"):
+        update_database(
+            make_test_ctx(user, workspace),
+            database_id=other_workspace_database.id,
+            name="New",
+            thought="t",
+        )
+
+
+@pytest.mark.django_db
 def test_update_builder_with_nothing_to_change_is_a_no_op(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -477,9 +514,12 @@ def test_redo_of_a_message_that_created_an_automation_restores_it(data_fixture):
     with transaction.atomic():
         redone = ActionHandler.redo(user, scopes, session_id)
 
+    # The two applications. The integration stays out of undo and comes back with
+    # its automation.
     assert [action.error for action in redone] == [None, None]
     assert Application.objects.filter(id__in=ids).count() == 2
     assert Automation.objects.filter(id=created["id"]).exists()
+    assert Integration.objects.filter(application_id=created["id"]).exists()
 
 
 @pytest.mark.parametrize("tool", [create_database, create_builder])

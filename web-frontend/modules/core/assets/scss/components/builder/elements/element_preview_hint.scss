@@ -1,0 +1,25 @@
+.element-preview-hint {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid $palette-neutral-300;
+  border-radius: 100%;
+  background-color: $palette-neutral-0;
+  color: $palette-neutral-900;
+  font-size: 16px;
+  cursor: help;
+
+  &:hover {
+    color: $palette-neutral-1100;
+    background-color: $palette-neutral-50;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}

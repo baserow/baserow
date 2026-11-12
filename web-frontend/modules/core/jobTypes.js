@@ -5,6 +5,8 @@ import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { triggerDownload } from '@baserow/modules/core/utils/download'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import TemplateService from '@baserow/modules/core/services/template'
+import { FINISHED_STATES } from '@baserow/modules/core/store/job'
+import { PRIVATE_LINK_TOKEN_HEADER } from '@baserow/modules/core/utils/templatePrivateLink'
 
 /**
  * The job type base class that can be extended when creating a plugin
@@ -351,17 +353,19 @@ export class DownloadUserTemplateJobType extends JobType {
    * saved at once, or the job that builds it, which the toast follows. A click
    * while the archive of the same revision is being saved does nothing.
    */
-  async startDownload({ status, data }, template) {
+  async startDownload({ status, data, config }, template) {
     const store = this.app.$store
     if (status === 202) {
       // A repeated click gets the job that runs already, with its toast.
       if (!this.findDownloadToast(data.id)) {
+        const privateLinkToken = config?.headers?.[PRIVATE_LINK_TOKEN_HEADER]
         await this.addDownloadToast(template, {
           jobId: data.id,
           autoDownload: true,
+          ...(privateLinkToken && { privateLinkToken }),
         })
       }
-      await store.dispatch('job/create', data)
+      await this.followJob(data)
       return
     }
     const current = this.findRevisionToast(template.revision_id)
@@ -422,6 +426,20 @@ export class DownloadUserTemplateJobType extends JobType {
       await this.app.$store.dispatch('toast/remove', toast)
     }
     await this.app.$store.dispatch('job/forceDelete', job)
+  }
+
+  async followJob(data) {
+    const store = this.app.$store
+    const known = store.getters['job/get'](data.id)
+    if (known) {
+      await store.dispatch('job/forceUpdate', { job: known, data })
+      await store.dispatch('job/tryScheduleNextUpdate')
+      return
+    }
+    const job = await store.dispatch('job/create', data)
+    if (FINISHED_STATES.includes(job.state)) {
+      await this.afterUpdate(job, data)
+    }
   }
 
   findDownloadToast(jobId) {
@@ -513,7 +531,11 @@ export class DownloadUserTemplateJobType extends JobType {
     const isSameUser = signedInUserCheck(store)
     let response
     try {
-      response = await TemplateService(client).download(slug, revisionId)
+      response = await TemplateService(client).download(
+        slug,
+        revisionId,
+        toast.data.privateLinkToken
+      )
     } catch (error) {
       if (!error.handler) {
         throw error
@@ -524,7 +546,6 @@ export class DownloadUserTemplateJobType extends JobType {
       }
       return
     }
-    // The user logged out while asking.
     if (!isSameUser()) {
       return
     }
@@ -534,7 +555,7 @@ export class DownloadUserTemplateJobType extends JobType {
         toast,
         data: { jobId: data.id, state: data.state },
       })
-      await store.dispatch('job/create', data)
+      await this.followJob(data)
       return
     }
     const { autoDownload } = toast.data
@@ -555,20 +576,22 @@ export class DownloadUserTemplateJobType extends JobType {
 
   /**
    * Saves the archive, the way `DownloadLink` saves a file. The toast shows that
-   * the file is being fetched, so that it isn't fetched twice at once.
+   * the file is being fetched, so that it isn't fetched twice at once, and that
+   * it was saved.
    */
   async downloadArchive({ url, file_name: filename }, toast) {
     const { $config: config, $i18n: i18n, $store: store } = this.app
     if (!url) {
       return
     }
-    const setDownloading = (downloading) =>
-      store.dispatch('toast/update', { toast, data: { downloading } })
-    await setDownloading(true)
+    const update = (data) => store.dispatch('toast/update', { toast, data })
+    await update({ downloading: true })
+    const done = { downloading: false }
     try {
       await triggerDownload(url, filename, {
         viaXhr: `${config.public.downloadFileViaXhr}` === '1',
       })
+      done.saved = true
     } catch (error) {
       // The file couldn't be fetched from the storage.
       await store.dispatch('toast/error', {
@@ -576,7 +599,7 @@ export class DownloadUserTemplateJobType extends JobType {
         message: i18n.t('clientHandler.notCompletedDescription'),
       })
     } finally {
-      await setDownloading(false)
+      await update(done)
     }
   }
 }

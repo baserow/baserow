@@ -2,6 +2,7 @@ import axios from 'axios'
 import { showError, useRuntimeConfig } from '#imports'
 
 import { upperCaseFirst } from '@baserow/modules/core/utils/string'
+import { addPrivateLinkTokenHeader } from '@baserow/modules/core/utils/templatePrivateLink'
 import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/clientAuthRefresh'
 
 export class ResponseErrorMessage {
@@ -604,6 +605,7 @@ export default defineNuxtPlugin({
     const clientErrorMap = new ClientErrorMap(nuxtApp)
 
     client.interceptors.request.use(prepareRequestHeaders(store))
+    client.interceptors.request.use(addPrivateLinkTokenHeader(nuxtApp))
 
     client.interceptors.response.use(
       null,

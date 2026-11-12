@@ -4,8 +4,10 @@
   flex-direction: column;
 }
 
+// A fixed width, so a long description, like the URL of an HTTP request, is
+// cut short rather than widening the context.
 .data-source-context__content {
-  min-width: 600px;
+  width: 600px;
   overflow: hidden scroll;
 }
 

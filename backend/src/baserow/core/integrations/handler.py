@@ -437,10 +437,10 @@ class IntegrationHandler:
         :param storage: Where those files are written.
         :param import_export_config: Options controlling how integrations are imported.
         :return: The imported integration, or None when the application does
-            not accept its type. `DatabaseApplicationType` is the only one
-            that narrows what it accepts, and it ignores what this returns, so
-            no caller reads a None today. A type that starts narrowing has to
-            look at its own call site.
+            not accept its type. `DatabaseApplicationType` and
+            `AgentApplicationType` narrow what they accept, and both ignore
+            what this returns. A type that starts narrowing has to look at its
+            own call site.
         """
 
         if "integrations" not in id_mapping:

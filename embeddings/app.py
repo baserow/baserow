@@ -1,4 +1,5 @@
 import asyncio
+import ctypes
 import json
 import math
 import os
@@ -15,7 +16,9 @@ from tokenizers import Tokenizer
 
 MODEL_DIR = os.environ.get("EMBEDDINGS_MODEL_DIR", "/model")
 # onnxruntime keeps the memory of its largest batch, so cap the batch size.
-INFERENCE_BATCH_SIZE = 8
+CPU_BATCH_SIZE = 8
+# A GPU is only used fully with bigger batches, and has the memory for them.
+GPU_BATCH_SIZE = 64
 # The tokenizer reads whole texts before truncating them, so bound the input.
 MAX_BODY_BYTES = 2**20
 # Each text adds about 8 KB of JSON to the response.
@@ -65,12 +68,50 @@ def inference_threads() -> int:
     return int(value)
 
 
+# Only the GPU image installs an onnxruntime that supports CUDA.
+gpu_image = "CUDAExecutionProvider" in ort.get_available_providers()
+
+
+def use_gpu() -> bool:
+    value = os.environ.get("EMBEDDINGS_DEVICE", "").strip().lower()
+    if not value:
+        return gpu_image
+    if value not in ("cpu", "gpu"):
+        raise ValueError("EMBEDDINGS_DEVICE must be cpu or gpu")
+    if value == "gpu" and not gpu_image:
+        raise ValueError("EMBEDDINGS_DEVICE=gpu requires the GPU image")
+    return value == "gpu"
+
+
+def load_cuda_libraries() -> None:
+    if not gpu_image:
+        return
+    # The GPU image installs CUDA as Python packages, which onnxruntime only finds
+    # when they are preloaded.
+    ort.preload_dlls()
+    # A missing library is otherwise only a warning before falling back to the CPU.
+    # Loading them doesn't need a GPU, so the build checks this too.
+    ctypes.CDLL(
+        os.path.join(
+            os.path.dirname(ort.__file__), "capi", "libonnxruntime_providers_cuda.so"
+        )
+    )
+
+
+gpu = use_gpu()
+if gpu:
+    load_cuda_libraries()
+providers = ["CUDAExecutionProvider"] if gpu else []
+providers.append("CPUExecutionProvider")
+
 session_options = ort.SessionOptions()
 session_options.intra_op_num_threads = inference_threads()
 model_path = os.path.join(MODEL_DIR, "model.onnx")
-session = ort.InferenceSession(
-    model_path, session_options, providers=["CPUExecutionProvider"]
-)
+session = ort.InferenceSession(model_path, session_options, providers=providers)
+# onnxruntime silently falls back to the CPU when CUDA fails to load.
+if gpu and session.get_providers()[0] != "CUDAExecutionProvider":
+    raise RuntimeError("CUDA could not be used, see the onnxruntime error above")
+inference_batch_size = GPU_BATCH_SIZE if gpu else CPU_BATCH_SIZE
 
 # Inference already uses every thread, so parallel requests would oversubscribe.
 inference_lock = threading.Lock()
@@ -111,8 +152,8 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
 def compute_embeddings(texts: list[str]) -> list[list[float]]:
     embeddings = []
     with inference_lock:
-        for start in range(0, len(texts), INFERENCE_BATCH_SIZE):
-            embeddings.extend(embed_batch(texts[start : start + INFERENCE_BATCH_SIZE]))
+        for start in range(0, len(texts), inference_batch_size):
+            embeddings.extend(embed_batch(texts[start : start + inference_batch_size]))
     return embeddings
 
 

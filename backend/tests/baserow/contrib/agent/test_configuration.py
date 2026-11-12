@@ -147,6 +147,7 @@ def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
         "run_as_subject_id": None,
         "allowed_tools": [],
         "web_search_enabled": False,
+        "ask_first_tools": [],
     }
     params = registered.call_args.args[1]
     assert params == {
@@ -182,6 +183,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         "run_as_subject_id": None,
         "allowed_tools": [],
         "web_search_enabled": False,
+        "ask_first_tools": [],
     }
 
     action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
@@ -245,6 +247,7 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
             "run_as_subject_id": None,
             "allowed_tools": [],
             "web_search_enabled": False,
+            "ask_first_tools": [],
         }
     ]
     for identity in (first, second, None):
@@ -308,11 +311,12 @@ def test_configuration_audit_snapshots_record_tools_and_ignore_reordered_lists(
     assert params["new_values"] == {
         **params["original_values"],
         "allowed_tools": ["list_table_rows", "create_rows"],
+        "ask_first_tools": ["create_rows"],
     }
     assert configuration.allowed_tools == params["new_values"]["allowed_tools"]
     assert UpdateAgentConfigurationActionType.get_analytics_properties(params) == {
         "agent_id": agent.id,
-        "changed_fields": ["allowed_tools"],
+        "changed_fields": ["allowed_tools", "ask_first_tools"],
     }
 
     action_type_registry.get_by_type(UpdateAgentConfigurationActionType).do(
@@ -415,6 +419,24 @@ def test_tool_configuration_updates_the_timestamp_only_when_values_change(
             "non_field_errors",
             "invalid",
             id="unknown-field",
+        ),
+        pytest.param(
+            {"ask_first_tools": ["create_rows"]},
+            "ask_first_tools",
+            "invalid",
+            id="ask-first-without-allowed-tools",
+        ),
+        pytest.param(
+            {"allowed_tools": ["list_tables"], "ask_first_tools": ["create_rows"]},
+            "ask_first_tools",
+            "invalid",
+            id="ask-first-not-allowed",
+        ),
+        pytest.param(
+            {"allowed_tools": ["create_rows"], "ask_first_tools": ["drop_database"]},
+            "ask_first_tools",
+            "invalid",
+            id="ask-first-unknown",
         ),
     ],
 )
@@ -654,8 +676,23 @@ def test_run_as_rejects_subjects_the_agent_cannot_act_as(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "tools,expected,write_tool",
+    [
+        (
+            ["create_rows", "list_table_rows"],
+            ["list_table_rows", "create_rows"],
+            "create_rows",
+        ),
+        (
+            ["update_database", "create_database", "list_databases"],
+            ["list_databases", "create_database", "update_database"],
+            "update_database",
+        ),
+    ],
+)
 def test_allowed_tools_are_replaced_and_validated(
-    configured_agent, api_client, api_user
+    configured_agent, api_client, api_user, tools, expected, write_tool
 ):
     agent = configured_agent(user=api_user)
     identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
@@ -663,12 +700,11 @@ def test_allowed_tools_are_replaced_and_validated(
     agent.save()
     url = agent_url(agent, "configuration")
 
-    response = api_client.patch(
-        url, {"allowed_tools": ["create_rows", "list_table_rows"]}
-    )
-    assert response.json()["allowed_tools"] == ["list_table_rows", "create_rows"]
+    assert api_client.get(url).json()["allowed_tools"] == []
+    response = api_client.patch(url, {"allowed_tools": tools})
+    assert response.json()["allowed_tools"] == expected
     assert {
-        "name": "create_rows",
+        "name": write_tool,
         "group": "database",
         "changes_data": True,
     } in response.json()["available_tools"]
@@ -677,10 +713,7 @@ def test_allowed_tools_are_replaced_and_validated(
         url, {"allowed_tools": ["list_tables", "drop_database"]}
     )
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-    assert api_client.get(url).json()["allowed_tools"] == [
-        "list_table_rows",
-        "create_rows",
-    ]
+    assert api_client.get(url).json()["allowed_tools"] == expected
 
     assert api_client.patch(url, {"allowed_tools": []}).json()["allowed_tools"] == []
 
@@ -809,8 +842,8 @@ def test_clearing_workspace_access_rolls_back_both_identity_and_tools_on_failure
     handler.set_allowed_tools(agent, ["create_rows"])
     set_allowed_tools = AgentHandler.set_allowed_tools
 
-    def fail_after_clearing(self, agent, names):
-        set_allowed_tools(self, agent, names)
+    def fail_after_clearing(self, agent, names, ask_first_names=None):
+        set_allowed_tools(self, agent, names, ask_first_names)
         raise RuntimeError("Failed after clearing tools")
 
     mocker.patch.object(AgentHandler, "set_allowed_tools", fail_after_clearing)
@@ -821,7 +854,64 @@ def test_clearing_workspace_access_rolls_back_both_identity_and_tools_on_failure
 
     agent.refresh_from_db()
     assert agent.run_as_subject_id == identity.id
-    assert handler.get_allowed_tool_names(agent) == ["create_rows"]
+    assert handler.get_tool_configuration(agent)["allowed_tools"] == ["create_rows"]
+
+
+@pytest.mark.django_db
+def test_newly_allowed_change_tools_ask_first_unless_set_explicitly(
+    configured_agent, api_client, api_user, mocker
+):
+    agent = configured_agent(user=api_user)
+    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.save()
+    url = agent_url(agent, "configuration")
+    registered = mocker.spy(
+        UpdateAgentConfigurationActionType, "send_action_done_signal"
+    )
+
+    def ask_first_tools_after(values: dict) -> list[str]:
+        return api_client.patch(url, values).json()["ask_first_tools"]
+
+    assert ask_first_tools_after({"allowed_tools": ["create_rows", "list_tables"]}) == [
+        "create_rows"
+    ]
+    assert ask_first_tools_after(
+        {
+            "allowed_tools": ["create_rows", "list_tables"],
+            "ask_first_tools": ["list_tables"],
+        }
+    ) == ["list_tables"]
+    allowed_tools = ["create_rows", "list_tables", "delete_rows"]
+    assert ask_first_tools_after({"allowed_tools": allowed_tools}) == [
+        "list_tables",
+        "delete_rows",
+    ]
+    assert ask_first_tools_after(
+        {
+            "allowed_tools": allowed_tools,
+            "ask_first_tools": ["delete_rows", "list_tables"],
+        }
+    ) == ["list_tables", "delete_rows"]
+    assert api_client.get(url).json()["ask_first_tools"] == [
+        "list_tables",
+        "delete_rows",
+    ]
+    assert (
+        ask_first_tools_after({"allowed_tools": allowed_tools, "ask_first_tools": []})
+        == []
+    )
+    assert [
+        UpdateAgentConfigurationActionType.get_analytics_properties(call.args[1])[
+            "changed_fields"
+        ]
+        for call in registered.call_args_list
+    ] == [
+        ["allowed_tools", "ask_first_tools"],
+        ["ask_first_tools"],
+        ["allowed_tools", "ask_first_tools"],
+        ["ask_first_tools"],
+    ]
 
 
 @pytest.mark.django_db
@@ -884,6 +974,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "applied_reasoning_effort": None,
         "run_as": None,
         "allowed_tools": [],
+        "ask_first_tools": [],
         "available_tools": ANY,
         "web_search_enabled": False,
         "web_search_available": True,

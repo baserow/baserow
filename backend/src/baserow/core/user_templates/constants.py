@@ -1,7 +1,8 @@
 import re
 from datetime import timedelta
+from enum import Enum
 
-from django.db import models
+from baserow.core.models import UserTemplateState
 
 USER_TEMPLATE_DESCRIPTION_MAX_LENGTH = 80
 
@@ -21,12 +22,18 @@ USER_TEMPLATE_DELETION_GRACE_PERIOD = timedelta(days=1)
 USER_TEMPLATE_PURGE_BATCH_SIZE = 20
 
 
-class UserTemplateState(models.TextChoices):
-    PRIVATE = "private", "Private"
-    IN_REVIEW = "in_review", "In review"
-    REJECTED = "rejected", "Rejected"
-    BLOCKED = "blocked", "Blocked"
-    PUBLIC = "public", "Public"
+class InstallAccess(Enum):
+    OWNER = "owner"
+    INSTANCE_ADMIN = "instance_admin"
+    LISTED = "listed"
+    PRIVATE_LINK = "private_link"
+
+
+USER_TEMPLATE_ADMIN_STATES = (
+    UserTemplateState.IN_REVIEW,
+    UserTemplateState.PUBLIC,
+    UserTemplateState.REJECTED,
+)
 
 
 # The views mapping is created together with the mappings of its children, see

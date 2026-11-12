@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import fields
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -127,8 +127,9 @@ class ServiceType(
             )
         return serialized
 
-    # Does this service return a list of record?
-    returns_list = False
+    # Whether this type's services return a list of records. A type whose services
+    # can return either says so per service in `returns_list`.
+    _returns_list = False
 
     # Whether dispatching this service sends to an endpoint it is configured
     # with, such as HTTP, email, Slack or an AI provider. A file reader that
@@ -205,6 +206,21 @@ class ServiceType(
 
         # Sane default
         return "id"
+
+    def extract_collection_properties(
+        self, service: Service, schema_property: str
+    ) -> List[str]:
+        """
+        Returns the properties of the service's result that a collection element
+        repeating over the items of `schema_property` needs, besides the ones its
+        formulas use.
+
+        :param service: the instance of the service.
+        :param schema_property: the property holding the items.
+        :return: the property names.
+        """
+
+        return [schema_property]
 
     def get_name_property(self, service: Service) -> Optional[str]:
         """
@@ -284,12 +300,17 @@ class ServiceType(
         :param instance: The to be deleted service instance.
         """
 
-    def get_context_data(self, service: ServiceSubClass):
+    def get_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ):
         """
         Return the context data for this service.
 
         This can be overridden by child classes to provide extra context data,
         to complement this service results.
+
+        :param service: The service we want the context data for.
+        :param allowed_fields: The properties which are allowed to be included.
         """
 
         return None
@@ -608,6 +629,30 @@ class ServiceType(
                     raise
             return serialized_data
 
+    def resume_dispatch(
+        self,
+        service: ServiceSubClass,
+        state: dict,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        """
+        Finishes a dispatch that returned a `PendingDispatch`. The consumer that
+        suspended the dispatch calls this once the wait is over, with the `state`
+        the service stored on the pending result. Returns the final result,
+        exactly as `dispatch()` would have.
+
+        :param service: The service instance whose dispatch is resumed.
+        :param state: The state the service stored when it suspended.
+        :param dispatch_context: The context used for the dispatch.
+        :raises NotImplementedError: If the service type never suspends.
+        :return: The final dispatch result.
+        """
+
+        raise NotImplementedError(
+            f"The {self.type} service type returned a pending dispatch but does "
+            "not implement resume_dispatch()."
+        )
+
     def remove_unused_field_names(
         self,
         row: Dict[str, Any],
@@ -629,7 +674,7 @@ class ServiceType(
         if result is None:
             return None
 
-        if self.returns_list:
+        if self.returns_list(service):
             return {
                 **result,
                 "results": [
@@ -639,6 +684,17 @@ class ServiceType(
             }
         else:
             return self.remove_unused_field_names(result, allowed_field_names)
+
+    def returns_list(self, service: Service) -> bool:
+        """
+        Whether the given service returns a list of records. By default it's the
+        same for all the services of this type.
+
+        :param service: The specific service.
+        :return: True if the service returns a list of records.
+        """
+
+        return self._returns_list
 
     def get_schema_name(self, service: Service) -> str:
         """
@@ -774,7 +830,7 @@ ServiceTypeSubClass = TypeVar("ServiceTypeSubClass", bound=ServiceType)
 class ListServiceTypeMixin:
     """A mixin for services that return lists."""
 
-    returns_list = True
+    _returns_list = True
 
     def prepare_record_ids(self, record_ids: List[Any]) -> List[int]:
         """
@@ -830,11 +886,21 @@ class ListServiceTypeMixin:
 
 
 class TriggerServiceTypeMixin(ABC):
-    # The callable function which should be called when the event occurs.
-    on_event: Callable = lambda *args: None
-
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
+
+    @property
+    def listeners(self) -> List[Callable]:
+        """
+        The callables notified when this trigger type's event occurs, in
+        subscription order. One list per service type instance.
+
+        :return: The listeners subscribed through `start_listening`.
+        """
+
+        if not hasattr(self, "_listeners"):
+            self._listeners: List[Callable] = []
+        return self._listeners
 
     def can_be_immediately_dispatched(self, service: Service):
         """
@@ -863,25 +929,102 @@ class TriggerServiceTypeMixin(ABC):
     def dispatch_transform(self, data):
         return DispatchResult(data=data)
 
-    def start_listening(self, on_event: Callable) -> None:
+    def start_listening(self, listener: Callable) -> None:
         """
-        Triggers, a type of service which respond to internal and external events and
-        trigger their own dispatch, need the ability to "start" listening to their
-        events. This method ensure that we only begin listening when we need to.
+        Subscribes a listener to this trigger type's events. The type connects to
+        its event source (a Django signal, the Celery beat, ...) only when the
+        first listener subscribes, so nothing is received while nobody consumes.
 
-        :param on_event: A callable function which should be called when
-            the internal or external event occurs.
+        :param listener: Called as `listener(services, event_payload, user=...,
+            isolate_failures=...)` when the event occurs. It may return a list of
+            results, which `TriggerServiceTypeMixin.on_event` concatenates across
+            listeners.
         """
 
-        self.on_event = on_event
+        if listener in self.listeners:
+            return
 
-    def stop_listening(self) -> None:
+        self.listeners.append(listener)
+        if len(self.listeners) == 1:
+            self.connect()
+
+    def stop_listening(self, listener: Callable) -> None:
         """
-        Triggers, a type of service which respond to internal and external events and
-        trigger their own dispatch, need the ability to "stop" listening to their
-        events. This method ensure that we can stop listening when we need to.
-        :return:
+        Unsubscribes a listener. The type disconnects from its event source when
+        the last listener leaves. Unknown listeners are ignored.
+
+        :param listener: The callable given to `start_listening`.
         """
+
+        if listener not in self.listeners:
+            return
+
+        self.listeners.remove(listener)
+        if not self.listeners:
+            self.disconnect()
+
+    def connect(self) -> None:
+        """
+        Starts receiving the events this trigger type reacts to. Called when the
+        first listener subscribes. Types without an event source of their own
+        (e.g. the HTTP trigger, called by its view) keep this no-op.
+        """
+
+    def disconnect(self) -> None:
+        """
+        Stops receiving events. Called when the last listener unsubscribes.
+        """
+
+    def arm(self, service: Service) -> None:
+        """
+        Makes the service receive real events from now on. Types whose services
+        are always live keep this no-op.
+
+        :param service: The specific trigger service to arm.
+        """
+
+    def on_event(
+        self,
+        services: Iterable[Service],
+        event_payload: Dict | Callable | None = None,
+        user: Optional[AbstractUser] = None,
+        isolate_failures: bool = False,
+    ) -> List:
+        """
+        Notifies every listener that an event occurred for the given services.
+
+        :param services: The services the event applies to. Iterated once, so a
+            queryset or iterator is safe to pass.
+        :param event_payload: The event payload, or a callable returning the
+            payload for a given service.
+        :param user: The user who caused the event, if any.
+        :param isolate_failures: Whether a listener should roll back and skip a
+            consumer that fails to start instead of raising.
+        :return: The concatenated results of every listener; `[]` when none has
+            anything to report.
+        """
+
+        services = list(services)
+        results: List = []
+        for listener in self.listeners:
+            result = listener(
+                services, event_payload, user=user, isolate_failures=isolate_failures
+            )
+            if result is not None:
+                results.extend(result)
+        return results
+
+    def after_register(self) -> None:
+        """
+        Subscribes the listeners already added to `service_type_registry`, so a
+        trigger type registered after a consumer (a plugin, a later app) still
+        notifies it. `Registry.register` calls this hook, which is the one place
+        every registration passes through.
+        """
+
+        super().after_register()
+        for listener in service_type_registry.trigger_listeners:
+            self.start_listening(listener)
 
 
 class ServiceTypeRegistry(
@@ -896,6 +1039,49 @@ class ServiceTypeRegistry(
 
     name = "integration_service"
     does_not_exist_exception_class = ServiceTypeDoesNotExist
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.trigger_listeners: list[Callable] = []
+
+    def _trigger_service_types(self) -> list[TriggerServiceTypeMixin]:
+        """
+        :return: The registered service types that respond to events.
+        """
+
+        return [
+            service_type
+            for service_type in self.get_all()
+            if isinstance(service_type, TriggerServiceTypeMixin)
+        ]
+
+    def add_trigger_listener(self, listener: Callable) -> None:
+        """
+        Subscribes `listener` to every trigger service type, the ones registered
+        now and the ones registered later, so a consumer without node types can
+        react to every trigger event.
+
+        :param listener: Called like the listeners of
+            `TriggerServiceTypeMixin.start_listening`; must return a list.
+        """
+
+        if listener not in self.trigger_listeners:
+            self.trigger_listeners.append(listener)
+        for service_type in self._trigger_service_types():
+            service_type.start_listening(listener)
+
+    def remove_trigger_listener(self, listener: Callable) -> None:
+        """
+        Unsubscribes `listener` from every trigger service type and stops
+        subscribing it to the ones registered later.
+
+        :param listener: The listener given to `add_trigger_listener`.
+        """
+
+        if listener in self.trigger_listeners:
+            self.trigger_listeners.remove(listener)
+        for service_type in self._trigger_service_types():
+            service_type.stop_listening(listener)
 
 
 service_type_registry: ServiceTypeRegistry = ServiceTypeRegistry()

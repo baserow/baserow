@@ -80,6 +80,7 @@ export default {
       delete differences.place_in_container
 
       if (Object.keys(differences).length > 0) {
+        const form = this.$refs.panelForm
         try {
           await this.actionDebouncedUpdateElement({
             builder: this.builder,
@@ -91,7 +92,7 @@ export default {
           })
         } catch (error) {
           // Restore the previous saved values from the store
-          this.$refs.panelForm?.reset(true)
+          if (form === this.$refs.panelForm) form?.reset(true)
           notifyIf(error)
         }
       }

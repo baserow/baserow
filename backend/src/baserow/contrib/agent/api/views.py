@@ -28,15 +28,18 @@ from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
+    DecideAgentToolApprovalsActionType,
     DeleteAgentConversationActionType,
     UpdateAgentConfigurationActionType,
     UpdateAgentConversationActionType,
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationWaitingForApproval,
     AgentMessageConflict,
     AgentNotReady,
     AgentRunAsSubjectDoesNotExist,
+    AgentToolApprovalNotPending,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
@@ -52,9 +55,11 @@ from baserow.core.service import CoreService
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
     ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
+    ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
 )
 from .serializers import (
     AgentConfigurationSerializer,
@@ -69,6 +74,7 @@ from .serializers import (
     AgentMessagePagination,
     AgentMessageSerializer,
     AgentRunAsSubjectsQueryParamsSerializer,
+    AgentToolDecisionsSerializer,
 )
 
 AGENT_ID_PATH_PARAMETER = OpenApiParameter(
@@ -83,6 +89,8 @@ AGENT_EXCEPTIONS = {
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
+    AgentConversationWaitingForApproval: ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
+    AgentToolApprovalNotPending: ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING,
     ChatRunAlreadyActive: ERROR_CHAT_RUN_IN_PROGRESS,
     ChatRunLimitReached: ERROR_AGENT_BUSY,
 }
@@ -105,8 +113,16 @@ CONVERSATION_WRITE_ERRORS = {
 MESSAGE_WRITE_ERRORS = {
     **CONVERSATION_WRITE_ERRORS,
     409: get_error_schema(
-        ["ERROR_AGENT_MESSAGE_CONFLICT", "ERROR_CHAT_RUN_IN_PROGRESS"]
+        [
+            "ERROR_AGENT_MESSAGE_CONFLICT",
+            "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
+            "ERROR_CHAT_RUN_IN_PROGRESS",
+        ]
     ),
+}
+APPROVAL_WRITE_ERRORS = {
+    **CONVERSATION_WRITE_ERRORS,
+    409: get_error_schema(["ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING"]),
 }
 
 
@@ -287,7 +303,8 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         operation_id="list_agent_conversations",
         description=(
             "Lists the authenticated user's own conversations with the agent, most "
-            "recently active first."
+            "recently active first, each with its number of tool calls waiting for "
+            "the user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -320,7 +337,9 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         # One more than requested tells whether a next page exists without a count.
         conversations = list(
             AgentService().list_conversations(
-                request.user, agent_id, query_params.get("cursor")
+                request.user,
+                agent_id,
+                query_params.get("cursor"),
             )[: limit + 1]
         )
         page = conversations[:limit]
@@ -329,11 +348,17 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
             if len(conversations) > limit
             else None
         )
-        runs = AgentHandler().get_conversation_runs([item.id for item in page])
+        page_ids = [item.id for item in page]
+        context = {
+            "conversation_runs": AgentHandler().get_conversation_runs(page_ids),
+            "conversation_pending_approvals": (
+                AgentHandler().get_conversation_pending_approval_counts(page_ids)
+            ),
+        }
         return Response(
             {
                 "results": AgentConversationSerializer(
-                    page, many=True, context={"conversation_runs": runs}
+                    page, many=True, context=context
                 ).data,
                 "next_cursor": encode_keyset_cursor(next_cursor),
             }
@@ -392,12 +417,17 @@ class AgentConversationView(APIView):
         conversation = action_type_registry.get_by_type(
             UpdateAgentConversationActionType
         ).do(request.user, agent_id, conversation_uuid, **data)
-        runs = AgentHandler().get_conversation_runs([conversation.id])
-        return Response(
-            AgentConversationSerializer(
-                conversation, context={"conversation_runs": runs}
-            ).data
-        )
+        context = {
+            "conversation_runs": AgentHandler().get_conversation_runs(
+                [conversation.id]
+            ),
+            "conversation_pending_approvals": (
+                AgentHandler().get_conversation_pending_approval_counts(
+                    [conversation.id]
+                )
+            ),
+        }
+        return Response(AgentConversationSerializer(conversation, context=context).data)
 
     @extend_schema(
         tags=["Agent applications"],
@@ -490,4 +520,35 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
             AgentMessageCreatedSerializer(
                 result, context=_accepted_context(result)
             ).data
+        )
+
+
+class AgentToolApprovalsView(APIView):
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="decide_agent_tool_approvals",
+        description=(
+            "Approves or rejects tool calls that the waiting reply of one of the "
+            "authenticated user's conversations holds for approval. Once none are "
+            "left to decide, a run continues the reply and the response names it. "
+            "With always_allow, the tools of the approved calls stop asking first."
+        ),
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        request=AgentToolDecisionsSerializer,
+        responses={200: AgentMessageSerializer, **APPROVAL_WRITE_ERRORS},
+    )
+    @map_exceptions(AGENT_EXCEPTIONS)
+    @validate_body(AgentToolDecisionsSerializer, return_validated=True)
+    def post(
+        self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
+    ) -> Response:
+        """Saves the owner's decisions and names the run continuing the reply."""
+
+        result = action_type_registry.get_by_type(
+            DecideAgentToolApprovalsActionType
+        ).do(request.user, agent_id, conversation_uuid, **data)
+        reply = result.reply
+        active_runs = {reply.id: result.run_id} if result.run_id else {}
+        return Response(
+            AgentMessageSerializer(reply, context={"active_runs": active_runs}).data
         )

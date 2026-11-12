@@ -1,0 +1,741 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
+import { ref } from 'vue'
+import { TestApp } from '@baserow/test/helpers/testApp'
+import AgentConnectedAppsSection from '@baserow/modules/agent/components/configuration/AgentConnectedAppsSection'
+import { MCP_OAUTH_MESSAGE_TYPE } from '@baserow/modules/agent/constants'
+import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
+
+const tool = (name, extra = {}) => ({
+  name,
+  title: '',
+  description: `${name} description`,
+  annotations: null,
+  enabled: false,
+  ask_first: true,
+  changes_data: true,
+  changed_since_review: false,
+  removed: false,
+  definition_hash: `${name}-hash`,
+  ...extra,
+})
+
+const server = (extra = {}) => ({
+  id: 5,
+  type: 'mcp_server',
+  name: 'Docs',
+  url: 'https://mcp.example.com/mcp',
+  auth_type: 'header',
+  auth_header_name: 'Authorization',
+  has_auth_header_value: true,
+  tools: [],
+  ...extra,
+})
+
+const inBody = (selector) => [...document.body.querySelectorAll(selector)]
+const buttonInBody = (text) =>
+  inBody('.modal__box button').find((button) =>
+    button.textContent.includes(text)
+  )
+const inputInModal = (label) =>
+  inBody('.modal__box .control')
+    .find((group) => group.textContent.includes(label))
+    .querySelector('input')
+const type = (input, value) => {
+  input.value = value
+  input.dispatchEvent(new Event('input'))
+}
+const body = (request) => JSON.parse(request.data)
+
+describe('Agent connected apps', () => {
+  let testApp
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const mountSection = (editable = true) =>
+    testApp.mount(AgentConnectedAppsSection, {
+      props: { editable },
+      global: {
+        provide: { agentApplication: ref({ id: 10, name: 'Helper' }) },
+      },
+    })
+
+  test('lists only MCP servers, with how many tools are on or changed', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [
+      server({ tools: [tool('a', { enabled: true }), tool('b')] }),
+      server({
+        id: 6,
+        name: 'Tracker',
+        tools: [tool('c', { changed_since_review: true })],
+      }),
+      { id: 7, type: 'local_baserow', name: 'Other' },
+    ])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    const servers = wrapper.findAll('.agent-connected-apps__server')
+    expect(servers.map((item) => item.text())).toEqual([
+      expect.stringContaining('Docs'),
+      expect.stringContaining('Tracker'),
+    ])
+    expect(servers[0].text()).toContain('agent.toolsOn')
+    expect(servers[1].text()).toContain('agent.connectedAppChanged')
+  })
+
+  test('connecting an app lists its tools for review, then saves the choice', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
+    testApp.mock
+      .onPost(/application\/10\/integrations/)
+      .reply(200, server({ has_auth_header_value: true }))
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ tools: [tool('search'), tool('delete')] }))
+    testApp.mock
+      .onPatch('/integrations/mcp/5/tools/')
+      .reply(200, server({ tools: [tool('search', { enabled: true })] }))
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper.get('.agent-connected-apps__add').trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppAuthHeader').click()
+    await flushPromises()
+    type(inputInModal('agent.connectedAppName'), 'Docs')
+    type(inputInModal('agent.connectedAppUrl'), 'https://mcp.example.com/mcp')
+    type(inputInModal('agent.connectedAppHeaderValue'), 'Bearer secret')
+    buttonInBody('agent.connectedAppConnect').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.post[0])).toEqual({
+      type: 'mcp_server',
+      name: 'Docs',
+      url: 'https://mcp.example.com/mcp',
+      auth_type: 'header',
+      auth_header_name: 'Authorization',
+      auth_header_value: 'Bearer secret',
+    })
+    expect(testApp.mock.history.post[1].url).toBe(
+      '/integrations/mcp/5/refresh-tools/'
+    )
+
+    // New tools start off and ask first. Ask first only applies to an
+    // allowed tool: turn on the first one and let it run without asking.
+    const rows = inBody('.agent-mcp-tools__columns').slice(1)
+    expect(rows).toHaveLength(2)
+    const askFirst = () =>
+      inBody('.agent-mcp-tools__columns')[1].querySelectorAll('.checkbox')[1]
+    expect(askFirst().classList).toContain('checkbox--disabled')
+    rows[0].querySelector('.checkbox').click()
+    await flushPromises()
+    expect(askFirst().classList).not.toContain('checkbox--disabled')
+    askFirst().click()
+    await flushPromises()
+    buttonInBody('agent.toolsDone').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({
+      tools: [
+        {
+          name: 'search',
+          definition_hash: 'search-hash',
+          enabled: true,
+          ask_first: false,
+        },
+        {
+          name: 'delete',
+          definition_hash: 'delete-hash',
+          enabled: false,
+          ask_first: true,
+        },
+      ],
+    })
+    expect(wrapper.text()).toContain('agent.toolsOn')
+  })
+
+  test('changing the URL asks for the credential again', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .get('button[aria-label="agent.connectedAppEdit"]')
+      .trigger('click')
+    await flushPromises()
+    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
+    buttonInBody('action.save').click()
+    await flushPromises()
+
+    expect(testApp.mock.history.patch).toHaveLength(0)
+    expect(
+      inBody('.modal__box .control').find((group) =>
+        group.textContent.includes('agent.connectedAppHeaderValueRequired')
+      )
+    ).toBeTruthy()
+  })
+
+  test('a key the server no longer uses is cleared, so the URL can change', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ auth_type: 'none', has_auth_header_value: false }))
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server())
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .get('button[aria-label="agent.connectedAppEdit"]')
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppAuthNone').click()
+    await flushPromises()
+    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
+    buttonInBody('action.save').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({
+      url: 'https://other.example.com/mcp',
+      auth_type: 'none',
+    })
+  })
+
+  test("a new URL lists the new server's tools for review", async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [tool('old', { enabled: true })] })])
+    testApp.mock
+      .onPatch('integration/5/')
+      .reply(200, server({ url: 'https://other.example.com/mcp' }))
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ tools: [tool('search')] }))
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .get('button[aria-label="agent.connectedAppEdit"]')
+      .trigger('click')
+    await flushPromises()
+    type(inputInModal('agent.connectedAppUrl'), 'https://other.example.com/mcp')
+    type(inputInModal('agent.connectedAppHeaderValue'), 'Bearer new')
+    buttonInBody('action.save').click()
+    await flushPromises()
+
+    expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(1)
+  })
+
+  test('an unreachable server is explained in the tools modal', async () => {
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [tool('search')] })])
+    testApp.mock.onPost('/integrations/mcp/5/refresh-tools/').reply(400, {
+      error: 'ERROR_MCP_SERVER_UNREACHABLE',
+      detail: 'The MCP server could not be reached.',
+    })
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppRefresh').click()
+    await flushPromises()
+
+    expect(
+      document.body.querySelector('.modal__box .alert').textContent
+    ).toContain('agent.connectedAppUnreachable')
+  })
+
+  test('a refresh that finishes after another server was opened is ignored', async () => {
+    let answer
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [
+        server({ tools: [tool('search')] }),
+        server({ id: 6, name: 'Tracker', tools: [tool('issue')] }),
+      ])
+    testApp.mock.onPost('/integrations/mcp/5/refresh-tools/').reply(
+      () =>
+        new Promise((resolve) => {
+          answer = () =>
+            resolve([200, server({ tools: [tool('search'), tool('fetch')] })])
+        })
+    )
+    const wrapper = await mountSection()
+    await flushPromises()
+    const toolsButtons = () =>
+      wrapper
+        .findAll('.agent-connected-apps__server')
+        .map((card) => card.findAll('button')[0])
+
+    await toolsButtons()[0].trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppRefresh').click()
+    await flushPromises()
+    buttonInBody('action.cancel').click()
+    // The modal finishes hiding on the next tick.
+    await new Promise((resolve) => setTimeout(resolve))
+    await toolsButtons()[1].trigger('click')
+    await flushPromises()
+    answer()
+    await flushPromises()
+
+    expect(
+      inBody('.modal__box .agent-tool-permissions__tool-name').map((name) =>
+        name.textContent.trim()
+      )
+    ).toEqual(['issue'])
+  })
+
+  test('the review shows the parameters a tool is called with', async () => {
+    const search = tool('search', {
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'What to look for' },
+          limit: { type: 'integer' },
+        },
+        required: ['query'],
+      },
+    })
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [search] })])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppToolParameters').click()
+    await flushPromises()
+
+    const parameters = inBody('.modal__box .agent-mcp-tools__parameter').map(
+      (parameter) =>
+        [...parameter.children].map((part) => part.textContent.trim())
+    )
+    expect(parameters).toEqual([
+      [
+        'query',
+        'string',
+        'agent.connectedAppToolParameterRequired',
+        'What to look for',
+      ],
+      ['limit', 'integer'],
+    ])
+  })
+
+  test('the review shows the full input schema, with what the summary leaves out', async () => {
+    const update = tool('update', {
+      input_schema: {
+        type: 'object',
+        properties: { status: { type: 'string', enum: ['open', 'closed'] } },
+      },
+    })
+    testApp.mock
+      .onGet(/application\/10\/integrations/)
+      .reply(200, [server({ tools: [update] })])
+    const wrapper = await mountSection()
+    await flushPromises()
+
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    buttonInBody('agent.connectedAppToolParameters').click()
+    await flushPromises()
+
+    const schema = inBody('.modal__box .agent-mcp-tools__schema pre')
+    expect(JSON.parse(schema[0].textContent)).toEqual(update.input_schema)
+  })
+
+  test("another editor's change shows without a reload", async () => {
+    const agent = await testApp.store.dispatch('application/forceCreate', {
+      id: 10,
+      type: 'agent',
+      name: 'Helper',
+      workspace: { id: 1 },
+    })
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await testApp.mount(AgentConnectedAppsSection, {
+      props: { editable: true },
+      global: {
+        provide: {
+          agentApplication: ref(testApp.store.getters['application/get'](10)),
+        },
+      },
+    })
+    await flushPromises()
+    const handlers = {}
+    registerRealtimeEvents({
+      registerEvent: (name, handler) => (handlers[name] = handler),
+    })
+
+    handlers.integration_updated(
+      { store: testApp.store },
+      { integration: server({ name: 'Renamed', application_id: 10 }) }
+    )
+    await flushPromises()
+
+    expect(agent).toBeDefined()
+    expect(wrapper.find('.agent-connected-apps__server-name').text()).toBe(
+      'Renamed'
+    )
+  })
+
+  const mountWithStore = async (servers) => {
+    await testApp.store.dispatch('application/forceCreate', {
+      id: 10,
+      type: 'agent',
+      name: 'Helper',
+      workspace: { id: 1 },
+    })
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, servers)
+    const wrapper = await testApp.mount(AgentConnectedAppsSection, {
+      props: { editable: true },
+      global: {
+        provide: {
+          agentApplication: ref(testApp.store.getters['application/get'](10)),
+        },
+      },
+    })
+    await flushPromises()
+    const handlers = {}
+    registerRealtimeEvents({
+      registerEvent: (name, handler) => (handlers[name] = handler),
+    })
+    return { wrapper, handlers }
+  }
+
+  test("a tool another editor's refresh changed is saved as stored, not as picked before", async () => {
+    const { wrapper, handlers } = await mountWithStore([
+      server({ tools: [tool('search')] }),
+    ])
+    testApp.mock.onPatch('/integrations/mcp/5/tools/').reply(200, server())
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+    inBody('.agent-mcp-tools__columns')[1].querySelector('.checkbox').click()
+    await flushPromises()
+
+    handlers.integration_updated(
+      { store: testApp.store },
+      {
+        integration: server({
+          application_id: 10,
+          tools: [
+            tool('search', {
+              definition_hash: 'search-hash-2',
+              changed_since_review: true,
+            }),
+          ],
+        }),
+      }
+    )
+    await flushPromises()
+    buttonInBody('agent.toolsDone').click()
+    await flushPromises()
+
+    expect(body(testApp.mock.history.patch[0])).toEqual({
+      tools: [
+        {
+          name: 'search',
+          definition_hash: 'search-hash-2',
+          enabled: false,
+          ask_first: true,
+        },
+      ],
+    })
+  })
+
+  test('a refresh that adds a tool lists it to pick', async () => {
+    const { wrapper } = await mountWithStore([
+      server({ tools: [tool('search')] }),
+    ])
+    testApp.mock
+      .onPost('/integrations/mcp/5/refresh-tools/')
+      .reply(200, server({ tools: [tool('search'), tool('fetch')] }))
+    await wrapper
+      .findAll('.agent-connected-apps__server button')[0]
+      .trigger('click')
+    await flushPromises()
+
+    buttonInBody('agent.connectedAppRefresh').click()
+    await flushPromises()
+
+    const rows = inBody('.agent-mcp-tools__columns').slice(1)
+    expect(rows).toHaveLength(2)
+    expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(2)
+  })
+
+  test('viewers see the apps but cannot add or edit them', async () => {
+    testApp.mock.onGet(/application\/10\/integrations/).reply(200, [server()])
+    const wrapper = await mountSection(false)
+    await flushPromises()
+
+    expect(wrapper.find('.agent-connected-apps__add').exists()).toBe(false)
+    expect(
+      wrapper.find('button[aria-label="agent.connectedAppEdit"]').exists()
+    ).toBe(false)
+  })
+
+  describe('signing in with OAuth', () => {
+    let popup
+
+    beforeEach(() => {
+      popup = { location: {}, closed: false, close: vi.fn() }
+      vi.spyOn(window, 'open').mockReturnValue(popup)
+    })
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    const oauthServer = (extra = {}) =>
+      server({
+        auth_type: 'oauth',
+        has_auth_header_value: false,
+        oauth_connected: false,
+        ...extra,
+      })
+
+    const createWithOAuth = async (wrapper) => {
+      await wrapper.get('.agent-connected-apps__add').trigger('click')
+      await flushPromises()
+      type(inputInModal('agent.connectedAppName'), 'Linear')
+      type(inputInModal('agent.connectedAppUrl'), 'https://mcp.example.com/mcp')
+      buttonInBody('agent.connectedAppSignIn').click()
+      await flushPromises()
+    }
+
+    // What the callback page reports once the provider redirected back.
+    const report = (result) => {
+      const channel = new BroadcastChannel(MCP_OAUTH_MESSAGE_TYPE)
+      channel.postMessage({ type: MCP_OAUTH_MESSAGE_TYPE, ...result })
+      channel.close()
+    }
+
+    const mockSignIn = () => {
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
+      testApp.mock
+        .onPost(/application\/10\/integrations/)
+        .reply(200, oauthServer())
+      testApp.mock.onPost('/integrations/mcp/5/oauth/start/').reply(200, {
+        authorization_url: 'https://auth.example.com/authorize?state=abc',
+      })
+      testApp.mock
+        .onPost('/integrations/mcp/5/refresh-tools/')
+        .reply(
+          200,
+          oauthServer({ oauth_connected: true, tools: [tool('search')] })
+        )
+    }
+
+    test('connecting opens the provider in a popup, then lists the tools', async () => {
+      mockSignIn()
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+
+      // The popup opens on the click itself, before any request.
+      expect(window.open).toHaveBeenCalledTimes(1)
+      expect(body(testApp.mock.history.post[0])).toMatchObject({
+        auth_type: 'oauth',
+        oauth_client_id: '',
+      })
+      expect(popup.location.href).toBe(
+        'https://auth.example.com/authorize?state=abc'
+      )
+
+      // A provider page can cut the popup off from Baserow, which then sees it
+      // as closed while the editor is still signing in.
+      popup.closed = true
+      await flushPromises()
+      expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(
+        0
+      )
+
+      // The provider redirects back and the callback page reports.
+      report({
+        state: 'abc',
+        integration: oauthServer({ oauth_connected: true }),
+      })
+      await vi.waitFor(() =>
+        expect(
+          inBody('.modal__box .agent-tool-permissions__tool')
+        ).toHaveLength(1)
+      )
+      expect(testApp.mock.history.post.at(-1).url).toBe(
+        '/integrations/mcp/5/refresh-tools/'
+      )
+    })
+
+    test('another sign-in finishing leaves this one waiting', async () => {
+      mockSignIn()
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+      report({ state: 'other', integration: oauthServer() })
+      await flushPromises()
+
+      expect(popup.close).not.toHaveBeenCalled()
+      expect(testApp.mock.history.post.at(-1).url).toBe(
+        '/integrations/mcp/5/oauth/start/'
+      )
+    })
+
+    test('a failed sign-in explains it and keeps the server', async () => {
+      mockSignIn()
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+      report({ state: 'abc', error: 'The sign-in was cancelled or refused.' })
+
+      await vi.waitFor(() =>
+        expect(
+          document.body.querySelector('.modal__box .alert')?.textContent
+        ).toContain('The sign-in was cancelled or refused.')
+      )
+      expect(inBody('.modal__box h2')[0].textContent).toContain(
+        'agent.connectedAppEditTitle'
+      )
+    })
+
+    test('a new URL replaces a client Baserow registered without asking for its secret', async () => {
+      const registered = server({
+        auth_type: 'oauth',
+        oauth_connected: true,
+        oauth_client_source: 'dynamic',
+        has_auth_header_value: false,
+        has_oauth_client_secret: true,
+      })
+      testApp.mock
+        .onGet(/application\/10\/integrations/)
+        .reply(200, [registered])
+      testApp.mock
+        .onPatch('integration/5/')
+        .reply(200, { ...registered, oauth_connected: false })
+      testApp.mock
+        .onPost('/integrations/mcp/5/oauth/start/')
+        .reply(200, { authorization_url: 'https://auth.example.com/authorize' })
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await wrapper
+        .get('button[aria-label="agent.connectedAppEdit"]')
+        .trigger('click')
+      await flushPromises()
+      type(
+        inputInModal('agent.connectedAppUrl'),
+        'https://other.example.com/mcp'
+      )
+      document.body
+        .querySelector(
+          '.agent-connected-apps__modal-actions .button--primary, .agent-connected-apps__modal-actions button:last-child'
+        )
+        .click()
+      await flushPromises()
+
+      expect(body(testApp.mock.history.patch[0])).toEqual({
+        url: 'https://other.example.com/mcp',
+      })
+    })
+
+    test('a blocked popup is explained', async () => {
+      window.open.mockReturnValue(null)
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
+      testApp.mock
+        .onPost(/application\/10\/integrations/)
+        .reply(200, oauthServer())
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+      await flushPromises()
+
+      expect(
+        document.body.querySelector('.modal__box .alert')?.textContent
+      ).toContain('agent.connectedAppPopupBlocked')
+      expect(testApp.mock.history.post.map(({ url }) => url)).not.toContain(
+        '/integrations/mcp/5/refresh-tools/'
+      )
+    })
+
+    test('clearing your own client id needs no secret', async () => {
+      const own = oauthServer({
+        oauth_connected: true,
+        oauth_client_source: 'manual',
+        oauth_client_id: 'my-client',
+        has_oauth_client_secret: true,
+      })
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [own])
+      testApp.mock
+        .onPatch('integration/5/')
+        .reply(200, { ...own, oauth_connected: false })
+      testApp.mock
+        .onPost('/integrations/mcp/5/oauth/start/')
+        .reply(200, { authorization_url: 'https://auth.example.com/authorize' })
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await wrapper
+        .get('button[aria-label="agent.connectedAppEdit"]')
+        .trigger('click')
+      await flushPromises()
+      type(inputInModal('agent.connectedAppClientId'), '')
+      await flushPromises()
+      buttonInBody('agent.connectedAppSignIn').click()
+      await flushPromises()
+
+      expect(body(testApp.mock.history.patch[0])).toEqual({
+        oauth_client_id: '',
+      })
+    })
+
+    test('a server that does not support OAuth says why', async () => {
+      testApp.mock.onGet(/application\/10\/integrations/).reply(200, [])
+      testApp.mock
+        .onPost(/application\/10\/integrations/)
+        .reply(200, oauthServer())
+      testApp.mock.onPost('/integrations/mcp/5/oauth/start/').reply(400, {
+        error: 'ERROR_MCP_OAUTH_FAILED',
+        detail: "The MCP server doesn't support OAuth sign-in.",
+      })
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      await createWithOAuth(wrapper)
+
+      expect(popup.close).toHaveBeenCalled()
+      expect(
+        document.body.querySelector('.modal__box .alert').textContent
+      ).toContain("doesn't support OAuth sign-in")
+    })
+
+    test('a server without an account asks to sign in instead of listing tools', async () => {
+      testApp.mock
+        .onGet(/application\/10\/integrations/)
+        .reply(200, [oauthServer({ tools: [tool('search')] })])
+      const wrapper = await mountSection()
+      await flushPromises()
+
+      const card = wrapper.get('.agent-connected-apps__server')
+      expect(card.text()).toContain('agent.connectedAppNotConnected')
+      expect(card.text()).toContain('agent.connectedAppSignIn')
+      expect(card.text()).not.toContain('agent.connectedAppTools')
+    })
+  })
+})

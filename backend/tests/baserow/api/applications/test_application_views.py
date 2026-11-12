@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import DEFAULT_DB_ALIAS, connection
 from django.db.models import QuerySet
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext
@@ -18,6 +18,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.models import Database
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
@@ -821,3 +822,73 @@ def test_applications_expose_last_viewed_of_requesting_user(api_client, data_fix
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["last_viewed"] == "2026-01-02T12:00:00Z"
+
+
+@pytest.mark.django_db
+def test_applications_expose_pending_count_of_requesting_user(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(users=[user, other_user])
+    database = data_fixture.create_database_application(workspace=workspace)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+
+    def pending_count_by_id(url: str, token: str) -> dict[int, int]:
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == HTTP_200_OK
+        return {app["id"]: app["pending_count"] for app in response.json()}
+
+    with patch.object(
+        DatabaseApplicationType,
+        "get_pending_counts",
+        side_effect=lambda users, applications: (
+            {user.id: {database.id: 2}} if users == [user] else {}
+        ),
+    ):
+        for url in (
+            reverse("api:applications:list"),
+            reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        ):
+            assert pending_count_by_id(url, token) == {database.id: 2, dashboard.id: 0}
+            assert pending_count_by_id(url, other_token) == {
+                database.id: 0,
+                dashboard.id: 0,
+            }
+
+        detail_url = reverse(
+            "api:applications:item", kwargs={"application_id": database.id}
+        )
+        for requesting_token, count in [(token, 2), (other_token, 0)]:
+            response = api_client.get(
+                detail_url, HTTP_AUTHORIZATION=f"JWT {requesting_token}"
+            )
+            assert response.status_code == HTTP_200_OK
+            assert response.json()["pending_count"] == count
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("authenticated", [True, False])
+@pytest.mark.parametrize("recovery", [True, False])
+def test_application_recovery_only_pins_authenticated_recovery_reads(
+    api_client, data_fixture, mocker, authenticated, recovery
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_database_application(user=user)
+    pin = mocker.patch("baserow.api.mixins.set_db_alias")
+    headers = {}
+    if authenticated:
+        headers["HTTP_AUTHORIZATION"] = f"JWT {token}"
+    if recovery:
+        headers["HTTP_X_BASEROW_REALTIME_RECOVERY"] = "true"
+
+    response = api_client.get(
+        reverse("api:applications:item", kwargs={"application_id": application.id}),
+        **headers,
+    )
+
+    assert response.status_code == (
+        HTTP_200_OK if authenticated else HTTP_401_UNAUTHORIZED
+    )
+    if authenticated and recovery:
+        pin.assert_called_once_with(DEFAULT_DB_ALIAS)
+    else:
+        pin.assert_not_called()

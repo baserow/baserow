@@ -14,7 +14,9 @@ from baserow.contrib.builder.data_sources.actions import (
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
+from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowGetRow
 from baserow.core.action.handler import ActionHandler
 from baserow.core.services.registries import service_type_registry
 
@@ -92,6 +94,101 @@ def test_update_data_source_action(data_fixture):
     ActionHandler.redo(user, _scope(page), session_id)
     data_source.refresh_from_db()
     assert data_source.name == "Updated"
+
+
+def _service(data_source):
+    return DataSource.objects.get(id=data_source.id).service.specific
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_redo_http_data_source_returns_list(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    service_type = service_type_registry.get("http_get")
+    data_source = DataSourceService().create_data_source(
+        user,
+        page=page,
+        service_type=service_type,
+        url={"formula": "'https://example.notexist'"},
+        timeout=25,
+    )
+    response = {"items": [{"name": "a"}]}
+    service = data_source.service.specific
+    service.sample_data = {"data": response, "status": 200}
+    service.save()
+
+    UpdateDataSourceActionType.do(
+        user,
+        DataSourceHandler().get_data_source_for_update(data_source.id),
+        service_type=service_type,
+        returns_list=True,
+        list_path="items",
+    )
+    as_list = _service(data_source)
+    assert as_list.sample_data["data"]["results"] == [{"name": "a", "_id": 0}]
+
+    # The sample data follows the shape back and forth, from the response kept
+    # with it.
+    ActionHandler.undo(user, _scope(page), session_id)
+    service = _service(data_source)
+    assert service.returns_list is False
+    assert service.list_path == ""
+    assert service.timeout == 25
+    assert service.sample_data == {"data": response, "status": 200}
+    assert service.get_type().generate_schema(service)["type"] == "object"
+
+    ActionHandler.redo(user, _scope(page), session_id)
+    service = _service(data_source)
+    assert service.returns_list is True
+    assert service.list_path == "items"
+    assert service.sample_data == as_list.sample_data
+    assert service.get_type().generate_schema(service)["type"] == "array"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_data_source_update_made_before_its_type_changed(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    list_type = service_type_registry.get("local_baserow_list_rows")
+    row_type = service_type_registry.get("local_baserow_get_row")
+    data_source = DataSourceService().create_data_source(
+        user,
+        page=page,
+        name="Original",
+        service_type=list_type,
+        integration_id=integration.id,
+        search_query="a",
+    )
+    UpdateDataSourceActionType.do(
+        user,
+        DataSourceHandler().get_data_source_for_update(data_source.id),
+        service_type=list_type,
+        name="Renamed",
+        search_query="b",
+    )
+    UpdateDataSourceActionType.do(
+        user,
+        DataSourceHandler().get_data_source_for_update(data_source.id),
+        service_type=list_type,
+        new_service_type=row_type,
+    )
+
+    # The search query was the previous service's, so only the name is undone.
+    ActionHandler.undo(user, _scope(page), session_id)
+    actions = ActionHandler.undo(user, _scope(page), session_id)
+    assert not actions[0].has_error()
+    assert DataSource.objects.get(id=data_source.id).name == "Original"
+    assert type(_service(data_source)) is LocalBaserowGetRow
+
+    ActionHandler.redo(user, _scope(page), session_id)
+    assert DataSource.objects.get(id=data_source.id).name == "Renamed"
 
 
 @pytest.mark.django_db

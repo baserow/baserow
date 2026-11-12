@@ -54,6 +54,15 @@ export class AgentApplicationType extends ApplicationType {
     return 100
   }
 
+  populate(application) {
+    const values = super.populate(application)
+    // Its MCP servers, loaded by the connected apps section.
+    if (!values.integrations) {
+      values.integrations = []
+    }
+    return values
+  }
+
   canBeCreated() {
     return this.app.$featureFlagIsEnabled(FF_AGENT_BUILDER)
   }

@@ -16,9 +16,11 @@
         </div>
         <p class="agent-tool-permissions__summary">
           {{
-            $t('agent.toolsSummary', {
-              count: group.tools.filter((tool) => picked.has(tool.name)).length,
+            $t('agent.toolsAskFirstSummary', {
+              on: group.tools.filter((tool) => picked.has(tool.name)).length,
               total: group.tools.length,
+              count: group.tools.filter((tool) => askFirst.has(tool.name))
+                .length,
             })
           }}
         </p>
@@ -29,7 +31,10 @@
         >
           <div class="agent-tool-permissions__list-head">
             <span>{{ kind.label }}</span>
-            <span>{{ $t('agent.toolAllow') }}</span>
+            <div class="agent-tool-permissions__columns">
+              <span>{{ $t('agent.toolAllow') }}</span>
+              <span>{{ $t('agent.toolAskFirst') }}</span>
+            </div>
           </div>
           <div
             v-for="tool in kind.tools"
@@ -47,13 +52,24 @@
                 {{ tool.description }}
               </div>
             </div>
-            <Checkbox
-              class="agent-tool-permissions__allow"
-              :model-value="picked.has(tool.name)"
-              :disabled="!editable"
-              @update:model-value="toggle(tool.name, $event)"
-              >{{ tool.label }}</Checkbox
-            >
+            <div class="agent-tool-permissions__columns">
+              <Checkbox
+                class="agent-tool-permissions__allow"
+                :model-value="picked.has(tool.name)"
+                :disabled="!editable"
+                @update:model-value="allow(tool.name, $event)"
+                >{{ tool.label }}</Checkbox
+              >
+              <Checkbox
+                class="agent-tool-permissions__ask-first"
+                :model-value="askFirst.has(tool.name)"
+                :disabled="!editable || !picked.has(tool.name)"
+                @update:model-value="setAskFirst(tool.name, $event)"
+                >{{
+                  $t('agent.toolAskFirstLabel', { name: tool.label })
+                }}</Checkbox
+              >
+            </div>
           </div>
         </div>
       </div>
@@ -73,12 +89,16 @@
 import { useNuxtApp } from '#app'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { groupAgentTools } from '@baserow/modules/agent/agentTools'
+import {
+  groupAgentTools,
+  nextAskFirst,
+} from '@baserow/modules/agent/agentTools'
 
-/** Lets the user pick the tools an Agent may call, saving them only on Done. */
+/** Picks an Agent's tools and which ask first, saved only on Done. */
 const props = defineProps({
   availableTools: { type: Array, required: true },
   allowedTools: { type: Array, required: true },
+  askFirstTools: { type: Array, required: true },
   agentName: { type: String, required: true },
   editable: { type: Boolean, required: true },
 })
@@ -88,6 +108,7 @@ const { $registry } = useNuxtApp()
 
 const modal = ref(null)
 const picked = ref(new Set())
+const askFirst = ref(new Set())
 const groups = computed(() =>
   groupAgentTools(props.availableTools, $registry, t)
 )
@@ -105,27 +126,38 @@ function kindsOf(group) {
   ].filter((kind) => kind.tools.length)
 }
 
-function toggle(name, allowed) {
+function allow(name, allowed) {
   if (!props.editable) return
   const next = new Set(picked.value)
   if (allowed) next.add(name)
   else next.delete(name)
+  askFirst.value = new Set(
+    nextAskFirst(props.availableTools, picked.value, askFirst.value, next)
+  )
   picked.value = next
+}
+
+function setAskFirst(name, value) {
+  if (!props.editable || !picked.value.has(name)) return
+  const next = new Set(askFirst.value)
+  if (value) next.add(name)
+  else next.delete(name)
+  askFirst.value = next
 }
 
 function show() {
   picked.value = new Set(props.allowedTools)
+  askFirst.value = new Set(props.askFirstTools)
   modal.value.show()
 }
 
 function done() {
   if (!props.editable) return
-  emit(
-    'save',
-    props.availableTools
-      .map((tool) => tool.name)
-      .filter((name) => picked.value.has(name))
-  )
+  const names = props.availableTools.map((tool) => tool.name)
+  emit('save', {
+    allowed_tools: names.filter((name) => picked.value.has(name)),
+    ask_first_tools: names.filter((name) => askFirst.value.has(name)),
+  })
   modal.value.hide()
 }
 

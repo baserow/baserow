@@ -51,6 +51,7 @@ import {
   AuthFormElementType,
   FileInputElementType,
   GraphElementType,
+  HTMLElementType,
 } from '@baserow_enterprise/builder/elementTypes'
 import {
   EnterpriseAdminRoleType,
@@ -86,6 +87,7 @@ import {
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
   BuilderGraphElementPaidFeature,
+  BuilderHTMLElementPaidFeature,
   CodeRunnerPaidFeature,
   CoBrandingPaidFeature,
   DataScannerPaidFeature,
@@ -119,7 +121,9 @@ import {
 import {
   CoreCodeActionNodeType,
   CoreXLSFileReaderActionNodeType,
+  LocalBaserowSemanticSearchActionNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
+import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -133,13 +137,12 @@ import {
   URLSemanticSearchFieldType,
 } from '@baserow_enterprise/semanticSearchFieldTypes'
 import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
-import { FF_SEMANTIC_SEARCH } from '@baserow/modules/core/plugins/featureFlags'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
-  dependsOn: ['premium', 'registry', 'feature-flags'],
+  dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
-    const { $config, $registry, $store, $featureFlagIsEnabled } = nuxtApp
+    const { $config, $registry, $store } = nuxtApp
 
     const context = { app: nuxtApp }
 
@@ -255,12 +258,18 @@ export default defineNuxtPlugin({
         new SemanticSearchFieldType(context)
       )
     }
-    if ($featureFlagIsEnabled(FF_SEMANTIC_SEARCH)) {
-      $registry.register(
-        'fieldFormAdvancedSetting',
-        new SemanticSearchFieldFormAdvancedSettingType(context)
-      )
-    }
+    $registry.register(
+      'fieldFormAdvancedSetting',
+      new SemanticSearchFieldFormAdvancedSettingType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowSemanticSearchServiceType(context)
+    )
+    $registry.register(
+      'node',
+      new LocalBaserowSemanticSearchActionNodeType(context)
+    )
 
     $registry.register(
       'appAuthProvider',
@@ -285,6 +294,7 @@ export default defineNuxtPlugin({
     $registry.register('element', new AuthFormElementType(context))
     $registry.register('element', new FileInputElementType(context))
     $registry.register('element', new GraphElementType(context))
+    $registry.register('element', new HTMLElementType(context))
 
     $registry.unregister('dataSync', PostgreSQLDataSyncType.getType())
     $registry.register('dataSync', new PostgreSQLDataSyncType(context))
@@ -340,6 +350,10 @@ export default defineNuxtPlugin({
     $registry.register('paidFeature', new BuilderCustomCodePaidFeature(context))
     $registry.register(
       'paidFeature',
+      new BuilderHTMLElementPaidFeature(context)
+    )
+    $registry.register(
+      'paidFeature',
       new BuilderFileInputElementPaidFeature(context)
     )
     $registry.register(
@@ -348,9 +362,7 @@ export default defineNuxtPlugin({
     )
     $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
     $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
-    if ($featureFlagIsEnabled(FF_SEMANTIC_SEARCH)) {
-      $registry.register('paidFeature', new SemanticSearchPaidFeature(context))
-    }
+    $registry.register('paidFeature', new SemanticSearchPaidFeature(context))
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))

@@ -5,6 +5,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 const WORKFLOW_ID = 3
 const HISTORY_ID = 11
 const CANCEL_URL = `automation/workflow_histories/${HISTORY_ID}/cancel/`
+const NODE_HISTORIES_URL = `automation/workflow_histories/${HISTORY_ID}/node_histories/`
 const HISTORY_URL = `automation/workflows/${WORKFLOW_ID}/history/`
 const REQUESTED_ON = '2026-09-15T10:00:05Z'
 
@@ -64,6 +65,29 @@ describe('automation history store', () => {
       workflowId: WORKFLOW_ID,
       workflowHistoryId: HISTORY_ID,
     })
+
+  const getNodeHistories = () =>
+    store.getters['automationHistory/getNodeHistories'](HISTORY_ID)
+
+  const fetchNodeHistories = (payload = {}) =>
+    store.dispatch('automationHistory/fetchNodeHistories', {
+      workflowHistoryId: HISTORY_ID,
+      ...payload,
+    })
+
+  const refreshNodeHistories = () =>
+    store.dispatch('automationHistory/refreshNodeHistories', {
+      workflowHistoryId: HISTORY_ID,
+    })
+
+  // A node row of the run, as the node histories endpoint lists them.
+  const nodeHistory = (extra = {}) => ({
+    id: 1,
+    node: 5,
+    status: 'waiting',
+    resume_at: '2026-09-15T10:01:00Z',
+    ...extra,
+  })
 
   describe('fetchWorkflowHistory', () => {
     test('ignores a superseded navigation even if its response arrives first', async () => {
@@ -270,6 +294,84 @@ describe('automation history store', () => {
       expect(caught?.handler?.code).toBe(code)
       expect(testApp.mock.history.get).toHaveLength(2)
       expect(getHistory()).toEqual(page([history()]))
+    })
+  })
+
+  describe('fetchNodeHistories', () => {
+    test('fetches the rows of a run once and serves them from cache after', async () => {
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(200, [nodeHistory()])
+      expect(getNodeHistories()).toBeNull()
+
+      await fetchNodeHistories()
+      await fetchNodeHistories()
+
+      expect(testApp.mock.history.get).toHaveLength(1)
+      expect(getNodeHistories()).toEqual([nodeHistory()])
+    })
+
+    test('fetches the rows again on refresh', async () => {
+      const resumed = nodeHistory({ status: 'success' })
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(200, [nodeHistory()])
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(200, [resumed])
+
+      await fetchNodeHistories()
+      await fetchNodeHistories({ refresh: true })
+
+      expect(testApp.mock.history.get).toHaveLength(2)
+      expect(getNodeHistories()).toEqual([resumed])
+    })
+
+    test('drops a response overtaken by a newer refresh', async () => {
+      const first = deferredReply()
+      const second = deferredReply()
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(first.reply)
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(second.reply)
+      const resumed = nodeHistory({ status: 'success' })
+
+      const firstFetch = fetchNodeHistories()
+      const secondFetch = fetchNodeHistories({ refresh: true })
+
+      second.resolve(200, [resumed])
+      await secondFetch
+      expect(getNodeHistories()).toEqual([resumed])
+
+      // The older rows still show the node waiting; they must not win.
+      first.resolve(200, [nodeHistory()])
+      await firstFetch
+      expect(getNodeHistories()).toEqual([resumed])
+    })
+
+    test('does not repopulate the cache once the panel was reset', async () => {
+      const reply = deferredReply()
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(reply.reply)
+
+      const fetch = fetchNodeHistories()
+      await store.dispatch('automationHistory/reset')
+      reply.resolve(200, [nodeHistory()])
+      await fetch
+
+      expect(getNodeHistories()).toBeNull()
+    })
+  })
+
+  describe('refreshNodeHistories', () => {
+    test('does nothing for a run whose rows were never fetched', async () => {
+      await refreshNodeHistories()
+
+      expect(testApp.mock.history.get).toHaveLength(0)
+      expect(getNodeHistories()).toBeNull()
+    })
+
+    test('refetches the rows of a run that is shown', async () => {
+      const resumed = nodeHistory({ status: 'success' })
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(200, [nodeHistory()])
+      testApp.mock.onGet(NODE_HISTORIES_URL).replyOnce(200, [resumed])
+      await fetchNodeHistories()
+
+      await refreshNodeHistories()
+
+      expect(testApp.mock.history.get).toHaveLength(2)
+      expect(getNodeHistories()).toEqual([resumed])
     })
   })
 })

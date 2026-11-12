@@ -140,6 +140,14 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * The schema of the context data of the service, like the options of a
+   * single select field. Null when the service has no context data.
+   */
+  getContextDataSchema(service) {
+    return null
+  }
+
+  /**
    * Returns sample data for the given service.
    */
   getSampleData(service) {
@@ -186,9 +194,10 @@ export class ServiceType extends Registerable {
   }
 
   /**
-   * Whether the service returns a collection of records.
+   * Whether the given service returns a collection of records. By default it's
+   * the same for all the services of this type.
    */
-  get returnsList() {
+  returnsList(service) {
     return false
   }
 
@@ -228,11 +237,36 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
 
     /**
+     * Whether the form of this data source type shows a Test button of its
+     * own, using the `dataSourceTest` the data source form provides.
+     */
+    get hasOwnTestButton() {
+      return false
+    }
+
+    /**
      * Whether a data source of this type can be tested from its form, to fill
      * the sample data its schema is built from.
      */
     get canBeTested() {
       return false
+    }
+
+    /**
+     * The image a data source of this type is shown with when it has no
+     * integration, whose image it would otherwise be shown with. Without one,
+     * the type's icon is shown.
+     */
+    get image() {
+      return null
+    }
+
+    /**
+     * Why the last test of the data source found no data, when the test still
+     * stored what it received: an error the test shows although it succeeded.
+     */
+    getTestError(service) {
+      return null
     }
 
     /**
@@ -274,6 +308,14 @@ export const DataSourceServiceTypeMixin = (Base) =>
     }
 
     /**
+     * In a service which returns a list, the fields a collection element, like
+     * a table, starts with when this data source is chosen.
+     */
+    getDefaultCollectionFields(service) {
+      return []
+    }
+
+    /**
      * The maximum number of records that can be returned by this service
      */
     getMaxResultLimit(service) {
@@ -283,8 +325,8 @@ export const DataSourceServiceTypeMixin = (Base) =>
     /**
      * Whether this list data source supports frontend paging controls.
      */
-    get supportsPagination() {
-      return this.returnsList
+    supportsPagination(service) {
+      return this.returnsList(service)
     }
 
     /**

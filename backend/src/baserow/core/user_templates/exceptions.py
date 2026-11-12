@@ -36,16 +36,37 @@ class TemplateHasNoContent(Exception):
 
 class TemplateUpdated(Exception):
     """
-    Raised when a user template is installed or downloaded while another revision
-    than the one the user was shown is installable, because another revision was
-    made public or its owner updated it since.
+    Raised when a user template changed since the user or admin saw it.
     """
 
 
 class TemplateBlocked(Exception):
     """
-    Raised when the owner of a user template that an admin blocked tries to install
-    it.
+    Raised when a blocked user template is installed, downloaded or reviewed.
+    """
+
+
+class TemplateAlreadyApproved(Exception):
+    """
+    Raised when an admin reviews a user template approved since they saw it.
+    """
+
+
+class TemplateAlreadyRejected(Exception):
+    """
+    Raised when an admin reviews a user template rejected since they saw it.
+    """
+
+
+class TemplateNotReviewable(Exception):
+    """
+    Raised when the review doesn't apply to the user template's state.
+    """
+
+
+class TemplateRejectReasonRequired(Exception):
+    """
+    Raised when an admin rejects a user template without a reason.
     """
 
 

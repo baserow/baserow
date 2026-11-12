@@ -46,7 +46,7 @@ global:
   baserow:
     imageRegistry: baserow
     image:
-      tag: 2.4.1
+      tag: 2.4.2
     imagePullSecrets: []
     serviceAccount:
       shared: true
@@ -688,7 +688,7 @@ baserow-embeddings:
   enabled: false
   image:
     repository: embeddings
-    tag: "1.1.0"
+    tag: "1.1.1"
   workingDir: ""
   resources:
     requests:

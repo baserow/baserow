@@ -16,11 +16,21 @@ from baserow.contrib.builder.action_scopes import (
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.types import (
+    ActionCreate,
+    DataSourceCreate,
+    DataSourceUpdate,
+    PageCreate,
+    PageUpdate,
+)
+from baserow.contrib.builder.tools.types.workflow_action import FieldValueMapping
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.services.models import Service
+from baserow.core.tools import ToolContext
 from baserow.core.user_sources.models import UserSource
 from baserow_enterprise.assistant.tools.builder.tools import (
     create_pages,
@@ -30,15 +40,7 @@ from baserow_enterprise.assistant.tools.builder.tools import (
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
 from baserow_enterprise.builder.elements.models import AuthFormElement
-from baserow_enterprise.builder.tools import helpers
-from baserow_enterprise.builder.tools.types import (
-    ActionCreate,
-    DataSourceCreate,
-    DataSourceUpdate,
-    PageCreate,
-    PageUpdate,
-)
-from baserow_enterprise.builder.tools.types.workflow_action import FieldValueMapping
+from baserow_enterprise.builder.tools import login
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
 
 
@@ -87,6 +89,57 @@ def test_create_page_is_undoable(site):
     undo(site)
 
     assert not Page.objects.filter(id=page.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_create_page_with_visibility_is_undone_in_one_step(site):
+    page = helpers.create_page(
+        site["user"],
+        site["builder"],
+        PageCreate(
+            name="Members",
+            path="/members",
+            visibility="logged-in",
+            role_type="disallow_all_except",
+            roles=["Admin"],
+        ),
+    )
+
+    assert (page.visibility, page.role_type, page.roles) == (
+        "logged-in",
+        "disallow_all_except",
+        ["Admin"],
+    )
+    assert Action.objects.filter(user=site["user"]).count() == 1
+
+    undo(site)
+
+    assert not Page.objects.filter(id=page.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("path", ["products", "/my products", ""])
+def test_create_page_refuses_an_invalid_path(site, path):
+    with pytest.raises(ToolInputError, match="not valid"):
+        helpers.create_page(
+            site["user"], site["builder"], PageCreate(name="Products", path=path)
+        )
+
+    assert not Page.objects.filter(builder=site["builder"], name="Products").exists()
+
+
+@pytest.mark.django_db
+def test_update_page_refuses_an_invalid_path(site):
+    with pytest.raises(ToolInputError, match="not valid"):
+        helpers.update_page(
+            site["user"],
+            site["workspace"],
+            PageUpdate(page_id=site["page"].id, path="products"),
+        )
+
+    site["page"].refresh_from_db()
+    assert site["page"].path == "/home"
 
 
 @pytest.mark.django_db
@@ -262,7 +315,7 @@ def test_create_user_source_is_undoable(data_fixture, site):
         "password": data_fixture.create_password_field(table=table, name="Password"),
     }
 
-    user_source = helpers.create_user_source(
+    user_source = login.create_user_source(
         site["user"], site["builder"], "Members", table, field_map, site["integration"]
     )
     assert UserSource.objects.filter(id=user_source.id).exists()
@@ -283,11 +336,11 @@ def test_undo_of_create_login_page_removes_the_form_and_keeps_the_page(
         "email": data_fixture.create_email_field(table=table, name="Email"),
         "password": data_fixture.create_password_field(table=table, name="Password"),
     }
-    user_source = helpers.create_user_source(
+    user_source = login.create_user_source(
         site["user"], site["builder"], "Members", table, field_map, site["integration"]
     )
 
-    page = helpers.create_login_page(site["user"], site["builder"], user_source.id)
+    page = login.create_login_page(site["user"], site["builder"], user_source.id)
     assert page.path == "/login"
     assert site["builder"].login_page_id == page.id
     assert Element.objects.filter(page=page).count() == 1
@@ -295,6 +348,50 @@ def test_undo_of_create_login_page_removes_the_form_and_keeps_the_page(
     undo(site, page)
     assert not Element.objects.filter(page=page).exists()
     assert Page.objects.filter(id=page.id).exists()
+    # The audit log still sees the page, outside the undo stack.
+    assert Action.objects.filter(
+        type="create_page", params__page_id=page.id, session__isnull=True
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_create_builder_records_its_integration_outside_the_undo_stack(site):
+    from baserow.contrib.builder.tools import applications
+
+    result = applications.create_builder(
+        ToolContext(user=site["user"], workspace=site["workspace"]), "Shop"
+    )
+
+    builder_id = result["created_builder"]["id"]
+    assert Action.objects.filter(
+        type="create_integration",
+        params__application_id=builder_id,
+        session__isnull=True,
+    ).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_a_new_local_baserow_integration_is_recorded_and_not_undone(data_fixture, site):
+    builder = data_fixture.create_builder_application(
+        user=site["user"], workspace=site["workspace"]
+    )
+
+    integration = helpers.get_local_baserow_integration(site["user"], builder)
+
+    assert Action.objects.filter(
+        type="create_integration",
+        params__integration_id=integration.id,
+        session__isnull=True,
+    ).exists()
+    with transaction.atomic():
+        ActionHandler.undo(
+            site["user"],
+            [ApplicationActionScopeType.value(builder.id)],
+            site["session_id"],
+        )
+    integration.refresh_from_db()
+    assert not integration.trashed
 
 
 @pytest.mark.django_db

@@ -16,13 +16,15 @@ from pydantic import ConfigDict, Field, PrivateAttr, model_validator
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.formulas import (
-    EMPTY_FORMULA,
     InvalidAutomationFormula,
     check_automation_formula,
     check_output_paths,
     formula_object,
-    needs_formula,
     resolve_node_refs,
+)
+from baserow.core.formula.literals import (
+    EMPTY_FORMULA,
+    needs_formula,
     wrap_static_string,
 )
 from baserow.core.formula.types import (
@@ -620,6 +622,16 @@ def _slack_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, Any]:
     }
 
 
+def _row_id_value(values: ServiceValues, row_id: str) -> str:
+    """
+    The row ID formula. An empty one is stored empty, not as an empty string, so
+    the node type sees that no row is named.
+    """
+
+    formula = values.value("row_id", row_id)
+    return "" if formula == EMPTY_FORMULA else formula
+
+
 def _row_action_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, Any]:
     service: dict[str, Any] = {"table_id": n.table_id}
     if n.type == "delete_row":
@@ -632,7 +644,7 @@ def _row_action_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, 
             # A row id would make the node update that row instead.
             values.errors.append("A create_row node takes no row_id.")
     elif n.row_id:
-        service["row_id"] = values.value("row_id", n.row_id)
+        service["row_id"] = _row_id_value(values, n.row_id)
     return service
 
 
@@ -772,7 +784,7 @@ def _row_action_update_service(
             # A row id would make the node update that row instead.
             values.errors.append("A create_row node takes no row_id.")
         else:
-            d["row_id"] = values.value("row_id", n.row_id)
+            d["row_id"] = _row_id_value(values, n.row_id)
     if node_type == "delete_row":
         if n.values:
             values.errors.append("A delete_row node takes no values.")

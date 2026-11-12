@@ -77,6 +77,30 @@
             >
           </div>
         </div>
+        <div
+          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
+          class="admin-settings__item"
+        >
+          <div class="admin-settings__label">
+            <div class="admin-settings__name">
+              {{ $t('settings.settingUserTemplatesRequireApprovalName') }}
+            </div>
+            <div class="admin-settings__description">
+              {{
+                $t('settings.settingUserTemplatesRequireApprovalDescription')
+              }}
+            </div>
+          </div>
+          <div class="admin-settings__control">
+            <SwitchInput
+              :value="settings.user_templates_require_approval"
+              @input="
+                updateSettings({ user_templates_require_approval: $event })
+              "
+              >{{ $t('settings.enabled') }}</SwitchInput
+            >
+          </div>
+        </div>
       </div>
       <div class="admin-settings__group">
         <h2 class="admin-settings__group-title">
@@ -275,7 +299,10 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
-import { FF_RBAC_IMPROVEMENTS } from '@baserow/modules/core/plugins/featureFlags'
+import {
+  FF_RBAC_IMPROVEMENTS,
+  FF_USER_TEMPLATES,
+} from '@baserow/modules/core/plugins/featureFlags'
 
 definePageMeta({
   layout: 'app',

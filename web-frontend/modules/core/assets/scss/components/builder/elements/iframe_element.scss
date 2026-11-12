@@ -1,6 +1,16 @@
+.iframe-element {
+  position: relative;
+}
+
 .iframe-element__iframe {
   border: none;
   width: 100%;
+}
+
+.iframe-element__editor-hint {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
 }
 
 .iframe-element__empty {

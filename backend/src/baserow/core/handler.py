@@ -3,6 +3,7 @@ import json
 import os
 import re
 from collections import defaultdict
+from collections.abc import Iterable
 from contextlib import nullcontext
 from dataclasses import dataclass
 from io import BufferedReader, BytesIO
@@ -124,6 +125,7 @@ from .signals import (
     before_workspace_deleted,
     before_workspace_user_deleted,
     before_workspace_user_updated,
+    settings_updated,
     workspace_created,
     workspace_deleted,
     workspace_invitation_accepted,
@@ -215,15 +217,16 @@ class CoreHandler:
 
     def update_settings(
         self, user: User, settings_instance: Optional[Settings] = None, **kwargs
-    ) -> Settings:
+    ) -> Tuple[Settings, Dict[str, Any]]:
         """
         Updates one or more setting values if the user has staff permissions.
 
         :param user: The user on whose behalf the settings are updated.
-        :param settings_instance: If already fetched, the settings instance can be
-            provided to avoid fetching the values for a second time.
+        :param settings_instance: The settings, if already fetched. The update reads
+            the row again, locked, so a stale instance is fine.
         :param kwargs: An dict containing the settings that need to be updated.
-        :return: The update settings instance.
+        :return: The updated settings instance, and the new values of the settings
+            that changed, by name, a file as its id.
         """
 
         CoreHandler().check_permissions(
@@ -233,9 +236,9 @@ class CoreHandler:
         if not settings_instance:
             settings_instance = self.get_settings()
 
-        settings_instance = set_allowed_attrs(
-            kwargs,
-            [
+        fields = [
+            name
+            for name in [
                 "allow_new_signups",
                 "allow_signups_via_workspace_invitations",
                 "allow_reset_password",
@@ -247,12 +250,45 @@ class CoreHandler:
                 "email_verification",
                 "verify_import_signature",
                 "allow_reporting_abuse",
-            ],
-            settings_instance,
-        )
+                "user_templates_require_approval",
+            ]
+            if name in kwargs
+        ]
+        with transaction.atomic():
+            # The previous values are the stored ones: a cached instance can be stale.
+            settings_instance = Settings.objects.select_for_update().get(
+                id=settings_instance.id
+            )
+            old_values = self._get_settings_values(settings_instance, fields)
+            set_allowed_attrs(kwargs, fields, settings_instance)
+            settings_instance.save(update_fields=fields)
+            settings_updated.send(
+                self, user=user, settings=settings_instance, old_values=old_values
+            )
+        changed = {
+            name: value
+            for name, value in self._get_settings_values(
+                settings_instance, fields
+            ).items()
+            if value != old_values[name]
+        }
+        return settings_instance, changed
 
-        settings_instance.save()
-        return settings_instance
+    def _get_settings_values(
+        self, settings_instance: Settings, fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        The values of settings, in the form they're stored in.
+
+        :param settings_instance: The settings.
+        :param fields: The names of the settings to read.
+        :return: The values of the settings by name, a file as its id.
+        """
+
+        return {
+            name: Settings._meta.get_field(name).value_from_object(settings_instance)
+            for name in fields
+        }
 
     @baserow_trace(tracer, allow_nested=True)
     def check_multiple_permissions(
@@ -2067,6 +2103,41 @@ class CoreHandler:
             )
         return specific_queryset(queryset, per_content_type_queryset_hook)
 
+    def get_pending_counts_per_user_and_application(
+        self,
+        users: Iterable[AbstractUser | AnonymousUser],
+        applications: Iterable[Application],
+    ) -> dict[int, dict[int, int]]:
+        """
+        Asks each application type how many things wait for the users in its
+        applications, with one call per type whatever the number of users and
+        applications.
+
+        :param users: The users to count for. Nothing waits for an anonymous
+            visitor of a template, so they are left out.
+        :param applications: The applications to count in, of any type.
+        :return: The count per application id, per user id. Users and applications
+            with nothing waiting may be left out.
+        """
+
+        signed_in = [user for user in users if user.is_authenticated]
+        if not signed_in:
+            return {}
+
+        applications_per_model: dict[type[Application], list[Application]] = (
+            defaultdict(list)
+        )
+        for application in applications:
+            applications_per_model[application.specific_class].append(application)
+
+        pending_counts: dict[int, dict[int, int]] = defaultdict(dict)
+        for model, model_applications in applications_per_model.items():
+            application_type = application_type_registry.get_by_model(model)
+            counts = application_type.get_pending_counts(signed_in, model_applications)
+            for user_id, user_counts in counts.items():
+                pending_counts[user_id].update(user_counts)
+        return dict(pending_counts)
+
     def create_application(
         self,
         user: AbstractUser,
@@ -2559,7 +2630,9 @@ class CoreHandler:
                 if actor.is_authenticated
                 else templates.none()
             )
-        templates = templates.listed() if listed else templates.latest_revisions()
+        templates = (
+            templates.listed() if listed else templates.latest_revisions()
+        ).with_template_state()
 
         # A revision isn't changed after it's created, an official template is.
         # A listed revision is dated by when it was listed, see `submit_revision`.

@@ -53,28 +53,37 @@ describe('Agent tool presentations', () => {
           .failureHint
       ).toBeTruthy()
     }
+    // Connected app tools are named at runtime and claimed by prefix.
     expect(
       registry
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
         // The provider runs web search, so the backend has no agent tool for it.
-        .filter((type) => type !== 'web_search')
+        .filter((type) => !['mcp_server_tool', 'web_search'].includes(type))
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
-    for (const { name, input, facts } of cases.tools) {
+    for (const { name, input, preview, facts } of cases.tools) {
       const presenter = registry.get('toolPresentation', name)
       expect(presenter.getLabel(t)).not.toMatch(/^agent\./)
       expect(presenter.getDescription(t)).not.toMatch(/^agent\./)
-      for (const status of ['running', 'done', 'failed', 'stopped']) {
+      const requested = { ...input, ...preview }
+      for (const status of [
+        'running',
+        'waiting',
+        'done',
+        'failed',
+        'rejected',
+        'stopped',
+      ]) {
         const activity = toolActivity(
-          step(name, status, { input, facts }),
+          step(name, status, { input: requested, facts }),
           registry,
           t
         )
         expect(activity.title).not.toMatch(/^(agent|toolPresentation)\./)
         expect(activity.input).toEqual(
-          step(name).changes_data && input.values
-            ? { values: input.values, truncated: false }
+          requested.values
+            ? { values: requested.values, truncated: false }
             : null
         )
       }
@@ -89,8 +98,8 @@ describe('Agent tool presentations', () => {
     'translates requested and actual row counts: %s',
     (count, running, done) => {
       const data = step('create_rows', 'running', {
-        input: { requested_count: count },
-        facts: { count, table: 'Tasks' },
+        input: { requested_count: count, values: { table: 'Tasks', rows: [] } },
+        facts: { count },
       })
 
       expect(toolActivity(data, registry, t).title).toBe(running)
@@ -99,6 +108,134 @@ describe('Agent tool presentations', () => {
       )
     }
   )
+
+  test.each([
+    ['create_rows', { requested_count: 3 }, 'Create 3 rows'],
+    ['create_rows', { requested_count: 1 }, 'Create 1 row'],
+    ['create_rows', {}, 'Create rows'],
+    ['delete_rows', { requested_count: 2 }, 'Delete 2 rows'],
+    ['create_fields', { requested_count: 1 }, 'Add 1 field'],
+  ])(
+    'titles a call that did not complete by what %s asks to do: %j',
+    (tool, input, title) => {
+      for (const status of ['waiting', 'rejected', 'failed', 'stopped']) {
+        expect(
+          toolActivity(step(tool, status, { input }), registry, t).title
+        ).toBe(title)
+      }
+    }
+  )
+
+  test.each(
+    cases.tools
+      .filter(
+        ({ name }) =>
+          step(name).changes_data &&
+          !['create_database', 'update_database'].includes(name)
+      )
+      .map(({ name }) => name)
+  )('a held %s call names its requested count', (tool) => {
+    const held = step(tool, 'waiting', { input: { requested_count: 2 } })
+
+    expect(toolActivity(held, registry, t).title).toMatch(/2/)
+  })
+
+  test.each([
+    [
+      'create_database',
+      { name: 'Projects' },
+      { database: 'Projects' },
+      'Create database: Projects',
+      'Creating database: Projects',
+      'Created database: Projects',
+    ],
+    [
+      'update_database',
+      { database: 'Tasks', new_name: 'Projects' },
+      { database: 'Projects', changed: true },
+      'Rename database: Tasks → Projects',
+      'Renaming database: Tasks',
+      'Renamed database: Projects',
+    ],
+  ])(
+    '%s uses requested names until a successful call confirms the result',
+    (tool, values, facts, requested, running, done) => {
+      const data = step(tool, 'running', { input: { values }, facts })
+      expect(toolActivity(data, registry, t).title).toBe(running)
+      expect(toolActivity({ ...data, status: 'done' }, registry, t).title).toBe(
+        done
+      )
+      for (const status of ['waiting', 'rejected', 'failed', 'stopped']) {
+        const activity = toolActivity({ ...data, status }, registry, t)
+        expect(activity.title).toBe(requested)
+        expect(activity.input).toEqual({ values, truncated: false })
+      }
+    }
+  )
+
+  test('older rename previews also show both names before approval', () => {
+    const activity = toolActivity(
+      step('update_database', 'waiting', {
+        input: { values: { database: 'Tasks', name: 'Projects' } },
+      }),
+      registry,
+      t
+    )
+
+    expect(activity.title).toBe('Rename database: Tasks → Projects')
+  })
+
+  test('a rename that changed nothing does not claim to have renamed a database', () => {
+    const data = step('update_database', 'done', {
+      input: { values: { database: 'Projects', new_name: 'Projects' } },
+      facts: { database: 'Projects', changed: false },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Database name unchanged: Projects'
+    )
+  })
+
+  test('a database request with no readable name keeps its ID in the preview', () => {
+    const data = step('update_database', 'waiting', {
+      input: { values: { database_id: 42, new_name: 'Projects' } },
+    })
+
+    expect(toolActivity(data, registry, t)).toMatchObject({
+      title: 'Rename database',
+      input: {
+        values: { database_id: 42, new_name: 'Projects' },
+        truncated: false,
+      },
+    })
+  })
+
+  test('a held read shows its request and is titled with its table', () => {
+    const data = step('list_table_rows', 'waiting', {
+      input: { values: { table: 'Accounts' } },
+    })
+
+    const activity = toolActivity(data, registry, t)
+    expect(activity.title).toBe('Read rows from Accounts')
+    expect(activity.input).toEqual({
+      values: { table: 'Accounts' },
+      truncated: false,
+    })
+  })
+
+  test('a held change is titled with the table its request names', () => {
+    const data = step('create_rows', 'waiting', {
+      input: { requested_count: 2, values: { table: 'Accounts', rows: [] } },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Create 2 rows in Accounts'
+    )
+    expect(
+      toolActivity({ ...data, input: { requested_count: 2 } }, registry, t)
+        .title
+    ).toBe('Create 2 rows')
+  })
 
   test('completed changes use confirmed counts and missing counts keep action labels', () => {
     const data = step('create_rows', 'done', {
@@ -111,7 +248,7 @@ describe('Agent tool presentations', () => {
       'Create rows'
     )
     expect(toolActivity({ ...data, status: 'failed' }, registry, t).title).toBe(
-      'Create rows'
+      'Create 9 rows'
     )
   })
 
@@ -119,7 +256,8 @@ describe('Agent tool presentations', () => {
     expect(
       toolActivity(
         step('list_table_rows', 'done', {
-          facts: { count: 3, table: 'Tasks' },
+          input: { values: { table: 'Tasks' } },
+          facts: { count: 3 },
         }),
         registry,
         t
@@ -127,7 +265,10 @@ describe('Agent tool presentations', () => {
     ).toBe('Read 3 rows from Tasks')
     expect(
       toolActivity(
-        step('list_table_rows', 'done', { facts: { table: 'Tasks' } }),
+        step('list_table_rows', 'done', {
+          input: { values: { table: 'Tasks' } },
+          facts: {},
+        }),
         registry,
         t
       ).title
@@ -150,6 +291,40 @@ describe('Agent tool presentations', () => {
     ).toBe('Created 1 table: Projects')
   })
 
+  test('a done change is titled with the table its request names', () => {
+    const data = step('delete_rows', 'done', {
+      input: {
+        requested_count: 2,
+        values: { table: 'Accounts', rows: ['Acme', 'Beta'] },
+      },
+      facts: { count: 2 },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Deleted 2 rows from Accounts'
+    )
+    expect(toolActivity(data, registry, t).input).toEqual({
+      values: { table: 'Accounts', rows: ['Acme', 'Beta'] },
+      truncated: false,
+    })
+  })
+
+  test('a cut request keeps the shortened-preview flag', () => {
+    const data = step('create_rows', 'done', {
+      input: {
+        requested_count: 25,
+        values: { table: 'Accounts', rows: [{ Name: 'Row 1' }] },
+        truncated: true,
+      },
+      facts: { count: 25 },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Added 25 rows to Accounts'
+    )
+    expect(toolActivity(data, registry, t).input.truncated).toBe(true)
+  })
+
   test.each([null, [], { requested_count: -1 }, { requested_count: '3' }])(
     'malformed summaries retain a tool-specific action label: %j',
     (input) => {
@@ -163,8 +338,10 @@ describe('Agent tool presentations', () => {
   test('groups only consecutive workspace reads and preserves call order', () => {
     const groups = groupToolSteps(
       [
+        step('list_databases', 'done'),
         step('list_tables', 'done'),
         step('get_table_schema', 'running'),
+        step('create_database', 'done', { facts: { database: 'Projects' } }),
         step('create_rows', 'done'),
         step('list_views', 'failed'),
         step('list_table_rows', 'stopped'),
@@ -175,11 +352,13 @@ describe('Agent tool presentations', () => {
 
     expect(groups.map(({ title, status }) => ({ title, status }))).toEqual([
       { title: 'Looking at your workspace', status: 'running' },
+      { title: 'Created database: Projects', status: 'done' },
       { title: 'Create rows', status: 'done' },
       { title: 'Workspace activity', status: 'stopped' },
     ])
     expect(groups.map(({ lines }) => lines.map(({ id }) => id))).toEqual([
-      ['list_tables', 'get_table_schema'],
+      ['list_databases', 'list_tables', 'get_table_schema'],
+      [],
       [],
       ['list_views', 'list_table_rows'],
     ])
@@ -278,6 +457,42 @@ describe('Agent tool presentations', () => {
       })
     }
   )
+
+  test('connected app calls name the tool and the app', () => {
+    const call = (status, input) =>
+      toolActivity(
+        {
+          id: '1',
+          tool: 'mcp12_create_issue',
+          status,
+          changes_data: true,
+          input,
+          facts: {},
+        },
+        registry,
+        t
+      )
+    const input = { server: 'Linear', tool: 'Create issue' }
+    expect(call('running', input).title).toBe('Using Create issue in Linear')
+    expect(call('done', input).title).toBe('Used Create issue in Linear')
+    expect(call('failed', input)).toMatchObject({
+      title: 'Create issue in Linear',
+      changesData: true,
+      group: null,
+    })
+    expect(call('done', {}).title).toBe('Connected app tool')
+    expect(call('done', input).input).toBeNull()
+    // A call held for approval shows its arguments, as the backend masked them.
+    const values = { title: 'Bug', api_key: '••••' }
+    expect(call('waiting', { ...input, values }).input).toEqual({
+      values,
+      truncated: false,
+    })
+    // A built-in tool that only looks similar is not claimed.
+    expect(toolActivity(step('mcp_tables', 'done'), registry, t).title).toBe(
+      'Tool completed'
+    )
+  })
 
   test.each([
     ['running', 'Searching the web: baserow'],

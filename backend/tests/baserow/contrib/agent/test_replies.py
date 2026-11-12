@@ -1,25 +1,32 @@
 import asyncio
 import json
-from unittest.mock import ANY
+import time
+from functools import wraps
+from unittest.mock import ANY, call
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
+from django.db import DatabaseError
 from django.test import override_settings
 from django.urls import reverse
 
 import pytest
 from asgiref.sync import sync_to_async
+from mcp.server.fastmcp import FastMCP
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from pydantic_ai import Agent
+from pydantic_ai import Agent, ConversationTypeAdapter
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
+    ModelMessage,
+    ModelMessagesTypeAdapter,
     ModelRequest,
     ToolCallPart,
     ToolReturnPart,
+    UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import DeltaToolCall, FunctionModel
@@ -32,8 +39,13 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
+    ASK_FIRST_INSTRUCTIONS,
+    DISALLOWED_TOOL_CALL_NOTE,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
+    MCP_TOOL_CHANGED_CALL_NOTE,
+    REJECTED_TOOL_CALL_NOTE,
+    RUN_AS_LOST_TOOL_CALL_NOTE,
     TOOL_RETRIES,
 )
 from baserow.contrib.agent.handler import AgentHandler
@@ -41,6 +53,7 @@ from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
     AgentMessage,
+    AgentReplyTranscript,
 )
 from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.registries import agent_tool_type_registry
@@ -52,9 +65,14 @@ from baserow.contrib.agent.types import (
     AgentReplyRequest,
     AgentReplyResult,
 )
+from baserow.contrib.database.models import Database
+from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
 from baserow.core.action.registries import action_type_registry
 from baserow.core.agents.service import AgentService as IdentityService
+from baserow.core.chat_runs.constants import ChatRunStopReason
+from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.steps import ChatRunSteps
@@ -62,9 +80,11 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
+from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
+from ..integrations.mcp.utils import serve
 from .utils import agent_url, new_conversation, run_reply
 
 
@@ -83,13 +103,19 @@ def reply_state(reply_id: int) -> tuple[str, str, str]:
     return reply.status, reply.error_code, reply.content
 
 
-def allow_create_rows(
-    data_fixture, agent: AgentApplication, with_identity: bool = True
+def allow_tools(
+    data_fixture,
+    agent: AgentApplication,
+    tools: tuple[str, ...] = ("create_rows",),
+    ask_first: tuple[str, ...] = (),
+    with_identity: bool = True,
 ) -> Table:
     """
-    Allow the Agent to create rows, in a new table of its workspace.
+    Allow the Agent to call tools, next to a new table of its workspace.
 
     :param agent: The Agent to configure.
+    :param tools: The tools it may call.
+    :param ask_first: Those of them that wait for the owner's approval.
     :param with_identity: Whether the Agent runs as an identity, without which it
         calls no tool.
     :return: The table, with a primary ``Name`` field.
@@ -104,9 +130,50 @@ def allow_create_rows(
         agent,
         run_as_subject_type="core.Agent" if with_identity else None,
         run_as_subject_id=identity.id if with_identity else None,
-        allowed_tools=["create_rows"],
+        allowed_tools=list(tools),
+        ask_first_tools=list(ask_first),
     )
     return table
+
+
+def row_names(table: Table) -> list[str]:
+    return [row.name for row in table.get_model(attribute_names=True).objects.all()]
+
+
+def respond(
+    mocker, *responses: tuple[str | dict[int, DeltaToolCall], ...]
+) -> list[list[ModelMessage]]:
+    """
+    Have the model stream the chunks of each response in turn, across the runs of
+    a reply, then text.
+
+    :param responses: The chunks of each of the model's first responses.
+    :return: The messages the model got for each response, filled as it answers.
+    """
+
+    received: list[list[ModelMessage]] = []
+
+    async def stream(messages, info):
+        received.append(messages)
+        index = len(received) - 1
+        for chunk in responses[index] if index < len(responses) else ["Done."]:
+            yield chunk
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+    return received
+
+
+def tool_call(tool_name: str, call_id: str, **arguments: object) -> DeltaToolCall:
+    return DeltaToolCall(
+        name=tool_name, json_args=json.dumps(arguments), tool_call_id=call_id
+    )
+
+
+def add_row(table: Table, call_id: str = "call_write") -> DeltaToolCall:
+    return tool_call("create_rows", call_id, table_id=table.id, rows=[{"Name": "Plan"}])
 
 
 @pytest.fixture
@@ -120,7 +187,7 @@ def test_failed_input_summary_keeps_the_call_without_logging_payloads(
     reply_run, data_fixture, reply_model, mocker, logs
 ):
     agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
-    allow_create_rows(data_fixture, agent)
+    allow_tools(data_fixture, agent)
     request = AgentService().prepare_reply(reply_run.context["reply_id"])
     responder = AgentResponder(request, mocker.Mock(), reply_model, {})
     mocker.patch.object(
@@ -172,6 +239,17 @@ def test_a_message_is_answered_privately_and_saved_clean(
 
     reply = AgentMessage.objects.get(role="assistant")
     assert reply_state(reply.id) == saved
+    transcript = reply.transcript
+    assert (transcript.provider_type, transcript.model_identifier) == (
+        "openai",
+        "test-model",
+    )
+    messages = ModelMessagesTypeAdapter.validate_python(transcript.model_messages)
+    assert [message.parts[0].content for message in messages] == [
+        "Hi",
+        output.replace("\x00", "").replace("\ud800", ""),
+    ]
+    assert transcript.usage["requests"] == 1
     assert exporter.get_finished_spans() == ()
 
 
@@ -194,7 +272,7 @@ def test_a_step_with_text_postgresql_cannot_store_is_sent_and_saved_clean(
     reply_id = reply_run.context["reply_id"]
 
     AgentHandler().finish_reply(
-        reply_id, "completed", "", AgentReplyResult("Done", steps.finish())
+        reply_id, "completed", "", AgentReplyResult(text="Done", steps=steps.finish())
     )
 
     (step,) = AgentMessage.objects.get(id=reply_id).steps
@@ -253,6 +331,14 @@ def test_the_model_gets_the_instructions_and_recent_history(
     steps = [
         {**step, "tool": "list_tables", "status": "done", "changes_data": False},
         {**step, "tool": "create_rows", "status": "stopped", "changes_data": True},
+        {**step, "tool": "delete_rows", "status": "rejected", "changes_data": True},
+        {
+            **step,
+            "tool": "update_rows",
+            "status": "failed",
+            "error_code": "not_run",
+            "changes_data": True,
+        },
         "malformed",
     ]
     for status, reply, reply_steps in [
@@ -405,6 +491,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("debug", [False, True])
 @pytest.mark.parametrize(
     "reason,status,error_code",
     [
@@ -413,11 +500,12 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
         (None, "failed", "failed"),
     ],
 )
-def test_unfinished_replies_persist_partial_text_without_private_error_details(
-    reply_run, data_fixture, mocker, logs, reason, status, error_code
+def test_unfinished_replies_log_error_details_only_in_debug_mode(
+    reply_run, data_fixture, mocker, logs, settings, debug, reason, status, error_code
 ):
+    settings.DEBUG = debug
     agent = AgentConversation.objects.get(id=reply_run.chat_id).agent
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     emit_text = ChatRunJournal.emit_text
 
     def emit_and_stop(journal, text):
@@ -454,13 +542,71 @@ def test_unfinished_replies_persist_partial_text_without_private_error_details(
     assert reply_state(reply_id) == (status, error_code, "Hel")
     steps = AgentMessage.objects.get(id=reply_id).steps
     assert [(step["status"], step["facts"]) for step in steps] == [
-        ("done", {"table": table.name, "count": 1})
+        ("done", {"count": 1})
     ]
-    assert [log.record["message"] for log in logs] == (
-        [f"Agent reply {reply_id} could not be written (ModelHTTPError, status 429)"]
-        if reason is None
-        else []
+    transcript = AgentReplyTranscript.objects.get(reply_id=reply_id)
+    assert (
+        transcript.provider_type,
+        transcript.model_identifier,
+        transcript.model_messages,
+        transcript.usage,
+    ) == ("openai", "test-model", None, None)
+    if reason is None:
+        assert len(logs) == 1
+        message = logs[0].record["message"]
+        assert f"Agent reply {reply_id} failed" in message
+        assert f"run_id={reply_run.id}" in message
+        assert "provider='openai', model='test-model'" in message
+        assert "ModelHTTPError, status 429" in message
+        assert ("Private provider details" in message) is debug
+        assert "Private row value" not in str(logs[0])
+        assert logs[0].record["exception"] is None
+    else:
+        assert logs == []
+
+
+@pytest.mark.django_db
+def test_empty_groq_stream_logs_the_original_error_in_debug_mode(
+    reply_run, mocker, logs, settings
+):
+    import httpx
+    from groq import AsyncGroq
+    from pydantic_ai.models.groq import GroqModel
+    from pydantic_ai.providers.groq import GroqProvider
+
+    settings.DEBUG = True
+    model = GroqModel(
+        "openai/gpt-oss-120b",
+        provider=GroqProvider(
+            groq_client=AsyncGroq(
+                api_key="PRIVATE_KEY_CANARY",
+                http_client=httpx.AsyncClient(
+                    transport=httpx.MockTransport(
+                        lambda request: httpx.Response(
+                            200,
+                            headers={"content-type": "text/event-stream"},
+                            content=b"data: [DONE]\n\n",
+                        )
+                    )
+                ),
+            )
+        ),
     )
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(model, {}),
+    )
+
+    run_reply(reply_run)
+
+    assert reply_state(reply_run.context["reply_id"]) == ("failed", "failed", "")
+    assert len(logs) == 1
+    assert (
+        "UnexpectedModelBehavior: Streamed response ended without content or tool calls"
+        in logs[0].record["message"]
+    )
+    assert "PRIVATE_KEY_CANARY" not in str(logs[0])
+    assert logs[0].record["exception"] is None
 
 
 @pytest.mark.django_db
@@ -469,7 +615,7 @@ def test_a_stop_during_a_change_waits_for_it_and_saves_it_as_interrupted(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     emit = ChatRunJournal.emit
 
     def emit_and_stop(journal, kind, data=None, flush_now=False):
@@ -558,12 +704,102 @@ def test_lost_and_unstarted_runs_end_their_reply(reply_run, mocker):
         (unstarted.context["reply_id"], ""),
     ]
     assert activity.call_count == 2
+    assert not AgentReplyTranscript.objects.exists()
     assert saved[0]["steps"] == [{**events[-1]["data"], "status": "stopped"}]
     assert saved[1]["steps"] is None
 
 
+HELD_STEP = {
+    "id": "step_1",
+    "tool": "create_rows",
+    "status": "waiting",
+    "changes_data": True,
+    "input": {},
+    "facts": {},
+}
+
+
 @pytest.mark.django_db
-def test_the_interruption_warning_only_ends_replies_still_running(reply_run, mocker):
+@pytest.mark.parametrize(
+    "result,content,step_status,transcript",
+    [
+        pytest.param(
+            AgentReplyResult(
+                text="Done.",
+                provider_type="openai",
+                model_identifier="new-model",
+                model_messages=[{"kind": "response"}],
+                usage={"requests": 2},
+                steps=[{**HELD_STEP, "status": "done"}],
+            ),
+            "Done.",
+            "done",
+            ("new-model", [{"kind": "request"}, {"kind": "response"}], {"requests": 2}),
+            id="model-result",
+        ),
+        pytest.param(
+            AgentReplyResult(
+                text="",
+                provider_type="openai",
+                model_identifier="new-model",
+                steps=[{**HELD_STEP, "status": "stopped"}],
+            ),
+            "I will add a row.",
+            "stopped",
+            ("old-model", [{"kind": "request"}], {"requests": 1}),
+            id="no-model-result",
+        ),
+        pytest.param(
+            None,
+            "I will add a row.",
+            "failed",
+            ("old-model", [{"kind": "request"}], {"requests": 1}),
+            id="not-started",
+        ),
+    ],
+)
+def test_a_later_segment_of_a_reply_keeps_what_the_paused_one_saved(
+    data_fixture, result, content, step_status, transcript
+):
+    reply = data_fixture.create_agent_message(
+        role="assistant",
+        status="running",
+        content="I will add a row.",
+        steps=[HELD_STEP],
+    )
+    data_fixture.create_agent_tool_approval(
+        reply=reply, step_id=HELD_STEP["id"], status="approved"
+    )
+    AgentReplyTranscript.objects.create(
+        reply=reply,
+        provider_type="openai",
+        model_identifier="old-model",
+        model_messages=[{"kind": "request"}],
+        usage={"requests": 1},
+        paused_conversation={"messages": []},
+    )
+
+    AgentHandler().finish_reply(reply.id, "cancelled", "", result)
+
+    reply.refresh_from_db()
+    saved = reply.transcript
+    assert (reply.content, [step["status"] for step in reply.steps]) == (
+        content,
+        [step_status],
+    )
+    assert (
+        saved.model_identifier,
+        saved.model_messages,
+        saved.usage,
+        saved.paused_conversation,
+    ) == (*transcript, None)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ended", ["completed", "waiting"])
+def test_the_interruption_warning_only_ends_replies_still_running(
+    reply_run, mocker, ended
+):
     run_type = AgentChatRunType()
     reply_id = reply_run.context["reply_id"]
     activity = mocker.spy(agent_conversation_activity, "send")
@@ -571,9 +807,9 @@ def test_the_interruption_warning_only_ends_replies_still_running(reply_run, moc
     run_type.ensure_interruption_warning(reply_run)
 
     assert reply_state(reply_id) == ("failed", "interrupted", "")
-    AgentMessage.objects.filter(id=reply_id).update(status="completed", error_code="")
+    AgentMessage.objects.filter(id=reply_id).update(status=ended, error_code="")
     run_type.ensure_interruption_warning(reply_run)
-    assert reply_state(reply_id) == ("completed", "", "")
+    assert reply_state(reply_id) == (ended, "", "")
     activity.assert_called_once_with(
         run_type,
         conversation=AgentConversation.objects.get(id=reply_run.chat_id),
@@ -754,7 +990,7 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent, with_identity)
+    table = allow_tools(data_fixture, agent, with_identity=with_identity)
     offered = []
     emitted = mocker.spy(ChatRunJournal, "emit")
     if not valid_facts:
@@ -791,17 +1027,22 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
                 "tool": "create_rows",
                 "status": "done",
                 "changes_data": True,
-                "input": {"requested_count": 1},
-                "facts": {"table": table.name, "count": 1} if valid_facts else {},
+                "input": {
+                    "requested_count": 1,
+                    "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+                },
+                "facts": {"count": 1} if valid_facts else {},
             }
         ]
         streamed = [
             call.args[2] for call in emitted.call_args_list if call.args[1] == "step"
         ]
-        assert [step["status"] for step in streamed] == ["running", "done"]
+        assert [step["status"] for step in streamed] == ["running", "running", "done"]
+        assert streamed[1]["input"] == steps[0]["input"]
         assert streamed[-1] == steps[0]
         run = run_of(created.conversation)
         assert run.outcome["steps"] == steps
+        assert AgentMessage.objects.get(id=created.reply.id).transcript.model_messages
         api_client.force_authenticate(user)
         response = api_client.get(
             agent_url(agent, "messages", conversation_uuid=created.conversation.uuid)
@@ -815,7 +1056,7 @@ def test_a_reply_calls_the_allowed_tools_as_the_agent_identity(
         assert saved_reply["steps"] == steps
     else:
         assert steps is None
-    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    rows = row_names(table)
     if with_identity:
         assert (offered, rows) == ([["create_rows"], ["create_rows"]], ["Plan"])
     else:
@@ -828,7 +1069,7 @@ def test_text_before_a_tool_call_is_cleared_when_the_call_starts(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     emitted = mocker.spy(ChatRunJournal, "emit_text")
 
     async def stream(messages, info):
@@ -860,7 +1101,7 @@ def test_a_reply_recovers_from_invalid_tool_calls(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     invalid = {"table_id": table.id, "rows": "Plan"}
     valid = {"table_id": table.id, "rows": [{"Name": "Plan"}]}
     calls = iter([invalid] * TOOL_RETRIES + [valid])
@@ -883,14 +1124,17 @@ def test_a_reply_recovers_from_invalid_tool_calls(
     run_reply(run_of(created.conversation))
 
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
-    rows = [row.name for row in table.get_model(attribute_names=True).objects.all()]
+    rows = row_names(table)
     assert rows == ["Plan"]
     *invalid_steps, step = AgentMessage.objects.get(id=created.reply.id).steps
     assert [(s["status"], s["error_code"]) for s in invalid_steps] == [
         ("failed", "invalid_input")
     ] * TOOL_RETRIES
     assert step["status"] == "done"
-    assert step["input"] == {"requested_count": 1}
+    assert step["input"] == {
+        "requested_count": 1,
+        "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+    }
     assert "error_code" not in step
 
 
@@ -901,7 +1145,7 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     original_identity_id = agent.run_as_subject_id
     replacement = Identity.objects.create(workspace=agent.workspace, name="Reader")
     offered = []
@@ -967,7 +1211,7 @@ def test_calls_to_tools_the_reply_does_not_offer_have_no_step(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    allow_create_rows(data_fixture, agent)
+    allow_tools(data_fixture, agent)
     calls = iter(["delete_rows"])
 
     async def stream(messages, info):
@@ -996,7 +1240,7 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     settings.BASEROW_USE_LOCAL_CACHE = True
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     identity = Identity.objects.get(id=agent.run_as_subject_id)
     rounds = 0
 
@@ -1040,7 +1284,7 @@ def test_a_failed_tool_call_and_its_retry_are_two_steps_in_the_api(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     targets = iter([0, table.id])
 
     async def stream(messages, info):
@@ -1088,7 +1332,7 @@ def test_a_failed_tool_call_shows_its_message_but_never_its_hint(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    table = allow_create_rows(data_fixture, agent)
+    table = allow_tools(data_fixture, agent)
     calls = iter([table.id])
 
     async def stream(messages, info):
@@ -1207,3 +1451,742 @@ def test_reply_requests_carry_the_reasoning_effort(
     assert (
         reasoning.get("effort") if isinstance(reasoning, dict) else None
     ) == sent_effort
+
+
+@pytest.fixture
+def ask_first_agent(
+    data_fixture, configured_agent
+) -> tuple[AbstractUser, AgentApplication, Table]:
+    """An Agent that reads freely and asks its owner before it creates rows."""
+
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(
+        data_fixture, agent, ("list_tables", "create_rows"), ask_first=("create_rows",)
+    )
+    return user, agent, table
+
+
+def pause(user: AbstractUser, agent: AgentApplication) -> AgentMessage:
+    """Send a message and run its reply until it waits for the owner's approval."""
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+    return AgentMessage.objects.get(id=created.reply.id)
+
+
+def decide(user: AbstractUser, reply: AgentMessage, **decision: object) -> ChatRun:
+    """
+    Decide the reply's pending held call as its owner.
+
+    :param decision: Whether the call may run, and why not.
+    :return: The run continuing the reply, not executed yet.
+    """
+
+    conversation = reply.conversation
+    approval = reply.approvals.get(status="pending")
+    result = AgentService().decide_approvals(
+        user,
+        conversation.agent_id,
+        conversation.uuid,
+        [{"id": approval.id, **decision}],
+    )
+    return ChatRun.objects.get(id=result.run_id)
+
+
+@pytest.mark.django_db
+def test_a_reply_runs_its_reads_and_waits_for_approval_of_an_ask_first_call(
+    ask_first_agent, mocker, api_client
+):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: tool_call("list_tables", "call_read"), 1: add_row(table)},))
+    pending_count_updated = mocker.spy(application_pending_count_updated, "send")
+
+    reply = pause(user, agent)
+
+    assert (reply.status, reply.error_code, reply.content) == ("waiting", "", "")
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("list_tables", "done"),
+        ("create_rows", "waiting"),
+    ]
+    assert list(
+        reply.approvals.values_list("tool_call_id", "step_id", "tool_name", "status")
+    ) == [("call_write", reply.steps[1]["id"], "create_rows", "pending")]
+    assert row_names(table) == []
+    paused = ConversationTypeAdapter.validate_python(
+        reply.transcript.paused_conversation
+    )
+    assert [call.tool_call_id for call in paused.deferred_tool_requests.approvals] == [
+        "call_write"
+    ]
+    run = run_of(reply.conversation)
+    assert run.status == "completed"
+    api_client.force_authenticate(user)
+    listed = api_client.get(
+        agent_url(agent, "messages", conversation_uuid=reply.conversation.uuid)
+    ).json()["results"]
+    assert run.outcome == listed[-1]
+    assert pending_count_updated.call_args_list == [
+        call(ANY, application=agent, user_ids=[user.id])
+    ]
+
+
+@pytest.mark.django_db
+def test_a_held_write_is_waiting_while_a_sibling_read_still_runs(
+    ask_first_agent, mocker
+):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table), 1: tool_call("list_tables", "call_read")},))
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    tool_type = type(agent_tool_type_registry.get("list_tables"))
+    original = tool_type.function
+    during_read = []
+
+    @wraps(original)
+    def read(*args, **kwargs):
+        steps = {
+            entry.args[2]["id"]: entry.args[2]
+            for entry in emitted.call_args_list
+            if entry.args[1] == "step"
+        }
+        during_read.extend((step["tool"], step["status"]) for step in steps.values())
+        return original(*args, **kwargs)
+
+    mocker.patch.object(tool_type, "function", read)
+
+    reply = pause(user, agent)
+
+    assert during_read == [("create_rows", "waiting"), ("list_tables", "running")]
+    assert [
+        entry.args[2]["status"]
+        for entry in emitted.call_args_list
+        if entry.args[1] == "step" and entry.args[2]["tool"] == "create_rows"
+    ] == ["waiting", "waiting"]
+    assert reply.status == "waiting"
+    assert row_names(table) == []
+
+
+@pytest.mark.django_db
+def test_a_held_call_fails_when_its_reply_stops_before_pausing(ask_first_agent, mocker):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table), 1: tool_call("list_tables", "call_read")},))
+    emitted = mocker.spy(ChatRunJournal, "emit")
+    tool_type = type(agent_tool_type_registry.get("list_tables"))
+    original = tool_type.function
+
+    @wraps(original)
+    def read(*args, **kwargs):
+        journal = emitted.call_args.args[0]
+        journal._loop.call_soon_threadsafe(
+            journal.request_stop, ChatRunStopReason.CANCELLED
+        )
+        while journal.stop_reason is None:
+            time.sleep(0.01)
+        return original(*args, **kwargs)
+
+    mocker.patch.object(tool_type, "function", read)
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert reply.status == "cancelled"
+    assert [
+        (step["status"], step.get("error_code"))
+        for step in reply.steps
+        if step["tool"] == "create_rows"
+    ] == [("failed", "not_run")]
+    assert row_names(table) == []
+
+
+@pytest.mark.django_db
+def test_a_held_call_waits_with_its_named_request(ask_first_agent, mocker):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table)},))
+
+    reply = pause(user, agent)
+
+    [step] = reply.steps
+    assert step["status"] == "waiting"
+    assert step["input"] == {
+        "requested_count": 1,
+        "values": {"table": table.name, "rows": [{"Name": "Plan"}]},
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("tool_name", ["create_database", "update_database"])
+@pytest.mark.parametrize("approved", [True, False])
+def test_database_changes_wait_for_approval_before_persisting(
+    data_fixture, configured_agent, mocker, tool_name, approved
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(
+        data_fixture,
+        agent,
+        ("list_databases", tool_name),
+        ask_first=(tool_name,),
+    )
+    database = table.database
+    original_name = database.name
+    databases = Database.objects.filter(workspace=agent.workspace)
+    original_count = databases.count()
+    arguments = {"name": "Projects"}
+    preview = {"name": "Projects"}
+    if tool_name == "update_database":
+        arguments["database_id"] = database.id
+        preview = {"database": original_name, "new_name": "Projects"}
+    respond(
+        mocker,
+        (
+            {
+                0: tool_call("list_databases", "call_read"),
+                1: tool_call(tool_name, "call_write", **arguments),
+            },
+        ),
+    )
+
+    reply = pause(user, agent)
+
+    assert reply.status == "waiting"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("list_databases", "done"),
+        (tool_name, "waiting"),
+    ]
+    assert reply.steps[1]["input"] == {"values": preview}
+    assert databases.count() == original_count
+    database.refresh_from_db()
+    assert database.name == original_name
+
+    run_reply(decide(user, reply, approved=approved))
+
+    reply.refresh_from_db()
+    assert reply.status == "completed"
+    assert reply.steps[1]["status"] == ("done" if approved else "rejected")
+    database.refresh_from_db()
+    if tool_name == "create_database":
+        assert databases.count() == original_count + int(approved)
+        assert databases.filter(name="Projects").exists() is approved
+    else:
+        assert database.name == ("Projects" if approved else original_name)
+        assert databases.count() == original_count
+
+
+@pytest.mark.django_db
+def test_a_held_call_that_names_a_hidden_table_waits_with_its_ids(
+    ask_first_agent, mocker, data_fixture
+):
+    user, agent, _ = ask_first_agent
+    other = data_fixture.create_database_table()
+    data_fixture.create_text_field(table=other, name="Name", primary=True)
+    respond(mocker, ({0: add_row(other)},))
+
+    reply = pause(user, agent)
+
+    assert [(step["status"], step["input"]) for step in reply.steps] == [
+        (
+            "waiting",
+            {
+                "requested_count": 1,
+                "values": {"table_id": other.id, "rows": [{"Name": "••••"}]},
+            },
+        )
+    ]
+    assert reply.approvals.exists()
+    assert row_names(other) == []
+
+
+@pytest.mark.django_db
+def test_a_retry_after_a_pause_gets_its_own_card(ask_first_agent, mocker):
+    user, agent, table = ask_first_agent
+    # A provider may reuse the invalid attempt's call id for the corrected call.
+    respond(
+        mocker,
+        (
+            {
+                0: tool_call(
+                    "create_rows", "call_invalid", table_id=table.id, rows="invalid"
+                ),
+                1: add_row(table),
+            },
+        ),
+        ({0: add_row(table, "call_invalid")},),
+    )
+    reply = pause(user, agent)
+    failed_id, held_id = [step["id"] for step in reply.steps]
+
+    run_reply(decide(user, reply, approved=True))
+    reply.refresh_from_db()
+    assert [(step["id"], step["status"]) for step in reply.steps[:2]] == [
+        (failed_id, "failed"),
+        (held_id, "done"),
+    ]
+    assert reply.steps[2]["status"] == "waiting"
+
+    run_reply(decide(user, reply, approved=True))
+    reply.refresh_from_db()
+    assert [step["status"] for step in reply.steps] == ["failed", "done", "done"]
+    assert row_names(table) == ["Plan", "Plan"]
+
+
+@pytest.mark.django_db
+def test_changes_after_a_held_call_wait_too_so_they_keep_the_model_order(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(
+        data_fixture,
+        agent,
+        ("list_tables", "create_rows", "update_rows"),
+        ask_first=("create_rows",),
+    )
+    row = table.get_model(attribute_names=True).objects.create(name="Old")
+    respond(
+        mocker,
+        (
+            {
+                0: add_row(table, "call_create"),
+                1: tool_call(
+                    "update_rows",
+                    "call_update",
+                    table_id=table.id,
+                    rows=[{"id": row.id, "Name": "Changed"}],
+                ),
+                2: tool_call("list_tables", "call_read"),
+            },
+        ),
+    )
+
+    reply = pause(user, agent)
+
+    assert reply.status == "waiting"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "waiting"),
+        ("update_rows", "waiting"),
+        ("list_tables", "done"),
+    ]
+    assert list(reply.approvals.values_list("tool_call_id", "step_id", "pause")) == [
+        ("call_create", reply.steps[0]["id"], 1),
+        ("call_update", reply.steps[1]["id"], 1),
+    ]
+    assert row_names(table) == ["Old"]
+
+
+@pytest.mark.django_db
+def test_an_ask_first_call_with_invalid_arguments_holds_no_later_change(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    table = allow_tools(
+        data_fixture,
+        agent,
+        ("list_tables", "create_rows", "update_rows"),
+        ask_first=("create_rows",),
+    )
+    row = table.get_model(attribute_names=True).objects.create(name="Old")
+    respond(
+        mocker,
+        (
+            {
+                0: tool_call(
+                    "create_rows", "call_invalid", table_id=table.id, rows="invalid"
+                ),
+                1: tool_call(
+                    "update_rows",
+                    "call_update",
+                    table_id=table.id,
+                    rows=[{"id": row.id, "Name": "Changed"}],
+                ),
+            },
+        ),
+    )
+    created = start(user, agent)
+
+    run_reply(run_of(created.conversation))
+
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert reply.status == "completed"
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "failed"),
+        ("update_rows", "done"),
+    ]
+    assert not reply.approvals.exists()
+    assert row_names(table) == ["Changed"]
+
+
+@pytest.mark.django_db
+def test_an_approved_call_runs_as_the_identity_and_the_reply_continues(
+    ask_first_agent, mocker
+):
+    user, agent, table = ask_first_agent
+    received = respond(
+        mocker, ({0: tool_call("list_tables", "call_read"), 1: add_row(table)},)
+    )
+    reply = pause(user, agent)
+    acted = mocker.spy(CreateRowsActionType, "do")
+    emitted = mocker.spy(ChatRunJournal, "emit")
+
+    run_reply(decide(user, reply, approved=True))
+
+    resumed = AgentMessage.objects.get(id=reply.id)
+    assert (resumed.status, resumed.content) == ("completed", "Done.")
+    assert row_names(table) == ["Plan"]
+    assert acted.call_args.args[0] == Identity.objects.get(id=agent.run_as_subject_id)
+    read_id, write_id = [step["id"] for step in reply.steps]
+    assert [(step["id"], step["status"]) for step in resumed.steps] == [
+        (read_id, "done"),
+        (write_id, "done"),
+    ]
+    assert [
+        (entry.args[2]["id"], entry.args[2]["status"])
+        for entry in emitted.call_args_list
+        if entry.args[1] == "step"
+    ] == [
+        (read_id, "done"),
+        (write_id, "waiting"),
+        (write_id, "running"),
+        (write_id, "running"),
+        (write_id, "done"),
+    ]
+    assert [
+        part.content
+        for message in received[-1]
+        for part in message.parts
+        if isinstance(part, UserPromptPart)
+    ] == ["Hi"]
+    transcript = resumed.transcript
+    assert (transcript.usage["requests"], transcript.paused_conversation) == (2, None)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "decision,denial",
+    [
+        (
+            {"reason": "Use the other table"},
+            f"{REJECTED_TOOL_CALL_NOTE} Their reason: Use the other table",
+        ),
+        ({}, REJECTED_TOOL_CALL_NOTE),
+    ],
+    ids=["reason", "no-reason"],
+)
+def test_a_rejected_call_never_runs_and_the_model_learns_why(
+    ask_first_agent, mocker, decision, denial
+):
+    user, agent, table = ask_first_agent
+    received = respond(mocker, ({0: add_row(table)},))
+    reply = pause(user, agent)
+
+    run_reply(decide(user, reply, approved=False, **decision))
+
+    reply.refresh_from_db()
+    assert (reply.status, [step["status"] for step in reply.steps]) == (
+        "completed",
+        ["rejected"],
+    )
+    assert row_names(table) == []
+    assert [
+        (part.tool_call_id, part.outcome, part.content)
+        for part in received[-1][-1].parts
+    ] == [("call_write", "denied", denial)]
+    assert ASK_FIRST_INSTRUCTIONS in received[-1][-1].instructions
+
+
+@pytest.mark.django_db
+def test_a_resumed_reply_explains_approvals_after_ask_first_is_turned_off(
+    ask_first_agent, mocker
+):
+    user, agent, table = ask_first_agent
+    received = respond(mocker, ({0: add_row(table)},))
+    reply = pause(user, agent)
+    AgentHandler().update_configuration(
+        agent, allowed_tools=["list_tables", "create_rows"], ask_first_tools=[]
+    )
+
+    run_reply(decide(user, reply, approved=False))
+
+    assert ASK_FIRST_INSTRUCTIONS in received[-1][-1].instructions
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change",
+    [
+        "disallow_the_tool",
+        "clear_the_identity",
+        "switch_the_identity",
+        "trash_the_identity",
+    ],
+)
+def test_an_approved_call_fails_when_the_agent_may_no_longer_make_it(
+    ask_first_agent, mocker, change
+):
+    user, agent, table = ask_first_agent
+    received = respond(mocker, ({0: add_row(table)},))
+    reply = pause(user, agent)
+    if change == "disallow_the_tool":
+        AgentHandler().update_configuration(
+            agent, allowed_tools=["list_tables"], ask_first_tools=[]
+        )
+    elif change == "clear_the_identity":
+        AgentHandler().update_configuration(
+            agent, run_as_subject_type=None, run_as_subject_id=None
+        )
+    elif change == "switch_the_identity":
+        other = Identity.objects.create(workspace=agent.workspace, name="Admin")
+        AgentHandler().update_configuration(
+            agent, run_as_subject_type="core.Agent", run_as_subject_id=other.id
+        )
+    else:
+        Identity.objects.filter(id=agent.run_as_subject_id).update(trashed=True)
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert [(step["status"], step.get("error_code")) for step in reply.steps] == [
+        ("failed", "permission_denied")
+    ]
+    assert list(reply.approvals.values_list("status", flat=True)) == ["approved"]
+    assert row_names(table) == []
+    assert [part.content for part in received[-1][-1].parts] == [
+        DISALLOWED_TOOL_CALL_NOTE
+        if change == "disallow_the_tool"
+        else RUN_AS_LOST_TOOL_CALL_NOTE
+    ]
+
+
+@pytest.mark.django_db
+def test_a_continued_reply_waits_again_for_a_later_call_even_with_a_reused_id(
+    ask_first_agent, mocker
+):
+    user, agent, table = ask_first_agent
+    respond(mocker, ({0: add_row(table)},), ({0: add_row(table)},))
+    reply = pause(user, agent)
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert (reply.status, [step["status"] for step in reply.steps]) == (
+        "waiting",
+        ["done", "waiting"],
+    )
+    assert list(
+        reply.approvals.values_list("tool_call_id", "step_id", "status", "pause")
+    ) == [
+        ("call_write", reply.steps[0]["id"], "approved", 1),
+        ("call_write", reply.steps[1]["id"], "pending", 2),
+    ]
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert (reply.status, [step["status"] for step in reply.steps]) == (
+        "completed",
+        ["done", "done"],
+    )
+    assert row_names(table) == ["Plan", "Plan"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "ending,approved,status,error_code,step,rows",
+    [
+        ("cancelled", True, "cancelled", "", ("failed", "not_run"), []),
+        ("cancelled", False, "cancelled", "", ("rejected", None), []),
+        ("not_ready", True, "failed", "not_ready", ("failed", "not_run"), []),
+        ("lost", True, "failed", "interrupted", ("stopped", None), []),
+        ("persist_failed", True, "failed", "interrupted", ("stopped", None), ["Plan"]),
+    ],
+    ids=["cancelled", "cancelled-rejected", "not-ready", "lost", "persist-failed"],
+)
+def test_a_continuation_ending_without_a_saved_answer_keeps_the_paused_reply(
+    ask_first_agent, mocker, ending, approved, status, error_code, step, rows
+):
+    user, agent, table = ask_first_agent
+    respond(mocker, ("I will add a row.", {0: add_row(table)}))
+    reply = pause(user, agent)
+    paused = AgentReplyTranscript.objects.get(reply=reply)
+    run = decide(user, reply, approved=approved)
+
+    if ending == "cancelled":
+        ChatRunHandler().request_cancel(run.id)
+    elif ending == "not_ready":
+        agent.instructions = ""
+        agent.save()
+        run_reply(run)
+    elif ending == "lost":
+        run.status, run.error_code = "failed", "interrupted"
+        AgentChatRunType().on_run_lost(run, [])
+    else:
+        mocker.patch.object(
+            AgentChatRunType, "persist_outcome", side_effect=DatabaseError
+        )
+        run_reply(run)
+
+    assert reply_state(reply.id) == (status, error_code, "")
+    reply.refresh_from_db()
+    assert [(s["status"], s.get("error_code")) for s in reply.steps] == [step]
+    assert row_names(table) == rows
+    transcript = AgentReplyTranscript.objects.get(reply=reply)
+    assert (
+        transcript.model_messages,
+        transcript.usage,
+        transcript.paused_conversation,
+    ) == (paused.model_messages, paused.usage, None)
+
+
+def mcp_ticket_server(ran: list) -> FastMCP:
+    server = FastMCP("test")
+
+    @server.tool()
+    def close_ticket(ticket: str, api_key: str = "") -> str:
+        """Close the ticket."""
+
+        ran.append(ticket)
+        return "Closed."
+
+    return server
+
+
+def agent_with_mcp_tool(data_fixture, agent, mocker, ran, ask_first=True):
+    """
+    Give the Agent a server whose ``close_ticket`` tool is on.
+
+    :return: The server, and the tool's name for the model.
+    """
+
+    serve(mocker, mcp_ticket_server(ran))
+    integration = data_fixture.create_mcp_server_integration(
+        application=agent,
+        auth_header_name="Authorization",
+        auth_header_value="Bearer one",
+    )
+    MCPServerHandler().refresh_tools(integration)
+    MCPServerHandler().update_tools(
+        integration,
+        [MCPToolSettings("close_ticket", enabled=True, ask_first=ask_first)],
+    )
+    return integration, f"mcp{integration.id}_close_ticket"
+
+
+@pytest.mark.django_db
+def test_an_ask_first_mcp_call_waits_with_its_arguments_and_runs_once_approved(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    ran = []
+    _, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran)
+    received = respond(
+        mocker, ({0: tool_call(close, "call_mcp", ticket="T-1", api_key="s3cret")},)
+    )
+
+    reply = pause(user, agent)
+
+    assert ran == []
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        (close, "waiting")
+    ]
+    # The owner decides on the arguments, a credential masked.
+    assert reply.steps[0]["input"] == {
+        "server": "Docs",
+        "tool": "close_ticket",
+        "values": {"ticket": "T-1", "api_key": "••••"},
+    }
+    assert reply.approvals.get().tool_key
+    assert ASK_FIRST_INSTRUCTIONS in received[0][-1].instructions
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert ran == ["T-1"]
+    assert (reply.status, [step["status"] for step in reply.steps]) == (
+        "completed",
+        ["done"],
+    )
+
+
+@pytest.mark.django_db
+def test_an_mcp_write_after_a_held_call_waits_for_the_decision_too(
+    ask_first_agent, data_fixture, mocker
+):
+    user, agent, table = ask_first_agent
+    ran = []
+    _, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran, ask_first=False)
+    respond(
+        mocker, ({0: add_row(table), 1: tool_call(close, "call_mcp", ticket="T-1")},)
+    )
+
+    reply = pause(user, agent)
+
+    assert ran == []
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "waiting"),
+        (close, "waiting"),
+    ]
+
+
+def _sign_in_again(integration):
+    integration.auth_header_value = "Bearer two"
+    integration.save(update_fields=["auth_header_value"])
+
+
+def _review_a_new_definition(integration):
+    integration.tools.filter(name="close_ticket").update(definition_hash="new")
+
+
+def _move_the_server(integration):
+    integration.url = "https://other.example.com/mcp"
+    integration.save(update_fields=["url"])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "change", [_sign_in_again, _review_a_new_definition, _move_the_server]
+)
+def test_an_approved_mcp_call_does_not_run_when_its_server_account_or_tool_changed(
+    data_fixture, configured_agent, mocker, change
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    ran = []
+    integration, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran)
+    received = respond(mocker, ({0: tool_call(close, "call_mcp", ticket="T-1")},))
+    reply = pause(user, agent)
+
+    change(integration)
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert ran == []
+    assert [step["status"] for step in reply.steps] == ["failed"]
+    assert [
+        (part.tool_call_id, part.outcome, part.content)
+        for part in received[-1][-1].parts
+    ] == [("call_mcp", "denied", MCP_TOOL_CHANGED_CALL_NOTE)]
+
+
+@pytest.mark.django_db
+def test_an_approved_mcp_call_does_not_run_once_the_tool_is_turned_off(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    ran = []
+    integration, close = agent_with_mcp_tool(data_fixture, agent, mocker, ran)
+    received = respond(mocker, ({0: tool_call(close, "call_mcp", ticket="T-1")},))
+    reply = pause(user, agent)
+
+    MCPServerHandler().update_tools(
+        integration, [MCPToolSettings("close_ticket", enabled=False)]
+    )
+    run_reply(decide(user, reply, approved=True))
+
+    assert ran == []
+    assert [
+        (part.tool_call_id, part.outcome, part.content)
+        for part in received[-1][-1].parts
+    ] == [("call_mcp", "denied", DISALLOWED_TOOL_CALL_NOTE)]

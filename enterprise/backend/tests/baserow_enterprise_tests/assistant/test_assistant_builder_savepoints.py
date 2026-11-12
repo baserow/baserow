@@ -13,22 +13,7 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.core.cache import local_cache
-from baserow.core.services.models import Service
-from baserow_enterprise.assistant.tools.builder.tools import (
-    add_action_field_mapping,
-    create_actions,
-    create_data_sources,
-    create_display_elements,
-    create_layout_elements,
-    create_pages,
-    setup_page,
-    update_page,
-)
-from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools.errors import item_error
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools.types import (
     ActionCreate,
     DataSourceCreate,
     DisplayElementCreate,
@@ -37,13 +22,28 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
 )
-from baserow_enterprise.builder.tools.types.page import (
+from baserow.contrib.builder.tools.types.page import (
     PagePathParam,
     PageQueryParam,
 )
-from baserow_enterprise.builder.tools.types.workflow_action import (
+from baserow.contrib.builder.tools.types.workflow_action import (
     FieldValueMapping,
 )
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.cache import local_cache
+from baserow.core.services.models import Service
+from baserow_enterprise.assistant.tools.builder.tools import (
+    add_element_action_field_mapping,
+    create_data_sources,
+    create_display_elements,
+    create_element_actions,
+    create_layout_elements,
+    create_pages,
+    item_error,
+    setup_page,
+    update_page,
+)
+from baserow_enterprise.assistant.tools.shared import ToolInputError
 
 from .utils import make_test_ctx
 
@@ -214,7 +214,7 @@ def test_action_with_an_invalid_event_leaves_no_service(data_fixture, site):
     button = data_fixture.create_builder_button_element(page=site["page"])
     services = Service.objects.count()
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -282,7 +282,7 @@ def test_field_mapping_on_a_notification_is_a_readable_error(data_fixture, site)
     )
 
     with pytest.raises(ToolInputError, match="Cannot add field mappings"):
-        add_action_field_mapping(
+        add_element_action_field_mapping(
             site["ctx"],
             action_id=action.id,
             field_id=site["name_field"].id,
@@ -417,7 +417,12 @@ def test_item_error_gives_the_messages_of_a_validation_error():
     assert item_error(DRFValidationError("Pick a container.")) == "Pick a container."
     assert (
         item_error(DRFValidationError({"place_in_container": ["Bad.", "Worse."]}))
-        == "place_in_container: Bad. Worse."
+        == "place_in_container: Bad. place_in_container: Worse."
+    )
+    # A nested error keeps the index of the item it's on.
+    assert (
+        item_error(DRFValidationError({"fields": [{}, {"name": ["Too long."]}]}))
+        == "fields.1.name: Too long."
     )
 
 
@@ -447,7 +452,7 @@ def test_a_bug_in_create_pages_is_not_reported_as_an_item_error(site, monkeypatc
     def broken(*args, **kwargs):
         raise AttributeError("'Page' object has no attribute 'order'")
 
-    monkeypatch.setattr("baserow_enterprise.builder.tools.helpers.create_page", broken)
+    monkeypatch.setattr("baserow.contrib.builder.tools.helpers.create_page", broken)
 
     with pytest.raises(AttributeError):
         create_pages(
@@ -466,7 +471,7 @@ def test_a_bug_in_create_data_sources_is_not_reported_as_an_item_error(
         raise AttributeError("'Service' object has no attribute 'table'")
 
     monkeypatch.setattr(
-        "baserow_enterprise.builder.tools.helpers.create_data_source",
+        "baserow.contrib.builder.tools.helpers.create_data_source",
         broken,
     )
 

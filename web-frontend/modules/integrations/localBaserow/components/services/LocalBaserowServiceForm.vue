@@ -117,6 +117,12 @@ export default {
         return this.values.table_id
       },
       set(newValue) {
+        // The view belongs to the previous table. This is only done when the user
+        // picks a table, because resetting the form to restored values, like after
+        // an undo, must keep their view.
+        if (this.enableViewPicker && newValue !== this.values.table_id) {
+          this.values.view_id = null
+        }
         this.values.table_id = newValue
         // Emit that the table changed so that the parent
         // component can optionally do something with it,

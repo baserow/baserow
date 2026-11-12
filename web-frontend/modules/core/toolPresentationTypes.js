@@ -9,14 +9,18 @@ export const WORKSPACE_TOOL_GROUP = 'workspace'
 const STATUSES = new Set(Object.values(STEP_STATUS))
 const FALLBACK_LABELS = {
   [STEP_STATUS.RUNNING]: 'Using a tool',
+  [STEP_STATUS.WAITING]: 'Tool waiting for approval',
   [STEP_STATUS.DONE]: 'Tool completed',
   [STEP_STATUS.FAILED]: 'Tool failed',
+  [STEP_STATUS.REJECTED]: 'Tool rejected',
   [STEP_STATUS.STOPPED]: 'Tool interrupted',
 }
 const STATUS_LABELS = {
   [STEP_STATUS.RUNNING]: 'toolPresentation.statusRunning',
+  [STEP_STATUS.WAITING]: 'toolPresentation.statusWaiting',
   [STEP_STATUS.DONE]: 'toolPresentation.statusDone',
   [STEP_STATUS.FAILED]: 'toolPresentation.statusFailed',
+  [STEP_STATUS.REJECTED]: 'toolPresentation.statusRejected',
   [STEP_STATUS.STOPPED]: 'toolPresentation.statusInterrupted',
 }
 const FAILURE_LABELS = new Map([
@@ -29,6 +33,7 @@ const FAILURE_LABELS = new Map([
   [STEP_ERROR_CODE.INVALID_FORMULA, 'toolPresentation.failureInvalidFormula'],
   [STEP_ERROR_CODE.CONFLICT, 'toolPresentation.failureConflict'],
   [STEP_ERROR_CODE.FAILED, 'toolPresentation.failureFailed'],
+  [STEP_ERROR_CODE.NOT_RUN, 'toolPresentation.failureNotRun'],
 ])
 const MAX_MESSAGE_LENGTH = 1000
 
@@ -40,6 +45,15 @@ export class ToolPresentationType extends Registerable {
   /** Only workspace reads opt into the collapsible workspace activity group. */
   get group() {
     return null
+  }
+
+  /**
+   * Whether this type presents a tool registered under another name. Tools
+   * named at runtime, like those of an MCP server, can't be registered one by
+   * one, so their type claims them by name instead.
+   */
+  matchesTool(name) {
+    return false
   }
 
   getLabel(t) {
@@ -59,6 +73,19 @@ export class ToolPresentationType extends Registerable {
   getInput(step, t) {
     return null
   }
+}
+
+/** The type registered under the tool's name, or one that claims the name. */
+function findPresenter(registry, name) {
+  if (registry.exists('toolPresentation', name)) {
+    return registry.get('toolPresentation', name)
+  }
+  if (typeof name !== 'string') return null
+  return (
+    registry
+      .getList('toolPresentation')
+      .find((presenter) => presenter.matchesTool(name)) ?? null
+  )
 }
 
 const record = (value) =>
@@ -97,20 +124,22 @@ function itemErrors(data) {
     }))
 }
 
-/** Describe a step's status in words; an interrupted change may have completed. */
-export function stepStatusText(
-  { status, changesData, failureHint, partial },
-  t
-) {
+/** Name a step's status; an interrupted change may have completed. */
+export function stepStatusLabel({ status, changesData, partial }, t) {
   if (status === STEP_STATUS.STOPPED && changesData) {
     return t('toolPresentation.statusStopped')
   }
   if (status === STEP_STATUS.DONE && partial) {
     return t('toolPresentation.statusPartial')
   }
-  const label = t(STATUS_LABELS[status])
-  return status === STEP_STATUS.FAILED
-    ? `${label} ${failureHint || t('toolPresentation.failureFailed')}`
+  return t(STATUS_LABELS[status])
+}
+
+/** Describe a step's status in words, with why it failed. */
+export function stepStatusText(step, t) {
+  const label = stepStatusLabel(step, t)
+  return step.status === STEP_STATUS.FAILED
+    ? `${label} ${step.failureHint || t('toolPresentation.failureFailed')}`
     : label
 }
 
@@ -147,8 +176,8 @@ export function toolActivity(step, registry, t) {
     partial: status === STEP_STATUS.DONE && failedItems.length > 0,
   }
   try {
-    if (!registry.exists('toolPresentation', data.tool)) return fallback
-    const presenter = registry.get('toolPresentation', data.tool)
+    const presenter = findPresenter(registry, data.tool)
+    if (!presenter) return fallback
     const translate = (key, values, count) => {
       const text = t(key, values, count)
       const exists = presenter.app?.$i18n?.te?.(key)

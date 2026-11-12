@@ -193,25 +193,6 @@ def test_enable_semantic_search_requires_embeddings_service(
 
 
 @pytest.mark.django_db
-def test_enable_semantic_search_requires_feature_flag(
-    api_client, data_fixture, semantic_search
-):
-    user, token = data_fixture.create_user_and_token()
-    table, fields, rows = data_fixture.build_table(
-        user=user, columns=[("Notes", "text")], rows=[["first"]]
-    )
-
-    with override_settings(FEATURE_FLAGS=[]):
-        response = update_field(
-            api_client, token, fields[0], {"semantic_search_enabled": True}
-        )
-
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_SEMANTIC_SEARCH_NOT_AVAILABLE"
-    assert not SemanticSearchField.objects.exists()
-
-
-@pytest.mark.django_db
 def test_enable_semantic_search_on_incompatible_field(
     api_client, data_fixture, semantic_search
 ):

@@ -45,6 +45,7 @@ import {
   DashboardAdminType,
   UsersAdminType,
   WorkspacesAdminType,
+  TemplatesAdminType,
   HealthCheckAdminType,
   SettingsAdminType,
 } from '@baserow/modules/core/adminTypes'
@@ -274,6 +275,7 @@ export default defineNuxtPlugin({
     registry.register('admin', new DashboardAdminType(context))
     registry.register('admin', new UsersAdminType(context))
     registry.register('admin', new WorkspacesAdminType(context))
+    registry.register('admin', new TemplatesAdminType(context))
     registry.register('admin', new AIProvidersAdminType(context))
     registry.register('admin', new SettingsAdminType(context))
     registry.register('admin', new HealthCheckAdminType(context))

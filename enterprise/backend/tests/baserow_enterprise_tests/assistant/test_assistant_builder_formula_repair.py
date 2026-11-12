@@ -12,32 +12,9 @@ from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
-from baserow.core.exceptions import PermissionException
-from baserow.core.tools import ToolContext
-from baserow.core.user_sources.models import UserSource
-from baserow_enterprise.assistant.tools.builder import agents
-from baserow_enterprise.assistant.tools.builder.agents import (
-    repair_builder_formula_errors,
-)
-from baserow_enterprise.assistant.tools.builder.tools import (
-    create_actions,
-    create_collection_elements,
-    create_data_sources,
-    create_display_elements,
-    create_layout_elements,
-    create_pages,
-    set_theme,
-    setup_page,
-    setup_user_source,
-    update_action,
-    update_data_source,
-    update_element,
-    update_page,
-)
-from baserow_enterprise.builder.tools import formulas
-from baserow_enterprise.builder.tools.formulas import apply_builder_formulas
-from baserow_enterprise.builder.tools.types import (
+from baserow.contrib.builder.tools import formulas
+from baserow.contrib.builder.tools.formulas import apply_builder_formulas
+from baserow.contrib.builder.tools.types import (
     ActionChanges,
     ActionCreate,
     CollectionElementCreate,
@@ -50,6 +27,29 @@ from baserow_enterprise.builder.tools.types import (
     PageCreate,
     PageUpdate,
     TableFieldConfig,
+)
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.exceptions import PermissionException
+from baserow.core.tools import ToolContext
+from baserow.core.user_sources.models import UserSource
+from baserow_enterprise.assistant.tools.builder import agents
+from baserow_enterprise.assistant.tools.builder.agents import (
+    repair_builder_formula_errors,
+)
+from baserow_enterprise.assistant.tools.builder.tools import (
+    create_collection_elements,
+    create_data_sources,
+    create_display_elements,
+    create_element_actions,
+    create_layout_elements,
+    create_pages,
+    set_theme,
+    setup_page,
+    setup_user_source,
+    update_data_source,
+    update_element,
+    update_element_action,
+    update_page,
 )
 from baserow_enterprise.builder.tools.types.user_source import UserSourceSetup
 
@@ -460,6 +460,43 @@ def heading(ref="h", value="Hi", **kwargs):
 
 
 @pytest.mark.django_db
+def test_the_model_gets_a_description_of_text_mixed_with_a_marker(site, monkeypatch):
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    create_display_elements(
+        site["ctx"],
+        page_id=site["page"].id,
+        elements=[heading(value="New deal: $formula: the deal name")],
+        thought="test",
+    )
+
+    [formulas] = asked
+    assert formulas["value"].startswith("Text mixing static parts")
+    assert formulas["value"].endswith("New deal: $formula: the deal name")
+
+
+@pytest.mark.django_db
+def test_the_model_gets_a_description_of_an_empty_table_column(listed, monkeypatch):
+    asked = use_generator(monkeypatch, lambda formulas, context: {})
+
+    create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[TableFieldConfig(name="Total")],
+            )
+        ],
+        thought="test",
+    )
+
+    assert asked == [{"fields.0.value": "the Total value from the current record"}]
+
+
+@pytest.mark.django_db
 def test_an_explicit_element_formula_needs_no_model(site, monkeypatch):
     asked = use_generator(monkeypatch, lambda formulas, context: {})
 
@@ -660,6 +697,30 @@ def test_kuma_column_named_like_a_field_shows_that_field(listed, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_kuma_column_named_like_a_field_keeps_its_explicit_formula(listed, monkeypatch):
+    use_generator(monkeypatch, lambda formulas, context: {})
+
+    result = create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[
+                    TableFieldConfig(name="Name", value="get('current_record.id')")
+                ],
+            )
+        ],
+        thought="test",
+    )
+
+    table = ElementHandler().get_element(result["ref_to_id_map"]["t"])
+    assert table.fields.get().config["value"]["formula"] == "get('current_record.id')"
+
+
+@pytest.mark.django_db
 def test_kuma_table_columns_are_repaired_by_their_path(listed, monkeypatch):
     asked = use_generator(
         monkeypatch,
@@ -740,7 +801,7 @@ def test_update_row_with_a_description_is_created_and_its_row_id_filled(
         monkeypatch, lambda formulas, context: {"row_id": "get('previous_action.1.id')"}
     )
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[update_row(site, button.id)],
@@ -766,7 +827,7 @@ def test_plain_field_value_is_stored_as_fixed_text_with_no_model_call(
     asked = use_generator(monkeypatch, fail)
     field = site["table"].field_set.first()
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -802,7 +863,7 @@ def test_a_field_value_is_written_only_once_the_model_gives_it(
         lambda formulas, context: {key: f for f in generated.values()},
     )
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -834,7 +895,7 @@ def test_create_actions_reports_a_generation_failure_as_before(
 
     use_generator(monkeypatch, fail)
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[update_row(site, button.id)],
@@ -860,7 +921,7 @@ def test_create_actions_keeps_refs_from_earlier_calls(site, monkeypatch):
         thought="test",
     )
 
-    result = create_actions(
+    result = create_element_actions(
         ctx,
         page_id=site["page"].id,
         actions=[
@@ -1113,7 +1174,7 @@ def test_set_theme_keeps_its_shape(site):
 @pytest.mark.django_db
 def test_set_theme_reports_a_theme_it_can_not_load_as_before(site, monkeypatch):
     monkeypatch.setattr(
-        "baserow_enterprise.builder.tools.themes._load_theme_data", lambda name: None
+        "baserow.contrib.builder.tools.themes._load_theme_data", lambda name: None
     )
 
     result = set_theme(
@@ -1153,7 +1214,7 @@ def test_the_repair_reads_the_shared_page_for_a_shared_page_action(
 
     use_generator(monkeypatch, generate)
 
-    create_actions(
+    create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -1186,7 +1247,7 @@ def test_kuma_keeps_a_shared_page_action_off_a_data_source_of_one_page(
         "data_source_refs": {"rows": data_source.id},
     }
 
-    result = create_actions(
+    result = create_element_actions(
         site["ctx"],
         page_id=site["page"].id,
         actions=[
@@ -1212,7 +1273,7 @@ def test_kuma_keeps_a_shared_page_action_off_a_data_source_of_one_page(
 @pytest.mark.django_db
 def test_kuma_update_action_fills_a_description(site, button, monkeypatch):
     action = BuilderWorkflowAction.objects.get(
-        id=create_actions(
+        id=create_element_actions(
             site["ctx"],
             page_id=site["page"].id,
             actions=[ActionCreate(type="notification", element=button.id, title="Old")],
@@ -1223,7 +1284,7 @@ def test_kuma_update_action_fills_a_description(site, button, monkeypatch):
         monkeypatch, lambda formulas, context: {"title": "get('page_parameter.id')"}
     )
 
-    result = update_action(
+    result = update_element_action(
         site["ctx"],
         action_id=action.id,
         changes=ActionChanges(title="$formula: the id"),
@@ -1239,7 +1300,7 @@ def test_kuma_update_action_fills_a_description(site, button, monkeypatch):
 @pytest.mark.django_db
 def test_kuma_update_action_says_the_old_value_was_kept(site, button, monkeypatch):
     action = BuilderWorkflowAction.objects.get(
-        id=create_actions(
+        id=create_element_actions(
             site["ctx"],
             page_id=site["page"].id,
             actions=[ActionCreate(type="notification", element=button.id, title="Old")],
@@ -1248,7 +1309,7 @@ def test_kuma_update_action_says_the_old_value_was_kept(site, button, monkeypatc
     )
     use_generator(monkeypatch, lambda formulas, context: {})
 
-    result = update_action(
+    result = update_element_action(
         site["ctx"],
         action_id=action.id,
         changes=ActionChanges(title="$formula: the id"),

@@ -22,6 +22,9 @@ from baserow.contrib.builder.elements.models import (
 )
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.tools import helpers
+from baserow.contrib.builder.tools.types import ElementUpdate
+from baserow.contrib.builder.tools.types.menu_items import new_menu_link
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.action.models import Action
 from baserow.test_utils.fixtures import Fixtures
@@ -30,9 +33,6 @@ from baserow_enterprise.assistant.tools.builder.tools import (
     update_element,
 )
 from baserow_enterprise.assistant.tools.shared import ToolInputError
-from baserow_enterprise.builder.tools import helpers
-from baserow_enterprise.builder.tools.types import ElementUpdate
-from baserow_enterprise.builder.tools.types.menu_items import new_menu_link
 
 from .utils import make_test_ctx
 

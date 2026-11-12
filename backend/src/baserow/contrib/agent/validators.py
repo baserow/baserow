@@ -1,6 +1,7 @@
 from rest_framework.exceptions import ValidationError
 
 AGENT_TEXT_MAX_LENGTH = 100000
+AGENT_REJECTION_REASON_MAX_LENGTH = 1000
 
 
 def validate_message_content(content: str) -> None:

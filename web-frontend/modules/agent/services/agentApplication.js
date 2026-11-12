@@ -30,9 +30,12 @@ export default (client) => ({
     }
     return client.patch(`/agent/${agentId}/configuration/`, values)
   },
-  getConversations(agentId, cursor = null, realtimeRecovery = false) {
+  getConversations(agentId, cursor = null, { realtimeRecovery = false } = {}) {
     return client.get(`/agent/${agentId}/conversations/`, {
-      params: { cursor, limit: CONVERSATION_PAGE_SIZE },
+      params: {
+        cursor,
+        limit: CONVERSATION_PAGE_SIZE,
+      },
       ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
     })
   },
@@ -61,6 +64,12 @@ export default (client) => ({
     return client.post(
       `/agent/${agentId}/conversations/${conversationUuid}/messages/`,
       values
+    )
+  },
+  decideApprovals(agentId, conversationUuid, decisions, { alwaysAllow } = {}) {
+    return client.post(
+      `/agent/${agentId}/conversations/${conversationUuid}/approvals/`,
+      { decisions, ...(alwaysAllow ? { always_allow: true } : {}) }
     )
   },
 })

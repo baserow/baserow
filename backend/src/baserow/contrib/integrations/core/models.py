@@ -216,6 +216,30 @@ class CoreHTTPRequestService(Service):
     )
 
 
+class CoreHTTPDataSourceService(CoreHTTPRequestService):
+    """
+    An HTTP request used as a data source. It always sends a GET without a
+    body, so it only uses the URL, the headers, the query params and the
+    timeout of its parent. It returns either the response as one record, or the
+    list of records found in the response at `list_path`.
+    """
+
+    returns_list = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the records are a list in the response, at "
+        "`list_path`, instead of the response being one record.",
+    )
+    list_path = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The dotted path to the list in the response. Blank means the "
+        "response itself is the list.",
+    )
+
+
 class HTTPFormData(models.Model):
     """
     Model to store Form data.
@@ -352,6 +376,21 @@ class CoreGotoService(Service):
         on_delete=models.SET_NULL,
         related_name="+",
         help_text="The service to jump to when the condition evaluates to true.",
+    )
+
+
+class CoreWaitService(Service):
+    """
+    A service that pauses for a number of seconds. The pause is not spent here:
+    the service asks the consumer that dispatched it to resume it later (see
+    `PendingDispatch`), so no worker is held while waiting.
+    """
+
+    seconds = FormulaField(
+        default="",
+        blank=True,
+        help_text="A formula resolving to the number of seconds to wait before "
+        "continuing.",
     )
 
 

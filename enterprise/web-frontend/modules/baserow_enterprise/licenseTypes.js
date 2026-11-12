@@ -115,6 +115,7 @@ export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
   getFeatures() {
     return [
       ...commonAdvancedFeatures,
+      EnterpriseFeaturesObject.BUILDER_HTML_ELEMENT,
       EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
       EnterpriseFeaturesObject.DATA_SCANNER,
     ]

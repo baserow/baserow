@@ -15,6 +15,7 @@ GROUP_DASHBOARD_DELETE = "dashboard_delete"
 GROUP_AUDIT_LOG_READ = "audit_log_read"
 GROUP_BUILDER_READ = "builder_read"
 GROUP_BUILDER_EDIT = "builder_edit"
+GROUP_BUILDER_DELETE = "builder_delete"
 
 AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
@@ -145,6 +146,13 @@ class BuilderEditMCPToolGroup(MCPToolGroup):
     title = "Edit application builders"
     area = AREA_BUILDER
     order = 120
+
+
+class BuilderDeleteMCPToolGroup(MCPToolGroup):
+    type = GROUP_BUILDER_DELETE
+    title = "Delete in application builders"
+    area = AREA_BUILDER
+    order = 130
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

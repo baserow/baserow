@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-28 10:12+0000\n"
+"POT-Creation-Date: 2026-11-10 11:53+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -69,7 +69,7 @@ msgid ""
 "\"%(airtable_share_id)s\""
 msgstr ""
 
-#: src/baserow/contrib/database/application_types.py:412
+#: src/baserow/contrib/database/application_types.py:430
 msgid "Table"
 msgstr ""
 
@@ -100,7 +100,7 @@ msgid "The data sync synchronized"
 msgstr ""
 
 #: src/baserow/contrib/database/data_sync/handler.py:262
-#: src/baserow/contrib/database/table/handler.py:476
+#: src/baserow/contrib/database/table/handler.py:477
 msgid "Grid"
 msgstr ""
 
@@ -196,23 +196,24 @@ msgid ""
 "%(new_primary_field_name)s"
 msgstr ""
 
-#: src/baserow/contrib/database/fields/models.py:493
-#: src/baserow/contrib/database/fields/models.py:705
+#: src/baserow/contrib/database/fields/models.py:511
+#: src/baserow/contrib/database/fields/models.py:723
 msgid "The format of the duration."
 msgstr ""
 
-#: src/baserow/contrib/database/fields/notification_types.py:53
+#: src/baserow/contrib/database/fields/notification_types.py:56
 #, python-format
 msgid ""
 "%(sender)s assigned you to %(field_name)s in row %(row_name)s in "
 "%(table_name)s."
 msgstr ""
 
-#: src/baserow/contrib/database/fields/notification_types.py:57
+#: src/baserow/contrib/database/fields/notification_types.py:60
+#: src/baserow/contrib/database/fields/notification_types.py:190
 msgid "An unknown user"
 msgstr ""
 
-#: src/baserow/contrib/database/fields/notification_types.py:183
+#: src/baserow/contrib/database/fields/notification_types.py:186
 #, python-format
 msgid ""
 "%(sender)s mentioned you in %(field_name)s in row %(row_name)s in "
@@ -230,8 +231,8 @@ msgstr ""
 
 #: src/baserow/contrib/database/plugins.py:55
 #: src/baserow/contrib/database/plugins.py:77
-#: src/baserow/contrib/database/table/handler.py:572
-#: src/baserow/contrib/database/table/handler.py:585
+#: src/baserow/contrib/database/table/handler.py:573
+#: src/baserow/contrib/database/table/handler.py:586
 msgid "Name"
 msgstr ""
 
@@ -240,13 +241,13 @@ msgid "Last name"
 msgstr ""
 
 #: src/baserow/contrib/database/plugins.py:57
-#: src/baserow/contrib/database/table/handler.py:573
+#: src/baserow/contrib/database/table/handler.py:574
 msgid "Notes"
 msgstr ""
 
 #: src/baserow/contrib/database/plugins.py:58
 #: src/baserow/contrib/database/plugins.py:79
-#: src/baserow/contrib/database/table/handler.py:574
+#: src/baserow/contrib/database/table/handler.py:575
 msgid "Active"
 msgstr ""
 
@@ -394,7 +395,7 @@ msgid ""
 "\"%(original_table_name)s\" (%(original_table_id)s) "
 msgstr ""
 
-#: src/baserow/contrib/database/table/handler.py:534
+#: src/baserow/contrib/database/table/handler.py:535
 #, python-format
 msgid "Field %d"
 msgstr ""
@@ -447,6 +448,83 @@ msgstr ""
 #: src/baserow/contrib/database/tokens/actions.py:201
 #, python-format
 msgid "The Database Token \"%(token_name)s\" (%(token_id)s) has been deleted"
+msgstr ""
+
+#: src/baserow/contrib/database/tools/databases.py:32
+#, python-format
+msgid "Creating database %(name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/fields.py:1048
+#, python-format
+msgid "Creating field %(field_name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/fields.py:1220
+#, python-format
+msgid "Updating field %(field_id)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/fields.py:1266
+#, python-format
+msgid "Deleting field %(field_id)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/tables.py:704
+#, python-format
+msgid "Creating table %(table_name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/tables.py:883
+#, python-format
+msgid "Listing tables in %(database_names)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/tables.py:972
+#, python-format
+msgid "Inspecting %(table_names)s schema..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/view_config.py:154
+#, python-format
+msgid "Sorting %(view_name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/view_config.py:220
+#, python-format
+msgid "Updating %(view_name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/view_config.py:291
+msgid "Deleting views..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/view_config.py:318
+msgid "Deleting filters..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/view_config.py:370
+#, python-format
+msgid "Colouring %(view_name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/view_config.py:415
+msgid "Removing row colours..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/views.py:284
+#, python-format
+msgid "Listing views in %(table_name)s..."
+msgstr ""
+
+#: src/baserow/contrib/database/tools/views.py:1090
+#, python-format
+msgid "Creating %(view_type)s view %(view_name)s"
+msgstr ""
+
+#: src/baserow/contrib/database/tools/views.py:1209
+#, python-format
+msgid "Creating filters in %(view_name)s..."
 msgstr ""
 
 #: src/baserow/contrib/database/views/actions.py:59

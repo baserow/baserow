@@ -1,7 +1,6 @@
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Dict,
     Generator,
     List,
@@ -110,6 +109,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowUpsertRow,
     Service,
 )
+from baserow.contrib.integrations.local_baserow.types import FieldMappingValues
 from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
@@ -240,15 +240,15 @@ class LocalBaserowServiceType(ServiceType):
         self, service: ServiceSubClass, properties: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Responsible for returning the JSON Schema object based on the
-        `returns_list` attribute set on this service type.
+        Responsible for returning the JSON Schema object based on whether the
+        service returns a list.
 
         :param service: The service we are generating a schema for.
         :param properties: A dictionary of properties which describe this service.
         :return: A JSON Schema formatted dictionary.
         """
 
-        if self.returns_list:
+        if self.returns_list(service):
             return {
                 "items": {"type": "object", "properties": properties},
                 "title": self.get_schema_name(service),
@@ -412,7 +412,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             for field_obj in table_model.get_field_objects() or []
         }
 
-        if self.returns_list:
+        if self._returns_list:
             return {
                 **dispatch_result,
                 "results": [
@@ -1125,8 +1125,11 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
                 # Check that the view table_id match the given table
                 if view.table_id != table_to_validate.id:
                     raise DRFValidationError(
-                        detail=f"The view with ID {view_id} is not related to the "
-                        f"given table {table_to_validate.id}.",
+                        detail={
+                            "detail": f"The view with ID {view_id} is not related "
+                            f"to the given table {table_to_validate.id}.",
+                            "error": "invalid_view",
+                        },
                         code="invalid_view",
                     )
                 else:
@@ -1146,77 +1149,11 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
         return values
 
 
-class LocalBaserowListRowsUserServiceType(
-    ListServiceTypeMixin,
-    LocalBaserowTableServiceSearchableMixin,
-    LocalBaserowTableServiceFilterableMixin,
-    LocalBaserowTableServiceSortableMixin,
-    LocalBaserowViewServiceType,
-):
+class LocalBaserowTableRowsListServiceTypeMixin(ListServiceTypeMixin):
     """
-    This service gives access to a list of rows from the same Baserow instance as the
-    one hosting the application.
+    For services returning a list of rows of their table, allowing them to be used
+    as collection data source.
     """
-
-    type = "local_baserow_list_rows"
-    model_class = LocalBaserowListRows
-    dispatch_types = [
-        DispatchTypes.DATA,
-        DispatchTypes.ACTION,
-    ]
-    serializer_mixins = (
-        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
-        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
-    )
-
-    @property
-    def simple_formula_fields(self):
-        return (
-            super().simple_formula_fields
-            + LocalBaserowTableServiceSearchableMixin.mixin_simple_formula_fields
-        )
-
-    @property
-    def allowed_fields(self):
-        return (
-            super().allowed_fields
-            + LocalBaserowTableServiceFilterableMixin.mixin_allowed_fields
-            + LocalBaserowTableServiceSearchableMixin.mixin_allowed_fields
-            + ["default_result_count"]
-        )
-
-    @property
-    def serializer_field_names(self):
-        return (
-            super().serializer_field_names
-            + LocalBaserowTableServiceSortableMixin.mixin_serializer_field_names
-            + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
-            + LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_names
-            + ["default_result_count"]
-        )
-
-    @property
-    def serializer_field_overrides(self):
-        return {
-            **super().serializer_field_overrides,
-            **LocalBaserowTableServiceSortableMixin.mixin_serializer_field_overrides,
-            **LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_overrides,
-            **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
-        }
-
-    class SerializedDict(
-        LocalBaserowViewServiceType.SerializedDict,
-        LocalBaserowTableServiceSortableMixin.SerializedDict,
-        LocalBaserowTableServiceSearchableMixin.SerializedDict,
-        LocalBaserowTableServiceFilterableMixin.SerializedDict,
-    ):
-        default_result_count: int
-
-    def get_max_result_limit(self, service: Service):
-        return settings.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
-
-    def get_default_result_limit(self, service: Service):
-        return service.default_result_count
 
     def get_name_property(self, service: ServiceSubClass) -> Optional[str]:
         """
@@ -1289,6 +1226,116 @@ class LocalBaserowListRowsUserServiceType(
         )
 
         return [imported_field_dbname, *rest]
+
+    def get_record_names(
+        self,
+        service: LocalBaserowListRows,
+        record_ids: List[int],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, str]:
+        """
+        Return the record name associated with each one of the provided record ids.
+
+        :param service: The table service.
+        :param record_ids: A list containing the record identifiers.
+        :param dispatch_context: The context used for the dispatch.
+        :return: A dictionary mapping each record id to its name.
+        :raises ServiceImproperlyConfiguredDispatchException: When service has no
+            associated table.
+        :raises ServiceImproperlyConfiguredDispatchException: When the table is trashed.
+        """
+
+        if not service.table_id:
+            raise ServiceImproperlyConfiguredDispatchException("No table selected")
+        try:
+            table = TableHandler().get_table(service.table_id)
+            # NOTE: This is an expensive operation, so in the future we need to
+            # calculate the list of used fields for searching/sorting/filtering
+            # and pass them to `get_model`.
+            # See: https://gitlab.com/baserow/baserow/-/issues/3062
+            model = table.get_model()
+            queryset = self.build_queryset(
+                service, table, dispatch_context, model
+            ).filter(pk__in=record_ids)
+            record_names = {row.id: str(row) for row in queryset}
+            return record_names
+        except TableDoesNotExist as e:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected table is trashed"
+            ) from e
+
+
+class LocalBaserowListRowsUserServiceType(
+    LocalBaserowTableRowsListServiceTypeMixin,
+    LocalBaserowTableServiceSearchableMixin,
+    LocalBaserowTableServiceFilterableMixin,
+    LocalBaserowTableServiceSortableMixin,
+    LocalBaserowViewServiceType,
+):
+    """
+    This service gives access to a list of rows from the same Baserow instance as the
+    one hosting the application.
+    """
+
+    type = "local_baserow_list_rows"
+    model_class = LocalBaserowListRows
+    dispatch_types = [
+        DispatchTypes.DATA,
+        DispatchTypes.ACTION,
+    ]
+    serializer_mixins = (
+        LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
+        + LocalBaserowTableServiceSortableMixin.mixin_serializer_mixins
+    )
+
+    @property
+    def simple_formula_fields(self):
+        return (
+            super().simple_formula_fields
+            + LocalBaserowTableServiceSearchableMixin.mixin_simple_formula_fields
+        )
+
+    @property
+    def allowed_fields(self):
+        return (
+            super().allowed_fields
+            + LocalBaserowTableServiceFilterableMixin.mixin_allowed_fields
+            + LocalBaserowTableServiceSearchableMixin.mixin_allowed_fields
+            + ["default_result_count"]
+        )
+
+    @property
+    def serializer_field_names(self):
+        return (
+            super().serializer_field_names
+            + LocalBaserowTableServiceSortableMixin.mixin_serializer_field_names
+            + LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_names
+            + LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_names
+            + ["default_result_count"]
+        )
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            **LocalBaserowTableServiceSortableMixin.mixin_serializer_field_overrides,
+            **LocalBaserowTableServiceSearchableMixin.mixin_serializer_field_overrides,
+            **LocalBaserowTableServiceFilterableMixin.mixin_serializer_field_overrides,
+        }
+
+    class SerializedDict(
+        LocalBaserowViewServiceType.SerializedDict,
+        LocalBaserowTableServiceSortableMixin.SerializedDict,
+        LocalBaserowTableServiceSearchableMixin.SerializedDict,
+        LocalBaserowTableServiceFilterableMixin.SerializedDict,
+    ):
+        default_result_count: int
+
+    def get_max_result_limit(self, service: Service):
+        return settings.INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT
+
+    def get_default_result_limit(self, service: Service):
+        return service.default_result_count
 
     def dispatch_data(
         self,
@@ -1404,43 +1451,6 @@ class LocalBaserowListRowsUserServiceType(
         )
 
         return DispatchResult(data=result)
-
-    def get_record_names(
-        self,
-        service: LocalBaserowListRows,
-        record_ids: List[int],
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, str]:
-        """
-        Return the record name associated with each one of the provided record ids.
-
-        :param service: The table service.
-        :param record_ids: A list containing the record identifiers.
-        :param dispatch_context: The context used for the dispatch.
-        :return: A dictionary mapping each record id to its name.
-        :raises ServiceImproperlyConfiguredDispatchException: When service has no
-            associated table.
-        :raises ServiceImproperlyConfiguredDispatchException: When the table is trashed.
-        """
-
-        if not service.table_id:
-            raise ServiceImproperlyConfiguredDispatchException("No table selected")
-        try:
-            table = TableHandler().get_table(service.table_id)
-            # NOTE: This is an expensive operation, so in the future we need to
-            # calculate the list of used fields for searching/sorting/filtering
-            # and pass them to `get_model`.
-            # See: https://gitlab.com/baserow/baserow/-/issues/3062
-            model = table.get_model()
-            queryset = self.build_queryset(
-                service, table, dispatch_context, model
-            ).filter(pk__in=record_ids)
-            record_names = {row.id: str(row) for row in queryset}
-            return record_names
-        except TableDoesNotExist as e:
-            raise ServiceImproperlyConfiguredDispatchException(
-                "The selected table is trashed"
-            ) from e
 
 
 class LocalBaserowAggregateRowsUserServiceType(
@@ -2194,6 +2204,46 @@ class LocalBaserowUpsertRowServiceType(
                 bulk_field_mappings
             )
 
+    def field_mappings_with(
+        self,
+        instance: LocalBaserowUpsertRow,
+        values: Dict[int, BaserowFormulaObject],
+        enable: bool = False,
+    ) -> List[FieldMappingValues]:
+        """
+        The service's field mappings, mappings on trashed fields included, with
+        new values for some fields, in the shape ``after_update`` takes. The update
+        replaces the whole list, so a caller should hold the service lock between
+        reading this and writing it back.
+
+        :param instance: The service.
+        :param values: The new value of each field, by field ID. A field the service
+            doesn't map yet is added at the end, enabled.
+        :param enable: Whether a field already mapped is enabled too, or keeps
+            whether it was.
+        :return: The mappings.
+        """
+
+        mappings = []
+        for mapping in LocalBaserowTableServiceFieldMapping.objects_and_trash.filter(
+            service=instance
+        ):
+            changed = mapping.field_id in values
+            mappings.append(
+                {
+                    "field_id": mapping.field_id,
+                    "enabled": True if changed and enable else mapping.enabled,
+                    "value": values[mapping.field_id] if changed else mapping.value,
+                }
+            )
+        mapped = {mapping["field_id"] for mapping in mappings}
+        mappings.extend(
+            {"field_id": field_id, "enabled": True, "value": value}
+            for field_id, value in values.items()
+            if field_id not in mapped
+        )
+        return mappings
+
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
         # The field mappings (each row field's value/formula) live on a related model,
@@ -2669,7 +2719,7 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
     """
 
     dispatch_types = [DispatchTypes.ACTION]
-    returns_list = True
+    _returns_list = True
     rows_help_text = ""
     batch_operation_name = ""
     include_id = False
@@ -3114,19 +3164,26 @@ class LocalBaserowRowsSignalTriggerServiceType(
 
     # Local Baserow signal services (e.g. rows created, updated, deleted)
     # all return an array of rows, even if only a single row is affected.
-    # We set `returns_list` to `True` so that when we generate the schema,
+    # We set `_returns_list` to `True` so that when we generate the schema,
     # the `type` is set to `array` instead of `object`.
-    returns_list = True
+    _returns_list = True
 
-    def start_listening(self, on_event: Callable):
-        super().start_listening(on_event)
+    def connect(self) -> None:
+        """
+        Receives the Django signal this type reacts to.
+        """
+
         self.signal.connect(self._signal_receiver)
 
-    def stop_listening(self):
+    def disconnect(self) -> None:
+        """
+        Stops receiving the Django signal.
+        """
+
         self.signal.disconnect(self._signal_receiver)
 
     def _process_event(self, *args, **kwargs):
-        return self.on_event(*args, **kwargs) if callable(self.on_event) else None
+        return self.on_event(*args, **kwargs)
 
     def _handle_signal(
         self,

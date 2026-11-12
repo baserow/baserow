@@ -2,6 +2,7 @@
 Node tools shared by the clients that act for a user.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Callable
 
@@ -81,19 +82,23 @@ CHILD_OUTPUT = "child"
 
 
 def nodes_in_order(
-    user: AbstractUser, workflow: AutomationWorkflow
+    user: AbstractUser,
+    workflow: AutomationWorkflow,
+    nodes: Iterable[AutomationNode] | None = None,
 ) -> list[tuple[AutomationNode, AutomationNode | None, str]]:
     """
     The nodes of a workflow in execution order: the trigger, then each node after
     the one before it, a container's children before the nodes that follow it.
 
+    :param nodes: The nodes of the workflow, when already read. Otherwise they are
+        read with the user's permissions.
     :returns: Each node with the node it follows (None for the trigger) and the
         output of that node it is attached to ("" for the default one).
     """
 
-    nodes = {
-        node.id: node for node in AutomationNodeService().get_nodes(user, workflow)
-    }
+    if nodes is None:
+        nodes = AutomationNodeService().get_nodes(user, workflow)
+    nodes = {node.id: node for node in nodes}
     graph = workflow.get_graph().graph
     ordered: list[tuple[AutomationNode, AutomationNode | None, str]] = []
     visited: set[int] = set()
@@ -163,7 +168,7 @@ def output_schema(node: AutomationNode) -> dict[str, Any]:
     if schema.get("type") == "array":
         schema = schema.get("items") or {}
     path = f"previous_node.{node.id}"
-    if service_type.returns_list:
+    if service_type.returns_list(service):
         path += ".0"
     return {"formula_path": path, "properties": _compact_properties(schema)}
 

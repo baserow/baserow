@@ -5,6 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from celery.canvas import Signature
+from loguru import logger
 
 from baserow.config.celery import app
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -52,6 +53,9 @@ def handle_workflow_dispatch_done(
     If history_id is provided, the workflow's history is updated to 'success'.
 
     If simulate_until_node_id is provided, the related workflow history is deleted.
+
+    A run history that no longer exists is ignored: the workflow, and with it the
+    run's history, can be deleted while the run is still in flight.
     """
 
     if simulate_until_node_id:
@@ -63,7 +67,17 @@ def handle_workflow_dispatch_done(
         # Only update the history if it's still started.
         # If the workflow history was marked as failed by a specific node, we
         # don't want to overwrite it.
-        history = AutomationWorkflowHistory.objects.get(id=history_id)
+        history = AutomationWorkflowHistory.objects.filter(id=history_id).first()
+        if history is None:
+            # The run history is gone, for example because the workflow was
+            # deleted while the run was still in flight (a waiting node can keep
+            # a run alive for hours). Nothing is left to update.
+            logger.warning(
+                f"Workflow history with ID {history_id} was not found. It was "
+                "likely deleted while the workflow was still running."
+            )
+            return
+
         AutomationHistoryHandler().ensure_default_response(history)
         AutomationWorkflowHistory.objects.filter(
             id=history_id,
@@ -80,20 +94,47 @@ def handle_workflow_dispatch_done(
         )
 
 
-@app.task(queue="export")
-def delete_superseded_published_automations(workflow_id: int):
-    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-
-    AutomationWorkflowHandler().delete_superseded_published_automations(workflow_id)
-
-
 @app.task(queue="automation_workflow")
 def automation_periodic_cleanup():
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
     handler = AutomationWorkflowHandler()
+    # The runs that are over their budget are resolved first, so that the
+    # recovery sweep leaves their waiting nodes, which were just resolved with
+    # them, alone.
     handler.mark_failure_for_timed_out_history()
+    AutomationNodeHandler().resume_stale_waiting_nodes()
     handler.clear_old_history()
+
+
+@app.task(queue="automation_workflow")
+def automation_run_stall_check():
+    """
+    Fails the runs that stopped making progress (a lost task or a dead worker),
+    and warns about the runs that are slow to progress, which points at a
+    backed-up queue rather than a lost task. Runs more often than the periodic
+    cleanup so that a dead run is resolved within about an hour.
+    """
+
+    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
+    handler = AutomationWorkflowHandler()
+    resolved = handler.mark_failure_for_stalled_history()
+    if resolved:
+        logger.warning(
+            f"{resolved} automation workflow runs made no progress for more than "
+            f"{settings.AUTOMATION_RUN_STALL_TIMEOUT_MINUTES} minutes and were "
+            "marked as interrupted."
+        )
+
+    newly_stalled = handler.count_runs_newly_stalled()
+    if newly_stalled:
+        logger.warning(
+            f"{newly_stalled} automation workflow runs made no progress for more "
+            f"than {settings.AUTOMATION_RUN_STALL_WARNING_MINUTES} minutes; check "
+            "that a worker consumes the automation_workflow queue."
+        )
 
 
 @app.on_after_finalize.connect
@@ -103,4 +144,8 @@ def setup_periodic_automation_tasks(sender, **kwargs):
             minutes=settings.AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES
         ),
         automation_periodic_cleanup.s(),
+    )
+    sender.add_periodic_task(
+        timedelta(minutes=settings.AUTOMATION_RUN_STALL_SWEEP_INTERVAL_MINUTES),
+        automation_run_stall_check.s(),
     )

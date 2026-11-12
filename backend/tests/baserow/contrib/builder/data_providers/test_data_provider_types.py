@@ -1446,6 +1446,18 @@ def test_user_data_provider_get_data_chunk(data_fixture):
     )
 
 
+def test_user_data_provider_refuses_a_property_the_user_does_not_have():
+    from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
+
+    provider = UserDataProviderType()
+    for name in UserDataProviderType.PROPERTIES:
+        assert provider.is_valid([name])
+    assert provider.is_valid([])
+
+    with pytest.raises(BaserowFormulaSyntaxError, match="'first_name'"):
+        provider.is_valid(["first_name"])
+
+
 @pytest.mark.django_db
 def test_translate_default_user_role_returns_same_role(data_fixture):
     """
@@ -1787,7 +1799,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     expected = "123"
 
     mocked_service_type = MagicMock()
-    mocked_service_type.returns_list = False
+    mocked_service_type.returns_list.return_value = False
     mocked_service_type.extract_properties.return_value = expected
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
@@ -1805,7 +1817,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
         mocked_data_source.service.specific, [expected]
     )
 
-    mocked_service_type.returns_list = True
+    mocked_service_type.returns_list.return_value = True
     mocked_service_type.extract_properties.reset_mock()
 
     result = DataSourceDataProviderType().extract_properties(
@@ -1928,7 +1940,7 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
     expected = "123"
 
     mocked_service_type = MagicMock()
-    mocked_service_type.returns_list = False
+    mocked_service_type.returns_list.return_value = False
     mocked_service_type.extract_properties.return_value = expected
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
@@ -1946,7 +1958,7 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
         mocked_data_source.service.specific, [expected]
     )
 
-    mocked_service_type.returns_list = True
+    mocked_service_type.returns_list.return_value = True
     mocked_service_type.extract_properties.reset_mock()
     mocked_service_type.reset_mock()
 
@@ -2128,7 +2140,7 @@ def test_current_record_extract_properties_calls_correct_service_type(
 
     expected_field = "field_123"
     mocked_service_type = MagicMock()
-    mocked_service_type.returns_list = True
+    mocked_service_type.returns_list.return_value = True
     mocked_service_type.extract_properties.return_value = expected_field
 
     mocked_data_source = MagicMock()
@@ -2186,7 +2198,7 @@ def test_current_record_extract_properties_called_with_correct_path(
     data_source_id = 50
 
     mock_service_type = MagicMock()
-    mock_service_type.returns_list = returns_list
+    mock_service_type.returns_list.return_value = returns_list
     mock_service_type.extract_properties.return_value = ["field_999"]
 
     mock_data_source = MagicMock()

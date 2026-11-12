@@ -22,6 +22,7 @@ from baserow.core.user_templates.models import CreateUserTemplateJob
 pytestmark = pytest.mark.django_db
 
 LIST_URL = reverse("api:templates:list")
+PRIVATE_LINK_TOKEN = "a" * 64
 
 
 def create_own_template(data_fixture, user, state="private", **kwargs):
@@ -93,15 +94,32 @@ def test_list_own_templates(api_client, data_fixture):
             ],
             "state": "rejected",
             "reason": "Not a template.",
+            "can_make_public": True,
+            "make_public_needs_review": True,
+            "update_needs_review": False,
+            "listed": False,
             "source_workspace_id": source_workspace.id,
             "source_application_ids": [3, 1],
             "install_count": 0,
+            "private_link_token": None,
             "author_name": user.first_name,
             "is_own": True,
             "created_on": "2026-10-01T10:00:00Z",
             "updated_on": "2026-10-02T10:00:00Z",
         }
     ]
+
+
+def test_list_own_templates_tells_whether_an_update_needs_review(
+    api_client, data_fixture
+):
+    data_fixture.update_settings(user_templates_require_approval=True)
+    owner, token = data_fixture.create_user_and_token()
+    create_own_template(data_fixture, owner, "public")
+
+    results = list_own_templates(api_client, token).json()["results"]
+
+    assert [row["update_needs_review"] for row in results] == [True]
 
 
 def test_list_own_templates_shows_state_of_the_latest_revision(
@@ -121,7 +139,7 @@ def test_list_own_templates_shows_state_of_the_latest_revision(
 
     assert response.status_code == HTTP_200_OK
     result = response.json()["results"][0]
-    assert (result["state"], result["reason"]) == ("private", None)
+    assert (result["state"], result["reason"]) == ("rejected", "Not a template.")
 
     template.blocked_at = django_timezone.now()
     template.save()
@@ -178,14 +196,23 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
     data_fixture.create_user_template_revision(
         template, metadata={"source_workspace_id": 1}
     )
-    Template.objects.filter(id=template.id).update(install_count=3)
+    Template.objects.filter(id=template.id).update(
+        install_count=3, private_link_token=PRIVATE_LINK_TOKEN
+    )
     data_fixture.create_template(install_count=5)
+    for state in ["private", "blocked"]:
+        create_own_template(data_fixture, data_fixture.create_user(), state=state)
     owner_only = (
         "state",
         "reason",
+        "can_make_public",
+        "make_public_needs_review",
+        "update_needs_review",
+        "listed",
         "source_workspace_id",
         "source_application_ids",
         "install_count",
+        "private_link_token",
     )
 
     for token in [None, stranger_token, staff_token]:
@@ -193,8 +220,10 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
         assert response.status_code == HTTP_200_OK
         results = response.json()["results"]
         assert len(results) == 2
+        unlisted = list_templates(api_client, token, listed="false").json()
+        assert {t["id"] for t in unlisted["results"]} == {t["id"] for t in results}
         assert {tuple(t[key] for key in owner_only) for t in results} == {
-            (None, None, None, None, None)
+            (None,) * len(owner_only)
         }
 
     response = list_templates(api_client, owner_token, type="user")
@@ -203,6 +232,7 @@ def test_list_templates_hides_the_state_from_others(api_client, data_fixture):
     # The count is the root's, while the latest revision is listed.
     assert (result["state"], result["source_workspace_id"]) == ("public", 1)
     assert result["install_count"] == 3
+    assert result["private_link_token"] == PRIVATE_LINK_TOKEN
 
 
 def test_list_templates_filters_by_type(api_client, data_fixture):
@@ -303,6 +333,7 @@ def test_list_own_templates_search(api_client, data_fixture):
 
 
 def test_list_own_templates_query_count_is_constant(api_client, data_fixture):
+    data_fixture.update_settings()
     user, token = data_fixture.create_user_and_token()
     categories = [data_fixture.create_template_category() for _ in range(2)]
 
@@ -370,7 +401,7 @@ def test_list_template_categories_ignores_the_parameters(api_client, data_fixtur
 
 
 @pytest.mark.django_db
-def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
+def test_get_user_template_shows_others_its_public_revision(api_client, data_fixture):
     owner, token = data_fixture.create_user_and_token()
     template = create_own_template(data_fixture, owner, name="First", keywords="crm")
     public = data_fixture.create_user_template_revision(template, name="Second")
@@ -386,6 +417,8 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
     url = reverse("api:templates:item", kwargs={"slug": template.slug})
 
     _, other_token = data_fixture.create_user_and_token()
+    _, staff_token = data_fixture.create_user_and_token(is_staff=True)
+    staff_headers = {"HTTP_AUTHORIZATION": f"JWT {staff_token}"}
 
     def get_shown(headers):
         response = api_client.get(url, **headers)
@@ -401,22 +434,18 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             datetime.fromisoformat(result["updated_on"]),
         )
 
-    # Everyone sees the public revision with its categories, the owner too, dated
-    # by its creation. Its id is sent with an install. Only the owner sees the state.
-    for token_used, is_own in [(None, False), (other_token, False), (token, True)]:
+    for token_used in [None, other_token, staff_token]:
         headers = {"HTTP_AUTHORIZATION": f"JWT {token_used}"} if token_used else {}
         assert get_shown(headers) == (
             template.id,
             public.id,
             "Second",
-            is_own,
-            "public" if is_own else None,
+            False,
+            None,
             ["Sales"],
             public.created_on,
         )
 
-    # The owner sees the latest revision while the template isn't public, or is
-    # blocked.
     for changes, state in [
         ({"public_revision": None}, "private"),
         ({"blocked_at": django_timezone.now()}, "blocked"),
@@ -425,6 +454,7 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             public_revision=public, blocked_at=None
         )
         Template.objects.filter(id=template.id).update(**changes)
+        assert get_shown(staff_headers)[1:5] == (latest.id, "Third", False, None)
         response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
         assert response.status_code == HTTP_200_OK
@@ -449,11 +479,70 @@ def test_get_user_template_shows_its_public_revision(api_client, data_fixture):
             ],
             "state": state,
             "reason": None,
+            "listed": False,
+            "can_make_public": state == "private",
+            "make_public_needs_review": state == "private",
+            "update_needs_review": False,
             "source_workspace_id": None,
             "source_application_ids": [],
             "install_count": 0,
+            "private_link_token": None,
             "created_on": template.created_on.isoformat().replace("+00:00", "Z"),
         }
+
+
+def get_with_link(api_client, url, token, link_token):
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"} if token else {}
+    if link_token:
+        headers["HTTP_BASEROW_TEMPLATE_AUTHORIZATION"] = link_token
+    return api_client.get(url, **headers)
+
+
+def test_template_detail_for_link_holder(api_client, data_fixture):
+    _, holder_token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, data_fixture.create_user(), "shared")
+    public = data_fixture.create_user_template_revision(template)
+    latest = data_fixture.create_user_template_revision(template)
+    link_token = template.private_link_token
+    url = reverse("api:templates:item", kwargs={"slug": template.slug})
+    content_url = reverse(
+        "api:applications:list", kwargs={"workspace_id": latest.workspace_id}
+    )
+
+    for user_token in [holder_token, None]:
+        response = get_with_link(api_client, url, user_token, link_token)
+        assert response.status_code == HTTP_200_OK
+        assert response.json()["revision_id"] == latest.id
+        assert get_with_link(
+            api_client, content_url, user_token, link_token
+        ).status_code == (HTTP_200_OK)
+    assert get_with_link(api_client, url, holder_token, None).status_code == (
+        HTTP_404_NOT_FOUND
+    )
+    assert get_with_link(api_client, content_url, holder_token, None).status_code == (
+        HTTP_400_BAD_REQUEST
+    )
+
+    data_fixture.set_user_template_state(template, "public", public)
+    response = get_with_link(api_client, url, holder_token, link_token)
+    assert response.json()["revision_id"] == public.id
+
+
+def test_lists_leave_out_templates_opened_through_private_link(
+    api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, data_fixture.create_user(), "shared")
+
+    response = api_client.get(
+        LIST_URL,
+        {"view": "flat"},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_BASEROW_TEMPLATE_AUTHORIZATION=template.private_link_token,
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert template.id not in [t["id"] for t in response.json()["results"]]
 
 
 def create_job(api_client, token, workspace, applications, **overrides):
@@ -986,12 +1075,10 @@ def is_marked(template):
 def create_template_in_state(data_fixture, owner, state):
     template = create_own_template(data_fixture, owner)
     # Its public revision is not the root.
-    revision = (
-        data_fixture.create_user_template_revision(template)
-        if state == "public"
-        else None
+    data_fixture.set_user_template_revision_states(
+        template, ["private", "public"] if state == "public" else [state]
     )
-    return data_fixture.set_user_template_state(template, state, revision)
+    return template
 
 
 @pytest.mark.parametrize("state", ["private", "shared", "public", "blocked"])
@@ -1059,8 +1146,9 @@ def test_deleted_user_template_is_gone_for_everybody(
     tokens = [owner_token, other_token, staff_token]
     template = create_own_template(data_fixture, owner)
     # Revisions have no slug: the root's slug opens the public revision for others.
-    revision = data_fixture.create_user_template_revision(template)
-    data_fixture.set_user_template_state(template, "public", revision)
+    revision = data_fixture.set_user_template_revision_states(
+        template, ["private", "public"]
+    )
     root_grid = create_template_with_rows(data_fixture, template)
     revision_grid = create_template_with_rows(data_fixture, revision)
     url = reverse("api:templates:item", kwargs={"slug": template.slug})
@@ -1159,6 +1247,7 @@ INVALID = (HTTP_400_BAD_REQUEST, "ERROR_REQUEST_BODY_VALIDATION")
         ({}, "owner", "private", INVALID),
         ({"visibility": "listed"}, "owner", "private", INVALID),
         ({"listed": True}, "owner", "private", INVALID),
+        ({**PRIVATE, "private_link": True}, "owner", "private", INVALID),
         (
             PUBLIC,
             "owner",
@@ -1171,6 +1260,7 @@ def test_update_template_visibility(
     api_client, data_fixture, data, actor, before, answer
 ):
     status, error = answer
+    data_fixture.update_settings(user_templates_require_approval=False)
     owner, owner_token = data_fixture.create_user_and_token()
     _, other_token = data_fixture.create_user_and_token()
     template = create_own_template(
@@ -1189,6 +1279,7 @@ def test_update_template_visibility(
     if status == HTTP_200_OK:
         assert response.json()["id"] == template.id
         assert response.json()["state"] == data["visibility"]
+        assert response.json()["make_public_needs_review"] is False
         after = data["visibility"] == "public"
     assert is_public(template) == after
 
@@ -1222,6 +1313,9 @@ def test_listed_templates_fields_and_paging(api_client, data_fixture):
     assert [result[key] for key in owner_only] == [None] * 5
     assert result["is_own"] is False
     assert "ada@example.com" not in response.content.decode()
+    list_templates(api_client, token, listed="true")
+    with CaptureQueriesContext(connection) as one_own:
+        list_templates(api_client, token, listed="true")
 
     for name in ("Tasks", "Notes"):
         create_listed(name)
@@ -1229,6 +1323,14 @@ def test_listed_templates_fields_and_paging(api_client, data_fixture):
         response = list_templates(api_client, listed="true")
     assert response.json()["count"] == 3
     assert len(three_templates) == len(one_template)
+    with CaptureQueriesContext(connection) as three_own:
+        response = list_templates(api_client, token, listed="true")
+    assert [result["state"] for result in response.json()["results"]] == ["public"] * 3
+    assert {
+        (result["can_make_public"], result["make_public_needs_review"])
+        for result in response.json()["results"]
+    } == {(None, None)}
+    assert len(three_own) == len(one_own)
 
     # Paged by offset. Which templates come first is tested on the handler.
     create_own_template(data_fixture, other, state="public")
@@ -1281,3 +1383,71 @@ def test_listed_templates_combine_with_the_other_filters(api_client, data_fixtur
     assert official.id in listed_ids()
     assert listed_ids(type="user", category=category.id) == [others.id]
     assert listed_ids(search="task") == [others.id]
+
+
+def change_private_link(api_client, token, slug, change):
+    """Turns the private link on or off with PATCH, or regenerates it."""
+
+    if change != "rotate":
+        return patch_template(api_client, token, slug, private_link=change == "on")
+    return api_client.post(
+        reverse("api:templates:rotate_private_link_token", kwargs={"slug": slug}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+@pytest.mark.parametrize("change", ["on", "off", "rotate"])
+@pytest.mark.parametrize(
+    "actor,status",
+    [
+        ("owner", HTTP_200_OK),
+        ("other", HTTP_404_NOT_FOUND),
+    ],
+)
+def test_change_private_link_actors(api_client, data_fixture, change, actor, status):
+    owner, owner_token = data_fixture.create_user_and_token()
+    _, other_token = data_fixture.create_user_and_token()
+    state = "private" if change == "on" else "shared"
+    template = create_own_template(data_fixture, owner, state)
+    token = owner_token if actor == "owner" else other_token
+
+    response = change_private_link(api_client, token, template.slug, change)
+
+    assert response.status_code == status
+    link_token = Template.objects.get(id=template.id).private_link_token
+    if status == HTTP_200_OK:
+        assert response.json()["private_link_token"] == link_token
+        assert (link_token is None) == (change == "off")
+        assert link_token != template.private_link_token
+    else:
+        assert link_token == template.private_link_token
+        assert response.json()["error"] == "ERROR_TEMPLATE_DOES_NOT_EXIST"
+
+
+def test_change_private_link_blocked(api_client, data_fixture):
+    owner, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, owner, "blocked")
+
+    response = change_private_link(api_client, token, template.slug, "on")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_TEMPLATE_BLOCKED",
+        "detail": "The template is blocked, so its private link can't be changed.",
+    }
+    assert Template.objects.get(id=template.id).private_link_token is None
+
+
+def test_private_link_only_opens_its_template(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+    template = create_own_template(data_fixture, data_fixture.create_user(), "shared")
+    other = create_own_template(data_fixture, data_fixture.create_user(), "shared")
+
+    url = reverse("api:templates:item", kwargs={"slug": template.slug})
+    response = get_with_link(api_client, url, token, other.private_link_token)
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "error": "ERROR_TEMPLATE_DOES_NOT_EXIST",
+        "detail": "The requested template does not exist.",
+    }

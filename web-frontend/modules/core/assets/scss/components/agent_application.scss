@@ -3,6 +3,13 @@
   padding: 0 20px;
 }
 
+.agent-application__header-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
 .agent-application__header-name {
   @extend %ellipsis;
 
@@ -10,6 +17,33 @@
   line-height: 20px;
   font-weight: 500;
   color: $palette-neutral-1200;
+}
+
+.agent-application__approvals {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: $palette-yellow-50;
+  color: $palette-yellow-800;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 500;
+  cursor: pointer;
+
+  @include rounded($rounded-3xl);
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.agent-application__approvals-icon {
+  font-size: 14px;
 }
 
 .agent-application__content {
@@ -106,6 +140,10 @@
   &--replying {
     background: $palette-neutral-500;
     animation: agent-conversations-replying 1.4s ease-in-out infinite;
+  }
+
+  &--waiting {
+    background: $palette-yellow-500;
   }
 }
 
@@ -213,7 +251,9 @@
   background: $palette-neutral-0;
 }
 
-.agent-chat__announcement {
+.agent-conversations__status-label,
+.agent-chat__announcement,
+.agent-approval__announcement {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -308,6 +348,188 @@
 
 .agent-chat__warning {
   margin-bottom: 16px;
+}
+
+.agent-approval {
+  align-self: stretch;
+  overflow: hidden;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 12px 12px 12px 6px;
+  background: $palette-neutral-0;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.agent-approval__header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-bottom: 1px solid $palette-neutral-200;
+  background: $palette-neutral-50;
+}
+
+.agent-approval__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.agent-approval__title,
+.agent-approval__item-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.agent-approval__title {
+  flex-basis: 160px;
+}
+
+.agent-approval__always-allow.button {
+  height: auto;
+  min-height: $button-small-height;
+
+  .button__label {
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+.agent-approval__actions,
+.agent-approval__item-actions,
+.agent-approval__summary {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.agent-approval__summary {
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.agent-approval__items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-approval__item {
+  padding: 12px 16px;
+
+  &:not(:last-child) {
+    border-bottom: 1px solid $palette-neutral-200;
+  }
+}
+
+.agent-approval__item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.agent-approval__item-actions {
+  opacity: 0;
+}
+
+.agent-approval__item:hover .agent-approval__item-actions,
+.agent-approval__item:focus-within .agent-approval__item-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .agent-approval__item-actions {
+    opacity: 1;
+  }
+}
+
+.agent-approval__decision {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+
+  &--approved {
+    color: $palette-green-800;
+  }
+
+  &--rejected {
+    color: $palette-red-600;
+  }
+}
+
+.agent-approval__step-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.agent-approval__item-note {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.agent-approval__item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: $palette-neutral-700;
+}
+
+.agent-approval__details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    color: $palette-neutral-1200;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    border-radius: 4px;
+  }
+}
+
+.agent-approval__tool {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: $palette-neutral-100;
+  font-family: monospace;
+  font-size: 11px;
+  color: $palette-neutral-900;
+}
+
+.agent-approval__input {
+  margin-top: 8px;
+}
+
+.agent-reject-modal__description {
+  margin-bottom: 16px;
+  color: $palette-neutral-900;
+}
+
+.agent-reject-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .agent-configuration {
@@ -565,6 +787,36 @@
   }
 }
 
+.agent-workspace-tools__ask {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: $palette-neutral-50;
+
+  @include rounded($rounded-md);
+}
+
+.agent-workspace-tools__ask-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-workspace-tools__ask-title {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-workspace-tools__ask-description {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: $palette-neutral-900;
+}
+
 .agent-workspace-tools__group {
   display: flex;
   align-items: center;
@@ -610,6 +862,11 @@
   color: $palette-neutral-900;
 }
 
+.agent-workspace-tools__group-separator {
+  font-weight: 700;
+  color: $palette-neutral-500;
+}
+
 .agent-tool-permissions__description {
   margin-bottom: 20px;
   color: $palette-neutral-900;
@@ -637,6 +894,7 @@
 
 .agent-tool-permissions__list-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
   font-size: 12px;
@@ -667,7 +925,15 @@
   color: $palette-neutral-900;
 }
 
-.agent-tool-permissions__allow .checkbox__label {
+.agent-tool-permissions__columns {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(2, 64px);
+  justify-items: center;
+}
+
+.agent-tool-permissions__columns .checkbox__label,
+.agent-mcp-tools__columns .checkbox__label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -681,4 +947,190 @@
   justify-content: flex-end;
   gap: 8px;
   margin-top: 20px;
+}
+
+.agent-connected-apps__description {
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__server {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 6px;
+}
+
+.agent-connected-apps__server-icon {
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__server-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-connected-apps__server-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-connected-apps__server-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__add {
+  margin-top: 4px;
+}
+
+.agent-connected-apps__modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.agent-connected-apps__modal-spacer {
+  flex: 1;
+}
+
+.agent-mcp-tools__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-mcp-tools__empty {
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.agent-mcp-tools__columns {
+  display: flex;
+  flex-shrink: 0;
+  gap: 24px;
+
+  > * {
+    display: flex;
+    justify-content: center;
+    width: 80px;
+  }
+}
+
+.agent-mcp-tools__tool-content {
+  min-width: 0;
+
+  .agent-tool-permissions__tool-name {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+.agent-mcp-tools__tool-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.agent-mcp-tools__tool--removed {
+  opacity: 0.6;
+}
+
+.agent-mcp-tools__parameters-toggle {
+  margin-top: 4px;
+}
+
+.agent-mcp-tools__parameters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  list-style: none;
+  border-radius: 6px;
+  background-color: $palette-neutral-50;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.agent-mcp-tools__parameter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+
+  code {
+    font-family: monospace;
+    color: $palette-neutral-1200;
+  }
+}
+
+.agent-mcp-tools__parameter-type,
+.agent-mcp-tools__parameter-required {
+  color: $palette-neutral-700;
+}
+
+.agent-mcp-tools__parameter-description {
+  flex-basis: 100%;
+  color: $palette-neutral-900;
+  overflow-wrap: anywhere;
+}
+
+.agent-mcp-tools__schema {
+  margin-top: 4px;
+  font-size: 12px;
+  color: $palette-neutral-900;
+
+  summary {
+    cursor: pointer;
+  }
+
+  pre {
+    max-height: 240px;
+    margin: 4px 0 0;
+    padding: 8px 12px;
+    overflow: auto;
+    border-radius: 6px;
+    background-color: $palette-neutral-50;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+.agent-connected-apps__auth {
+  .segment-control__button {
+    flex: 1;
+  }
+}
+
+.agent-connected-apps__auth-help {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-connected-apps__oauth-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
 }
