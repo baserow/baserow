@@ -13,6 +13,7 @@ from pydantic_ai import (
     AgentRunResultEvent,
     ConversationTypeAdapter,
     DeferredToolRequests,
+    ModelRetry,
     RunContext,
     WebSearchTool,
 )
@@ -55,6 +56,8 @@ from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.steps import ChatRunSteps, ToolCallInputEvent
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
+from baserow.core.generative_ai.model_profiles import AGENT
+from baserow.core.generative_ai.output_validation import ModelOutputValidator
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolErrorCode
@@ -64,6 +67,7 @@ from .constants import (
     ASK_FIRST_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
+    OUTPUT_RETRIES,
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
@@ -145,7 +149,12 @@ def create_reply_model(request: AgentReplyRequest) -> tuple[Model, dict]:
     model = model_type.get_ai_model(
         request.model_identifier, request.workspace, settings_override
     )
-    model_settings = model_type.prepare_model_settings(request.model_identifier)
+    model_settings = model_type.get_model_settings(request.model_identifier, AGENT)
+    model_settings.update(
+        model_type.prepare_model_settings(
+            request.model_identifier, model_settings.get("temperature")
+        )
+    )
     thinking = model_type.get_thinking_level(
         request.model_identifier, model, request.reasoning_effort
     )
@@ -428,10 +437,16 @@ class AgentResponder:
         """
 
         self._web_search_tool = web_search_tool
+        request = self._request
+        model_type = generative_ai_model_type_registry.get(request.provider_type)
+        validator = model_type.get_output_validator(request.model_identifier)
+        retries = {"tools": TOOL_RETRIES}
+        if validator is not None:
+            retries["output"] = OUTPUT_RETRIES
         agent = Agent(
             instructions=self._get_instructions(web_search_tool),
             output_type=[str, DeferredToolRequests],
-            retries={"tools": TOOL_RETRIES},
+            retries=retries,
             capabilities=[
                 WebSearch(native=partial(self._offered_web_search, web_search_tool))
             ]
@@ -440,7 +455,8 @@ class AgentResponder:
         )
         # Kuma enables content tracing for every Agent; conversations are private.
         agent.instrument = False
-        request = self._request
+        if validator is not None:
+            agent.output_validator(partial(self._validate_output, validator))
         resume = request.resume
         # A paused run carries its own history, and pydantic-ai refuses both.
         history = build_history(request.history) if resume is None else None
@@ -456,6 +472,27 @@ class AgentResponder:
         ) as events:
             async for event in events:
                 self._on_event(event)
+
+    async def _validate_output(
+        self,
+        validator: ModelOutputValidator,
+        ctx: RunContext,
+        output: str | DeferredToolRequests,
+    ) -> str | DeferredToolRequests:
+        """Correct printed tool calls within the run and discard rejected text."""
+
+        if not isinstance(output, str):
+            return output
+        try:
+            return validator(ctx, output)
+        except ModelRetry:
+            # This text already streamed, but is not an answer. Clear it even
+            # when retries are exhausted; completed tool steps stay visible.
+            self._parts = {}
+            self._text = ""
+            self._text_is_commentary = False
+            self._journal.emit_text("")
+            raise
 
     def _offered_web_search(
         self, web_search_tool: WebSearchTool, ctx: RunContext

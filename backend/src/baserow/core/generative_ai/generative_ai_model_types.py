@@ -13,6 +13,7 @@ from .constants import WEB_SEARCH_MAX_PER_REPLY, ReasoningEffort
 from .registries import (
     EmbedKindLimit,
     FileHandler,
+    GenerativeAIModelConfiguration,
     GenerativeAIModelType,
     get_known_model_names,
 )
@@ -738,6 +739,17 @@ class GroqGenerativeAIModelType(GenerativeAIModelType):
     type = "groq"
     supports_legacy_workspace_settings = False
 
+    def get_model_configuration(
+        self, model_name: str
+    ) -> GenerativeAIModelConfiguration:
+        from .groq import LEGACY_MODEL_CONFIGURATIONS, MODEL_CONFIGURATIONS
+
+        return (
+            MODEL_CONFIGURATIONS.get(model_name)
+            or LEGACY_MODEL_CONFIGURATIONS.get(model_name.rsplit("/", 1)[-1])
+            or super().get_model_configuration(model_name)
+        )
+
     def get_api_key(
         self,
         workspace: Optional[Workspace] = None,
@@ -773,7 +785,8 @@ class GroqGenerativeAIModelType(GenerativeAIModelType):
         api_key = self.get_api_key(workspace, settings_override)
         if not api_key:
             raise ValueError("A Groq API key is required.")
-        return GroqModel(model_name, provider=GroqProvider(api_key=api_key))
+        model_class = self.get_model_class(model_name, GroqModel)
+        return model_class(model_name, provider=GroqProvider(api_key=api_key))
 
     def get_reasoning_efforts(
         self, model_name: str, model: "Model"

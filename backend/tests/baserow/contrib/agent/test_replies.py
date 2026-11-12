@@ -17,7 +17,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent, ConversationTypeAdapter
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     FunctionToolCallEvent,
     FunctionToolResultEvent,
@@ -29,7 +29,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters
-from pydantic_ai.models.function import DeltaToolCall, FunctionModel
+from pydantic_ai.models.function import DeltaThinkingPart, DeltaToolCall, FunctionModel
 from pydantic_ai.models.instrumented import InstrumentationSettings
 from pydantic_ai.models.openai import OpenAIResponsesModel
 
@@ -77,6 +77,7 @@ from baserow.core.chat_runs.journal import ChatRunJournal
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent as Identity
 from baserow.core.models import WorkspaceUser
@@ -166,6 +167,49 @@ def respond(
     return received
 
 
+@pytest.mark.parametrize("response", ["empty", "thinking-only"])
+@pytest.mark.parametrize(
+    "provider,model_name,attempts",
+    [
+        ("openai", "gpt-5", 2),
+        ("anthropic", "claude-sonnet-4-6", 2),
+        ("groq", "qwen/qwen3-32b", 2),
+        ("groq", "openai/gpt-oss-20b", 4),
+        ("groq", "openai/gpt-oss-120b", 4),
+    ],
+)
+def test_output_retry_budget_follows_provider_validator(
+    mocker, provider, model_name, attempts, response
+):
+    calls = []
+
+    async def stream(messages, info):
+        calls.append(messages)
+        if response == "thinking-only":
+            yield {0: DeltaThinkingPart(content="Still thinking.")}
+        else:
+            yield ""
+
+    request = AgentReplyRequest(
+        reply_id=1,
+        workspace=None,
+        instructions="",
+        provider_type=provider,
+        model_identifier=model_name,
+        prompt="Hi",
+    )
+    responder = AgentResponder(
+        request, mocker.Mock(), FunctionModel(stream_function=stream), {}
+    )
+
+    with pytest.raises(
+        UnexpectedModelBehavior, match="Exceeded maximum output retries"
+    ):
+        asyncio.run(responder._run_model(None))
+
+    assert len(calls) == attempts
+
+
 def tool_call(tool_name: str, call_id: str, **arguments: object) -> DeltaToolCall:
     return DeltaToolCall(
         name=tool_name, json_args=json.dumps(arguments), tool_call_id=call_id
@@ -209,6 +253,37 @@ def test_failed_input_summary_keeps_the_call_without_logging_payloads(
     output = "".join(str(entry) for entry in logs)
     assert "PRIVATE_INPUT_ERROR_CANARY" not in output
     assert "PRIVATE_INPUT_ARGUMENT_CANARY" not in output
+
+
+@pytest.mark.django_db
+def test_provider_output_validator_is_used_without_agent_provider_rules(
+    data_fixture, configured_agent, mocker
+):
+    from pydantic_ai import ModelRetry
+
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    validated = []
+
+    def validate(ctx, output):
+        validated.append(output)
+        if output == "Rejected text":
+            raise ModelRetry("Please correct the answer.")
+        return output
+
+    provider = generative_ai_model_type_registry.get(agent.provider_type)
+    get_validator = mocker.patch.object(
+        provider, "get_output_validator", create=True, return_value=validate
+    )
+    received = respond(mocker, ("Rejected text",), ("Corrected answer",))
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Corrected answer")
+    assert validated == ["Rejected text", "Corrected answer"]
+    assert len(received) == 2
+    get_validator.assert_called_once_with(agent.model_identifier)
 
 
 @pytest.mark.django_db
@@ -607,6 +682,205 @@ def test_empty_groq_stream_logs_the_original_error_in_debug_mode(
     )
     assert "PRIVATE_KEY_CANARY" not in str(logs[0])
     assert logs[0].record["exception"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "provider,model_name",
+    [
+        ("openai", "test-model"),
+        ("openai", "openai/gpt-oss-120b"),
+        ("groq", "qwen/qwen3-32b"),
+        ("groq", "allam-2-7b"),
+    ],
+)
+def test_other_models_can_answer_with_tool_json_without_correction(
+    data_fixture, configured_agent, mocker, provider, model_name
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(
+        user=user,
+        provider_type=provider,
+        model_identifier=model_name,
+        available_model=(provider, model_name),
+    )
+    table = allow_tools(data_fixture, agent)
+    printed_call = json.dumps(
+        {
+            "name": "create_rows",
+            "arguments": {"table_id": table.id, "rows": [{"Name": "Example"}]},
+        }
+    )
+    received = respond(mocker, (printed_call,))
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", printed_call)
+    assert row_names(table) == []
+    assert len(received) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+@pytest.mark.parametrize("malformed", [False, True], ids=["valid", "stray-quote"])
+def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
+    data_fixture, configured_agent, mocker, model_name, malformed
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(
+        user=user,
+        provider_type="groq",
+        model_identifier=model_name,
+        available_model=("groq", model_name),
+    )
+    table = allow_tools(data_fixture, agent)
+    printed_call = json.dumps(
+        {
+            "name": "create_rows",
+            "arguments": {"table_id": table.id, "rows": [{"Name": "Not executed"}]},
+        }
+    )
+    if malformed:
+        printed_call = printed_call[:-1] + '"' + printed_call[-1]
+    received = respond(
+        mocker,
+        ({0: add_row(table)},),
+        (printed_call,),
+        ("Added the row.",),
+    )
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("completed", "", "Added the row.")
+    assert row_names(table) == ["Plan"]
+    assert len(received) == 3
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "done")
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+@pytest.mark.parametrize("malformed", [False, True], ids=["valid", "stray-quote"])
+def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes(
+    data_fixture, configured_agent, mocker, model_name, malformed
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(
+        user=user,
+        provider_type="groq",
+        model_identifier=model_name,
+        available_model=("groq", model_name),
+    )
+    table = allow_tools(data_fixture, agent)
+    printed_call = json.dumps(
+        {
+            "name": "create_rows",
+            "arguments": {"table_id": table.id, "rows": [{"Name": "Not executed"}]},
+        }
+    )
+    if malformed:
+        printed_call = printed_call[:-1] + '"' + printed_call[-1]
+    received = respond(
+        mocker, ({0: add_row(table)},), *((printed_call,) for _ in range(5))
+    )
+
+    created = start(user, agent)
+    run_reply(run_of(created.conversation))
+
+    assert reply_state(created.reply.id) == ("failed", "failed", "")
+    assert row_names(table) == ["Plan"]
+    assert len(received) == 5  # The write, then four output attempts.
+    reply = AgentMessage.objects.get(id=created.reply.id)
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("create_rows", "done")
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+@pytest.mark.parametrize("malformed", [False, True], ids=["valid", "stray-quote"])
+def test_printed_table_call_after_invalid_input_still_requires_approval(
+    data_fixture, configured_agent, mocker, model_name, malformed
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(
+        user=user,
+        provider_type="groq",
+        model_identifier=model_name,
+        available_model=("groq", model_name),
+    )
+    existing = allow_tools(
+        data_fixture, agent, ("create_tables",), ask_first=("create_tables",)
+    )
+    invalid = {
+        "database_id": existing.database_id,
+        "tables": [
+            {
+                "name": "Tasks",
+                "primary_field_name": "Name",
+                "fields": [
+                    {
+                        "name": "Status",
+                        "type": "single_select",
+                        "settings": {"options": [{"name": "Todo", "color": "black"}]},
+                    }
+                ],
+            }
+        ],
+    }
+    corrected = {
+        "database_id": existing.database_id,
+        "tables": [
+            {
+                "name": "Tasks",
+                "primary_field_name": "Name",
+                "fields": [
+                    {
+                        "name": "Status",
+                        "type": "single_select",
+                        "options": [{"value": "Todo", "color": "blue"}],
+                    }
+                ],
+            }
+        ],
+    }
+    printed_call = json.dumps({"name": "create_tables", "arguments": corrected})
+    if malformed:
+        printed_call = printed_call[:-1] + '"' + printed_call[-1]
+    received = respond(
+        mocker,
+        ({0: tool_call("create_tables", "bad_1", **invalid)},),
+        ({0: tool_call("create_tables", "bad_2", **invalid)},),
+        (printed_call,),
+        ({0: tool_call("create_tables", "corrected", **corrected)},),
+        ("Created Tasks.",),
+    )
+
+    reply = pause(user, agent)
+
+    assert reply.status == "waiting"
+    assert reply.content == ""
+    assert not Table.objects.filter(database=existing.database, name="Tasks").exists()
+    assert [(step["status"], step.get("error_code")) for step in reply.steps] == [
+        ("failed", "invalid_input"),
+        ("failed", "invalid_input"),
+        ("waiting", None),
+    ]
+    assert reply.approvals.get(status="pending").tool_call_id == "corrected"
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert (reply.status, reply.content) == ("completed", "Created Tasks.")
+    table = Table.objects.get(database=existing.database, name="Tasks")
+    assert list(
+        table.field_set.get(name="Status").select_options.values_list("value", "color")
+    ) == [("Todo", "blue")]
+    assert len(received) == 5
 
 
 @pytest.mark.django_db

@@ -9,6 +9,10 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_MODE_MODEL,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.generative_ai.groq import GroqGPTOSSModel
+from baserow.core.generative_ai.model_profiles import (
+    get_model_settings as get_shared_model_settings,
+)
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant import model_profiles as model_profiles_module
 from baserow_enterprise.assistant.exceptions import AssistantModelDisabledError
@@ -125,6 +129,35 @@ def test_temperature_override_only_applies_to_the_orchestrator(settings, tempera
     assert profile.get_settings(ORCHESTRATOR)["temperature"] == temperature
     assert profile.get_settings(DOCUMENTATION)["temperature"] == 0.3
     assert profile.get_settings(SUBAGENT)["temperature"] == 0.3
+    assert (
+        get_shared_model_settings(profile.model_string, ORCHESTRATOR)["temperature"]
+        == 0.3
+    )
+
+
+def test_kuma_uses_the_shared_role_settings(settings, mocker):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = None
+    shared_settings = mocker.spy(model_profiles_module, "get_shared_model_settings")
+    profile = resolve_assistant_model(model="groq:openai/gpt-oss-120b")
+
+    for role in (ORCHESTRATOR, SUBAGENT, DOCUMENTATION, UTILITY, SAMPLE, SUGGESTIONS):
+        assert profile.get_settings(role) == get_shared_model_settings(
+            profile.model_string, role
+        )
+        shared_settings.assert_called_with(profile.model_string, role)
+
+
+def test_kuma_retains_its_own_title_budget(mocker):
+    mocker.patch.object(model_profiles_module.AssistantChat, "TITLE_MAX_LENGTH", 300)
+
+    profile = resolve_assistant_model(model="groq:openai/gpt-oss-120b")
+
+    assert profile.get_settings(TITLE) == {
+        "temperature": 0.7,
+        "timeout": 15,
+        "max_tokens": 300,
+    }
+    assert "max_tokens" not in get_shared_model_settings(profile.model_string, TITLE)
 
 
 @pytest.mark.parametrize("provider", ["google-gla", "google-vertex"])
@@ -166,6 +199,41 @@ def test_older_google_profiles_keep_supported_sampling_settings():
     model_settings = get_model_settings("google:gemini-2.5-flash", ORCHESTRATOR)
 
     assert "temperature" in model_settings
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("model_name", ["openai/gpt-oss-20b", "openai/gpt-oss-120b"])
+def test_database_and_legacy_groq_profiles_use_the_shared_adapter(
+    data_fixture, monkeypatch, model_name
+):
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "groq",
+        workspace=workspace,
+        api_key="database-key",
+        models_data=[
+            {
+                "model_identifier": model_name,
+                "feature_types": [AI_PROVIDER_FEATURE_KUMA],
+            }
+        ],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        workspace=workspace,
+        model=provider.models.get(),
+    )
+
+    database_model = resolve_assistant_model(workspace=workspace).create_model().wrapped
+    monkeypatch.setenv("GROQ_API_KEY", "legacy-key")
+    legacy_model = (
+        resolve_assistant_model(model=f"groq:{model_name}").create_model().wrapped
+    )
+
+    assert type(database_model) is type(legacy_model) is GroqGPTOSSModel
+    assert database_model.client.api_key == "database-key"
+    assert legacy_model.client.api_key == "legacy-key"
 
 
 @pytest.mark.django_db

@@ -66,6 +66,8 @@ from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
 
 from baserow.core.generative_ai.anthropic import get_retry_after
+from baserow.core.generative_ai.output_validation import repair_printed_tool_call
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 
 # Transient Groq errors that are safe to retry.
 _RETRYABLE_MESSAGES = frozenset(
@@ -117,83 +119,6 @@ def _extract_tool_name(failed_gen: str) -> str:
 
     m = _TOOL_NAME_RE.search(failed_gen)
     return m.group(1) if m else "unknown"
-
-
-_OPENER_CLOSERS = {"{": "}", "[": "]"}
-_CLOSERS = frozenset(_OPENER_CLOSERS.values())
-
-
-def _fix_closing_brackets(text: str) -> str:
-    """
-    Drop each ``"`` that sits between two closing brackets and, when the text
-    ends with such a quote and a closing bracket, append the closing bracket
-    that is missing if exactly one is.
-
-    That ending, with one bracket missing, is how gpt-oss ends a call it prints
-    (``}"}``). Any other missing bracket means the call was cut off, so it stays
-    missing and the text does not parse. Only characters outside of strings
-    count, so a string keeps its content.
-
-    :param text: JSON text that does not parse.
-    :return: The text with the repairs applied.
-    """
-
-    kept: list[str] = []
-    missing: list[str] = []
-    in_string = escaped = False
-    last_dropped_quote_index: int | None = None
-    for index, char in enumerate(text):
-        if in_string:
-            if char == '"' and not escaped:
-                in_string = False
-            escaped = char == "\\" and not escaped
-        elif char == '"':
-            if (
-                text[index - 1 : index] in _CLOSERS
-                and text[index + 1 : index + 2] in _CLOSERS
-            ):
-                last_dropped_quote_index = index
-                continue
-            in_string = True
-        elif char in _OPENER_CLOSERS:
-            missing.append(_OPENER_CLOSERS[char])
-        elif char in _CLOSERS and missing:
-            missing.pop()
-        kept.append(char)
-    ends_with_dropped_quote = last_dropped_quote_index == len(text.rstrip()) - 2
-    closer = missing[0] if len(missing) == 1 and ends_with_dropped_quote else ""
-    return "".join(kept) + closer
-
-
-def repair_printed_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
-    """
-    Read a tool call that a model printed as JSON text, such as Groq's
-    ``failed_generation``.
-
-    Text that does not parse gets two repairs, and nothing else: a ``"`` between
-    two closing brackets is dropped, and a text that ends with one (``}"}``) and
-    misses exactly one closing bracket gets it appended.
-
-    :param text: The printed tool call.
-    :return: The tool name and its arguments, or None when the text is not an
-        object with exactly a string ``name`` and an object ``arguments``.
-    """
-
-    try:
-        call = json.loads(text)
-    except (ValueError, RecursionError):
-        try:
-            call = json.loads(_fix_closing_brackets(text))
-        except (ValueError, RecursionError):
-            return None
-    if (
-        isinstance(call, dict)
-        and call.keys() == {"name", "arguments"}
-        and isinstance(call["name"], str)
-        and isinstance(call["arguments"], dict)
-    ):
-        return call["name"], call["arguments"]
-    return None
 
 
 def _recover_failed_generation(failed_gen: str, model_name: str = "") -> ModelResponse:
@@ -385,9 +310,8 @@ def _make_groq(name: str, creds: dict[str, str | None]) -> Model:
     from pydantic_ai.models.groq import GroqModel
     from pydantic_ai.providers.groq import GroqProvider
 
-    from baserow_enterprise.assistant.model_profiles import get_model_class
-
-    model_class = get_model_class(f"groq:{name}", GroqModel)
+    model_type = generative_ai_model_type_registry.get("groq")
+    model_class = model_type.get_model_class(name, GroqModel)
     return model_class(name, provider=GroqProvider(api_key=creds["api_key"]))
 
 
