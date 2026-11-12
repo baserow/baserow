@@ -1,4 +1,4 @@
-import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { ref } from 'vue'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
@@ -61,6 +61,12 @@ vi.mock('#imports', () => ({
   useRuntimeConfig: () => ({ public: { builderPreviewUrl: '' } }),
 }))
 
+const routeOverride = vi.hoisted(() => ({ current: null }))
+mockNuxtImport(
+  'useRoute',
+  (original) => () => routeOverride.current ?? original()
+)
+
 const PublicPage = await import('@baserow/modules/builder/pages/publicPage.vue')
 
 describe('PublicPage', () => {
@@ -68,6 +74,7 @@ describe('PublicPage', () => {
     vi.clearAllMocks()
     store.dispatch.mockReset()
     getTokenIfEnoughTimeLeft.mockReset()
+    routeOverride.current = null
     route.fullPath = '/builder/preview/missing'
     route.params.pathMatch = 'missing'
     route.query = {}
@@ -177,6 +184,51 @@ describe('PublicPage', () => {
     expect(navigateTo).not.toHaveBeenCalled()
     expect(store.dispatch).toHaveBeenCalledWith('userSourceUser/logoff', {
       application: builder,
+    })
+    expect(store.dispatch).not.toHaveBeenCalledWith(
+      'page/selectById',
+      expect.anything()
+    )
+    expect(result).toBeUndefined()
+  })
+
+  test('reloads the page when the site was published again', async () => {
+    routeOverride.current = route
+    route.fullPath = '/builder/preview/42/jobs?id=7#apply'
+    route.params.pathMatch = 'jobs'
+    route.query = { id: '7' }
+    const page = { id: 2 }
+    const builder = {
+      id: 42,
+      user_sources: [],
+      workspace: { id: 3, licenses: [] },
+    }
+    store.getters['application/getSelected'] = builder
+    store.getters['userSourceUser/isAuthenticated'] = () => true
+    store.getters['page/getVisiblePages'] = () => [
+      { id: page.id, path: '/jobs', query_params: [] },
+    ]
+    store.getters['page/getById'] = () => page
+    store.dispatch.mockImplementation((type) => {
+      if (type === 'dataSource/fetchPublished') {
+        return Promise.reject({
+          response: {
+            status: 404,
+            data: { error: 'ERROR_PAGE_DOES_NOT_EXIST' },
+          },
+        })
+      }
+    })
+
+    await mountSuspended(PublicPage.default, {
+      props: { builderId: builder.id, mode: 'preview', pathMatch: 'jobs' },
+    })
+    const loadPublicPage = useAsyncData.mock.calls[0][1]
+    const result = await loadPublicPage()
+
+    expect(reloadNuxtApp).toHaveBeenCalledWith({
+      path: '/builder/preview/42/jobs?id=7',
+      force: true,
     })
     expect(store.dispatch).not.toHaveBeenCalledWith(
       'page/selectById',

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Published sites now reload instead of showing an error or a blank page when a visitor navigates after the site was published again.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-12"
+}

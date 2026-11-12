@@ -1,6 +1,10 @@
 import _ from 'lodash'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
+import {
+  isPageDoesNotExistError,
+  reloadPublishedSite,
+} from '@baserow/modules/builder/utils/error'
 
 const state = () => ({})
 
@@ -124,12 +128,24 @@ const actions = {
     if (fetchTimeoutPerPage[page.id]) {
       clearTimeout(fetchTimeoutPerPage[page.id])
     }
-    fetchTimeoutPerPage[page.id] = setTimeout(() => {
-      dispatch('fetchPageDataSourceContent', {
-        page,
-        data: queryData,
-        mode,
-      })
+    fetchTimeoutPerPage[page.id] = setTimeout(async () => {
+      try {
+        await dispatch('fetchPageDataSourceContent', {
+          page,
+          data: queryData,
+          mode,
+        })
+      } catch (error) {
+        if (isPageDoesNotExistError(error)) {
+          // The site has been published again while this tab was open, so the
+          // page IDs we have aren't valid anymore. Reload to get the new version.
+          reloadPublishedSite(
+            `${window.location.pathname}${window.location.search}`
+          )
+          return
+        }
+        throw error
+      }
     }, 500)
   },
 

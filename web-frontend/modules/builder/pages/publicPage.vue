@@ -41,6 +41,10 @@ import {
   getBuilderPreviewUserSourceAuthConfig,
   getBuilderPreviewUserSourceCookieName,
 } from '@baserow/modules/builder/utils/preview'
+import {
+  isPageDoesNotExistError,
+  reloadPublishedSite,
+} from '@baserow/modules/builder/utils/error'
 
 const logOffAndReturnToLogin = async ({ builder, mode, store, isHomePage }) => {
   await store.dispatch('userSourceUser/logoff', {
@@ -315,12 +319,14 @@ const {
           store,
           isHomePage: routePathMatch === '',
         })
-      } else if (
-        error.response?.status === 404 &&
-        error.response?.data?.error === 'ERROR_PAGE_DOES_NOT_EXIST'
-      ) {
+      } else if (isPageDoesNotExistError(error)) {
         // This case is when you had a tab open on the site and the site has been
-        // published in the meantime. Page IDs aren't valid anymore
+        // published in the meantime. Page IDs aren't valid anymore, so we reload
+        // to get the new version of the site. The server render always loads the
+        // current page IDs, so the reload can't hit this case again.
+        if (import.meta.client) {
+          return reloadPublishedSite(route.fullPath)
+        }
         throw createError({
           statusCode: 404,
           statusMessage: $i18n.t('publicPage.pageNotFound'),
