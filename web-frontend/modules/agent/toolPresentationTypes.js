@@ -5,6 +5,7 @@ import {
 } from '@baserow/modules/core/toolPresentationTypes'
 
 const countIsKnown = (count) => Number.isSafeInteger(count) && count >= 0
+const trimmedName = (name) => (typeof name === 'string' ? name.trim() : '')
 
 /** The table a call's request names, or '' when it names none. */
 const requestedTable = (input) =>
@@ -83,6 +84,74 @@ class DatabaseToolPresentationType extends ToolPresentationType {
       },
       hasCount ? count : undefined
     )
+  }
+}
+
+export class ListDatabasesToolPresentationType extends DatabaseToolPresentationType {
+  static definition = {
+    type: 'list_databases',
+    label: 'ListDatabases',
+    read: true,
+  }
+}
+
+/** Database creation and renaming show the requested or confirmed name. */
+class DatabaseApplicationToolPresentationType extends DatabaseToolPresentationType {
+  getRequestedDatabase(input) {
+    return trimmedName(
+      input?.values?.[this.constructor.definition.targetNameKey]
+    )
+  }
+
+  getRequestedActivity({ input }, t) {
+    const database = this.getRequestedDatabase(input)
+    return database
+      ? t(`${this.labelKey}RequestedDatabase`, { database })
+      : this.getLabel(t)
+  }
+
+  getActivity({ status, input, facts }, t) {
+    if (status !== STEP_STATUS.RUNNING && status !== STEP_STATUS.DONE) {
+      return this.getRequestedActivity({ input }, t)
+    }
+    let database = this.getRequestedDatabase(input)
+    let activity = 'Running'
+    if (status === STEP_STATUS.DONE) {
+      database = trimmedName(facts.database)
+      activity = facts.changed === false ? 'Unchanged' : 'Done'
+    }
+    return t(`${this.labelKey}${activity}${database ? 'Database' : ''}`, {
+      database,
+    })
+  }
+}
+
+export class CreateDatabaseToolPresentationType extends DatabaseApplicationToolPresentationType {
+  static definition = {
+    type: 'create_database',
+    label: 'CreateDatabase',
+    targetNameKey: 'name',
+  }
+}
+
+export class UpdateDatabaseToolPresentationType extends DatabaseApplicationToolPresentationType {
+  static definition = {
+    type: 'update_database',
+    label: 'UpdateDatabase',
+    targetNameKey: 'database',
+  }
+
+  getRequestedActivity({ input }, t) {
+    const database = this.getRequestedDatabase(input)
+    // Stored previews from earlier replies used `name` for the proposed name.
+    const newName = trimmedName(input?.values?.new_name ?? input?.values?.name)
+    if (database && newName) {
+      return t('agent.toolUpdateDatabaseRequestedRename', {
+        database,
+        newName,
+      })
+    }
+    return super.getRequestedActivity({ input }, t)
   }
 }
 
@@ -286,10 +355,13 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
 
 export const agentToolPresentationTypes = [
   WebSearchToolPresentationType,
+  ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,
   ListTableRowsToolPresentationType,
   ListViewsToolPresentationType,
+  CreateDatabaseToolPresentationType,
+  UpdateDatabaseToolPresentationType,
   CreateTablesToolPresentationType,
   CreateFieldsToolPresentationType,
   UpdateFieldsToolPresentationType,

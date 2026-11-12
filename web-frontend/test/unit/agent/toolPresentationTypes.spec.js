@@ -128,12 +128,86 @@ describe('Agent tool presentations', () => {
 
   test.each(
     cases.tools
-      .filter(({ name }) => step(name).changes_data)
+      .filter(
+        ({ name }) =>
+          step(name).changes_data &&
+          !['create_database', 'update_database'].includes(name)
+      )
       .map(({ name }) => name)
   )('a held %s call names its requested count', (tool) => {
     const held = step(tool, 'waiting', { input: { requested_count: 2 } })
 
     expect(toolActivity(held, registry, t).title).toMatch(/2/)
+  })
+
+  test.each([
+    [
+      'create_database',
+      { name: 'Projects' },
+      { database: 'Projects' },
+      'Create database: Projects',
+      'Creating database: Projects',
+      'Created database: Projects',
+    ],
+    [
+      'update_database',
+      { database: 'Tasks', new_name: 'Projects' },
+      { database: 'Projects', changed: true },
+      'Rename database: Tasks → Projects',
+      'Renaming database: Tasks',
+      'Renamed database: Projects',
+    ],
+  ])(
+    '%s uses requested names until a successful call confirms the result',
+    (tool, values, facts, requested, running, done) => {
+      const data = step(tool, 'running', { input: { values }, facts })
+      expect(toolActivity(data, registry, t).title).toBe(running)
+      expect(toolActivity({ ...data, status: 'done' }, registry, t).title).toBe(
+        done
+      )
+      for (const status of ['waiting', 'rejected', 'failed', 'stopped']) {
+        const activity = toolActivity({ ...data, status }, registry, t)
+        expect(activity.title).toBe(requested)
+        expect(activity.input).toEqual({ values, truncated: false })
+      }
+    }
+  )
+
+  test('older rename previews also show both names before approval', () => {
+    const activity = toolActivity(
+      step('update_database', 'waiting', {
+        input: { values: { database: 'Tasks', name: 'Projects' } },
+      }),
+      registry,
+      t
+    )
+
+    expect(activity.title).toBe('Rename database: Tasks → Projects')
+  })
+
+  test('a rename that changed nothing does not claim to have renamed a database', () => {
+    const data = step('update_database', 'done', {
+      input: { values: { database: 'Projects', new_name: 'Projects' } },
+      facts: { database: 'Projects', changed: false },
+    })
+
+    expect(toolActivity(data, registry, t).title).toBe(
+      'Database name unchanged: Projects'
+    )
+  })
+
+  test('a database request with no readable name keeps its ID in the preview', () => {
+    const data = step('update_database', 'waiting', {
+      input: { values: { database_id: 42, new_name: 'Projects' } },
+    })
+
+    expect(toolActivity(data, registry, t)).toMatchObject({
+      title: 'Rename database',
+      input: {
+        values: { database_id: 42, new_name: 'Projects' },
+        truncated: false,
+      },
+    })
   })
 
   test('a held read shows its request and is titled with its table', () => {
@@ -264,8 +338,10 @@ describe('Agent tool presentations', () => {
   test('groups only consecutive workspace reads and preserves call order', () => {
     const groups = groupToolSteps(
       [
+        step('list_databases', 'done'),
         step('list_tables', 'done'),
         step('get_table_schema', 'running'),
+        step('create_database', 'done', { facts: { database: 'Projects' } }),
         step('create_rows', 'done'),
         step('list_views', 'failed'),
         step('list_table_rows', 'stopped'),
@@ -276,11 +352,13 @@ describe('Agent tool presentations', () => {
 
     expect(groups.map(({ title, status }) => ({ title, status }))).toEqual([
       { title: 'Looking at your workspace', status: 'running' },
+      { title: 'Created database: Projects', status: 'done' },
       { title: 'Create rows', status: 'done' },
       { title: 'Workspace activity', status: 'stopped' },
     ])
     expect(groups.map(({ lines }) => lines.map(({ id }) => id))).toEqual([
-      ['list_tables', 'get_table_schema'],
+      ['list_databases', 'list_tables', 'get_table_schema'],
+      [],
       [],
       ['list_views', 'list_table_rows'],
     ])

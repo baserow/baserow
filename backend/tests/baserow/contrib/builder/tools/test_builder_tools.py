@@ -59,6 +59,11 @@ def test_update_builder_changes_the_name_and_login_page(builder_ctx):
     assert builder.name == "Renamed"
     assert builder.login_page_id == page.id
 
+    unchanged = applications.update_builder(
+        builder_ctx["ctx"], builder.id, login_page_id=page.id
+    )
+    assert unchanged["changed"] is False
+
 
 @pytest.mark.django_db
 def test_update_builder_with_nothing_to_change_reports_no_change(builder_ctx):

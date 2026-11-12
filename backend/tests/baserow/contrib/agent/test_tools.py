@@ -12,6 +12,7 @@ from django.urls import reverse
 import pytest
 from asgiref.sync import async_to_sync
 from freezegun import freeze_time
+from pydantic import ValidationError
 from pydantic_ai import ToolReturn
 
 from baserow.contrib.agent.database_previews import table_reference
@@ -30,6 +31,12 @@ from baserow.core.tools.errors import (
 
 # Whether each tool changes data, and arguments it succeeds with on workspace_data.
 TOOLS = {
+    "list_databases": (False, lambda s: {}),
+    "create_database": (True, lambda s: {"name": "Projects"}),
+    "update_database": (
+        True,
+        lambda s: {"database_id": s.table.database_id, "name": "Projects"},
+    ),
     "list_tables": (False, lambda s: {}),
     "get_table_schema": (False, lambda s: {"table_ids": [s.table.id]}),
     "list_table_rows": (False, lambda s: {"table_id": s.table.id}),
@@ -284,6 +291,83 @@ def test_successful_field_deletion_reports_its_confirmed_count(
         "changed": True,
         "deleted_field_ids": [workspace_data.hours.id],
     }
+
+
+@pytest.mark.django_db
+def test_renaming_a_database_to_its_current_name_reports_no_change(workspace_data):
+    result = call_tool(
+        agent_tool_type_registry.get("update_database"),
+        workspace_data.ctx,
+        {"database_id": workspace_data.table.database_id, "name": "Work"},
+    )
+
+    assert result.return_value == {
+        "updated_database": {
+            "id": workspace_data.table.database_id,
+            "name": "Work",
+        },
+        "changed": False,
+    }
+    assert result.metadata == {"facts": {"database": "Work", "changed": False}}
+
+
+@pytest.mark.django_db
+def test_database_listing_exposes_pagination_to_the_agent(workspace_data, data_fixture):
+    ctx = workspace_data.ctx
+    empty = data_fixture.create_database_application(
+        workspace=ctx.workspace, name="Empty", order=2
+    )
+    tool_type = agent_tool_type_registry.get("list_databases")
+
+    first = call_tool(tool_type, ctx, {"page": 1, "size": 1}).return_value
+    second = call_tool(tool_type, ctx, {"page": 2, "size": 1}).return_value
+
+    assert first == {
+        "databases": [{"id": workspace_data.table.database_id, "name": "Work"}],
+        "total": 2,
+        "page": 1,
+        "has_more": True,
+    }
+    assert second == {
+        "databases": [{"id": empty.id, "name": "Empty"}],
+        "total": 2,
+        "page": 2,
+        "has_more": False,
+    }
+    validator = tool_type.get_tool(ctx).function_schema.validator
+    for arguments in ({"page": 0}, {"size": 0}, {"size": 101}):
+        with pytest.raises(ValidationError):
+            validator.validate_python(arguments)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("hidden", ["other_workspace", "trashed", "other_type"])
+def test_database_update_does_not_disclose_or_change_hidden_applications(
+    workspace_data, data_fixture, hidden
+):
+    if hidden == "other_workspace":
+        database = data_fixture.create_database_application(name="Private")
+    elif hidden == "trashed":
+        database = data_fixture.create_database_application(
+            workspace=workspace_data.ctx.workspace, name="Private", trashed=True
+        )
+    else:
+        database = data_fixture.create_builder_application(
+            workspace=workspace_data.ctx.workspace, name="Private"
+        )
+
+    result = call_tool(
+        agent_tool_type_registry.get("update_database"),
+        workspace_data.ctx,
+        {"database_id": database.id, "name": "Projects"},
+    )
+
+    assert result.return_value["error"]["code"] == "not_found"
+    assert result.input == {
+        "values": {"database_id": database.id, "new_name": "Projects"}
+    }
+    database.refresh_from_db()
+    assert database.name == "Private"
 
 
 @pytest.mark.django_db

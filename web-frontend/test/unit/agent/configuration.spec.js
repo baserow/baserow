@@ -1424,6 +1424,61 @@ describe('Agent configuration', () => {
     }
   )
 
+  test('enables database listing and asks before newly allowed database changes', async () => {
+    const availableTools = [
+      { name: 'list_databases', group: 'database', changes_data: false },
+      { name: 'create_database', group: 'database', changes_data: true },
+      { name: 'update_database', group: 'database', changes_data: true },
+    ]
+    const configuration = (allowedTools, askFirstTools = []) =>
+      completeConfiguration({
+        run_as: investor,
+        available_tools: availableTools,
+        allowed_tools: allowedTools,
+        ask_first_tools: askFirstTools,
+      })
+    mockConfiguration(testApp, configuration([]))
+    mockSaves(
+      testApp,
+      configuration(['list_databases']),
+      configuration(
+        ['list_databases', 'create_database', 'update_database'],
+        ['create_database', 'update_database']
+      )
+    )
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+
+    await tools.get('[role="switch"]').trigger('click')
+    await flushPromises()
+    await tools.get('.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    expect(toolInput('agent.toolListDatabases', 'allow').checked).toBe(true)
+    expect(toolInput('agent.toolListDatabases', 'ask-first').checked).toBe(
+      false
+    )
+    for (const name of [
+      'agent.toolCreateDatabase',
+      'agent.toolUpdateDatabase',
+    ]) {
+      expect(toolInput(name, 'allow').checked).toBe(false)
+      toolInput(name, 'allow').click()
+      await flushPromises()
+      expect(toolInput(name, 'ask-first').checked).toBe(true)
+    }
+    clickDone()
+    await flushPromises()
+
+    expect(savedValues(testApp)).toEqual([
+      { allowed_tools: ['list_databases'], ask_first_tools: [] },
+      {
+        allowed_tools: ['list_databases', 'create_database', 'update_database'],
+        ask_first_tools: ['create_database', 'update_database'],
+      },
+    ])
+  })
+
   test('saves a newly allowed change tool without Ask first once unchecked', async () => {
     mockConfiguration(testApp, withTools(['list_tables']))
     mockSaves(testApp, withTools(['list_tables', 'create_rows']))

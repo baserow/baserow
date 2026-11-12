@@ -17,7 +17,9 @@ from baserow.core.actions import (
     UpdateApplicationActionType,
 )
 from baserow.core.exceptions import ApplicationDoesNotExist, PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Application
+from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.registries import application_type_registry
 from baserow.core.service import CoreService
 from baserow.core.tools import ToolContext
@@ -162,15 +164,22 @@ def rename_application(
 
 def update_application(ctx: ToolContext, application: Application, **values) -> bool:
     """
-    Change the values of an application through its undoable action. A value that
-    is None or the same as the current one changes nothing.
+    Authorize an update, then change its values through the undoable action. A
+    value that is None or the same as the current one changes nothing.
 
     :param application: The application to update. It is refreshed after a change.
     :param values: The values to set, like `name`, at most 160 characters.
     :return: Whether anything changed.
     :raises pydantic.ValidationError: When the name is empty or too long.
+    :raises PermissionException: When the actor cannot update the application.
     """
 
+    CoreHandler().check_permissions(
+        ctx.user,
+        UpdateApplicationOperationType.type,
+        workspace=application.workspace,
+        context=application,
+    )
     if values.get("name") is not None:
         values["name"] = _APPLICATION_NAME.validate_python(values["name"])
     ctx.update_status(_("Updating %(app_name)s...") % {"app_name": application.name})
