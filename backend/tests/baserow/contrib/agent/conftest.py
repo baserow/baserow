@@ -29,18 +29,21 @@ def buffer_redis():
 
 @pytest.fixture
 def configured_agent(data_fixture):
-    def create(user=None, **kwargs):
+    def create(user=None, *, available_model=("openai", "test-model"), **kwargs):
+        """Keep the Agent's selection independent of provider availability."""
+
         kwargs.setdefault("instructions", "Help with research.")
         kwargs.setdefault("provider_type", "openai")
         kwargs.setdefault("model_identifier", "test-model")
         agent = data_fixture.create_agent_application(user=user, **kwargs)
+        provider_type, model_identifier = available_model
         provider, _ = AIProviderConfig.objects.get_or_create(
             workspace=agent.workspace,
-            provider_type=agent.provider_type,
+            provider_type=provider_type,
             defaults={"api_key": "test-key"},
         )
         AIProviderModel.objects.get_or_create(
-            provider_config=provider, model_identifier=agent.model_identifier
+            provider_config=provider, model_identifier=model_identifier
         )
         return agent
 

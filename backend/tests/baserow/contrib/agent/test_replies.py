@@ -656,7 +656,10 @@ def test_other_models_can_answer_with_tool_json_without_correction(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
-        user=user, provider_type=provider, model_identifier=model_name
+        user=user,
+        provider_type=provider,
+        model_identifier=model_name,
+        available_model=(provider, model_name),
     )
     table = allow_tools(data_fixture, agent)
     printed_call = json.dumps(
@@ -682,7 +685,10 @@ def test_printed_tool_json_is_corrected_without_repeating_a_completed_change(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
-        user=user, provider_type="groq", model_identifier=model_name
+        user=user,
+        provider_type="groq",
+        model_identifier=model_name,
+        available_model=("groq", model_name),
     )
     table = allow_tools(data_fixture, agent)
     printed_call = json.dumps(
@@ -717,7 +723,10 @@ def test_repeated_printed_tool_json_fails_without_saving_it_or_replaying_changes
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
-        user=user, provider_type="groq", model_identifier=model_name
+        user=user,
+        provider_type="groq",
+        model_identifier=model_name,
+        available_model=("groq", model_name),
     )
     table = allow_tools(data_fixture, agent)
     printed_call = json.dumps(
@@ -749,7 +758,10 @@ def test_printed_table_call_after_invalid_input_still_requires_approval(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(
-        user=user, provider_type="groq", model_identifier=model_name
+        user=user,
+        provider_type="groq",
+        model_identifier=model_name,
+        available_model=("groq", model_name),
     )
     existing = allow_tools(
         data_fixture, agent, ("create_tables",), ask_first=("create_tables",)
