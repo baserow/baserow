@@ -276,6 +276,50 @@ describe('Agent triggers', () => {
     expect(dropdown.text()).toContain('periodicForm.everyWeek')
   })
 
+  test('a switch flipped while a rejected service save is in flight is saved alone', async () => {
+    useFakeTimers()
+    const rejected = [
+      400,
+      {
+        error: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
+        detail: 'The schedule is invalid.',
+      },
+    ]
+    let answerFirst
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(
+        () =>
+          new Promise((resolve) => {
+            answerFirst = resolve
+          })
+      )
+      .onPatch('/agent/10/triggers/1/')
+      .reply((config) => {
+        const body = JSON.parse(config.data)
+        return body.service ? rejected : [200, periodicTrigger(body)]
+      })
+    const wrapper = await mountSection([periodicTrigger()])
+    const card = wrapper.get('.agent-trigger-card')
+
+    await choose(card.get('.dropdown'), 'periodicForm.everyDay')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+    await card.get('.agent-trigger-card__switch').trigger('click')
+    await flushPromises()
+    answerFirst(rejected)
+    await flushPromises()
+
+    expect(patches(testApp).map(([, body]) => body)).toEqual([
+      { service: { type: 'periodic', interval: 'DAY' } },
+      { enabled: false },
+    ])
+    expect(
+      card.get('.agent-trigger-card__switch').attributes('aria-checked')
+    ).toBe('false')
+    expect(card.get('[role="alert"]').text()).toBe('The schedule is invalid.')
+  })
+
   test('a failed save shows the saved value again without reloading the list', async () => {
     testApp.dontFailOnErrorResponses()
     testApp.mock.onPatch('/agent/10/triggers/1/').reply(500)

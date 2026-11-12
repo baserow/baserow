@@ -46,7 +46,8 @@ export function useAgentTriggers(agent) {
   const saved = new Map()
   const scheduledSaves = new Map()
   const inFlight = new Set()
-  const editedWhileSaving = new Set()
+  // Per trigger id: the saves asked for while one was in flight.
+  const queuedSaves = new Map()
   let scope = 0
   let listRequest = 0
 
@@ -64,6 +65,7 @@ export function useAgentTriggers(agent) {
   function forget(triggerId) {
     scheduledSaves.get(triggerId)?.cancel()
     scheduledSaves.delete(triggerId)
+    queuedSaves.delete(triggerId)
     saved.delete(triggerId)
     delete serviceErrors[triggerId]
   }
@@ -146,8 +148,39 @@ export function useAgentTriggers(agent) {
   }
 
   /**
+   * Remembers a save asked for while another is in flight, keeping picked fields
+   * apart from typed values so they're still sent alone.
+   *
+   * @param {object} trigger The trigger to save.
+   * @param {string[]|null} fields The fields to send, or null for all of them.
+   */
+  function queueSave(trigger, fields) {
+    const queued = queuedSaves.get(trigger.id) || {
+      picked: new Set(),
+      typed: false,
+    }
+    if (fields) fields.forEach((field) => queued.picked.add(field))
+    else queued.typed = true
+    queuedSaves.set(trigger.id, queued)
+  }
+
+  /**
+   * Sends the saves asked for while the last one was in flight, picked fields
+   * first so rejected typed values can't hold them back.
+   *
+   * @param {object} trigger The trigger to save.
+   */
+  async function flushQueuedSaves(trigger) {
+    const queued = queuedSaves.get(trigger.id)
+    if (!queued) return
+    queuedSaves.delete(trigger.id)
+    if (queued.picked.size) await flush(trigger, [...queued.picked])
+    if (queued.typed) await flush(trigger)
+  }
+
+  /**
    * Sends what a trigger's card shows that the server doesn't hold, unless a
-   * save of it is already in flight: that one saves again once it ends.
+   * save of it is already in flight: it's queued until that one ends.
    *
    * @param {object} trigger The trigger to save.
    * @param {string[]|null} fields The fields to send, or null for all of them.
@@ -156,7 +189,7 @@ export function useAgentTriggers(agent) {
     const entry = saved.get(trigger.id)
     if (!entry) return
     if (inFlight.has(trigger.id)) {
-      editedWhileSaving.add(trigger.id)
+      queueSave(trigger, fields)
       return
     }
     const sent = Object.fromEntries(
@@ -179,7 +212,7 @@ export function useAgentTriggers(agent) {
       inFlight.delete(trigger.id)
       savingIds.delete(trigger.id)
     }
-    if (editedWhileSaving.delete(trigger.id)) flush(trigger)
+    await flushQueuedSaves(trigger)
   }
 
   /**
@@ -330,7 +363,7 @@ export function useAgentTriggers(agent) {
     loadError.value = false
     savingIds.clear()
     inFlight.clear()
-    editedWhileSaving.clear()
+    queuedSaves.clear()
   }
 
   onMounted(fetchTriggers)
