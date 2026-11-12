@@ -1,8 +1,10 @@
 from contextlib import contextmanager
 from datetime import timedelta
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
 from django.db import connection, transaction
@@ -544,6 +546,11 @@ def assert_password_data_left_out(table):
     ]
 
 
+def stored_paths():
+    media_root = Path(settings.MEDIA_ROOT)
+    return {p.relative_to(media_root) for p in media_root.rglob("*") if p.is_file()}
+
+
 def _upload_image(user, name, color):
     buffer = BytesIO()
     Image.new("RGB", (4, 4), color).save(buffer, format="PNG")
@@ -559,6 +566,7 @@ def add_files_to_source(data_fixture, source):
         "form_cover": _upload_image(user, "form_cover.png", "blue"),
         "form_logo": _upload_image(user, "form_logo.png", "purple"),
         "view_default": _upload_image(user, "view_default.png", "orange"),
+        "rich_text_default": _upload_image(user, "rich_text_default.png", "gray"),
         "image_element": _upload_image(user, "image_element.png", "yellow"),
         "element_background": _upload_image(user, "element_background.png", "white"),
         "page_background": _upload_image(user, "page_background.png", "black"),
@@ -576,15 +584,28 @@ def add_files_to_source(data_fixture, source):
                 values={
                     file_field.db_column: [{"name": files["cell"].name}],
                     rich_text_field.db_column: (
-                        f"See ![img][{files['rich_text'].name}]"
+                        f"See ![img][{files['rich_text'].name}] "
+                        f"and ![cover][{files['form_cover'].name}]"
                     ),
                 },
             )
     data_fixture.create_form_view(
-        table=table, cover_image=files["form_cover"], logo_image=files["form_logo"]
+        table=table,
+        cover_image=files["form_cover"],
+        logo_image=files["form_logo"],
+        order=1,
+    )
+    view_with_defaults = data_fixture.create_grid_view(
+        table=table, name="With a default file"
     )
     ViewDefaultValue.objects.create(
-        view=data_fixture.create_grid_view(table=table, name="With a default file"),
+        view=view_with_defaults,
+        field=rich_text_field,
+        value=f"![default][{files['rich_text_default'].name}]",
+        field_type="long_text",
+    )
+    ViewDefaultValue.objects.create(
+        view=view_with_defaults,
         field=file_field,
         value=[
             {
@@ -629,6 +650,10 @@ def user_files_referenced_in(workspace):
         view__table__database__workspace=workspace, field_type="file"
     ):
         names.update(file["name"] for file in default.value or [])
+    for default in ViewDefaultValue.objects.filter(
+        view__table__database__workspace=workspace, field_type="long_text"
+    ):
+        names.update(extract_user_file_names(default.value or ""))
 
     ids = set()
     for queryset, columns in [

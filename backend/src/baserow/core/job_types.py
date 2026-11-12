@@ -83,6 +83,7 @@ from baserow.core.operations import (
     ListApplicationsWorkspaceOperationType,
 )
 from baserow.core.service import CoreService
+from baserow.core.user_files.handler import delete_new_files_on_error
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
@@ -326,7 +327,7 @@ class InstallTemplateJobType(JobType):
                 job.template,
                 progress_builder=progress.create_child_builder(represents_progress=50),
             )
-            with transaction.atomic():
+            with delete_new_files_on_error(), transaction.atomic():
                 installed_applications = action_type_registry.get_by_type(
                     InstallTemplateActionType
                 ).do(

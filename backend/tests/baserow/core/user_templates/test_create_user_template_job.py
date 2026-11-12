@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from unittest.mock import patch
 
 from django.db import transaction
@@ -10,8 +9,10 @@ from freezegun import freeze_time
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import ChoiceElement
 from baserow.contrib.database.application_types import DatabaseApplicationType
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.models import Table
-from baserow.contrib.database.views.models import View
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import View, ViewDefaultValue
 from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
@@ -82,6 +83,7 @@ from tests.baserow.core.user_templates.utils import (
     purge,
     serialized_content,
     start_job,
+    stored_paths,
     update_content,
     user_files_referenced_in,
 )
@@ -269,7 +271,7 @@ def test_create_user_template_job_copies_the_files_into_the_template(data_fixtur
 
 @pytest.mark.parametrize("content_update", [False, True])
 def test_failed_copy_writes_every_file_under_the_job_template_prefix(
-    data_fixture, settings, content_update
+    data_fixture, content_update
 ):
     source = create_source(data_fixture)
     files = add_files_to_source(data_fixture, source)
@@ -278,11 +280,6 @@ def test_failed_copy_writes_every_file_under_the_job_template_prefix(
     template = (
         start_job(user, workspace, applications).template if content_update else None
     )
-    media_root = Path(settings.MEDIA_ROOT)
-
-    def stored_paths():
-        return {p.relative_to(media_root) for p in media_root.rglob("*") if p.is_file()}
-
     stored_before = stored_paths()
     upload_user_file = UserFileHandler.upload_user_file
     job_workspace_ids = set()
@@ -1183,3 +1180,29 @@ def test_purge_waits_for_a_create_job_that_committed_its_template(data_fixture):
     assert not Workspace.objects_and_trash.filter(id=template_workspace_id).exists()
     # The workspace the template was created from is kept.
     assert Workspace.objects.filter(id=workspace.id).exists()
+
+
+def test_create_user_template_job_keeps_a_default_left_by_a_field_conversion(
+    data_fixture,
+):
+    source = create_source(data_fixture)
+    user, table = source["user"], source["table"]
+    number = data_fixture.create_number_field(table=table, name="Amount")
+    view = data_fixture.create_grid_view(table=table, name="Defaults")
+    with transaction.atomic():
+        ViewHandler().update_view_default_values(
+            user, view, [{"field": number.id, "value": 5}]
+        )
+    with transaction.atomic():
+        FieldHandler().update_field(
+            user, number, "long_text", long_text_enable_rich_text=True
+        )
+
+    job = start_job(user, source["workspace"], [source["database"]])
+
+    assert job.state == JOB_FINISHED, job.error
+    copied = ViewDefaultValue.objects.get(
+        view__table__database__workspace=job.template.workspace,
+        view__name="Defaults",
+    )
+    assert copied.value == 5

@@ -35,8 +35,12 @@ from baserow.contrib.database.fields.rich_text_utils import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.trash.models import TrashedRows
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.handler import CoreHandler
+from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user_files.exceptions import (
     UserFileDoesNotExist,
@@ -707,7 +711,6 @@ def test_export_serialized_value_missing_storage_file(data_fixture, tmpdir):
     assert result_2 == content
     files_zip.add.assert_not_called()
     assert user_file.name not in cache.get("_zip_names", set())
-    assert f"user_file_{user_file.name}" not in cache
     assert cache["_missing_user_files"] == {user_file.name}
 
 
@@ -1554,3 +1557,59 @@ def test_enabling_rich_text_escapes_references_to_template_files(data_fixture):
         f"See ![x]\\[{template_file.name}] and ![y][{normal_file.name}] end"
     )
     RowHandler().update_row_by_id(user, table, row.id, {field.db_column: stored})
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rich_text_default_stays_a_string_in_a_workspace_export_and_duplicate(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    value = "**bold** ![a][x](https://example.com/x.png)"
+    ViewDefaultValue.objects.create(
+        view=data_fixture.create_grid_view(table=table),
+        field=field,
+        value=value,
+        field_type="long_text",
+    )
+
+    exported = CoreHandler().export_workspace_applications(
+        workspace, io.BytesIO(), ImportExportConfig(include_permission_data=False)
+    )
+    copy = CoreHandler().duplicate_application(user, database)
+
+    (view,) = exported[0]["tables"][0]["views"]
+    assert [v["value"] for v in view["default_row_values"].values()] == [value]
+    assert ViewDefaultValue.objects.get(view__table__database=copy).value == value
+
+
+@pytest.mark.django_db(transaction=True)
+def test_default_left_by_a_single_select_conversion_is_kept_in_a_duplicate(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_single_select_field(table=table)
+    option = data_fixture.create_select_option(field=field, value="A")
+    view = data_fixture.create_grid_view(table=table)
+    with transaction.atomic():
+        ViewHandler().update_view_default_values(
+            user, view, [{"field": field.id, "value": {"id": option.id}}]
+        )
+    with transaction.atomic():
+        FieldHandler().update_field(
+            user, field, "long_text", long_text_enable_rich_text=True
+        )
+
+    copy = CoreHandler().duplicate_application(user, database)
+
+    assert ViewDefaultValue.objects.get(view__table__database=copy).value == {
+        "id": option.id
+    }

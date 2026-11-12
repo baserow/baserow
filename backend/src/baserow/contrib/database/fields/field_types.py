@@ -184,7 +184,6 @@ from baserow.core.fields import SyncedDateTimeField
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.utils import file_chunk_generator
 from baserow.core.models import UserFile, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import (
@@ -248,7 +247,7 @@ from .field_filters import (
     parse_ids_from_csv_string,
     starts_with_filter,
 )
-from .field_helpers import get_exported_zip_names, prepare_files_for_export
+from .field_helpers import prepare_files_for_export
 from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import (
     AlwaysNullSerializerField,
@@ -951,12 +950,45 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         if not field.long_text_enable_rich_text:
             return content
 
+        return self._export_rich_text(content, cache, files_zip, storage)
+
+    def export_serialized_default_value(
+        self, value, field, workspace_id, cache, *, files_zip=None, storage=None
+    ):
+        if (
+            not isinstance(value, str)
+            or not value
+            or not field.long_text_enable_rich_text
+            or files_zip is None
+        ):
+            return value
+
+        exported = self._export_rich_text(value, cache, files_zip, storage)
+        # The import hook gets no field, so the dict shape marks rich text, also
+        # when none of its images could be exported.
+        if isinstance(exported, dict):
+            return exported
+        return {"content": exported, "images": []}
+
+    def _export_rich_text(
+        self,
+        content: str,
+        cache: Dict[str, Any],
+        files_zip: Optional[ExportZipFile],
+        storage: Optional[Storage],
+    ) -> str | Dict[str, Any]:
+        """
+        Adds the images a rich text value references to the export zip.
+
+        :return: The value with the original names of its images, or the value
+            itself when no image is exported.
+        """
+
         names = extract_user_file_names(content)
         if not names or files_zip is None:
             return content
 
         user_file_handler = UserFileHandler()
-        existing_names = get_exported_zip_names(cache, files_zip)
 
         if "_user_file_originals" not in cache:
             cache["_user_file_originals"] = {}
@@ -968,27 +1000,15 @@ class LongTextFieldType(CollationSortMixin, FieldType):
                 originals_cache[uf.name] = uf.original_name
 
         storage = storage or get_default_storage()
-        missing_files = cache.setdefault("_missing_user_files", set())
 
         image_metadata = []
         for name in sorted(names):
-            if name not in originals_cache or name in missing_files:
+            if name not in originals_cache:
                 continue
-
-            cache_entry = f"user_file_{name}"
-            if cache_entry not in cache:
-                if name not in existing_names:
-                    file_path = user_file_handler.user_file_path(name)
-                    # `files_zip.add` only enqueues a lazy generator; the file is
-                    # read when the zip is streamed, so a missing one would fail the
-                    # export mid-stream. Check once per file and skip instead.
-                    if not storage.exists(file_path):
-                        missing_files.add(name)
-                        continue
-                    chunk_generator = file_chunk_generator(storage, file_path)
-                    files_zip.add(chunk_generator, name)
-                    existing_names.add(name)
-                cache[cache_entry] = True
+            if not user_file_handler.add_user_file_to_export(
+                name, files_zip, storage, cache, skip_missing=True
+            ):
+                continue
 
             image_metadata.append(
                 {"name": name, "original_name": originals_cache[name]}
@@ -1010,6 +1030,41 @@ class LongTextFieldType(CollationSortMixin, FieldType):
         files_zip: Optional[ZipFile] = None,
         storage=None,
     ):
+        field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
+        if field.long_text_enable_rich_text:
+            content = self._import_rich_text(value, cache, files_zip, storage)
+        elif isinstance(value, dict):
+            content = value.get("content", "")
+        else:
+            content = value
+
+        setattr(row, field_name, content)
+
+    def import_serialized_default_value(
+        self, value, id_mapping, workspace_id, cache, *, files_zip=None, storage=None
+    ):
+        # Only a rich text value exported with its files has this shape. A dict
+        # left by a field conversion, like a single select's {"id": 1}, does not.
+        if not isinstance(value, dict) or not isinstance(value.get("content"), str):
+            return value
+
+        return self._import_rich_text(value, cache, files_zip, storage)
+
+    def _import_rich_text(
+        self,
+        value: str | Dict[str, Any],
+        cache: Dict[str, Any],
+        files_zip: Optional[ZipFile],
+        storage: Optional[Storage],
+    ) -> str:
+        """
+        Turns an exported rich text value into the value to store, re-uploading the
+        images it references from the import zip.
+
+        :param value: The exported value, see `_export_rich_text`.
+        :return: The rich text value to store.
+        """
+
         if isinstance(value, dict):
             content = value.get("content", "")
             image_metadata = value.get("images", [])
@@ -1017,26 +1072,26 @@ class LongTextFieldType(CollationSortMixin, FieldType):
             content = value
             image_metadata = []
 
-        field = row._field_objects[int(field_name.removeprefix("field_"))]["field"]
-        if content and field.long_text_enable_rich_text:
-            # The archive can carry resolved URLs from the instance that produced
-            # it. Those point at storage this instance does not own, so strip them
-            # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
-            content = strip_user_file_urls(content)
-            # Bound the references before touching the zip, so surplus images are
-            # never uploaded only to end up unreferenced.
-            content = self._sanitize_imported_rich_text(content)
-            if files_zip is not None:
-                originals = {
-                    img["name"]: img["original_name"]
-                    for img in image_metadata
-                    if "original_name" in img
-                }
-                content = self._rewrite_image_names(
-                    content, cache, files_zip, storage, originals
-                )
+        if not content:
+            return content
 
-        setattr(row, field_name, content)
+        # The archive can carry resolved URLs from the instance that produced
+        # it. Those point at storage this instance does not own, so strip them
+        # to the stored `![alt][name]` form, like `prepare_value_for_db` does.
+        content = strip_user_file_urls(content)
+        # Bound the references before touching the zip, so surplus images are
+        # never uploaded only to end up unreferenced.
+        content = self._sanitize_imported_rich_text(content)
+        if files_zip is not None:
+            originals = {
+                img["name"]: img["original_name"]
+                for img in image_metadata
+                if "original_name" in img
+            }
+            content = self._rewrite_image_names(
+                content, cache, files_zip, storage, originals
+            )
+        return content
 
     def _sanitize_imported_rich_text(self, content: str) -> str:
         """
@@ -4942,6 +4997,7 @@ class FileFieldType(FieldType):
         storage: Optional[Storage],
     ) -> None:
         user_file_handler = UserFileHandler()
+        imported_files = cache.setdefault("imported_user_files", {})
         files = []
 
         for file in value:
@@ -4950,19 +5006,23 @@ class FileFieldType(FieldType):
             if files_zip is None:
                 files.append(file)
             else:
-                try:
-                    with files_zip.open(file["name"]) as stream:
-                        # Try to upload the user file with the original name
-                        # to make sure that if the was already uploaded, it will
-                        # not be uploaded again.
-                        user_file = user_file_handler.upload_user_file(
-                            None, file["original_name"], stream, storage=storage
-                        )
-                except KeyError:
-                    # File not found in zip archive - skip this file and
-                    # let the import process report handle missing files
-                    # appropriately
-                    continue
+                key = (file["name"], file["original_name"])
+                user_file = imported_files.get(key)
+                if user_file is None:
+                    try:
+                        with files_zip.open(file["name"]) as stream:
+                            # Try to upload the user file with the original name
+                            # to make sure that if the was already uploaded, it
+                            # will not be uploaded again.
+                            user_file = user_file_handler.upload_user_file(
+                                None, file["original_name"], stream, storage=storage
+                            )
+                    except KeyError:
+                        # File not found in zip archive - skip this file and
+                        # let the import process report handle missing files
+                        # appropriately
+                        continue
+                    imported_files[key] = user_file
 
                 value = user_file.serialize()
                 value["visible_name"] = file["visible_name"]
@@ -4978,8 +5038,6 @@ class FileFieldType(FieldType):
 
         storage = storage or get_default_storage()
         user_file_handler = UserFileHandler()
-        existing_names = get_exported_zip_names(cache, files_zip)
-        missing_files = cache.setdefault("_missing_user_files", set())
         # Only names of real user files are read, so an imported value can't make the
         # export read any other stored file.
         user_file_names = self._existing_user_file_names(
@@ -4992,17 +5050,10 @@ class FileFieldType(FieldType):
                 continue
 
             name = entry["name"]
-            if (
-                name in user_file_names
-                and name not in existing_names
-                and name not in missing_files
-            ):
-                file_path = user_file_handler.user_file_path(name)
-                if storage.exists(file_path):
-                    files_zip.add(file_chunk_generator(storage, file_path), name)
-                    existing_names.add(name)
-                else:
-                    missing_files.add(name)
+            if name in user_file_names:
+                user_file_handler.add_user_file_to_export(
+                    name, files_zip, storage, cache, skip_missing=True
+                )
 
             exported.append(
                 DatabaseExportSerializedStructure.file_field_value(

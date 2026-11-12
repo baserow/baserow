@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.utils.timezone import now
 
@@ -63,22 +62,15 @@ class Command(BaseCommand):
         for user_file in user_files:
             try:
                 file_path = handler.user_file_path(user_file)
-                if storage.exists(file_path):
-                    storage.delete(file_path)
-                    self.stdout.write(f"Deleted: {file_path}")
-                else:
+                deleted_paths = handler.delete_user_file_from_storage(
+                    user_file, storage
+                )
+                if file_path not in deleted_paths:
                     self.stdout.write(
                         self.style.WARNING(f"File not found in storage: {file_path}")
                     )
-
-                if getattr(settings, "USER_THUMBNAILS_DIRECTORY", None):
-                    for thumb_name in getattr(settings, "USER_THUMBNAILS", {}).keys():
-                        thumb_path = handler.user_file_thumbnail_path(
-                            user_file, thumb_name
-                        )
-                        if storage.exists(thumb_path):
-                            storage.delete(thumb_path)
-                            self.stdout.write(f"Deleted thumbnail: {thumb_path}")
+                for path in deleted_paths:
+                    self.stdout.write(f"Deleted: {path}")
 
                 user_file.deleted_at = now()
                 user_file.save(update_fields=["deleted_at"])

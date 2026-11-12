@@ -132,7 +132,9 @@ def test_build_template_archive_imports_with_working_files(data_fixture):
     assert download_job.state == JOB_FINISHED, download_job.error
     name = Template.objects.get(id=job.template.id).archive.name
     with get_default_storage().open(name, "rb") as archive:
-        entries = set(ZipFile(archive).namelist())
+        members = ZipFile(archive).namelist()
+    entries = set(members)
+    assert len(members) == len(entries)
     assert {f.name for f in template_files} <= entries
     assert not {f.name for f in author_files.values()} & entries
     importer = data_fixture.create_user()
