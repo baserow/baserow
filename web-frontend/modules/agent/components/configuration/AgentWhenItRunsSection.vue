@@ -42,6 +42,7 @@
         :editable="editable"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
+        :service-reverts="serviceReverts[trigger.id] || 0"
         @update="updateTrigger(trigger, $event)"
         @delete="deleteTrigger(trigger)"
       />
@@ -85,6 +86,7 @@ const {
   loadError,
   savingIds,
   serviceErrors,
+  serviceReverts,
   fetchTriggers,
   createTrigger,
   updateTrigger,

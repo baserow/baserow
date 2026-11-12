@@ -44,7 +44,6 @@ const periodicTrigger = (extra = {}) => ({
     timezone: 'UTC',
     schema,
   },
-  schema,
   ...extra,
 })
 
@@ -199,34 +198,43 @@ describe('Agent triggers', () => {
     expect(card.find('[role="alert"]').exists()).toBe(false)
   })
 
-  test('a rejected save keeps its message edit to send with the next change', async () => {
+  test('a message edited with rejected service values is saved alone', async () => {
     useFakeTimers()
-    testApp.mock
-      .onPatch('/agent/10/triggers/1/')
-      .replyOnce(400, {
-        error: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
-        detail: 'The schedule is invalid.',
-      })
-      .onPatch('/agent/10/triggers/1/')
-      .reply(200, periodicTrigger())
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply((config) => {
+      const body = JSON.parse(config.data)
+      return body.service
+        ? [
+            400,
+            {
+              error: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
+              detail: 'The schedule is invalid.',
+            },
+          ]
+        : [200, periodicTrigger(body)]
+    })
     const wrapper = await mountSection([periodicTrigger()])
     const card = wrapper.get('.agent-trigger-card')
     const message = { formula: "'Changed'", mode: 'simple', version: '0.1' }
+    const editMessage = (value) =>
+      card
+        .findComponent(AgentTriggerMessageInput)
+        .vm.$emit('update:modelValue', value)
 
     await choose(card.get('.dropdown'), 'periodicForm.everyDay')
-    card
-      .findComponent(AgentTriggerMessageInput)
-      .vm.$emit('update:modelValue', message)
+    editMessage(message)
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
-    await card.get('input[type="number"]').setValue(9)
+    const again = { ...message, formula: "'Again'" }
+    editMessage(again)
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
 
     expect(patches(testApp).map(([, body]) => body)).toEqual([
-      { message, service: { type: 'periodic', interval: 'DAY' } },
-      { message, service: { type: 'periodic', interval: 'DAY', hour: '9' } },
+      { message },
+      { service: { type: 'periodic', interval: 'DAY' } },
+      { message: again },
     ])
+    expect(card.get('[role="alert"]').text()).toBe('The schedule is invalid.')
   })
 
   test('a save waits for the one in flight, whose older reply keeps the newer edit', async () => {
@@ -331,6 +339,22 @@ describe('Agent triggers', () => {
 
     expect(toggle().attributes('aria-checked')).toBe('true')
     expect(testApp.mock.history.get).toHaveLength(1)
+  })
+
+  test('a failed service save shows the saved schedule in the form again', async () => {
+    useFakeTimers()
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(500)
+    const wrapper = await mountSection([periodicTrigger()])
+    const dropdown = () => wrapper.get('.agent-trigger-card .dropdown')
+
+    await choose(dropdown(), 'periodicForm.everyDay')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(dropdown().get('.dropdown__selected-text').text()).toBe(
+      'periodicForm.everyHour'
+    )
   })
 
   test('a trigger deleted elsewhere stays removed after its delete fails', async () => {
@@ -615,5 +639,22 @@ describe('Agent triggers', () => {
       ['/agent/10/triggers/1/', { name: '' }],
     ])
     expect(name.text()).toBe('serviceType.corePeriodicNameHour')
+  })
+
+  test('cuts a long name by characters, never inside an emoji', async () => {
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
+    const wrapper = await mountSection([periodicTrigger()])
+    const name = wrapper.get('.agent-trigger-card__name-text')
+    const kept = `${'x'.repeat(74)}😀`
+
+    await wrapper.get('.agent-trigger-card__rename').trigger('click')
+    name.element.textContent = `${kept}😀`
+    await name.trigger('input')
+    await name.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { name: kept }],
+    ])
   })
 })

@@ -12,6 +12,7 @@ import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
 const TYPED_SAVE_DELAY = 500
 const TRIGGER_FIELDS = ['name', 'enabled', 'message']
 const PICKED_FIELDS = ['name', 'enabled']
+const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
 
 /**
  * @param {object} trigger A trigger as the server returned it.
@@ -27,8 +28,9 @@ const savedValuesOf = (trigger) =>
 
 /**
  * Page-local trigger list of one Agent. Cards show their edits at once, and each
- * trigger saves the difference from what the server holds, one request at a
- * time, so a rejected or slow save never loses or reverts a newer edit.
+ * edited field is saved in a request of its own, one at a time per trigger, so a
+ * rejected value never holds back another field and a slow save never reverts a
+ * newer edit.
  *
  * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
  * @returns {object} The triggers, their loading and saving state, and actions.
@@ -42,12 +44,16 @@ export function useAgentTriggers(agent) {
   const loadError = ref(false)
   const savingIds = reactive(new Set())
   const serviceErrors = reactive({})
+  // Per trigger id: how often a failed save reverted its service values.
+  const serviceReverts = reactive({})
   // Per trigger id: the server's values and the Agent they belong to.
   const saved = new Map()
   const scheduledSaves = new Map()
+  // Per trigger id: the typed fields waiting for the typing to pause.
+  const typedFields = new Map()
+  // Per trigger id: the fields due to be sent.
+  const dueFields = new Map()
   const inFlight = new Set()
-  // Per trigger id: the saves asked for while one was in flight.
-  const queuedSaves = new Map()
   let scope = 0
   let listRequest = 0
 
@@ -65,9 +71,33 @@ export function useAgentTriggers(agent) {
   function forget(triggerId) {
     scheduledSaves.get(triggerId)?.cancel()
     scheduledSaves.delete(triggerId)
-    queuedSaves.delete(triggerId)
+    typedFields.delete(triggerId)
+    dueFields.delete(triggerId)
     saved.delete(triggerId)
     delete serviceErrors[triggerId]
+    delete serviceReverts[triggerId]
+  }
+
+  /**
+   * @param {Map<number, Set<string>>} fieldsByTrigger The fields per trigger id.
+   * @param {number} triggerId The trigger the fields belong to.
+   * @param {Iterable<string>} fields The fields to add.
+   */
+  function addFields(fieldsByTrigger, triggerId, fields) {
+    const added = fieldsByTrigger.get(triggerId) || new Set()
+    fields.forEach((field) => added.add(field))
+    fieldsByTrigger.set(triggerId, added)
+  }
+
+  /**
+   * @param {number} triggerId The trigger to save.
+   * @returns {string|undefined} The next due field, no longer due, if any.
+   */
+  function takeDueField(triggerId) {
+    const due = dueFields.get(triggerId)
+    const field = SAVED_FIELDS.find((name) => due?.has(name))
+    due?.delete(field)
+    return field
   }
 
   function removeTrigger(trigger) {
@@ -148,71 +178,49 @@ export function useAgentTriggers(agent) {
   }
 
   /**
-   * Remembers a save asked for while another is in flight, keeping picked fields
-   * apart from typed values so they're still sent alone.
-   *
-   * @param {object} trigger The trigger to save.
-   * @param {string[]|null} fields The fields to send, or null for all of them.
-   */
-  function queueSave(trigger, fields) {
-    const queued = queuedSaves.get(trigger.id) || {
-      picked: new Set(),
-      typed: false,
-    }
-    if (fields) fields.forEach((field) => queued.picked.add(field))
-    else queued.typed = true
-    queuedSaves.set(trigger.id, queued)
-  }
-
-  /**
-   * Sends the saves asked for while the last one was in flight, picked fields
-   * first so rejected typed values can't hold them back.
+   * Sends a trigger's due fields that the server doesn't hold, each alone, unless
+   * a save of it is already in flight: that one sends them once it ends.
    *
    * @param {object} trigger The trigger to save.
    */
-  async function flushQueuedSaves(trigger) {
-    const queued = queuedSaves.get(trigger.id)
-    if (!queued) return
-    queuedSaves.delete(trigger.id)
-    if (queued.picked.size) await flush(trigger, [...queued.picked])
-    if (queued.typed) await flush(trigger)
-  }
-
-  /**
-   * Sends what a trigger's card shows that the server doesn't hold, unless a
-   * save of it is already in flight: it's queued until that one ends.
-   *
-   * @param {object} trigger The trigger to save.
-   * @param {string[]|null} fields The fields to send, or null for all of them.
-   */
-  async function flush(trigger, fields = null) {
-    const entry = saved.get(trigger.id)
-    if (!entry) return
-    if (inFlight.has(trigger.id)) {
-      queueSave(trigger, fields)
-      return
-    }
-    const sent = Object.fromEntries(
-      Object.entries(unsavedValues(trigger)).filter(
-        ([field]) => !fields || fields.includes(field)
-      )
-    )
-    if (!Object.keys(sent).length) return
+  async function saveDueFields(trigger) {
+    if (inFlight.has(trigger.id)) return
     const currentScope = scope
     inFlight.add(trigger.id)
     savingIds.add(trigger.id)
     try {
-      const { data } = await service.update(entry.agentId, trigger.id, sent)
+      while (scopeIsCurrent(currentScope)) {
+        const field = takeDueField(trigger.id)
+        if (!field) break
+        const unsaved = unsavedValues(trigger)
+        if (field in unsaved) {
+          await sendValues(trigger, { [field]: unsaved[field] }, currentScope)
+        }
+      }
+    } finally {
+      inFlight.delete(trigger.id)
+      savingIds.delete(trigger.id)
+    }
+  }
+
+  /**
+   * @param {object} trigger The trigger to save.
+   * @param {object} sent The values to send.
+   * @param {number} currentScope The scope the save started in.
+   */
+  async function sendValues(trigger, sent, currentScope) {
+    try {
+      const { data } = await service.update(
+        saved.get(trigger.id).agentId,
+        trigger.id,
+        sent
+      )
       if (!scopeIsCurrent(currentScope)) return
       if (sent.service) delete serviceErrors[trigger.id]
       adoptSaved(trigger, sent, data)
     } catch (error) {
       if (scopeIsCurrent(currentScope)) handleSaveError(trigger, sent, error)
-    } finally {
-      inFlight.delete(trigger.id)
-      savingIds.delete(trigger.id)
     }
-    await flushQueuedSaves(trigger)
   }
 
   /**
@@ -252,7 +260,8 @@ export function useAgentTriggers(agent) {
 
   /**
    * Keeps rejected service values shown with their error, to be sent again with
-   * the next edit; otherwise shows the server's values again for what failed.
+   * the next service edit; otherwise shows the server's values again for what
+   * failed, remounting the service form so it shows them too.
    *
    * @param {object} trigger The trigger whose save failed.
    * @param {object} sent The values that were sent.
@@ -286,23 +295,28 @@ export function useAgentTriggers(agent) {
         }
       }
       trigger.service = reverted
+      serviceReverts[trigger.id] = (serviceReverts[trigger.id] || 0) + 1
     }
   }
 
-  function scheduleSave(trigger) {
+  function scheduleSave(trigger, fields) {
+    addFields(typedFields, trigger.id, fields)
     if (!scheduledSaves.has(trigger.id)) {
       scheduledSaves.set(
         trigger.id,
-        debounce(() => flush(trigger), TYPED_SAVE_DELAY)
+        debounce(() => {
+          addFields(dueFields, trigger.id, typedFields.get(trigger.id) || [])
+          typedFields.delete(trigger.id)
+          saveDueFields(trigger)
+        }, TYPED_SAVE_DELAY)
       )
     }
     scheduledSaves.get(trigger.id)()
   }
 
   /**
-   * Shows a card's edit at once and saves it: a name or a switch right away and
-   * alone, so rejected settings can't block it, typed values with everything
-   * unsaved once typing pauses.
+   * Shows a card's edit at once and saves each edited field: a name or a switch
+   * right away, a message or service values once typing pauses.
    *
    * @param {object} trigger The trigger the card shows.
    * @param {object} values The edited `name`, `enabled`, `message` or service
@@ -316,11 +330,13 @@ export function useAgentTriggers(agent) {
     if (values.service) {
       trigger.service = { ...trigger.service, ...values.service }
     }
-    const picked = PICKED_FIELDS.filter((field) => field in values)
+    const edited = SAVED_FIELDS.filter((field) => field in values)
+    const picked = edited.filter((field) => PICKED_FIELDS.includes(field))
+    const typed = edited.filter((field) => !PICKED_FIELDS.includes(field))
+    if (typed.length) scheduleSave(trigger, typed)
     if (picked.length) {
-      flush(trigger, picked)
-    } else {
-      scheduleSave(trigger)
+      addFields(dueFields, trigger.id, picked)
+      saveDueFields(trigger)
     }
   }
 
@@ -363,7 +379,8 @@ export function useAgentTriggers(agent) {
     loadError.value = false
     savingIds.clear()
     inFlight.clear()
-    queuedSaves.clear()
+    typedFields.clear()
+    dueFields.clear()
   }
 
   onMounted(fetchTriggers)
@@ -382,6 +399,7 @@ export function useAgentTriggers(agent) {
     loadError,
     savingIds,
     serviceErrors,
+    serviceReverts,
     fetchTriggers,
     createTrigger,
     updateTrigger,

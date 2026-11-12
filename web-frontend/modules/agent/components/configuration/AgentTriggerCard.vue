@@ -72,7 +72,7 @@
           <component
             :is="serviceType.formComponent"
             ref="form"
-            :key="trigger.type"
+            :key="`${trigger.type}-${serviceReverts}`"
             :application="agent"
             :service="trigger.service"
             :service-type="serviceType"
@@ -180,6 +180,8 @@ const props = defineProps({
   saving: Boolean,
   /** Why the server rejected the service values, or ''. */
   serviceError: { type: String, default: '' },
+  /** How often a failed save reverted the service values the form shows. */
+  serviceReverts: { type: Number, default: 0 },
 })
 const emit = defineEmits(['update', 'delete'])
 const { $registry } = useNuxtApp()
@@ -246,7 +248,9 @@ function startRename() {
  * @param {object} event The Editable's change, with the typed `value`.
  */
 function rename({ value }) {
-  const typed = value.trim().slice(0, TRIGGER_NAME_MAX_LENGTH)
+  const typed = Array.from(value.trim())
+    .slice(0, TRIGGER_NAME_MAX_LENGTH)
+    .join('')
   emit('update', { name: typed === defaultName.value ? '' : typed })
   // An unchanged shown name, like a cleared default, doesn't reset the edited text.
   nextTick(() => nameEditable.value?.set())
