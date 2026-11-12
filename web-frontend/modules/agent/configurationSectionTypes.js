@@ -5,12 +5,14 @@ import AgentSettingsSection from '@baserow/modules/agent/components/configuratio
 import AgentWorkspaceAccessSection from '@baserow/modules/agent/components/configuration/AgentWorkspaceAccessSection'
 import AgentConnectedAppsSection from '@baserow/modules/agent/components/configuration/AgentConnectedAppsSection'
 import AgentWhenItRunsSection from '@baserow/modules/agent/components/configuration/AgentWhenItRunsSection'
+import AgentActionsSection from '@baserow/modules/agent/components/configuration/AgentActionsSection'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 import {
   CONFIGURATION_ERROR,
   RUN_AS_STATUS,
 } from '@baserow/modules/agent/constants'
 
+const ActionsSection = markRaw(AgentActionsSection)
 const InstructionsSection = markRaw(AgentInstructionsSection)
 const SettingsSection = markRaw(AgentSettingsSection)
 const WorkspaceAccessSection = markRaw(AgentWorkspaceAccessSection)
@@ -224,5 +226,31 @@ export class SettingsAgentConfigurationSectionType extends AgentConfigurationSec
 
   getOrder() {
     return 90
+  }
+}
+
+export class ActionsAgentConfigurationSectionType extends AgentConfigurationSectionType {
+  static getType() {
+    return 'actions'
+  }
+
+  get name() {
+    return this.$t('agent.actions')
+  }
+
+  get description() {
+    return this.$t('agent.actionsDescription')
+  }
+
+  get icon() {
+    return 'iconoir-flash'
+  }
+
+  get component() {
+    return ActionsSection
+  }
+
+  getOrder() {
+    return 35
   }
 }

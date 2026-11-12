@@ -9,6 +9,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.integrations.exceptions import (
     IntegrationDoesNotExist,
     IntegrationNotInApplication,
+    IntegrationTypeNotAllowed,
 )
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -256,17 +257,41 @@ class ServiceHandler:
                 )
             try:
                 IntegrationHandler().check_integration_usable(
-                    integration, application_id=application_id
+                    integration,
+                    application_id=application_id,
+                    integration_types=(
+                        [service.get_type().integration_type]
+                        if service.get_type().integration_type
+                        else None
+                    ),
                 )
             except IntegrationNotInApplication as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration used by this service belongs to another "
                     "application."
                 ) from exc
+            except IntegrationTypeNotAllowed as exc:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration has the wrong type for this service."
+                ) from exc
         elif service.get_type().requires_integration(service):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No integration selected"
             )
+
+    def get_configuration_errors(
+        self, service: Service, application_id: Optional[int] = None
+    ) -> dict[str, str]:
+        """Check saved configuration without network calls or formula evaluation."""
+
+        errors = service.get_type().get_configuration_errors(service)
+        try:
+            self._check_service_integration(service, application_id)
+        except ServiceImproperlyConfiguredDispatchException:
+            errors["integration_id"] = (
+                "unavailable" if service.integration_id else "required"
+            )
+        return errors
 
     def dispatch_service(
         self,

@@ -59,7 +59,10 @@ describe('Agent tool presentations', () => {
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
         // The provider runs web search, so the backend has no agent tool for it.
-        .filter((type) => !['mcp_server_tool', 'web_search'].includes(type))
+        .filter(
+          (type) =>
+            !['mcp_server_tool', 'web_search', 'smtp_email'].includes(type)
+        )
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
     for (const { name, input, preview, facts } of cases.tools) {
@@ -88,6 +91,33 @@ describe('Agent tool presentations', () => {
         )
       }
     }
+  })
+
+  test('resolved action details use the presentation type independently of the editable name', () => {
+    const values = {
+      From: 'sender@example.com',
+      To: ['fixed@example.com'],
+      Subject: 'A fixed template',
+      Body: 'Hello Alex',
+      'Body format': 'plain',
+    }
+    const activity = toolActivity(
+      step('custom_welcome_email', 'waiting', {
+        presentation_type: 'smtp_email',
+        input: { values, truncated: true },
+      }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe('Send email')
+    expect(activity.input).toEqual({ values, truncated: true })
+    expect(
+      toolActivity(
+        step('renamed_email', 'done', { presentation_type: 'smtp_email' }),
+        registry,
+        t
+      ).title
+    ).toBe('Email sent')
   })
 
   test.each([

@@ -591,7 +591,10 @@ def test_code_the_provider_runs_to_filter_results_is_not_a_step(
 def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
+        Mock(allowed_tool_names=[], action_tools=[], mcp_servers=(), resume=None),
+        journal,
+        Mock(),
+        {},
     )
     started = NativeToolCallPart(WebSearchTool.kind, tool_call_id="search-1")
 
@@ -611,7 +614,10 @@ def test_step_starts_when_the_search_does_and_learns_the_query_when_it_arrives()
 def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
+        Mock(allowed_tool_names=[], action_tools=[], mcp_servers=(), resume=None),
+        journal,
+        Mock(),
+        {},
     )
 
     for index, part in enumerate(
@@ -630,7 +636,10 @@ def test_text_before_a_search_leaves_the_stream_once_the_answer_starts():
 def test_text_before_a_search_whose_result_arrives_late_leaves_the_stream():
     journal = Mock()
     responder = AgentResponder(
-        Mock(allowed_tool_names=[], mcp_servers=(), resume=None), journal, Mock(), {}
+        Mock(allowed_tool_names=[], action_tools=[], mcp_servers=(), resume=None),
+        journal,
+        Mock(),
+        {},
     )
 
     for index, part in enumerate(

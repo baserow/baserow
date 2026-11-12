@@ -74,6 +74,61 @@ describe('Tooltip directive', () => {
     expect(element.classList.contains('tooltip--no-arrow')).toBe(true)
   })
 
+  it.each(['top', 'bottom'])(
+    'keeps a %s tooltip inside either viewport edge with its arrow on the target',
+    async (position) => {
+      const wrapper = shallowMount(Component, {
+        attrs: { 'tooltip-position': position },
+      })
+      const button = wrapper.findComponent(ButtonText)
+      const viewport = vi
+        .spyOn(document.documentElement, 'clientWidth', 'get')
+        .mockReturnValue(1000)
+      let targetLeft = 960
+      const rectangles = vi
+        .spyOn(Element.prototype, 'getBoundingClientRect')
+        .mockImplementation(function () {
+          return this.classList.contains('tooltip')
+            ? { width: 280, height: 80 }
+            : {
+                left: targetLeft,
+                right: targetLeft + 16,
+                width: 16,
+                top: 100,
+                bottom: 116,
+              }
+        })
+
+      try {
+        await button.trigger('mouseenter')
+        const element = document.querySelector('.tooltip')
+        // The centered tooltip is shifted left, while its arrow stays on the icon.
+        expect(element.style.left).toBe('852px')
+        expect(
+          element.style.getPropertyValue('--tooltip-cursor-position-left')
+        ).toBe('256px')
+
+        targetLeft = 12
+        window.dispatchEvent(new Event('resize'))
+        expect(element.style.left).toBe('148px')
+        expect(
+          element.style.getPropertyValue('--tooltip-cursor-position-left')
+        ).toBe('12px')
+
+        targetLeft = 492
+        window.dispatchEvent(new Event('resize'))
+        expect(element.style.left).toBe('500px')
+        expect(
+          element.style.getPropertyValue('--tooltip-cursor-position-left')
+        ).toBe('140px')
+      } finally {
+        wrapper.unmount()
+        rectangles.mockRestore()
+        viewport.mockRestore()
+      }
+    }
+  )
+
   describe('with a show delay', () => {
     const DelayedComponent = {
       template: `

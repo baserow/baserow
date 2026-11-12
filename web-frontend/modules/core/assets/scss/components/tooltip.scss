@@ -54,6 +54,10 @@
 
   &.tooltip--body {
     position: absolute;
+
+    // Avoid shrink-to-fit sizing against the viewport edge before positioning.
+    width: max-content;
+    max-width: calc(100vw - 16px);
     z-index: $z-index-tooltip;
     animation: tooltip-fade-in 0.08s ease-out;
   }

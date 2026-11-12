@@ -27,8 +27,11 @@ The backend emits `step` events and saves the same steps on the assistant messag
 }
 ```
 
-- `tool` is the tool's name. Frontend presenters are registered under it. They
-  only describe calls and never select what runs or what is allowed.
+- `tool` is the callable tool's name. Configured actions also set
+  `presentation_type` to their stable service type, such as `smtp_email`, because
+  their callable names are editable. Frontend presenters resolve
+  `presentation_type || tool`. They only describe calls and never select what
+  runs or what is allowed.
 - `status` is `running`, `waiting`, `done`, `failed`, `rejected`, `stopped` or
   `skipped`, see `STEP_STATUS` in `modules/core/chatRuns/constants.js`. Calls
   held for approval are `waiting` from their call event, including changes that
@@ -95,6 +98,20 @@ failed steps too.
 - Reads of one table name only the table, so a held read shows what it reads.
 
 The card shows `values` as indented JSON, collapsed by default.
+
+### Configured actions
+
+An action adapter resolves the action's formulas with the call's arguments and
+sends its readable projection through the same `ToolCallInputEvent`. The preview
+includes fixed configuration as well as model-supplied values: email recipients,
+sender, subject, body, and body format, for example. Adapters explicitly allow
+readable fields; integration credentials never enter the preview. Service export
+redaction is a separate policy: an email body is sensitive in an external export
+but must be visible to the person approving its delivery.
+
+The preview is bounded as above; the sent payload is not. An approved call only
+runs while its action is unchanged, checked with its approval key.
+See [Preview, approve and execute](./agent-actions-plan.md#preview-approve-and-execute).
 
 ## Web search
 

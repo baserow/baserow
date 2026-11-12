@@ -550,7 +550,7 @@
 .agent-configuration {
   display: flex;
   flex-direction: column;
-  flex: 0 0 400px;
+  flex: 0 0 520px;
   min-width: 0;
   background: $palette-neutral-0;
   border-left: 1px solid $palette-neutral-200;
@@ -659,6 +659,9 @@
   min-height: 0;
   padding: 16px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
+
+  @include thin-scrollbar;
 }
 
 .agent-configuration__save-status {
@@ -670,6 +673,12 @@
   padding: 20px;
   font-size: 12px;
   color: $palette-neutral-600;
+}
+
+@container (max-width: 1100px) {
+  .agent-configuration {
+    flex-basis: 400px;
+  }
 }
 
 @container (max-width: 900px) {
@@ -689,7 +698,7 @@
     right: 0;
     bottom: 0;
     z-index: 2;
-    width: 320px;
+    width: 520px;
     max-width: 100%;
     box-shadow: 0 0 12px $palette-neutral-200;
   }

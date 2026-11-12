@@ -140,6 +140,10 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The trigger types that can be added to the agent on this "
         "instance, as service type names.",
     )
+    available_action_types = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The service types available as configured agent actions.",
+    )
     max_queued_trigger_runs = serializers.IntegerField(
         help_text="How many runs of a trigger that waits or runs in parallel can be "
         "queued on this instance; later firings are skipped. 0 or less is no limit."
@@ -415,6 +419,7 @@ class AgentMessageStepItemErrorSerializer(serializers.Serializer):
 
 
 class AgentMessageStepSerializer(serializers.Serializer):
+    presentation_type = serializers.CharField(required=False)
     id = serializers.CharField()
     tool = serializers.CharField()
     status = serializers.ChoiceField(choices=list(ChatRunStepStatus))

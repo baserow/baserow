@@ -38,7 +38,11 @@ from pydantic_ai.messages import (
 )
 from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResult
-from pydantic_ai.toolsets import AbstractToolset, FunctionToolset, WrapperToolset
+from pydantic_ai.toolsets import (
+    AbstractToolset,
+    FunctionToolset,
+    WrapperToolset,
+)
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import UsageLimits
 from pydantic_core import to_jsonable_python
@@ -63,6 +67,7 @@ from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolErrorCode
 from baserow.core.utils import remove_null_characters
 
+from .action_tools.tools import BoundActionTool
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
@@ -79,7 +84,7 @@ from .constants import (
 )
 from .models import AgentMessage
 from .previews import arguments_preview
-from .registries import agent_tool_type_registry, hold_call, input_shower
+from .registries import AgentToolType, agent_tool_type_registry, input_shower
 from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -229,6 +234,7 @@ class _HeldCallsToolset(WrapperToolset[None]):
 
     is_held: Callable[[RunContext[None]], bool]
     tool_ctx: ToolContext
+    tools: dict[str, AgentToolType | BoundActionTool]
 
     async def call_tool(
         self,
@@ -238,8 +244,7 @@ class _HeldCallsToolset(WrapperToolset[None]):
         tool: ToolsetTool[None],
     ) -> Any:
         if not ctx.tool_call_approved and self.is_held(ctx):
-            return await sync_to_async(hold_call)(
-                agent_tool_type_registry.get(name),
+            return await sync_to_async(self.tools[name].hold_call)(
                 self.tool_ctx,
                 tool_args,
                 input_shower(ctx),
@@ -303,6 +308,11 @@ class AgentResponder:
             MCPServerToolset(server) for server in request.mcp_servers
         ]
         resume = request.resume
+        self._tools = {
+            name: agent_tool_type_registry.get(name)
+            for name in request.allowed_tool_names
+        }
+        self._tools.update({tool.type: tool for tool in request.action_tools})
         self._steps = (
             ChatRunSteps(journal, self._describe_call)
             if resume is None
@@ -333,9 +343,9 @@ class AgentResponder:
                 }
         if name == WebSearchTool.kind:
             return {"changes_data": False, "input": _web_search_step_input(arguments)}
-        if name not in self._request.allowed_tool_names:
+        if name not in self._tools:
             return None
-        tool = agent_tool_type_registry.get(name)
+        tool = self._tools[name]
         try:
             summary = tool.get_step_input(arguments)
         except Exception as exc:
@@ -343,7 +353,10 @@ class AgentResponder:
                 "Agent tool {} step input failed ({})", tool.type, type(exc).__name__
             )
             summary = {}
-        return {"changes_data": tool.changes_data, "input": summary}
+        description = {"changes_data": tool.changes_data, "input": summary}
+        if isinstance(tool, BoundActionTool):
+            description["presentation_type"] = tool.presentation_type
+        return description
 
     async def answer(self) -> ChatRunOutcome:
         """
@@ -379,6 +392,7 @@ class AgentResponder:
         if (
             request.resume is not None
             or (request.allowed_tool_names and request.ask_first_tool_names)
+            or any(tool.ask_first for tool in request.action_tools)
             or any(
                 tool.ask_first
                 for server in request.mcp_servers
@@ -541,7 +555,7 @@ class AgentResponder:
 
         request = self._request
         toolsets: list[AbstractToolset[None]] = []
-        if request.allowed_tool_names:
+        if self._tools:
             ctx = ToolContext(
                 user=request.acting_subject,
                 workspace=request.workspace,
@@ -550,13 +564,11 @@ class AgentResponder:
             toolsets.append(
                 _HeldCallsToolset(
                     FunctionToolset(
-                        [
-                            agent_tool_type_registry.get(name).get_tool(ctx)
-                            for name in request.allowed_tool_names
-                        ]
+                        [tool.get_tool(ctx) for tool in self._tools.values()]
                     ),
                     self._is_held,
                     ctx,
+                    self._tools,
                 )
             )
         return [
@@ -597,9 +609,11 @@ class AgentResponder:
         for call in calls:
             if call.tool_call_id in self._invalid_call_ids:
                 continue
-            if call.tool_name in request.allowed_tool_names:
-                changes_data = agent_tool_type_registry.get(call.tool_name).changes_data
-                ask_first = call.tool_name in request.ask_first_tool_names
+            if tool := self._tools.get(call.tool_name):
+                changes_data = tool.changes_data
+                ask_first = call.tool_name in request.ask_first_tool_names or (
+                    isinstance(tool, BoundActionTool) and tool.ask_first
+                )
             elif snapshot := self._mcp_tool(call.tool_name):
                 changes_data, ask_first = snapshot.changes_data, snapshot.ask_first
             else:
@@ -618,6 +632,15 @@ class AgentResponder:
             if snapshot := toolset.get_tool_snapshot(name):
                 return snapshot
         return None
+
+    def _action_tool(self, name: str) -> BoundActionTool | None:
+        """
+        :param name: A called tool's name.
+        :return: The action the reply offers under that name, if any.
+        """
+
+        tool = self._tools.get(name)
+        return tool if isinstance(tool, BoundActionTool) else None
 
     def _on_event(self, event: AgentStreamEvent | AgentRunResultEvent) -> None:
         """
@@ -718,7 +741,10 @@ class AgentResponder:
             tool_keys={
                 call.tool_name: tool.approval_key
                 for call in waiting_calls
-                if (tool := self._mcp_tool(call.tool_name))
+                if (
+                    tool := self._mcp_tool(call.tool_name)
+                    or self._action_tool(call.tool_name)
+                )
             },
             paused_run=AgentPausedRun(
                 conversation=ConversationTypeAdapter.dump_python(

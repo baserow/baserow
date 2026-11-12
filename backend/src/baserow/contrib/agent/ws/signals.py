@@ -5,10 +5,19 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.dispatch import receiver
 
+from baserow.contrib.agent.action_tools.signals import (
+    agent_action_created,
+    agent_action_deleted,
+    agent_action_updated,
+)
+from baserow.contrib.agent.api.action_tools.serializers import AgentActionSerializer
 from baserow.contrib.agent.api.serializers import AgentConversationSerializer
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation
-from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
+from baserow.contrib.agent.operations import (
+    ReadAgentConfigurationOperationType,
+    ReadAgentConversationsOperationType,
+)
 from baserow.contrib.agent.signals import (
     agent_conversation_activity,
     agent_conversation_deleted,
@@ -170,3 +179,39 @@ def conversation_deleted(
     """Remove the conversation from every reader's other lists."""
 
     _notify_readers(conversation, user, "agent_conversation_deleted")
+
+
+def _notify_action_configuration(instance, user, event_type, **values):
+    """Only configuration readers may receive email template contents."""
+    transaction.on_commit(
+        partial(
+            broadcast_to_permitted_users.delay,
+            instance.agent.workspace_id,
+            ReadAgentConfigurationOperationType.type,
+            ApplicationObjectScopeType.type,
+            instance.agent_id,
+            {"type": event_type, "agent_id": instance.agent_id, **values},
+            ignore_web_socket_id=getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(agent_action_created)
+def action_created(sender, action, user, **kwargs):
+    _notify_action_configuration(
+        action, user, "agent_action_created", action=AgentActionSerializer(action).data
+    )
+
+
+@receiver(agent_action_updated)
+def action_updated(sender, action, user, **kwargs):
+    _notify_action_configuration(
+        action, user, "agent_action_updated", action=AgentActionSerializer(action).data
+    )
+
+
+@receiver(agent_action_deleted)
+def action_deleted(sender, action, user, **kwargs):
+    _notify_action_configuration(
+        action, user, "agent_action_deleted", action_id=action.id
+    )

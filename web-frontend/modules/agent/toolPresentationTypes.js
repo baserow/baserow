@@ -353,7 +353,51 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
   }
 }
 
+/** Configured names can change; the service presentation remains stable. */
+export class SMTPEmailToolPresentationType extends ToolPresentationType {
+  static getType() {
+    return 'smtp_email'
+  }
+
+  getLabel(t) {
+    return t('agent.toolSendEmail')
+  }
+
+  getActivity({ status }, t) {
+    return t(
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolSendEmailRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolSendEmailDone'
+          : 'agent.toolSendEmail'
+    )
+  }
+
+  getInput({ input }, t) {
+    const fields = new Set([
+      'from_email',
+      'from_name',
+      'to_emails',
+      'cc_emails',
+      'bcc_emails',
+      'subject',
+      'body',
+      'body_type',
+    ])
+    return {
+      ...input,
+      values: Object.fromEntries(
+        Object.entries(input.values || {}).map(([key, value]) => [
+          fields.has(key) ? t(`agent.actionField${key}`) : key,
+          value,
+        ])
+      ),
+    }
+  }
+}
+
 export const agentToolPresentationTypes = [
+  SMTPEmailToolPresentationType,
   WebSearchToolPresentationType,
   ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,

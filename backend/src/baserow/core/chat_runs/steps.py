@@ -396,6 +396,8 @@ class ChatRunSteps:
             "input": _display_data(description.get("input")) if not invalid else {},
             "facts": {},
         }
+        if presentation_type := description.get("presentation_type"):
+            step["presentation_type"] = presentation_type
         if invalid:
             step["error_code"] = ToolErrorCode.INVALID_INPUT
         self._pending[tool_call_id].append(step["id"])

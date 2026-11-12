@@ -176,7 +176,10 @@ export function toolActivity(step, registry, t) {
     partial: status === STEP_STATUS.DONE && failedItems.length > 0,
   }
   try {
-    const presenter = findPresenter(registry, data.tool)
+    const presenter = findPresenter(
+      registry,
+      data.presentation_type || data.tool
+    )
     if (!presenter) return fallback
     const translate = (key, values, count) => {
       const text = t(key, values, count)
