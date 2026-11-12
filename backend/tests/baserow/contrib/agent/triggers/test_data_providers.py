@@ -12,6 +12,7 @@ from baserow.contrib.agent.triggers.data_providers import (
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.contrib.database.fields.models import Field
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -94,8 +95,8 @@ def test_get_data_chunk_maps_list_payload_rows_through_the_service_type(
     context = AgentTriggerDispatchContext(trigger, payload, FIRED_AT)
     provider = TriggerDataProviderType()
 
-    assert provider.get_data_chunk(context, ["0", field.db_column]) == "Horse"
-    assert provider.get_data_chunk(context, ["0"]) == {"Name": "Horse"}
+    assert provider.get_data_chunk(context, ["rows", "0", field.db_column]) == "Horse"
+    assert provider.get_data_chunk(context, ["rows", "0"]) == {"Name": "Horse"}
     assert provider.get_data_chunk(context, ["fired_at"]) == "2026-11-10 09:07 (UTC)"
 
 
@@ -145,4 +146,82 @@ def test_resolve_message_cuts_to_the_message_limit(periodic_trigger):
     assert (
         len(AgentTriggerHandler().resolve_message(trigger, payload, FIRED_AT))
         == AGENT_TEXT_MAX_LENGTH
+    )
+
+
+def orders_trigger(data_fixture, message: str = "") -> tuple[AgentTrigger, Field]:
+    """A rows-created trigger on an Orders table with a Name and a Notes field."""
+
+    table = data_fixture.create_database_table(name="Orders")
+    name = data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_long_text_field(table=table, name="Notes")
+    agent = data_fixture.create_agent_application(workspace=table.database.workspace)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=table, integration=None
+    )
+    trigger = data_fixture.create_agent_trigger(
+        agent=agent, service=service, message=message
+    )
+    return trigger, name
+
+
+def rows_payload(*names: str, notes: str = "") -> dict:
+    return {
+        "results": [
+            {"id": index, "Name": name, "Notes": notes}
+            for index, name in enumerate(names, start=1)
+        ],
+        "has_next_page": False,
+    }
+
+
+@pytest.mark.django_db
+def test_a_list_payload_is_read_as_rows_next_to_its_event_values(data_fixture):
+    trigger, name = orders_trigger(data_fixture)
+
+    context = AgentTriggerDispatchContext(
+        trigger, rows_payload("Horse", "Cow"), FIRED_AT
+    )
+
+    assert context[f"trigger.rows.1.{name.db_column}"] == "Cow"
+    assert (context["trigger.count"], context["trigger.table"]) == (2, "Orders")
+    assert context["trigger.fired_at"] == "2026-11-10 09:07 (UTC)"
+    assert context["trigger.rows"] == (
+        '\n```json\n[\n{"id": 1, "Name": "Horse", "Notes": ""},\n'
+        '{"id": 2, "Name": "Cow", "Notes": ""}\n]\n```'
+    )
+
+
+@pytest.mark.django_db
+def test_rows_over_the_message_room_are_left_out_whole_and_counted(data_fixture):
+    trigger, _ = orders_trigger(
+        data_fixture, "concat(get('trigger.count'), ' new: ', get('trigger.rows'))"
+    )
+    notes = "x" * 40_000
+
+    content = AgentTriggerHandler().resolve_message(
+        trigger, rows_payload("Horse", "Cow", "Pig", notes=notes), FIRED_AT
+    )
+
+    assert content.startswith('3 new: \n```json\n[\n{"id": 1, "Name": "Horse"')
+    assert content.endswith(
+        f'"Name": "Cow", "Notes": "{notes}"}}\n]\n```\n…and 1 more rows not shown'
+    )
+    assert "Pig" not in content
+    assert len(content) < AGENT_TEXT_MAX_LENGTH
+
+
+@pytest.mark.django_db
+def test_a_row_trigger_without_a_message_opens_with_its_event_values_and_rows(
+    data_fixture,
+):
+    trigger, _ = orders_trigger(data_fixture)
+
+    content = AgentTriggerHandler().resolve_message(
+        trigger, rows_payload("Horse"), FIRED_AT
+    )
+
+    assert content == (
+        'Trigger data:\n```json\n{\n  "count": 1,\n  "table": "Orders"\n}\n```'
+        '\n```json\n[\n{"id": 1, "Name": "Horse", "Notes": ""}\n]\n```'
     )

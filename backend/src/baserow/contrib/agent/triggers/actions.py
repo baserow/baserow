@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 
+from baserow.contrib.agent.constants import AGENT_TRIGGER_DEFAULT_BATCH_SIZE
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.core.action.registries import (
     ActionScopeStr,
@@ -45,7 +46,8 @@ class CreateAgentTriggerActionType(ActionType):
         message: BaserowFormulaObject | str = "",
         enabled: bool = True,
         service: dict | None = None,
-        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
+        on_overlap: str | None = None,
+        batch_size: int = AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         name: str = "",
     ) -> AgentTrigger:
         """
@@ -58,7 +60,9 @@ class CreateAgentTriggerActionType(ActionType):
         :param enabled: Whether the trigger starts conversations right away.
         :param service: Initial values of the service, by field name, or None.
         :param on_overlap: What a firing does while a reply of the trigger is still
-            going.
+            going, or None for the type's default.
+        :param batch_size: How many records of a list payload one conversation
+            receives.
         :param name: The trigger's name, or blank for the type's default.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
@@ -66,6 +70,8 @@ class CreateAgentTriggerActionType(ActionType):
             its configuration.
         :raises AgentTriggerTypeNotAvailable: When the Agent doesn't offer the type.
         :raises ServiceMisconfigured: When the service values are invalid.
+        :raises AgentTriggerNoAccess: When the Agent's run identity can't read what
+            the trigger watches.
         :return: The created trigger.
         """
 
@@ -77,6 +83,7 @@ class CreateAgentTriggerActionType(ActionType):
             enabled=enabled,
             service_values=service,
             on_overlap=on_overlap,
+            batch_size=batch_size,
             name=name,
         )
         cls.register_action(
@@ -100,10 +107,7 @@ class CreateAgentTriggerActionType(ActionType):
 
 
 class UpdateAgentTriggerActionType(ActionType):
-    """
-    Changes a trigger's name, switch, message, overlap rule, type or service; not
-    undoable.
-    """
+    """Changes a trigger's settings or service; not undoable."""
 
     type = "update_agent_trigger"
     description = ActionTypeDescription(
@@ -130,6 +134,7 @@ class UpdateAgentTriggerActionType(ActionType):
         message: BaserowFormulaObject | str | None = None,
         service: dict | None = None,
         on_overlap: str | None = None,
+        batch_size: int | None = None,
         name: str | None = None,
         service_type_name: str | None = None,
     ) -> AgentTrigger:
@@ -145,6 +150,7 @@ class UpdateAgentTriggerActionType(ActionType):
         :param message: The new message formula, or None to keep it.
         :param service: The service values to set, by field name, or None.
         :param on_overlap: The new overlap rule, or None to keep it.
+        :param batch_size: The new batch size, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
         :param service_type_name: The service type the trigger should have, whose
@@ -157,6 +163,8 @@ class UpdateAgentTriggerActionType(ActionType):
         :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
             reschedule a type the Agent doesn't offer.
         :raises ServiceMisconfigured: When the service values are invalid.
+        :raises AgentTriggerNoAccess: When the Agent's run identity can't read what
+            the trigger watches.
         :return: The updated trigger.
         """
 
@@ -168,6 +176,7 @@ class UpdateAgentTriggerActionType(ActionType):
             message=message,
             service_values=service,
             on_overlap=on_overlap,
+            batch_size=batch_size,
             name=name,
             service_type_name=service_type_name,
         )

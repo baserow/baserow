@@ -9,22 +9,30 @@ from .handler import AgentTriggerHandler
 
 
 @app.task
-def start_trigger_conversation(
-    trigger_id: int, service_id: int, content: str, failure: str | None
+def start_trigger_conversations(
+    trigger_id: int,
+    service_id: int,
+    firings: list[list[str | None]],
+    dropped_batches: int = 0,
+    can_read: bool = True,
 ) -> None:
     """
-    Apply the rules of a trigger that fired, after the event that fired it
-    committed.
+    Apply the rules of a trigger to each firing of one event, after the event
+    that fired it committed.
 
     :param trigger_id: The id of the trigger that fired.
-    :param service_id: The id of the service the message was resolved from.
-    :param content: The resolved message opening the conversation.
-    :param failure: The error code failing the reply instead of running it, or None.
+    :param service_id: The id of the service the firings were resolved from.
+    :param firings: Each firing's resolved message and the error code failing its
+        reply, or None, in the event's order.
+    :param dropped_batches: How many batches of the event were left out.
+    :param can_read: Whether the run identity could read the event's data.
     """
 
     from .dispatcher import agent_trigger_dispatcher
 
-    agent_trigger_dispatcher.start(trigger_id, service_id, content, failure)
+    agent_trigger_dispatcher.start(
+        trigger_id, service_id, firings, dropped_batches, can_read
+    )
 
 
 @app.task(ignore_result=True)

@@ -223,6 +223,7 @@ or a workspace's **Settings → AI providers**. See [AI providers](ai-providers.
 | BASEROW\_AGENT\_TRIGGER\_AGENT\_RATE\_LIMITS | How often all triggers of one Agent together may start conversations, in the same `max_runs,window_seconds` format, so adding triggers doesn't raise the limit. A single comma disables the limits. | "20,60,300,3600" |
 | BASEROW\_AGENT\_TRIGGER\_MAX\_QUEUED\_RUNS | The most runs a trigger set to "Wait for the previous run" or "Run in parallel" can have waiting. Further firings start nothing and the trigger shows it was skipped. `0` means no limit: runs wait as long as needed, and the rate limits above still bound how many start. | 10 |
 | BASEROW\_AGENT\_TRIGGER\_MAX\_PARALLEL\_RUNS | The most runs a trigger set to "Run in parallel" can have going at once, waiting for approvals included. Further firings wait, up to the queue limit above. `0` means no limit: the rate limits and `BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE` still bound how many run. | 5 |
+| BASEROW\_AGENT\_TRIGGER\_MAX\_BATCHES\_PER\_EVENT | The most conversations one event may start for an Agent trigger whose data is a list, such as rows created at once. Each conversation receives up to the trigger's "Rows per conversation" (20 by default), so the default lets one change reach 200 rows. Further rows start nothing and the trigger shows it. Values below `1` count as `1`. | 10 |
 
 #### Deprecated AI provider variables
 

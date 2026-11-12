@@ -142,6 +142,26 @@
     line-height: 18px;
     color: $palette-neutral-700;
   }
+
+  .agent-trigger-card__note {
+    margin: 0 0 16px;
+
+    .alert__wrapper {
+      gap: 8px;
+      padding: 8px 12px;
+    }
+
+    .alert__icon {
+      flex-shrink: 0;
+      font-size: 16px;
+      line-height: 18px;
+    }
+
+    .alert__message {
+      margin-top: 0;
+      line-height: 18px;
+    }
+  }
 }
 
 .agent-trigger-card__section {

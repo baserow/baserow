@@ -362,4 +362,33 @@ export const TriggerServiceTypeMixin = (Base) =>
     canBeImmediatelyDispatched(service) {
       return false
     }
+
+    /**
+     * The values that describe one event next to its payload, mirroring the
+     * backend `get_event_context`: how many records a list payload holds.
+     *
+     * @param {object} service The trigger service.
+     * @returns {object} JSON schema properties, by value name.
+     */
+    getEventContextSchema(service) {
+      if (!this.returnsList(service)) {
+        return {}
+      }
+      return {
+        count: {
+          type: 'number',
+          title: this.app.$i18n.t('serviceType.eventCount'),
+        },
+      }
+    }
+
+    /**
+     * A sentence describing one event, whose `{name}` placeholders name values
+     * of `getEventContextSchema`, for consumers that word a default message.
+     *
+     * @returns {string|null} The sentence, or null when the type has none.
+     */
+    getEventDescriptionTemplate() {
+      return null
+    }
   }

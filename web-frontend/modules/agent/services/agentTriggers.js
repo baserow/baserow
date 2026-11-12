@@ -2,6 +2,9 @@ export default (client) => ({
   list(agentId) {
     return client.get(`/agent/${agentId}/triggers/`)
   },
+  listTypes(agentId) {
+    return client.get(`/agent/${agentId}/trigger-types/`)
+  },
   create(agentId, values) {
     return client.post(`/agent/${agentId}/triggers/`, values)
   },

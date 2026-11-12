@@ -2,7 +2,10 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
-from baserow.contrib.agent.constants import AGENT_TRIGGER_NAME_MAX_LENGTH
+from baserow.contrib.agent.constants import (
+    AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
+    AGENT_TRIGGER_NAME_MAX_LENGTH,
+)
 from baserow.core.formula.field import FormulaField
 from baserow.core.mixins import (
     BigAutoFieldMixin,
@@ -96,6 +99,8 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         AGENT_RATE_LIMITED = "agent_rate_limited", "Agent rate limited"
         PREVIOUS_RUNNING = "previous_running", "Previous run still going"
         QUEUE_FULL = "queue_full", "Queue full"
+        NO_ACCESS = "no_access", "No access"
+        EVENT_TOO_LARGE = "event_too_large", "Event too large"
 
     agent = models.ForeignKey(
         AgentApplication, on_delete=models.CASCADE, related_name="triggers"
@@ -114,6 +119,11 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
         choices=OnOverlap.choices,
         default=OnOverlap.SKIP,
         db_default=OnOverlap.SKIP,
+    )
+    # Records of a list payload one conversation receives; other payloads ignore it.
+    batch_size = models.PositiveSmallIntegerField(
+        default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
+        db_default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
     )
     # A skip is shown while it is newer than the last accepted firing.
     last_fired_on = models.DateTimeField(null=True, blank=True)

@@ -1978,5 +1978,8 @@
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",
     "workspace": "Workspace activity"
+  },
+  "serviceType": {
+    "eventCount": "Count"
   }
 }

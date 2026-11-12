@@ -7,7 +7,11 @@ from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
 )
-from baserow.contrib.agent.constants import AGENT_TRIGGER_NAME_MAX_LENGTH
+from baserow.contrib.agent.constants import (
+    AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
+    AGENT_TRIGGER_MAX_BATCH_SIZE,
+    AGENT_TRIGGER_NAME_MAX_LENGTH,
+)
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.core.formula.serializers import FormulaSerializerField
 
@@ -16,14 +20,23 @@ MESSAGE_HELP_TEXT = (
     "conversation the trigger starts. Empty opens it with the payload itself."
 )
 SERVICE_HELP_TEXT = "The service producing the trigger's events."
-NAME_HELP_TEXT = (
-    "The trigger's name, trimmed. Blank shows a default worded by its type, such "
-    "as its schedule."
-)
 ON_OVERLAP_HELP_TEXT = (
     "What a firing does while a reply of the trigger is still going: `skip` "
     "starts nothing, `wait` queues its conversation until that reply ends, "
     "`parallel` starts it alongside, up to a cap, then queues it."
+)
+ON_OVERLAP_DEFAULT_HELP_TEXT = (
+    f"{ON_OVERLAP_HELP_TEXT} Left out, it is `skip` when a later event makes up "
+    "for a skipped one, like a schedule's next tick, and `wait` otherwise."
+)
+NAME_HELP_TEXT = (
+    "The trigger's name, trimmed. Blank shows a default worded by its type, such "
+    "as the table a row trigger watches."
+)
+BATCH_SIZE_HELP_TEXT = (
+    "How many records of a list payload, such as created rows, each "
+    "conversation receives: a larger event starts one conversation per batch. "
+    "Payloads that aren't lists ignore it."
 )
 
 
@@ -53,6 +66,7 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
             "enabled",
             "message",
             "on_overlap",
+            "batch_size",
             "service",
             "last_fired_on",
             "last_skipped_on",
@@ -62,6 +76,7 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
             "id": {"read_only": True},
             "name": {"help_text": NAME_HELP_TEXT},
             "on_overlap": {"help_text": ON_OVERLAP_HELP_TEXT},
+            "batch_size": {"help_text": BATCH_SIZE_HELP_TEXT},
             "last_fired_on": {
                 "read_only": True,
                 "help_text": "When a firing last started or queued a conversation.",
@@ -132,8 +147,14 @@ class CreateAgentTriggerSerializer(
     on_overlap = serializers.ChoiceField(
         choices=AgentTrigger.OnOverlap.choices,
         required=False,
-        default=AgentTrigger.OnOverlap.SKIP,
-        help_text=ON_OVERLAP_HELP_TEXT,
+        help_text=ON_OVERLAP_DEFAULT_HELP_TEXT,
+    )
+    batch_size = serializers.IntegerField(
+        min_value=1,
+        max_value=AGENT_TRIGGER_MAX_BATCH_SIZE,
+        required=False,
+        default=AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
+        help_text=BATCH_SIZE_HELP_TEXT,
     )
 
 
@@ -167,4 +188,30 @@ class UpdateAgentTriggerSerializer(
         choices=AgentTrigger.OnOverlap.choices,
         required=False,
         help_text=ON_OVERLAP_HELP_TEXT,
+    )
+    batch_size = serializers.IntegerField(
+        min_value=1,
+        max_value=AGENT_TRIGGER_MAX_BATCH_SIZE,
+        required=False,
+        help_text=BATCH_SIZE_HELP_TEXT,
+    )
+
+
+class AgentTriggerTypeSerializer(serializers.Serializer):
+    """A trigger type the agent may use, as the agent's run identity sees it."""
+
+    type = serializers.CharField(
+        help_text="The service type, one of the configuration's "
+        "available_trigger_types."
+    )
+    form_choices = serializers.JSONField(
+        allow_null=True,
+        help_text="What the type's form may choose from for the agent's run "
+        "identity, such as `databases` with the tables it can read, or null when "
+        "the form needs nothing.",
+    )
+    default_on_overlap = serializers.ChoiceField(
+        choices=AgentTrigger.OnOverlap.choices,
+        help_text="The overlap rule a new trigger of this type gets when none is "
+        "given.",
     )

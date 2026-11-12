@@ -10,9 +10,12 @@ from django.db.models.functions import Coalesce
 
 from baserow.contrib.agent.constants import (
     AGENT_RUN_TYPE,
+    AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
+    AGENT_TRIGGER_MAX_BATCH_SIZE,
     AGENT_TRIGGER_NAME_MAX_LENGTH,
     AGENT_TRIGGER_TYPES_ENABLED,
 )
+from baserow.contrib.agent.formula_importer import import_formula
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
@@ -21,7 +24,7 @@ from baserow.contrib.agent.models import (
     AgentTrigger,
 )
 from baserow.contrib.agent.signals import agent_conversation_activity
-from baserow.contrib.agent.types import AgentTriggerUpdated
+from baserow.contrib.agent.types import AgentTriggerTypeOptions, AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
 from baserow.core.chat_runs.constants import ChatRunErrorCode
 from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRun
@@ -38,9 +41,14 @@ from baserow.core.services.registries import (
 )
 from baserow.core.storage import ExportZipFile
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import Subject
 
-from .data_providers import AgentTriggerDispatchContext
-from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
+from .data_providers import AgentTriggerDispatchContext, rows_as_text
+from .exceptions import (
+    AgentTriggerDoesNotExist,
+    AgentTriggerNoAccess,
+    AgentTriggerTypeNotAvailable,
+)
 from .overlap import get_overlap_limits
 
 
@@ -120,6 +128,20 @@ class AgentTriggerHandler:
         if type_name not in self.available_trigger_types(agent):
             raise AgentTriggerTypeNotAvailable(type_name)
 
+    def default_on_overlap(
+        self, service_type: TriggerServiceTypeMixin
+    ) -> AgentTrigger.OnOverlap:
+        """
+        :param service_type: The service type of a trigger.
+        :return: What a new trigger of the type does while its previous reply is
+            going: skip when a later event makes up for a skipped one, like a
+            schedule's next tick, else wait, so no event is lost.
+        """
+
+        if service_type.events_can_be_skipped:
+            return AgentTrigger.OnOverlap.SKIP
+        return AgentTrigger.OnOverlap.WAIT
+
     def create_trigger(
         self,
         agent: AgentApplication,
@@ -127,7 +149,8 @@ class AgentTriggerHandler:
         prepared_service_values: dict,
         message: str | BaserowFormulaObject = "",
         enabled: bool = True,
-        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
+        on_overlap: str | None = None,
+        batch_size: int = AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         name: str = "",
     ) -> AgentTrigger:
         """
@@ -140,7 +163,9 @@ class AgentTriggerHandler:
         :param message: The message formula resolved against the trigger payload.
         :param enabled: Whether firing starts a conversation.
         :param on_overlap: What a firing does while a reply of the trigger is still
-            going, one of ``AgentTrigger.OnOverlap``.
+            going, one of ``AgentTrigger.OnOverlap``, or None for the type's default.
+        :param batch_size: How many records of a list payload one conversation
+            receives.
         :param name: The trigger's name, or blank for the type's default.
         :raises AgentTriggerTypeNotAvailable: When the type isn't available.
         :return: The created trigger, with its specific service.
@@ -155,7 +180,8 @@ class AgentTriggerHandler:
             name=name,
             message=message,
             enabled=enabled,
-            on_overlap=on_overlap,
+            on_overlap=on_overlap or self.default_on_overlap(service_type),
+            batch_size=batch_size,
         )
         self.arm(trigger)
         return trigger
@@ -167,6 +193,7 @@ class AgentTriggerHandler:
         message: str | BaserowFormulaObject | None = None,
         prepared_service_values: dict | None = None,
         on_overlap: str | None = None,
+        batch_size: int | None = None,
         name: str | None = None,
         service_type: TriggerServiceTypeMixin | None = None,
     ) -> AgentTriggerUpdated:
@@ -187,6 +214,7 @@ class AgentTriggerHandler:
             through ``prepare_values`` of the type the service ends up with, or
             None to leave the service as it is.
         :param on_overlap: The new overlap rule, or None to keep it.
+        :param batch_size: The new batch size, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
         :param service_type: The service type the trigger should have, or None to
@@ -194,8 +222,8 @@ class AgentTriggerHandler:
         :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
             type that isn't available.
         :return: The updated trigger and the names of the parts that changed:
-            ``name``, ``enabled``, ``message``, ``on_overlap``, ``type`` and
-            ``service``.
+            ``name``, ``enabled``, ``message``, ``on_overlap``, ``batch_size``,
+            ``type`` and ``service``.
         """
 
         replaced_service = None
@@ -225,6 +253,9 @@ class AgentTriggerHandler:
         if on_overlap is not None and on_overlap != trigger.on_overlap:
             trigger.on_overlap = on_overlap
             changed_fields.append("on_overlap")
+        if batch_size is not None and batch_size != trigger.batch_size:
+            trigger.batch_size = batch_size
+            changed_fields.append("batch_size")
         saved_fields = [*changed_fields]
         if replaced_service is not None:
             trigger.last_skipped_on, trigger.last_skipped_reason = None, ""
@@ -307,15 +338,84 @@ class AgentTriggerHandler:
         self.check_type_available(trigger.agent, service_type.type)
         service_type.arm(service)
 
-    def payload_as_message(self, event_payload: dict[str, Any]) -> str:
+    def can_identity_read(
+        self, trigger: AgentTrigger, identity: Subject | None
+    ) -> bool:
         """
-        :param event_payload: The payload the trigger's service produced.
-        :return: The payload as a fenced JSON block, which opens the conversation
-            when the trigger's message has no text of its own.
+        :param trigger: The trigger, with its agent and service.
+        :param identity: The agent's run identity, or None when it has none it can
+            act as.
+        :return: Whether the identity may read what the trigger's events carry; a
+            type whose events carry no workspace data needs no identity.
         """
 
-        payload = json.dumps(event_payload, default=str, indent=2)
-        return f"Trigger data:\n```json\n{payload}\n```"[:AGENT_TEXT_MAX_LENGTH]
+        service = trigger.service.specific
+        return service.get_type().can_subject_read(
+            service, identity, trigger.agent.workspace
+        )
+
+    def check_identity_can_read(
+        self, trigger: AgentTrigger, identity: Subject | None
+    ) -> None:
+        """
+        :param trigger: The trigger, with its agent and service.
+        :param identity: The agent's run identity, or None when it has none it can
+            act as.
+        :raises AgentTriggerNoAccess: When the identity may not read what the
+            trigger's events carry.
+        """
+
+        if not self.can_identity_read(trigger, identity):
+            raise AgentTriggerNoAccess()
+
+    def list_trigger_types(
+        self, agent: AgentApplication, identity: Subject | None
+    ) -> list[AgentTriggerTypeOptions]:
+        """
+        Describe each trigger type the agent may use: what its form may choose
+        from for the agent's run identity, and the overlap rule a new trigger of
+        it gets.
+
+        :param agent: The agent, with its workspace.
+        :param identity: The agent's run identity, or None when it has none it can
+            act as.
+        :return: One entry per available type, in registry order.
+        """
+
+        options = []
+        for type_name in self.available_trigger_types(agent):
+            service_type = service_type_registry.get(type_name)
+            options.append(
+                AgentTriggerTypeOptions(
+                    type=type_name,
+                    form_choices=service_type.get_form_choices(
+                        identity, agent.workspace
+                    ),
+                    default_on_overlap=self.default_on_overlap(service_type),
+                )
+            )
+        return options
+
+    def payload_as_message(
+        self, trigger: AgentTrigger, event_payload: dict[str, Any]
+    ) -> str:
+        """
+        :param trigger: The trigger that fired, with its service.
+        :param event_payload: The payload its service produced, or one batch of a
+            list payload.
+        :return: The payload as fenced JSON, which opens the conversation when the
+            trigger's message has no text of its own: a list payload as its event
+            values, then its rows as `trigger.rows` reads them.
+        """
+
+        service = trigger.service.specific
+        service_type = service.get_type()
+        data, rows = event_payload, ""
+        if service_type.returns_list(service):
+            data = service_type.get_event_context(service, event_payload)
+            rows = rows_as_text(service, event_payload)
+        payload = json.dumps(data, default=str, indent=2)
+        return f"Trigger data:\n```json\n{payload}\n```{rows}"[:AGENT_TEXT_MAX_LENGTH]
 
     def resolve_message(
         self,
@@ -343,7 +443,7 @@ class AgentTriggerHandler:
             )
         )
         if not content.strip():
-            return self.payload_as_message(event_payload)
+            return self.payload_as_message(trigger, event_payload)
         return content[:AGENT_TEXT_MAX_LENGTH]
 
     def get_startable_triggers(self) -> QuerySet[AgentTrigger]:
@@ -576,6 +676,7 @@ class AgentTriggerHandler:
                 "enabled": trigger.enabled,
                 "message": trigger.message,
                 "on_overlap": trigger.on_overlap,
+                "batch_size": trigger.batch_size,
                 "service": service_handler.export_service(
                     trigger.service.specific,
                     import_export_config=import_export_config,
@@ -601,7 +702,9 @@ class AgentTriggerHandler:
         Copy triggers into the agent, each switched off: a copy that fired on its
         own would run and bill without anyone asking for it, and a snapshot
         restore can't be told apart from a duplicate. A missing or unknown overlap
-        rule skips, and a missing name gets the type's default.
+        rule gets the type's default, a missing or invalid batch size 20 and a
+        missing name the type's default. The message follows the imported ids,
+        such as the fields of a row trigger's table.
 
         :param agent: The agent the triggers are copied into.
         :param serialized_triggers: The triggers from ``export_triggers``.
@@ -618,7 +721,6 @@ class AgentTriggerHandler:
         service_handler = ServiceHandler()
         triggers = []
         for serialized in serialized_triggers:
-            on_overlap = serialized.get("on_overlap")
             service = service_handler.import_service(
                 None,
                 serialized["service"],
@@ -628,6 +730,15 @@ class AgentTriggerHandler:
                 cache=cache,
                 import_export_config=import_export_config,
             )
+            on_overlap = serialized.get("on_overlap")
+            if on_overlap not in AgentTrigger.OnOverlap.values:
+                on_overlap = self.default_on_overlap(service.get_type())
+            batch_size = serialized.get("batch_size")
+            if (
+                not isinstance(batch_size, int)
+                or not 1 <= batch_size <= AGENT_TRIGGER_MAX_BATCH_SIZE
+            ):
+                batch_size = AGENT_TRIGGER_DEFAULT_BATCH_SIZE
             name = serialized.get("name")
             trigger = AgentTrigger.objects.create(
                 agent=agent,
@@ -636,12 +747,13 @@ class AgentTriggerHandler:
                 if isinstance(name, str)
                 else "",
                 enabled=False,
-                message=serialized.get("message") or "",
-                on_overlap=(
-                    on_overlap
-                    if on_overlap in AgentTrigger.OnOverlap.values
-                    else AgentTrigger.OnOverlap.SKIP
+                message=import_formula(
+                    serialized.get("message") or "",
+                    id_mapping,
+                    service=service.specific,
                 ),
+                on_overlap=on_overlap,
+                batch_size=batch_size,
             )
             trigger_ids[serialized["id"]] = trigger.id
             triggers.append(trigger)

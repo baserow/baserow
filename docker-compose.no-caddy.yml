@@ -298,6 +298,8 @@ x-backend-variables:
   BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS:
   BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS:
   BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS:
+  # How many conversations one Agent trigger event, such as a bulk row change, may start.
+  BASEROW_AGENT_TRIGGER_MAX_BATCHES_PER_EVENT:
   # Deprecated model selection; choose Kuma under Admin tools > AI providers > AI features.
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:

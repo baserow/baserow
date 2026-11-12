@@ -38,6 +38,7 @@ from baserow.core.registry import (
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.types import DispatchResult, FormulaToResolve
 from baserow.core.services.utils import sanitize_sample_data
+from baserow.core.types import Subject
 from baserow.core.utils import get_value_at_path
 
 from .exceptions import (
@@ -913,6 +914,8 @@ class ListServiceTypeMixin:
 class TriggerServiceTypeMixin(ABC):
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
+    # Nothing is dropped unless a type says a later event makes up for a skipped one.
+    events_can_be_skipped = False
 
     @property
     def listeners(self) -> List[Callable]:
@@ -949,6 +952,77 @@ class TriggerServiceTypeMixin(ABC):
         """
 
         return None
+
+    def can_subject_read(
+        self, service: Service, subject: Subject | None, workspace: Workspace
+    ) -> bool:
+        """
+        Whether a subject may read what the service's events carry, for consumers
+        that receive them on its behalf. The default suits events that carry no
+        workspace data, like a schedule's tick.
+
+        :param service: The specific trigger service.
+        :param subject: The subject the consumer acts as, or None for none.
+        :param workspace: The workspace the consumer acts in.
+        :return: Whether the subject may receive the service's events.
+        """
+
+        return True
+
+    def get_form_choices(
+        self, subject: Subject | None, workspace: Workspace
+    ) -> dict | None:
+        """
+        What the service's form may choose from when a consumer configures it for
+        a subject, such as the tables the subject can read.
+
+        :param subject: The subject the consumer acts as, or None for none.
+        :param workspace: The workspace the consumer acts in.
+        :return: The form's props by name, or None when it needs nothing.
+        """
+
+        return None
+
+    def split_event_payload(
+        self, service: Service, event_payload: dict[str, Any], size: int
+    ) -> list[dict[str, Any]]:
+        """
+        Split one event's payload into payloads of at most ``size`` records, for
+        consumers that handle a list event in parts. A payload that isn't a list
+        stays whole, and the given payload is never changed, so every listener
+        still receives the event as it happened.
+
+        :param service: The specific trigger service the event fired.
+        :param event_payload: The payload the service produced for the event.
+        :param size: The most records one part holds, raised to 1 when smaller.
+        :return: The parts in order, or the payload alone when it isn't a list or
+            holds no record.
+        """
+
+        if not self.returns_list(service):
+            return [event_payload]
+        records = event_payload["results"]
+        size = max(size, 1)
+        return [
+            {**event_payload, "results": records[start : start + size]}
+            for start in range(0, len(records), size)
+        ] or [event_payload]
+
+    def get_event_context(
+        self, service: Service, event_payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        The values that describe one event next to its payload, for consumers
+        that show them with it: how many records a list payload holds.
+
+        :param service: The specific trigger service the event fired.
+        :param event_payload: The payload, or one part of it.
+        :return: The values by name: ``count`` for a list payload, none otherwise.
+        """
+
+        if not self.returns_list(service):
+            return {}
+        return {"count": len(event_payload["results"])}
 
     def dispatch_data(
         self,

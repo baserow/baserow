@@ -13,3 +13,8 @@ ERROR_TRIGGER_SERVICE_MISCONFIGURED = (
     400,
     "{e}",
 )
+ERROR_AGENT_TRIGGER_NO_ACCESS = (
+    "ERROR_AGENT_TRIGGER_NO_ACCESS",
+    400,
+    "The agent's workspace access can't read what this trigger watches.",
+)

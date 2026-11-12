@@ -331,6 +331,7 @@
     "addTrigger": "Add trigger",
     "noTriggers": "Without a trigger the agent only runs when you chat with it.",
     "triggersLoadError": "The triggers could not be loaded.",
+    "triggerTypesLoadError": "The tables and other choices of the triggers could not be loaded.",
     "searchTriggerTypes": "Search triggers",
     "noTriggerTypes": "No triggers found",
     "triggerEnabled": "Trigger enabled",
@@ -341,6 +342,12 @@
     "triggerMisconfigured": "These settings can’t be saved. Check the values above.",
     "triggerData": "Trigger",
     "triggerFiredAt": "Fired at",
+    "triggerRows": "Rows",
+    "triggerBatchSize": "Rows per conversation",
+    "triggerBatchSizeHelper": "Bigger changes start one conversation per group; each counts as a run.",
+    "triggerBatchSizeInvalid": "Enter a whole number from 1 to {max}.",
+    "triggerNeedsWorkspaceAccess": "Set the agent’s workspace access to choose what this trigger reads.",
+    "triggerNoAccess": "The agent’s workspace access can’t read what this trigger watches.",
     "triggerDataProvides": "Data it provides",
     "triggerDataValues": "{count} value | {count} values",
     "deleteTrigger": "Delete trigger",
@@ -404,7 +411,9 @@
     "actionLimitReached": "This agent has reached its action limit ({limit}).",
     "toolSendEmail": "Send email",
     "toolSendEmailRunning": "Sending email…",
-    "toolSendEmailDone": "Email sent"
+    "toolSendEmailDone": "Email sent",
+    "triggerSkippedNoAccess": "Skipped at {time}: the agent can’t read what this trigger watches.",
+    "triggerSkippedEventTooLarge": "Skipped at {time}: too much changed at once."
   },
   "trashType": {
     "agent_conversation": "conversation",
