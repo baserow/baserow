@@ -159,13 +159,15 @@ if it does not exist.
 - **Making private** withdraws the listing; the private link keeps working.
 - **Block** is instance admin moderation, in any state, with a reason. The author can
   view and delete a blocked template and change its details or content, but can't make
-  it public or private. An admin can't approve or reject it while it's blocked.
-  **Unblock** is a separate instance admin action that leaves the template private: not
-  listed, any review withdrawn, the private link working again. The author makes it
-  public again through review when the instance requires approval or the template was
-  rejected since its last approval, which then keeps content an admin judged harmful
-  from being listed again without a review; otherwise it is listed at once. Unlike
-  reject, block also suspends the private link.
+  it public or private. An admin can't approve or reject it while it's blocked. The
+  author's edit is the signal that the template was fixed: admins see which blocked
+  templates changed since they were blocked, and blocking again (changing the reason)
+  resets that point. **Unblock** is a separate instance admin action that restores the
+  state the template had before the block, on the latest revision the admin saw. A
+  template listed when it was blocked gets that latest revision listed, approved by that
+  admin, unless an admin rejected it: then the listing and the rejection stay as they
+  were. A pending revision is approved when the instance does not require approval and
+  no rejection is open. Unlike reject, block also suspends the private link.
 - **Abuse reports** use the existing abuse report flow.
 
 ### 6. Install and download

@@ -597,18 +597,23 @@ class BlockUserTemplateAdminActionType(ActionType):
         reason: str
 
     @classmethod
-    def do(cls, user: AbstractUser, template_id: int, reason: str) -> Template:
+    def do(
+        cls, user: AbstractUser, template_id: int, revision_id: int, reason: str
+    ) -> Template:
         """
         Blocks the template. Not undoable.
 
         :param user: The instance admin blocking the template.
         :param template_id: The id of the template, which is its root.
+        :param revision_id: The id of the revision the admin saw.
         :param reason: Why the template is blocked.
         :return: The latest revision of the template.
         """
 
         with transaction.atomic():
-            revision = UserTemplateHandler().block_template(user, template_id, reason)
+            revision = UserTemplateHandler().block_template(
+                user, template_id, revision_id, reason
+            )
             params = cls.Params(
                 template_id=template_id,
                 template_name=revision.name,
@@ -628,39 +633,104 @@ class UnblockUserTemplateAdminActionType(ActionType):
     type = "admin_unblock_user_template"
     description = ActionTypeDescription(
         _("Admin unblocked template"),
-        _('Template "%(template_name)s" (%(template_id)s) unblocked and made private'),
+        _('Template "%(template_name)s" (%(template_id)s) unblocked'),
     )
-    analytics_params = ["template_id", "owner_id"]
+    state_descriptions = {
+        UserTemplateState.PRIVATE: ActionTypeDescription(
+            long=_(
+                'Template "%(template_name)s" (%(template_id)s) unblocked, now private'
+            ),
+        ),
+        UserTemplateState.REJECTED: ActionTypeDescription(
+            long=_(
+                'Template "%(template_name)s" (%(template_id)s) unblocked, now rejected'
+            ),
+        ),
+        UserTemplateState.IN_REVIEW: ActionTypeDescription(
+            long=_(
+                'Template "%(template_name)s" (%(template_id)s) unblocked, now in '
+                "review"
+            ),
+        ),
+        UserTemplateState.PUBLIC: ActionTypeDescription(
+            long=_(
+                'Template "%(template_name)s" (%(template_id)s) unblocked, now listed'
+            ),
+        ),
+    }
+    listed_state_descriptions = {
+        UserTemplateState.REJECTED: ActionTypeDescription(
+            long=_(
+                'Template "%(template_name)s" (%(template_id)s) unblocked, listed, '
+                "its edit now rejected"
+            ),
+        ),
+        UserTemplateState.IN_REVIEW: ActionTypeDescription(
+            long=_(
+                'Template "%(template_name)s" (%(template_id)s) unblocked, listed, '
+                "its edit now in review"
+            ),
+        ),
+    }
+    listed_description = ActionTypeDescription(
+        long=_(
+            'Template "%(template_name)s" (%(template_id)s) unblocked and listed '
+            "with revision %(listed_revision_id)s"
+        ),
+    )
+    analytics_params = ["template_id", "owner_id", "state"]
 
     @dataclasses.dataclass
     class Params:
         template_id: int
         template_name: str
         owner_id: Optional[int]
+        state: str
+        listed_revision_id: Optional[int]
+        listed: bool
 
     @classmethod
-    def do(cls, user: AbstractUser, template_id: int) -> Template:
+    def do(cls, user: AbstractUser, template_id: int, revision_id: int) -> Template:
         """
-        Unblocks the template. Not undoable.
+        Unblocks the template, which returns to the state it had before the block,
+        see `UserTemplateHandler.unblock_template`. Nothing is recorded when it
+        wasn't blocked. Not undoable.
 
         :param user: The instance admin unblocking the template.
         :param template_id: The id of the template, which is its root.
+        :param revision_id: The id of the revision the admin saw.
         :return: The latest revision of the template.
         """
 
         with transaction.atomic():
-            revision, unblocked = UserTemplateHandler().unblock_template(
-                user, template_id
+            revision, outcome = UserTemplateHandler().unblock_template(
+                user, template_id, revision_id
             )
-            if unblocked:
+            if outcome is not None:
                 params = cls.Params(
                     template_id=template_id,
                     template_name=revision.name,
                     owner_id=revision.get_root().owner_id,
+                    state=outcome.state,
+                    listed_revision_id=outcome.listed_revision_id,
+                    listed=outcome.listed,
                 )
                 cls.register_action(user, params, cls.scope())
 
         return revision
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        # Older entries carry no `state` or `listed`.
+        if params_dict.get("listed_revision_id") is not None:
+            return render_action_type_description(cls.listed_description, params_dict)
+        descriptions = cls.state_descriptions
+        if params_dict.get("listed"):
+            descriptions = {**descriptions, **cls.listed_state_descriptions}
+        description = descriptions.get(params_dict.get("state"))
+        if description is not None:
+            return render_action_type_description(description, params_dict)
+        return super().get_long_description(params_dict, *args, **kwargs)
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

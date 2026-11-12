@@ -718,7 +718,9 @@
     "inReviewTitle": "This template is in review",
     "inReviewText": "Saving replaces the version in review, so an admin reviews your changes instead.",
     "rejectedTitle": "Saving doesn’t send this template back to review",
-    "rejectedText": "It stays rejected. Make it public once your changes are ready."
+    "rejectedText": "It stays rejected. Make it public once your changes are ready.",
+    "blockedTitle": "An admin will be notified of your changes",
+    "blockedText": "This template is blocked, so only an admin can put it back."
   },
   "deleteUserTemplateModal": {
     "title": "Are you sure you want to delete “{name}”?",
@@ -1625,6 +1627,7 @@
     "approveAfterAll": "Approve after all",
     "block": "Block",
     "unblock": "Unblock",
+    "updatedSinceBlocked": "Updated since blocked",
     "delete": "Delete",
     "deletedAuthor": "A deleted user",
     "review": "Review",

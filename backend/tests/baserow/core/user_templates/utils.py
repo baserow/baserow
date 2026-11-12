@@ -224,6 +224,29 @@ def recorded_actions():
         yield actions
 
 
+@contextmanager
+def template_row_writes():
+    """Yields a dict filled, on exit, with how often each template row was updated."""
+
+    writes = {}
+    with connection.cursor() as cursor:
+        cursor.execute("CREATE TEMP TABLE template_writes (id int)")
+        cursor.execute(
+            "CREATE FUNCTION pg_temp.log_template_write() RETURNS trigger AS $$ "
+            "BEGIN INSERT INTO template_writes VALUES (NEW.id); RETURN NEW; END $$ "
+            "LANGUAGE plpgsql"
+        )
+        cursor.execute(
+            "CREATE TRIGGER log_template_write AFTER UPDATE ON core_template "
+            "FOR EACH ROW EXECUTE FUNCTION pg_temp.log_template_write()"
+        )
+    yield writes
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT id, count(*) FROM template_writes GROUP BY id")
+        writes.update(cursor.fetchall())
+        cursor.execute("DROP TRIGGER log_template_write ON core_template")
+
+
 def make_public(user, template):
     """Makes the template public, with the consent of its author."""
 
