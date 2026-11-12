@@ -30,6 +30,8 @@ from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
+from baserow.core.models import User
+from baserow.core.user.identity import active_identity_q
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -607,9 +609,19 @@ class CollaboratorRequestSerializer(serializers.ListSerializer):
     child = CollaboratorField()
 
 
+class AvailableCollaboratorSerializer(CollaboratorSerializer):
+    user_type = serializers.CharField(read_only=True)
+
+
 class AvailableCollaboratorsSerializer(serializers.ListField):
-    def __init__(self, **kwargs):
-        kwargs["child"] = CollaboratorSerializer()
+    def __init__(self, include_identities_source: str | None = None, **kwargs):
+        """
+        :param include_identities_source: The name of the field attribute that
+            tells whether identities are collaborators too. Humans only when None.
+        """
+
+        self.include_identities_source = include_identities_source
+        kwargs["child"] = AvailableCollaboratorSerializer()
         kwargs["read_only"] = True
         kwargs["source"] = "*"
         kwargs["help_text"] = "A list of all the available collaborators."
@@ -627,11 +639,26 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
             workspace.available_collaborators = workspace.users.order_by("first_name")
-
-        return [
-            CollaboratorSerializer(user).data
+        collaborators = [
+            {"id": user.id, "name": user.first_name, "user_type": "human"}
             for user in workspace.available_collaborators
         ]
+
+        if self.include_identities_source and getattr(
+            instance, self.include_identities_source
+        ):
+            if not hasattr(workspace, "available_identities"):
+                workspace.available_identities = list(
+                    User.objects_and_identities.filter(
+                        active_identity_q(), workspaceuser__workspace=workspace
+                    ).order_by("first_name")
+                )
+            collaborators += [
+                {"id": user.id, "name": user.first_name, "user_type": "identity"}
+                for user in workspace.available_identities
+            ]
+
+        return collaborators
 
 
 class DuplicateFieldParamsSerializer(serializers.Serializer):

@@ -19,11 +19,25 @@ export function getCollaboratorName(collaboratorValue, store) {
   }
 
   // Otherwise, get name from the store to reflect real-time updates
-  const user = store.getters['workspace/getUserById'](collaboratorValue.id)
+  const user = store.getters['workspace/getCollaboratorById'](
+    collaboratorValue.id
+  )
   if (user) {
     return user.name
   }
 
   // Fallback if for some reason the user is missing from the store
   return collaboratorValue.name
+}
+
+/**
+ * Returns the collaborators that can be picked: identities only when the field,
+ * or the place they are picked in, includes them.
+ */
+export function getSelectableCollaborators(collaborators, includeIdentities) {
+  return includeIdentities
+    ? collaborators
+    : collaborators.filter(
+        (collaborator) => collaborator.user_type !== 'identity'
+      )
 }

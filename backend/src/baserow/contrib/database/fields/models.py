@@ -371,6 +371,11 @@ class LongTextField(Field):
     long_text_enable_rich_text = models.BooleanField(
         default=False, null=True, help_text="Enable rich text formatting for the field."
     )  # TODO: Remove null=True in a future release.
+    long_text_include_identities = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Indicates if the identities of the workspace can be mentioned.",
+    )
 
 
 class URLField(Field):
@@ -955,6 +960,11 @@ class MultipleCollaboratorsField(Field):
             "Indicates if the user should be notified when they are added as a "
             "collaborator."
         ),
+    )
+    include_identities = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Indicates if the identities of the workspace can be assigned.",
     )
     multiple_collaborators_default = ArrayField(
         models.PositiveBigIntegerField(),

@@ -35,6 +35,7 @@ import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEdit
 import UserFileService from '@baserow/modules/core/services/userFile'
 import { stripImageUrls } from '@baserow/modules/core/editor/richTextImageUtils'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
+import { getSelectableCollaborators } from '@baserow/modules/core/utils/collaborator'
 import rowEditFieldInput from '@baserow/modules/database/mixins/rowEditFieldInput'
 import { getRichTextClipboardContent } from '@baserow/modules/database/utils/clipboard'
 
@@ -67,7 +68,14 @@ export default {
       return this.$store.getters['workspace/get'](this.workspaceId)
     },
     mentionableUsers() {
-      return this.enableMentions && this.workspace ? this.workspace.users : null
+      return this.enableMentions && this.workspace
+        ? getSelectableCollaborators(
+            this.$store.getters['workspace/getCollaborators'](
+              this.workspace.id
+            ),
+            this.field.long_text_include_identities
+          )
+        : null
     },
   },
   watch: {

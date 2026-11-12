@@ -861,6 +861,19 @@ export class RealTimeHandler {
       })
     })
 
+    this.registerEvent('workspace_identity_updated', ({ store }, data) => {
+      store.commit('workspace/UPSERT_WORKSPACE_IDENTITY', {
+        workspaceId: data.workspace_id,
+        identity: data.identity,
+      })
+    })
+    this.registerEvent('workspace_identity_deleted', ({ store }, data) => {
+      store.commit('workspace/DELETE_WORKSPACE_IDENTITY', {
+        workspaceId: data.workspace_id,
+        identityId: data.identity_id,
+      })
+    })
+
     this.registerEvent('identity_created', ({ store }, data) => {
       store.dispatch('identity/forceCreate', data.identity)
     })
