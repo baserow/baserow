@@ -9,6 +9,8 @@ from baserow.contrib.agent.triggers.data_providers import (
     AgentTriggerDispatchContext,
     TriggerDataProviderType,
 )
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 
@@ -55,6 +57,24 @@ def test_dispatch_context_exposes_the_payload_as_trigger(periodic_trigger):
     assert context.workspace == trigger.agent.workspace
     assert (context.clone().trigger, context.clone().fired_at) == (trigger, FIRED_AT)
     assert payload == {**PAYLOAD, "fired_at": "from the service"}
+
+
+@pytest.mark.django_db
+def test_formula_dates_use_the_timezone_fired_at_is_shown_in(data_fixture):
+    service = data_fixture.create_core_periodic_service(timezone="Pacific/Auckland")
+    trigger = data_fixture.create_agent_trigger(service=service)
+    payload = {"triggered_at": "2026-01-02T09:30:00+13:00"}
+    fired_at = datetime(2026, 1, 1, 20, 30, tzinfo=timezone.utc)
+    context = AgentTriggerDispatchContext(trigger, payload, fired_at)
+    formula = BaserowFormulaObject.create(
+        "datetime_format(get('trigger.triggered_at'), 'YYYY-MM-DD')"
+    )
+
+    assert context["trigger.fired_at"] == "2026-01-02 09:30 (Pacific/Auckland)"
+    assert (
+        resolve_formula(formula, formula_runtime_function_registry, context)
+        == "2026-01-02"
+    )
 
 
 @pytest.mark.django_db

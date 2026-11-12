@@ -144,7 +144,7 @@ def test_trigger_writes_need_the_feature_flag(
 
 
 @pytest.mark.django_db
-def test_list_triggers_serializes_type_message_service_and_schema(
+def test_list_triggers_serializes_type_message_and_service(
     data_fixture, periodic_trigger, api_client, api_user
 ):
     agent = data_fixture.create_agent_application(user=api_user)
@@ -165,7 +165,10 @@ def test_list_triggers_serializes_type_message_service_and_schema(
         item["service"]["interval"],
         item["service"]["hour"],
     ) == ("periodic", "DAY", 9)
-    assert list(item["schema"]["properties"]) == ["triggered_at", "next_run_at"]
+    assert list(item["service"]["schema"]["properties"]) == [
+        "triggered_at",
+        "next_run_at",
+    ]
 
 
 @pytest.mark.django_db
@@ -542,6 +545,6 @@ def test_a_trigger_saves_its_trimmed_name_and_names_its_trash_entry(
         )
 
     assert list(TrashEntry.objects.order_by("id").values_list("name", flat=True)) == [
-        "periodic",
+        "",
         "Digest",
     ]

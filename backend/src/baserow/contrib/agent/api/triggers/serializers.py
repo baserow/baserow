@@ -23,7 +23,7 @@ NAME_HELP_TEXT = (
 
 
 class AgentTriggerSerializer(serializers.ModelSerializer):
-    """A trigger with its service, its message and the payload schema it provides."""
+    """A trigger with its service, whose schema describes its payload, and message."""
 
     type = serializers.SerializerMethodField(
         help_text="The service type of the trigger."
@@ -31,14 +31,10 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
     # A ModelSerializer would render the TextField-based formula as a plain string.
     message = FormulaSerializerField(help_text=MESSAGE_HELP_TEXT)
     service = PolymorphicServiceSerializer(help_text=SERVICE_HELP_TEXT)
-    schema = serializers.SerializerMethodField(
-        help_text="The JSON schema of the payload one event provides to the "
-        "message, or null while the service can't tell yet."
-    )
 
     class Meta:
         model = AgentTrigger
-        fields = ("id", "type", "name", "enabled", "message", "service", "schema")
+        fields = ("id", "type", "name", "enabled", "message", "service")
         extra_kwargs = {
             "id": {"read_only": True},
             "name": {"help_text": NAME_HELP_TEXT},
@@ -54,18 +50,6 @@ class AgentTriggerSerializer(serializers.ModelSerializer):
         """
 
         return instance.service.get_type().type
-
-    @extend_schema_field(OpenApiTypes.OBJECT)
-    def get_schema(self, instance: AgentTrigger) -> dict | None:
-        """
-        Describe the payload one event provides to the message formula.
-
-        :param instance: The trigger being serialized.
-        :return: The service type's JSON schema, or None while it can't tell yet.
-        """
-
-        service = instance.service.specific
-        return service.get_type().generate_schema(service)
 
 
 class TriggerServiceFieldMixin:

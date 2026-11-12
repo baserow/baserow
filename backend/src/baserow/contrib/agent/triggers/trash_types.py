@@ -25,10 +25,11 @@ class AgentTriggerTrashableItemType(TrashableItemType):
     def get_name(self, trashed_item: AgentTrigger) -> str:
         """
         :param trashed_item: The trashed trigger.
-        :return: The trigger's name, or its service type name when it has none.
+        :return: The trigger's name, blank when it has none, which the trash shows
+            as an unnamed trigger.
         """
 
-        return trashed_item.name or trashed_item.service.get_type().type
+        return trashed_item.name
 
     def trash(
         self,

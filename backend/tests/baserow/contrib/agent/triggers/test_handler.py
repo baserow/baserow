@@ -103,7 +103,7 @@ def test_trashing_a_trigger_hides_its_service_until_it_is_restored(
     assert (entry.trash_item_type, entry.application_id, entry.name) == (
         AgentTriggerTrashableItemType.type,
         agent.id,
-        "periodic",
+        "",
     )
     assert AgentTrigger.trash.filter(id=trigger.id).exists()
     assert not CorePeriodicService.objects.filter(id=trigger.service_id).exists()

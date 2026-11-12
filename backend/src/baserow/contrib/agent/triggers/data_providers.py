@@ -65,13 +65,21 @@ class AgentTriggerDispatchContext(DispatchContext):
 
         return self.trigger.service.specific
 
+    def get_timezone_name(self) -> str:
+        """
+        :return: The timezone the trigger runs in, which formula functions given no
+            timezone use, so their dates match Fired at.
+        """
+
+        return trigger_timezone_name(self.service)
+
     def get_fired_at_display(self) -> str:
         """
         :return: When the trigger fired, as `YYYY-MM-DD HH:mm (Zone/Name)` in the
             timezone its service runs in, or in UTC when the type has none.
         """
 
-        zone_name = trigger_timezone_name(self.service)
+        zone_name = self.get_timezone_name()
         local = self.fired_at.astimezone(ZoneInfo(zone_name))
         return f"{local.strftime(FIRED_AT_FORMAT)} ({zone_name})"
 
