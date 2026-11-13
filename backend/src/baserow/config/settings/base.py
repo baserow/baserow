@@ -273,6 +273,11 @@ CELERY_RESULT_EXPIRES = int(
 # channels-redis blocks for five seconds while waiting for messages. Leave headroom
 # above that wait so redis-py's socket deadline does not close idle WebSockets.
 CHANNELS_REDIS_SOCKET_TIMEOUT = 10
+# Whether large realtime messages are compressed before they are written to Redis.
+# Only turn this on once every backend process runs a version that can read them.
+REALTIME_COMPRESSION_ENABLED = str_to_bool(
+    os.getenv("BASEROW_REALTIME_COMPRESSION_ENABLED", "false")
+)
 CHANNEL_LAYERS = {
     "default": {
         # Retries what is safe to retry and detects pooled connections Redis
@@ -285,6 +290,7 @@ CHANNEL_LAYERS = {
                     "socket_timeout": CHANNELS_REDIS_SOCKET_TIMEOUT,
                 }
             ],
+            "serializer_format": "compressed_msgpack",
         },
     },
 }
