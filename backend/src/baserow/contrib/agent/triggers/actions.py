@@ -100,7 +100,10 @@ class CreateAgentTriggerActionType(ActionType):
 
 
 class UpdateAgentTriggerActionType(ActionType):
-    """Changes a trigger's switch, message, overlap rule or service; not undoable."""
+    """
+    Changes a trigger's name, switch, message, overlap rule, type or service; not
+    undoable.
+    """
 
     type = "update_agent_trigger"
     description = ActionTypeDescription(
