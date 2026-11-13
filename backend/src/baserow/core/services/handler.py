@@ -230,7 +230,10 @@ class ServiceHandler:
         service.delete()
 
     def _check_service_integration(
-        self, service: Service, application_id: Optional[int] = None
+        self,
+        service: Service,
+        application_id: Optional[int] = None,
+        integration: Optional[Integration] = None,
     ):
         """
         Checks that the service can read through its integration before it's used.
@@ -238,20 +241,26 @@ class ServiceHandler:
         :param service: The service about to be used.
         :param application_id: When given, the service's integration must belong
             to this application.
+        :param integration: The service's integration, when the caller already
+            loaded it. It's fetched otherwise, so that a dispatch never trusts a
+            stale one.
         :raises ServiceImproperlyConfiguredDispatchException: When the integration
             is trashed, belongs to another application, or is required but missing.
         """
 
         if service.integration_id is not None:
-            try:
-                integration = IntegrationHandler().get_integration(
-                    service.integration_id, specific=False
-                )
-            except IntegrationDoesNotExist:
-                # The referenced integration has been trashed (soft-deleted). A
-                # trashed integration must never be dispatched - e.g. a deleted SMTP
-                # integration would otherwise still send emails - so treat the
-                # service as misconfigured.
+            if integration is None:
+                try:
+                    integration = IntegrationHandler().get_integration(
+                        service.integration_id, specific=False
+                    )
+                except IntegrationDoesNotExist:
+                    integration = None
+            # The referenced integration has been trashed (soft-deleted). A
+            # trashed integration must never be dispatched - e.g. a deleted SMTP
+            # integration would otherwise still send emails - so treat the
+            # service as misconfigured.
+            if integration is None or integration.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration used by this service has been trashed."
                 )
@@ -286,7 +295,11 @@ class ServiceHandler:
 
         errors = service.get_type().get_configuration_errors(service)
         try:
-            self._check_service_integration(service, application_id)
+            self._check_service_integration(
+                service,
+                application_id,
+                integration=service.integration if service.integration_id else None,
+            )
         except ServiceImproperlyConfiguredDispatchException:
             errors["integration_id"] = (
                 "unavailable" if service.integration_id else "required"

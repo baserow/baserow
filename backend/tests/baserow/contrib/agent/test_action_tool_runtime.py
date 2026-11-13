@@ -109,11 +109,13 @@ def test_only_configured_enabled_actions_are_available(email_action):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("mutation", ["rename", "edit_service", "edit_inputs"])
+@pytest.mark.parametrize(
+    "mutation", ["rename", "edit_service", "edit_inputs", "edit_integration"]
+)
 def test_an_approved_email_does_not_send_when_its_action_changed(
     email_action, mocker, mailoutbox, mutation
 ):
-    user, agent, action, _, connection = email_action
+    user, agent, action, integration, connection = email_action
     action.ask_first = True
     action.save()
     received = respond(mocker, ({0: email_call(action.name)},))
@@ -130,8 +132,12 @@ def test_an_approved_email_does_not_send_when_its_action_changed(
                 *action.inputs[1:],
             ]
         },
-    }[mutation]
-    AgentActionService().update_action(user, agent.id, action.id, **changes)
+    }.get(mutation)
+    if mutation == "edit_integration":
+        integration.host = "smtp.other.example"
+        integration.save()
+    else:
+        AgentActionService().update_action(user, agent.id, action.id, **changes)
     run_reply(decide(user, reply, approved=True))
 
     reply.refresh_from_db()
@@ -145,6 +151,109 @@ def test_an_approved_email_does_not_send_when_its_action_changed(
         (part.tool_call_id, part.outcome, part.content)
         for part in received[-1][-1].parts
     ] == [("email_call", "denied", expected)]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ask_first", [False, True])
+def test_a_call_sends_the_values_its_step_shows(
+    email_action, mocker, mailoutbox, ask_first
+):
+    user, agent, action, _, _ = email_action
+    AgentActionService().update_action(
+        user,
+        agent.id,
+        action.id,
+        ask_first=ask_first,
+        service_values={
+            "body": {"formula": "concat('Code ', generate_uuid())", "mode": "advanced"}
+        },
+    )
+    respond(mocker, ({0: email_call(action.name)},))
+
+    reply = pause(user, agent)
+    shown = reply.steps[0]["input"]["values"]["body"]
+    if ask_first:
+        assert mailoutbox == []
+        run_reply(decide(user, reply, approved=True))
+        reply.refresh_from_db()
+
+    assert reply.steps[0]["input"]["values"]["body"] == shown
+    assert [email.body for email in mailoutbox] == [shown]
+
+
+@pytest.mark.django_db
+def test_an_approved_call_without_its_approved_values_does_not_send(
+    email_action, mocker, mailoutbox
+):
+    user, agent, action, _, connection = email_action
+    action.ask_first = True
+    action.save()
+    respond(mocker, ({0: email_call(action.name)},))
+    reply = pause(user, agent)
+    transcript = reply.transcript
+    assert transcript.paused_conversation["deferred_tool_requests"]["metadata"]
+    transcript.paused_conversation["deferred_tool_requests"]["metadata"] = {}
+    transcript.save()
+
+    run_reply(decide(user, reply, approved=True))
+
+    reply.refresh_from_db()
+    assert reply.steps[0]["status"] == "failed"
+    assert mailoutbox == []
+    connection.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_inputs_named_like_the_tool_context_and_whole_numbers_are_sent_as_given(
+    email_action, mocker, mailoutbox
+):
+    user, agent, action, _, _ = email_action
+    quantity = str(uuid4())
+    inputs = [
+        *action.inputs[:2],
+        {**action.inputs[2], "name": "run_ctx"},
+        {
+            "id": quantity,
+            "name": "quantity",
+            "type": "number",
+            "description": "",
+            "required": True,
+        },
+    ]
+    AgentActionService().update_action(
+        user,
+        agent.id,
+        action.id,
+        inputs=inputs,
+        service_values={
+            "subject": {
+                "formula": f"concat('Qty: ', get('tool_input.{quantity}'))",
+                "mode": "advanced",
+            }
+        },
+    )
+    respond(
+        mocker,
+        (
+            {
+                0: tool_call(
+                    action.name,
+                    "call",
+                    to_email="alice@example.com",
+                    subject="Ignored",
+                    run_ctx="The body",
+                    quantity=5,
+                )
+            },
+        ),
+    )
+
+    reply = pause(user, agent)
+
+    assert reply.status == "completed"
+    assert [(email.subject, email.body) for email in mailoutbox] == [
+        ("Qty: 5", "The body")
+    ]
 
 
 @pytest.mark.django_db
@@ -325,14 +434,20 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
         def get_defaults(self):
             return {}
 
+        def get_preview_values(self, service, resolved_values):
+            return {}
+
         def get_configuration_errors(self, action):
             return {}
 
-        def get_preview(self, action, arguments):
+        def prepare(self, action, arguments):
+            return {"payload": arguments["payload"]}
+
+        def get_preview(self, action, resolved_values):
             return preview
 
-        def dispatch(self, action, arguments):
-            dispatched.append(arguments)
+        def dispatch(self, action, resolved_values):
+            dispatched.append(resolved_values)
             return DispatchResult(data={"queued": True})
 
     monkeypatch.setitem(

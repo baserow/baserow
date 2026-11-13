@@ -5,7 +5,11 @@ from pydantic import ValidationError as InputValidationError
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.agent.action_tools.data_providers import AgentActionDispatchContext
-from baserow.contrib.agent.action_tools.inputs import build_input_model, validate_inputs
+from baserow.contrib.agent.action_tools.inputs import (
+    build_input_model,
+    validate_action_name,
+    validate_inputs,
+)
 
 
 def input_definition(name="value", input_type="string", required=True):
@@ -35,6 +39,21 @@ def test_tool_inputs_reject_wrong_types_without_coercion(input_type, value):
     model = build_input_model([input_definition(input_type=input_type)])
     with pytest.raises(InputValidationError):
         model.model_validate({"value": value})
+
+
+@pytest.mark.parametrize("value", [250, 2.5])
+def test_number_inputs_keep_the_number_the_model_sent(value):
+    model = build_input_model([input_definition(input_type="number")])
+    kept = model.model_validate({"value": value}).model_dump(by_alias=True)["value"]
+    assert (type(kept), kept) == (type(value), value)
+    assert model.model_json_schema()["properties"]["value"]["type"] == "number"
+
+
+def test_names_starting_like_an_mcp_tool_are_reserved():
+    with pytest.raises(ValidationError):
+        validate_action_name("mcp12_search")
+    assert validate_action_name("mcp_search") == "mcp_search"
+    assert validate_inputs([input_definition("mcp12_search")])
 
 
 def test_input_schema_and_validation_share_required_optional_and_custom_names():

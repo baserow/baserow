@@ -1,6 +1,9 @@
 from copy import deepcopy
 from uuid import uuid4
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext, override_settings
+
 import pytest
 
 from baserow.contrib.agent.action_tools.actions import (
@@ -11,6 +14,7 @@ from baserow.contrib.agent.action_tools.exceptions import AgentActionDoesNotExis
 from baserow.contrib.agent.action_tools.handler import AgentActionHandler
 from baserow.contrib.agent.action_tools.service import AgentActionService
 from baserow.contrib.agent.action_tools.trash_types import AgentActionTrashableItemType
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentAction
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
@@ -20,6 +24,7 @@ from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.object_scopes import ApplicationObjectScopeType
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.models import Service
+from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
 from baserow.core.trash.handler import TrashHandler
 
 from ..utils import agent_url
@@ -109,6 +114,7 @@ def test_partial_service_create_and_updates_preserve_input_bindings(
         {"name": "has spaces"},
         {"name": "create_rows"},
         {"name": "web_search"},
+        {"name": "mcp12_search"},
         {
             "inputs": [
                 {
@@ -327,3 +333,67 @@ def test_configuration_offers_only_registered_available_actions(
         ]
         == []
     )
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIONS_PER_AGENT=1)
+def test_an_agent_at_its_action_limit_refuses_added_and_restored_actions(
+    data_fixture, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    url = agent_url(agent, "actions:list")
+    assert api_client.get(agent_url(agent, "configuration")).json()["max_actions"] == 1
+    first = api_client.post(url, {"type": "smtp_email"}).json()
+
+    response = api_client.post(url, {"type": "smtp_email"})
+
+    assert response.status_code == 400, response.json()
+    assert response.json()["error"] == "ERROR_AGENT_ACTION_LIMIT_REACHED"
+    AgentActionService().delete_action(api_user, agent.id, first["id"])
+    assert api_client.post(url, {"type": "smtp_email"}).status_code == 200
+    with pytest.raises(TrashItemRestorationDisallowed):
+        TrashHandler.restore_item(
+            api_user, AgentActionTrashableItemType.type, first["id"]
+        )
+    assert AgentAction.objects.filter(agent=agent).count() == 1
+
+
+@pytest.mark.django_db
+def test_agents_have_no_action_limit_by_default(data_fixture, api_client, api_user):
+    agent = data_fixture.create_agent_application(user=api_user)
+    assert (
+        api_client.get(agent_url(agent, "configuration")).json()["max_actions"] is None
+    )
+
+
+@pytest.mark.django_db
+def test_reading_actions_takes_the_same_queries_for_one_as_for_many(
+    data_fixture, api_client, api_user
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    integration = data_fixture.create_smtp_integration(application=agent)
+
+    def add_ready_action():
+        action = data_fixture.create_agent_action(agent=agent)
+        service = action.service.specific
+        service.integration = integration
+        service.use_instance_smtp_settings = False
+        service.from_email = {"formula": "'sender@example.com'"}
+        service.save()
+
+    def count_queries():
+        with CaptureQueriesContext(connection) as tools:
+            offered = AgentHandler().get_action_tools(agent)
+        with CaptureQueriesContext(connection) as listed:
+            response = api_client.get(agent_url(agent, "actions:list"))
+        assert len(offered) == len(response.json())
+        return len(offered), len(tools), len(listed)
+
+    add_ready_action()
+    # The first request also fills caches a later one reuses.
+    count_queries()
+    one = count_queries()
+    for _ in range(5):
+        add_ready_action()
+
+    assert count_queries() == (6, *one[1:])

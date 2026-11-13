@@ -2,6 +2,8 @@ from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.agent.action_tools.handler import AgentActionHandler
+from baserow.contrib.agent.action_tools.registries import agent_action_type_registry
 from baserow.contrib.agent.models import (
     AgentAction,
     AgentApplication,
@@ -11,6 +13,8 @@ from baserow.contrib.agent.models import (
     AgentToolApproval,
     AgentTrigger,
 )
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.registries import service_type_registry
 
 
 class AgentApplicationFixtures:
@@ -25,12 +29,6 @@ class AgentApplicationFixtures:
 
     def create_agent_action(self, agent=None, **kwargs) -> AgentAction:
         """Create an email action with the production starter, without permissions."""
-        from baserow.contrib.agent.action_tools.handler import AgentActionHandler
-        from baserow.contrib.agent.action_tools.registries import (
-            agent_action_type_registry,
-        )
-        from baserow.core.services.handler import ServiceHandler
-        from baserow.core.services.registries import service_type_registry
 
         agent = agent or self.create_agent_application()
         defaults = agent_action_type_registry.get("smtp_email").get_defaults()

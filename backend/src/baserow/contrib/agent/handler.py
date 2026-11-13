@@ -173,7 +173,7 @@ class AgentHandler:
         with_tools = (
             (run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"]))
             or self.has_mcp_tools(agent)
-            or bool(self.get_action_tools(agent))
+            or bool(AgentActionHandler().get_callable_actions(agent))
         )
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
@@ -196,6 +196,7 @@ class AgentHandler:
                 agent
             ),
             available_action_types=AgentActionHandler().available_action_types(agent),
+            max_actions=settings.BASEROW_AGENT_MAX_ACTIONS_PER_AGENT,
             max_queued_trigger_runs=settings.AGENT_TRIGGER_MAX_QUEUED_RUNS,
             max_parallel_trigger_runs=settings.AGENT_TRIGGER_MAX_PARALLEL_RUNS,
             errors=errors,
@@ -1283,13 +1284,9 @@ class AgentHandler:
         :return: One tool per callable action.
         """
 
-        handler = AgentActionHandler()
-        available = set(handler.available_action_types(agent))
         return [
             BoundActionTool.from_action(action)
-            for action in handler.list_actions(agent).filter(enabled=True)
-            if action.service.get_type().type in available
-            and not handler.get_configuration_errors(action)
+            for action in AgentActionHandler().get_callable_actions(agent)
         ]
 
     def get_reply_request(self, reply: AgentMessage) -> AgentReplyRequest:
@@ -1524,7 +1521,10 @@ class AgentHandler:
         }
         return AgentReplyResume(
             paused_conversation=paused_conversation,
-            deferred_tool_results=held.build_results(approvals=results),
+            # A held action call sends the values kept when it was held.
+            deferred_tool_results=held.build_results(
+                approvals=results, metadata=held.metadata
+            ),
             saved_steps=reply.steps or [],
             held_step_ids={
                 tool_call_id: approval.step_id

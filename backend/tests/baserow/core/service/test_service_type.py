@@ -323,6 +323,30 @@ def test_dispatch_calls_before_dispatch_hook():
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("carried_for,resolves", [(1, False), (2, True)])
+def test_dispatch_only_resolves_formulas_the_context_does_not_carry(
+    carried_for, resolves
+):
+    service_type_cls = ServiceType
+    service_type_cls.model_class = MagicMock()
+    service_type = service_type_cls()
+    service_type.resolve_service_formulas = MagicMock(return_value={"body": "new"})
+    service_type.dispatch_data = MagicMock()
+    service_type.dispatch_transform = MagicMock()
+
+    service = MagicMock(id=1)
+    dispatch_context = FakeDispatchContext(use_sample_data=False)
+    dispatch_context.resolved_values = {carried_for: {"body": "shown"}}
+
+    service_type.dispatch(service, dispatch_context)
+
+    assert service_type.resolve_service_formulas.called is resolves
+    service_type.dispatch_data.assert_called_once_with(
+        service, {"body": "new" if resolves else "shown"}, dispatch_context
+    )
+
+
+@pytest.mark.django_db
 def test_dispatch_even_if_simulated_when_updated():
     """
     Ensure that when dispatch_context.is_simulated is True, the cached sample

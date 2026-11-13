@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
@@ -21,6 +23,7 @@ from baserow.contrib.agent.action_tools.actions import (
 )
 from baserow.contrib.agent.action_tools.exceptions import (
     AgentActionDoesNotExist,
+    AgentActionLimitReached,
     AgentActionTypeNotAvailable,
 )
 from baserow.contrib.agent.action_tools.service import AgentActionService
@@ -31,6 +34,7 @@ from baserow.core.services.exceptions import ServiceTypeDoesNotExist
 
 from .errors import (
     ERROR_AGENT_ACTION_DOES_NOT_EXIST,
+    ERROR_AGENT_ACTION_LIMIT_REACHED,
     ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE,
 )
 from .serializers import (
@@ -48,7 +52,12 @@ ACTION_ID_PARAMETER = OpenApiParameter(
 )
 
 
-def request_validation_error(exc):
+def request_validation_error(exc: ValidationError) -> None:
+    """
+    :param exc: A validation error of the action's own fields.
+    :raises RequestBodyValidationException: Always, with the same details.
+    """
+
     raise RequestBodyValidationException(
         serialize_validation_errors_recursive(exc.detail)
     ) from exc
@@ -59,11 +68,16 @@ ACTION_EXCEPTIONS = {
     ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
     AgentActionDoesNotExist: ERROR_AGENT_ACTION_DOES_NOT_EXIST,
     AgentActionTypeNotAvailable: ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE,
+    AgentActionLimitReached: ERROR_AGENT_ACTION_LIMIT_REACHED,
     ServiceTypeDoesNotExist: ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE,
 }
 ERRORS = {
     400: get_error_schema(
-        ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE"]
+        [
+            "ERROR_REQUEST_BODY_VALIDATION",
+            "ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE",
+            "ERROR_AGENT_ACTION_LIMIT_REACHED",
+        ]
     ),
     401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
     403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
@@ -73,8 +87,13 @@ ERRORS = {
 }
 
 
-def pop_service_values(data):
-    """Remove the pinned type; an empty service payload is a no-op."""
+def pop_service_values(data: dict[str, Any]) -> dict[str, Any] | None:
+    """
+    :param data: The validated request, which loses its service values.
+    :return: The service values without the pinned type, or None when there are
+        none to save.
+    """
+
     values = data.pop("service", {})
     values.pop("type", None)
     return values or None

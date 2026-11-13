@@ -53,6 +53,7 @@ class AgentConfiguration:
     ask_first_tools: list[str]
     available_trigger_types: list[str]
     available_action_types: list[str]
+    max_actions: int | None
     max_queued_trigger_runs: int
     max_parallel_trigger_runs: int
     errors: dict[str, AgentConfigurationErrorCode]

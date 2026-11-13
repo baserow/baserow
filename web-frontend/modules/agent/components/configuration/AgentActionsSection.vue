@@ -8,12 +8,15 @@
         size="small"
         button-type="button"
         icon="iconoir-plus"
-        :disabled="loading"
+        :disabled="loading || atLimit"
         aria-haspopup="menu"
         @click="picker.toggle($event.currentTarget)"
         >{{ $t('agent.addAction') }}</ButtonText
       >
     </div>
+    <p v-if="atLimit" class="agent-actions__limit">
+      {{ $t('agent.actionLimitReached', { limit: configuration.max_actions }) }}
+    </p>
     <ButtonText
       v-if="actions.length"
       class="agent-card-list__toggle-all"
@@ -106,6 +109,11 @@ const {
 } = useAgentActions(agent)
 const { expandedIds, allExpanded, toggle, toggleAll } =
   useExpandedItems(actions)
+const atLimit = computed(
+  () =>
+    Boolean(props.configuration.max_actions) &&
+    actions.value.length >= props.configuration.max_actions
+)
 watch(
   () => agent.value?.id,
   () => expandedIds.clear()

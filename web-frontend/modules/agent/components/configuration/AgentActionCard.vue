@@ -168,6 +168,10 @@ import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AgentFormulaInput from '@baserow/modules/agent/components/configuration/AgentFormulaInput'
 import AgentActionInputs from '@baserow/modules/agent/components/configuration/AgentActionInputs'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
+import {
+  ACTION_ERROR_LABELS,
+  actionFieldLabel,
+} from '@baserow/modules/agent/utils/actionLabels'
 
 const props = defineProps({
   expanded: { type: Boolean, default: true },
@@ -179,7 +183,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update', 'delete', 'retry', 'toggle'])
 const { $registry } = useNuxtApp()
-const { t, te } = useI18n()
+const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
 const serviceType = computed(() => serviceTypeOf($registry, props.action.type))
@@ -198,13 +202,12 @@ provide(
   })
 )
 const configurationErrors = computed(() =>
-  Object.entries(props.action.errors || {}).map(([field, error]) => {
-    const key = `agent.actionField${field}`
-    return t('agent.fieldError', {
-      field: te(key) ? t(key) : field,
-      error: t(`agent.actionError${error}`),
+  Object.entries(props.action.errors || {}).map(([field, error]) =>
+    t('agent.fieldError', {
+      field: actionFieldLabel($registry, props.action.type, field, t),
+      error: t(ACTION_ERROR_LABELS[error] || ACTION_ERROR_LABELS.invalid),
     })
-  })
+  )
 )
 function update(values) {
   if (props.editable) emit('update', values)

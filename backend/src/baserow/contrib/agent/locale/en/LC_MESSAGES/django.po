@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-12 16:23+0000\n"
+"POT-Creation-Date: 2026-11-13 16:38+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,35 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/baserow/contrib/agent/action_tools/actions.py:24
+msgid "Create agent action"
+msgstr ""
+
+#: src/baserow/contrib/agent/action_tools/actions.py:26
+#, python-format
+msgid ""
+"Action (%(action_id)s) of type %(action_type)s created in agent "
+"(%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/action_tools/actions.py:85
+msgid "Update agent action"
+msgstr ""
+
+#: src/baserow/contrib/agent/action_tools/actions.py:86
+#, python-format
+msgid "Action (%(action_id)s) updated in agent (%(agent_id)s)."
+msgstr ""
+
+#: src/baserow/contrib/agent/action_tools/actions.py:152
+msgid "Delete agent action"
+msgstr ""
+
+#: src/baserow/contrib/agent/action_tools/actions.py:153
+#, python-format
+msgid "Action (%(action_id)s) deleted in agent (%(agent_id)s)."
+msgstr ""
 
 #: src/baserow/contrib/agent/actions.py:32
 msgid "Create agent conversation"
@@ -54,20 +83,20 @@ msgstr ""
 msgid "Conversation (%(conversation_id)s) updated in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:273
+#: src/baserow/contrib/agent/actions.py:277
 msgid "Delete agent conversation"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:274
+#: src/baserow/contrib/agent/actions.py:278
 #, python-format
 msgid "Conversation (%(conversation_id)s) deleted in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:328
+#: src/baserow/contrib/agent/actions.py:332
 msgid "Update agent configuration"
 msgstr ""
 
-#: src/baserow/contrib/agent/actions.py:329
+#: src/baserow/contrib/agent/actions.py:333
 #, python-format
 msgid "Configuration updated for agent (%(agent_id)s)."
 msgstr ""
@@ -83,20 +112,20 @@ msgid ""
 "(%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/triggers/actions.py:103
+#: src/baserow/contrib/agent/triggers/actions.py:107
 msgid "Update agent trigger"
 msgstr ""
 
-#: src/baserow/contrib/agent/triggers/actions.py:104
+#: src/baserow/contrib/agent/triggers/actions.py:108
 #, python-format
 msgid "Trigger (%(trigger_id)s) updated in agent (%(agent_id)s)."
 msgstr ""
 
-#: src/baserow/contrib/agent/triggers/actions.py:192
+#: src/baserow/contrib/agent/triggers/actions.py:199
 msgid "Delete agent trigger"
 msgstr ""
 
-#: src/baserow/contrib/agent/triggers/actions.py:193
+#: src/baserow/contrib/agent/triggers/actions.py:200
 #, python-format
 msgid "Trigger (%(trigger_id)s) deleted in agent (%(agent_id)s)."
 msgstr ""

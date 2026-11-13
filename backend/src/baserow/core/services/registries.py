@@ -600,9 +600,13 @@ class ServiceType(
         )
         try:
             with transaction.atomic():
-                resolved_values = self.resolve_service_formulas(
-                    service, dispatch_context
+                resolved_values = (dispatch_context.resolved_values or {}).get(
+                    service.id
                 )
+                if resolved_values is None:
+                    resolved_values = self.resolve_service_formulas(
+                        service, dispatch_context
+                    )
                 if not sends_outside:
                     serialized_data = self._dispatch_and_transform(
                         service, resolved_values, dispatch_context

@@ -101,17 +101,18 @@ The card shows `values` as indented JSON, collapsed by default.
 
 ### Configured actions
 
-An action adapter resolves the action's formulas with the call's arguments and
-sends its readable projection through the same `ToolCallInputEvent`. The preview
+An action type resolves the action's formulas once with the call's arguments and
+sends their readable projection through the same `ToolCallInputEvent`. The preview
 includes fixed configuration as well as model-supplied values: email recipients,
-sender, subject, body, and body format, for example. Adapters explicitly allow
+sender, subject, body, and body format, for example. Action types explicitly allow
 readable fields; integration credentials never enter the preview. Service export
 redaction is a separate policy: an email body is sensitive in an external export
 but must be visible to the person approving its delivery.
 
-The preview is bounded as above; the sent payload is not. An approved call only
-runs while its action is unchanged, checked with its approval key.
-See [Preview, approve and execute](./agent-actions-plan.md#preview-approve-and-execute).
+The preview is bounded as above; the sent payload is not. The values are stored
+as JSON, which doesn't keep their order, so the action's presenter orders and
+labels them. See [One call](./agent-actions.md#one-call) for how the shown values
+are the ones sent.
 
 ## Web search
 

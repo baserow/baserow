@@ -30,7 +30,10 @@ def test_renamed_input_keeps_binding_and_deleted_input_marks_action_unconfigured
     action.inputs[0]["name"] = "recipient"
     preview = adapter.get_preview(
         action,
-        {"recipient": "alice@example.com", "subject": "Hello", "body": "Report"},
+        adapter.prepare(
+            action,
+            {"recipient": "alice@example.com", "subject": "Hello", "body": "Report"},
+        ),
     )
     assert preview["values"]["to_emails"] == ["alice@example.com"]
     action.inputs.pop(0)
@@ -73,13 +76,15 @@ def test_preview_is_bounded_but_delivery_retains_full_payload(
     action = configured_email
     body = "message " * 1000
     adapter = SMTPEmailAgentActionType()
-    arguments = {"to_email": "alice@example.com", "subject": "Hello", "body": body}
-    preview = adapter.get_preview(action, arguments)
+    resolved_values = adapter.prepare(
+        action, {"to_email": "alice@example.com", "subject": "Hello", "body": body}
+    )
+    preview = adapter.get_preview(action, resolved_values)
     assert preview["truncated"] is True
     assert len(preview["values"]["body"]) == 1000
     with patch(
         "baserow.contrib.integrations.core.service_types.get_connection",
         return_value=EmailBackend(),
     ):
-        adapter.dispatch(action, arguments)
+        adapter.dispatch(action, resolved_values)
     assert mailoutbox[0].body == body

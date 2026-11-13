@@ -7,6 +7,7 @@ import debounce from 'lodash/debounce'
 import isEqual from 'lodash/isEqual'
 import { removeActionInputReferences } from '@baserow/modules/agent/utils/actionFormulas'
 import AgentActionService from '@baserow/modules/agent/services/agentActions'
+import { actionFieldLabel } from '@baserow/modules/agent/utils/actionLabels'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const EDITABLE_FIELDS = [
@@ -21,8 +22,8 @@ const missing = (error) =>
 
 /** Page-local drafts, with one serialized save per independently configured action. */
 export function useAgentActions(agent) {
-  const { $client } = useNuxtApp()
-  const { t, te } = useI18n()
+  const { $client, $registry } = useNuxtApp()
+  const { t } = useI18n()
   const store = useStore()
   const service = AgentActionService($client)
   const actions = ref([])
@@ -192,10 +193,10 @@ export function useAgentActions(agent) {
         saveErrors[action.id] =
           validation && detail && typeof detail === 'object'
             ? Object.entries(detail)
-                .map(([field, errors]) => {
-                  const label = `agent.actionField${field}`
-                  return `${te(label) ? t(label) : field}: ${messages(errors).join(' ')}`
-                })
+                .map(
+                  ([field, errors]) =>
+                    `${actionFieldLabel($registry, action.type, field, t)}: ${messages(errors).join(' ')}`
+                )
                 .join(' ')
             : t('agent.actionSaveError')
         if (!validation) notifyIf(error, 'action')

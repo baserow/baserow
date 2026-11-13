@@ -1,7 +1,7 @@
-"""The editable input contract shared by the editor and callable tools."""
+"""The names and the editable input contract shared by the editor and callable tools."""
 
 import re
-from typing import Annotated
+from typing import Annotated, Any, TypedDict
 from uuid import UUID
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -9,19 +9,41 @@ from django.core.validators import validate_email
 
 from pydantic import (
     AfterValidator,
+    BaseModel,
     ConfigDict,
     Field,
     StrictBool,
+    StrictInt,
     StrictStr,
+    WithJsonSchema,
     create_model,
 )
 from rest_framework.exceptions import ValidationError
+
+from baserow.contrib.integrations.mcp.toolset import RESERVED_MODEL_TOOL_NAME
 
 NAME_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,63}\Z")
 INPUT_TYPES = ("string", "email", "number", "boolean")
 
 
-def validate_name(name):
+class AgentActionInput(TypedDict):
+    """One value the model supplies when it calls an action."""
+
+    id: str
+    """Stable UUID that formulas reference; it never changes on rename."""
+    name: str
+    type: str
+    description: str
+    required: bool
+
+
+def validate_name(name: Any) -> str:
+    """
+    :param name: The name of an action or of one of its inputs.
+    :return: The name.
+    :raises ValidationError: When the model's provider wouldn't accept it.
+    """
+
     if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
         raise ValidationError(
             "Use up to 64 letters, numbers and underscores, starting with a letter "
@@ -31,7 +53,25 @@ def validate_name(name):
     return name
 
 
-def validate_inputs(inputs):
+def validate_action_name(name: Any) -> str:
+    """
+    :param name: The name the model would call an action by.
+    :return: The name.
+    :raises ValidationError: When it's malformed, or could be the name of a
+        connected app's tool.
+    """
+
+    validate_name(name)
+    if RESERVED_MODEL_TOOL_NAME.match(name):
+        raise ValidationError(
+            'Names starting with "mcp" and a number are reserved for the tools '
+            "of connected apps.",
+            code="reserved",
+        )
+    return name
+
+
+def validate_inputs(inputs: Any) -> list[AgentActionInput]:
     """Validate definitions without generating or changing their stable identities."""
 
     if not isinstance(inputs, list) or len(inputs) > 100:
@@ -78,7 +118,7 @@ def _validate_email(value):
     return value
 
 
-def build_input_model(inputs):
+def build_input_model(inputs: list[AgentActionInput]) -> type[BaseModel]:
     """Build one strict contract for both the advertised schema and validation.
 
     Internal field names avoid collisions with Pydantic methods and private fields.
@@ -92,7 +132,10 @@ def build_input_model(inputs):
             AfterValidator(_validate_email),
             Field(json_schema_extra={"format": "email"}),
         ],
-        "number": Annotated[float, Field(strict=True, allow_inf_nan=False)],
+        "number": Annotated[
+            StrictInt | Annotated[float, Field(strict=True, allow_inf_nan=False)],
+            WithJsonSchema({"type": "number"}),
+        ],
         "boolean": StrictBool,
     }
     fields = {}

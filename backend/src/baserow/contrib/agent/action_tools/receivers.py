@@ -11,8 +11,16 @@ from baserow.core.services.models import Service
 
 
 @receiver(post_delete, sender=AgentAction)
-def delete_action_service(sender, instance: AgentAction, **kwargs):
-    """Delete the owned service, never the prepared requests held by replies."""
+def delete_action_service(
+    sender: type[AgentAction], instance: AgentAction, **kwargs
+) -> None:
+    """
+    Delete the service with its action, also when the agent's deletion cascades
+    to the action: nothing else holds the service.
+
+    :param sender: The action model.
+    :param instance: The deleted action.
+    """
 
     if is_service_deletion_deferred():
         defer_service_deletion(instance.service_id)

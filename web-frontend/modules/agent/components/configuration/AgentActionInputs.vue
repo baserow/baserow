@@ -39,7 +39,7 @@
           />
           <span class="agent-action-inputs__name">{{ input.name }}</span>
           <span class="agent-action-inputs__type">{{
-            $t(`agent.actionInputType${input.type}`)
+            $t(inputTypeLabels[input.type])
           }}</span>
         </button>
         <Dropdown
@@ -76,10 +76,10 @@
               @update:model-value="update(input, { type: $event })"
             >
               <DropdownItem
-                v-for="type in inputTypes"
+                v-for="(label, type) in inputTypeLabels"
                 :key="type"
                 :value="type"
-                :name="$t(`agent.actionInputType${type}`)"
+                :name="$t(label)"
               />
             </Dropdown>
           </FormGroup>
@@ -121,6 +121,7 @@ import { toRef } from 'vue'
 import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
 import { uuid } from '@baserow/modules/core/utils/string'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import { ACTION_INPUT_TYPE_LABELS as inputTypeLabels } from '@baserow/modules/agent/utils/actionLabels'
 
 const props = defineProps({
   modelValue: { type: Array, required: true },
@@ -128,7 +129,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 const { expandedIds, toggle } = useExpandedItems(toRef(props, 'modelValue'))
-const inputTypes = ['string', 'email', 'number', 'boolean']
 
 function update(input, values) {
   if (!props.editable) return

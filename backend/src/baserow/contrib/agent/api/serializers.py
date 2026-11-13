@@ -144,6 +144,11 @@ class AgentConfigurationSerializer(serializers.Serializer):
         child=serializers.CharField(),
         help_text="The service types available as configured agent actions.",
     )
+    max_actions = serializers.IntegerField(
+        allow_null=True,
+        help_text="How many actions the agent can have on this instance. Null is "
+        "no limit.",
+    )
     max_queued_trigger_runs = serializers.IntegerField(
         help_text="How many runs of a trigger that waits or runs in parallel can be "
         "queued on this instance; later firings are skipped. 0 or less is no limit."

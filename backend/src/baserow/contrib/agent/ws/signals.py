@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Any
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
@@ -13,7 +14,7 @@ from baserow.contrib.agent.action_tools.signals import (
 from baserow.contrib.agent.api.action_tools.serializers import AgentActionSerializer
 from baserow.contrib.agent.api.serializers import AgentConversationSerializer
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentConversation
+from baserow.contrib.agent.models import AgentAction, AgentConversation
 from baserow.contrib.agent.operations import (
     ReadAgentConfigurationOperationType,
     ReadAgentConversationsOperationType,
@@ -181,8 +182,19 @@ def conversation_deleted(
     _notify_readers(conversation, user, "agent_conversation_deleted")
 
 
-def _notify_action_configuration(instance, user, event_type, **values):
-    """Only configuration readers may receive email template contents."""
+def _notify_action_configuration(
+    instance: AgentAction, user: AbstractUser | None, event_type: str, **values: Any
+) -> None:
+    """
+    Tell the users who may read the Agent's configuration, and nobody else: an
+    action holds its template's content.
+
+    :param instance: The action that changed.
+    :param user: The user who changed it, whose own session isn't told.
+    :param event_type: The realtime event.
+    :param values: What the event carries besides the Agent's id.
+    """
+
     transaction.on_commit(
         partial(
             broadcast_to_permitted_users.delay,
@@ -197,21 +209,27 @@ def _notify_action_configuration(instance, user, event_type, **values):
 
 
 @receiver(agent_action_created)
-def action_created(sender, action, user, **kwargs):
+def action_created(
+    sender: Any, action: AgentAction, user: AbstractUser | None, **kwargs
+) -> None:
     _notify_action_configuration(
         action, user, "agent_action_created", action=AgentActionSerializer(action).data
     )
 
 
 @receiver(agent_action_updated)
-def action_updated(sender, action, user, **kwargs):
+def action_updated(
+    sender: Any, action: AgentAction, user: AbstractUser | None, **kwargs
+) -> None:
     _notify_action_configuration(
         action, user, "agent_action_updated", action=AgentActionSerializer(action).data
     )
 
 
 @receiver(agent_action_deleted)
-def action_deleted(sender, action, user, **kwargs):
+def action_deleted(
+    sender: Any, action: AgentAction, user: AbstractUser | None, **kwargs
+) -> None:
     _notify_action_configuration(
         action, user, "agent_action_deleted", action_id=action.id
     )

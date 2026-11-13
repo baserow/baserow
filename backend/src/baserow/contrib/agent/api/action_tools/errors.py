@@ -8,3 +8,8 @@ ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE = (
     400,
     "This action type is not available for the agent.",
 )
+ERROR_AGENT_ACTION_LIMIT_REACHED = (
+    "ERROR_AGENT_ACTION_LIMIT_REACHED",
+    400,
+    "{e}",
+)

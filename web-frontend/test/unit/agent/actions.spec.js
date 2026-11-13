@@ -67,7 +67,7 @@ const emailAction = (extra = {}) => ({
     body: formula("get('tool_input.33333333-3333-4333-8333-333333333333')"),
     body_type: 'plain',
   },
-  errors: { integration: 'required', from_email: 'required' },
+  errors: { integration_id: 'required', from_email: 'required' },
   ...extra,
 })
 const patches = (app) =>
@@ -91,13 +91,19 @@ describe('Agent action editor', () => {
     vi.useRealTimers()
   })
 
-  async function mountSection(items, editable = true, expand = true) {
+  async function mountSection(
+    items,
+    editable = true,
+    expand = true,
+    configuration = {}
+  ) {
     testApp.mock.onGet('/agent/10/actions/').reply(200, clone(items))
     const wrapper = await testApp.mount(AgentActionsSection, {
       props: {
         editable,
         configuration: completeConfiguration({
           available_action_types: ['smtp_email'],
+          ...configuration,
         }),
       },
       global: { provide: { agentApplication: agentRef } },
@@ -154,6 +160,23 @@ describe('Agent action editor', () => {
     )
   })
 
+  test('an agent at its action limit offers no further action', async () => {
+    const wrapper = await mountSection([emailAction()], true, false, {
+      max_actions: 1,
+    })
+    const add = wrapper.get('.agent-actions__header button')
+    expect(add.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('.agent-actions__limit').text()).toBe(
+      'agent.actionLimitReached'
+    )
+
+    const unlimited = await mountSection([emailAction()], true, false)
+    expect(
+      unlimited.get('.agent-actions__header button').attributes('disabled')
+    ).toBeUndefined()
+    expect(unlimited.find('.agent-actions__limit').exists()).toBe(false)
+  })
+
   test('the shared picker creates only the requested type; the server owns defaults', async () => {
     testApp.mock.onPost('/agent/10/actions/').reply(200, emailAction())
     const wrapper = await mountSection([])
@@ -206,7 +229,7 @@ describe('Agent action editor', () => {
     await row.get('.agent-action-inputs__editor input').setValue('recipient')
     await choose(
       row.get('.agent-action-inputs__editor .dropdown'),
-      'agent.actionInputTypestring'
+      'agent.actionInputTypeString'
     )
     await settle()
     const saved = patches(testApp)[0][1]
