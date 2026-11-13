@@ -1,7 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 
 import {
-  AgentSubjectType,
   AnonymousUserSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes'
@@ -11,7 +10,6 @@ const names = {
   'subjectType.users': 'Users',
   'subjectType.anonymousUser': 'Anonymous user',
   'subjectType.identity': 'Identity',
-  'subjectType.identities': 'Identities',
 }
 
 const context = {
@@ -24,33 +22,29 @@ const context = {
 
 describe('SubjectType', () => {
   test.each([
-    [new UserSubjectType(context), 'User'],
-    [new AnonymousUserSubjectType(context), 'Anonymous user'],
-    [new AgentSubjectType(context), 'Identity'],
-  ])('resolves its frontend display name', (subjectType, expected) => {
-    expect(subjectType.getTypeDisplayName()).toBe(expected)
+    [new UserSubjectType(context), undefined, 'User'],
+    [new AnonymousUserSubjectType(context), undefined, 'Anonymous user'],
+    [new UserSubjectType(context), { user_type: 'identity' }, 'Identity'],
+  ])('resolves its frontend display name', (subjectType, subject, expected) => {
+    expect(subjectType.getTypeDisplayName(subject)).toBe(expected)
   })
 
   test.each([
     [new UserSubjectType(context), 'Users'],
     [new AnonymousUserSubjectType(context), 'Anonymous user'],
-    [new AgentSubjectType(context), 'Identities'],
   ])('resolves its plural frontend display name', (subjectType, expected) => {
     expect(subjectType.getPluralTypeDisplayName()).toBe(expected)
   })
 
-  test.each([[new UserSubjectType(context)], [new AgentSubjectType(context)]])(
-    'holds its roles directly',
-    (subjectType) => {
-      expect(subjectType.holdsRolesDirectly).toBe(true)
-    }
-  )
+  test('holds its roles directly', () => {
+    expect(new UserSubjectType(context).holdsRolesDirectly).toBe(true)
+  })
 
   test.each([
     [new UserSubjectType(context), { id: 1, user_id: 2 }, 2],
     [new UserSubjectType(context), { id: 1 }, 1],
+    [new UserSubjectType(context), { id: 'auth.User:3', subject_id: 3 }, 3],
     [new AnonymousUserSubjectType(context), { id: 1 }, 1],
-    [new AgentSubjectType(context), { id: 1 }, 1],
   ])('resolves a subject id', (subjectType, subject, expected) => {
     expect(subjectType.getId(subject)).toBe(expected)
   })
@@ -58,7 +52,6 @@ describe('SubjectType', () => {
   test.each([
     [new UserSubjectType(context), { id: 1, user_id: 2 }, 'auth.User:2'],
     [new UserSubjectType(context), { id: 1 }, 'auth.User:1'],
-    [new AgentSubjectType(context), { id: 1 }, 'core.Agent:1'],
   ])('keys a subject by type and id', (subjectType, subject, expected) => {
     expect(subjectType.getKey(subject)).toBe(expected)
   })
@@ -70,8 +63,7 @@ describe('SubjectType', () => {
       'ADMIN',
     ],
     [new UserSubjectType(context), { id: 2 }, null],
-    [new AgentSubjectType(context), { id: 1, role_uid: 'BUILDER' }, 'BUILDER'],
-    [new AgentSubjectType(context), { id: 1 }, null],
+    [new UserSubjectType(context), { id: 1, role_uid: 'BUILDER' }, 'BUILDER'],
   ])(
     'reads the workspace role off a subject',
     (subjectType, subject, expected) => {
@@ -117,24 +109,27 @@ describe('SubjectType invite options', () => {
     expect(subjectType.getBadge()).toBeNull()
   })
 
-  test('describes an agent as an invite option with its badge', () => {
-    const subjectType = new AgentSubjectType({ app: app() })
-    expect(subjectType.getInviteOption({ id: 4, name: 'Smith' })).toMatchObject(
-      {
-        key: 'core.Agent:4',
-        name: 'Smith',
-        subtitle: 'Identity',
-        search: 'Smith',
-        avatarComponent: expect.any(Function),
-      }
-    )
-    expect(subjectType.getSubtitle({ id: 4 })).toBeNull()
-    expect(subjectType.getBadge()).toBe('Identity')
+  test('describes an identity as an invite option with its badge', () => {
+    const subjectType = new UserSubjectType({ app: app() })
+    const identity = {
+      id: 4,
+      name: 'Smith',
+      email: null,
+      user_type: 'identity',
+    }
+    expect(subjectType.getInviteOption(identity)).toMatchObject({
+      key: 'auth.User:4',
+      name: 'Smith',
+      subtitle: 'Identity',
+      search: 'Smith',
+      avatarComponent: expect.any(Function),
+    })
+    expect(subjectType.getSubtitle(identity)).toBeNull()
+    expect(subjectType.getBadge(identity)).toBe('Identity')
   })
 
-  test('offers users and agents but not anonymous visitors for role assignments', () => {
+  test('offers users and identities but not anonymous visitors for role assignments', () => {
     expect(new UserSubjectType({ app: app() }).isEnabled({ id: 1 })).toBe(true)
-    expect(new AgentSubjectType({ app: app() }).isEnabled({ id: 1 })).toBe(true)
     expect(
       new AnonymousUserSubjectType({ app: app() }).isEnabled({ id: 1 })
     ).toBe(false)
@@ -142,28 +137,33 @@ describe('SubjectType invite options', () => {
 
   test('fetches the subjects a role can be given to', async () => {
     const users = [{ user_id: 8 }]
-    await expect(
-      new UserSubjectType({ app: app() }).fetchAssignableSubjects({ users })
-    ).resolves.toBe(users)
-
     const client = {
       get: vi.fn().mockResolvedValue({
         data: { results: [{ id: 4 }], next: null },
       }),
     }
+    const withIdentities = {
+      $client: client,
+      $featureFlagIsEnabled: () => true,
+    }
     await expect(
-      new AgentSubjectType({
-        app: app({ $client: client }),
-      }).fetchAssignableSubjects({ id: 12 })
-    ).resolves.toEqual([{ id: 4 }])
+      new UserSubjectType({
+        app: app(withIdentities),
+      }).fetchAssignableSubjects({ id: 12, users })
+    ).resolves.toEqual([{ user_id: 8 }, { id: 4 }])
 
-    // Without the permission to list agents, none are fetched.
+    // Without the flag or the permission to list identities, none are fetched.
     client.get.mockClear()
-    await expect(
-      new AgentSubjectType({
-        app: app({ $client: client, $hasPermission: () => false }),
-      }).fetchAssignableSubjects({ id: 12 })
-    ).resolves.toEqual([])
+    for (const restricted of [
+      { $featureFlagIsEnabled: () => false },
+      { $hasPermission: () => false },
+    ]) {
+      await expect(
+        new UserSubjectType({
+          app: app({ ...withIdentities, ...restricted }),
+        }).fetchAssignableSubjects({ id: 12, users })
+      ).resolves.toBe(users)
+    }
     expect(client.get).not.toHaveBeenCalled()
   })
 })

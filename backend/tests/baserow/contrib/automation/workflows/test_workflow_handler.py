@@ -48,7 +48,6 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.core.action.handler import ActionHandler
 from baserow.core.cache import global_cache, local_cache
-from baserow.core.models import Agent
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.models import Service
@@ -525,17 +524,19 @@ def test_publish_preserves_local_baserow_authorized_subject(data_fixture):
     workflow = data_fixture.create_automation_workflow(
         automation=automation, create_trigger=False
     )
-    agent = Agent.objects.create(workspace=workspace, name="Automation agent")
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Automation identity"
+    )
     data_fixture.create_local_baserow_integration(
         application=automation,
         authorized_user=user,
-        authorized_agent=agent,
+        authorized_identity=identity,
     )
 
     published_workflow = AutomationWorkflowHandler().publish(workflow)
 
     published_integration = published_workflow.automation.integrations.get().specific
-    assert published_integration.authorized_subject == agent
+    assert published_integration.authorized_subject == identity
 
 
 @pytest.mark.django_db

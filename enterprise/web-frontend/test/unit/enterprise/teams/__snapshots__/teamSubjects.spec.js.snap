@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`teamSubjects > shows agents in the member selector with their avatar component 1`] = `
+exports[`teamSubjects > shows identities in the member selector with their avatar component 1`] = `
 "<div class="select-members-list">
   <div>
     <div class="form-input">
@@ -30,12 +30,12 @@ exports[`teamSubjects > shows agents in the member selector with their avatar co
             </svg></div>
           <!--v-if-->
         </label>
-        <div class="avatar avatar--medium avatar--purple agent-avatar margin-left-1"><i class="iconoir-lock avatar__icon"></i>
+        <div class="avatar avatar--medium avatar--purple identity-avatar margin-left-1"><i class="iconoir-lock avatar__icon"></i>
           <!--v-if-->
           <!--v-if-->
         </div><span class="margin-left-1">Writer</span>
       </div>
-      <div>Agent</div>
+      <div>Identity</div>
       <!--v-if-->
     </li>
   </ul>
@@ -52,16 +52,16 @@ exports[`teamSubjects > shows agents in the member selector with their avatar co
 </div>"
 `;
 
-exports[`teamSubjects > shows users and agents at the same size in the teams table 1`] = `
+exports[`teamSubjects > shows users and identities at the same size in the teams table 1`] = `
 "<div title="subjectSampleField.titleAttr">
   <!--v-if-->
   <div class="avatar avatar--rounded avatar--large avatar--blue subject-sample-field-list__avatar">
     <!--v-if-->
     <!--v-if--><span class="avatar__initials">A</span>
   </div>
-  <div class="avatar avatar--large avatar--purple agent-avatar subject-sample-field-list__avatar"><i class="iconoir-lock avatar__icon"></i>
+  <div class="avatar avatar--rounded avatar--large avatar--blue subject-sample-field-list__avatar">
     <!--v-if-->
-    <!--v-if-->
+    <!--v-if--><span class="avatar__initials">W</span>
   </div>
   <!--v-if-->
 </div>"

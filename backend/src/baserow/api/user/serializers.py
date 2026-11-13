@@ -8,6 +8,7 @@ from django.contrib.auth.models import AbstractUser
 from drf_spectacular.utils import extend_schema_field, extend_schema_serializer
 from opentelemetry import metrics
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.request import Request
 from rest_framework_simplejwt.serializers import (
     TokenObtainPairSerializer,
@@ -60,9 +61,19 @@ token_refreshes_counter = meter.create_counter(
 
 
 class SubjectUserSerializer(serializers.ModelSerializer):
+    trashed = serializers.BooleanField(source="profile.trashed", read_only=True)
+    user_type = serializers.CharField(source="profile.user_type", read_only=True)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.profile.user_type == "identity":
+            data["email"] = None
+            data["username"] = None
+        return data
+
     class Meta:
         model = User
-        fields = ["id", "username", "first_name", "email"]
+        fields = ["id", "username", "first_name", "email", "user_type", "trashed"]
         extra_kwargs = {
             "id": {"read_only": True},
             "username": {"read_only": True},
@@ -363,6 +374,10 @@ def check_user_can_log_in_with_password(user):
     :return: The password provider.
     """
 
+    from baserow.core.user.identity import is_human
+
+    if not is_human(user):
+        raise AuthenticationFailed()
     password_provider = PasswordProviderHandler.get()
     if not password_provider.enabled and user.is_staff is False:
         raise AuthProviderDisabled()

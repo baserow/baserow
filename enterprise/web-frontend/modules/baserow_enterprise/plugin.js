@@ -27,10 +27,10 @@ import {
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import {
-  EnterpriseRolesAgentExtensionType,
-  EnterpriseTeamsAgentExtensionType,
-} from '@baserow_enterprise/agentExtensionTypes'
-import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+  EnterpriseRolesIdentityExtensionType,
+  EnterpriseTeamsIdentityExtensionType,
+} from '@baserow_enterprise/identityExtensionTypes'
+import { EnterpriseTeamsIdentitySettingsType } from '@baserow_enterprise/identitySettingsTypes'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes.jsx'
 import { ScopeInvitationTargetType } from '@baserow_enterprise/invitationTargetTypes'
 import { MemberInvitationRouteType } from '@baserow_enterprise/invitationRouteTypes'
@@ -194,16 +194,16 @@ export default defineNuxtPlugin({
       new TeamsWorkspaceSettingsPageType(context)
     )
     $registry.register(
-      'agentExtension',
-      new EnterpriseTeamsAgentExtensionType(context)
+      'identityExtension',
+      new EnterpriseTeamsIdentityExtensionType(context)
     )
     $registry.register(
-      'agentExtension',
-      new EnterpriseRolesAgentExtensionType(context)
+      'identityExtension',
+      new EnterpriseRolesIdentityExtensionType(context)
     )
     $registry.register(
-      'agentSettings',
-      new EnterpriseTeamsAgentSettingsType(context)
+      'identitySettings',
+      new EnterpriseTeamsIdentitySettingsType(context)
     )
     $registry.register('subject', new TeamSubjectType(context))
     $registry.register(

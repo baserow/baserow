@@ -19,7 +19,7 @@ from baserow.contrib.builder.tools.lookups import (
     workspace_pages,
 )
 from baserow.contrib.builder.tools.types import PageItem
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow.core.user_sources.models import UserSource
@@ -74,6 +74,7 @@ def _user_source_item(user_source: UserSource, table_id: int) -> dict[str, Any]:
     return {"id": user_source.id, "name": user_source.name, "table_id": table_id}
 
 
+@tool_execution
 def setup_user_source(
     ctx: ToolContext,
     builder_id: Annotated[

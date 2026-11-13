@@ -78,7 +78,7 @@
   }
 }
 
-// Base agent text widths on the visible table area, even during horizontal scroll.
-.management-table--agents .data-table__body {
+// Base identity text widths on the visible table area, even during horizontal scroll.
+.management-table--identities .data-table__body {
   container-type: inline-size;
 }

@@ -3,7 +3,7 @@ from django.conf import settings
 from baserow.core.exceptions import FeatureDisabledException
 
 FF_ENABLE_ALL = "*"
-FF_AGENTS = "agents"
+FF_IDENTITIES = "identities"
 FF_AGENT_BUILDER = "agent-builder"
 FF_USER_TEMPLATES = "user_templates"
 FF_RBAC_IMPROVEMENTS = "rbac_improvements"

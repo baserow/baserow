@@ -444,9 +444,12 @@ class EffectiveAccessSerializer(serializers.Serializer):
     """
 
     subject_type = serializers.SerializerMethodField(
-        help_text="The type of the subject: a user or an agent."
+        help_text="The type of the subject: a user or an identity."
     )
     subject_id = serializers.SerializerMethodField(help_text="The subject's id.")
+    user_type = serializers.CharField(
+        source="subject.profile.user_type", read_only=True
+    )
     role = serializers.SerializerMethodField(
         help_text="The uid of the role the subject effectively holds on the scope."
     )
@@ -567,6 +570,6 @@ class SubjectRoleAssignmentSerializer(serializers.Serializer):
 class SubjectRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
     subject_type = serializers.ChoiceField(
         choices=lazy(lambda: ALLOWED_SUBJECT_TYPE_BY_PRIORITY, list)(),
-        help_text="The type of the subject: a user, an agent or a team.",
+        help_text="The type of the subject: a user, an identity or a team.",
     )
     subject_id = serializers.IntegerField(min_value=1, help_text="The subject's id.")

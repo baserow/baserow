@@ -39,7 +39,7 @@ from baserow.core.chat_runs.models import ChatRun
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent as Identity
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.registries import ImportExportConfig
 
 from .utils import agent_url, run_reply
@@ -124,10 +124,10 @@ def agent_with_tools(configured_agent, user, provider_type, model):
             workspace=agent.workspace, provider_type=provider_type, api_key="test-key"
         )
         AIProviderModel.objects.create(provider_config=provider, model_identifier=model)
-    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
+    identity = IdentityHandler().create_identity(workspace=agent.workspace, name="Ops")
     AgentHandler().update_configuration(
         agent,
-        run_as_subject_type="core.Agent",
+        run_as_subject_type="auth.User",
         run_as_subject_id=identity.id,
         allowed_tools=["list_tables"],
     )

@@ -94,13 +94,15 @@ def test_list_elements_query_count_does_not_grow_with_the_elements(
     data_fixture, builder_ctx
 ):
     def count_queries():
-        # The first call after a change fills the caches.
+        # The first call after a change fills the caches that outlive a call.
         elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
         with CaptureQueriesContext(connection) as queries:
             elements.list_elements(builder_ctx["ctx"], builder_ctx["page"].id)
         return len(queries)
 
+    # Each tool call reads fresh, so both pages need an element from the start.
     data_fixture.create_builder_heading_element(page=builder_ctx["page"])
+    data_fixture.create_builder_heading_element(page=builder_ctx["builder"].shared_page)
     few = count_queries()
     for _ in range(20):
         data_fixture.create_builder_heading_element(page=builder_ctx["page"])

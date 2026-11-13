@@ -1,7 +1,7 @@
 import SubjectRoleAssignmentRows from '@baserow_enterprise/components/member-roles/SubjectRoleAssignmentRows'
 
 /**
- * The expansion of a members, teams or agents table row into the roles the
+ * The expansion of a members, teams or identities table row into the roles the
  * subject holds on databases, tables and views, toggled by a "+N" chip in the
  * column of the subject's workspace role.
  *

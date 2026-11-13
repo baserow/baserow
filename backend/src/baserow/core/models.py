@@ -29,6 +29,8 @@ from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
 from django.utils.crypto import get_random_string
 
+from django_cte import CTEManager
+
 from baserow.core.context import PRIVATE_LINK_TOKEN_PATTERN
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
@@ -37,6 +39,8 @@ from baserow.core.jobs.mixins import (
     JobWithWebsocketId,
 )
 from baserow.core.jobs.models import Job
+from baserow.core.managers import make_trash_manager
+from baserow.core.user.managers import human_memberships
 from baserow.core.user_files.models import UserFile
 
 from .abuse_reports.models import AbuseReport
@@ -69,7 +73,6 @@ __all__ = [
     "WorkspaceUser",
     "WorkspaceInvitation",
     "WorkspaceInvitationLink",
-    "Agent",
     "Application",
     "TemplateCategory",
     "Template",
@@ -216,11 +219,33 @@ class Settings(models.Model):
     )
 
 
-class UserProfile(models.Model):
+class UserProfile(TrashableModelMixin, models.Model):
     """
     User profile to store user specific information that can't be stored in
     default user model.
     """
+
+    class UserType(models.TextChoices):
+        HUMAN = "human", "Human"
+        IDENTITY = "identity", "Identity"
+
+    user_type = models.CharField(
+        max_length=8,
+        choices=UserType.choices,
+        default=UserType.HUMAN,
+        db_default=UserType.HUMAN,
+    )
+    trashed = models.BooleanField(default=False, db_default=False)
+    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["user"],
+                condition=Q(trashed=True),
+                name="core_profile_trashed_idx",
+            )
+        ]
 
     # Keep these in sync with the web-frontend options in
     # web-frontend/modules/core/enums.js
@@ -454,12 +479,10 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         :return: The related workspace user instance.
         """
 
-        if include_trash:
-            manager = WorkspaceUser.objects_and_trash
-        else:
-            manager = WorkspaceUser.objects
-
-        return manager.get(user=user, workspace=self)
+        memberships = WorkspaceUser.objects_and_identities.all()
+        if not include_trash:
+            memberships = memberships.filter(workspace__trashed=False)
+        return memberships.get(user=user, workspace=self)
 
     def __str__(self):
         return f"<Workspace id={self.id}, name={self.name}>"
@@ -475,6 +498,12 @@ class WorkspaceUser(
     OrderableMixin,
     models.Model,
 ):
+    objects = human_memberships(make_trash_manager(False, parent="workspace"))()
+    trash = human_memberships(make_trash_manager(True, parent="workspace"))()
+    objects_and_trash = human_memberships(CTEManager)()
+    # Every membership, including identities and those in trashed workspaces.
+    objects_and_identities = CTEManager()
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -505,34 +534,6 @@ class WorkspaceUser(
     def get_last_order(cls, user):
         queryset = cls.objects.filter(user=user)
         return cls.get_highest_order_of_queryset(queryset) + 1
-
-
-class Agent(
-    HierarchicalModelMixin,
-    TrashableModelMixin,
-    CreatedAndUpdatedOnMixin,
-    models.Model,
-):
-    """A non-authenticating subject owned by a workspace."""
-
-    workspace = models.ForeignKey(
-        Workspace,
-        related_name="agents",
-        on_delete=models.CASCADE,
-    )
-    name = models.CharField(max_length=160)
-    role_uid = models.CharField(
-        max_length=32,
-        default=WORKSPACE_USER_PERMISSION_MEMBER,
-        db_default=WORKSPACE_USER_PERMISSION_MEMBER,
-    )
-    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
-
-    def get_parent(self):
-        return self.workspace
-
-    class Meta:
-        ordering = ("name", "id")
 
 
 class WorkspaceInvitation(

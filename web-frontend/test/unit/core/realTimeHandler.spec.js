@@ -177,26 +177,26 @@ describe('RealTimeHandler application updates', () => {
   })
 })
 
-describe('RealTimeHandler agent events', () => {
-  test('create and update events upsert the serialized agent', () => {
+describe('RealTimeHandler identity events', () => {
+  test('create and update events upsert the serialized identity', () => {
     const { handler, store } = makeHandler()
-    const agent = { id: 1, workspace_id: 42, name: 'Writer' }
+    const identity = { id: 1, workspace_id: 42, name: 'Writer' }
 
-    fire(handler, 'agent_created', { workspace_id: 42, agent })
-    fire(handler, 'agent_updated', { workspace_id: 42, agent })
+    fire(handler, 'identity_created', { workspace_id: 42, identity })
+    fire(handler, 'identity_updated', { workspace_id: 42, identity })
 
-    expect(store._dispatched).toContainEqual(['agent/forceCreate', agent])
-    expect(store._dispatched).toContainEqual(['agent/forceUpdate', agent])
+    expect(store._dispatched).toContainEqual(['identity/forceCreate', identity])
+    expect(store._dispatched).toContainEqual(['identity/forceUpdate', identity])
   })
 
-  test('delete events remove the agent from its workspace', () => {
+  test('delete events remove the identity from its workspace', () => {
     const { handler, store } = makeHandler()
 
-    fire(handler, 'agent_deleted', { workspace_id: 42, agent_id: 1 })
+    fire(handler, 'identity_deleted', { workspace_id: 42, identity_id: 1 })
 
     expect(store._dispatched).toContainEqual([
-      'agent/forceDelete',
-      { workspaceId: 42, agentId: 1 },
+      'identity/forceDelete',
+      { workspaceId: 42, identityId: 1 },
     ])
   })
 })

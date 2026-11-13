@@ -35,8 +35,8 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
-import AgentService from '@baserow/modules/core/services/agent'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import IdentityService from '@baserow/modules/core/services/identity'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
   makeTeamSubject,
@@ -70,11 +70,11 @@ export default {
     }
   },
   computed: {
-    canListAgents() {
+    canListIdentities() {
       return (
-        this.$featureFlagIsEnabled(FF_AGENTS) &&
+        this.$featureFlagIsEnabled(FF_IDENTITIES) &&
         this.$hasPermission(
-          'workspace.list_agents',
+          'workspace.list_identities',
           this.workspace,
           this.workspace.id
         )
@@ -105,26 +105,27 @@ export default {
       this.subjectsLoading = true
       this.subjectsLoaded = false
       try {
-        const [{ data: teamSubjects }, { data: agentsResponse }] =
+        const [{ data: teamSubjects }, { data: identitiesResponse }] =
           await Promise.all([
             TeamService(this.$client).fetchAllSubjects(this.team.id),
-            this.canListAgents
-              ? AgentService(this.$client).list(this.workspace.id)
+            this.canListIdentities
+              ? IdentityService(this.$client).list(this.workspace.id)
               : Promise.resolve({ data: [] }),
           ])
         const userSubjectType = this.$registry.get('subject', 'auth.User')
-        const agentSubjectType = this.$registry.get('subject', 'core.Agent')
         const users = this.workspace.users.map((member) =>
           makeTeamSubject(member, userSubjectType)
         )
-        const agents = (agentsResponse.results || agentsResponse).map((agent) =>
+        const identities = (
+          identitiesResponse.results || identitiesResponse
+        ).map((identity) =>
           makeTeamSubject(
-            agent,
-            agentSubjectType,
+            identity,
+            userSubjectType,
             this.$t('manageTeamForm.identityLabel')
           )
         )
-        this.availableSubjects = [...users, ...agents]
+        this.availableSubjects = [...users, ...identities]
         const subjectsByKey = new Map(
           this.availableSubjects.map((subject) => [
             getTeamSubjectKey(subject),

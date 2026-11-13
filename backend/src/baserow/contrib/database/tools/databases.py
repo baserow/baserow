@@ -9,7 +9,7 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 
 from baserow.contrib.database.tools.tables import get_database
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.applications import (
     MAX_PAGE_SIZE,
     ApplicationName,
@@ -19,6 +19,7 @@ from baserow.core.tools.applications import (
 )
 
 
+@tool_execution
 def list_databases(
     ctx: ToolContext,
     page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
@@ -45,6 +46,7 @@ def list_databases(
     }
 
 
+@tool_execution
 def create_database(
     ctx: ToolContext,
     name: Annotated[
@@ -62,6 +64,7 @@ def create_database(
     return {"created_database": {"id": database.id, "name": database.name}}
 
 
+@tool_execution
 def update_database(
     ctx: ToolContext,
     database_id: Annotated[

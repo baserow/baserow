@@ -30,6 +30,7 @@ from baserow.core.exceptions import UntrustedContentCannotBePublished
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Job
+from baserow.core.user.identity import is_human
 from baserow.core.utils import ChildProgressBuilder, Progress
 
 
@@ -138,7 +139,7 @@ class AutomationWorkflowService:
         workflow = self.handler.create_workflow(automation, name)
         recipients = self._validate_notification_recipients(
             automation.workspace,
-            [user.id]
+            ([user.id] if is_human(user) else [])
             if notification_recipient_ids is None
             else notification_recipient_ids,
         )

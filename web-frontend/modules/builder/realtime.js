@@ -28,7 +28,10 @@ const getApplicationContext = (store, applicationId) => {
   return { application }
 }
 
-const redispatchForAuthorizedAgent = (store, { workspaceId, agentId }) => {
+const redispatchForAuthorizedIdentity = (
+  store,
+  { workspaceId, identityId }
+) => {
   store.getters['application/getAll']
     .filter(
       (application) =>
@@ -40,8 +43,8 @@ const redispatchForAuthorizedAgent = (store, { workspaceId, agentId }) => {
         .filter(
           (integration) =>
             integration.type === 'local_baserow' &&
-            integration.authorized_subject?.type === 'core.Agent' &&
-            integration.authorized_subject.id === agentId
+            integration.authorized_subject?.type === 'auth.User' &&
+            integration.authorized_subject.id === identityId
         )
         .forEach((integration) => {
           store.dispatch('dataSource/redispatchForIntegration', {
@@ -53,17 +56,17 @@ const redispatchForAuthorizedAgent = (store, { workspaceId, agentId }) => {
 }
 
 export const registerRealtimeEvents = (realtime) => {
-  realtime.registerEvent('agent_created', ({ store }, data) => {
-    redispatchForAuthorizedAgent(store, {
+  realtime.registerEvent('identity_created', ({ store }, data) => {
+    redispatchForAuthorizedIdentity(store, {
       workspaceId: data.workspace_id,
-      agentId: data.agent.id,
+      identityId: data.identity.id,
     })
   })
 
-  realtime.registerEvent('agent_deleted', ({ store }, data) => {
-    redispatchForAuthorizedAgent(store, {
+  realtime.registerEvent('identity_deleted', ({ store }, data) => {
+    redispatchForAuthorizedIdentity(store, {
       workspaceId: data.workspace_id,
-      agentId: data.agent_id,
+      identityId: data.identity_id,
     })
   })
 

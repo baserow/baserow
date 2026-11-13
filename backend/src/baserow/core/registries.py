@@ -1487,7 +1487,9 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     """
 
     # Interactive users can persist undoable actions and emit product analytics.
-    is_interactive_user = False
+    def is_interactive_user(self, subject: Subject) -> bool:
+        return False
+
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
     options_list_operation_type: Optional[str] = None
@@ -1543,10 +1545,30 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         return self.type
 
-    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
-        """Return subjects matching the workspace scope, if listable."""
+    def get_queryset(self, include_trash: bool = False) -> Optional[QuerySet]:
+        """
+        Returns the stored subjects of this type, so callers never pick a manager.
 
-        return None
+        :param include_trash: Whether trashed subjects are returned as well, for
+            subject types that can be trashed.
+        :return: The subjects, or None when this type is not stored in the database.
+        """
+
+        # By name: importing the trash mixin here loads models too early.
+        manager = getattr(self.model_class, "objects", None)
+        if include_trash:
+            manager = getattr(self.model_class, "objects_and_trash", manager)
+        return None if manager is None else manager.all()
+
+    def get_trashed_subjects_queryset(self) -> Optional[QuerySet]:
+        """
+        Returns the trashed subjects of this type.
+
+        :return: The trashed subjects, or None when this type cannot be trashed.
+        """
+
+        trash_manager = getattr(self.model_class, "trash", None)
+        return None if trash_manager is None else trash_manager.all()
 
     def get_options_queryset(
         self,
@@ -1708,13 +1730,25 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
             stored in the database.
         """
 
-        model_class = self.get(type_name).model_class
-        manager = getattr(model_class, "objects", None)
-        if include_trash:
-            manager = getattr(model_class, "objects_and_trash", manager)
-        if manager is None:
-            return None
-        return manager.filter(id=subject_id).first()
+        queryset = self.get(type_name).get_queryset(include_trash=include_trash)
+        return None if queryset is None else queryset.filter(id=subject_id).first()
+
+    def get_trashed_subjects_q(self) -> Q:
+        """
+        Matches rows whose `subject_type` and `subject_id` point at a trashed subject.
+
+        :return: The condition, pairing both fields because IDs overlap across types.
+        """
+
+        trashed_subjects = Q()
+        for subject_type in self.get_all():
+            queryset = subject_type.get_trashed_subjects_queryset()
+            if queryset is not None:
+                trashed_subjects |= Q(
+                    subject_type=subject_type.get_content_type(),
+                    subject_id__in=queryset.values("id"),
+                )
+        return trashed_subjects
 
 
 class OperationType(abc.ABC, Instance):

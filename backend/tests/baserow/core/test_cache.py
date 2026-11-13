@@ -81,6 +81,27 @@ def test_cache_cleanup_after_request(middleware):
     assert local_cache.get("user_profile", "after") == "after"
 
 
+def test_isolated_scope_reads_fresh_and_merges_its_changes_back():
+    with local_cache.context():
+        local_cache.get("kept", "outer")
+        local_cache.get("elements", "stale")
+        local_cache.get("table_1_model", "stale")
+
+        with local_cache.isolated():
+            assert local_cache.get_if_cached("kept") is None
+            local_cache.get("elements", "fresh")
+            local_cache.delete("table_*")
+
+        assert local_cache.get_if_cached("kept") == "outer"
+        assert local_cache.get_if_cached("elements") == "fresh"
+        assert local_cache.get_if_cached("table_1_model") is None
+
+        with local_cache.isolated():
+            local_cache.clear()
+
+        assert local_cache.get_if_cached("kept") is None
+
+
 @override_settings(BASEROW_USE_LOCAL_CACHE=False)
 def test_cache_disabled():
     """

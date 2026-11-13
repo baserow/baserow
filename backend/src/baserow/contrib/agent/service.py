@@ -7,6 +7,7 @@ from django.db.models import QuerySet
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
+from baserow.core.models import UserProfile
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated, application_updated
 from baserow.core.subject_options import SubjectOptionsHandler
@@ -118,6 +119,10 @@ class AgentService:
             workspace=agent.workspace,
             search=search,
             subject_types=set(RUN_AS_SUBJECT_TYPES),
+            subject_type_options_kwargs={
+                subject_type: {"user_type": UserProfile.UserType.IDENTITY}
+                for subject_type in RUN_AS_SUBJECT_TYPES
+            },
         )
 
     @transaction.atomic

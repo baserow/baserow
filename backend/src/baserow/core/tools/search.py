@@ -10,7 +10,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.core.search.handler import WorkspaceSearchHandler
 from baserow.core.search.registries import workspace_search_registry
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 
 MAX_PAGE_SIZE = 50
 
@@ -27,6 +27,7 @@ def _result_id(result_id: str) -> int | str:
     return int(result_id) if str(result_id).isdigit() else result_id
 
 
+@tool_execution
 def search_workspace(
     ctx: ToolContext,
     query: SearchQuery,

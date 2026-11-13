@@ -74,7 +74,6 @@ from baserow.contrib.database.rows.actions import CreateRowsActionType
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler, MCPToolSettings
 from baserow.core.action.registries import action_type_registry
-from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.constants import ChatRunStopReason
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.journal import ChatRunJournal
@@ -83,8 +82,9 @@ from baserow.core.chat_runs.steps import ChatRunSteps
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent as Identity
-from baserow.core.models import WorkspaceUser
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.service import IdentityService
+from baserow.core.models import User, UserProfile, WorkspaceUser
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
@@ -131,10 +131,10 @@ def allow_tools(
         database=data_fixture.create_database_application(workspace=agent.workspace)
     )
     data_fixture.create_text_field(table=table, name="Name", primary=True)
-    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
+    identity = IdentityHandler().create_identity(workspace=agent.workspace, name="Ops")
     AgentHandler().update_configuration(
         agent,
-        run_as_subject_type="core.Agent" if with_identity else None,
+        run_as_subject_type="auth.User" if with_identity else None,
         run_as_subject_id=identity.id if with_identity else None,
         allowed_tools=list(tools),
         ask_first_tools=list(ask_first),
@@ -488,19 +488,20 @@ def test_the_model_knows_when_its_configured_workspace_identity_is_unavailable(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user, instructions="Be brief.")
-    identity = Identity.objects.create(
+    identity = IdentityHandler().create_identity(
         workspace=agent.workspace, name="PRIVATE_IDENTITY_NAME"
     )
     if identity_state != "unset":
-        agent.run_as_subject_type = "core.Agent"
+        agent.run_as_subject_type = "auth.User"
         agent.run_as_subject_id = identity.id
         if identity_state == "trashed":
-            IdentityService().delete_agent(user, identity)
+            IdentityService().delete_identity(user, identity)
         elif identity_state == "missing":
             identity.delete()
         elif identity_state == "other_workspace":
-            identity.workspace = data_fixture.create_workspace()
-            identity.save()
+            WorkspaceUser.objects_and_identities.filter(user=identity).update(
+                workspace=data_fixture.create_workspace()
+            )
         elif identity_state == "unknown_type":
             agent.run_as_subject_type = "unknown.subject"
         elif identity_state == "user":
@@ -542,11 +543,13 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user, instructions="Be brief.")
-    identity = Identity.objects.create(workspace=agent.workspace, name="Writer")
-    agent.run_as_subject_type = "core.Agent"
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Writer"
+    )
+    agent.run_as_subject_type = "auth.User"
     agent.run_as_subject_id = identity.id
     agent.save()
-    IdentityService().delete_agent(user, identity)
+    IdentityService().delete_identity(user, identity)
     seen = []
 
     async def stream(messages, info):
@@ -559,7 +562,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     )
     created = start(user, agent)
     run_reply(run_of(created.conversation))
-    TrashHandler.restore_item(user, "agent", identity.id)
+    TrashHandler.restore_item(user, "identity", identity.profile.id)
     next_reply = action_type_registry.get_by_type(CreateAgentMessageActionType).do(
         user, agent.id, created.conversation.uuid, uuid4(), "Try again"
     )
@@ -1458,7 +1461,9 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
     agent = configured_agent(user=user)
     table = allow_tools(data_fixture, agent)
     original_identity_id = agent.run_as_subject_id
-    replacement = Identity.objects.create(workspace=agent.workspace, name="Reader")
+    replacement = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Reader"
+    )
     offered = []
     rounds = 0
 
@@ -1469,7 +1474,7 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
         if rounds == 2:
             await sync_to_async(AgentHandler().update_configuration)(
                 agent,
-                run_as_subject_type="core.Agent" if change == "replace" else None,
+                run_as_subject_type="auth.User" if change == "replace" else None,
                 run_as_subject_id=replacement.id if change == "replace" else None,
                 allowed_tools=["list_views"] if change == "replace" else [],
             )
@@ -1497,10 +1502,10 @@ def test_workspace_configuration_changes_apply_to_the_next_generation(
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
     ) == ["Row 1", "Row 2"]
-    original_identity = Identity.objects.get(id=original_identity_id)
-    replacement.refresh_from_db()
-    assert original_identity.last_active is not None
-    assert replacement.last_active is None
+    original_identity = User.objects_and_identities.get(id=original_identity_id)
+    replacement.profile.refresh_from_db()
+    assert original_identity.profile.last_active is not None
+    assert replacement.profile.last_active is None
 
     next_reply = action_type_registry.get_by_type(CreateAgentMessageActionType).do(
         user, agent.id, created.conversation.uuid, uuid4(), "Try again"
@@ -1552,14 +1557,14 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     table = allow_tools(data_fixture, agent)
-    identity = Identity.objects.get(id=agent.run_as_subject_id)
+    identity = User.objects_and_identities.get(id=agent.run_as_subject_id)
     rounds = 0
 
     async def stream(messages, info):
         nonlocal rounds
         rounds += 1
         if rounds == 2:
-            await sync_to_async(IdentityService().delete_agent)(user, identity)
+            await sync_to_async(IdentityService().delete_identity)(user, identity)
         if rounds in (1, 2):
             name = "Before revocation" if rounds == 1 else "After revocation"
             yield {
@@ -1582,7 +1587,7 @@ def test_a_reply_cannot_keep_writing_after_its_identity_is_trashed(
     run_reply(run_of(created.conversation))
 
     identity.refresh_from_db()
-    assert identity.trashed
+    assert identity.profile.trashed
     assert reply_state(created.reply.id) == ("completed", "", "Done.")
     assert list(
         table.get_model(attribute_names=True).objects.values_list("name", flat=True)
@@ -2145,7 +2150,9 @@ def test_an_approved_call_runs_as_the_identity_and_the_reply_continues(
     resumed = AgentMessage.objects.get(id=reply.id)
     assert (resumed.status, resumed.content) == ("completed", "Done.")
     assert row_names(table) == ["Plan"]
-    assert acted.call_args.args[0] == Identity.objects.get(id=agent.run_as_subject_id)
+    assert acted.call_args.args[0] == User.objects_and_identities.get(
+        id=agent.run_as_subject_id
+    )
     read_id, write_id = [step["id"] for step in reply.steps]
     assert [(step["id"], step["status"]) for step in resumed.steps] == [
         (read_id, "done"),
@@ -2247,12 +2254,16 @@ def test_an_approved_call_fails_when_the_agent_may_no_longer_make_it(
             agent, run_as_subject_type=None, run_as_subject_id=None
         )
     elif change == "switch_the_identity":
-        other = Identity.objects.create(workspace=agent.workspace, name="Admin")
+        other = IdentityHandler().create_identity(
+            workspace=agent.workspace, name="Admin"
+        )
         AgentHandler().update_configuration(
-            agent, run_as_subject_type="core.Agent", run_as_subject_id=other.id
+            agent, run_as_subject_type="auth.User", run_as_subject_id=other.id
         )
     else:
-        Identity.objects.filter(id=agent.run_as_subject_id).update(trashed=True)
+        UserProfile.objects_and_trash.filter(user_id=agent.run_as_subject_id).update(
+            trashed=True
+        )
 
     run_reply(decide(user, reply, approved=True))
 

@@ -1,9 +1,15 @@
 from rest_framework import serializers
 
 from baserow.core.notifications.models import NotificationRecipient, User
+from baserow.core.user.identity import is_human
 
 
 class SenderSerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
+
+    def get_username(self, instance) -> str | None:
+        return instance.username if is_human(instance) else None
+
     class Meta:
         model = User
         fields = ("id", "username", "first_name")

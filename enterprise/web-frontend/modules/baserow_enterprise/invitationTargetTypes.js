@@ -19,7 +19,7 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
   /**
    * The roles a new person can be invited to the object with. Inviting someone
    * to an object with no access on it is pointless, so that role is left out
-   * here; members, teams and agents who already belong to the workspace can
+   * here; members, teams and identities who already belong to the workspace can
    * still be given it on the object.
    */
   getRoles(workspace, { scopeType }) {

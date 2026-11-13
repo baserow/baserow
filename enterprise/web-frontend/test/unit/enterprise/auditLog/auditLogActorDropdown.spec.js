@@ -12,9 +12,9 @@ const actors = [
     value: 'user@example.com',
   },
   {
-    id: 'core.Agent:1',
-    actor_id: 1,
-    actor_type: 'core.Agent',
+    id: 'auth.User:2',
+    actor_id: 2,
+    actor_type: 'auth.User',
     value: 'Row writer',
   },
 ]
@@ -40,7 +40,7 @@ async function mountComponent(fetchPage = null) {
 }
 
 describe('AuditLogActorDropdown', () => {
-  test('renders users and agents in separate sections and selects an agent', async () => {
+  test('renders identities among users and selects an identity', async () => {
     const wrapper = await mountComponent()
     await wrapper.findComponent(PaginatedDropdown).vm.fetch()
     await flushPromises()
@@ -49,7 +49,7 @@ describe('AuditLogActorDropdown', () => {
 
     await wrapper.findAll('.select__item-link')[2].trigger('click')
 
-    expect(wrapper.emitted('input')).toEqual([[{ id: 1, type: 'core.Agent' }]])
+    expect(wrapper.emitted('input')).toEqual([[{ id: 2, type: 'auth.User' }]])
   })
 
   test('forwards the search query to the actor endpoint', async () => {

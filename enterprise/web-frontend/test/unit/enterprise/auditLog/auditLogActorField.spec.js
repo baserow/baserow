@@ -24,7 +24,6 @@ async function mountComponent(actor, user = '') {
 describe('AuditLogActorField', () => {
   test.each([
     ['auth.User', 'user@example.com', 12, 'user@example.com (12)'],
-    ['core.Agent', 'Row writer', 34, 'Row writer (34)'],
     ['custom.Robot', 'Robot', 56, 'Robot (56)'],
   ])('renders the %s actor type', async (type, name, id, expected) => {
     const wrapper = await mountComponent({ type, name, id })
