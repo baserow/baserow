@@ -150,6 +150,9 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True,
         help_text="List of all workspace users.",
     )
+    identities = serializers.SerializerMethodField(
+        help_text="The identities that can be assigned or mentioned in the workspace."
+    )
     identities_count = serializers.SerializerMethodField(
         help_text="The number of identities in the workspace."
     )
@@ -170,6 +173,26 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True, help_text="Generative AI models available in this workspace."
     )
     ai_features = serializers.SerializerMethodField(read_only=True)
+
+    def get_identities(self, workspace_user):
+        """Return the prefetched assignable identities, or query them when absent."""
+
+        workspace = workspace_user.workspace
+        memberships = getattr(workspace, "collaborator_identity_memberships", None)
+        if memberships is None:
+            from baserow.core.handler import CoreHandler
+
+            identities = (
+                CoreHandler()
+                .get_workspace_collaborators(workspace, include_identities=True)
+                .filter(profile__user_type="identity")
+            )
+        else:
+            identities = [membership.user for membership in memberships]
+        return [
+            {"id": identity.id, "name": identity.first_name, "user_type": "identity"}
+            for identity in identities
+        ]
 
     def get_identities_count(self, workspace_user):
         """Return the annotated identity count without issuing another query."""

@@ -43,7 +43,7 @@ from baserow.core.db import specific_queryset
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import is_human, is_identity
+from baserow.core.user.identity import active_identity_q, is_human, is_identity
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_templates.constants import USER_TEMPLATE_SEEDED_ID_MAPPINGS
 
@@ -871,7 +871,14 @@ class CoreHandler:
             Prefetch(
                 "workspace__workspaceuser_set",
                 queryset=workspaceusers_with_user_and_profile,
-            )
+            ),
+            Prefetch(
+                "workspace__workspaceuser_set",
+                queryset=WorkspaceUser.objects_and_identities.filter(
+                    active_identity_q("user__")
+                ).select_related("user"),
+                to_attr="collaborator_identity_memberships",
+            ),
         )
         return workspaceuser_workspaces
 
@@ -2032,6 +2039,25 @@ class CoreHandler:
         )
 
         return workspace_user
+
+    def get_workspace_collaborators(
+        self, workspace: Workspace | int, include_identities: bool = False
+    ) -> QuerySet[User]:
+        """
+        Returns the users who can be assigned or mentioned in a workspace.
+
+        :param workspace: The workspace or its ID.
+        :param include_identities: Whether the active identities of the workspace
+            are returned along with its human members.
+        :return: The collaborators, with their profile loaded.
+        """
+
+        kinds = Q(profile__user_type="human")
+        if include_identities:
+            kinds |= active_identity_q()
+        return User.objects_and_identities.filter(
+            kinds, workspaceuser__workspace=workspace
+        ).select_related("profile")
 
     @classmethod
     def get_user_email_mapping(

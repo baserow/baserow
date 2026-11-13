@@ -275,7 +275,7 @@ def create_row_instance_and_relations(values, table, model, fake, cache, order):
     values["order"] = order
 
     workspace = table.database.workspace
-    available_users = CoreHandler().get_users_in_workspace(workspace)
+    available_users = CoreHandler().get_workspace_collaborators(workspace)
     values["last_modified_by"] = random.choice(available_users)  # nosec
 
     # Prepare an array of objects that can later be inserted all at once.

@@ -14,9 +14,11 @@
               getCollaboratorName(item)
             }}</span>
           </div>
-          <div class="field-multiple-collaborators__initials">
-            {{ getCollaboratorNameInitials(item) }}
-          </div>
+          <CollaboratorAvatar
+            :field="field"
+            class="field-multiple-collaborators__initials"
+            :collaborator="item"
+          />
         </template>
       </li>
     </ul>
@@ -27,12 +29,14 @@
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import collaboratorField from '@baserow/modules/database/mixins/collaboratorField'
 import collaboratorName from '@baserow/modules/database/mixins/collaboratorName'
 
 export default {
   name: 'RowEditFieldMultipleCollaboratorsReadOnly',
+  components: { CollaboratorAvatar },
   mixins: [rowEditField, collaboratorField, collaboratorName],
 }
 </script>

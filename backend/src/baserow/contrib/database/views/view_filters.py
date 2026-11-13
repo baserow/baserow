@@ -1532,7 +1532,7 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
             id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
 
@@ -1550,7 +1550,7 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
         if self.COLLABORATORS_KEY not in id_mapping:
             id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
             for workspaceuser in workspaceusers_from_workspace:
@@ -1601,7 +1601,7 @@ class UserIsViewFilterType(ViewFilterType):
 
             id_mapping[self.USER_KEY] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
 
@@ -1619,7 +1619,7 @@ class UserIsViewFilterType(ViewFilterType):
 
         if self.USER_KEY not in id_mapping:
             id_mapping[self.USER_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
             for workspaceuser in workspaceusers_from_workspace:

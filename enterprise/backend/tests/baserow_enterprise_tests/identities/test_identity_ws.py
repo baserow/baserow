@@ -68,7 +68,28 @@ def test_identity_events_only_reach_users_allowed_to_list_identities(
     assert broadcast.call_args.kwargs["ignore_web_socket_id"] == (
         None if event == "restore" else "origin"
     )
-    workspace_broadcast.delay.assert_not_called()
+    workspace_broadcast.delay.assert_called_once()
+    workspace_id, collaborator = workspace_broadcast.delay.call_args.args
+    assert workspace_id == workspace.id
+    assert collaborator["type"] == (
+        "workspace_identity_deleted"
+        if event == "delete"
+        else "workspace_identity_updated"
+    )
+    assert collaborator["workspace_id"] == workspace.id
+    if event == "delete":
+        assert collaborator["identity_id"] == identity.id
+    else:
+        assert collaborator["identity"] == {
+            "id": identity.id,
+            "name": "Updated private identity"
+            if event == "update"
+            else identity.first_name,
+            "user_type": "identity",
+        }
+    assert (
+        workspace_broadcast.delay.call_args.kwargs.get("ignore_web_socket_id") is None
+    )
 
 
 @pytest.mark.django_db(transaction=True)

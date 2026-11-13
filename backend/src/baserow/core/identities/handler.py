@@ -10,7 +10,7 @@ from baserow.core.identities.exceptions import IdentityDoesNotExist
 from baserow.core.identities.registries import identity_extension_type_registry
 from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user.identity import is_identity
+from baserow.core.user.identity import IDENTITY_EMAIL_DOMAIN, is_identity
 
 IDENTITY_LAST_ACTIVE_CACHE_TTL_SECONDS = 60
 IDENTITY_LAST_ACTIVE_CACHE_KEY = "identity_{identity_id}_last_active"
@@ -110,7 +110,7 @@ class IdentityHandler:
         :return: The newly created identity.
         """
 
-        email = f"identity-{uuid.uuid4().hex}@identities.invalid"
+        email = f"identity-{uuid.uuid4().hex}@{IDENTITY_EMAIL_DOMAIN}"
         identity = User(
             username=email, email=email, first_name=values["name"], is_active=True
         )

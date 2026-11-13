@@ -403,10 +403,45 @@ def _broadcast_to_identity_listers(identity, user, get_payload) -> None:
     transaction.on_commit(broadcast)
 
 
+def _broadcast_workspace_identity(identity) -> None:
+    """
+    Tells every member of the workspace, once the transaction commits, whether the
+    identity can be assigned or mentioned and which name to show for it.
+
+    :param identity: The identity that was created, changed or trashed.
+    """
+
+    workspace_id = IdentityHandler().get_workspace(identity).id
+    is_collaborator = (
+        CoreHandler()
+        .get_workspace_collaborators(workspace_id, include_identities=True)
+        .filter(id=identity.id)
+        .exists()
+    )
+    if is_collaborator:
+        payload = {
+            "type": "workspace_identity_updated",
+            "workspace_id": workspace_id,
+            "identity": {
+                "id": identity.id,
+                "name": identity.first_name,
+                "user_type": "identity",
+            },
+        }
+    else:
+        payload = {
+            "type": "workspace_identity_deleted",
+            "workspace_id": workspace_id,
+            "identity_id": identity.id,
+        }
+    transaction.on_commit(lambda: broadcast_to_group.delay(workspace_id, payload))
+
+
 @receiver(identity_signals.identity_created)
 def identity_created(sender, identity, user=None, **kwargs):
     """Notify permitted users when an identity is created or restored."""
 
+    _broadcast_workspace_identity(identity)
     _broadcast_to_identity_listers(
         identity,
         user,
@@ -421,6 +456,7 @@ def identity_created(sender, identity, user=None, **kwargs):
 def identity_updated(sender, identity, user, **kwargs):
     """Notify users who can list identities about updated identity details."""
 
+    _broadcast_workspace_identity(identity)
     _broadcast_to_identity_listers(
         identity,
         user,
@@ -435,6 +471,7 @@ def identity_updated(sender, identity, user, **kwargs):
 def identity_deleted(sender, identity, user, **kwargs):
     """Notify users who can list identities that an identity was deleted."""
 
+    _broadcast_workspace_identity(identity)
     _broadcast_to_identity_listers(
         identity,
         user,

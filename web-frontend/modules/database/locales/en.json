@@ -295,6 +295,7 @@
     "notFound": "Option not found"
   },
   "fieldmultipleCollaboratorsDropdown": {
+    "identities": "Identities",
     "notFound": "Collaborator not found"
   },
   "fieldDateSubForm": {
@@ -542,7 +543,8 @@
     "refreshFormulaOptions": "Refresh formula options"
   },
   "fieldLongTextSubForm": {
-    "enableRichTextFormatting": "Enable rich text formatting"
+    "enableRichTextFormatting": "Enable rich text formatting",
+    "includeIdentities": "Allow mentioning identities"
   },
   "formulaFieldItemDescription": {
     "syntax": "Syntax",
@@ -1053,7 +1055,9 @@
     "errorEmptyFileNameMessage": "You can't set an empty name for a file."
   },
   "fieldCollaboratorSubForm": {
-    "notifyUserWhenAdded": "Notify user when added"
+    "notifyUserWhenAdded": "Notify user when added",
+    "includeIdentities": "Allow assigning identities",
+    "removesIdentities": "Saving removes the identities already assigned in this field."
   },
   "collaboratorAddedToRowNotification": {
     "title": "{sender} assigned you to {fieldName} in row {rowId} in {tableName}",
