@@ -2079,13 +2079,13 @@ def _parse_int_pairs(env_name: str, default: str) -> tuple[tuple[int, int], ...]
 
     :param env_name: The environment variable to read.
     :param default: The pairs used when the variable is unset or empty.
-    :raises ImproperlyConfigured: When the value isn't integers in pairs.
+    :raises ImproperlyConfigured: When the value isn't positive integers in pairs.
     :return: The pairs, in the given order.
     """
 
     message = (
-        f"{env_name} must contain an even number of comma-separated integers "
-        "formatted as max_runs,window_seconds pairs."
+        f"{env_name} must contain an even number of comma-separated positive "
+        "integers formatted as max_runs,window_seconds pairs."
     )
     try:
         values = [
@@ -2095,7 +2095,7 @@ def _parse_int_pairs(env_name: str, default: str) -> tuple[tuple[int, int], ...]
         ]
     except ValueError as exc:
         raise ImproperlyConfigured(message) from exc
-    if len(values) % 2:
+    if len(values) % 2 or any(value < 1 for value in values):
         raise ImproperlyConfigured(message)
     return tuple(zip(values[::2], values[1::2]))
 

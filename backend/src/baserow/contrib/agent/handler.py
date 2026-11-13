@@ -1004,17 +1004,16 @@ class AgentHandler:
             )
             if locked is None:
                 return started
-            limits = get_overlap_limits(locked.on_overlap)
-            going = trigger_handler.count_going_replies(trigger)
+            room = get_overlap_limits(locked.on_overlap).room_to_go(
+                trigger_handler.count_going_replies(trigger)
+            )
             # The lock re-checks the filter against a conversation trashed meanwhile.
             replies = (
                 trigger_handler.get_queued_replies(trigger)
                 .select_related("conversation__agent__workspace")
-                .select_for_update(of=("self", "conversation"), no_key=True)
+                .select_for_update(of=("self", "conversation"), no_key=True)[:room]
             )
             for reply in replies:
-                if not limits.has_room_to_go(going + len(started)):
-                    break
                 try:
                     with transaction.atomic():
                         self._start_existing_reply(reply)

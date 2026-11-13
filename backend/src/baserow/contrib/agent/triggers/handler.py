@@ -360,7 +360,7 @@ class AgentTriggerHandler:
         The condition a going reply meets: it waits for approvals, or it runs while
         its conversation has an active run. A reply its run left ``running`` when
         ending without saving it, for example on a database error, never holds its
-        trigger back.
+        trigger back, nor does a reply in a deleted conversation.
 
         :return: The condition on ``AgentMessage``.
         """
@@ -370,8 +370,9 @@ class AgentTriggerHandler:
             chat_id=OuterRef("conversation_id"),
             status__in=ACTIVE_CHAT_RUN_STATUSES,
         )
-        return Q(status=AgentReplyStatus.WAITING) | Q(
-            Exists(active_run), status=AgentReplyStatus.RUNNING
+        return Q(conversation__trashed=False) & (
+            Q(status=AgentReplyStatus.WAITING)
+            | Q(Exists(active_run), status=AgentReplyStatus.RUNNING)
         )
 
     def count_going_replies(self, trigger: AgentTrigger) -> int:

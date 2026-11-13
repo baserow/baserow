@@ -26,5 +26,7 @@ def test_limits_tell_whether_one_more_reply_goes_or_queues():
     limited, unlimited = OverlapLimits(2, 0), OverlapLimits(None, None)
 
     assert [limited.has_room_to_go(going) for going in (1, 2)] == [True, False]
+    assert [limited.room_to_go(going) for going in (0, 2, 3)] == [2, 0, 0]
     assert limited.has_room_to_queue(0) is False
     assert unlimited.has_room_to_go(1000) and unlimited.has_room_to_queue(1000)
+    assert unlimited.room_to_go(1000) is None

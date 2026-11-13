@@ -22,7 +22,8 @@ NAME_HELP_TEXT = (
 )
 ON_OVERLAP_HELP_TEXT = (
     "What a firing does while a reply of the trigger is still going: `skip` "
-    "starts nothing, `wait` queues its conversation until that reply ends."
+    "starts nothing, `wait` queues its conversation until that reply ends, "
+    "`parallel` starts it alongside, up to a cap, then queues it."
 )
 
 

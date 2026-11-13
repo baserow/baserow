@@ -79,6 +79,7 @@ def test_queued_and_going_replies_are_told_apart(
     first = trigger_reply(data_fixture, trigger, "queued")
     second = trigger_reply(data_fixture, trigger, "queued")
     trigger_reply(data_fixture, trigger, "queued", trashed=True)
+    trigger_reply(data_fixture, trigger, going_status, run_status, trashed=True)
     handler = AgentTriggerHandler()
 
     assert handler.count_going_replies(trigger) == 0
@@ -104,6 +105,7 @@ def test_the_sweep_lists_only_idle_triggers_with_queued_replies(
     trigger_reply(data_fixture, busy, "running", run_status="queued")
     trigger_reply(data_fixture, stuck, "running", run_status="failed")
     trigger_reply(data_fixture, finished, "completed")
+    trigger_reply(data_fixture, idle, "waiting", trashed=True)
 
     with django_assert_num_queries(1):
         idle_triggers = list(

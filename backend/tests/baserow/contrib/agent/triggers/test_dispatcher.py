@@ -505,20 +505,29 @@ def test_a_trigger_that_skips_records_that_its_previous_run_was_still_going(
 
 
 @pytest.mark.django_db
-def test_a_waiting_trigger_fails_a_reply_whose_message_failed_instead_of_queueing_it(
-    data_fixture, configured_agent
+@override_settings(AGENT_TRIGGER_MAX_QUEUED_RUNS=1)
+@pytest.mark.parametrize("on_overlap", ["skip", "wait"])
+def test_a_busy_trigger_fails_a_reply_whose_message_failed_instead_of_skipping_it(
+    data_fixture, configured_agent, on_overlap
 ):
     agent = configured_agent(user=data_fixture.create_user())
     trigger = periodic_trigger(
-        data_fixture, agent, on_overlap="wait", message="get('trigger.fired_at') / 2"
+        data_fixture,
+        agent,
+        on_overlap=on_overlap,
+        message="get('trigger.fired_at') / 2",
     )
     AgentHandler().start_trigger_conversation(trigger, "Still going")
+    # A full queue, under the rule that queues.
+    queued_reply(trigger)
 
     tick()
 
     newest = AgentMessage.objects.filter(role="assistant").latest("id")
+    trigger.refresh_from_db()
     assert (newest.status, newest.error_code) == ("failed", "trigger_message_failed")
     assert ChatRun.objects.count() == 1
+    assert (trigger.last_fired_on, trigger.last_skipped_reason) == (FIRED_AT, "")
 
 
 @pytest.mark.django_db

@@ -154,7 +154,7 @@ def test_agent_trigger_limits_are_read_as_pairs(
     assert result.stdout.strip().splitlines()[-1] == expected
 
 
-@pytest.mark.parametrize("value", ["10,5,30", "10,five"])
+@pytest.mark.parametrize("value", ["10,5,30", "10,five", "0,0", "10,-5"])
 def test_agent_trigger_rate_limits_must_be_integer_pairs(value: str):
     result = _read_agent_trigger_limits(BASEROW_AGENT_TRIGGER_RATE_LIMITS=value)
 

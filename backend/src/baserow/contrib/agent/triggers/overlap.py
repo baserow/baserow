@@ -35,6 +35,14 @@ class OverlapLimits:
 
         return self.max_going is None or going < self.max_going
 
+    def room_to_go(self, going: int) -> int | None:
+        """
+        :param going: How many replies of the trigger are going.
+        :return: How many more may start, or None when there is no limit.
+        """
+
+        return None if self.max_going is None else max(self.max_going - going, 0)
+
     def has_room_to_queue(self, queued: int) -> bool:
         """
         :param queued: How many replies of the trigger are queued.

@@ -328,7 +328,8 @@ class AgentTriggerDispatcher:
         Queued replies a lost hand-off left behind start first, so a firing never
         queues behind a queue that doesn't move. The workspace's run limit queues
         a firing where the rule queues, and fails it, visibly, where it doesn't.
-        A failed message fails its reply at once, never queued.
+        A failed message fails its reply at once, never queued or skipped, so the
+        builder sees the broken formula.
 
         :param trigger: The trigger that fired, with its agent.
         :param content: The resolved message opening the conversation.
@@ -344,7 +345,9 @@ class AgentTriggerDispatcher:
         going = trigger_handler.count_going_replies(trigger)
         queued = trigger_handler.count_queued_replies(trigger)
         queues = limits.max_queued != 0
-        if limits.has_room_to_go(going) and not (queues and queued):
+        if failure is not None or (
+            limits.has_room_to_go(going) and not (queues and queued)
+        ):
             created = AgentHandler().start_trigger_conversation(
                 trigger, content, failure, queue_on_run_limit=queues
             )
