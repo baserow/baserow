@@ -18,6 +18,10 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.triggers.dispatcher import agent_trigger_dispatcher
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.agent.triggers.service import (
+    WRITE_OPERATIONS as TRIGGER_WRITE_OPERATIONS,
+)
+from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_MINUTE
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
@@ -797,3 +801,51 @@ def test_a_firing_waits_for_whoever_holds_its_trigger_and_reads_it_again(
         AgentConversation.objects.count(),
         trigger.last_skipped_reason,
     ) == outcome
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=5)
+def test_a_hand_off_waits_for_a_firing_holding_the_workspace_run_lock(
+    data_fixture, configured_agent, mocker
+):
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    agent = configured_agent(user=data_fixture.create_user())
+    waiting = periodic_trigger(data_fixture, agent, on_overlap="wait")
+    firing = periodic_trigger(data_fixture, agent)
+    queued = queued_reply(waiting)
+
+    with transaction.atomic():
+        agent_trigger_dispatcher.start(firing.id, "Check the inbox", None)
+        assert ChatRun.objects.count() == 1
+        hand_off = in_another_connection(
+            lambda: AgentHandler().start_queued_replies(waiting)
+        )
+        wait_for_a_lock_waiter()
+
+    assert hand_off.result(timeout=10) == [queued]
+    assert ChatRun.objects.count() == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
+    data_fixture, configured_agent, mocker
+):
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = periodic_trigger(data_fixture, agent)
+
+    def tick_without_starting():
+        mocker.patch(
+            "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversation.delay"
+        )
+        with freeze_time(TICK_AT):
+            call_periodic_services_that_are_due()
+
+    with transaction.atomic():
+        AgentTriggerService()._get_authorized_trigger(
+            user, agent.id, trigger.id, *TRIGGER_WRITE_OPERATIONS, for_update=True
+        )
+        in_another_connection(tick_without_starting).result(timeout=10)
+
+        assert next_run_at(trigger) == DUE_AT + timedelta(minutes=1)
