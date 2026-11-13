@@ -127,7 +127,7 @@ exports[`GridViewRows component with decoration > Should show cant add decorator
 <body>
   <div
     class="tooltip tooltip--body tooltip--center"
-    style="top: 4px; left: 0px;"
+    style="top: 4px; left: 8px; --tooltip-cursor-position-left: 6px;"
   >
     <div
       class="tooltip__content"
@@ -151,7 +151,7 @@ exports[`GridViewRows component with decoration > Should show unavailable decora
 <body>
   <div
     class="tooltip tooltip--body tooltip--center"
-    style="top: 4px; left: 0px;"
+    style="top: 4px; left: 8px; --tooltip-cursor-position-left: 6px;"
   >
     <div
       class="tooltip__content"
