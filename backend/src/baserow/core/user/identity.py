@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 
 
 def get_user_type(user: object) -> str | None:
@@ -20,3 +21,16 @@ def is_identity(user: object) -> bool:
     """Return whether the stored User represents a nonhuman identity."""
 
     return get_user_type(user) == "identity"
+
+
+def active_identity_q(user_lookup: str = "") -> Q:
+    """Select identities eligible for new assignments and run-as choices."""
+
+    return Q(
+        **{
+            f"{user_lookup}profile__user_type": "identity",
+            f"{user_lookup}profile__trashed": False,
+            f"{user_lookup}profile__to_be_deleted": False,
+            f"{user_lookup}is_active": True,
+        }
+    )

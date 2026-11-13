@@ -16,7 +16,6 @@ from baserow.contrib.integrations.api.local_baserow.serializers import (
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
-from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
 from baserow.core.models import Application, Workspace
@@ -136,37 +135,6 @@ class LocalBaserowIntegrationType(IntegrationType):
             values, user, application=application, instance=instance
         )
 
-    def serialize_property(
-        self,
-        integration: Integration,
-        prop_name: str,
-        import_export_config=None,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Serialize the canonical subject pair for import/export.
-        """
-
-        if prop_name == "authorized_subject":
-            return None
-
-        if prop_name == "authorized_subject_type":
-            return integration.authorized_subject_type
-
-        if prop_name == "authorized_subject_id":
-            return integration.authorized_subject_id
-
-        return super().serialize_property(
-            integration,
-            prop_name,
-            import_export_config=import_export_config,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-        )
-
     def export_serialized(
         self,
         instance: LocalBaserowIntegration,
@@ -250,16 +218,16 @@ class LocalBaserowIntegrationType(IntegrationType):
             )
         username = serialized_values.pop("authorized_user", None)
         if username:
-            workspace_users = cache.setdefault(
-                "local_baserow_workspace_users",
-                {
+            if "local_baserow_workspace_users" not in cache:
+                cache["local_baserow_workspace_users"] = {
                     user.username: user
                     for user in User.objects.filter(
                         workspaceuser__workspace_id=id_mapping["import_workspace_id"]
                     )
-                },
+                }
+            legacy_authorized_user = cache["local_baserow_workspace_users"].get(
+                username
             )
-            legacy_authorized_user = workspace_users.get(username)
             if legacy_authorized_user:
                 serialized_values["authorized_subject_type"] = "auth.User"
                 serialized_values["authorized_subject_id"] = legacy_authorized_user.id
@@ -274,9 +242,6 @@ class LocalBaserowIntegrationType(IntegrationType):
             cache=cache,
         )
         return integration
-
-    def enhance_queryset(self, queryset):
-        return queryset
 
     def get_context_data(self, instance: LocalBaserowIntegration) -> Optional[Dict]:
         try:

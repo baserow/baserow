@@ -65,7 +65,7 @@ export default {
         const { data } = await TeamService(this.$client).fetchAll(
           this.workspace.id
         )
-        this.teams = data.results || data
+        this.teams = data
       } catch {
         this.loadError = true
       } finally {

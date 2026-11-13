@@ -35,7 +35,7 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
         **auth,
     )
     choices = api_client.get(
-        reverse("api:agent:run_as_subjects", kwargs={"agent_id": application.id}),
+        reverse("api:agent:run_as_identities", kwargs={"agent_id": application.id}),
         **auth,
     )
     updated = api_client.patch(
@@ -47,7 +47,7 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
 
     assert workspace_options.status_code == 401
     assert choices.status_code == 200
-    assert [item["subject_id"] for item in choices.json()["results"]] == [identity.id]
+    assert [item["id"] for item in choices.json()["results"]] == [identity.id]
     assert updated.status_code == 200
     assert updated.json()["run_as"]["id"] == identity.id
 
@@ -77,7 +77,7 @@ def test_configuration_reader_cannot_list_editable_identity_choices(
         **auth,
     )
     choices = api_client.get(
-        reverse("api:agent:run_as_subjects", kwargs={"agent_id": application.id}),
+        reverse("api:agent:run_as_identities", kwargs={"agent_id": application.id}),
         **auth,
     )
 

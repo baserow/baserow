@@ -61,12 +61,10 @@ describe('IdentityTeamsFormField', () => {
     expect(wrapper.find('.loading').exists()).toBe(true)
 
     resolveTeams({
-      data: {
-        results: [
-          { id: 1, name: 'Engineering' },
-          { id: 2, name: 'Support' },
-        ],
-      },
+      data: [
+        { id: 1, name: 'Engineering' },
+        { id: 2, name: 'Support' },
+      ],
     })
     await flushPromises()
 
@@ -95,7 +93,7 @@ describe('IdentityTeamsFormField', () => {
       .fn()
       .mockRejectedValueOnce(new Error('Request failed'))
       .mockResolvedValueOnce({
-        data: { results: [{ id: 1, name: 'Engineering' }] },
+        data: [{ id: 1, name: 'Engineering' }],
       })
     TeamService.mockReturnValue({ fetchAll })
 

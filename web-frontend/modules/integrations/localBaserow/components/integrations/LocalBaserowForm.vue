@@ -112,13 +112,16 @@ export default {
   },
   methods: {
     /**
-     * Fetches a page of the identities of the workspace, with their role as
-     * description. The identities endpoint, unlike the subjects one, has it.
+     * Fetches selectable workspace identities with their role as description.
      */
     async fetchIdentityPage(page, search) {
       const workspaceId = this.application.workspace.id
       const [response, roles] = await Promise.all([
-        IdentityService(this.$client).listPage(workspaceId, { page, search }),
+        IdentityService(this.$client).listPage(workspaceId, {
+          page,
+          search,
+          forSelection: true,
+        }),
         this.fetchRoles(workspaceId),
       ])
       if (!search) {

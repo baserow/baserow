@@ -10,7 +10,7 @@ from baserow.core.identities.exceptions import IdentityDoesNotExist
 from baserow.core.identities.registries import identity_extension_type_registry
 from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user.identity import is_identity
+from baserow.core.user.identity import active_identity_q, is_identity
 
 IDENTITY_LAST_ACTIVE_CACHE_TTL_SECONDS = 60
 IDENTITY_LAST_ACTIVE_CACHE_KEY = "identity_{identity_id}_last_active"
@@ -70,7 +70,7 @@ class IdentityHandler:
             .order_by("first_name", "id")
         )
         if for_selection:
-            queryset = queryset.filter(is_active=True, profile__to_be_deleted=False)
+            queryset = queryset.filter(active_identity_q())
         return identity_extension_type_registry.enhance_queryset(queryset, workspace)
 
     def get_identity(

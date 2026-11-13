@@ -2,20 +2,19 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow.core.models import UserProfile
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated, application_updated
-from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
 from .action_tools.handler import AgentActionHandler
 from .action_tools.signals import agent_action_updated
-from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
+from .constants import AgentReadinessState
 from .exceptions import (
     AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
@@ -98,7 +97,7 @@ class AgentService:
         )
         return self.handler.get_configuration(agent)
 
-    def get_run_as_subject_options(
+    def get_run_as_identities(
         self, user: AbstractUser, agent_id: int, search: str = ""
     ) -> QuerySet:
         """
@@ -117,15 +116,10 @@ class AgentService:
             UpdateApplicationOperationType.type,
             ReadAgentConfigurationOperationType.type,
         )
-        return SubjectOptionsHandler.get_options(
-            workspace=agent.workspace,
-            search=search,
-            subject_types=set(RUN_AS_SUBJECT_TYPES),
-            subject_type_options_kwargs={
-                subject_type: {"user_type": UserProfile.UserType.IDENTITY}
-                for subject_type in RUN_AS_SUBJECT_TYPES
-            },
-        )
+        identities = IdentityHandler().get_queryset(agent.workspace, for_selection=True)
+        if search := search.strip():
+            identities = identities.filter(first_name__icontains=search)
+        return identities.values("id", name=F("first_name"))
 
     @transaction.atomic
     def update_configuration(

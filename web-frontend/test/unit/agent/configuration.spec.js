@@ -641,13 +641,11 @@ describe('Agent configuration', () => {
   })
 
   test('runs as a chosen identity or with no workspace access', async () => {
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_id: 7,
-          subject_type: 'auth.User',
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -756,25 +754,31 @@ describe('Agent configuration', () => {
       { ...investor, id: 8, name: 'Support' },
       'Support',
     ],
+    [
+      'an identity with the same ID as an unavailable subject',
+      investor,
+      'Investor',
+      { ...investor, type: 'unknown.subject', status: 'missing' },
+    ],
     ['no workspace access', null, 'agent.noWorkspaceAccess'],
   ])(
     'clears the workspace access error after choosing %s',
-    async (_, identity, label) => {
+    async (
+      _,
+      identity,
+      label,
+      unavailableIdentity = { ...investor, trashed: true }
+    ) => {
       mockConfiguration(
         testApp,
-        completeConfiguration({ run_as: { ...investor, trashed: true } })
+        completeConfiguration({ run_as: unavailableIdentity })
       )
-      testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
-        200,
-        page([
-          {
-            id: 'auth.User:8',
-            subject_id: 8,
-            subject_type: 'auth.User',
-            name: 'Support',
-          },
-        ])
-      )
+      testApp.mock
+        .onGet('/agent/10/run-as-identities/')
+        .reply(
+          200,
+          page(identity ? [{ id: identity.id, name: identity.name }] : [])
+        )
       mockSaves(testApp, completeConfiguration({ run_as: identity }))
       const wrapper = await mount()
       expect(workspaceAccessRow(wrapper).find('.icon--error').exists()).toBe(
@@ -783,7 +787,9 @@ describe('Agent configuration', () => {
 
       await openSection(wrapper, 'agent.workspaceAccess')
       expect(wrapper.get('.control__messages').text()).toContain(
-        'agent.runAsTrashed'
+        unavailableIdentity.status === 'missing'
+          ? 'agent.runAsMissing'
+          : 'agent.runAsTrashed'
       )
       await wrapper
         .get('.agent-configuration .dropdown__selected')
@@ -811,7 +817,7 @@ describe('Agent configuration', () => {
   test('shows a missing identity distinctly and can clear it directly', async () => {
     const missing = { ...investor, name: null, status: 'missing' }
     mockConfiguration(testApp, completeConfiguration({ run_as: missing }))
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(200, page([]))
     mockSaves(testApp, completeConfiguration({ run_as: null }))
     const wrapper = await mount()
     expect(
@@ -836,7 +842,7 @@ describe('Agent configuration', () => {
 
   test('does not fetch identities for a readonly field and revalidates after edit permission is granted', async () => {
     allowed.value = (operation) => operation !== 'application.update'
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(200, page([]))
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     await wrapper
@@ -845,7 +851,7 @@ describe('Agent configuration', () => {
     await flushPromises()
     const requests = () =>
       testApp.mock.history.get.filter(({ url }) =>
-        url.includes('/run-as-subjects/')
+        url.includes('/run-as-identities/')
       )
     expect(requests()).toHaveLength(0)
     allowed.value = () => true
@@ -877,7 +883,7 @@ describe('Agent configuration', () => {
         agentIds.push(id)
       }
       mockConfiguration(testApp, completeConfiguration({ run_as: investor }))
-      testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+      testApp.mock.onGet('/agent/10/run-as-identities/').reply(200, page([]))
       const wrapper = await mount()
       await openSection(wrapper, 'agent.workspaceAccess')
       await wrapper
@@ -892,8 +898,8 @@ describe('Agent configuration', () => {
 
       expect(testApp.mock.history.get.map(({ url }) => url).sort()).toEqual(
         selected
-          ? ['/agent/10/configuration/', '/agent/10/run-as-subjects/']
-          : ['/agent/10/run-as-subjects/']
+          ? ['/agent/10/configuration/', '/agent/10/run-as-identities/']
+          : ['/agent/10/run-as-identities/']
       )
     }
   )
@@ -902,19 +908,17 @@ describe('Agent configuration', () => {
     useFakeTimers()
     const subjects = () =>
       testApp.mock.history.get.filter(({ url }) =>
-        url.includes('/run-as-subjects/')
+        url.includes('/run-as-identities/')
       )
     const configurations = () =>
       testApp.mock.history.get.filter(({ url }) =>
         url.includes('/configuration/')
       )
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_type: 'auth.User',
-          subject_id: 7,
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -931,13 +935,11 @@ describe('Agent configuration', () => {
     search.element.focus()
     const configCount = configurations().length
     const subjectCount = subjects().length
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:8',
-          subject_type: 'auth.User',
-          subject_id: 8,
+          id: 8,
           name: 'Investor replacement',
         },
       ])
@@ -993,13 +995,11 @@ describe('Agent configuration', () => {
   test('rejects only the unavailable choice and saves other pending edits', async () => {
     testApp.dontFailOnErrorResponses()
     const patch = deferredReply()
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_type: 'auth.User',
-          subject_id: 7,
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -1042,19 +1042,15 @@ describe('Agent configuration', () => {
     testApp.dontFailOnErrorResponses()
     const patch = deferredReply()
     const support = { ...investor, id: 8, name: 'Support', status: 'active' }
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_type: 'auth.User',
-          subject_id: 7,
+          id: 7,
           name: 'Investor',
         },
         {
-          id: 'auth.User:8',
-          subject_type: 'auth.User',
-          subject_id: 8,
+          id: 8,
           name: 'Support',
         },
       ])
@@ -1083,13 +1079,11 @@ describe('Agent configuration', () => {
 
   test('keeps an identity draft on a network failure so it can be retried', async () => {
     testApp.dontFailOnErrorResponses()
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_type: 'auth.User',
-          subject_id: 7,
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -1136,13 +1130,11 @@ describe('Agent configuration', () => {
 
   test('keeps rejected-choice recovery failures separate from dirty edits', async () => {
     testApp.dontFailOnErrorResponses()
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_type: 'auth.User',
-          subject_id: 7,
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -1205,7 +1197,7 @@ describe('Agent configuration', () => {
     'refreshes the run-as label when another editor %s',
     async (_, previous, next, expectedLabel) => {
       useFakeTimers()
-      testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+      testApp.mock.onGet('/agent/10/run-as-identities/').reply(200, page([]))
       mockConfiguration(testApp, completeConfiguration({ run_as: previous }))
       const wrapper = await mount()
       await openSection(wrapper, 'agent.workspaceAccess')
@@ -1613,7 +1605,7 @@ describe('Agent configuration', () => {
   })
 
   test('clears workspace tools when no workspace access is selected', async () => {
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(200, page([]))
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(200, page([]))
     mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
     mockSaves(testApp, withTools([], { runAs: null }))
     const wrapper = await mount()
@@ -1646,13 +1638,11 @@ describe('Agent configuration', () => {
 
   test('requires an identity before tools can be enabled and keeps them off after selection', async () => {
     mockConfiguration(testApp, withTools([], { runAs: null }))
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_id: 7,
-          subject_type: 'auth.User',
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -1692,13 +1682,11 @@ describe('Agent configuration', () => {
   test('keeps explicit tool activation while the identity selection is still saving', async () => {
     const patch = deferredReply()
     mockConfiguration(testApp, withTools([], { runAs: null }))
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_id: 7,
-          subject_type: 'auth.User',
+          id: 7,
           name: 'Investor',
         },
       ])
@@ -1733,13 +1721,11 @@ describe('Agent configuration', () => {
       testApp,
       withTools(['list_tables', 'create_rows'], { runAs: null })
     )
-    testApp.mock.onGet('/agent/10/run-as-subjects/').reply(
+    testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
         {
-          id: 'auth.User:7',
-          subject_id: 7,
-          subject_type: 'auth.User',
+          id: 7,
           name: 'Investor',
         },
       ])

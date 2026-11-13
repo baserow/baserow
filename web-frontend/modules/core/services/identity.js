@@ -37,8 +37,14 @@ export default (client) =>
         }
       },
       /** Fetch one page of the Identities of the workspace. */
-      listPage(workspaceId, { page = 1, search = '', size = 100 } = {}) {
+      listPage(
+        workspaceId,
+        { page = 1, search = '', size = 100, forSelection = false } = {}
+      ) {
         const params = { page, size }
+        if (forSelection) {
+          params.for_selection = true
+        }
         if (search) {
           params.search = search
         }

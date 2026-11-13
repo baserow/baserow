@@ -577,7 +577,7 @@ def test_configuration_serializes_the_resolved_identity_snapshot(
 
 
 @pytest.mark.django_db
-def test_run_as_subject_options_use_agent_scope_and_support_search_and_pagination(
+def test_run_as_identities_use_agent_scope_and_support_search_and_pagination(
     configured_agent, data_fixture, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
@@ -591,6 +591,15 @@ def test_run_as_subject_options_use_agent_scope_and_support_search_and_paginatio
     data_fixture.create_identity(
         workspace=agent.workspace, name="Review trash", trashed=True
     )
+    data_fixture.create_identity(
+        workspace=agent.workspace, name="Review inactive", is_active=False
+    )
+    scheduled = data_fixture.create_identity(
+        workspace=agent.workspace, name="Review scheduled"
+    )
+    scheduled.profile.to_be_deleted = True
+    scheduled.profile.save()
+    data_fixture.create_user(workspace=agent.workspace, first_name="Review human")
     other_workspace = data_fixture.create_workspace()
     IdentityHandler().create_identity(workspace=other_workspace, name="Review foreign")
     params = {
@@ -600,7 +609,7 @@ def test_run_as_subject_options_use_agent_scope_and_support_search_and_paginatio
         "workspace_id": other_workspace.id,
         "subject_types": "auth.User",
     }
-    url = agent_url(agent, "run_as_subjects")
+    url = agent_url(agent, "run_as_identities")
 
     first_page = api_client.get(url, {**params, "page": 1})
     second_page = api_client.get(url, {**params, "page": 2})
@@ -608,15 +617,15 @@ def test_run_as_subject_options_use_agent_scope_and_support_search_and_paginatio
     assert first_page.status_code == second_page.status_code == 200
     assert first_page.json()["count"] == second_page.json()["count"] == 2
     results = first_page.json()["results"] + second_page.json()["results"]
-    assert [(item["subject_type"], item["subject_id"]) for item in results] == [
-        ("auth.User", first.id),
-        ("auth.User", second.id),
+    assert results == [
+        {"id": first.id, "name": first.first_name},
+        {"id": second.id, "name": second.first_name},
     ]
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("case", ["other_workspace", "trashed", "snapshot"])
-def test_run_as_subject_options_reject_inaccessible_applications(
+def test_run_as_identities_reject_inaccessible_applications(
     configured_agent, api_client, api_user, case
 ):
     agent = configured_agent(user=None if case == "other_workspace" else api_user)
@@ -627,13 +636,13 @@ def test_run_as_subject_options_reject_inaccessible_applications(
         agent.workspace = None
         agent.save()
 
-    response = api_client.get(agent_url(agent, "run_as_subjects"))
+    response = api_client.get(agent_url(agent, "run_as_identities"))
 
     assert response.status_code == (401 if case == "other_workspace" else 404)
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("endpoint", ["configuration", "run_as_subjects"])
+@pytest.mark.parametrize("endpoint", ["configuration", "run_as_identities"])
 @pytest.mark.parametrize("authenticated", [True, False])
 def test_run_as_recovery_only_pins_authenticated_reads(
     configured_agent, api_client, api_user, mocker, endpoint, authenticated

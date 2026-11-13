@@ -67,6 +67,7 @@ describe('LocalBaserowForm', () => {
     expect(testApp.mock.history.get.at(-1).params).toEqual({
       page: 1,
       size: 100,
+      for_selection: true,
     })
     // An identity whose role isn't one of the workspace roles has no
     // description.

@@ -188,6 +188,35 @@ def test_import_legacy_authorized_user_reauthorizes_the_importing_user(data_fixt
 
 
 @pytest.mark.django_db
+def test_import_legacy_authorization_reuses_workspace_users(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration_type = integration_type_registry.get("local_baserow")
+    cache = {}
+    id_mapping = {"import_workspace_id": application.workspace_id}
+
+    with CaptureQueriesContext(connection) as queries:
+        for integration_id in (1, 2):
+            imported = integration_type.import_serialized(
+                application,
+                {
+                    "id": integration_id,
+                    "name": "Legacy local Baserow",
+                    "order": "1.00000000000000000000",
+                    "type": "local_baserow",
+                    "authorized_user": user.username,
+                },
+                id_mapping,
+                cache=cache,
+            )
+            assert imported.authorized_subject_type == "auth.User"
+            assert imported.authorized_subject_id == user.id
+
+    user_queries = [query for query in queries if 'FROM "auth_user"' in query["sql"]]
+    assert len(user_queries) == 1
+
+
+@pytest.mark.django_db
 def test_get_local_baserow_databases_no_databases(data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(authorized_user=user)

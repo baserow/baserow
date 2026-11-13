@@ -41,11 +41,6 @@ export const actions = {
     }
     return response
   },
-  async fetchAll({ commit }, workspaceId) {
-    const { data } = await IdentityService(this.$client).list(workspaceId)
-    commit('MERGE_ITEMS', data.results)
-    return data.results
-  },
   async create({ dispatch }, { workspaceId, values }) {
     const { data } = await IdentityService(this.$client).create(
       workspaceId,
@@ -96,8 +91,6 @@ export const actions = {
 export const getters = {
   get: (state) => (identityId) =>
     state.items.find((item) => item.id === identityId),
-  getAllInWorkspace: (state) => (workspaceId) =>
-    state.items.filter((item) => item.workspace_id === workspaceId),
   getRevision: (state) => (workspaceId) => state.revisions[workspaceId] || 0,
 }
 

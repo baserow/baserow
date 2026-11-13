@@ -47,3 +47,23 @@ test('does not return partial selector results when another page fails', async (
   }
   await expect(IdentityService(client).list(12)).rejects.toBe(error)
 })
+
+test.each([false, true])(
+  'fetches one identity page with forSelection=%s',
+  async (forSelection) => {
+    const client = { get: vi.fn().mockResolvedValue({ data: { results: [] } }) }
+    await IdentityService(client).listPage(12, {
+      page: 2,
+      search: 'Writer',
+      forSelection,
+    })
+    expect(client.get).toHaveBeenCalledWith('/identities/workspace/12/', {
+      params: {
+        page: 2,
+        size: 100,
+        search: 'Writer',
+        ...(forSelection ? { for_selection: true } : {}),
+      },
+    })
+  }
+)
