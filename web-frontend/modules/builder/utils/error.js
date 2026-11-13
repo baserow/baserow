@@ -57,11 +57,19 @@ export const isStalePublishedIdError = (error) =>
   STALE_PUBLISHED_ID_ERRORS.has(error.response.data?.error)
 
 /**
- * The stale errors that come from something the visitor did, like submitting a form
- * or logging in. What they typed is lost by the reload, so the reloaded page tells
- * them to try again.
+ * The stale errors that come from something the visitor did, like submitting a form,
+ * logging in, or loading, searching, sorting or filtering the content of a
+ * collection element or record selector. The first content of the page is loaded
+ * before the site is published again, so on a stale tab element and data source
+ * requests come from the visitor. Their action didn't happen, so the reloaded page
+ * tells them to try again.
+ *
+ * `ERROR_PAGE_DOES_NOT_EXIST` isn't listed: it comes from navigating to another
+ * page, and the reload already lands on the page the visitor was going to.
  */
 const VISITOR_ACTION_STALE_ERRORS = new Set([
+  'ERROR_ELEMENT_DOES_NOT_EXIST',
+  'ERROR_DATA_SOURCE_DOES_NOT_EXIST',
   'ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST',
   'ERROR_USER_SOURCE_DOES_NOT_EXIST',
 ])

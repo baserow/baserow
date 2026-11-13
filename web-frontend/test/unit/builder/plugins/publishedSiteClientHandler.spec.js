@@ -55,11 +55,12 @@ const settledState = (promise) =>
 
 describe('stale published site interceptor', () => {
   // Only the errors of something the visitor did ask the reloaded page to tell
-  // them to try again, as what they typed is lost.
+  // them to try again, as their action didn't happen. A missing page comes from a
+  // navigation, and the reload already lands on the page they were going to.
   test.each([
     { code: 'ERROR_PAGE_DOES_NOT_EXIST', notify: false },
-    { code: 'ERROR_ELEMENT_DOES_NOT_EXIST', notify: false },
-    { code: 'ERROR_DATA_SOURCE_DOES_NOT_EXIST', notify: false },
+    { code: 'ERROR_ELEMENT_DOES_NOT_EXIST', notify: true },
+    { code: 'ERROR_DATA_SOURCE_DOES_NOT_EXIST', notify: true },
     { code: 'ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST', notify: true },
     { code: 'ERROR_USER_SOURCE_DOES_NOT_EXIST', notify: true },
   ])('reloads the current route on $code', async ({ code, notify }) => {
