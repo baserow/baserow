@@ -1012,4 +1012,9 @@ def test_identity_notification_recipients_are_ignored(data_fixture, grouped):
     ) == [human.id]
     assert Notification.objects.get().sender == identity
     recipient = NotificationRecipient.objects.get()
-    assert NotificationRecipientSerializer(recipient).data["sender"]["username"] is None
+    assert NotificationRecipientSerializer(recipient).data["sender"] == {
+        "id": identity.id,
+        "username": None,
+        "first_name": identity.first_name,
+        "user_type": "identity",
+    }

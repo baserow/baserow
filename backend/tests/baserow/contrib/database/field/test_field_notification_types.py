@@ -160,6 +160,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -190,6 +191,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -250,6 +252,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -290,6 +293,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -363,6 +367,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -385,6 +390,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -415,6 +421,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -437,6 +444,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -626,6 +634,7 @@ def test_notification_creation_when_mentioning_users_in_a_rich_text_field_on_row
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -721,6 +730,7 @@ def test_notification_creation_when_mentioning_users_in_a_rich_text_field_on_row
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -808,6 +818,7 @@ def test_notifications_are_not_sent_twice_on_undo_redo_row_create(
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -953,6 +964,7 @@ def test_notifications_are_not_sent_twice_on_undo_redo_row_update(
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {

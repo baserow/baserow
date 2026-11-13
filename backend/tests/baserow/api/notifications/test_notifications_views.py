@@ -189,6 +189,7 @@ def test_user_fetch_workspace_and_user_notifications_together(data_fixture, api_
                 "id": user.id,
                 "username": user.email,
                 "first_name": user.first_name,
+                "user_type": "human",
             },
             "created_on": "2021-01-01T12:00:00Z",
             "read": False,
@@ -197,6 +198,29 @@ def test_user_fetch_workspace_and_user_notifications_together(data_fixture, api_
             "workspace": {"id": workspace.id},
         },
     ]
+
+
+@pytest.mark.django_db
+def test_notification_from_identity_includes_sender_type(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace, name="Row writer")
+    data_fixture.create_workspace_notification_for_users(
+        sender=identity, workspace=workspace, recipients=[user]
+    )
+
+    response = api_client.get(
+        reverse("api:notifications:list", kwargs={"workspace_id": workspace.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"][0]["sender"] == {
+        "id": identity.id,
+        "username": None,
+        "first_name": "Row writer",
+        "user_type": "identity",
+    }
 
 
 @pytest.mark.django_db
