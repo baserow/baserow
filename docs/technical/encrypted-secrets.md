@@ -50,12 +50,12 @@ sequenceDiagram
     Field-->>Code: "sk-live-123"
 ```
 
-| Part    | Example     | What it's for                                                                  |
-| ------- | ----------- | ------------------------------------------------------------------------------ |
-| Marker  | `enc:`      | Tells encrypted values from plain text saved before the column was encrypted.  |
-| Version | `v1`        | Lets the format change later.                                                  |
-| Key id  | `e5f6a7b8`  | First 8 hex characters of the key's SHA-256, so reading never tries every key. |
-| Data    | `pX3k…Qz9w` | Base64url of the 12-byte nonce, the ciphertext and the 16-byte tag.            |
+| Part    | Example     | What it's for                                                                                                                                                                                                        |
+| ------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Marker  | `enc:`      | With the version and key id, the whole `enc:v<n>:<key id>:` prefix marks a value as encrypted, even when the rest is damaged. Anything else, such as `enc:abc`, is plain text saved before the column was encrypted. |
+| Version | `v1`        | Lets the format change later.                                                                                                                                                                                        |
+| Key id  | `e5f6a7b8`  | First 8 hex characters of the key's SHA-256, so reading never tries every key.                                                                                                                                       |
+| Data    | `pX3k…Qz9w` | Base64url of the 12-byte nonce, the ciphertext and the 16-byte tag.                                                                                                                                                  |
 
 For an integration, also list the field in its type's `secret_fields`, so the API never
 returns it, and in `sensitive_fields`, so workspace exports and the action log leave it
@@ -70,6 +70,13 @@ Moving an existing column to the field is a migration that changes only the fiel
 The column stays `text` and rows aren't rewritten. Existing plain text is read as is and
 encrypted on its next save, or by `reencrypt_secrets`. Ciphertext is longer than the
 secret, so a `CharField` with a `max_length` has to become a text column first.
+
+A column that a released version already uses can't rely on the field being new. During
+a deploy, old processes read the ciphertext as the secret and may send or clear it. Plan
+the rollout like the MCP development-build upgrade in the
+[installation docs](../installation/encryption-keys.md#upgrading-from-a-development-build-with-mcp-servers):
+check what's stored, stop old processes before new ones start, and don't roll back below
+the change.
 
 ## What the database can do with it
 
@@ -154,11 +161,11 @@ that:
 
 ```mermaid
 flowchart TD
-    Read["Row loaded from the database"] --> Enc{"Value in the enc: format?"}
+    Read["Row loaded from the database"] --> Enc{"Starts with<br/>enc:v&lt;n&gt;:&lt;key id&gt;:?"}
     Enc -->|no| Plain["Returned as is:<br/>empty, or plain text from before"]
     Enc -->|yes| Key{"Key id in the key ring?"}
     Key -->|no| Stand["Stand-in: truthy, empty text,<br/>warning logged"]
-    Key -->|yes| Tag{"Decrypts with this<br/>column's context?"}
+    Key -->|yes| Tag{"Data intact and decrypts<br/>with this column's context?"}
     Tag -->|no| Stand
     Tag -->|yes| Secret["The secret"]
     Stand --> Send(["Code sends it"])
@@ -182,14 +189,15 @@ refreshing a token, and keeps the stored value.
 
 ## Failure states
 
-| Situation                                       | What happens                                                         | Fix                                  |
-| ----------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------ |
-| Key changed, old key not in the fallbacks       | Secret can't be used, a warning names the key id it needs            | Add the old key to the fallbacks     |
-| Value copied to another column or edited        | Secret can't be used, a warning says it can't be decrypted           | Enter the secret again               |
-| Key lost and no backup                          | Every secret encrypted with it can't be used                         | Enter the secrets again              |
-| `reencrypt_secrets` meets a value it can't read | Moves the rest, then exits with an error and the count               | Add the missing key and run it again |
-| Key too short, or two keys with the same id     | System check `baserow.E002` stops Baserow at startup                 | Use another key                      |
-| No key configured                               | A key derived from `SECRET_KEY` is used and a warning is logged once | Set a dedicated key                  |
+| Situation                                       | What happens                                                              | Fix                                  |
+| ----------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------ |
+| Key changed, old key not in the fallbacks       | Secret can't be used, a warning names the key id it needs                 | Add the old key to the fallbacks     |
+| Damaged value: right prefix, broken data        | Secret can't be used, kept unchanged on save, `--check` and rotation fail | Enter the secret again               |
+| Value copied to another column or edited        | Secret can't be used, a warning says it can't be decrypted                | Enter the secret again               |
+| Key lost and no backup                          | Every secret encrypted with it can't be used                              | Enter the secrets again              |
+| `reencrypt_secrets` meets a value it can't read | Moves the rest, then exits with an error and the count                    | Add the missing key and run it again |
+| Key too short, or two keys with the same id     | System check `baserow.E002` stops Baserow at startup                      | Use another key                      |
+| No key configured                               | A key derived from `SECRET_KEY` is used and a warning is logged once      | Set a dedicated key                  |
 
 ## Tests every adopter keeps
 
