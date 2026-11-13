@@ -15,6 +15,7 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import IsNotAdminError
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.registries import plugin_registry
 from baserow_premium.license.exceptions import (
     CantManuallyChangeSeatsError,
@@ -1235,3 +1236,32 @@ def test_identities_cannot_be_assigned_license_seats(data_fixture):
     with pytest.raises(CantManuallyChangeSeatsError):
         LicenseHandler.add_user_to_license(admin, license_object, identity)
     assert not license_object.users.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("instance_wide", [False, True])
+def test_identities_get_premium_from_workspace_or_instance_entitlements(
+    data_fixture, instance_wide
+):
+    """Identity users test plan 6.3.1."""
+
+    identity = data_fixture.create_identity()
+    workspace = IdentityHandler.get_workspace(identity)
+    license_plugin = type(LicenseHandler._get_license_plugin())
+
+    with (
+        patch.object(license_plugin, "workspace_has_feature", return_value=True),
+        patch.object(license_plugin, "instance_has_feature", return_value=True),
+        patch.object(license_plugin, "user_has_feature") as user_has_feature,
+        patch.object(
+            license_plugin, "user_has_feature_instance_wide"
+        ) as user_has_feature_instance_wide,
+    ):
+        if instance_wide:
+            assert LicenseHandler.user_has_feature_instance_wide(PREMIUM, identity)
+        else:
+            assert LicenseHandler.user_has_feature(PREMIUM, identity, workspace)
+
+    user_has_feature.assert_not_called()
+    user_has_feature_instance_wide.assert_not_called()
+    assert not LicenseUser.objects.filter(user=identity).exists()

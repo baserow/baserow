@@ -21,6 +21,7 @@ def render_action_type(action_type):
 
 
 class AuditLogActorSerializer(serializers.Serializer):
+    user_type = serializers.CharField(allow_null=True)
     id = serializers.IntegerField(allow_null=True)
     type = serializers.CharField(allow_null=True)
     name = serializers.CharField(allow_null=True)
@@ -87,6 +88,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "id": instance.actor_id,
             "type": instance.actor_type,
             "name": instance.actor_name,
+            "user_type": instance.actor_user_type,
         }
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -121,6 +123,7 @@ class AuditLogActorFilterSerializer(serializers.Serializer):
     id = serializers.SerializerMethodField()
     actor_id = serializers.IntegerField(source="subject_id")
     actor_type = serializers.CharField(source="subject_type")
+    user_type = serializers.CharField(source="subject_user_type", allow_null=True)
     value = serializers.CharField(source="subject_label")
 
     def get_id(self, instance):

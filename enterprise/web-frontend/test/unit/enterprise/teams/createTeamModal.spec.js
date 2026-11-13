@@ -19,7 +19,7 @@ test('opens the user picker when loading identities fails', async () => {
   const subjectTypes = {
     'auth.User': {
       type: 'auth.User',
-      getId: (subject) => subject.user_id,
+      getId: (subject) => subject.subject_id ?? subject.user_id ?? subject.id,
     },
   }
   const wrapper = await mountSuspended(CreateTeamModal, {
@@ -66,8 +66,15 @@ test('opens the user picker when loading identities fails', async () => {
     await wrapper.find('.invite').trigger('click')
     await flushPromises()
 
-    expect(client.get).toHaveBeenCalledWith('/identities/workspace/12/', {
-      params: { size: 200, page: 1 },
+    expect(client.get).toHaveBeenCalledWith('/subjects/', {
+      params: {
+        workspace_id: 12,
+        size: 100,
+        page: 1,
+        search: '',
+        subject_types: 'auth.User',
+        user_type: 'identity',
+      },
     })
     expect(wrapper.find('.picker').text()).toContain('Workspace user')
     expect(wrapper.text()).toContain('Unable to load identities')

@@ -138,9 +138,10 @@ describe('SubjectType invite options', () => {
   test('fetches the subjects a role can be given to', async () => {
     const users = [{ user_id: 8 }]
     const client = {
-      get: vi.fn().mockResolvedValue({
-        data: { results: [{ id: 4 }], next: null },
-      }),
+      get: vi
+        .fn()
+        .mockResolvedValueOnce({ data: { results: [{ id: 4 }], next: 'next' } })
+        .mockResolvedValueOnce({ data: { results: [{ id: 5 }], next: null } }),
     }
     const withIdentities = {
       $client: client,
@@ -150,7 +151,17 @@ describe('SubjectType invite options', () => {
       new UserSubjectType({
         app: app(withIdentities),
       }).fetchAssignableSubjects({ id: 12, users })
-    ).resolves.toEqual([{ user_id: 8 }, { id: 4 }])
+    ).resolves.toEqual([{ user_id: 8 }, { id: 4 }, { id: 5 }])
+    expect(client.get).toHaveBeenLastCalledWith('/subjects/', {
+      params: {
+        workspace_id: 12,
+        page: 2,
+        search: '',
+        subject_types: 'auth.User',
+        user_type: 'identity',
+        size: 100,
+      },
+    })
 
     // Without the flag or the permission to list identities, none are fetched.
     client.get.mockClear()

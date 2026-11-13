@@ -30,7 +30,7 @@ import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandle
 import ManageTeamForm from '@baserow_enterprise/components/teams/ManageTeamForm'
 import TeamService from '@baserow_enterprise/services/team'
 import MemberAssignmentModal from '@baserow/modules/core/components/workspace/MemberAssignmentModal'
-import IdentityService from '@baserow/modules/core/services/identity'
+import SubjectService from '@baserow/modules/core/services/subject'
 import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import {
   getTeamSubjectKey,
@@ -109,10 +109,10 @@ export default {
       this.identities = []
       try {
         if (this.canListIdentities) {
-          const { data } = await IdentityService(this.$client).list(
-            this.workspace.id
+          this.identities = await SubjectService(this.$client).listAll(
+            this.workspace.id,
+            { userType: 'identity' }
           )
-          this.identities = data.results || data
         }
       } catch (error) {
         this.handleError(error, 'team')

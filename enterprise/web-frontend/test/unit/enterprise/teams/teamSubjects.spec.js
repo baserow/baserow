@@ -75,6 +75,7 @@ describe('teamSubjects', () => {
             {
               subject_id: 2,
               subject_type: 'auth.User',
+              user_type: 'identity',
               subject_label: 'Writer',
             },
           ],

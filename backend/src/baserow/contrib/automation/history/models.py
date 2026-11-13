@@ -64,6 +64,7 @@ class AutomationWorkflowHistory(AutomationHistory):
         db_default=UserSubjectType.type,
         help_text="The subject type of who started this run.",
     )
+    triggered_by_user_type = models.CharField(max_length=8, null=True)
     triggered_by_name = models.CharField(
         max_length=160,
         blank=True,

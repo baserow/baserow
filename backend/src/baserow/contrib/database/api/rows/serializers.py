@@ -637,6 +637,7 @@ class RowHistoryActorSerializer(serializers.Serializer):
     id = serializers.IntegerField(source="actor_id", allow_null=True)
     type = serializers.CharField(source="actor_type")
     name = serializers.CharField(source="actor_name")
+    user_type = serializers.CharField(source="actor_user_type", allow_null=True)
 
 
 class RowHistorySerializer(serializers.ModelSerializer):

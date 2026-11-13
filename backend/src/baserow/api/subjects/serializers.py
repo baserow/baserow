@@ -31,6 +31,9 @@ class SubjectOptionSerializer(serializers.Serializer):
     user_type = serializers.CharField(
         source="subject_user_type", read_only=True, allow_null=True
     )
+    role_uid = serializers.CharField(
+        source="subject_role_uid", read_only=True, allow_null=True
+    )
     id = serializers.SerializerMethodField()
     subject_id = serializers.IntegerField(read_only=True)
     subject_type = serializers.CharField(read_only=True)

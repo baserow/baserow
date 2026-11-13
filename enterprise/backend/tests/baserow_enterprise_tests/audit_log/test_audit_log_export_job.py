@@ -230,6 +230,7 @@ def test_audit_log_export_filters_work_correctly(
     identity_entry = AuditLogEntry.objects.first()
     identity_entry.pk = None
     identity_entry.actor_id = identity.id
+    identity_entry.actor_user_type = "identity"
     identity_entry.save()
 
     assert job.filter_actor_type is None

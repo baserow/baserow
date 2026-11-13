@@ -135,6 +135,9 @@ class AutomationWorkflowHistoryTriggeredBySerializer(serializers.Serializer):
 
     id = serializers.IntegerField(source="triggered_by_id", read_only=True)
     type = serializers.CharField(source="triggered_by_type", read_only=True)
+    user_type = serializers.CharField(
+        source="triggered_by_user_type", allow_null=True, read_only=True
+    )
     name = serializers.CharField(source="triggered_by_name", read_only=True)
 
 
