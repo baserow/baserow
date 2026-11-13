@@ -118,6 +118,21 @@ export class DataProviderType extends Registerable {
   }
 
   /**
+   * Returns an example of the data at the given path, for instance the value
+   * a step returned the last time it was tested. Unlike `getDataChunk` it is
+   * never used to resolve a formula: it's shown next to the data in the data
+   * explorer so that the user can see what they are picking.
+   *
+   * @param {object} applicationContext the application context.
+   * @param {Array<str>} path the path of the data we want an example of.
+   * @returns the example, or `undefined` when there is none. A data provider
+   *  has none by default.
+   */
+  getSampleValue(applicationContext, path) {
+    return undefined
+  }
+
+  /**
    * Return the data content for this data provider.
    * @param {Object} applicationContext the application context.
    * @returns {{$schema: string}}

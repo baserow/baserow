@@ -211,6 +211,11 @@ class ServiceHandler:
                 service_changes[key] = (prev_value, new_value)
             setattr(service, key, new_value)
 
+        if service.sample_data is not None and service_type.outdates_sample_data(
+            service_changes
+        ):
+            service.sample_data = None
+
         service.save()
         service_type.after_update(service, kwargs, service_changes)
         new_service_values = service_type.export_prepared_values(service)

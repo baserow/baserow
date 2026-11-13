@@ -1,5 +1,9 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import { ensureInteger } from '@baserow/modules/core/utils/validator'
+import { getValueAtPath } from '@baserow/modules/core/utils/object'
+
+// Tells a path a result doesn't hold apart from one holding `null`.
+const NO_RESULT_VALUE = Symbol('noResultValue')
 
 export const getCoreGroup = (app) => ({
   id: 'core',
@@ -162,6 +166,55 @@ export class ServiceType extends Registerable {
    */
   getSampleData(service) {
     return service.sample_data || null
+  }
+
+  /**
+   * Returns the value found at `path` in a result of the service, a dispatch
+   * result or a sample of one. Mirrors the backend `get_result_value`: a list
+   * service keeps its rows under `results`, so the first path part is the row
+   * index and `prepareValuePath` maps the rest.
+   *
+   * @param {Object} service the service that produced the result.
+   * @param {any} result the result to read from.
+   * @param {Array<String>} path the path inside the result.
+   * @returns the value, or `undefined` when the result holds nothing at that
+   *  path. A path holding `null` returns `null`.
+   */
+  getResultValue(service, result, path) {
+    let valuePath = path
+    if (this.returnsList(service)) {
+      result = result?.results
+      if (path.length >= 2) {
+        valuePath = [path[0], ...this.prepareValuePath(service, path.slice(1))]
+      }
+    } else {
+      valuePath = this.prepareValuePath(service, path)
+    }
+    try {
+      const value = getValueAtPath(result, valuePath, NO_RESULT_VALUE)
+      return value === NO_RESULT_VALUE ? undefined : value
+    } catch {
+      // The result can be older than the schema, so the path may run through
+      // a value that is no longer an object or a list.
+      return undefined
+    }
+  }
+
+  /**
+   * Returns the value found at `path` in the service's sample data, i.e. the
+   * result of its last test.
+   *
+   * @param {Object} service the service to read the sample data of.
+   * @param {Array<String>} path the path inside the result.
+   * @returns the value, or `undefined` when the service has no usable sample
+   *  data or the sample holds nothing at that path.
+   */
+  getSampleValue(service, path) {
+    const sample = this.getSampleData(service)
+    if (!sample || sample._error !== undefined) {
+      return undefined
+    }
+    return this.getResultValue(service, sample.data, path)
   }
 
   /**
