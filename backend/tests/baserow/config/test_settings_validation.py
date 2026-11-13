@@ -99,9 +99,10 @@ AGENT_TRIGGER_LIMIT_VARIABLES = (
     "BASEROW_AGENT_TRIGGER_RATE_LIMITS",
     "BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS",
     "BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS",
+    "BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS",
 )
 DEFAULT_AGENT_TRIGGER_LIMITS = (
-    "((10, 5), (30, 300), (100, 3600)) ((20, 60), (300, 3600)) 10"
+    "((10, 5), (30, 300), (100, 3600)) ((20, 60), (300, 3600)) 10 5"
 )
 
 
@@ -117,7 +118,8 @@ def _read_agent_trigger_limits(**configured: str) -> subprocess.CompletedProcess
             "from baserow.config.settings import base; "
             "print(base.AGENT_TRIGGER_RATE_LIMITS, "
             "base.AGENT_TRIGGER_AGENT_RATE_LIMITS, "
-            "base.AGENT_TRIGGER_MAX_QUEUED_RUNS)",
+            "base.AGENT_TRIGGER_MAX_QUEUED_RUNS, "
+            "base.AGENT_TRIGGER_MAX_PARALLEL_RUNS)",
         ],
         check=False,
         capture_output=True,
@@ -136,8 +138,9 @@ def _read_agent_trigger_limits(**configured: str) -> subprocess.CompletedProcess
                 "BASEROW_AGENT_TRIGGER_RATE_LIMITS": "1, 3600",
                 "BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS": ",",
                 "BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS": "1",
+                "BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS": "0",
             },
-            "((1, 3600),) () 1",
+            "((1, 3600),) () 1 0",
         ),
     ],
     ids=["unset", "empty_keeps_default", "custom_and_disabled"],

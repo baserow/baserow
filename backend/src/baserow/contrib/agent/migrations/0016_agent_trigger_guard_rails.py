@@ -11,7 +11,11 @@ class Migration(migrations.Migration):
             model_name="agenttrigger",
             name="on_overlap",
             field=models.CharField(
-                choices=[("skip", "Skip"), ("wait", "Wait for the previous run")],
+                choices=[
+                    ("skip", "Skip"),
+                    ("wait", "Wait for the previous run"),
+                    ("parallel", "Run in parallel"),
+                ],
                 db_default="skip",
                 default="skip",
                 max_length=16,

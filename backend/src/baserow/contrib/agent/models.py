@@ -61,6 +61,7 @@ class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
 
         SKIP = "skip", "Skip"
         WAIT = "wait", "Wait for the previous run"
+        PARALLEL = "parallel", "Run in parallel"
 
     class SkipReason(models.TextChoices):
         """Why the trigger's last skipped firing started nothing."""

@@ -5,7 +5,8 @@ from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db.models import Exists, OuterRef, Q, QuerySet
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet, Subquery
+from django.db.models.functions import Coalesce
 
 from baserow.contrib.agent.constants import (
     AGENT_RUN_TYPE,
@@ -40,6 +41,7 @@ from baserow.core.trash.handler import TrashHandler
 
 from .data_providers import AgentTriggerDispatchContext
 from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
+from .overlap import get_overlap_limits
 
 
 class AgentTriggerHandler:
@@ -372,17 +374,15 @@ class AgentTriggerHandler:
             Exists(active_run), status=AgentReplyStatus.RUNNING
         )
 
-    def has_going_reply(self, trigger: AgentTrigger) -> bool:
+    def count_going_replies(self, trigger: AgentTrigger) -> int:
         """
-        Whether a reply of the trigger still holds a run or waits for approvals.
-
         :param trigger: The trigger whose conversations are looked at.
-        :return: True while one of its replies is going.
+        :return: How many of its replies hold a run or wait for approvals.
         """
 
         return AgentMessage.objects.filter(
             self._is_going(), conversation__trigger=trigger
-        ).exists()
+        ).count()
 
     def get_queued_replies(self, trigger: AgentTrigger) -> QuerySet[AgentMessage]:
         """
@@ -408,23 +408,43 @@ class AgentTriggerHandler:
 
         return self.get_queued_replies(trigger).count()
 
-    def list_idle_triggers_with_queued_replies(self) -> QuerySet[AgentTrigger]:
+    def list_triggers_with_room_for_queued_replies(self) -> QuerySet[AgentTrigger]:
         """
         Find the triggers whose oldest queued reply can start now: one of their
-        replies is queued and none is going. One query, read from the index of
-        replies still queued or going, however long the triggers' history is.
+        replies is queued and fewer are going than their overlap rule allows. One
+        query, read from the index of replies still queued or going, however long
+        the triggers' history is.
 
         :return: The startable triggers, by id.
         """
 
         replies = AgentMessage.objects.filter(conversation__trigger=OuterRef("pk"))
-        return self.get_startable_triggers().filter(
-            Exists(
-                replies.filter(
-                    status=AgentReplyStatus.QUEUED, conversation__trashed=False
-                )
+        going = Coalesce(
+            Subquery(
+                replies.filter(self._is_going())
+                .values("conversation__trigger")
+                .annotate(count=Count("id"))
+                .values("count")
             ),
-            ~Exists(replies.filter(self._is_going())),
+            0,
+        )
+        has_room = Q()
+        for on_overlap in AgentTrigger.OnOverlap.values:
+            max_going = get_overlap_limits(on_overlap).max_going
+            has_room |= Q(on_overlap=on_overlap) & (
+                Q() if max_going is None else Q(going__lt=max_going)
+            )
+        return (
+            self.get_startable_triggers()
+            .annotate(going=going)
+            .filter(
+                has_room,
+                Exists(
+                    replies.filter(
+                        status=AgentReplyStatus.QUEUED, conversation__trashed=False
+                    )
+                ),
+            )
         )
 
     def recent_conversation_times(

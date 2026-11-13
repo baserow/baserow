@@ -141,8 +141,12 @@ class AgentConfigurationSerializer(serializers.Serializer):
         "instance, as service type names.",
     )
     max_queued_trigger_runs = serializers.IntegerField(
-        help_text="How many runs of a trigger that waits for its previous run can "
-        "be queued on this instance; later firings are skipped."
+        help_text="How many runs of a trigger that waits or runs in parallel can be "
+        "queued on this instance; later firings are skipped. 0 or less is no limit."
+    )
+    max_parallel_trigger_runs = serializers.IntegerField(
+        help_text="How many runs of a trigger that runs in parallel can go at once "
+        "on this instance; later firings are queued. 0 or less is no limit."
     )
     errors = serializers.DictField(
         child=serializers.ChoiceField(

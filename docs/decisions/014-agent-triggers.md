@@ -126,6 +126,25 @@ available and its agent is ready, and logs instead of raising. A message whose f
 fails at run time opens the conversation with the payload and fails the reply with
 `trigger_message_failed`, so the list shows why the agent didn't answer.
 
+### 4. One overlap rule bounds a trigger's replies
+
+Each trigger's overlap rule sets how many of its replies may be going (running or
+waiting for approvals) and how many may wait, queued without a run:
+
+| Rule     | Going at once                     | Queued                          |
+| -------- | --------------------------------- | ------------------------------- |
+| Skip     | 1                                 | 0                               |
+| Wait     | 1                                 | `AGENT_TRIGGER_MAX_QUEUED_RUNS` |
+| Parallel | `AGENT_TRIGGER_MAX_PARALLEL_RUNS` | `AGENT_TRIGGER_MAX_QUEUED_RUNS` |
+
+A firing starts when there is room to go and nothing is queued ahead of it, queues
+when the queue has room, and is skipped otherwise; a cap of 0 or less means no
+limit. A firing the workspace's run limit holds back queues where the rule queues,
+and fails visibly where it doesn't. When a reply ends, and every minute as a safety
+net, the trigger's oldest queued replies start while there is room. The rate limits
+apply before the rule. The rule lives in `OverlapLimits`, small enough to move to
+core when another background feature needs it.
+
 ## Options considered
 
 | Option                                            | Why not                                                                                               |

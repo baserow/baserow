@@ -26,6 +26,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
   AVAILABLE_TRIGGER_TYPES: 'available_trigger_types',
   MAX_QUEUED_TRIGGER_RUNS: 'max_queued_trigger_runs',
+  MAX_PARALLEL_TRIGGER_RUNS: 'max_parallel_trigger_runs',
 })
 
 // Null keeps the model's default reasoning.
@@ -48,6 +49,14 @@ export const TRIGGER_OVERLAP_OPTIONS = Object.freeze([
     label: 'agent.triggerOnOverlapWait',
     hint: 'agent.triggerOnOverlapWaitHint',
     unlimitedHint: 'agent.triggerOnOverlapWaitUnlimitedHint',
+  },
+  {
+    value: 'parallel',
+    label: 'agent.triggerOnOverlapParallel',
+    hint: 'agent.triggerOnOverlapParallelHint',
+    unlimitedHint: 'agent.triggerOnOverlapParallelUnlimitedHint',
+    queueUnlimitedHint: 'agent.triggerOnOverlapParallelQueueUnlimitedHint',
+    cap: 'parallel',
   },
 ])
 

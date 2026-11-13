@@ -45,7 +45,8 @@ describe('Agent triggers', () => {
     triggers,
     availableTypes = ['periodic'],
     editable = true,
-    maxQueuedTriggerRuns = 10
+    maxQueuedTriggerRuns = 10,
+    maxParallelTriggerRuns = 5
   ) => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
     return testApp.mount(AgentWhenItRunsSection, {
@@ -53,6 +54,7 @@ describe('Agent triggers', () => {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
           max_queued_trigger_runs: maxQueuedTriggerRuns,
+          max_parallel_trigger_runs: maxParallelTriggerRuns,
         }),
         editable,
       },
@@ -682,11 +684,15 @@ describe('Agent triggers', () => {
         'agent.triggerOnOverlapSkipHint - 10',
       ],
       ['agent.triggerOnOverlapWait', 'agent.triggerOnOverlapWaitHint - 10'],
+      [
+        'agent.triggerOnOverlapParallel',
+        'agent.triggerOnOverlapParallelHint - 5',
+      ],
     ])
     expect(new Set(radios.map((radio) => radio.attributes('name'))).size).toBe(
       1
     )
-    expect(checked()).toEqual([true, false])
+    expect(checked()).toEqual([true, false, false])
 
     await radios[1].trigger('click')
     await flushPromises()
@@ -694,7 +700,7 @@ describe('Agent triggers', () => {
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { on_overlap: 'wait' }],
     ])
-    expect(checked()).toEqual([false, true])
+    expect(checked()).toEqual([false, true, false])
   })
 
   test('tells how many runs can wait, as the server allows', async () => {
@@ -720,6 +726,26 @@ describe('Agent triggers', () => {
 
     expect(hints[1].text()).toBe('agent.triggerOnOverlapWaitUnlimitedHint')
   })
+
+  test.each([
+    [10, 5, 'agent.triggerOnOverlapParallelHint - 5'],
+    [0, 5, 'agent.triggerOnOverlapParallelQueueUnlimitedHint - 5'],
+    [10, 0, 'agent.triggerOnOverlapParallelUnlimitedHint'],
+  ])(
+    'words the parallel hint by both caps: %s queued, %s at once',
+    async (maxQueued, maxParallel, hint) => {
+      const wrapper = await mountSection(
+        [periodicTrigger()],
+        ['periodic'],
+        true,
+        maxQueued,
+        maxParallel
+      )
+      const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
+
+      expect(hints[2].text()).toBe(hint)
+    }
+  )
 
   test.each([
     ['rate_limited', 'agent.triggerSkippedRateLimited'],

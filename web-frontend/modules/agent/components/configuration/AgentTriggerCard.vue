@@ -240,6 +240,8 @@ const props = defineProps({
   saving: Boolean,
   /** How many runs of a waiting trigger the server queues, for its hint. */
   maxQueuedTriggerRuns: { type: Number, default: null },
+  /** How many runs of a trigger that runs in parallel can go at once; 0 or less is no limit. */
+  maxParallelTriggerRuns: { type: Number, default: null },
   /** Why the server rejected the service values, or ''. */
   serviceError: { type: String, default: '' },
   /** How often a failed save reverted the service values the form shows. */
@@ -283,13 +285,19 @@ const configurationError = computed(
       workspace: props.workspace,
     }) || ''
 )
-/** The hint of an overlap option; a queue cap of 0 lets runs wait without limit. */
+const isUnlimited = (cap) => cap !== null && cap <= 0
+/** The hint of an overlap option, worded by the caps it counts; 0 is no limit. */
 const overlapHint = (option) => {
-  const unlimited =
-    props.maxQueuedTriggerRuns !== null && props.maxQueuedTriggerRuns <= 0
-  return unlimited && option.unlimitedHint
-    ? t(option.unlimitedHint)
-    : t(option.hint, { count: props.maxQueuedTriggerRuns })
+  const queued = props.maxQueuedTriggerRuns
+  const count =
+    option.cap === 'parallel' ? props.maxParallelTriggerRuns : queued
+  if (isUnlimited(count) && option.unlimitedHint) {
+    return t(option.unlimitedHint)
+  }
+  if (isUnlimited(queued) && option.queueUnlimitedHint) {
+    return t(option.queueUnlimitedHint, { count })
+  }
+  return t(option.hint, { count, queued })
 }
 /** Why the last firing started nothing, until a later firing is accepted. */
 const skippedText = computed(() => {

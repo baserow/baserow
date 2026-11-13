@@ -2110,6 +2110,10 @@ AGENT_TRIGGER_AGENT_RATE_LIMITS = _parse_int_pairs(
 AGENT_TRIGGER_MAX_QUEUED_RUNS = int(
     os.getenv("BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS") or 10
 )
+# 0 or less lets a trigger set to run in parallel start runs without limit.
+AGENT_TRIGGER_MAX_PARALLEL_RUNS = int(
+    os.getenv("BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS") or 5
+)
 
 BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
     int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0) or None

@@ -23,6 +23,7 @@ from ..handler import AgentHandler
 from ..models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
 from ..signals import agent_conversation_activity
 from .handler import AgentTriggerHandler
+from .overlap import get_overlap_limits
 from .tasks import start_trigger_conversation
 
 
@@ -310,13 +311,13 @@ class AgentTriggerDispatcher:
         now: datetime,
     ) -> AgentTrigger.SkipReason | None:
         """
-        Start the trigger's conversation, or queue it when the trigger waits and
-        a reply of it is going or queued. A queued reply a lost hand-off left
-        behind starts first, so a firing never queues behind a queue that doesn't
-        move. One the workspace's run limit holds back isn't a previous run: a
-        waiting firing queues behind it and a skipping one starts and fails on the
-        limit, visibly. A failed message fails its reply at once, never queued. A
-        queue cap of 0 lets replies queue without limit.
+        Apply the trigger's overlap rule (see ``OverlapLimits``): start the
+        conversation while fewer of its replies are going than the rule allows
+        and nothing is queued ahead, queue it while the queue has room, or skip.
+        Queued replies a lost hand-off left behind start first, so a firing never
+        queues behind a queue that doesn't move. The workspace's run limit queues
+        a firing where the rule queues, and fails it, visibly, where it doesn't.
+        A failed message fails its reply at once, never queued.
 
         :param trigger: The trigger that fired, with its agent.
         :param content: The resolved message opening the conversation.
@@ -327,51 +328,54 @@ class AgentTriggerDispatcher:
         """
 
         trigger_handler = AgentTriggerHandler()
+        limits = get_overlap_limits(trigger.on_overlap)
+        self.start_queued_replies(trigger)
+        going = trigger_handler.count_going_replies(trigger)
         queued = trigger_handler.count_queued_replies(trigger)
-        going = trigger_handler.has_going_reply(trigger)
-        if queued and not going and self.start_next_queued_reply(trigger) is not None:
-            queued, going = queued - 1, True
-        skips = trigger.on_overlap == AgentTrigger.OnOverlap.SKIP
-        if going and skips:
+        queues = limits.max_queued != 0
+        if limits.has_room_to_go(going) and not (queues and queued):
+            created = AgentHandler().start_trigger_conversation(
+                trigger, content, failure, queue_on_run_limit=queues
+            )
+        elif not queues:
             return AgentTrigger.SkipReason.PREVIOUS_RUNNING
-        waits = not skips and (going or queued > 0)
-        queue_cap = settings.AGENT_TRIGGER_MAX_QUEUED_RUNS
-        if waits and queue_cap > 0 and queued >= queue_cap:
+        elif not limits.has_room_to_queue(queued):
             return AgentTrigger.SkipReason.QUEUE_FULL
-        created = AgentHandler().start_trigger_conversation(
-            trigger, content, failure, start_run=not waits
-        )
+        else:
+            created = AgentHandler().start_trigger_conversation(
+                trigger, content, failure, start_run=False
+            )
         trigger_handler.record_fired(trigger, now)
         self._notify(created.conversation, created.run_id)
         return None
 
-    def start_next_queued_reply(self, trigger: AgentTrigger) -> AgentMessage | None:
+    def start_queued_replies(self, trigger: AgentTrigger) -> list[AgentMessage]:
         """
-        Start the trigger's oldest queued reply if none of its replies is going,
-        and tell its readers. Called when a trigger's reply ends, by the sweep and
-        by a firing; it never raises, so one trigger can't stop the others.
+        Start the trigger's queued replies its overlap rule has room for, and tell
+        their readers. Called when a trigger's reply ends, by the sweep and by a
+        firing; it never raises, so one trigger can't stop the others.
 
         :param trigger: The trigger whose queue moves on.
-        :return: The reply now running, even when its readers couldn't be told, or
-            None when nothing started: nothing is queued, a reply is going, the
-            trigger is locked by another caller or stopped, the workspace is at its
-            run limit, or the start failed.
+        :return: The replies now running, even when their readers couldn't be
+            told; none when nothing is queued, the rule has no room, the trigger
+            is locked by another caller or stopped, the workspace is at its run
+            limit, or the start failed.
         """
 
-        reply = None
+        replies = []
         try:
-            reply = AgentHandler().start_next_queued_reply(trigger)
-            if reply is not None:
+            replies = AgentHandler().start_queued_replies(trigger)
+            for reply in replies:
                 runs = AgentHandler().get_active_reply_runs(reply.conversation)
                 self._notify(reply.conversation, runs.get(reply.id))
         except SoftTimeLimitExceeded:
             raise
         except Exception as e:
             logger.exception(
-                "Could not start a queued reply of agent trigger {}.", trigger.id
+                "Could not start queued replies of agent trigger {}.", trigger.id
             )
             exception_capturer(e)
-        return reply
+        return replies
 
     def _notify(self, conversation: AgentConversation, run_id: UUID | None) -> None:
         """

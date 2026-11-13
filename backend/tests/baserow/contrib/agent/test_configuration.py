@@ -981,6 +981,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "web_search_blocked_by_tools": False,
         "available_trigger_types": ["periodic"],
         "max_queued_trigger_runs": 10,
+        "max_parallel_trigger_runs": 5,
         "errors": {},
     }
     assert response.json() == configuration

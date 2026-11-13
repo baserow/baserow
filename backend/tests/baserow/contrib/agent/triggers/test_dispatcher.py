@@ -670,6 +670,79 @@ def test_a_reply_held_at_the_run_limit_never_counts_as_a_previous_run(
 
 
 @pytest.mark.django_db
+@override_settings(AGENT_TRIGGER_MAX_PARALLEL_RUNS=2, AGENT_TRIGGER_MAX_QUEUED_RUNS=1)
+def test_a_parallel_trigger_runs_up_to_its_cap_then_queues_then_skips(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent, on_overlap="parallel")
+
+    with freeze_time(TICK_AT):
+        for _ in range(4):
+            fire([trigger.service], {})
+
+    trigger.refresh_from_db()
+    replies = AgentMessage.objects.filter(role="assistant").order_by("id")
+    assert [reply.status for reply in replies] == ["running", "running", "queued"]
+    assert ChatRun.objects.count() == 2
+    assert trigger.last_skipped_reason == "queue_full"
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=1)
+@pytest.mark.parametrize(
+    "on_overlap,outcome",
+    [
+        ("parallel", ("queued", "")),
+        ("wait", ("queued", "")),
+        ("skip", ("failed", "chat_run_limit_reached")),
+    ],
+)
+def test_a_firing_held_back_by_the_workspace_limit_queues_where_its_rule_queues(
+    data_fixture, configured_agent, on_overlap, outcome
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent, on_overlap=on_overlap)
+    hold_a_workspace_run(data_fixture, agent)
+
+    with freeze_time(TICK_AT):
+        fire([trigger.service], {})
+
+    trigger.refresh_from_db()
+    reply = AgentMessage.objects.get(role="assistant")
+    assert (reply.status, reply.error_code) == outcome
+    assert (trigger.last_fired_on, trigger.last_skipped_reason) == (FIRED_AT, "")
+
+
+@pytest.mark.django_db
+@override_settings(AGENT_TRIGGER_MAX_PARALLEL_RUNS=2)
+def test_an_ended_parallel_reply_hands_off_to_as_many_queued_replies_as_fit(
+    data_fixture, configured_agent, mocker, django_capture_on_commit_callbacks
+):
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent, on_overlap="parallel")
+    handler = AgentHandler()
+    going = [
+        handler.start_trigger_conversation(trigger, name).conversation
+        for name in ("One", "Two", "Three")
+    ]
+    first, second = queued_reply(trigger, "First"), queued_reply(trigger, "Second")
+
+    with django_capture_on_commit_callbacks(execute=True):
+        ChatRunHandler().request_cancel(run_of(going[0]).id)
+
+    assert ChatRun.objects.filter(chat_id=first.conversation_id).count() == 0
+
+    with django_capture_on_commit_callbacks(execute=True):
+        ChatRunHandler().request_cancel(run_of(going[1]).id)
+
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert (first.status, second.status) == ("running", "queued")
+
+
+@pytest.mark.django_db
 def test_an_event_caused_by_the_agent_itself_starts_nothing(
     data_fixture, configured_agent
 ):

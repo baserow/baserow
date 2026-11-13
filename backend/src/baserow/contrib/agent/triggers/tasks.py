@@ -29,15 +29,15 @@ def start_trigger_conversation(
 @app.task(bind=True, queue="export", ignore_result=True)
 def start_queued_trigger_replies(self: Task) -> None:
     """
-    Start the oldest queued reply of each trigger with nothing going: the safety
-    net for a hand-off that found the trigger locked, never ran, or met the
-    workspace's run limit. One query when nothing is queued.
+    Start the queued replies of each trigger whose overlap rule has room: the
+    safety net for a hand-off that found the trigger locked, never ran, or met
+    the workspace's run limit. One query when nothing is queued.
     """
 
     from .dispatcher import agent_trigger_dispatcher
 
-    for trigger in AgentTriggerHandler().list_idle_triggers_with_queued_replies():
-        agent_trigger_dispatcher.start_next_queued_reply(trigger)
+    for trigger in AgentTriggerHandler().list_triggers_with_room_for_queued_replies():
+        agent_trigger_dispatcher.start_queued_replies(trigger)
 
 
 @app.on_after_finalize.connect

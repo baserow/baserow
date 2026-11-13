@@ -161,7 +161,7 @@ class AgentChatRunType(ChatRunType):
             trigger = conversation.trigger
             # Before the commit, this run still counts against the workspace limit.
             transaction.on_commit(
-                lambda: agent_trigger_dispatcher.start_next_queued_reply(trigger),
+                lambda: agent_trigger_dispatcher.start_queued_replies(trigger),
                 robust=True,
             )
         if reply.status == AgentReplyStatus.WAITING:

@@ -41,6 +41,7 @@
         :workspace="workspace"
         :editable="editable"
         :max-queued-trigger-runs="configuration.max_queued_trigger_runs"
+        :max-parallel-trigger-runs="configuration.max_parallel_trigger_runs"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
         :service-reverts="serviceReverts[trigger.id] || 0"

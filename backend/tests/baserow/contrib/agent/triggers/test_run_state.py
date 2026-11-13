@@ -81,13 +81,13 @@ def test_queued_and_going_replies_are_told_apart(
     trigger_reply(data_fixture, trigger, "queued", trashed=True)
     handler = AgentTriggerHandler()
 
-    assert handler.has_going_reply(trigger) is False
+    assert handler.count_going_replies(trigger) == 0
     assert handler.count_queued_replies(trigger) == 2
     assert list(handler.get_queued_replies(trigger)) == [first, second]
 
     trigger_reply(data_fixture, trigger, going_status, run_status=run_status)
 
-    assert handler.has_going_reply(trigger) is True
+    assert handler.count_going_replies(trigger) == 1
 
 
 @pytest.mark.django_db
@@ -107,10 +107,29 @@ def test_the_sweep_lists_only_idle_triggers_with_queued_replies(
 
     with django_assert_num_queries(1):
         idle_triggers = list(
-            AgentTriggerHandler().list_idle_triggers_with_queued_replies()
+            AgentTriggerHandler().list_triggers_with_room_for_queued_replies()
         )
 
     assert idle_triggers == [idle, stuck]
+
+
+@pytest.mark.django_db
+@override_settings(AGENT_TRIGGER_MAX_PARALLEL_RUNS=2)
+def test_the_sweep_lists_a_parallel_trigger_until_its_cap_is_going(data_fixture):
+    waiting, parallel = (
+        data_fixture.create_agent_trigger(on_overlap=on_overlap)
+        for on_overlap in ("wait", "parallel")
+    )
+    for trigger in (waiting, parallel):
+        trigger_reply(data_fixture, trigger, "queued")
+        trigger_reply(data_fixture, trigger, "waiting")
+    handler = AgentTriggerHandler()
+
+    assert list(handler.list_triggers_with_room_for_queued_replies()) == [parallel]
+
+    trigger_reply(data_fixture, parallel, "waiting")
+
+    assert list(handler.list_triggers_with_room_for_queued_replies()) == []
 
 
 @pytest.mark.django_db
@@ -197,17 +216,17 @@ def test_the_oldest_queued_reply_starts_once_nothing_is_going(
     going = handler.start_trigger_conversation(trigger, "Still going").conversation
     first, second = queued_reply(trigger, "First"), queued_reply(trigger, "Second")
 
-    assert handler.start_next_queued_reply(trigger) is None
+    assert handler.start_queued_replies(trigger) == []
 
     going.messages.filter(role=AgentMessage.Role.ASSISTANT).update(status="completed")
-    started = handler.start_next_queued_reply(trigger)
+    [started] = handler.start_queued_replies(trigger)
 
     run = ChatRun.objects.get(chat_id=first.conversation_id)
     second.refresh_from_db()
     assert started == first
     assert (started.status, second.status) == ("running", "queued")
     assert (run.created_by, run.context) == (None, {"reply_id": first.id})
-    assert handler.start_next_queued_reply(trigger) is None
+    assert handler.start_queued_replies(trigger) == []
 
 
 @pytest.mark.django_db(transaction=True)
@@ -220,7 +239,7 @@ def test_a_queued_reply_stays_queued_while_the_workspace_is_at_its_run_limit(
     hold_a_workspace_run(data_fixture, agent)
     reply = queued_reply(trigger)
 
-    assert AgentHandler().start_next_queued_reply(trigger) is None
+    assert AgentHandler().start_queued_replies(trigger) == []
 
     queued = AgentMessage.objects.get(id=reply.id)
     assert (queued.status, queued.error_code, queued.updated_on) == (
@@ -302,8 +321,10 @@ def test_a_stopped_trigger_keeps_its_queued_replies_waiting(
 
     stop(user, trigger)
 
-    assert list(AgentTriggerHandler().list_idle_triggers_with_queued_replies()) == []
-    assert AgentHandler().start_next_queued_reply(trigger) is None
+    assert (
+        list(AgentTriggerHandler().list_triggers_with_room_for_queued_replies()) == []
+    )
+    assert AgentHandler().start_queued_replies(trigger) == []
     assert AgentMessage.objects.get(id=reply.id).status == "queued"
 
 
@@ -354,8 +375,8 @@ def test_only_a_trigger_locked_by_another_caller_holds_its_queue_back(
     trigger = data_fixture.create_agent_trigger(agent=agent)
     reply = queued_reply(trigger)
 
-    def start_next() -> AgentMessage | None:
-        return AgentHandler().start_next_queued_reply(trigger)
+    def start_next() -> list[AgentMessage]:
+        return AgentHandler().start_queued_replies(trigger)
 
     with transaction.atomic():
         hold(trigger)
@@ -363,7 +384,7 @@ def test_only_a_trigger_locked_by_another_caller_holds_its_queue_back(
     started_after = start_next()
 
     assert (started_while_held, started_after) == (
-        (None, reply) if blocks else (reply, None)
+        ([], [reply]) if blocks else ([reply], [])
     )
     assert ChatRun.objects.get().context == {"reply_id": reply.id}
 
@@ -380,10 +401,10 @@ def test_a_conversation_trashed_while_its_reply_starts_isnt_started(
     with transaction.atomic():
         AgentConversation.objects.filter(id=reply.conversation_id).update(trashed=True)
         starting = in_another_connection(
-            lambda: AgentHandler().start_next_queued_reply(trigger)
+            lambda: AgentHandler().start_queued_replies(trigger)
         )
         wait_for_a_lock_waiter()
 
-    assert starting.result(timeout=10) is None
+    assert starting.result(timeout=10) == []
     assert AgentMessage.objects.get(id=reply.id).status == "queued"
     assert not ChatRun.objects.exists()
