@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Published sites now reload instead of showing an error or a blank page when a visitor navigates after the site was published again.",
+    "message": "Published sites now reload to the new version instead of showing an error when a visitor keeps using a tab opened before the site was published again.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "builder",

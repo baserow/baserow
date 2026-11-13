@@ -34,19 +34,64 @@ export const handleDispatchError = (err, instance, context = '') => {
 }
 
 /**
- * Returns true when the error says that the requested page does not exist. A
- * visitor gets this error when the site has been published again while their tab
- * was open, because each publish gives every page a new id.
+ * The "does not exist" errors a visitor gets when the site has been published again
+ * while their tab was open. Each publish gives every page, element, data source,
+ * workflow action and user source a new id, so the ids the tab still has are gone.
+ * `ERROR_DATA_DOES_NOT_EXIST` isn't listed because it's about a missing row, which
+ * can happen on an up to date site too.
  */
-export const isPageDoesNotExistError = (error) =>
+const STALE_PUBLISHED_ID_ERRORS = new Set([
+  'ERROR_PAGE_DOES_NOT_EXIST',
+  'ERROR_ELEMENT_DOES_NOT_EXIST',
+  'ERROR_DATA_SOURCE_DOES_NOT_EXIST',
+  'ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST',
+  'ERROR_USER_SOURCE_DOES_NOT_EXIST',
+])
+
+/**
+ * Returns true when the error says that an object of the published site doesn't
+ * exist anymore, which means the site has been published again.
+ */
+export const isStalePublishedIdError = (error) =>
   error?.response?.status === 404 &&
-  error.response.data?.error === 'ERROR_PAGE_DOES_NOT_EXIST'
+  STALE_PUBLISHED_ID_ERRORS.has(error.response.data?.error)
+
+const RELOAD_GUARD_KEY = 'baserow:builder:stalePublishedSiteReload'
+const RELOAD_GUARD_TTL = 10000
+
+// Whether this document has already started a reload. It's reset by the reload
+// itself, as the new document loads this module again.
+let reloadStarted = false
 
 /**
  * Reloads the app on the given path so the visitor gets the newly published version
  * of the site. The hash is dropped: assigning a URL that only differs from the
  * current one by its hash makes the browser jump to the fragment instead of loading
  * the page again.
+ *
+ * Requests sent in parallel with the stale ids all fail, so once this document has
+ * started a reload, later calls only report that the reload happens.
+ *
+ * A freshly loaded page has the current ids, so it shouldn't get the error again.
+ * If it does anyway (e.g. the public cache wasn't cleared after the publish because
+ * of a Redis error, or a proxy serves a cached page), we don't reload a second time
+ * within `RELOAD_GUARD_TTL` so a bug can't turn into a reload loop. Returns whether
+ * the reload happens.
  */
-export const reloadPublishedSite = (fullPath) =>
+export const reloadPublishedSite = (fullPath) => {
+  if (reloadStarted) {
+    return true
+  }
+  try {
+    const lastReload = Number(sessionStorage.getItem(RELOAD_GUARD_KEY))
+    if (lastReload && Date.now() - lastReload < RELOAD_GUARD_TTL) {
+      return false
+    }
+    sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()))
+  } catch {
+    // The storage can be blocked. Reloading is still the best way out.
+  }
   reloadNuxtApp({ path: fullPath.split('#')[0], force: true })
+  reloadStarted = true
+  return true
+}

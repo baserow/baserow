@@ -29,10 +29,6 @@ import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 import { getCustomFaviconLinks } from '@baserow/modules/builder/utils/favicon'
 import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
 import { resolveSafeNextPath } from '@baserow/modules/builder/utils/routing'
-import {
-  isPageDoesNotExistError,
-  reloadPublishedSite,
-} from '@baserow/modules/builder/utils/error'
 
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
@@ -275,40 +271,28 @@ watch(
   async (newIsAuthenticated) => {
     // When the user login or logout, we need to refetch the elements and actions
     // as they might have changed
-    try {
-      await Promise.all([
-        store.dispatch('dataSource/fetchPublished', {
-          page: sharedPage.value,
-        }),
-        store.dispatch('dataSource/fetchPublished', {
-          page: props.page,
-        }),
-        store.dispatch('element/fetchPublished', {
-          builder: props.builder,
-          page: sharedPage.value,
-        }),
-        store.dispatch('element/fetchPublished', {
-          builder: props.builder,
-          page: props.page,
-        }),
-        store.dispatch('builderWorkflowAction/fetchPublished', {
-          page: props.page,
-        }),
-        store.dispatch('builderWorkflowAction/fetchPublished', {
-          page: sharedPage.value,
-        }),
-      ])
-    } catch (error) {
-      if (isPageDoesNotExistError(error)) {
-        // The site has been published again while this tab was open, so the
-        // page IDs we have aren't valid anymore. Reload to get the new version.
-        // The logout may already have moved to another page, so reload the
-        // current route rather than the one this component rendered.
-        reloadPublishedSite(router.currentRoute.value.fullPath)
-        return
-      }
-      throw error
-    }
+    await Promise.all([
+      store.dispatch('dataSource/fetchPublished', {
+        page: sharedPage.value,
+      }),
+      store.dispatch('dataSource/fetchPublished', {
+        page: props.page,
+      }),
+      store.dispatch('element/fetchPublished', {
+        builder: props.builder,
+        page: sharedPage.value,
+      }),
+      store.dispatch('element/fetchPublished', {
+        builder: props.builder,
+        page: props.page,
+      }),
+      store.dispatch('builderWorkflowAction/fetchPublished', {
+        page: props.page,
+      }),
+      store.dispatch('builderWorkflowAction/fetchPublished', {
+        page: sharedPage.value,
+      }),
+    ])
 
     if (newIsAuthenticated) {
       // If the user has just logged in, we redirect him to the next page.
