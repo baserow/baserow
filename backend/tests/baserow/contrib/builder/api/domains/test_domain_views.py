@@ -180,6 +180,102 @@ def test_create_invalid_sub_domain(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(BASEROW_BUILDER_DOMAINS=["test.com"])
+def test_create_sub_domain(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+
+    url = reverse(
+        "api:builder:builder_id:domains:list", kwargs={"builder_id": builder.id}
+    )
+    response = api_client.post(
+        url,
+        {"type": SubDomainType.type, "domain_name": "hello.test.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["domain_name"] == "hello.test.com"
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_BUILDER_DOMAINS=["test.com"])
+def test_create_sub_domain_name_contains_dot(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+
+    url = reverse(
+        "api:builder:builder_id:domains:list", kwargs={"builder_id": builder.id}
+    )
+    response = api_client.post(
+        url,
+        {"type": SubDomainType.type, "domain_name": "hello.world.test.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT"
+    assert "hello.world.test.com" in response_json["detail"]
+    assert not builder.domains.exists()
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_BUILDER_DOMAINS=["test.com", "eu.test.com"])
+def test_create_sub_domain_with_overlapping_domain_names(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+
+    url = reverse(
+        "api:builder:builder_id:domains:list", kwargs={"builder_id": builder.id}
+    )
+    response = api_client.post(
+        url,
+        {"type": SubDomainType.type, "domain_name": "hello.eu.test.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["domain_name"] == "hello.eu.test.com"
+
+    response = api_client.post(
+        url,
+        {"type": SubDomainType.type, "domain_name": "hello.world.eu.test.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT"
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_BUILDER_DOMAINS=["test.com"])
+def test_update_sub_domain_name_contains_dot(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    domain = data_fixture.create_builder_sub_domain(
+        builder=builder, domain_name="hello.test.com"
+    )
+
+    url = reverse("api:builder:domains:item", kwargs={"domain_id": domain.id})
+    response = api_client.patch(
+        url,
+        {"domain_name": "hello.world.test.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT"
+    domain.refresh_from_db()
+    assert domain.domain_name == "hello.test.com"
+
+
+@pytest.mark.django_db
 def test_update_domain(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)

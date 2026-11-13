@@ -39,3 +39,16 @@ class SubDomainHasInvalidDomainName(Exception):
             *args,
             **kwargs,
         )
+
+
+class SubDomainNameContainsDot(Exception):
+    """Raised when the name in front of the subdomain's domain name contains a dot"""
+
+    def __init__(self, domain_name, *args, **kwargs):
+        self.domain_name = domain_name
+        super().__init__(
+            f"The subdomain {domain_name} can't contain a dot in front of the domain "
+            f"name.",
+            *args,
+            **kwargs,
+        )
