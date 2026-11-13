@@ -142,10 +142,16 @@ def _associated_data(key_id: str, context: str) -> bytes:
     return f"baserow:{VERSION}:{key_id}:{context}".encode()
 
 
+# Recognizes an encrypted value by its prefix alone, so a damaged one is still
+# treated as encrypted: unusable and kept, never read as a plain secret.
 _ENCRYPTED = re.compile(
     rf"^{re.escape(PREFIX)}(?P<version>v[0-9]+):(?P<key_id>[0-9a-f]{{8}}):"
-    r"(?P<token>[A-Za-z0-9_-]+)$"
+    r"(?P<token>.*)$",
+    re.DOTALL,
 )
+_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+# A nonce and a GCM tag, for an empty secret.
+_MIN_SEALED_SIZE = NONCE_SIZE + 16
 
 
 def encrypted_prefix(key_id: str) -> str:
@@ -156,8 +162,9 @@ def encrypted_prefix(key_id: str) -> str:
 
 def is_encrypted(value: str) -> bool:
     """
-    Only values in the exact format count, so plain text written before the
-    field was encrypted is read as is, even when it starts with the prefix.
+    Values starting with ``enc:v<n>:<key id>:`` count, also when what follows
+    is damaged. Other plain text written before the field was encrypted, e.g.
+    ``enc:abc``, is read as is.
     """
 
     return _ENCRYPTED.match(value) is not None
@@ -167,6 +174,7 @@ def get_key_id(value: str) -> str | None:
     """
     :param value: A stored value.
     :return: The id of the key that encrypted it, or None when it's plain text.
+        A damaged encrypted value still has one.
     """
 
     match = _ENCRYPTED.match(value)
@@ -214,14 +222,22 @@ def decrypt(value: str, context: str) -> str:
             f"A value in {context} was encrypted with key {key_id}, which isn't "
             "configured. Add it to BASEROW_ENCRYPTION_KEY_FALLBACKS."
         )
+    if not _TOKEN.match(token) or len(token) % 4 == 1:
+        raise DecryptionError(f"A value in {context} is damaged.")
     try:
         raw = base64.urlsafe_b64decode(token + "=" * (-len(token) % 4))
-        plaintext = AESGCM(key).decrypt(
-            raw[:NONCE_SIZE], raw[NONCE_SIZE:], _associated_data(key_id, context)
+        if len(raw) < _MIN_SEALED_SIZE:
+            raise ValueError("Too short.")
+        return (
+            AESGCM(key)
+            .decrypt(
+                raw[:NONCE_SIZE], raw[NONCE_SIZE:], _associated_data(key_id, context)
+            )
+            .decode()
         )
     except (InvalidTag, ValueError) as exc:
+        # UnicodeDecodeError is a ValueError too.
         raise DecryptionError(f"A value in {context} can't be decrypted.") from exc
-    return plaintext.decode()
 
 
 @checks.register(checks.Tags.security)

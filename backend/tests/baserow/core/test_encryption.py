@@ -432,3 +432,70 @@ def test_checking_and_reencrypting_fail_on_a_tampered_current_key_secret(
 def test_the_batch_size_must_be_positive():
     with pytest.raises(CommandError, match="batch-size"):
         call_command("reencrypt_secrets", "--batch-size", "0")
+
+
+def damaged_envelopes():
+    value = encrypt("refresh-1", REFRESH_CONTEXT)
+    prefix = value[: value.rindex(":") + 1]
+    return [value[:-1] + "!", prefix, prefix + "abc", prefix + "A" * 8]
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENCRYPTION_KEY=KEY_A)
+def test_a_damaged_secret_is_unusable_kept_and_fails_verification(data_fixture):
+    integration = data_fixture.create_mcp_server_integration(
+        auth_type="oauth", oauth_expires_at=timezone.now() + timedelta(seconds=5)
+    )
+    write_stored(integration, encrypt("access-1", TOKEN_CONTEXT))
+
+    for damaged in damaged_envelopes():
+        write_stored(integration, damaged, "oauth_refresh_token")
+        copy = reload(integration)
+        assert is_unreadable_secret(copy.oauth_refresh_token)
+        with pytest.raises(MCPServerCredentialUnavailable):
+            MCPServerHandler().get_connection(copy)
+        copy.name = "renamed"
+        copy.save()
+        assert stored(integration, "oauth_refresh_token") == damaged
+
+        for args in (["--check"], []):
+            out = StringIO()
+            with pytest.raises(CommandError, match="1 secrets"):
+                call_command("reencrypt_secrets", *args, stdout=out, stderr=StringIO())
+            assert "(can't be decrypted): 1" in out.getvalue()
+        assert stored(integration, "oauth_refresh_token") == damaged
+
+
+@pytest.mark.django_db
+def test_a_damaged_secret_on_an_old_key_is_kept_by_reencrypting(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_A):
+        damaged = damaged_envelopes()[0]
+    write_stored(integration, damaged)
+
+    with override_settings(
+        BASEROW_ENCRYPTION_KEY=KEY_B, BASEROW_ENCRYPTION_KEY_FALLBACKS=[KEY_A]
+    ):
+        with pytest.raises(CommandError, match="1 secrets"):
+            call_command("reencrypt_secrets", stdout=StringIO(), stderr=StringIO())
+
+    assert stored(integration) == damaged
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENCRYPTION_KEY=KEY_A)
+def test_verification_reads_the_primary_and_never_a_replica(data_fixture, mocker):
+    integration = data_fixture.create_mcp_server_integration()
+    write_stored(integration, encrypt("access-1", TOKEN_CONTEXT)[:-1] + "!")
+    # A lagging replica would still hold an older, readable value. Reading
+    # from it at all fails here, as the alias doesn't exist.
+    mocker.patch(
+        "baserow.config.db_routers.ReadReplicaRouter.db_for_read",
+        return_value="lagging_replica",
+    )
+
+    for args in (["--check"], []):
+        with pytest.raises(CommandError, match="1 secrets"):
+            call_command(
+                "reencrypt_secrets", *args, stdout=StringIO(), stderr=StringIO()
+            )

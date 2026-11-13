@@ -3,7 +3,7 @@ from collections import Counter
 
 from django.apps import apps
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import F, TextField
 from django.db.models.functions import Cast
 
@@ -77,9 +77,13 @@ class Command(BaseCommand):
                 "them again."
             )
 
+    def _manager(self, model):
+        # Always the primary: a read replica may lag behind what was written.
+        return model._base_manager.db_manager(DEFAULT_DB_ALIAS)
+
     def _raw(self, model, field):
         # Cast to plain text, so the stored value is read as is.
-        return model._base_manager.annotate(_raw=Cast(F(field.attname), TextField()))
+        return self._manager(model).annotate(_raw=Cast(F(field.attname), TextField()))
 
     def _count(self, model, field, ring) -> tuple[Counter, int]:
         """
@@ -120,7 +124,7 @@ class Command(BaseCommand):
         done = failed = 0
         last_pk = None
         while True:
-            with transaction.atomic():
+            with transaction.atomic(using=DEFAULT_DB_ALIAS):
                 # Waits for rows that are being written instead of skipping
                 # them, because the cursor below never comes back to a row.
                 rows = (
@@ -146,5 +150,5 @@ class Command(BaseCommand):
                         failed += 1
                         continue
                     updates.append(model(pk=pk, **{field.attname: value}))
-                model._base_manager.bulk_update(updates, [field.attname])
+                self._manager(model).bulk_update(updates, [field.attname])
                 done += len(updates)
