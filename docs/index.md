@@ -103,6 +103,8 @@ Baserow provides various APIs detailed below:
 * [Automation node and service type naming](technical/automation-node-and-service-type-naming.md):
   How automation node types, the integration service types they wrap, their form
   components and their test fixtures are named on the backend and the frontend.
+* [Storing secrets](technical/encrypted-secrets.md): How to store a secret Baserow sends
+  to other services encrypted, what the database can do with it, and the tests to keep.
 
 ## Development
 
