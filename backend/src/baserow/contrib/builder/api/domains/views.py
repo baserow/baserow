@@ -31,6 +31,7 @@ from baserow.contrib.builder.api.domains.errors import (
     ERROR_DOMAIN_NAME_NOT_UNIQUE,
     ERROR_DOMAIN_NOT_IN_BUILDER,
     ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME,
+    ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT,
 )
 from baserow.contrib.builder.api.domains.serializers import (
     CreateDomainSerializer,
@@ -43,6 +44,7 @@ from baserow.contrib.builder.domains.exceptions import (
     DomainNameNotUniqueError,
     DomainNotInBuilder,
     SubDomainHasInvalidDomainName,
+    SubDomainNameContainsDot,
 )
 from baserow.contrib.builder.domains.handler import DomainHandler
 from baserow.contrib.builder.domains.models import Domain
@@ -86,6 +88,8 @@ class DomainsView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME",
+                    "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -96,6 +100,7 @@ class DomainsView(APIView):
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             SubDomainHasInvalidDomainName: ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME,
+            SubDomainNameContainsDot: ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT,
         }
     )
     @validate_body_custom_fields(
@@ -183,6 +188,8 @@ class DomainView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME",
+                    "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT",
                 ]
             ),
             404: get_error_schema(["ERROR_DOMAIN_DOES_NOT_EXIST"]),
@@ -194,6 +201,7 @@ class DomainView(APIView):
             DomainDoesNotExist: ERROR_DOMAIN_DOES_NOT_EXIST,
             DomainNameNotUniqueError: ERROR_DOMAIN_NAME_NOT_UNIQUE,
             SubDomainHasInvalidDomainName: ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME,
+            SubDomainNameContainsDot: ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT,
         }
     )
     @require_request_data_type(dict)

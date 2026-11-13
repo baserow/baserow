@@ -24,3 +24,9 @@ ERROR_SUB_DOMAIN_HAS_INVALID_DOMAIN_NAME = (
     "The subdomain {e.domain_name} has an invalid domain name, "
     "you can only use {e.available_domain_names}",
 )
+
+ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT = (
+    "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT",
+    HTTP_400_BAD_REQUEST,
+    "The subdomain {e.domain_name} can't contain a dot in front of the domain name.",
+)
