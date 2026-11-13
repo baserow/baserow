@@ -117,17 +117,21 @@ class AgentTriggerDispatcher:
 
     def _is_runnable(self, trigger: AgentTrigger) -> bool:
         """
-        Whether the trigger may start a conversation now, logging why not.
+        Whether the trigger may start a conversation or a queued reply now,
+        logging why not.
 
-        :param trigger: The matched trigger, with its agent and workspace.
-        :return: True when the trigger is enabled and its agent can reply.
+        :param trigger: The trigger, with its agent, workspace and service.
+        :return: True when Agents are on, the trigger is enabled and its agent can
+            reply.
         """
 
         agent = trigger.agent
         service_type = service_type_registry.get_by_model(
             trigger.service.specific_class
         )
-        if not trigger.enabled:
+        if not feature_flag_is_enabled(FF_AGENT_BUILDER):
+            reason = "the agent builder is off"
+        elif not trigger.enabled:
             reason = "it is disabled"
         elif not self._agent_is_live(agent):
             reason = "its agent is trashed or is a snapshot"
@@ -341,7 +345,7 @@ class AgentTriggerDispatcher:
 
         trigger_handler = AgentTriggerHandler()
         limits = get_overlap_limits(trigger.on_overlap)
-        self.start_queued_replies(trigger)
+        self.start_queued_replies(trigger, checked_runnable=True)
         going = trigger_handler.count_going_replies(trigger)
         queued = trigger_handler.count_queued_replies(trigger)
         queues = limits.max_queued != 0
@@ -363,22 +367,46 @@ class AgentTriggerDispatcher:
         self._notify(created.conversation, created.run_id)
         return None
 
-    def start_queued_replies(self, trigger: AgentTrigger) -> list[AgentMessage]:
+    def hand_off(self, trigger_id: int) -> None:
+        """
+        Move the queue of a trigger whose reply ended on, unless the trigger was
+        deleted or trashed since.
+
+        :param trigger_id: The id of the trigger.
+        """
+
+        trigger = (
+            AgentTrigger.objects.select_related("agent__workspace", "service")
+            .filter(id=trigger_id)
+            .first()
+        )
+        if trigger is not None:
+            self.start_queued_replies(trigger)
+
+    def start_queued_replies(
+        self, trigger: AgentTrigger, checked_runnable: bool = False
+    ) -> list[AgentMessage]:
         """
         Start the trigger's queued replies its overlap rule has room for, and tell
-        their readers. Called when a trigger's reply ends, by the sweep and by a
-        firing; it never raises, so one trigger can't stop the others.
+        their readers, when the trigger may run as a firing would: one that can't,
+        for example while its agent isn't ready, keeps its queue until it can.
+        Called when a trigger's reply ends, by the sweep and by a firing; it never
+        raises, so one trigger can't stop the others.
 
-        :param trigger: The trigger whose queue moves on.
+        :param trigger: The trigger whose queue moves on, with its agent,
+            workspace and service.
+        :param checked_runnable: Whether the caller already checked, under the
+            trigger's lock, that it may run.
         :return: The replies now running, even when their readers couldn't be
             told; none when nothing is queued, the rule has no room, the trigger
-            is locked by another caller or stopped, the workspace is at its run
+            can't run or is locked by another caller, the workspace is at its run
             limit, or the start failed.
         """
 
         replies = []
         try:
-            replies = AgentHandler().start_queued_replies(trigger)
+            if checked_runnable or self._is_runnable(trigger):
+                replies = AgentHandler().start_queued_replies(trigger)
             for reply in replies:
                 runs = AgentHandler().get_active_reply_runs(reply.conversation)
                 self._notify(reply.conversation, runs.get(reply.id))

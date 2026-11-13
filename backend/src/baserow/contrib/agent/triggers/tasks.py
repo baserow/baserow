@@ -26,12 +26,27 @@ def start_trigger_conversation(
     agent_trigger_dispatcher.start(trigger_id, content, failure)
 
 
+@app.task(ignore_result=True)
+def hand_off_trigger_queue(trigger_id: int) -> None:
+    """
+    Start the queued replies a trigger has room for, once one of its replies
+    ended.
+
+    :param trigger_id: The id of the trigger whose reply ended.
+    """
+
+    from .dispatcher import agent_trigger_dispatcher
+
+    agent_trigger_dispatcher.hand_off(trigger_id)
+
+
 @app.task(bind=True, queue="export", ignore_result=True)
 def start_queued_trigger_replies(self: Task) -> None:
     """
     Start the queued replies of each trigger whose overlap rule has room: the
-    safety net for a hand-off that found the trigger locked, never ran, or met
-    the workspace's run limit. One query when nothing is queued.
+    safety net for a hand-off that found the trigger locked or unable to run,
+    never ran, or met the workspace's run limit. One query when nothing is
+    queued.
     """
 
     from .dispatcher import agent_trigger_dispatcher

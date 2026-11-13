@@ -416,7 +416,8 @@ class AgentTriggerHandler:
         query, read from the index of replies still queued or going, however long
         the triggers' history is.
 
-        :return: The startable triggers, by id.
+        :return: The startable triggers, by id, with their agent, workspace and
+            service.
         """
 
         replies = AgentMessage.objects.filter(conversation__trigger=OuterRef("pk"))
@@ -437,6 +438,7 @@ class AgentTriggerHandler:
             )
         return (
             self.get_startable_triggers()
+            .select_related("agent__workspace", "service")
             .annotate(going=going)
             .filter(
                 has_room,

@@ -140,8 +140,9 @@ waiting for approvals) and how many may wait, queued without a run:
 A firing starts when there is room to go and nothing is queued ahead of it, queues
 when the queue has room, and is skipped otherwise; a cap of 0 or less means no
 limit. A firing the workspace's run limit holds back queues where the rule queues,
-and fails visibly where it doesn't. When a reply ends, and every minute as a safety
-net, the trigger's oldest queued replies start while there is room. The rate limits
+and fails visibly where it doesn't. When a reply ends, in a task of its own, and
+every minute as a safety net, the trigger's oldest queued replies start while there
+is room and the trigger could fire; otherwise they keep waiting. The rate limits
 apply before the rule. The rule lives in `OverlapLimits`, small enough to move to
 core when another background feature needs it.
 

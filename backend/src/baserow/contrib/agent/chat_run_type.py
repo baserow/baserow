@@ -30,7 +30,7 @@ from .models import AgentReplyStatus
 from .replies import AgentResponder, create_reply_model
 from .service import AgentService
 from .signals import agent_conversation_activity
-from .triggers.dispatcher import agent_trigger_dispatcher
+from .triggers.tasks import hand_off_trigger_queue
 from .types import AgentReplyRequest, AgentReplyResult
 
 if TYPE_CHECKING:
@@ -140,7 +140,8 @@ class AgentChatRunType(ChatRunType):
         """
         Save how the reply ended and tell every session that sees the conversation,
         with the pending counts of those who may decide when the reply now waits for
-        approvals. A trigger's reply hands the trigger's queue on once this commits.
+        approvals. A trigger's reply hands the trigger's queue on, in its own task,
+        once this commits.
 
         :param run: The run that wrote the reply.
         :param status: The final status.
@@ -158,11 +159,10 @@ class AgentChatRunType(ChatRunType):
         conversation = reply.conversation
         agent_conversation_activity.send(self, conversation=conversation, user=None)
         if conversation.trigger_id is not None:
-            trigger = conversation.trigger
+            trigger_id = conversation.trigger_id
             # Before the commit, this run still counts against the workspace limit.
             transaction.on_commit(
-                lambda: agent_trigger_dispatcher.start_queued_replies(trigger),
-                robust=True,
+                lambda: hand_off_trigger_queue.delay(trigger_id), robust=True
             )
         if reply.status == AgentReplyStatus.WAITING:
             application_pending_count_updated.send(
