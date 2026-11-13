@@ -73,14 +73,16 @@ secret, so a `CharField` with a `max_length` has to become a text column first.
 
 ## What the database can do with it
 
-| Operation                                             | Allowed   | Why                                                                                                   |
-| ----------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| Read, assign, save, `update()`, `bulk_update()`       | Yes       | Values are encrypted on the way in and decrypted on the way out.                                      |
-| `filter(token__isnull=True)`                          | Yes       | The only lookup. It only matches `NULL`: empty secrets are stored as `""`, and no lookup finds those. |
-| `filter(token="abc")`, `startswith`, any other lookup | No        | Raises an error instead of quietly matching nothing.                                                  |
-| `unique=True`, `db_index=True`                        | No        | System check `baserow.E001` stops Baserow at startup.                                                 |
-| Ordering or grouping by the column                    | Pointless | Not blocked, but ciphertext order and groups mean nothing.                                            |
-| `dumpdata` and `loaddata`                             | Yes       | Dumps keep values encrypted and load them back once.                                                  |
+| Operation                                                          | Allowed      | Why                                                                                                                                                                  |
+| ------------------------------------------------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Read, assign, save, `bulk_update()`, `update()` with a plain value | Yes          | Values are encrypted on the way in and decrypted on the way out.                                                                                                     |
+| `update()` with an expression, such as `Value()` or `F()`          | Needs review | Django skips the field's preparation for expressions, so `Value("x")` stores plain text and `F()` copies another column's ciphertext, which can't be decrypted here. |
+| Raw SQL, or a `db_default` that isn't empty                        | Needs review | Neither goes through the field, so the value is stored as plain text.                                                                                                |
+| `filter(token__isnull=True)`                                       | Yes          | The only lookup. It only matches `NULL`: empty secrets are stored as `""`, and no lookup finds those.                                                                |
+| `filter(token="abc")`, `startswith`, any other lookup              | No           | Raises an error instead of quietly matching nothing.                                                                                                                 |
+| `unique=True`, `db_index=True`                                     | No           | System check `baserow.E001` stops Baserow at startup.                                                                                                                |
+| Ordering or grouping by the column                                 | Pointless    | Not blocked, but ciphertext order and groups mean nothing.                                                                                                           |
+| `dumpdata` and `loaddata`                                          | Yes          | Dumps keep values encrypted and load them back once.                                                                                                                 |
 
 Assigning a ciphertext and saving it encrypts it again; it is never decrypted. Only
 `to_python`, which Django uses to load dumps, decrypts its input, so never pass values a
