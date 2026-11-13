@@ -11,6 +11,8 @@ from asgiref.sync import async_to_sync
 from loguru import logger
 from mcp.shared.auth import OAuthToken
 
+from baserow.core.fields import is_unreadable_secret
+
 from . import oauth
 from .client import (
     MCPServerConnection,
@@ -21,6 +23,7 @@ from .client import (
 from .exceptions import (
     MCPOAuthFailed,
     MCPOAuthStateInvalid,
+    MCPServerCredentialUnavailable,
     MCPServerNotConnected,
     MCPServerRefusedCredential,
     MCPServerUnreachable,
@@ -47,6 +50,19 @@ OAUTH_TOKEN_FIELDS = [
 ]
 # Matches `MCPServerTool.name`. Longer names can't be stored.
 MAX_TOOL_NAME_LENGTH = 128
+
+
+def _readable(secret: str) -> str:
+    """
+    :param secret: A stored credential.
+    :raises MCPServerCredentialUnavailable: When it can't be decrypted. It must
+        not be sent, nor taken for a missing one and cleared.
+    :return: The credential.
+    """
+
+    if is_unreadable_secret(secret):
+        raise MCPServerCredentialUnavailable()
+    return secret
 
 
 @dataclass(frozen=True)
@@ -295,13 +311,16 @@ class MCPServerHandler:
         headers = {}
         if integration.auth_type == MCPAuthType.OAUTH:
             if integration.oauth_access_token:
-                headers["Authorization"] = f"Bearer {integration.oauth_access_token}"
+                token = _readable(integration.oauth_access_token)
+                headers["Authorization"] = f"Bearer {token}"
         elif (
             integration.auth_type == MCPAuthType.HEADER
             and integration.auth_header_name
             and integration.auth_header_value
         ):
-            headers[integration.auth_header_name] = integration.auth_header_value
+            headers[integration.auth_header_name] = _readable(
+                integration.auth_header_value
+            )
         return MCPServerConnection(url=integration.url, headers=headers)
 
     def refresh_oauth_token(
@@ -332,6 +351,8 @@ class MCPServerHandler:
             if not oauth.expires_soon(locked.oauth_expires_at):
                 # Refreshed, or signed in again, while this waited for the lock.
                 return locked
+            # Kept, not cleared: the key that reads it may be configured again.
+            _readable(locked.oauth_refresh_token)
             if not locked.oauth_refresh_token:
                 if locked.oauth_expires_at > timezone.now():
                     return locked
@@ -395,13 +416,12 @@ class MCPServerHandler:
         server = async_to_sync(oauth.discover)(integration.url)
         stored = integration.oauth_server or {}
         if integration.oauth_client_source == MCPOAuthClientSource.MANUAL:
+            client_secret = _readable(integration.oauth_client_secret)
             client = oauth.OAuthClient(
                 client_id=integration.oauth_client_id,
-                client_secret=integration.oauth_client_secret,
+                client_secret=client_secret,
                 source=MCPOAuthClientSource.MANUAL,
-                auth_method=oauth.manual_client_auth_method(
-                    server, integration.oauth_client_secret
-                ),
+                auth_method=oauth.manual_client_auth_method(server, client_secret),
             )
         elif (
             integration.oauth_client_id
@@ -552,15 +572,16 @@ class MCPServerHandler:
         """
 
         server = integration.oauth_server or {}
+        client_secret = _readable(integration.oauth_client_secret)
         auth_method = server.get("client_auth_method", "none")
         if integration.oauth_client_source == MCPOAuthClientSource.MANUAL and server:
             # The editor may change their client's secret at any time.
             auth_method = oauth.manual_client_auth_method(
-                oauth.OAuthServer.from_dict(server), integration.oauth_client_secret
+                oauth.OAuthServer.from_dict(server), client_secret
             )
         return oauth.OAuthClient(
             client_id=integration.oauth_client_id,
-            client_secret=integration.oauth_client_secret,
+            client_secret=client_secret,
             source=integration.oauth_client_source,
             auth_method=auth_method,
         )

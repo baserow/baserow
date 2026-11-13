@@ -27,6 +27,8 @@ x-backend-variables:
   &backend-variables # Most users should only need to set these first four variables.
   SECRET_KEY: ${SECRET_KEY:?}
   BASEROW_JWT_SIGNING_KEY: ${BASEROW_JWT_SIGNING_KEY:-}
+  BASEROW_ENCRYPTION_KEY: ${BASEROW_ENCRYPTION_KEY:-}
+  BASEROW_ENCRYPTION_KEY_FALLBACKS: ${BASEROW_ENCRYPTION_KEY_FALLBACKS:-}
   DATABASE_PASSWORD: ${DATABASE_PASSWORD:?}
   REDIS_PASSWORD: ${REDIS_PASSWORD:?}
   # If you manually change this line make sure you also change the duplicate line in

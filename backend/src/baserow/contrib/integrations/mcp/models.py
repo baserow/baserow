@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+from baserow.core.fields import EncryptedTextField
 from baserow.core.integrations.models import Integration
 
 
@@ -42,7 +43,8 @@ class MCPServerIntegration(Integration):
         db_default="",
         help_text="The header that carries the credential, e.g. Authorization.",
     )
-    auth_header_value = models.TextField(
+    auth_header_value = EncryptedTextField(
+        context="integrations.mcpserverintegration.auth_header_value",
         blank=True,
         default="",
         db_default="",
@@ -61,8 +63,12 @@ class MCPServerIntegration(Integration):
         db_default="",
         help_text="The OAuth client id, entered by an editor or registered by Baserow.",
     )
-    oauth_client_secret = models.TextField(
-        blank=True, default="", db_default="", help_text="The OAuth client secret."
+    oauth_client_secret = EncryptedTextField(
+        context="integrations.mcpserverintegration.oauth_client_secret",
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The OAuth client secret.",
     )
     oauth_client_source = models.CharField(
         max_length=32,
@@ -74,8 +80,18 @@ class MCPServerIntegration(Integration):
     # What discovery found: issuer, token endpoint, how to authenticate to it,
     # the resource indicator and the scope. Kept to refresh tokens later.
     oauth_server = models.JSONField(default=dict, db_default={})
-    oauth_access_token = models.TextField(blank=True, default="", db_default="")
-    oauth_refresh_token = models.TextField(blank=True, default="", db_default="")
+    oauth_access_token = EncryptedTextField(
+        context="integrations.mcpserverintegration.oauth_access_token",
+        blank=True,
+        default="",
+        db_default="",
+    )
+    oauth_refresh_token = EncryptedTextField(
+        context="integrations.mcpserverintegration.oauth_refresh_token",
+        blank=True,
+        default="",
+        db_default="",
+    )
     oauth_expires_at = models.DateTimeField(null=True, blank=True)
     oauth_connected_at = models.DateTimeField(null=True, blank=True)
     oauth_generation = models.PositiveIntegerField(

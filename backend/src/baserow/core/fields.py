@@ -9,6 +9,8 @@ from django.db.models.fields.related_descriptors import ReverseOneToOneDescripto
 from django.db.transaction import atomic
 from django.utils.translation import gettext_lazy as _
 
+from loguru import logger
+
 
 class SyncedDateTimeField(models.DateTimeField):
     def __init__(self, sync_with=None, sync_with_add=None, *args, **kwargs):
@@ -338,3 +340,120 @@ class MultipleFlagField(models.CharField):
         name, path, args, kwargs = super().deconstruct()
         kwargs["num_flags"] = self.num_flags  # Add num_flags explicitly
         return name, path, args, kwargs
+
+
+class UndecryptableSecret(str):
+    """
+    Stands in for a stored secret that no configured key can decrypt. It's
+    stored, so it's truthy: checks that ask whether a secret is set, e.g.
+    before its request target changes or to clear it, still see it. Its text is
+    empty and must never be sent: callers check `is_unreadable_secret` before
+    using it. Saving the row unchanged keeps the stored value for when the key
+    is back.
+    """
+
+    def __new__(cls, stored: str):
+        secret = super().__new__(cls, "")
+        secret.stored = stored
+        return secret
+
+    def __bool__(self):
+        return True
+
+
+def is_unreadable_secret(value) -> bool:
+    """
+    :return: Whether the value is a stored secret that can't be decrypted with
+        the configured keys, so it can't be used until the key is back or the
+        secret is entered again.
+    """
+
+    return isinstance(value, UndecryptableSecret)
+
+
+class EncryptedTextField(models.TextField):
+    """
+    Text encrypted at rest, for secrets Baserow sends to other services, never
+    for values it looks up: each write uses a fresh nonce, so equal values are
+    stored differently. Empty values stay empty, and plain text written before
+    the field was encrypted is still read as is.
+
+    Values are decrypted when read from the database and by `to_python`, which
+    Django calls to load serialized dumps. Whatever is assigned and saved is
+    encrypted as given, so a stored ciphertext written back is never decrypted
+    for whoever wrote it. Only trusted input may go through `to_python`, i.e.
+    fixtures and dumps, never values a user sends.
+    """
+
+    def __init__(self, *args, context: str, **kwargs):
+        """
+        :param context: Binds the stored values to this field. It must never
+            change, also when the model, field or app is renamed, because the
+            values stored with the old context can't be decrypted any more.
+        """
+
+        self.context = context
+        super().__init__(*args, **kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        kwargs["context"] = self.context
+        return name, path, args, kwargs
+
+    def check(self, **kwargs):
+        errors = super().check(**kwargs)
+        if self.unique or self.db_index:
+            errors.append(
+                checks.Error(
+                    "EncryptedTextField can't be unique or indexed.",
+                    obj=self,
+                    id="baserow.E001",
+                )
+            )
+        return errors
+
+    def get_lookup(self, lookup_name):
+        # Comparing ciphertexts never matches, so only `isnull` is allowed and
+        # anything else fails loudly instead of returning nothing.
+        if lookup_name != "isnull":
+            return None
+        return super().get_lookup(lookup_name)
+
+    def get_transform(self, lookup_name):
+        return None
+
+    def get_prep_value(self, value):
+        from baserow.core.encryption import encrypt
+
+        if isinstance(value, UndecryptableSecret):
+            return value.stored
+        # Skips TextField.get_prep_value, which would go through to_python.
+        value = models.Field.get_prep_value(self, value)
+        if value is None or value == "":
+            return value
+        return encrypt(str(value), self.context)
+
+    def _decrypt_stored(self, value):
+        from baserow.core.encryption import DecryptionError, decrypt, is_encrypted
+
+        if not isinstance(value, str) or not is_encrypted(value):
+            return value
+        try:
+            return decrypt(value, self.context)
+        except DecryptionError as exc:
+            logger.warning("{} It can't be used until the key is configured.", exc)
+            return UndecryptableSecret(value)
+
+    def from_db_value(self, value, expression, connection):
+        return self._decrypt_stored(value)
+
+    def to_python(self, value):
+        # Loading a dump goes through here: its values are encrypted as
+        # `value_to_string` wrote them, and would be encrypted twice otherwise.
+        if isinstance(value, UndecryptableSecret):
+            return value
+        return self._decrypt_stored(super().to_python(value))
+
+    def value_to_string(self, obj):
+        # Serialized dumps keep the secret encrypted.
+        return self.get_prep_value(self.value_from_object(obj))

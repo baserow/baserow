@@ -340,6 +340,9 @@ docker-compose run -v ~/baserow_backups:/baserow/backups backend backup -f /base
    restoration via direct database connection.
 1. Make a new, empty database to restore the back-up file into, please do not overwrite
    existing databases as this might cause database inconsistency errors.
+1. Keep the `SECRET_KEY` and `BASEROW_ENCRYPTION_KEY` that were in use when the back-up
+   was taken, otherwise the stored MCP server credentials can't be decrypted. See
+   [Encryption keys](./encryption-keys.md).
 
 ```bash
 docker-compose run -v ~/baserow_backups:/baserow/backups backend restore -f /baserow/backups/baserow_backup.tar.gz 
