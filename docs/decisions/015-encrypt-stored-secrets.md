@@ -91,8 +91,8 @@ every adopter must keep are in the [technical guide](../technical/encrypted-secr
 - A leaked dump or backup no longer exposes secrets stored this way.
 - The key has to be backed up separately from the database. A database restored without
   it loses these secrets, and users have to enter them again.
-- Changing the key takes a restart and a command. Skipping a step makes secrets read as
-  empty until the old key is added back.
+- Changing the key takes a restart and a command. Skipping a step makes secrets unusable
+  until the old key is added back.
 - Renaming a column that holds secrets must keep its binding unchanged, or its values
   can no longer be decrypted.
 - Follow-up work: move the other stored secrets to this mechanism, and decide when

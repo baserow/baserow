@@ -107,28 +107,36 @@ flowchart LR
 
 Every value is stretched to 32 bytes with HKDF-SHA256, with a different label for
 encryption keys and for `SECRET_KEY`, so the same string set as both still gives two
-keys. A key shorter than 32 characters, or two keys with the same id, stop Baserow at
-startup.
+keys. A `BASEROW_ENCRYPTION_KEY` shorter than 32 characters, or two keys with the same
+id, stop Baserow at startup. A shorter value in the fallbacks is accepted and treated as
+an old `SECRET_KEY`.
 
 ## Changing the key
 
-Old keys stay in the fallbacks until no value needs them. The installation docs have the
-full steps for admins.
+The key changes in stages, so every running process can read what the others write. Each
+stage restarts every Baserow service and waits until no process runs the previous
+config. The [installation docs](../installation/encryption-keys.md) have the full steps
+for admins, including rolling back part way through.
 
 ```mermaid
 sequenceDiagram
     participant Admin
-    participant Baserow
+    participant Baserow as Every Baserow service
     participant DB as Stored secrets
 
-    Admin->>Baserow: 1. main key B, key A in the fallbacks, restart
+    Admin->>Baserow: 1. add B to the fallbacks, A stays main, restart all
+    Note over Baserow,DB: every process reads A and B,<br/>saves still use A
+    Admin->>Baserow: 2. make B main, move A to the fallbacks, restart all
     Note over Baserow,DB: values on A still read through A,<br/>new saves use B
-    Admin->>Baserow: 2. reencrypt_secrets
+    Admin->>Baserow: 3. reencrypt_secrets
     Baserow->>DB: decrypt every value, save it with B
-    Admin->>Baserow: 3. reencrypt_secrets --check
+    Admin->>Baserow: 4. reencrypt_secrets --check
     Baserow-->>Admin: counts per key, error if any value can't be read
-    Admin->>Baserow: 4. remove A from the fallbacks, restart
+    Admin->>Baserow: 5. remove A from the fallbacks, restart all
 ```
+
+Without step 1, a process still running with only A can't read what an already restarted
+process saved with B.
 
 ## A secret that can't be decrypted
 
