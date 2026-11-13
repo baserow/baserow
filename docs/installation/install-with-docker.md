@@ -606,6 +606,11 @@ docker run -it --rm -v baserow_data:/baserow/data -v $PWD:/baserow/host \
 When restoring Baserow you must ensure you are restoring into a brand new Baserow data
 volume.
 
+A new data volume gets a newly generated `SECRET_KEY` in `/baserow/data/.secret`. Copy
+the old `.secret` into the new volume, or pass the old value as `SECRET_KEY` (or the old
+`BASEROW_ENCRYPTION_KEY` if you set one), otherwise the stored MCP server credentials
+can't be decrypted. See [Encryption keys](./encryption-keys.md).
+
 ```bash
 # Stop Baserow instance
 docker stop baserow

@@ -49,6 +49,8 @@ Baserow by following one the guides below:
   when using an Apache reverse proxy.
 * [MCP OAuth sign-in](installation/mcp-oauth.md): What a self-hosted Baserow needs so
   MCP clients can sign in with OAuth.
+* [Encryption keys](installation/encryption-keys.md): Back up, restore and change the
+  key that encrypts stored credentials.
 * [DEPRECATED: Install on Ubuntu](installation/old-install-on-ubuntu.md): A deprecated
   and now unsupported guide on how to manually install Baserow and its required services
   on a fresh Ubuntu install. Please use the guides above instead.
