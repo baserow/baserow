@@ -56,8 +56,26 @@ export const isStalePublishedIdError = (error) =>
   error?.response?.status === 404 &&
   STALE_PUBLISHED_ID_ERRORS.has(error.response.data?.error)
 
+/**
+ * The stale errors that come from something the visitor did, like submitting a form
+ * or logging in. What they typed is lost by the reload, so the reloaded page tells
+ * them to try again.
+ */
+const VISITOR_ACTION_STALE_ERRORS = new Set([
+  'ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST',
+  'ERROR_USER_SOURCE_DOES_NOT_EXIST',
+])
+
+/**
+ * Returns true when the stale error comes from something the visitor did.
+ */
+export const isVisitorActionStaleError = (error) =>
+  isStalePublishedIdError(error) &&
+  VISITOR_ACTION_STALE_ERRORS.has(error.response.data.error)
+
 const RELOAD_GUARD_KEY = 'baserow:builder:stalePublishedSiteReload'
 const RELOAD_GUARD_TTL = 10000
+const RELOAD_NOTICE_KEY = 'baserow:builder:stalePublishedSiteReloadNotice'
 
 // Whether this document has already started a reload. It's reset by the reload
 // itself, as the new document loads this module again.
@@ -77,9 +95,15 @@ let reloadStarted = false
  * of a Redis error, or a proxy serves a cached page), we don't reload a second time
  * within `RELOAD_GUARD_TTL` so a bug can't turn into a reload loop. Returns whether
  * the reload happens.
+ *
+ * With `notify`, the reloaded page tells the visitor that the site was updated, see
+ * `consumeStaleSiteReloadNotice`.
  */
-export const reloadPublishedSite = (fullPath) => {
+export const reloadPublishedSite = (fullPath, { notify = false } = {}) => {
   if (reloadStarted) {
+    if (notify) {
+      setReloadNotice()
+    }
     return true
   }
   try {
@@ -91,7 +115,34 @@ export const reloadPublishedSite = (fullPath) => {
   } catch {
     // The storage can be blocked. Reloading is still the best way out.
   }
+  if (notify) {
+    setReloadNotice()
+  }
   reloadNuxtApp({ path: fullPath.split('#')[0], force: true })
   reloadStarted = true
   return true
+}
+
+const setReloadNotice = () => {
+  try {
+    sessionStorage.setItem(RELOAD_NOTICE_KEY, '1')
+  } catch {
+    // Without storage the reloaded page can't show the notice, which is fine.
+  }
+}
+
+/**
+ * Returns true once after a reload by `reloadPublishedSite` with `notify`, so the
+ * reloaded page can tell the visitor to try again.
+ */
+export const consumeStaleSiteReloadNotice = () => {
+  try {
+    if (sessionStorage.getItem(RELOAD_NOTICE_KEY) === null) {
+      return false
+    }
+    sessionStorage.removeItem(RELOAD_NOTICE_KEY)
+    return true
+  } catch {
+    return false
+  }
 }

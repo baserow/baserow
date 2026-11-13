@@ -13,13 +13,18 @@ const loadModules = async () => {
   vi.resetModules()
   const { makeStalePublishedSiteInterceptor } =
     await import('@baserow/modules/builder/plugins/publishedSiteClientHandler')
-  const { reloadPublishedSite } =
+  const { reloadPublishedSite, consumeStaleSiteReloadNotice } =
     await import('@baserow/modules/builder/utils/error')
-  return { makeStalePublishedSiteInterceptor, reloadPublishedSite }
+  return {
+    makeStalePublishedSiteInterceptor,
+    reloadPublishedSite,
+    consumeStaleSiteReloadNotice,
+  }
 }
 
 let makeStalePublishedSiteInterceptor
 let reloadPublishedSite
+let consumeStaleSiteReloadNotice
 
 beforeEach(async () => {
   sessionStorage.clear()
@@ -27,6 +32,7 @@ beforeEach(async () => {
   const modules = await loadModules()
   makeStalePublishedSiteInterceptor = modules.makeStalePublishedSiteInterceptor
   reloadPublishedSite = modules.reloadPublishedSite
+  consumeStaleSiteReloadNotice = modules.consumeStaleSiteReloadNotice
 })
 
 const notFound = (error) => ({
@@ -48,13 +54,15 @@ const settledState = (promise) =>
   ])
 
 describe('stale published site interceptor', () => {
+  // Only the errors of something the visitor did ask the reloaded page to tell
+  // them to try again, as what they typed is lost.
   test.each([
-    'ERROR_PAGE_DOES_NOT_EXIST',
-    'ERROR_ELEMENT_DOES_NOT_EXIST',
-    'ERROR_DATA_SOURCE_DOES_NOT_EXIST',
-    'ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST',
-    'ERROR_USER_SOURCE_DOES_NOT_EXIST',
-  ])('reloads the current route on %s', async (code) => {
+    { code: 'ERROR_PAGE_DOES_NOT_EXIST', notify: false },
+    { code: 'ERROR_ELEMENT_DOES_NOT_EXIST', notify: false },
+    { code: 'ERROR_DATA_SOURCE_DOES_NOT_EXIST', notify: false },
+    { code: 'ERROR_WORKFLOW_ACTION_DOES_NOT_EXIST', notify: true },
+    { code: 'ERROR_USER_SOURCE_DOES_NOT_EXIST', notify: true },
+  ])('reloads the current route on $code', async ({ code, notify }) => {
     const reload = vi.fn(() => true)
     const interceptor = makeStalePublishedSiteInterceptor(
       makeRouter('application-builder-page'),
@@ -63,7 +71,7 @@ describe('stale published site interceptor', () => {
 
     const result = interceptor(notFound(code))
 
-    expect(reload).toHaveBeenCalledWith('/jobs?id=7')
+    expect(reload).toHaveBeenCalledWith('/jobs?id=7', { notify })
     expect(await settledState(result)).toBe('pending')
   })
 
@@ -170,5 +178,27 @@ describe('reloadPublishedSite', () => {
     reloadPublishedSite = (await loadModules()).reloadPublishedSite
     expect(reloadPublishedSite('/jobs')).toBe(true)
     expect(reloadNuxtApp).toHaveBeenCalledTimes(2)
+  })
+
+  test('tells the reloaded document once to show the notice', () => {
+    expect(reloadPublishedSite('/jobs', { notify: true })).toBe(true)
+    expect(consumeStaleSiteReloadNotice()).toBe(true)
+    expect(consumeStaleSiteReloadNotice()).toBe(false)
+  })
+
+  test('keeps the notice of a later parallel request', () => {
+    expect(reloadPublishedSite('/jobs')).toBe(true)
+    expect(reloadPublishedSite('/jobs', { notify: true })).toBe(true)
+    expect(reloadNuxtApp).toHaveBeenCalledTimes(1)
+    expect(consumeStaleSiteReloadNotice()).toBe(true)
+  })
+
+  test('does not show the notice without notify or a reload', async () => {
+    expect(reloadPublishedSite('/jobs')).toBe(true)
+    expect(consumeStaleSiteReloadNotice()).toBe(false)
+
+    reloadPublishedSite = (await loadModules()).reloadPublishedSite
+    expect(reloadPublishedSite('/jobs', { notify: true })).toBe(false)
+    expect(consumeStaleSiteReloadNotice()).toBe(false)
   })
 })

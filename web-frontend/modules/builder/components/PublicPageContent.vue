@@ -28,6 +28,7 @@ import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlRes
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 import { getCustomFaviconLinks } from '@baserow/modules/builder/utils/favicon'
 import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
+import { consumeStaleSiteReloadNotice } from '@baserow/modules/builder/utils/error'
 import { resolveSafeNextPath } from '@baserow/modules/builder/utils/routing'
 
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
@@ -306,6 +307,7 @@ watch(
 
 onMounted(async () => {
   checkProviderLoginError()
+  checkStaleSiteReloadNotice()
   await maybeRedirectUserToLoginPage()
 })
 
@@ -369,6 +371,20 @@ const maybeRedirectToNextPage = async () => {
  * in the URL here means nothing displayed it, and we report it with a
  * notification instead.
  */
+/**
+ * The page has been reloaded because the site was published again while the
+ * visitor was submitting a form or logging in. What they typed is gone, so we tell
+ * them to try again.
+ */
+const checkStaleSiteReloadNotice = () => {
+  if (consumeStaleSiteReloadNotice()) {
+    store.dispatch('builderToast/info', {
+      title: $i18n.t('publicPage.siteUpdatedToastTitle'),
+      message: $i18n.t('publicPage.siteUpdatedToastMessage'),
+    })
+  }
+}
+
 const checkProviderLoginError = () => {
   const message = consumeLoginError($registry, props.builder.user_sources)
   if (message) {

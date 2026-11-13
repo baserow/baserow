@@ -2,6 +2,7 @@ import { useRouter } from '#imports'
 
 import {
   isStalePublishedIdError,
+  isVisitorActionStaleError,
   reloadPublishedSite,
 } from '@baserow/modules/builder/utils/error'
 
@@ -23,6 +24,8 @@ export const PUBLIC_SITE_ROUTE_NAMES = new Set([
  *
  * The returned promise never settles when the reload happens, so the caller
  * doesn't show an error toast or a blank page while the browser leaves the page.
+ * When the request came from something the visitor did, the reloaded page tells
+ * them to try again.
  */
 export const makeStalePublishedSiteInterceptor = (router, reload) => {
   return (error) => {
@@ -31,7 +34,7 @@ export const makeStalePublishedSiteInterceptor = (router, reload) => {
       import.meta.client &&
       PUBLIC_SITE_ROUTE_NAMES.has(route?.name) &&
       isStalePublishedIdError(error) &&
-      reload(route.fullPath)
+      reload(route.fullPath, { notify: isVisitorActionStaleError(error) })
     ) {
       return new Promise(() => {})
     }
