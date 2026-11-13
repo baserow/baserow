@@ -41,7 +41,9 @@ export function useAgentActions(agent) {
       data: cloneDeep(action),
       busy: false,
     }
-    entry.schedule = debounce(() => flush(action, null, entry), 500)
+    // The list renders this same proxy, so what a save returns shows in the card.
+    const draft = reactive(action)
+    entry.schedule = debounce(() => flush(draft, null, entry), 500)
     saved.set(action.id, entry)
   }
 
@@ -152,10 +154,12 @@ export function useAgentActions(agent) {
       entry.changedWhileSaving = true
       return
     }
+    const pending = changes(action, entry.data)
+    // A draft changed back to what is saved has nothing left to be rejected.
+    if (!Object.keys(pending).length && isCurrent())
+      delete saveErrors[action.id]
     const sent = Object.fromEntries(
-      Object.entries(changes(action, entry.data)).filter(
-        ([key]) => !fields || fields.includes(key)
-      )
+      Object.entries(pending).filter(([key]) => !fields || fields.includes(key))
     )
     if (!Object.keys(sent).length) return
     const baseline = {

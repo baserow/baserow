@@ -400,7 +400,7 @@
     "actionErrorUnavailable": "Unavailable",
     "actionFieldType": "Action type",
     "actionFieldIntegration": "Integration",
-    "actionLimitReached": "This agent has reached its limit of {limit} actions.",
+    "actionLimitReached": "This agent has reached its action limit ({limit}).",
     "toolSendEmail": "Send email",
     "toolSendEmailRunning": "Sending email…",
     "toolSendEmailDone": "Email sent"

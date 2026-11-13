@@ -15,7 +15,7 @@ class AgentActionLimitReached(Exception):
         """
 
         self.limit = limit
-        super().__init__(f"An agent can have at most {limit} actions.")
+        super().__init__(f"The agent has reached its action limit ({limit}).")
 
 
 class AgentActionCallNotPrepared(Exception):

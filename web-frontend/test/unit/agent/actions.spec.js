@@ -323,6 +323,31 @@ describe('Agent action editor', () => {
     )
   })
 
+  test('a saved edit shows the configuration errors the server found', async () => {
+    useFakeTimers()
+    const action = emailAction({ errors: {} })
+    testApp.mock.onPatch('/agent/10/actions/1/').reply(({ data }) => [
+      200,
+      {
+        ...clone(action),
+        ...JSON.parse(data),
+        service: { ...action.service, to_emails: formula() },
+        errors: { to_emails: 'required' },
+      },
+    ])
+    const wrapper = await mountSection([action])
+    expect(wrapper.get('.agent-action-card').text()).not.toContain(
+      'agent.actionMisconfigured'
+    )
+
+    await wrapper.get('.agent-action-inputs__delete').trigger('click')
+    await settle()
+
+    expect(wrapper.get('.agent-action-card').text()).toContain(
+      'agent.actionMisconfigured'
+    )
+  })
+
   test('cards and input editors collapse without losing unsaved values', async () => {
     useFakeTimers()
     saveEdits()
@@ -408,6 +433,28 @@ describe('Agent action editor', () => {
       { name: 'send_duplicate' },
     ])
     expect(wrapper.find('.agent-action-card__error').exists()).toBe(false)
+  })
+
+  test('a rejected edit stops showing its error once it is undone', async () => {
+    useFakeTimers()
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onPatch('/agent/10/actions/1/').replyOnce(400, {
+      error: 'ERROR_REQUEST_BODY_VALIDATION',
+      detail: { name: [{ error: 'Reserved name.', code: 'reserved' }] },
+    })
+    const wrapper = await mountSection([emailAction()])
+    const input = wrapper.get('.agent-action-card__body input')
+    await input.setValue('mcp1_test')
+    await settle()
+    expect(wrapper.get('.agent-action-card__error').text()).toContain(
+      'Reserved name.'
+    )
+
+    await input.setValue('send_email')
+    await settle()
+
+    expect(wrapper.find('.agent-action-card__error').exists()).toBe(false)
+    expect(patches(testApp)).toHaveLength(1)
   })
 
   test('late saves keep newer typing and serialize the follow-up save', async () => {
