@@ -127,7 +127,7 @@ test.describe("Agent triggers", () => {
 
     const created = agentPage.waitForTriggerResponse("POST");
     await section.getByRole("button", { name: COPY.addTrigger }).click();
-    const picker = page.locator(".agent-trigger-picker");
+    const picker = page.locator(".agent-service-picker");
     await picker
       .locator(".grouped-menu__navigation")
       .getByText(LOCAL_BASEROW, { exact: true })
