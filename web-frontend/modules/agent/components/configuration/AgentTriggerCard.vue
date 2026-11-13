@@ -8,7 +8,11 @@
           class="agent-trigger-card__type"
           :disabled="!editable"
           aria-haspopup="menu"
-          :aria-label="$t('agent.triggerChangeType', { type: typeName })"
+          :aria-label="
+            editable
+              ? $t('agent.triggerChangeType', { type: typeName })
+              : typeName
+          "
           @click="typePicker.toggle($event.currentTarget)"
         >
           <Icon
