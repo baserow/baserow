@@ -1,5 +1,22 @@
 <template>
-  <ChatMessage :own="own" :class="{ 'chat-message--steps': entries.length }">
+  <ChatMessage v-if="message.role === MESSAGE_ROLE.TRIGGER">
+    <AgentTriggerStartCard
+      :content="message.content"
+      :trigger-type="triggerType"
+      :trigger-name="triggerName"
+    />
+    <template #actions>
+      <ChatMessageFooter
+        :text="message.content"
+        :timestamp="message.created_on"
+      />
+    </template>
+  </ChatMessage>
+  <ChatMessage
+    v-else
+    :own="own"
+    :class="{ 'chat-message--steps': entries.length }"
+  >
     <template v-for="entry in entries" :key="entry.key">
       <AgentApprovalCard
         v-if="entry.items"
@@ -68,6 +85,7 @@ import {
   STEP_STATUS,
 } from '@baserow/modules/core/chatRuns/constants'
 import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
+import AgentTriggerStartCard from '@baserow/modules/agent/components/AgentTriggerStartCard'
 import { replyOutcome } from '@baserow/modules/agent/utils/replies'
 
 const NO_STEPS = []
@@ -81,6 +99,10 @@ const props = defineProps({
   canAlwaysAllow: { type: Boolean, default: false },
   /** A decision about this reply's held steps is being saved. */
   deciding: { type: Boolean, default: false },
+  /** The service type key of the trigger that started the conversation. */
+  triggerType: { type: String, default: null },
+  /** The current name of the trigger that started the conversation. */
+  triggerName: { type: String, default: null },
 })
 defineEmits(['decide'])
 

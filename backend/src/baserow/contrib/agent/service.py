@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
-from django.db import transaction
+from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import QuerySet
 
 from baserow.core.exceptions import PermissionDenied
@@ -13,7 +13,12 @@ from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
 from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
-from .exceptions import AgentConversationWaitingForApproval, AgentNotReady
+from .exceptions import (
+    AgentConversationReadOnly,
+    AgentConversationWaitingForApproval,
+    AgentNotReady,
+    AgentTriggerOff,
+)
 from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage, AgentToolApproval
 from .operations import (
@@ -155,16 +160,17 @@ class AgentService:
         has_pending_approvals: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
-        Return only the user's own conversations, never another owner's.
+        Return the user's own conversations and the shared ones, never another
+        owner's.
 
-        :param user: The user listing their conversations.
+        :param user: The user listing conversations.
         :param agent_id: The id of the agent.
         :param cursor: The last conversation of the previous page, to continue after.
         :raises PermissionException: When the user may not read conversations of the
             agent.
         :param pinned: Only pinned or unpinned conversations, or both when omitted.
         :param has_pending_approvals: Only conversations with or without pending calls.
-        :return: The user's conversations, pinned first, then most recently active.
+        :return: The conversations, pinned first, then most recently active.
         """
 
         agent = self.get_authorized_agent(
@@ -178,15 +184,15 @@ class AgentService:
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> tuple[AgentConversation, QuerySet[AgentMessage]]:
         """
-        Return one of the user's conversations with its messages.
+        Return one of the user's own or shared conversations with its messages.
 
         :param user: The user reading the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :raises PermissionException: When the user may not read conversations of the
             agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :return: The conversation, and its messages newest first.
         """
 
@@ -195,6 +201,28 @@ class AgentService:
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
         return conversation, conversation.messages.prefetch_related("approvals")
+
+    def _check_shared_change(
+        self,
+        user: AbstractUser,
+        agent: AgentApplication,
+        conversation: AgentConversation,
+    ) -> None:
+        """
+        A shared conversation is the agent's own record, so changing it needs the
+        access of a configuration update on top of the conversation operation.
+
+        :param user: The user changing the conversation.
+        :param agent: The agent, with its workspace.
+        :param conversation: The conversation being changed.
+        :raises PermissionException: When the conversation is shared and the user
+            may not update the agent.
+        """
+
+        for operation in self.handler.get_shared_change_operations(conversation):
+            CoreHandler().check_permissions(
+                user, operation, workspace=agent.workspace, context=agent
+            )
 
     @transaction.atomic
     def update_conversation(
@@ -205,17 +233,17 @@ class AgentService:
         **values: str | bool,
     ) -> AgentConversationUpdated:
         """
-        Update one of the user's conversations and tell their other sessions what
-        changed.
+        Update one of the user's own or shared conversations and tell its other
+        readers' sessions what changed.
 
         :param user: The user updating the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param values: The values to set, by field name, such as the title.
         :raises PermissionException: When the user may not update conversations of
-            the agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+            the agent, or may not update the agent for a shared conversation.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :return: The conversation with the original and new values that changed.
         """
 
@@ -226,6 +254,7 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        self._check_shared_change(user, agent, conversation)
         updated = self.handler.update_conversation(conversation, **values)
         if updated.new_values:
             agent_conversation_updated.send(
@@ -238,15 +267,15 @@ class AgentService:
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> AgentConversation:
         """
-        Move one of the user's conversations to the trash, where only they see it.
+        Move one of the user's own or shared conversations to the trash.
 
         :param user: The user deleting the conversation.
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :raises PermissionException: When the user may not delete conversations of
-            the agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+            the agent, or may not update the agent for a shared conversation.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :return: The trashed conversation.
         """
 
@@ -257,6 +286,7 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        self._check_shared_change(user, agent, conversation)
         had_pending_approvals = self.handler.conversation_has_pending_approvals(
             conversation.id
         )
@@ -264,7 +294,7 @@ class AgentService:
         agent_conversation_deleted.send(self, conversation=conversation, user=user)
         if had_pending_approvals:
             application_pending_count_updated.send(
-                self, application=agent, user_ids=[conversation.owner_user_id]
+                self, application=agent, user_ids=conversation.pending_count_user_ids
             )
         return conversation
 
@@ -275,59 +305,153 @@ class AgentService:
         if readiness != AgentReadinessState.READY:
             raise AgentNotReady
 
+    def _get_accessible_conversation(
+        self, user: AbstractUser, conversation_id: int, using: str | None = None
+    ) -> AgentConversation | None:
+        """
+        Fetch the conversation with its agent if the user sees it at all.
+
+        :param user: The user asking.
+        :param conversation_id: The id of the conversation.
+        :param using: The database to read from, or None to let the router pick.
+        :return: The conversation, or None when the user doesn't see it.
+        """
+
+        return (
+            self.handler.get_accessible_conversations(user)
+            .using(using)
+            .select_related("agent__workspace")
+            .filter(id=conversation_id)
+            .first()
+        )
+
+    def _can_read_agent_conversations(
+        self, user: AbstractUser, agent: AgentApplication
+    ) -> bool:
+        """
+        :param user: The user asking.
+        :param agent: The agent, with its workspace.
+        :return: Whether the user may read the agent's conversations.
+        """
+
+        return CoreHandler().check_permissions(
+            user,
+            ReadAgentConversationsOperationType.type,
+            workspace=agent.workspace,
+            context=agent,
+            raise_permission_exceptions=False,
+        )
+
     def can_read_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
         """
-        Check that the user owns the conversation in an untrashed Agent and may
-        still read the agent's conversations.
+        Check that the user sees the conversation, their own or a shared one, in an
+        untrashed Agent whose conversations they may still read.
 
         :param user: The user asking.
         :param conversation_id: The id of the conversation.
         :return: Whether the user may read the conversation.
         """
 
-        conversation = (
-            self.handler.get_accessible_conversations(user)
-            .select_related("agent__workspace")
-            .filter(id=conversation_id)
-            .first()
+        conversation = self._get_accessible_conversation(user, conversation_id)
+        if conversation is None:
+            return False
+        return self._can_read_agent_conversations(user, conversation.agent)
+
+    def can_follow_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
+        """
+        Check that the user may follow the conversation's runs: their own with one
+        query, as it runs on the websocket's shared thread, a shared one also with
+        the permission to read the agent's conversations.
+
+        :param user: The user following the conversation.
+        :param conversation_id: The id of the conversation.
+        :return: Whether the user may follow the conversation's runs.
+        """
+
+        # A replica can lag behind the conversation that this tab's send just created.
+        conversation = self._get_accessible_conversation(
+            user, conversation_id, using=DEFAULT_DB_ALIAS
         )
         if conversation is None:
             return False
-        return CoreHandler().check_permissions(
-            user,
-            ReadAgentConversationsOperationType.type,
-            workspace=conversation.agent.workspace,
-            context=conversation.agent,
-            raise_permission_exceptions=False,
+        return not conversation.is_shared or self._can_read_agent_conversations(
+            user, conversation.agent
         )
+
+    def can_cancel_conversation_run(
+        self, user: AbstractUser, conversation_id: int
+    ) -> bool:
+        """
+        Check that the user may stop the reply running in the conversation: reading
+        is enough for their own, a shared one also needs the access of a
+        configuration update.
+
+        :param user: The user asking.
+        :param conversation_id: The id of the conversation.
+        :return: Whether the user may stop the run.
+        """
+
+        conversation = self._get_accessible_conversation(user, conversation_id)
+        if conversation is None:
+            return False
+        operations = [
+            ReadAgentConversationsOperationType.type,
+            *self.handler.get_shared_change_operations(conversation),
+        ]
+        agent = conversation.agent
+        allowed = CoreHandler().check_multiple_permissions(
+            [PermissionCheck(user, operation, agent) for operation in operations],
+            workspace=agent.workspace,
+        )
+        return all(allowed.values())
+
+    def _require_live_trigger(self, conversation: AgentConversation) -> None:
+        """
+        An unattended reply runs on its trigger's authority, so it stops once the
+        trigger is gone, trashed or disabled.
+
+        :param conversation: The shared conversation, with its trigger.
+        :raises AgentTriggerOff: When the trigger is off, trashed or deleted.
+        """
+
+        trigger = conversation.trigger
+        if trigger is None or trigger.trashed or not trigger.enabled:
+            raise AgentTriggerOff
 
     def prepare_reply(self, reply_id: int) -> AgentReplyRequest:
         """
         Load what a reply answers, or the paused run it continues, checking again
-        that the conversation's owner may still send it: access and configuration
-        can change while the reply waits.
+        that it may still be written: access and configuration can change while
+        the reply waits. The owner must still be allowed to send; an unattended
+        reply needs its trigger alive and enabled.
 
         :param reply_id: The id of the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists or its
             conversation is in the trash.
         :raises PermissionException: When the agent or its workspace is trashed, or
             the owner left the workspace or may no longer send messages to the agent.
+        :raises AgentTriggerOff: When the trigger of a shared conversation is off,
+            trashed or deleted.
         :raises AgentNotReady: When the agent's configuration is no longer ready.
         :return: The instructions, the model and the tools, with the prompt and the
             earlier messages, or with the paused run and the owner's decisions.
         """
 
         reply = self.handler.get_reply(reply_id)
-        agent = reply.conversation.agent
+        conversation = reply.conversation
+        agent = conversation.agent
         # Workspace membership is part of the permission check below.
         if agent.trashed or agent.workspace is None or agent.workspace.trashed:
             raise PermissionDenied
-        CoreHandler().check_permissions(
-            reply.conversation.owner_user,
-            CreateAgentMessageOperationType.type,
-            workspace=agent.workspace,
-            context=agent,
-        )
+        if conversation.is_shared:
+            self._require_live_trigger(conversation)
+        else:
+            CoreHandler().check_permissions(
+                conversation.owner_user,
+                CreateAgentMessageOperationType.type,
+                workspace=agent.workspace,
+                context=agent,
+            )
         self._require_ready(agent)
         return self.handler.get_reply_request(reply)
 
@@ -408,8 +532,9 @@ class AgentService:
             Agent can't call its provider.
         :raises PermissionException: When the user may not send messages to the
             agent.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
+        :raises AgentConversationReadOnly: When a trigger started the conversation.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentConversationWaitingForApproval: When the latest reply waits for
@@ -430,6 +555,8 @@ class AgentService:
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
+        if conversation.is_shared:
+            raise AgentConversationReadOnly
         validate_message_content(content)
         retry = self.handler.get_message_retry(conversation, uuid, content)
         if retry is not None:
@@ -457,9 +584,9 @@ class AgentService:
     ) -> AgentToolDecisionsResult:
         """
         Approve or reject held calls of the reply waiting in one of the user's
-        conversations, tell the owner's other sessions what is left to decide, and
-        continue the reply once nothing is. Continuing costs model usage like a
-        message, so it needs the same access.
+        conversations or in a shared one, tell the other sessions of those who may
+        decide what is left, and continue the reply once nothing is. Continuing
+        costs model usage like a message, so it needs the same access.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
@@ -471,8 +598,8 @@ class AgentService:
         :raises FeatureDisabledException: When Agents are disabled.
         :raises PermissionException: When the user may not send messages to the
             agent, or may not update its configuration while always allowing.
-        :raises AgentConversationDoesNotExist: When the user has no conversation with
-            this uuid in the agent.
+        :raises AgentConversationDoesNotExist: When the user sees no conversation
+            with this uuid in the agent.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
@@ -514,7 +641,7 @@ class AgentService:
             else []
         )
         application_pending_count_updated.send(
-            self, application=agent, user_ids=[conversation.owner_user_id]
+            self, application=agent, user_ids=conversation.pending_count_user_ids
         )
         run_id = None
         if all_decided:

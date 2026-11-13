@@ -34,6 +34,9 @@ HISTORY_MESSAGE_LIMIT = 20
 REPLY_REQUEST_LIMIT = 20
 AGENT_NOT_READY = "not_ready"
 AGENT_NOT_ALLOWED = "not_allowed"
+AGENT_RUN_LIMIT_REACHED = "chat_run_limit_reached"
+AGENT_TRIGGER_MESSAGE_FAILED = "trigger_message_failed"
+AGENT_TRIGGER_OFF = "trigger_off"
 # The picker allowlist, widened as each trigger form is verified in the agent host.
 AGENT_TRIGGER_TYPES_ENABLED = ("periodic",)
 AGENT_TRIGGER_NAME_MAX_LENGTH = 75

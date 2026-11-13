@@ -85,6 +85,15 @@ def test_on_event_materializes_services_once_and_concatenates_listener_results()
     assert calls == [(services, payload, user, True)] * 3
 
 
+def test_an_event_without_services_reaches_no_listener():
+    service_type = FakeTriggerServiceType()
+    listener = Mock()
+    service_type.start_listening(listener)
+
+    assert service_type.on_event(iter([]), {"method": "GET"}) == []
+    listener.assert_not_called()
+
+
 def test_listeners_are_per_instance_and_on_event_without_listeners_returns_nothing():
     first, second = FakeTriggerServiceType(), FakeTriggerServiceType()
 

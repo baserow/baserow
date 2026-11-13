@@ -160,7 +160,7 @@ class DecideAgentToolApprovalsActionType(ActionType):
         """
         Approve or reject held calls, auditing the tools decided and those that
         stopped asking first, but never the rejection reasons, which can quote the
-        private conversation.
+        conversation.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.

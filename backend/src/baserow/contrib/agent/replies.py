@@ -111,17 +111,18 @@ def _interruption_note(reply: AgentMessage) -> str:
 
 def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
     """
-    Turn earlier prompts and replies into model history, marking replies that did
-    not complete.
+    Turn earlier prompts, sent by a person or a trigger, and replies into model
+    history, marking replies that did not complete.
 
     :param messages: Earlier messages of the conversation, oldest first.
     :return: The history; replies before the first prompt in the window are left
         out, so it always starts with a prompt.
     """
 
+    prompt_roles = {AgentMessage.Role.USER, AgentMessage.Role.TRIGGER}
     history: list[ModelMessage] = []
     for message in messages:
-        if message.role == AgentMessage.Role.USER:
+        if message.role in prompt_roles:
             history.append(
                 ModelRequest(parts=[UserPromptPart(content=message.content)])
             )

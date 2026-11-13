@@ -419,7 +419,6 @@ default_roles[VIEWER_ROLE_UID].extend(
         DeleteMCPEndpointOperationType,
         ChatAssistantChatOperationType,
         ReadAgentConversationsOperationType,
-        UpdateAgentConversationOperationType,
         DeleteAgentConversationOperationType,
         RestoreAgentConversationOperationType,
         ReadFieldRuleOperationType,
@@ -477,6 +476,7 @@ default_roles[EDITOR_ROLE_UID].extend(
     + [
         CreateAgentConversationOperationType,
         CreateAgentMessageOperationType,
+        UpdateAgentConversationOperationType,
         CreateRowDatabaseTableOperationType,
         UpdateDatabaseRowOperationType,
         DeleteDatabaseRowOperationType,

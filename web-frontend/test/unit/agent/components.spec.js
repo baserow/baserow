@@ -5,6 +5,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
+import AgentTriggerStartCard from '@baserow/modules/agent/components/AgentTriggerStartCard'
 import { nowKey } from '@baserow/modules/core/composables/useNow'
 
 describe('Agent components', () => {
@@ -159,6 +160,86 @@ describe('Agent components', () => {
     })
     expect(wrapper.find('.tree__link').attributes('aria-label')).toBe(
       'Support assistant'
+    )
+  })
+
+  test('shows a trigger start as a collapsed card named after its trigger type', async () => {
+    const content =
+      'Trigger data:\n```json\n{"triggered_at": "2026-11-09T09:00:00+00:00"}\n```'
+    const wrapper = await testApp.mount(AgentMessage, {
+      props: {
+        message: {
+          role: 'trigger',
+          content,
+          created_on: '2026-11-03T10:00:00Z',
+        },
+        triggerType: 'periodic',
+      },
+      global: {
+        provide: { [nowKey]: ref(Date.parse('2026-11-03T10:03:00Z')) },
+      },
+    })
+    const header = wrapper.get('.agent-trigger-start__header')
+    const text = () => wrapper.get('.agent-trigger-start__text').text()
+
+    expect(wrapper.find('.chat-message__bubble').exists()).toBe(false)
+    expect(header.get('.agent-trigger-start__icon').classes()).toContain(
+      'iconoir-timer'
+    )
+    expect(header.get('.agent-trigger-start__title').text()).toBe(
+      'agent.startedBy'
+    )
+    expect(header.attributes('aria-expanded')).toBe('false')
+    expect(text()).toBe('Trigger data:')
+    await header.trigger('click')
+
+    expect(header.attributes('aria-expanded')).toBe('true')
+    expect(text()).toBe(content)
+    expect(
+      wrapper.get('.chat-message__footer time').attributes('datetime')
+    ).toBe('2026-11-03T10:00:00Z')
+  })
+
+  test('names the start card after its trigger', async () => {
+    const wrapper = await testApp.mount(AgentMessage, {
+      props: {
+        message: {
+          role: 'trigger',
+          content: 'Hello',
+          created_on: '2026-11-03T10:00:00Z',
+        },
+        triggerType: 'periodic',
+        triggerName: 'Morning digest',
+      },
+      global: {
+        provide: { [nowKey]: ref(Date.parse('2026-11-03T10:03:00Z')) },
+      },
+    })
+
+    expect(
+      wrapper.findComponent(AgentTriggerStartCard).props('triggerName')
+    ).toBe('Morning digest')
+  })
+
+  test('names the start card generically when its trigger type is gone', async () => {
+    const wrapper = await testApp.mount(AgentMessage, {
+      props: {
+        message: {
+          role: 'trigger',
+          content: 'Hello',
+          created_on: '2026-11-03T10:00:00Z',
+        },
+      },
+      global: {
+        provide: { [nowKey]: ref(Date.parse('2026-11-03T10:03:00Z')) },
+      },
+    })
+
+    expect(wrapper.get('.agent-trigger-start__title').text()).toBe(
+      'agent.startedByTrigger'
+    )
+    expect(wrapper.get('.agent-trigger-start__icon').classes()).toContain(
+      'iconoir-flash'
     )
   })
 })

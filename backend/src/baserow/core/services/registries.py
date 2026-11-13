@@ -1028,6 +1028,8 @@ class TriggerServiceTypeMixin(ABC):
         """
 
         services = list(services)
+        if not services:
+            return []
         results: List = []
         for listener in self.listeners:
             result = listener(

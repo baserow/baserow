@@ -93,8 +93,9 @@ configuration, also always allow its tool. Realtime updates go to the users perm
 to read the agent's conversations instead of one owner, and its pending count to
 everyone who may decide it.
 
-Viewers only read conversations. Renaming, trashing and restoring any conversation,
-a private one included, needs the editor role, the lowest role that may create one.
+Viewers read conversations, and may trash and restore their own private ones, such as
+one left from an older role. Renaming needs the editor role, the lowest role that may
+create a conversation.
 
 The opening message, with role `trigger`, holds the resolved trigger message (a runtime
 formula over the event payload, or the payload as JSON when it resolves to blank text).

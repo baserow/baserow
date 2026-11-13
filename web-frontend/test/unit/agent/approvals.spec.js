@@ -26,6 +26,7 @@ import {
   selectConversation,
   selected,
   sendMessage,
+  sharedConversation,
   sentBodies,
   stop,
 } from './helpers'
@@ -662,6 +663,51 @@ describe('Agent tool approvals', () => {
     expect(alwaysAllow(wrapper).exists()).toBe(false)
     expect(headerButtons(wrapper)).toHaveLength(2)
   })
+
+  test.each([
+    [true, false],
+    [false, true],
+  ])(
+    'a shared conversation takes no messages, and decisions only from members who can send them: %s',
+    async (canSend, disabled) => {
+      allowed.value = (operation) =>
+        canSend || operation !== 'agent_application.create_message'
+      const shared = sharedConversation('digest', 'Daily digest')
+      mockConversations(
+        testApp,
+        conversationsPage([{ ...shared, pending_approval_count: 1 }])
+      )
+      mockMessages(
+        testApp,
+        shared.uuid,
+        page([
+          message('t1', 'Tick', { id: 1, role: 'trigger' }),
+          reply('waiting', [approval(1)]),
+        ])
+      )
+      mockApprovals(
+        testApp,
+        shared.uuid,
+        reply('running', [approval(1, 'approved')], { runId: 'run-2' })
+      )
+      const wrapper = await mount()
+      await selectConversation(wrapper, shared.title)
+
+      expect(composerExists(wrapper)).toBe(false)
+      expect(title(wrapper)).toBe(
+        disabled ? 'agent.approvalRequestReadOnly' : 'agent.approvalRequest'
+      )
+      expect(
+        headerButtons(wrapper).map((button) => button.element.disabled)
+      ).toEqual([disabled, disabled])
+      await headerButtons(wrapper)[1].trigger('click')
+      await flushPromises()
+
+      expect(sentBodies(testApp)).toEqual(
+        canSend ? [{ decisions: [{ id: 1, approved: true }] }] : []
+      )
+    }
+  )
 
   test('rejecting one step sends the reason given in the modal', async () => {
     mockApprovals(

@@ -11,9 +11,11 @@ from baserow.ws.telemetry import run_database_sync
 from baserow.ws.types import ChannelGroupMessage, PayloadMap
 
 if TYPE_CHECKING:
+    from django.contrib.auth.models import AbstractUser
+
     from redis.lock import Lock
 
-    from baserow.core.models import Workspace
+    from baserow.core.models import Application, Workspace
 
 # Bounds the recipient list carried by one channel-layer message.
 AI_PROVIDER_UPDATE_RECIPIENT_BATCH_SIZE = 250
@@ -787,6 +789,31 @@ def broadcast_to_groups(
     broadcast_to_users(user_ids, payload, ignore_web_socket_id)
 
 
+def _get_application_readers(application: "Application") -> list["AbstractUser"]:
+    """
+    :param application: The application, with its workspace.
+    :return: The workspace members who may read the application.
+    """
+
+    from baserow.core.handler import CoreHandler
+    from baserow.core.models import WorkspaceUser
+    from baserow.core.operations import ReadApplicationOperationType
+
+    workspace = application.workspace
+    users_in_workspace = [
+        workspace_user.user
+        for workspace_user in WorkspaceUser.objects.filter(
+            workspace=workspace
+        ).select_related("user")
+    ]
+    return CoreHandler().check_permission_for_multiple_actors(
+        users_in_workspace,
+        ReadApplicationOperationType.type,
+        workspace,
+        context=application,
+    )
+
+
 @app.task(bind=True)
 def broadcast_application_created(
     self, application_id: int, ignore_web_socket_id: Optional[str] = None
@@ -805,33 +832,16 @@ def broadcast_application_created(
     )
     from baserow.core.handler import CoreHandler
     from baserow.core.last_viewed.handler import LastViewedHandler
-    from baserow.core.models import Application, WorkspaceUser
-    from baserow.core.operations import ReadApplicationOperationType
+    from baserow.core.models import Application
 
     try:
         application = Application.objects.get(id=application_id).specific
     except Application.DoesNotExist:
         return  # trashed in the meantime
 
-    workspace = application.workspace
-    users_in_workspace = [
-        workspace_user.user
-        for workspace_user in WorkspaceUser.objects.filter(
-            workspace=workspace
-        ).select_related("user")
-    ]
-
-    user_ids = [
-        u.id
-        for u in CoreHandler().check_permission_for_multiple_actors(
-            users_in_workspace,
-            ReadApplicationOperationType.type,
-            workspace,
-            context=application,
-        )
-    ]
-
-    users_in_workspace_id_map = {user.id: user for user in users_in_workspace}
+    readers = _get_application_readers(application)
+    user_ids = [user.id for user in readers]
+    users_in_workspace_id_map = {user.id: user for user in readers}
     # Payloads are per user, so the restore of a trashed application can carry
     # the value the user had before.
     last_viewed_per_user = LastViewedHandler.get_last_viewed_per_user_and_application(
@@ -866,14 +876,15 @@ def broadcast_application_created(
 
 @app.task(bind=True)
 def broadcast_application_pending_counts(
-    self, application_id: int, user_ids: list[int]
+    self, application_id: int, user_ids: list[int] | None
 ) -> None:
     """
     Sends each user their own pending count of an application. This runs in a task so
     that counting does not happen in the request that changed the count.
 
     :param application_id: The id of the application whose counts changed.
-    :param user_ids: The ids of the users to send their count to.
+    :param user_ids: The ids of the users to send their count to, or None for
+        everyone who may read the application.
     """
 
     from django.contrib.auth import get_user_model
@@ -891,7 +902,11 @@ def broadcast_application_pending_counts(
     except Application.DoesNotExist:
         return  # trashed in the meantime
 
-    users = list(get_user_model().objects.filter(id__in=user_ids))
+    users = (
+        _get_application_readers(application)
+        if user_ids is None
+        else list(get_user_model().objects.filter(id__in=user_ids))
+    )
     pending_counts_per_user = CoreHandler().get_pending_counts_per_user_and_application(
         users, [application]
     )

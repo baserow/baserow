@@ -35,6 +35,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
+    AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
     AgentMessageConflict,
     AgentNotReady,
@@ -55,6 +56,7 @@ from baserow.core.service import CoreService
 from .errors import (
     ERROR_AGENT_BUSY,
     ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    ERROR_AGENT_CONVERSATION_READ_ONLY,
     ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
     ERROR_AGENT_MESSAGE_CONFLICT,
     ERROR_AGENT_NOT_READY,
@@ -86,6 +88,7 @@ AGENT_ID_PATH_PARAMETER = OpenApiParameter(
 AGENT_EXCEPTIONS = {
     ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
     AgentConversationDoesNotExist: ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST,
+    AgentConversationReadOnly: ERROR_AGENT_CONVERSATION_READ_ONLY,
     AgentNotReady: ERROR_AGENT_NOT_READY,
     AgentMessageConflict: ERROR_AGENT_MESSAGE_CONFLICT,
     AgentRunAsSubjectDoesNotExist: ERROR_AGENT_RUN_AS_SUBJECT_DOES_NOT_EXIST,
@@ -115,6 +118,7 @@ MESSAGE_WRITE_ERRORS = {
     409: get_error_schema(
         [
             "ERROR_AGENT_MESSAGE_CONFLICT",
+            "ERROR_AGENT_CONVERSATION_READ_ONLY",
             "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL",
             "ERROR_CHAT_RUN_IN_PROGRESS",
         ]
@@ -302,9 +306,10 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         tags=["Agent applications"],
         operation_id="list_agent_conversations",
         description=(
-            "Lists the authenticated user's own conversations with the agent, pinned "
-            "first, then most recently active within each group. Each includes its "
-            "number of tool calls waiting for the user's approval."
+            "Lists the authenticated user's own conversations with the agent and the "
+            "shared ones its triggers started, pinned first, then most recently active "
+            "within each group. Each includes its number of tool calls waiting for the "
+            "user's approval."
         ),
         parameters=[
             AGENT_ID_PATH_PARAMETER,
@@ -341,7 +346,7 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @map_exceptions(AGENT_EXCEPTIONS)
     @validate_query_parameters(AgentConversationsQuerySerializer, return_validated=True)
     def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
-        """List only the authenticated owner's conversations, a page at a time."""
+        """List the user's own and the shared conversations, a page at a time."""
 
         limit = query_params["limit"]
         # One more than requested tells whether a next page exists without a count.
@@ -547,7 +552,8 @@ class AgentToolApprovalsView(APIView):
         operation_id="decide_agent_tool_approvals",
         description=(
             "Approves or rejects tool calls that the waiting reply of one of the "
-            "authenticated user's conversations holds for approval. Once none are "
+            "authenticated user's conversations, or of a shared conversation a "
+            "trigger started, holds for approval. Once none are "
             "left to decide, a run continues the reply and the response names it. "
             "With always_allow, the tools of the approved calls stop asking first."
         ),
@@ -560,7 +566,7 @@ class AgentToolApprovalsView(APIView):
     def post(
         self, request: Request, agent_id: int, conversation_uuid: UUID, data: dict
     ) -> Response:
-        """Saves the owner's decisions and names the run continuing the reply."""
+        """Saves the user's decisions and names the run continuing the reply."""
 
         result = action_type_registry.get_by_type(
             DecideAgentToolApprovalsActionType

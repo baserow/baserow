@@ -41,6 +41,7 @@
         :ready-to-send="state.readyToSend"
         :can-update="state.canUpdateConversation"
         :can-delete="state.canDeleteConversation"
+        :can-update-agent="state.canUpdateAgent"
         @filter="state.setConversationFilter"
         @select="state.selectConversation"
         @create="startConversation"
@@ -105,6 +106,8 @@
                 v-for="message in state.currentHistory.items"
                 :key="message.uuid"
                 :message="message"
+                :trigger-type="state.selectedConversation?.trigger_type"
+                :trigger-name="state.selectedConversation?.trigger_name"
                 :can-decide="state.canDecide"
                 :can-always-allow="state.canUpdateConfiguration"
                 :deciding="state.decidingReplies.has(message.uuid)"
@@ -197,6 +200,27 @@
             @send="submitMessage"
             @stop="stopReply"
           />
+          <div
+            v-else-if="state.selectedConversation?.shared"
+            class="agent-chat__shared"
+          >
+            <i
+              class="agent-chat__shared-icon iconoir-info-empty"
+              aria-hidden="true"
+            ></i>
+            <span class="agent-chat__shared-text">{{
+              $t('agent.sharedNoMessages')
+            }}</span>
+            <Button
+              v-if="replyRunning && state.canStopSelected"
+              type="secondary"
+              size="small"
+              button-type="button"
+              :loading="Boolean(state.replyFollower?.stopRequested)"
+              @click="state.stopReply"
+              >{{ $t('agent.stop') }}</Button
+            >
+          </div>
         </div>
       </main>
       <AgentConfigurationSidebar
@@ -406,7 +430,12 @@ const canCompose = computed(
     !showConfigurationWarning.value &&
     state.canWriteSelected
 )
-const showComposer = computed(() => canCompose.value || replyRunning.value)
+// A shared conversation takes no messages, so a running reply gets Stop alone.
+const showComposer = computed(
+  () =>
+    !state.selectedConversation?.shared &&
+    (canCompose.value || replyRunning.value)
+)
 const warningTitle = computed(() =>
   hasLoadError.value
     ? 'agent.readinessLoadError'

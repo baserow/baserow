@@ -163,15 +163,19 @@ class TrashHandler:
 
             from baserow.core.handler import CoreHandler
 
-            CoreHandler().check_permissions(
-                user,
-                trashable_item_type.get_restore_operation_type(),
-                include_trash=True,
-                workspace=trash_entry.workspace,
-                context=trashable_item_type.get_restore_operation_context(
-                    trash_entry, trash_item
-                ),
+            context = trashable_item_type.get_restore_operation_context(
+                trash_entry, trash_item
             )
+            for operation in trashable_item_type.get_restore_operation_types(
+                trash_item
+            ):
+                CoreHandler().check_permissions(
+                    user,
+                    operation,
+                    include_trash=True,
+                    workspace=trash_entry.workspace,
+                    context=context,
+                )
 
             cls._restore_trash_entry(user, trash_entry, trash_item)
 

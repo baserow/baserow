@@ -8,6 +8,7 @@ from django.dispatch import receiver
 from baserow.contrib.agent.api.serializers import AgentConversationSerializer
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation
+from baserow.contrib.agent.operations import ReadAgentConversationsOperationType
 from baserow.contrib.agent.signals import (
     agent_conversation_activity,
     agent_conversation_deleted,
@@ -16,8 +17,9 @@ from baserow.contrib.agent.signals import (
 from baserow.contrib.agent.ws.tasks import broadcast_run_as_updates
 from baserow.core.agents.signals import agent_created, agent_deleted, agent_updated
 from baserow.core.models import Agent
+from baserow.core.object_scopes import ApplicationObjectScopeType
 from baserow.core.trash.signals import permanently_deleted
-from baserow.ws.tasks import broadcast_to_users
+from baserow.ws.tasks import broadcast_to_permitted_users, broadcast_to_users
 
 
 @receiver(agent_created)
@@ -54,14 +56,23 @@ def run_as_identity_permanently_deleted(
         )
 
 
-def _notify_owner(
+def _notify_readers(
     conversation: AgentConversation,
     user: AbstractUser | None,
     event_type: str,
     /,
     **data: object,
 ) -> None:
-    """Send an event to the conversation owner's sessions, except the acting one."""
+    """
+    Send an event to the sessions that see the conversation, except the acting one:
+    the owner's for a private conversation, every reader's of the Agent for a
+    shared one.
+
+    :param conversation: The conversation the event is about.
+    :param user: The acting user, whose own session already knows, or None.
+    :param event_type: The realtime event type.
+    :param data: The rest of the payload.
+    """
 
     payload = {
         "type": event_type,
@@ -69,13 +80,26 @@ def _notify_owner(
         "conversation_uuid": str(conversation.uuid),
         **data,
     }
-    owner_id = conversation.owner_user_id
     web_socket_id = getattr(user, "web_socket_id", None)
-    transaction.on_commit(
-        lambda: broadcast_to_users.delay(
-            [owner_id], payload, ignore_web_socket_id=web_socket_id
+    if not conversation.is_shared:
+        send = partial(
+            broadcast_to_users.delay,
+            [conversation.owner_user_id],
+            payload,
+            ignore_web_socket_id=web_socket_id,
         )
-    )
+    else:
+        agent = conversation.agent
+        send = partial(
+            broadcast_to_permitted_users.delay,
+            agent.workspace_id,
+            ReadAgentConversationsOperationType.type,
+            ApplicationObjectScopeType.type,
+            agent.id,
+            payload,
+            ignore_web_socket_id=web_socket_id,
+        )
+    transaction.on_commit(send)
 
 
 def _serialize_listed(
@@ -105,7 +129,7 @@ def conversation_activity(
     # A deleted conversation is already gone from every list.
     if conversation.trashed:
         return
-    _notify_owner(
+    _notify_readers(
         conversation,
         user,
         "agent_conversation_activity",
@@ -125,10 +149,10 @@ def conversation_updated(
 ) -> None:
     """
     Send the changed values, and the whole conversation for the lists that have not
-    loaded it, so the owner's lists show the change without a re-read.
+    loaded it, so every reader's list shows the change without a re-read.
     """
 
-    _notify_owner(
+    _notify_readers(
         conversation,
         user,
         "agent_conversation_updated",
@@ -143,6 +167,6 @@ def conversation_updated(
 def conversation_deleted(
     sender, conversation: AgentConversation, user: AbstractUser, **kwargs
 ) -> None:
-    """Remove the conversation from the owner's other lists."""
+    """Remove the conversation from every reader's other lists."""
 
-    _notify_owner(conversation, user, "agent_conversation_deleted")
+    _notify_readers(conversation, user, "agent_conversation_deleted")
