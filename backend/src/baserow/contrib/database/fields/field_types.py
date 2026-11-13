@@ -59,6 +59,7 @@ from django.db.models.functions import (
     LPad,
     RowNumber,
 )
+from django.utils.text import Truncator
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -3054,6 +3055,10 @@ class LinkRowFieldType(
 
     type = "link_row"
     model_class = LinkRowField
+    # Every row history entry stores the primary values of the rows that were
+    # linked, so a long primary value repeats itself for every link and quickly
+    # blows up the size of the row history table.
+    row_history_value_max_length = 80
     allowed_fields = [
         "link_row_table_id",
         "link_row_related_field",
@@ -4572,7 +4577,7 @@ class LinkRowFieldType(
         new_serialized_linked_rows = getattr(row, field.db_column).all()
         new_serialized_linked_rows = {
             linked_row.id: {
-                "value": str(linked_row),
+                "value": self._truncate_row_history_value(linked_row),
             }
             for linked_row in new_serialized_linked_rows
         }
@@ -4585,8 +4590,11 @@ class LinkRowFieldType(
             },
             "linked_table_id": field.link_row_table_id,
             "linked_field_id": field.link_row_related_field_id,
-            "primary_value": str(row),
+            "primary_value": self._truncate_row_history_value(row),
         }
+
+    def _truncate_row_history_value(self, row: "GeneratedTableModel") -> str:
+        return Truncator(str(row)).chars(self.row_history_value_max_length)
 
     def are_row_values_equal(self, value1: any, value2: any) -> bool:
         return set(value1 or []) == set(value2 or [])
