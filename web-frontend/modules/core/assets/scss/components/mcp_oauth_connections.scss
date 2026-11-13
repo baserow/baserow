@@ -159,10 +159,27 @@
 .mcp-oauth-connections__code {
   display: block;
   width: 100%;
+  overflow-x: auto;
   padding: 6px;
   font-size: 12px;
   background-color: $palette-neutral-100;
   line-height: 140%;
 
   @include rounded($rounded);
+}
+
+// Keep the tab labels on one line and scroll them when the modal is narrow.
+.mcp-oauth-connections__tabs {
+  .tabs__header {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs__link {
+    white-space: nowrap;
+  }
+
+  .tabs__item--active::after {
+    bottom: 0;
+  }
 }
