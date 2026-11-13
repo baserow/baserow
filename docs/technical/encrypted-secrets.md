@@ -36,6 +36,27 @@ class SlackBotIntegration(Integration):
 The rest of the code reads and assigns plain strings. Only the database row holds
 ciphertext, as `enc:v1:<key id>:<data>`.
 
+```mermaid
+sequenceDiagram
+    participant Code as Handler or serializer
+    participant Field as EncryptedTextField
+    participant DB as PostgreSQL
+
+    Code->>Field: save "sk-live-123"
+    Field->>Field: AES-256-GCM with the main key,<br/>a fresh nonce and the column's context
+    Field->>DB: enc:v1:e5f6a7b8:pX3k…Qz9w
+    DB-->>Field: enc:v1:e5f6a7b8:pX3k…Qz9w
+    Field->>Field: pick key e5f6a7b8 from the key ring,<br/>decrypt with the same context
+    Field-->>Code: "sk-live-123"
+```
+
+| Part    | Example     | What it's for                                                                  |
+| ------- | ----------- | ------------------------------------------------------------------------------ |
+| Marker  | `enc:`      | Tells encrypted values from plain text saved before the column was encrypted.  |
+| Version | `v1`        | Lets the format change later.                                                  |
+| Key id  | `e5f6a7b8`  | First 8 hex characters of the key's SHA-256, so reading never tries every key. |
+| Data    | `pX3k…Qz9w` | Base64url of the 12-byte nonce, the ciphertext and the 16-byte tag.            |
+
 For an integration, also list the field in its type's `secret_fields`, so the API never
 returns it, and in `sensitive_fields`, so workspace exports and the action log leave it
 out.
@@ -65,6 +86,50 @@ Assigning a ciphertext and saving it encrypts it again; it is never decrypted. O
 `to_python`, which Django uses to load dumps, decrypts its input, so never pass values a
 user sent through it, for example with `full_clean()`.
 
+## Where the keys come from
+
+Baserow builds one key ring from the settings. One key encrypts; every other key can
+only decrypt values that name it.
+
+```mermaid
+flowchart LR
+    EK["BASEROW_ENCRYPTION_KEY"] -->|set| Main
+    SK["SECRET_KEY"] -->|"used when the key above isn't set"| Main
+    Main["Main key<br/>encrypts and decrypts"]
+
+    FB["BASEROW_ENCRYPTION_KEY_FALLBACKS<br/>old encryption keys or old SECRET_KEYs"] --> Old
+    SKF["SECRET_KEY and SECRET_KEY_FALLBACKS"] --> Old
+    Old["Read-only keys<br/>decrypt only"]
+
+    Main --> Ring(("Key ring<br/>keys by id"))
+    Old --> Ring
+```
+
+Every value is stretched to 32 bytes with HKDF-SHA256, with a different label for
+encryption keys and for `SECRET_KEY`, so the same string set as both still gives two
+keys. A key shorter than 32 characters, or two keys with the same id, stop Baserow at
+startup.
+
+## Changing the key
+
+Old keys stay in the fallbacks until no value needs them. The installation docs have the
+full steps for admins.
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant Baserow
+    participant DB as Stored secrets
+
+    Admin->>Baserow: 1. main key B, key A in the fallbacks, restart
+    Note over Baserow,DB: values on A still read through A,<br/>new saves use B
+    Admin->>Baserow: 2. reencrypt_secrets
+    Baserow->>DB: decrypt every value, save it with B
+    Admin->>Baserow: 3. reencrypt_secrets --check
+    Baserow-->>Admin: counts per key, error if any value can't be read
+    Admin->>Baserow: 4. remove A from the fallbacks, restart
+```
+
 ## A secret that can't be decrypted
 
 When no configured key can decrypt a value, for example after a key changed without the
@@ -76,6 +141,21 @@ that:
 - has empty text, which must never be sent;
 - writes the original ciphertext back when the row is saved unchanged, so it works again
   once the key is back.
+
+```mermaid
+flowchart TD
+    Read["Row loaded from the database"] --> Enc{"Value in the enc: format?"}
+    Enc -->|no| Plain["Returned as is:<br/>empty, or plain text from before"]
+    Enc -->|yes| Key{"Key id in the key ring?"}
+    Key -->|no| Stand["Stand-in: truthy, empty text,<br/>warning logged"]
+    Key -->|yes| Tag{"Decrypts with this<br/>column's context?"}
+    Tag -->|no| Stand
+    Tag -->|yes| Secret["The secret"]
+    Stand --> Send(["Code sends it"])
+    Send --> Raise["is_unreadable_secret is true:<br/>raise, keep the stored value"]
+    Stand --> Save(["Row saved, field unchanged"])
+    Save --> Keep["Original ciphertext written back"]
+```
 
 Code that sends the secret must check for it first and fail:
 
