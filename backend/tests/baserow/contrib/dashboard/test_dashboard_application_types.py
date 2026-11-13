@@ -583,3 +583,29 @@ def test_dashboard_export_passes_config_to_widgets(
     )
     widget.refresh_from_db()
     assert widget.title == "Private"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_dashboard_import_without_the_database_clears_the_references_to_it(
+    data_fixture, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    dashboard = data_fixture.create_dashboard_application(
+        user=user, workspace=workspace
+    )
+    data_fixture.create_dashboard_local_baserow_list_rows_data_source(
+        dashboard=dashboard, table=table
+    )
+
+    [imported_dashboard] = data_fixture.export_and_import_workspace_applications(
+        [database, dashboard], application_ids=[dashboard.id]
+    )
+
+    # The source table still exists on this instance, in another workspace.
+    data_source = DashboardDataSource.objects.get(dashboard_id=imported_dashboard.id)
+    assert data_source.service.specific.table_id is None

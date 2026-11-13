@@ -73,10 +73,10 @@ def import_refinement_field_id(
     """
     The id the field of an imported filter or sort should point at.
 
-    A field outside the imported databases is only kept for a duplicate, an installed
-    template or a snapshot (`is_duplicate`), which keep the ids they always kept.
-    Otherwise the import can land in another workspace, where a kept id would reach a
-    field the importer can't see. Without a config, nothing is kept.
+    A field outside the imported databases is only kept for a duplicate or a snapshot,
+    see `ImportExportConfig.keeps_unmapped_references`. Otherwise the import, a
+    template install included, can land in another workspace, where a kept id would
+    reach a field the importer can't see. Without a config, nothing is kept.
 
     :param field_id: The field id the filter or sort was exported with.
     :param id_mapping: The id mapping dict.
@@ -87,9 +87,9 @@ def import_refinement_field_id(
     if "database_fields" not in id_mapping:
         return field_id
 
-    is_duplicate = getattr(import_export_config, "is_duplicate", False)
+    keeps_unmapped = getattr(import_export_config, "keeps_unmapped_references", False)
     return id_mapping["database_fields"].get(
-        field_id, field_id if is_duplicate else None
+        field_id, field_id if keeps_unmapped else None
     )
 
 

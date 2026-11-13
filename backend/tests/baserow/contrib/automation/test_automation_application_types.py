@@ -5,6 +5,7 @@ import pytest
 from baserow.contrib.automation.application_types import AutomationApplicationType
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowRowsCreatedTriggerNode,
 )
@@ -431,3 +432,36 @@ def test_external_automation_import_without_code_stays_trusted(
         automation.workspace, serialized, config, {}
     )
     assert imported.workflows.get().untrusted_content is False
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_automation_import_without_the_database_clears_the_references_to_it(
+    data_fixture, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    workflow = data_fixture.create_automation_workflow(user, automation=automation)
+    data_fixture.create_local_baserow_create_row_action_node(
+        user=user, workflow=workflow, service_kwargs={"table": table}
+    )
+
+    [imported_automation] = data_fixture.export_and_import_workspace_applications(
+        [database, automation], application_ids=[automation.id]
+    )
+
+    # The source table still exists on this instance, in another workspace.
+    tables = {
+        node.service.specific.table_id
+        for node in AutomationNode.objects.filter(
+            workflow__automation_id=imported_automation.id
+        )
+        if hasattr(node.service.specific, "table_id")
+    }
+    assert tables == {None}

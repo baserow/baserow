@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Importing apps without their databases no longer fails.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-11"
+}
