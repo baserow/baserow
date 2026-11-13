@@ -55,19 +55,25 @@ the signing key and get a warning, so they keep working with no new configuratio
 
 ### 4. The key can change without losing secrets
 
-While the key changes, old keys can still decrypt but never encrypt. A command moves
-every stored secret to the new key and reports when no secret needs an old key any more.
+While the key changes, old keys can still decrypt but never encrypt. A command decrypts
+every stored secret and moves it to the new key. It fails when any secret can't be read,
+so an old key is only removed once nothing needs it.
 
-### 5. A missing key never breaks a page
+### 5. A secret that can't be decrypted is kept but never sent
 
-A secret that can't be decrypted reads as empty and logs a warning. The stored value is
-kept, so it becomes readable again once the right key is configured.
+A secret no configured key can decrypt still counts as stored, so the page and the row
+still load and checks that ask whether a secret is set still see it. It is never sent to
+the other service: using it fails with an error and logs a warning. The stored value is
+kept, so it works again once the right key is configured.
 
 ### 6. Existing secrets move over gradually
 
 Plain text stored before is still read as is, and is encrypted the next time it's saved
 or when the command above runs. MCP server credentials are the first to use this; other
 stored secrets follow in later changes.
+
+How to use the field, what the database can do with it, its failure states and the tests
+every adopter must keep are in the [technical guide](../technical/encrypted-secrets.md).
 
 ## Options considered
 
