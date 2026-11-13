@@ -82,11 +82,19 @@ def _build_key_ring(
     else:
         primary_key = _derive(secret_key, _SECRET_KEY_INFO)
     primary_id = _key_id(primary_key)
-    keys[primary_id] = primary_key
 
     def add(key: bytes):
-        keys.setdefault(_key_id(key), key)
+        key_id = _key_id(key)
+        known = keys.setdefault(key_id, key)
+        if known != key:
+            # A stored value names its key by id only, so one of these keys
+            # could never decrypt what it encrypted.
+            raise ImproperlyConfigured(
+                f"Two of the configured encryption keys share the id {key_id}. "
+                "Generate another BASEROW_ENCRYPTION_KEY."
+            )
 
+    add(primary_key)
     for fallback in fallbacks:
         # A fallback is an old BASEROW_ENCRYPTION_KEY or an old SECRET_KEY. A
         # value shorter than the minimum can only be an old SECRET_KEY.
