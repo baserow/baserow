@@ -93,3 +93,70 @@ def test_workspace_invitation_link_length_defaults_to_12_between_7_and_50(
     )
 
     assert result.stdout.strip().splitlines()[-1] == expected_length
+
+
+AGENT_TRIGGER_LIMIT_VARIABLES = (
+    "BASEROW_AGENT_TRIGGER_RATE_LIMITS",
+    "BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS",
+    "BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS",
+    "BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS",
+)
+DEFAULT_AGENT_TRIGGER_LIMITS = (
+    "((10, 5), (30, 300), (100, 3600)) ((20, 60), (300, 3600)) 10 5"
+)
+
+
+def _read_agent_trigger_limits(**configured: str) -> subprocess.CompletedProcess[str]:
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+    for name in AGENT_TRIGGER_LIMIT_VARIABLES:
+        env.pop(name, None)
+    env.update(configured)
+    return subprocess.run(  # noqa: S603 - only the current interpreter runs fixed code.
+        [
+            sys.executable,
+            "-c",
+            "from baserow.config.settings import base; "
+            "print(base.AGENT_TRIGGER_RATE_LIMITS, "
+            "base.AGENT_TRIGGER_AGENT_RATE_LIMITS, "
+            "base.AGENT_TRIGGER_MAX_QUEUED_RUNS, "
+            "base.AGENT_TRIGGER_MAX_PARALLEL_RUNS)",
+        ],
+        check=False,
+        capture_output=True,
+        env=env,
+        text=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "configured,expected",
+    [
+        ({}, DEFAULT_AGENT_TRIGGER_LIMITS),
+        ({"BASEROW_AGENT_TRIGGER_RATE_LIMITS": ""}, DEFAULT_AGENT_TRIGGER_LIMITS),
+        (
+            {
+                "BASEROW_AGENT_TRIGGER_RATE_LIMITS": "1, 3600",
+                "BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS": ",",
+                "BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS": "1",
+                "BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS": "0",
+            },
+            "((1, 3600),) () 1 0",
+        ),
+    ],
+    ids=["unset", "empty_keeps_default", "custom_and_disabled"],
+)
+def test_agent_trigger_limits_are_read_as_pairs(
+    configured: dict[str, str], expected: str
+):
+    result = _read_agent_trigger_limits(**configured)
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines()[-1] == expected
+
+
+@pytest.mark.parametrize("value", ["10,5,30", "10,five", "0,0", "10,-5"])
+def test_agent_trigger_rate_limits_must_be_integer_pairs(value: str):
+    result = _read_agent_trigger_limits(BASEROW_AGENT_TRIGGER_RATE_LIMITS=value)
+
+    assert result.returncode != 0
+    assert "BASEROW_AGENT_TRIGGER_RATE_LIMITS must contain" in result.stderr

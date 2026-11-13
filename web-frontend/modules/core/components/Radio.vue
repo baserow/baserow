@@ -4,19 +4,23 @@
     <div v-else class="radio__input">
       <input
         type="radio"
+        :name="name"
         :value="value"
         :checked="modelValue === value"
         :disabled="disabled || loading"
+        :aria-labelledby="hasSlot ? labelId : null"
       />
       <label></label>
     </div>
-    <div v-if="hasSlot" class="radio__label">
+    <div v-if="hasSlot" :id="labelId" class="radio__label">
       <slot></slot>
     </div>
   </div>
 </template>
 
 <script>
+import { useId } from 'vue'
+
 export default {
   name: 'Radio',
   props: {
@@ -40,8 +44,19 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * Groups radios sharing it, so arrow keys move between them.
+     */
+    name: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   emits: ['input', 'update:modelValue'],
+  setup() {
+    return { labelId: useId() }
+  },
   computed: {
     classNames() {
       return {

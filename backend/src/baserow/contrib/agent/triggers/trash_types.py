@@ -64,12 +64,15 @@ class AgentTriggerTrashableItemType(TrashableItemType):
         self, trashed_item: AgentTrigger, trash_item_lookup_cache: dict | None = None
     ) -> None:
         """
-        Delete the trigger; its ``post_delete`` receiver deletes the service.
+        Delete the trigger, cancelling its queued replies: their conversations
+        lose the trigger, so nothing would start them. Its ``post_delete``
+        receiver deletes the service.
 
         :param trashed_item: The trashed trigger.
         :param trash_item_lookup_cache: Unused, a trigger has no trashed children.
         """
 
+        AgentTriggerHandler().cancel_queued_replies(trashed_item)
         trashed_item.delete()
 
     def get_restore_operation_type(self) -> str:

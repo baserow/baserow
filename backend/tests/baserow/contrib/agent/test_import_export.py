@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 import pytest
 from freezegun import freeze_time
@@ -12,6 +13,7 @@ from baserow.contrib.agent.models import (
     AgentConversation,
     AgentMessage,
     AgentReplyTranscript,
+    AgentTrigger,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_DAY
@@ -674,6 +676,13 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         {"interval": PERIODIC_INTERVAL_DAY, "hour": 9},
         message="'Digest'",
         name="Morning digest",
+        on_overlap=AgentTrigger.OnOverlap.WAIT,
+    )
+    fired_at = datetime(2026, 11, 10, 9, 0, tzinfo=timezone.utc)
+    AgentTrigger.objects.filter(id=trigger.id).update(
+        last_fired_on=fired_at,
+        last_skipped_on=fired_at,
+        last_skipped_reason=AgentTrigger.SkipReason.QUEUE_FULL,
     )
     config = ImportExportConfig(include_permission_data=False, **config_values)
 
@@ -691,6 +700,7 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         "name",
         "enabled",
         "message",
+        "on_overlap",
         "service",
     }
     assert copy.service_id != trigger.service_id
@@ -699,11 +709,37 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         "Morning digest",
         "'Digest'",
     )
+    assert (
+        copy.on_overlap,
+        copy.last_fired_on,
+        copy.last_skipped_on,
+        copy.last_skipped_reason,
+    ) == ("wait", None, None, "")
     assert (service.interval, service.hour, service.next_run_at) == (
         PERIODIC_INTERVAL_DAY,
         9,
         None,
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exported,imported",
+    [("wait", "wait"), (None, "skip"), ("queue_every_firing", "skip")],
+)
+def test_a_trigger_overlap_rule_is_copied_and_unknown_values_skip(
+    data_fixture, configured_agent, exported, imported
+):
+    agent = configured_agent()
+    data_fixture.create_agent_trigger(agent=agent)
+    serialized = export_internal(agent)
+    serialized["triggers"][0]["on_overlap"] = exported
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.triggers.get().on_overlap == imported
 
 
 @pytest.mark.django_db

@@ -44,13 +44,17 @@ describe('Agent triggers', () => {
   const mountSection = (
     triggers,
     availableTypes = ['periodic'],
-    editable = true
+    editable = true,
+    maxQueuedTriggerRuns = 10,
+    maxParallelTriggerRuns = 5
   ) => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
     return testApp.mount(AgentWhenItRunsSection, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
+          max_queued_trigger_runs: maxQueuedTriggerRuns,
+          max_parallel_trigger_runs: maxParallelTriggerRuns,
         }),
         editable,
       },
@@ -647,5 +651,146 @@ describe('Agent triggers', () => {
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { name: kept }],
     ])
+  })
+
+  test('offers the overlap rule as radios in its own section and saves a choice at once', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, periodicTrigger({ on_overlap: 'wait' }))
+    const wrapper = await mountSection([periodicTrigger()])
+    const section = wrapper.get('.agent-trigger-card__overlap')
+    const group = section.get('[role="radiogroup"]')
+    const radios = group.findAll('input[type="radio"]')
+    const checked = () => radios.map((radio) => radio.element.checked)
+
+    expect(
+      section.get(`[id="${group.attributes('aria-labelledby')}"]`).text()
+    ).toBe('agent.triggerOnOverlap')
+    expect(
+      section.get(`[id="${group.attributes('aria-describedby')}"]`).text()
+    ).toBe('agent.triggerOnOverlapDescription')
+    expect(
+      radios.map((radio) =>
+        wrapper
+          .get(`[id="${radio.attributes('aria-labelledby')}"]`)
+          .findAll(
+            '.agent-trigger-card__overlap-option-label, .agent-trigger-card__overlap-option-hint'
+          )
+          .map((part) => part.text())
+      )
+    ).toEqual([
+      [
+        'agent.triggerOnOverlapSkip agent.triggerOnOverlapRecommended',
+        'agent.triggerOnOverlapSkipHint - 10',
+      ],
+      ['agent.triggerOnOverlapWait', 'agent.triggerOnOverlapWaitHint - 10'],
+      [
+        'agent.triggerOnOverlapParallel',
+        'agent.triggerOnOverlapParallelHint - 5',
+      ],
+    ])
+    expect(new Set(radios.map((radio) => radio.attributes('name'))).size).toBe(
+      1
+    )
+    expect(checked()).toEqual([true, false, false])
+
+    await radios[1].trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { on_overlap: 'wait' }],
+    ])
+    expect(checked()).toEqual([false, true, false])
+  })
+
+  test('tells how many runs can wait, as the server allows', async () => {
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic'],
+      true,
+      3
+    )
+    const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
+
+    expect(hints[1].text()).toBe('agent.triggerOnOverlapWaitHint - 3')
+  })
+
+  test('tells runs can wait indefinitely when the server has no cap', async () => {
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic'],
+      true,
+      0
+    )
+    const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
+
+    expect(hints[1].text()).toBe('agent.triggerOnOverlapWaitUnlimitedHint')
+  })
+
+  test.each([
+    [10, 5, 'agent.triggerOnOverlapParallelHint - 5'],
+    [0, 5, 'agent.triggerOnOverlapParallelQueueUnlimitedHint - 5'],
+    [10, 0, 'agent.triggerOnOverlapParallelUnlimitedHint'],
+  ])(
+    'words the parallel hint by both caps: %s queued, %s at once',
+    async (maxQueued, maxParallel, hint) => {
+      const wrapper = await mountSection(
+        [periodicTrigger()],
+        ['periodic'],
+        true,
+        maxQueued,
+        maxParallel
+      )
+      const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
+
+      expect(hints[2].text()).toBe(hint)
+    }
+  )
+
+  test.each([
+    ['rate_limited', 'agent.triggerSkippedRateLimited'],
+    ['agent_rate_limited', 'agent.triggerSkippedAgentRateLimited'],
+    ['previous_running', 'agent.triggerSkippedPreviousRunning'],
+    ['queue_full', 'agent.triggerSkippedQueueFull'],
+  ])(
+    'says why a firing was skipped until a later one is accepted: %s',
+    async (reason, text) => {
+      const skipped = {
+        last_skipped_on: '2026-11-10T10:42:00Z',
+        last_skipped_reason: reason,
+      }
+      const wrapper = await mountSection([
+        periodicTrigger(skipped),
+        periodicTrigger({
+          ...skipped,
+          id: 2,
+          last_fired_on: '2026-11-10T10:43:00Z',
+        }),
+      ])
+      const [shown, hidden] = wrapper.findAll('.agent-trigger-card')
+
+      expect(
+        shown
+          .get(
+            '.agent-trigger-card__overlap [role="radiogroup"] + .agent-trigger-card__skipped'
+          )
+          .text()
+      ).toBe(text)
+      expect(hidden.find('.agent-trigger-card__skipped').exists()).toBe(false)
+    }
+  )
+
+  test('keeps the skip line when the last accepted firing was before it', async () => {
+    const wrapper = await mountSection([
+      periodicTrigger({
+        last_fired_on: '2026-11-10T10:41:00Z',
+        last_skipped_on: '2026-11-10T10:42:00Z',
+        last_skipped_reason: 'rate_limited',
+      }),
+    ])
+
+    expect(wrapper.get('.agent-trigger-card__skipped').text()).toBe(
+      'agent.triggerSkippedRateLimited'
+    )
   })
 })

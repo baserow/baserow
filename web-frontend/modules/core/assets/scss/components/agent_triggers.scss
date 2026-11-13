@@ -267,6 +267,62 @@
   color: $palette-neutral-700;
 }
 
+.agent-trigger-card__overlap-title {
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.agent-trigger-card__overlap-description {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-trigger-card__overlap-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.agent-trigger-card__overlap-option {
+  display: flex;
+
+  .radio__input {
+    flex-shrink: 0;
+    top: 2px;
+  }
+}
+
+.agent-trigger-card__overlap-option-text {
+  min-width: 0;
+}
+
+.agent-trigger-card__overlap-option-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.agent-trigger-card__overlap-option-hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.agent-trigger-card__skipped {
+  margin: 16px 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-yellow-1000;
+}
+
 .agent-trigger-card__footer {
   display: flex;
   padding: 8px 12px;

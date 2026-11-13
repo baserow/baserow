@@ -69,6 +69,18 @@ def test_configuration_lists_the_available_trigger_types(
     assert api_client.get(url).json()["available_trigger_types"] == ["http_trigger"]
 
 
+@pytest.mark.django_db
+def test_configuration_tells_how_many_trigger_runs_can_wait(
+    data_fixture, api_client, api_user, settings
+):
+    settings.AGENT_TRIGGER_MAX_QUEUED_RUNS = 3
+    agent = data_fixture.create_agent_application(user=api_user)
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.json()["max_queued_trigger_runs"] == 3
+
+
 def call(
     name: str, user: AbstractUser, agent: AgentApplication, trigger: AgentTrigger
 ) -> Any:
@@ -571,3 +583,48 @@ def test_a_trigger_saves_its_trimmed_name_and_names_its_trash_entry(
         "",
         "Digest",
     ]
+
+
+@pytest.mark.django_db
+def test_a_trigger_saves_its_overlap_rule_and_shows_its_last_firing(
+    data_fixture, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    list_url = agent_url(agent, "triggers:list")
+
+    created = api_client.post(list_url, {"type": "periodic", "message": MESSAGE})
+    waiting = api_client.post(
+        list_url, {"type": "periodic", "message": MESSAGE, "on_overlap": "wait"}
+    )
+
+    assert created.status_code == waiting.status_code == 200, created.json()
+    body = created.json()
+    assert {
+        key: body[key]
+        for key in (
+            "on_overlap",
+            "last_fired_on",
+            "last_skipped_on",
+            "last_skipped_reason",
+        )
+    } == {
+        "on_overlap": "skip",
+        "last_fired_on": None,
+        "last_skipped_on": None,
+        "last_skipped_reason": "",
+    }
+    assert waiting.json()["on_overlap"] == "wait"
+
+    url = agent_url(agent, "triggers:item", trigger_id=body["id"])
+    response = api_client.patch(url, {"on_overlap": "wait"})
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["on_overlap"] == "wait"
+    assert AgentTrigger.objects.get(id=body["id"]).on_overlap == "wait"
+    assert registered.call_args.args[1]["changed_fields"] == ["on_overlap"]
+
+    rejected = api_client.patch(url, {"on_overlap": "queue"})
+
+    assert rejected.status_code == 400
+    assert rejected.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

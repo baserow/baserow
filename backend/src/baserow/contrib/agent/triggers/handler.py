@@ -5,15 +5,26 @@ from zipfile import ZipFile
 
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
+from django.db.models import Count, Exists, OuterRef, Q, QuerySet, Subquery
+from django.db.models.functions import Coalesce
 
 from baserow.contrib.agent.constants import (
+    AGENT_RUN_TYPE,
     AGENT_TRIGGER_NAME_MAX_LENGTH,
     AGENT_TRIGGER_TYPES_ENABLED,
 )
-from baserow.contrib.agent.models import AgentApplication, AgentTrigger
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentConversation,
+    AgentMessage,
+    AgentReplyStatus,
+    AgentTrigger,
+)
+from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.contrib.agent.types import AgentTriggerUpdated
 from baserow.contrib.agent.validators import AGENT_TEXT_MAX_LENGTH
+from baserow.core.chat_runs.constants import ChatRunErrorCode
+from baserow.core.chat_runs.models import ACTIVE_CHAT_RUN_STATUSES, ChatRun
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
@@ -30,6 +41,7 @@ from baserow.core.trash.handler import TrashHandler
 
 from .data_providers import AgentTriggerDispatchContext
 from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
+from .overlap import get_overlap_limits
 
 
 class AgentTriggerHandler:
@@ -115,6 +127,7 @@ class AgentTriggerHandler:
         prepared_service_values: dict,
         message: str | BaserowFormulaObject = "",
         enabled: bool = True,
+        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
         name: str = "",
     ) -> AgentTrigger:
         """
@@ -126,6 +139,8 @@ class AgentTriggerHandler:
             ``service_type.prepare_values``.
         :param message: The message formula resolved against the trigger payload.
         :param enabled: Whether firing starts a conversation.
+        :param on_overlap: What a firing does while a reply of the trigger is still
+            going, one of ``AgentTrigger.OnOverlap``.
         :param name: The trigger's name, or blank for the type's default.
         :raises AgentTriggerTypeNotAvailable: When the type isn't available.
         :return: The created trigger, with its specific service.
@@ -140,6 +155,7 @@ class AgentTriggerHandler:
             name=name,
             message=message,
             enabled=enabled,
+            on_overlap=on_overlap,
         )
         self.arm(trigger)
         return trigger
@@ -150,6 +166,7 @@ class AgentTriggerHandler:
         enabled: bool | None = None,
         message: str | BaserowFormulaObject | None = None,
         prepared_service_values: dict | None = None,
+        on_overlap: str | None = None,
         name: str | None = None,
     ) -> AgentTriggerUpdated:
         """
@@ -157,18 +174,20 @@ class AgentTriggerHandler:
         trigger is switched on: arming also replaces any schedule a concurrent run
         wrote meanwhile. Values that change nothing aren't written, as saving the
         service could put back a run time a concurrent run already moved on.
+        Switching it off cancels its queued replies.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.
         :param message: The new message formula, or None to keep it.
         :param prepared_service_values: The service values to set, already passed
             through ``prepare_values``, or None to leave the service as it is.
+        :param on_overlap: The new overlap rule, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
         :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
             type that isn't available.
         :return: The updated trigger and the names of the parts that changed:
-            ``name``, ``enabled``, ``message`` and ``service``.
+            ``name``, ``enabled``, ``message``, ``on_overlap`` and ``service``.
         """
 
         service_changed = self._update_service(trigger, prepared_service_values)
@@ -184,8 +203,13 @@ class AgentTriggerHandler:
         if message is not None and message != trigger.message:
             trigger.message = message
             changed_fields.append("message")
+        if on_overlap is not None and on_overlap != trigger.on_overlap:
+            trigger.on_overlap = on_overlap
+            changed_fields.append("on_overlap")
         if changed_fields:
             trigger.save(update_fields=[*changed_fields, "updated_on"])
+        if "enabled" in changed_fields and not trigger.enabled:
+            self.cancel_queued_replies(trigger)
         if rearm:
             self.arm(trigger)
         if service_changed:
@@ -294,6 +318,208 @@ class AgentTriggerHandler:
             return self.payload_as_message(event_payload)
         return content[:AGENT_TEXT_MAX_LENGTH]
 
+    def get_startable_triggers(self) -> QuerySet[AgentTrigger]:
+        """
+        Return the triggers whose queued replies may start: switched on and not
+        trashed, in an agent and a workspace that aren't trashed. The others keep
+        their queued replies, which resume after a restore.
+
+        :return: The triggers.
+        """
+
+        return AgentTrigger.objects.filter(
+            enabled=True, agent__trashed=False, agent__workspace__trashed=False
+        )
+
+    def cancel_queued_replies(self, trigger: AgentTrigger) -> None:
+        """
+        Cancel the trigger's queued replies, deleted conversations included, once
+        nothing will start them: the trigger is switched off or deleted for good.
+        They are marked ``not_started``, so they don't read as stopped mid-run. The
+        readers of the other conversations are told.
+
+        :param trigger: The trigger whose queued replies are cancelled.
+        """
+
+        replies = AgentMessage.objects.filter(
+            conversation__trigger=trigger, status=AgentReplyStatus.QUEUED
+        )
+        conversations = list(
+            AgentConversation.objects.filter(
+                id__in=replies.values("conversation_id")
+            ).select_related("agent")
+        )
+        replies.update(
+            status=AgentReplyStatus.CANCELLED, error_code=ChatRunErrorCode.NOT_STARTED
+        )
+        for conversation in conversations:
+            agent_conversation_activity.send(self, conversation=conversation, user=None)
+
+    def _is_going(self) -> Q:
+        """
+        The condition a going reply meets: it waits for approvals, or it runs while
+        its conversation has an active run. A reply its run left ``running`` when
+        ending without saving it, for example on a database error, never holds its
+        trigger back, nor does a reply in a deleted conversation.
+
+        :return: The condition on ``AgentMessage``.
+        """
+
+        active_run = ChatRun.objects.filter(
+            run_type=AGENT_RUN_TYPE,
+            chat_id=OuterRef("conversation_id"),
+            status__in=ACTIVE_CHAT_RUN_STATUSES,
+        )
+        return Q(conversation__trashed=False) & (
+            Q(status=AgentReplyStatus.WAITING)
+            | Q(Exists(active_run), status=AgentReplyStatus.RUNNING)
+        )
+
+    def count_going_replies(self, trigger: AgentTrigger) -> int:
+        """
+        :param trigger: The trigger whose conversations are looked at.
+        :return: How many of its replies hold a run or wait for approvals.
+        """
+
+        return AgentMessage.objects.filter(
+            self._is_going(), conversation__trigger=trigger
+        ).count()
+
+    def get_queued_replies(self, trigger: AgentTrigger) -> QuerySet[AgentMessage]:
+        """
+        Return the trigger's replies waiting, without a run, for its previous reply
+        to end. Deleted conversations are left out: their replies wait until they
+        are restored.
+
+        :param trigger: The trigger whose conversations are looked at.
+        :return: The queued replies, oldest first.
+        """
+
+        return AgentMessage.objects.filter(
+            conversation__trigger=trigger,
+            conversation__trashed=False,
+            status=AgentReplyStatus.QUEUED,
+        ).order_by("id")
+
+    def count_queued_replies(self, trigger: AgentTrigger) -> int:
+        """
+        :param trigger: The trigger whose conversations are looked at.
+        :return: How many of its replies are queued.
+        """
+
+        return self.get_queued_replies(trigger).count()
+
+    def list_triggers_with_room_for_queued_replies(self) -> QuerySet[AgentTrigger]:
+        """
+        Find the triggers whose oldest queued reply can start now: one of their
+        replies is queued and fewer are going than their overlap rule allows. One
+        query, read from the index of replies still queued or going, however long
+        the triggers' history is.
+
+        :return: The startable triggers, by id, with their agent, workspace and
+            service.
+        """
+
+        replies = AgentMessage.objects.filter(conversation__trigger=OuterRef("pk"))
+        going = Coalesce(
+            Subquery(
+                replies.filter(self._is_going())
+                .values("conversation__trigger")
+                .annotate(count=Count("id"))
+                .values("count")
+            ),
+            0,
+        )
+        has_room = Q()
+        for on_overlap in AgentTrigger.OnOverlap.values:
+            max_going = get_overlap_limits(on_overlap).max_going
+            has_room |= Q(on_overlap=on_overlap) & (
+                Q() if max_going is None else Q(going__lt=max_going)
+            )
+        return (
+            self.get_startable_triggers()
+            .select_related("agent__workspace", "service")
+            .annotate(going=going)
+            .filter(
+                has_room,
+                Exists(
+                    replies.filter(
+                        status=AgentReplyStatus.QUEUED, conversation__trashed=False
+                    )
+                ),
+            )
+        )
+
+    def recent_conversation_times(
+        self, trigger: AgentTrigger, since: datetime
+    ) -> list[datetime]:
+        """
+        When the trigger started each of its conversations since a moment, deleted
+        ones included, so deleting conversations never lifts a limit.
+
+        :param trigger: The trigger.
+        :param since: The oldest creation time counted.
+        :return: The creation times, unordered.
+        """
+
+        return list(
+            AgentConversation.objects_and_trash.filter(
+                trigger=trigger, created_on__gte=since
+            )
+            .order_by()
+            .values_list("created_on", flat=True)
+        )
+
+    def recent_agent_conversation_times(
+        self, agent: AgentApplication, since: datetime
+    ) -> list[datetime]:
+        """
+        When any trigger of the agent started a conversation since a moment,
+        deleted conversations and trashed triggers included. Joining through the
+        triggers reads the trigger and creation time index.
+
+        :param agent: The agent.
+        :param since: The oldest creation time counted.
+        :return: The creation times, unordered.
+        """
+
+        return list(
+            AgentConversation.objects_and_trash.filter(
+                trigger__agent=agent, created_on__gte=since
+            )
+            .order_by()
+            .values_list("created_on", flat=True)
+        )
+
+    def record_skip(
+        self, trigger: AgentTrigger, reason: AgentTrigger.SkipReason, at: datetime
+    ) -> None:
+        """
+        Save when and why a firing of the trigger started nothing, without signals
+        or a new ``updated_on``.
+
+        :param trigger: The trigger whose firing was skipped.
+        :param reason: Why it was skipped.
+        :param at: When it fired.
+        """
+
+        AgentTrigger.objects.filter(id=trigger.id).update(
+            last_skipped_on=at, last_skipped_reason=reason
+        )
+        trigger.last_skipped_on, trigger.last_skipped_reason = at, reason
+
+    def record_fired(self, trigger: AgentTrigger, at: datetime) -> None:
+        """
+        Save when a firing of the trigger last started or queued a conversation,
+        which hides an older skip on its card.
+
+        :param trigger: The trigger that fired.
+        :param at: When it fired.
+        """
+
+        AgentTrigger.objects.filter(id=trigger.id).update(last_fired_on=at)
+        trigger.last_fired_on = at
+
     def export_triggers(
         self,
         agent: AgentApplication,
@@ -321,6 +547,7 @@ class AgentTriggerHandler:
                 "name": trigger.name,
                 "enabled": trigger.enabled,
                 "message": trigger.message,
+                "on_overlap": trigger.on_overlap,
                 "service": service_handler.export_service(
                     trigger.service.specific,
                     import_export_config=import_export_config,
@@ -345,8 +572,8 @@ class AgentTriggerHandler:
         """
         Copy triggers into the agent, each switched off: a copy that fired on its
         own would run and bill without anyone asking for it, and a snapshot
-        restore can't be told apart from a duplicate. A missing name gets the
-        type's default.
+        restore can't be told apart from a duplicate. A missing or unknown overlap
+        rule skips, and a missing name gets the type's default.
 
         :param agent: The agent the triggers are copied into.
         :param serialized_triggers: The triggers from ``export_triggers``.
@@ -363,6 +590,7 @@ class AgentTriggerHandler:
         service_handler = ServiceHandler()
         triggers = []
         for serialized in serialized_triggers:
+            on_overlap = serialized.get("on_overlap")
             service = service_handler.import_service(
                 None,
                 serialized["service"],
@@ -381,6 +609,11 @@ class AgentTriggerHandler:
                 else "",
                 enabled=False,
                 message=serialized.get("message") or "",
+                on_overlap=(
+                    on_overlap
+                    if on_overlap in AgentTrigger.OnOverlap.values
+                    else AgentTrigger.OnOverlap.SKIP
+                ),
             )
             trigger_ids[serialized["id"]] = trigger.id
             triggers.append(trigger)

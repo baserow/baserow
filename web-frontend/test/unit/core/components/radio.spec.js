@@ -53,5 +53,18 @@ describe('Radio.vue', () => {
     expect(wrapper.emitted('input')[0]).toEqual([value])
   })
 
+  it('names the radio input after its label and groups it by name', () => {
+    const wrapper = mount(Radio, {
+      props: { name: 'colour' },
+      slots: { default: 'Blue' },
+    })
+    const input = wrapper.get('input[type="radio"]')
+
+    expect(input.attributes('name')).toBe('colour')
+    expect(
+      wrapper.get(`[id="${input.attributes('aria-labelledby')}"]`).text()
+    ).toBe('Blue')
+  })
+
   // Add more tests as needed...
 })

@@ -10,8 +10,8 @@ import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
 
 const TYPED_SAVE_DELAY = 500
-const TRIGGER_FIELDS = ['name', 'enabled', 'message']
-const PICKED_FIELDS = ['name', 'enabled']
+const TRIGGER_FIELDS = ['name', 'enabled', 'message', 'on_overlap']
+const PICKED_FIELDS = ['name', 'enabled', 'on_overlap']
 const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
 
 /**
@@ -315,12 +315,12 @@ export function useAgentTriggers(agent) {
   }
 
   /**
-   * Shows a card's edit at once and saves each edited field: a name or a switch
-   * right away, a message or service values once typing pauses.
+   * Shows a card's edit at once and saves each edited field: a name, a switch or
+   * an overlap rule right away, a message or service values once typing pauses.
    *
    * @param {object} trigger The trigger the card shows.
-   * @param {object} values The edited `name`, `enabled`, `message` or service
-   *   values.
+   * @param {object} values The edited `name`, `enabled`, `on_overlap`,
+   *   `message` or service values.
    */
   function updateTrigger(trigger, values) {
     if (!saved.has(trigger.id)) return

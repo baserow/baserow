@@ -56,6 +56,10 @@ export const periodicTrigger = (extra = {}) => ({
     timezone: 'UTC',
     schema: triggerSchema,
   },
+  on_overlap: 'skip',
+  last_fired_on: null,
+  last_skipped_on: null,
+  last_skipped_reason: '',
   ...extra,
 })
 

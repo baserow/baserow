@@ -1,4 +1,5 @@
 import ipaddress
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 from unittest.mock import MagicMock, patch
@@ -30,6 +31,7 @@ from baserow.core.utils import (
     grouper,
     is_hostname_safe,
     random_string,
+    rate_limit_window_exceeded,
     remove_duplicates,
     remove_invalid_surrogate_characters,
     remove_null_characters,
@@ -898,3 +900,37 @@ def test_get_embedded_share_url():
         get_embedded_share_url("reset-password/TOKEN")
         == "https://intranet.example.com/baserow/reset-password/TOKEN"
     )
+
+
+NOW = datetime(2026, 11, 10, 10, 0, tzinfo=timezone.utc)
+
+
+def seconds_ago(*seconds: int) -> list[datetime]:
+    return [NOW - timedelta(seconds=value) for value in seconds]
+
+
+@pytest.mark.parametrize(
+    "timestamps,limits,expected",
+    [
+        (seconds_ago(1, 2, 3), (), None),
+        (seconds_ago(60, 1), ((2, 60),), (2, 60)),
+        (seconds_ago(61, 1), ((2, 60),), None),
+        (seconds_ago(50, 40, 1), ((2, 5), (3, 60)), (3, 60)),
+        (seconds_ago(3, 2, 1), ((2, 5), (3, 60)), (2, 5)),
+        (seconds_ago(3600, 7200), ((1, 60),), None),
+    ],
+    ids=[
+        "no_limits",
+        "window_start_counts",
+        "before_the_window",
+        "larger_window_reached",
+        "first_pair_reached_wins",
+        "older_than_every_window",
+    ],
+)
+def test_rate_limit_window_exceeded(
+    timestamps: list[datetime],
+    limits: tuple[tuple[int, int], ...],
+    expected: tuple[int, int] | None,
+):
+    assert rate_limit_window_exceeded(iter(timestamps), limits, NOW) == expected

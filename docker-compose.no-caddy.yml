@@ -290,6 +290,11 @@ x-backend-variables:
   BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
   # Agent replies that can run at once in one workspace.
   BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE:
+  # How often Agent triggers may start conversations, and how many runs may wait (0 is no limit).
+  BASEROW_AGENT_TRIGGER_RATE_LIMITS:
+  BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS:
+  BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS:
+  BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS:
   # Deprecated model selection; choose Kuma under Admin tools > AI providers > AI features.
   BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
   BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE:

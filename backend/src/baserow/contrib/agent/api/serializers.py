@@ -140,6 +140,14 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The trigger types that can be added to the agent on this "
         "instance, as service type names.",
     )
+    max_queued_trigger_runs = serializers.IntegerField(
+        help_text="How many runs of a trigger that waits or runs in parallel can be "
+        "queued on this instance; later firings are skipped. 0 or less is no limit."
+    )
+    max_parallel_trigger_runs = serializers.IntegerField(
+        help_text="How many runs of a trigger that runs in parallel can go at once "
+        "on this instance; later firings are queued. 0 or less is no limit."
+    )
     errors = serializers.DictField(
         child=serializers.ChoiceField(
             choices=[error.value for error in AgentConfigurationErrorCode]

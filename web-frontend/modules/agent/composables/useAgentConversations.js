@@ -10,6 +10,7 @@ import { AGENT_RUN_TYPE } from '@baserow/modules/agent/chatRunTypes'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 import {
+  AGENT_REPLY_STATUS,
   APPROVAL_STATUS,
   pendingApprovals,
 } from '@baserow/modules/agent/utils/replies'
@@ -205,6 +206,11 @@ export function useAgentConversations(agent, configuration) {
     () => pendingApprovals(currentHistory.value?.items.at(-1)).length
   )
   const waitingForApproval = computed(() => pendingApprovalCount.value > 0)
+  // A switch-off cancels such a reply with an event that carries no run.
+  const waitingForPreviousRun = computed(() => {
+    const reply = currentHistory.value?.items.at(-1)
+    return reply?.status === AGENT_REPLY_STATUS.QUEUED && !reply.run_id
+  })
   const canSend = computed(
     () =>
       configuration.readyToSend.value &&
@@ -949,7 +955,8 @@ export function useAgentConversations(agent, configuration) {
         const shownCardIsStale =
           update.conversation.pending_approval_count !==
           pendingApprovalCount.value
-        if (!followingRun && shownCardIsStale) refreshMessages(update.uuid)
+        if (!followingRun && (waitingForPreviousRun.value || shownCardIsStale))
+          refreshMessages(update.uuid)
       } else if (histories[update.uuid]) histories[update.uuid].stale = true
     },
     // Each event applies to its conversation, even if several arrive in one tick.

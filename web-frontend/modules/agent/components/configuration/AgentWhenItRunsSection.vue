@@ -40,6 +40,8 @@
         :trigger="trigger"
         :workspace="workspace"
         :editable="editable"
+        :max-queued-trigger-runs="configuration.max_queued_trigger_runs"
+        :max-parallel-trigger-runs="configuration.max_parallel_trigger_runs"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
         :service-reverts="serviceReverts[trigger.id] || 0"
@@ -66,7 +68,7 @@ import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTri
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
-  /** The Agent's configuration, with its available trigger types. */
+  /** The Agent's configuration: its trigger types and queued run cap. */
   configuration: { type: Object, required: true },
   /** Whether the user may add, change and delete triggers. */
   editable: Boolean,

@@ -2081,6 +2081,50 @@ if SENTRY_DSN:
 else:
     BASEROW_LAZY_LOADED_LIBRARIES.append("sentry_sdk")
 
+
+def _parse_int_pairs(env_name: str, default: str) -> tuple[tuple[int, int], ...]:
+    """
+    Read comma-separated ``max_runs,window_seconds`` integer pairs from the
+    environment. Unset or empty keeps the default; a single comma means none.
+
+    :param env_name: The environment variable to read.
+    :param default: The pairs used when the variable is unset or empty.
+    :raises ImproperlyConfigured: When the value isn't positive integers in pairs.
+    :return: The pairs, in the given order.
+    """
+
+    message = (
+        f"{env_name} must contain an even number of comma-separated positive "
+        "integers formatted as max_runs,window_seconds pairs."
+    )
+    try:
+        values = [
+            int(value)
+            for value in (os.getenv(env_name) or default).split(",")
+            if value.strip()
+        ]
+    except ValueError as exc:
+        raise ImproperlyConfigured(message) from exc
+    if len(values) % 2 or any(value < 1 for value in values):
+        raise ImproperlyConfigured(message)
+    return tuple(zip(values[::2], values[1::2]))
+
+
+AGENT_TRIGGER_RATE_LIMITS = _parse_int_pairs(
+    "BASEROW_AGENT_TRIGGER_RATE_LIMITS", "10,5,30,300,100,3600"
+)
+AGENT_TRIGGER_AGENT_RATE_LIMITS = _parse_int_pairs(
+    "BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS", "20,60,300,3600"
+)
+# 0 or less lets runs wait without limit.
+AGENT_TRIGGER_MAX_QUEUED_RUNS = int(
+    os.getenv("BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS") or 10
+)
+# 0 or less lets a trigger set to run in parallel start runs without limit.
+AGENT_TRIGGER_MAX_PARALLEL_RUNS = int(
+    os.getenv("BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS") or 5
+)
+
 BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
     int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0) or None
 )

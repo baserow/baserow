@@ -40,6 +40,7 @@ AGENT_TRIGGER_OFF = "trigger_off"
 # The picker allowlist, widened as each trigger form is verified in the agent host.
 AGENT_TRIGGER_TYPES_ENABLED = ("periodic",)
 AGENT_TRIGGER_NAME_MAX_LENGTH = 75
+QUEUED_TRIGGER_REPLY_SWEEP_SECONDS = 60
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
 INTERRUPTED_CHANGES_NOTE = (
     "[Changes started before the interruption: {changes}. A stopped change may "
