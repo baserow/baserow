@@ -23,6 +23,7 @@ class PersonalViewOwnershipType(ViewOwnershipType):
     """
 
     type = "personal"
+    can_be_used_by_integrations = False
 
     def get_trashed_item_owner(self, view):
         return view.owned_by
