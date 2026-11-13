@@ -36,6 +36,7 @@
           :node-selected="nodeSelected"
           :search="debouncedSearch"
           :allow-node-selection="allowNodeSelection"
+          :get-value="hierarchyNode.getValue"
           @click="$emit('node-selected', $event)"
           @toggle="$emit('toggle', $event)"
           @example-click="$emit('example-click', $event)"

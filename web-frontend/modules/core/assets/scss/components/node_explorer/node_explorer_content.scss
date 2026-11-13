@@ -12,6 +12,34 @@
   @extend %ellipsis;
 }
 
+// The value gives way before the name does, down to what it needs to be read:
+// its own length when it's short, otherwise its share of the row. A long name
+// next to a short value therefore gets the room the value doesn't use.
+.node-explorer-content__name--with-value {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.node-explorer-content__value {
+  flex: 1 1000 auto;
+  min-width: min(30%, calc(var(--node-explorer-content-value-length) * 1ch));
+  color: $palette-neutral-700;
+
+  @extend %ellipsis;
+}
+
+.node-explorer-content__value--muted {
+  color: $palette-neutral-500;
+  font-style: italic;
+}
+
+.node-explorer-content__hint {
+  margin: 0 5px 2px 34px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-500;
+}
+
 .node-explorer-content__content {
   @extend %ellipsis;
 

@@ -1,5 +1,24 @@
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import _ from 'lodash'
+import { getValueAtPath } from '@baserow/modules/core/utils/object'
+
+// Tells a path the sample data doesn't hold apart from one holding `null`.
+const NO_SAMPLE_VALUE = Symbol('noSampleValue')
+
+/**
+ * Returns the node with the given id in the workflow of the application
+ * context, with its type, or `null` when there is no such node.
+ */
+const findNodeAndType = (app, applicationContext, nodeId) => {
+  const node = app.$store.getters['automationWorkflowNode/findById'](
+    applicationContext?.workflow,
+    parseInt(nodeId)
+  )
+  if (!node?.type) {
+    return null
+  }
+  return { node, nodeType: app.$registry.get('node', node.type) }
+}
 
 export class PreviousNodeDataProviderType extends DataProviderType {
   static getType() {
@@ -58,6 +77,51 @@ export class PreviousNodeDataProviderType extends DataProviderType {
       .value()
 
     return { type: 'object', properties: previousNodeSchema }
+  }
+
+  /**
+   * Adds a hint to the previous nodes that have no values to show, because
+   * they haven't been tested yet or their last test failed.
+   */
+  getNodes(applicationContext) {
+    const providerNode = super.getNodes(applicationContext)
+    if (!providerNode.nodes) {
+      return providerNode
+    }
+    return {
+      ...providerNode,
+      nodes: providerNode.nodes.map((node) => {
+        const found = findNodeAndType(
+          this.app,
+          applicationContext,
+          node.identifier
+        )
+        if (!found || found.nodeType.hasSampleValues(found.node)) {
+          return node
+        }
+        return {
+          ...node,
+          hint: this.app.$i18n.t('dataProviderType.testToSeeValues'),
+        }
+      }),
+    }
+  }
+
+  /**
+   * The value the previous node returned the last time it was tested. It's an
+   * example shown next to the node's data in the explorer, `undefined` when
+   * the node has not been tested.
+   */
+  getSampleValue(applicationContext, [nodeId, ...rest]) {
+    if (rest.length === 0) {
+      // The node itself is a heading in the explorer, not a value.
+      return undefined
+    }
+    const found = findNodeAndType(this.app, applicationContext, nodeId)
+    if (!found) {
+      return undefined
+    }
+    return found.nodeType.getSampleValue(found.node, rest)
   }
 
   getPathTitle(applicationContext, pathParts) {
@@ -144,6 +208,30 @@ export class CurrentIterationDataProviderType extends DataProviderType {
     return { type: 'object', properties: ancestorsSchema }
   }
 
+  /**
+   * An example of the current iteration: the first item the parent node
+   * returned the last time it was tested.
+   */
+  getSampleValue(applicationContext, [parentNodeId, ...rest]) {
+    if (rest.length === 0) {
+      return undefined
+    }
+    const found = findNodeAndType(this.app, applicationContext, parentNodeId)
+    if (!found) {
+      return undefined
+    }
+    const item = found.nodeType.getSampleValue(found.node, ['0'])
+    if (item === undefined) {
+      return undefined
+    }
+    try {
+      const value = getValueAtPath({ index: 0, item }, rest, NO_SAMPLE_VALUE)
+      return value === NO_SAMPLE_VALUE ? undefined : value
+    } catch {
+      return undefined
+    }
+  }
+
   getPathTitle(applicationContext, pathParts) {
     if (pathParts.length === 2) {
       const workflow = applicationContext?.workflow
@@ -186,5 +274,16 @@ export class CurrentNodeDataProviderType extends DataProviderType {
     const nodeType = this.app.$registry.get('node', node.type)
     const schema = nodeType.getDataSchema({ automation, node })
     return schema ? { ...schema, title: this.name } : null
+  }
+
+  /**
+   * The value the edited node returned the last time it was tested.
+   */
+  getSampleValue(applicationContext, path) {
+    const { node } = applicationContext
+    if (!node?.type) {
+      return undefined
+    }
+    return this.app.$registry.get('node', node.type).getSampleValue(node, path)
   }
 }

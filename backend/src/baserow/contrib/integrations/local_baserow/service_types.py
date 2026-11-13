@@ -296,6 +296,14 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         MultipleCollaboratorsFieldType.type,
     ]
 
+    def outdates_sample_data(self, changes: Dict[str, Tuple]) -> bool:
+        """
+        The sample data holds rows of the table the service was tested with,
+        keyed by field name. It says nothing about another table.
+        """
+
+        return "table" in changes or super().outdates_sample_data(changes)
+
     class SerializedDict(ServiceDict):
         table_id: int
 

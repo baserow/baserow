@@ -96,7 +96,8 @@
     "currentIteration": "Current iteration",
     "currentNode": "This node",
     "item": "Item",
-    "previousNode": "Previous node"
+    "previousNode": "Previous node",
+    "testToSeeValues": "Test this step to see its values"
   },
   "nodeSidePanel": {
     "labelTitle": "Label"
