@@ -543,3 +543,11 @@ class BuilderConfig(AppConfig):
         mcp_tool_registry.register(UpdateElementActionMcpTool())
         mcp_tool_registry.register(SetupPageMcpTool())
         mcp_tool_registry.register(SetThemeMcpTool())
+
+        from baserow.core.abuse_reports.registries import (
+            abuse_report_resource_type_registry,
+        )
+
+        from .abuse_reports import BuilderAbuseReportResourceType
+
+        abuse_report_resource_type_registry.register(BuilderAbuseReportResourceType())
