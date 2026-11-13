@@ -113,7 +113,9 @@ class UserFileField(serializers.Field):
             self.fail("invalid_value")
 
         try:
-            user_file = UserFile.objects.all().name(data["name"]).get()
+            user_file = (
+                UserFile.objects.exclude_template_files().name(data["name"]).get()
+            )
         except UserFile.DoesNotExist:
             self.fail("invalid_user_file")
 

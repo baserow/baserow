@@ -1,22 +1,38 @@
 from contextlib import contextmanager
 from datetime import timedelta
+from io import BytesIO
+from pathlib import Path
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
-from django.db import connection
+from django.db import connection, transaction
 from django.utils import timezone
 
 import pytest
+from PIL import Image
 
 from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowFieldsUpdatedTriggerNodeType,
 )
-from baserow.contrib.builder.elements.models import ChoiceElement
+from baserow.contrib.builder.elements.models import (
+    ChoiceElement,
+    Element,
+    ImageElement,
+)
+from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.theme.models import PageThemeConfigBlock
 from baserow.contrib.database.application_types import DatabaseApplicationType
-from baserow.contrib.database.fields.models import PasswordField
+from baserow.contrib.database.fields.models import (
+    FileField,
+    LongTextField,
+    PasswordField,
+)
+from baserow.contrib.database.fields.rich_text_utils import extract_user_file_names
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.views.models import ViewDefaultValue
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import FormView, ViewDefaultValue
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowAggregateRows
 from baserow.core.action.registries import action_type_registry
 from baserow.core.cache import local_cache
@@ -27,9 +43,10 @@ from baserow.core.job_types import InstallTemplateJobType
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.tasks import run_async_job
-from baserow.core.models import Template, TemplateCategory
+from baserow.core.models import Template, TemplateCategory, UserFile
 from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.storage import get_default_storage
+from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_templates.actions import UpdateUserTemplateVisibilityActionType
 from baserow.core.user_templates.archive import (
     new_template_archive_name,
@@ -65,8 +82,6 @@ CLEARED_KEYS = {
 
 
 def serialized_content(revision):
-    """The content of the revision as an install reads it."""
-
     return UserTemplateHandler().serialize_template_content(revision)
 
 
@@ -529,3 +544,143 @@ def assert_password_data_left_out(table):
     assert [(default.field_id, default.value) for default in defaults] == [
         (primary_field.id, NOTE_DEFAULT)
     ]
+
+
+def stored_paths():
+    media_root = Path(settings.MEDIA_ROOT)
+    return {p.relative_to(media_root) for p in media_root.rglob("*") if p.is_file()}
+
+
+def _upload_image(user, name, color):
+    buffer = BytesIO()
+    Image.new("RGB", (4, 4), color).save(buffer, format="PNG")
+    buffer.seek(0)
+    return UserFileHandler().upload_user_file(user, name, buffer)
+
+
+def add_files_to_source(data_fixture, source):
+    user, table, builder = source["user"], source["table"], source["builder"]
+    files = {
+        "cell": _upload_image(user, "cell.png", "red"),
+        "rich_text": _upload_image(user, "rich_text.png", "green"),
+        "form_cover": _upload_image(user, "form_cover.png", "blue"),
+        "form_logo": _upload_image(user, "form_logo.png", "purple"),
+        "view_default": _upload_image(user, "view_default.png", "orange"),
+        "rich_text_default": _upload_image(user, "rich_text_default.png", "gray"),
+        "image_element": _upload_image(user, "image_element.png", "yellow"),
+        "element_background": _upload_image(user, "element_background.png", "white"),
+        "page_background": _upload_image(user, "page_background.png", "black"),
+    }
+
+    file_field = data_fixture.create_file_field(table=table, name="File")
+    rich_text_field = data_fixture.create_long_text_field(
+        table=table, name="Notes", long_text_enable_rich_text=True
+    )
+    with transaction.atomic():
+        for _ in range(2):
+            RowHandler().create_row(
+                user,
+                table,
+                values={
+                    file_field.db_column: [{"name": files["cell"].name}],
+                    rich_text_field.db_column: (
+                        f"See ![img][{files['rich_text'].name}] "
+                        f"and ![cover][{files['form_cover'].name}]"
+                    ),
+                },
+            )
+    data_fixture.create_form_view(
+        table=table,
+        cover_image=files["form_cover"],
+        logo_image=files["form_logo"],
+        order=1,
+    )
+    view_with_defaults = data_fixture.create_grid_view(
+        table=table, name="With a default file"
+    )
+    ViewDefaultValue.objects.create(
+        view=view_with_defaults,
+        field=rich_text_field,
+        value=f"![default][{files['rich_text_default'].name}]",
+        field_type="long_text",
+    )
+    ViewDefaultValue.objects.create(
+        view=view_with_defaults,
+        field=file_field,
+        value=[
+            {
+                "name": files["view_default"].name,
+                "visible_name": "Default.png",
+                "url": UserFileHandler().get_user_file_url(files["view_default"]),
+                "size": files["view_default"].size,
+            }
+        ],
+        field_type="file",
+    )
+
+    page = builder.page_set.exclude(shared=True).first()
+    data_fixture.create_builder_image_element(
+        page=page,
+        image_source_type="upload",
+        image_file=files["image_element"],
+        style_background_file=files["element_background"],
+    )
+    builder.favicon_file = files["image_element"]
+    builder.save(update_fields=["favicon_file"])
+    PageThemeConfigBlock.objects.update_or_create(
+        builder=builder, defaults={"page_background_file": files["page_background"]}
+    )
+
+    return files
+
+
+def user_files_referenced_in(workspace):
+    names = set()
+    for table in Table.objects.filter(database__workspace=workspace):
+        model = table.get_model()
+        for field in FileField.objects.filter(table=table):
+            for value in model.objects.values_list(field.db_column, flat=True):
+                names.update(file["name"] for file in value or [])
+        for field in LongTextField.objects.filter(
+            table=table, long_text_enable_rich_text=True
+        ):
+            for value in model.objects.values_list(field.db_column, flat=True):
+                names.update(extract_user_file_names(value))
+    for default in ViewDefaultValue.objects.filter(
+        view__table__database__workspace=workspace, field_type="file"
+    ):
+        names.update(file["name"] for file in default.value or [])
+    for default in ViewDefaultValue.objects.filter(
+        view__table__database__workspace=workspace, field_type="long_text"
+    ):
+        names.update(extract_user_file_names(default.value or ""))
+
+    ids = set()
+    for queryset, columns in [
+        (
+            FormView.objects.filter(table__database__workspace=workspace),
+            ["cover_image_id", "logo_image_id"],
+        ),
+        (Builder.objects.filter(workspace=workspace), ["favicon_file_id"]),
+        (
+            Element.objects.filter(page__builder__workspace=workspace),
+            ["style_background_file_id"],
+        ),
+        (
+            ImageElement.objects.filter(page__builder__workspace=workspace),
+            ["image_file_id"],
+        ),
+        (
+            PageThemeConfigBlock.objects.filter(builder__workspace=workspace),
+            ["page_background_file_id"],
+        ),
+    ]:
+        for row in queryset.values_list(*columns):
+            ids.update(file_id for file_id in row if file_id is not None)
+
+    files = set(UserFile.objects.filter(id__in=ids))
+    if names:
+        by_name = set(UserFile.objects.all().name(*names))
+        assert {user_file.name for user_file in by_name} == names
+        files |= by_name
+    return files

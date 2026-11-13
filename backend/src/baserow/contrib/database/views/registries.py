@@ -364,7 +364,10 @@ class ViewType(
 
         if self.can_set_default_values and view.table_id is not None:
             default_row_values = self._export_default_row_values(
-                view, cache, files_zip, storage
+                view,
+                cache,
+                files_zip if import_export_config.is_user_template else None,
+                storage,
             )
             if default_row_values:
                 serialized["default_row_values"] = default_row_values
@@ -691,7 +694,12 @@ class ViewType(
                 continue
             if field_type is not None and value is not None:
                 value = field_type.export_serialized_default_value(
-                    value, field, workspace_id, cache
+                    value,
+                    field,
+                    workspace_id,
+                    cache,
+                    files_zip=files_zip,
+                    storage=storage,
                 )
 
             serialized_values[str(default_value.field_id)] = {
@@ -753,7 +761,12 @@ class ViewType(
             value = default_value_data.get("value")
             if value is not None:
                 value = field_type.import_serialized_default_value(
-                    value, id_mapping, workspace_id, cache
+                    value,
+                    id_mapping,
+                    workspace_id,
+                    cache,
+                    files_zip=files_zip,
+                    storage=storage,
                 )
 
             records.append(

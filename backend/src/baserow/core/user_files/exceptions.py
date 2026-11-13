@@ -54,3 +54,9 @@ class MaximumUniqueTriesError(Exception):
     Raised when the maximum tries has been exceeded while generating a unique user file
     string.
     """
+
+
+class TemplateImportWithoutFilesZip(Exception):
+    """
+    Raised when an import into a template workspace has no files zip.
+    """
