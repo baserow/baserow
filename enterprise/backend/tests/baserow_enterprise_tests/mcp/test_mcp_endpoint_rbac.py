@@ -1,9 +1,19 @@
+from unittest.mock import patch
+
+from django.urls import reverse
+
 import pytest
 
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
+from tests.baserow.core.mcp.oauth.helpers import (
+    authorize_query,
+    cimd_client,
+    fake_cimd_fetch,
+    pkce_pair,
+)
 
 
 def _member(enterprise_data_fixture, workspace_role, database_role=None):
@@ -50,3 +60,25 @@ def test_member_without_any_role_cannot_create_mcp_endpoints(
         handler.grant_oauth_client(user, workspace, "client", "App", [])
     with pytest.raises(PermissionDenied):
         handler.create_endpoint(user, workspace, "Key")
+
+
+@pytest.mark.django_db
+@patch("baserow.core.mcp.oauth.cimd.MCPMetadataFetcher.download", fake_cimd_fetch)
+def test_consent_page_counts_only_databases_the_member_can_see(
+    client, api_client, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    user, workspace = _member(enterprise_data_fixture, "NO_ROLE_LOW_PRIORITY", "VIEWER")
+    enterprise_data_fixture.create_database_application(workspace=workspace)
+    token = enterprise_data_fixture.generate_token(user)
+    _, challenge = pkce_pair()
+
+    response = api_client.get(
+        reverse("api:mcp:oauth_consent"),
+        {"query": authorize_query(cimd_client(client), challenge)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["workspaces"] == [
+        {"id": workspace.id, "name": workspace.name, "database_count": 1}
+    ]

@@ -39,6 +39,7 @@ from baserow.core.mcp.operations import CreateMCPEndpointOperationType
 from baserow.core.mcp.registries import mcp_tool_registry
 from baserow.core.models import WorkspaceUser
 from baserow.core.registries import application_type_registry
+from baserow.core.service import CoreService
 
 from .errors import ERROR_MCP_ENDPOINT_DOES_NOT_EXIST, ERROR_MCP_TOOLS_NOT_AVAILABLE
 from .oauth_serializers import ConsentSerializer
@@ -174,8 +175,12 @@ class MCPOAuthConsentView(APIView):
         tools = mcp_tool_registry.get_enabled_tools()
         database_model = application_type_registry.get("database").model_class
         database_counts = dict(
-            database_model.objects.filter(
-                workspace_id__in=[wu.workspace_id for wu in workspace_users]
+            CoreService()
+            .list_applications_in_workspaces(
+                request.user,
+                [wu.workspace for wu in workspace_users],
+                specific=False,
+                base_queryset=database_model.objects,
             )
             .values_list("workspace_id")
             .annotate(count=Count("id"))
