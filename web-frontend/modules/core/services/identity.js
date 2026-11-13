@@ -10,18 +10,22 @@ export default (client) =>
       create(workspaceId, values) {
         return client.post(`/identities/workspace/${workspaceId}/`, values)
       },
-      /** Fetch every page before exposing Identities to membership selectors. */
-      async list(workspaceId) {
+      /** Fetch every page, optionally limiting the results to selectable identities. */
+      async list(workspaceId, { forSelection = false } = {}) {
         const url = `/identities/workspace/${workspaceId}/`
+        const params = { size: 200 }
+        if (forSelection) {
+          params.for_selection = true
+        }
         const response = await client.get(url, {
-          params: { size: 200, page: 1 },
+          params: { ...params, page: 1 },
         })
         const results = [...response.data.results]
         let next = response.data.next
         let page = 2
         while (next) {
           const { data } = await client.get(url, {
-            params: { size: 200, page },
+            params: { ...params, page },
           })
           results.push(...data.results)
           next = data.next

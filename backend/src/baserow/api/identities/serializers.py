@@ -81,3 +81,4 @@ class IdentityListParamsSerializer(serializers.Serializer):
     size = serializers.IntegerField(required=False)
     search = serializers.CharField(required=False, allow_null=True, default=None)
     sorts = serializers.CharField(required=False, allow_null=True, default=None)
+    for_selection = serializers.BooleanField(required=False, default=False)

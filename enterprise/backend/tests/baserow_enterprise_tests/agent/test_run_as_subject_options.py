@@ -30,8 +30,8 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
     auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
     workspace_options = api_client.get(
-        reverse("api:subjects:list"),
-        {"workspace_id": workspace.id, "subject_types": "auth.User"},
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        {"for_selection": True},
         **auth,
     )
     choices = api_client.get(

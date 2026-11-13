@@ -73,6 +73,26 @@ class AgentRunAsSerializer(serializers.Serializer):
     )
 
 
+class AgentRunAsOptionSerializer(serializers.Serializer):
+    """A selectable identity returned by the Agent's scoped run-as endpoint."""
+
+    user_type = serializers.CharField(
+        source="subject_user_type", read_only=True, allow_null=True
+    )
+    id = serializers.SerializerMethodField()
+    subject_id = serializers.IntegerField(read_only=True)
+    subject_type = serializers.CharField(read_only=True)
+    name = serializers.CharField(source="subject_name", read_only=True)
+    label = serializers.CharField(source="subject_label", read_only=True)
+    email = serializers.EmailField(
+        source="subject_email", read_only=True, allow_null=True
+    )
+    subject_count = serializers.IntegerField(read_only=True, allow_null=True)
+
+    def get_id(self, instance):
+        return f"{instance['subject_type']}:{instance['subject_id']}"
+
+
 class AgentRunAsSubjectsQueryParamsSerializer(serializers.Serializer):
     page = serializers.IntegerField(min_value=1, required=False, default=1)
     size = serializers.IntegerField(min_value=1, max_value=100, required=False)

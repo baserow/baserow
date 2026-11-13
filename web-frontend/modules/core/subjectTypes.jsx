@@ -245,7 +245,12 @@ export class UserSubjectType extends SubjectType {
     ) {
       return users
     }
-    const { data } = await IdentityService(this.app.$client).list(workspace.id)
+    const { data } = await IdentityService(this.app.$client).list(
+      workspace.id,
+      {
+        forSelection: true,
+      }
+    )
     return [...users, ...data.results]
   }
 

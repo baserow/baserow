@@ -77,6 +77,13 @@ class WorkspaceIdentitiesView(APIView, SearchableViewMixin, SortableViewMixin):
         parameters=[
             WORKSPACE_ID_PATH_PARAMETER,
             OpenApiParameter(
+                name="for_selection",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Only return active identities that are not scheduled "
+                "for deletion, for use in selectors.",
+            ),
+            OpenApiParameter(
                 name="page",
                 type=OpenApiTypes.INT,
                 location=OpenApiParameter.QUERY,
@@ -123,7 +130,9 @@ class WorkspaceIdentitiesView(APIView, SearchableViewMixin, SortableViewMixin):
         """Returns a paginated, searchable, and sortable list of workspace identities."""
 
         workspace = CoreHandler().get_workspace(workspace_id)
-        queryset = IdentityService().list_identities(request.user, workspace)
+        queryset = IdentityService().list_identities(
+            request.user, workspace, for_selection=query_params["for_selection"]
+        )
         queryset = self.apply_search(query_params.get("search"), queryset)
         queryset = self.apply_sorts_or_default_sort(query_params.get("sorts"), queryset)
         # Duplicate sort values need a unique tie-breaker for stable page boundaries.

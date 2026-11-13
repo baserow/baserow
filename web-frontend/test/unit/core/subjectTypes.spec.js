@@ -158,6 +158,9 @@ describe('SubjectType invite options', () => {
         app: app(withIdentities),
       }).fetchAssignableSubjects({ id: 12, users })
     ).resolves.toEqual([{ user_id: 8 }, { id: 4 }])
+    expect(client.get).toHaveBeenLastCalledWith('/identities/workspace/12/', {
+      params: { size: 200, page: 1, for_selection: true },
+    })
 
     // Without the flag or the permission to list identities, none are fetched.
     client.get.mockClear()

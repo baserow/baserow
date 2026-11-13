@@ -22,12 +22,15 @@ from baserow.core.models import User, Workspace
 class IdentityService:
     """Provides permission-aware operations for managing workspace identities."""
 
-    def list_identities(self, user: AbstractUser, workspace: Workspace):
+    def list_identities(
+        self, user: AbstractUser, workspace: Workspace, *, for_selection: bool = False
+    ):
         """
         Lists the identities in a workspace that the user is allowed to access.
 
         :param user: The user requesting the identities.
         :param workspace: The workspace whose identities should be returned.
+        :param for_selection: Whether to limit the result to selectable identities.
         :return: A queryset containing the workspace identities.
         """
 
@@ -37,7 +40,7 @@ class IdentityService:
             workspace=workspace,
             context=workspace,
         )
-        return IdentityHandler().get_queryset(workspace)
+        return IdentityHandler().get_queryset(workspace, for_selection=for_selection)
 
     @transaction.atomic
     def create_identity(

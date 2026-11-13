@@ -143,6 +143,65 @@ def test_admin_can_crud_search_and_soft_delete_identities(data_fixture, api_clie
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("for_selection", [None, False, True])
+def test_identity_selection_filters_before_search_and_pagination(
+    data_fixture, api_client, for_selection
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    active = [
+        data_fixture.create_identity(workspace=workspace, name=f"Match active {i}")
+        for i in range(2)
+    ]
+    inactive = data_fixture.create_identity(
+        workspace=workspace, name="Match inactive", is_active=False
+    )
+    scheduled = data_fixture.create_identity(
+        workspace=workspace, name="Match scheduled"
+    )
+    scheduled.profile.to_be_deleted = True
+    scheduled.profile.save(update_fields=["to_be_deleted"])
+    data_fixture.create_identity(
+        workspace=workspace, name="Match trashed", trashed=True
+    )
+    data_fixture.create_identity(workspace=workspace, name="Excluded")
+    data_fixture.create_identity(name="Match other workspace")
+
+    expected = active if for_selection else [*active, inactive, scheduled]
+    params = {"search": "Match ", "size": 1}
+    if for_selection is not None:
+        params["for_selection"] = for_selection
+    url = reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id})
+    results = []
+    for page in range(1, len(expected) + 1):
+        response = api_client.get(
+            url, {**params, "page": page}, HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        assert response.status_code == 200
+        assert response.json()["count"] == len(expected)
+        results.extend(response.json()["results"])
+
+    assert [item["id"] for item in results] == [identity.id for identity in expected]
+    assert all(item["user_type"] == "identity" for item in results)
+
+
+@pytest.mark.django_db
+def test_identity_selection_requires_workspace_permission(data_fixture, api_client):
+    _, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_identity(workspace=workspace)
+
+    response = api_client.get(
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        {"for_selection": True},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("sorts", [None, "+name", "-name"])
 def test_identity_pagination_with_duplicate_names(data_fixture, api_client, sorts):
     """Tied names must have stable ordering across page boundaries."""
@@ -254,6 +313,7 @@ def test_identity_list_openapi_schema_matches_paginated_response(api_client):
         "size",
         "search",
         "sorts",
+        "for_selection",
     }
 
     response_schema = operation["responses"]["200"]["content"]["application/json"][

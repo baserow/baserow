@@ -40,11 +40,15 @@ class IdentityHandler:
     def get_role_uid(cls, identity: User) -> str:
         return cls.get_workspace_user(identity).permissions
 
-    def get_queryset(self, workspace: Workspace) -> QuerySet[User]:
+    def get_queryset(
+        self, workspace: Workspace, *, for_selection: bool = False
+    ) -> QuerySet[User]:
         """
         Returns the identities in the workspace with all registered extensions applied.
 
         :param workspace: The workspace whose identities should be returned.
+        :param for_selection: Whether to exclude inactive and deletion-scheduled
+            identities from the result.
         :return: A queryset containing the workspace identities.
         """
 
@@ -65,6 +69,8 @@ class IdentityHandler:
             )
             .order_by("first_name", "id")
         )
+        if for_selection:
+            queryset = queryset.filter(is_active=True, profile__to_be_deleted=False)
         return identity_extension_type_registry.enhance_queryset(queryset, workspace)
 
     def get_identity(

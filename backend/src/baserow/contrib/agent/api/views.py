@@ -24,7 +24,6 @@ from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.pagination import PageNumberPagination, encode_keyset_cursor
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
-from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
@@ -75,6 +74,7 @@ from .serializers import (
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
+    AgentRunAsOptionSerializer,
     AgentRunAsSubjectsQueryParamsSerializer,
     AgentToolDecisionsSerializer,
 )
@@ -280,7 +280,7 @@ class AgentRunAsSubjectsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         description="Lists active workspace identities selectable for this Agent. "
         "Requires permission to read and update its configuration.",
         responses={
-            200: get_example_pagination_serializer_class(SubjectOptionSerializer),
+            200: get_example_pagination_serializer_class(AgentRunAsOptionSerializer),
             **READ_ERRORS,
         },
     )
@@ -297,7 +297,7 @@ class AgentRunAsSubjectsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         paginator = PageNumberPagination(limit_page_size=100)
         page = paginator.paginate_queryset(options, request, view=self)
         return paginator.get_paginated_response(
-            SubjectOptionSerializer(page, many=True).data
+            AgentRunAsOptionSerializer(page, many=True).data
         )
 
 
