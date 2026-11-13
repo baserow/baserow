@@ -83,10 +83,35 @@ new containers) before moving on.
 5. Remove the old key from `BASEROW_ENCRYPTION_KEY_FALLBACKS` and restart everything.
    Keep the old key for your older backups.
 
-`BASEROW_ENCRYPTION_KEY_FALLBACKS` also accepts old values of `SECRET_KEY`. Use it the
-same way when you change `SECRET_KEY` while `BASEROW_ENCRYPTION_KEY` isn't set, or when
-you set `BASEROW_ENCRYPTION_KEY` for the first time: put the old `SECRET_KEY` in the
-fallbacks, then follow steps 2 to 5. Django's own `SECRET_KEY_FALLBACKS` is read too.
+### Setting a dedicated key for the first time
+
+While `BASEROW_ENCRYPTION_KEY` isn't set, secrets use a key derived from `SECRET_KEY`.
+Values derived from the current `SECRET_KEY` stay readable after you set a dedicated key,
+so there is no old key to remove, but every process still has to read the new key before
+any process writes with it.
+
+1. Add the new key to `BASEROW_ENCRYPTION_KEY_FALLBACKS`, leaving
+   `BASEROW_ENCRYPTION_KEY` unset. Restart everything.
+2. Set the new key as `BASEROW_ENCRYPTION_KEY`. Keep `SECRET_KEY` as it is. Restart
+   everything.
+3. Run `reencrypt_secrets`, then `reencrypt_secrets --check`, as in steps 3 and 4 above.
+4. Remove the new key from `BASEROW_ENCRYPTION_KEY_FALLBACKS` (it's the main key now)
+   and restart everything.
+
+### Changing `SECRET_KEY` while no dedicated key is set
+
+`BASEROW_ENCRYPTION_KEY_FALLBACKS` also accepts values of `SECRET_KEY`, and Django's own
+`SECRET_KEY_FALLBACKS` is read too.
+
+1. Add the new `SECRET_KEY` value to `BASEROW_ENCRYPTION_KEY_FALLBACKS`, keeping the old
+   `SECRET_KEY`. Restart everything.
+2. Set the new `SECRET_KEY`, and move the old value to `BASEROW_ENCRYPTION_KEY_FALLBACKS`
+   or `SECRET_KEY_FALLBACKS`. Restart everything.
+3. Run `reencrypt_secrets`, then `reencrypt_secrets --check`, as in steps 3 and 4 above.
+4. Remove both values from the fallbacks and restart everything. Keep the old value for
+   your older backups.
+
+When a dedicated key is set, changing `SECRET_KEY` doesn't affect stored secrets.
 
 To undo a change part way through, set the old key back as `BASEROW_ENCRYPTION_KEY`
 and keep the new key in the fallbacks until `reencrypt_secrets` has moved every secret
@@ -94,9 +119,25 @@ back to the old key.
 
 ## Upgrading and rolling back
 
-Upgrading needs no extra step. A secret stored as plain text by an earlier version is
-still read, and `reencrypt_secrets` encrypts it.
+Upgrading from a release needs no extra step. A secret stored as plain text by an
+earlier version is still read, and `reencrypt_secrets` encrypts it.
 
-The first release that encrypts these fields is also the first release with MCP
-servers, so no earlier release reads them, and rolling back to one doesn't need them
-decrypted.
+No release before this one has MCP servers, so rolling back to a release doesn't need
+these secrets decrypted.
+
+### Upgrading from a development build with MCP servers
+
+Development builds from before this change store MCP server credentials as plain text
+and can't read encrypted ones. While old and new processes run side by side, an old
+process that reads an encrypted OAuth token sends it as is, and when the provider refuses
+it, clears the account's tokens, so an editor has to sign in again.
+
+1. Before deploying, run `reencrypt_secrets --check` with the new image against the
+   database. It doesn't change anything. If every field shows `empty`, there is nothing
+   else to do.
+2. Otherwise, stop every old Baserow process before the first new one starts, for
+   example with a recreate instead of a rolling update. No MCP server can be used during
+   that gap.
+3. Once the new version runs, don't roll back to a build from before this change: it
+   would send the encrypted credentials and clear OAuth tokens. If you have to, editors
+   must enter the credentials of their MCP servers and sign in again.
