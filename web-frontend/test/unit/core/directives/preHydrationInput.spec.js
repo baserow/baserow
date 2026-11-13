@@ -4,11 +4,22 @@ import { renderToString } from 'vue/server-renderer'
 
 import Checkbox from '@baserow/modules/core/components/Checkbox.vue'
 import FormInput from '@baserow/modules/core/components/FormInput.vue'
+import FormTextarea from '@baserow/modules/core/components/FormTextarea.vue'
+import head from '@baserow/modules/core/head'
 
 // The server rendered inputs can be used before the page is hydrated. What the user
 // did in that window must survive the hydration.
 describe('preHydrationInput', () => {
   let container = null
+
+  beforeAll(() => {
+    head.script.forEach((script) => new Function(script.innerHTML)())
+  })
+
+  const type = (input, value) => {
+    input.value = value
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
 
   const createApp = (component, state, props) =>
     createSSRApp({
@@ -35,20 +46,21 @@ describe('preHydrationInput', () => {
       createApp(component, server, props)
     )
     document.body.appendChild(container)
-    interact(container.querySelector('input'))
+    const input = container.querySelector('input, textarea')
+    interact(input)
 
     const client = { value: ref(initial), events: [] }
     createApp(component, client, props).mount(container)
     await Promise.resolve()
-    return { input: container.querySelector('input'), ...client }
+    return { input, ...client }
   }
 
   afterEach(() => container?.remove())
 
   test('keeps a value typed and left before hydration', async () => {
-    const { input, value, events } = await hydrate((input) => {
-      input.value = 'Jane Doe'
-    })
+    const { input, value, events } = await hydrate((input) =>
+      type(input, 'Jane Doe')
+    )
 
     expect(input.value).toBe('Jane Doe')
     expect(value.value).toBe('Jane Doe')
@@ -79,6 +91,44 @@ describe('preHydrationInput', () => {
     expect(value.value).toBe(true)
   })
 
+  test.each([
+    ['FormInput', FormInput, 'value', 'Jane Doe', ''],
+    ['FormTextarea', FormTextarea, 'value', 'Jane Doe', ''],
+    ['Checkbox', Checkbox, 'checked', true, false],
+  ])(
+    'drops a value the browser restored on reload in %s',
+    async (name, component, prop, restored, initial) => {
+      const { input, value } = await hydrate(
+        (input) => (input[prop] = restored),
+        component,
+        initial
+      )
+
+      expect(input[prop]).toBe(initial)
+      expect(value.value).toBe(initial)
+    }
+  )
+
+  test('resets the values the browser restored once the page is parsed', () => {
+    container = document.createElement('div')
+    container.innerHTML =
+      '<input value="" /><input type="checkbox" /><input value="" />'
+    document.body.appendChild(container)
+    const [restored, restoredCheckbox, typed] =
+      container.querySelectorAll('input')
+    restored.value = 'Jane Doe'
+    restoredCheckbox.checked = true
+    type(typed, 'John')
+
+    vi.spyOn(document, 'readyState', 'get').mockReturnValue('interactive')
+    document.dispatchEvent(new Event('readystatechange'))
+    vi.restoreAllMocks()
+
+    expect(restored.value).toBe('')
+    expect(restoredCheckbox.checked).toBe(false)
+    expect(typed.value).toBe('John')
+  })
+
   test('keeps a value typed while an async sibling delays the mount', async () => {
     let resume = null
     const AsyncSibling = defineComponent({
@@ -107,13 +157,12 @@ describe('preHydrationInput', () => {
     container.innerHTML = await renderToString(createSuspenseApp(ref('')))
     document.body.appendChild(container)
     const input = container.querySelector('input')
-    input.value = 'Jane'
+    type(input, 'Jane')
 
     resume = true
     const state = ref('')
     createSuspenseApp(state).mount(container)
-    input.value = 'Jane Doe'
-    input.dispatchEvent(new Event('input'))
+    type(input, 'Jane Doe')
     resume()
     await flushPromises()
 

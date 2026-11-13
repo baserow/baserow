@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Don't fill forms again with previously submitted values after a reload in Firefox",
+    "issue_origin": "github",
+    "issue_number": 6697,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-12"
+}
