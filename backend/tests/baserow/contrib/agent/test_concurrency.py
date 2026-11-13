@@ -10,8 +10,11 @@ import pytest
 from baserow.contrib.agent.actions import DeleteAgentConversationActionType
 from baserow.contrib.agent.constants import AGENT_RUN_TYPE
 from baserow.contrib.agent.exceptions import AgentConversationDoesNotExist
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentConversation, AgentToolApproval
 from baserow.contrib.agent.service import AgentService
+from baserow.contrib.agent.triggers.dispatcher import agent_trigger_dispatcher
+from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import UpdateApplicationActionType
 from baserow.core.chat_runs.handler import ChatRunHandler
@@ -112,6 +115,51 @@ def test_configuration_update_and_application_rename_are_serialized(data_fixture
 
     agent.refresh_from_db()
     assert (agent.name, agent.instructions) == ("Renamed agent", "Updated instructions")
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("changes", [{"name": "Renamed"}, {"enabled": False}])
+def test_a_trigger_firing_and_builder_save_do_not_deadlock(
+    data_fixture, configured_agent, mocker, changes
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    mocker.patch.object(ChatRunHandler, "_enqueue")
+    captured = mocker.patch(
+        "baserow.contrib.agent.triggers.dispatcher.exception_capturer"
+    )
+    firing_connected = Event()
+    firing_pid = []
+
+    def fire():
+        try:
+            firing_pid.append(start_session())
+            firing_connected.set()
+            agent_trigger_dispatcher.start(trigger.id, "Check the inbox", None)
+        finally:
+            connections.close_all()
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with transaction.atomic():
+            # A builder locks the Agent before looking up and locking its trigger.
+            AgentHandler().get_agent(agent.id, for_update=True)
+            firing = executor.submit(fire)
+            assert firing_connected.wait(10)
+            assert wait_until_blocked(firing_pid[0], firing)
+            # The firing must wait before locking the trigger, otherwise its
+            # conversation's deferred Agent FK check and this save deadlock.
+            AgentTriggerService().update_trigger(user, agent.id, trigger.id, **changes)
+        firing.result(timeout=10)
+
+    captured.assert_not_called()
+    trigger.refresh_from_db()
+    for field, value in changes.items():
+        assert getattr(trigger, field) == value
+    assert AgentConversation.objects.filter(trigger=trigger).count() == (
+        1 if trigger.enabled else 0
+    )
+    assert ChatRun.objects.count() == (1 if trigger.enabled else 0)
 
 
 @pytest.mark.django_db(transaction=True)

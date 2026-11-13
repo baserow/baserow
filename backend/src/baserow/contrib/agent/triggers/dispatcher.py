@@ -206,8 +206,7 @@ class AgentTriggerDispatcher:
         """
         Apply the rules of a trigger that fired, if it still can run: start or
         queue its conversation and tell the readers, or record why the firing was
-        skipped. A failure, a deadlock with a concurrent hand-off included, is
-        logged and reported, never raised.
+        skipped. A failure is logged and reported, never raised.
 
         :param trigger_id: The id of the trigger that fired.
         :param content: The resolved message opening the conversation.
@@ -234,15 +233,27 @@ class AgentTriggerDispatcher:
 
     def _lock(self, trigger_id: int) -> AgentTrigger | None:
         """
-        Lock a trigger that fired while its rules apply: a builder saving it or
-        another firing of it goes first, so a switch-off is never missed and two
-        firings never both start.
+        Lock the Agent, then its trigger, while a firing's rules apply. This
+        matches builder saves and serializes firings across the Agent's triggers.
+        Re-read the trigger under its lock so a switch-off is never missed.
 
         :param trigger_id: The id of the trigger.
         :return: The trigger with its agent, workspace and service, or None when it
             was trashed or deleted since it fired.
         """
 
+        # A builder locks the Agent before the trigger. Taking that lock first
+        # avoids waiting for the Agent's FK check while holding the trigger.
+        # No key: a concurrent private conversation may hold the workspace run
+        # lock and must still be able to commit its foreign key to this Agent.
+        agent = (
+            AgentApplication.objects.filter(triggers__id=trigger_id)
+            .select_for_update(of=("self",), no_key=True)
+            .only("pk")
+            .first()
+        )
+        if agent is None:
+            return None
         # No key: a transaction only referencing the trigger never holds it back.
         trigger = (
             AgentTrigger.objects.select_for_update(of=("self",), no_key=True)

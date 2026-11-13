@@ -805,6 +805,29 @@ def test_a_firing_waits_for_whoever_holds_its_trigger_and_reads_it_again(
 
 @pytest.mark.django_db(transaction=True)
 @override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=5)
+def test_a_firing_lets_a_private_conversation_commit_its_agent_foreign_key(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = periodic_trigger(data_fixture, agent)
+
+    with transaction.atomic():
+        action_type_registry.get_by_type(CreateAgentConversationActionType).do(
+            user, agent.id, uuid4(), uuid4(), "Hello"
+        )
+        firing = in_another_connection(lambda: apply_a_firing(trigger))
+        wait_for_a_lock_waiter()
+        # The firing holds the Agent while it waits for our workspace run lock.
+        # Its lock must allow this conversation's deferred FK check at commit.
+    firing.result(timeout=10)
+
+    assert AgentConversation.objects.count() == 2
+    assert ChatRun.objects.count() == 2
+
+
+@pytest.mark.django_db(transaction=True)
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE=5)
 def test_a_hand_off_waits_for_a_firing_holding_the_workspace_run_lock(
     data_fixture, configured_agent, mocker
 ):
