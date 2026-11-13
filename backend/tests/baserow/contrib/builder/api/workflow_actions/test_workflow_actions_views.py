@@ -16,6 +16,7 @@ from rest_framework.status import (
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.preview import (
     BuilderPreviewActor,
@@ -159,16 +160,30 @@ def test_start_workflow_commits_history_before_scheduling(
 
 
 @pytest.mark.django_db
-def test_create_notification_workflow_action(api_client, data_fixture):
+@pytest.mark.parametrize(
+    "element_type,event",
+    [
+        ("button", EventTypes.CLICK),
+        ("column", EventTypes.CLICK),
+        ("simple_container", EventTypes.CLICK),
+        ("choice", EventTypes.CHANGE),
+        ("record_selector", EventTypes.CHANGE),
+    ],
+)
+def test_create_notification_workflow_action(
+    api_client, data_fixture, element_type, event
+):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_button_element(page=page)
+    element = data_fixture.create_builder_element(
+        type(element_type_registry.get(element_type)), page=page
+    )
     workflow_action_type = NotificationWorkflowActionType.type
 
     url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": workflow_action_type, "event": "click", "element_id": element.id},
+        {"type": workflow_action_type, "event": event, "element_id": element.id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -177,6 +192,7 @@ def test_create_notification_workflow_action(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["type"] == workflow_action_type
     assert response_json["element_id"] == element.id
+    assert response_json["event"] == event
 
 
 @pytest.mark.django_db
@@ -296,10 +312,15 @@ def test_create_workflow_action_element_does_not_exist(api_client, data_fixture)
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("event", ["invalid", "hover", "button_click", "submit"])
-def test_create_workflow_action_invalid_event(api_client, data_fixture, event):
+@pytest.mark.parametrize("element_type", ["button", "column", "simple_container"])
+def test_create_workflow_action_invalid_event(
+    api_client, data_fixture, event, element_type
+):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_button_element(page=page)
+    element = data_fixture.create_builder_element(
+        type(element_type_registry.get(element_type)), page=page
+    )
     workflow_action_type = NotificationWorkflowActionType.type
 
     url = reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id})
@@ -317,6 +338,39 @@ def test_create_workflow_action_invalid_event(api_client, data_fixture, event):
         "The event is not valid for the element the workflow action is attached to."
     )
     assert BuilderWorkflowAction.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "element_type,event",
+    [
+        ("choice", EventTypes.CLICK),
+        ("record_selector", EventTypes.CLICK),
+        ("button", EventTypes.CHANGE),
+        ("input_text", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CHANGE),
+        ("rating_input", EventTypes.CHANGE),
+    ],
+)
+def test_create_workflow_action_rejects_unsupported_change_event(
+    api_client, data_fixture, element_type, event
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_element(
+        type(element_type_registry.get(element_type)), page=page
+    )
+
+    response = api_client.post(
+        reverse("api:builder:workflow_action:list", kwargs={"page_id": page.id}),
+        {"type": "notification", "event": event, "element_id": element.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_WORKFLOW_ACTION_EVENT"
+    assert not BuilderWorkflowAction.objects.exists()
 
 
 @pytest.mark.django_db
@@ -401,10 +455,17 @@ def test_delete_workflow_actions(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_patch_workflow_actions(api_client, data_fixture):
+@pytest.mark.parametrize("element_type", [None, "column", "simple_container"])
+def test_patch_workflow_actions(api_client, data_fixture, element_type):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    workflow_action = data_fixture.create_notification_workflow_action(page=page)
+    action_kwargs = {"page": page}
+    if element_type is not None:
+        element = data_fixture.create_builder_element(
+            type(element_type_registry.get(element_type)), page=page
+        )
+        action_kwargs.update(element=element, event=EventTypes.CLICK)
+    workflow_action = data_fixture.create_notification_workflow_action(**action_kwargs)
 
     url = reverse(
         "api:builder:workflow_action:item",
@@ -420,6 +481,11 @@ def test_patch_workflow_actions(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
     assert response_json["description"]["formula"] == "'hello'"
+    workflow_action.refresh_from_db()
+    assert workflow_action.description["formula"] == "'hello'"
+    if element_type is not None:
+        assert response_json["event"] == "click"
+        assert response_json["element_id"] == element.id
 
 
 @pytest.mark.django_db

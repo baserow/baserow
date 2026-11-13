@@ -37,7 +37,11 @@ import ColumnElementForm from '@baserow/modules/builder/components/elements/comp
 import DefaultStyleForm from '@baserow/modules/builder/components/elements/components/forms/style/DefaultStyleForm'
 import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement'
 import ButtonElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ButtonElementForm'
-import { ClickEvent, SubmitEvent } from '@baserow/modules/builder/eventTypes'
+import {
+  ChangeEvent,
+  ClickEvent,
+  SubmitEvent,
+} from '@baserow/modules/builder/eventTypes'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { isFormulaValid, resolveFormula } from '@baserow/modules/core/formula'
 import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'
@@ -1179,6 +1183,10 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     return ColumnElementForm
   }
 
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
+  }
+
   getPublicResponsiveStyles(builder) {
     const { mobile, tablet } = getBuilderBreakpoints(builder)
 
@@ -1285,6 +1293,10 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
 
   get generalFormComponent() {
     return SimpleContainerElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
   }
 
   getDefaultValues(page, values, parentElement = null) {
@@ -1629,6 +1641,10 @@ export class HeadingElementType extends ElementType {
     return HeadingElementForm
   }
 
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
+  }
+
   /**
    * A value is mandatory for the Heading element. Return true if the value
    * is empty to indicate an error, otherwise return false.
@@ -1675,6 +1691,10 @@ export class TextElementType extends ElementType {
 
   get generalFormComponent() {
     return TextElementForm
+  }
+
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
   }
 
   /**
@@ -1822,6 +1842,10 @@ export class ImageElementType extends ElementType {
     return ImageElementForm
   }
 
+  getEvents(element) {
+    return [new ClickEvent({ app: this.app })]
+  }
+
   /**
    * Image element must have an image file or a URL as its source. Return true
    * to indicate an error when an image source doesn't exist, otherwise
@@ -1920,6 +1944,10 @@ export class ButtonElementType extends ElementType {
 export class ChoiceElementType extends FormElementType {
   static getType() {
     return 'choice'
+  }
+
+  getEvents(element) {
+    return [new ChangeEvent({ app: this.app })]
   }
 
   get name() {
@@ -2210,6 +2238,10 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
 ) {
   static getType() {
     return 'record_selector'
+  }
+
+  getEvents(element) {
+    return [new ChangeEvent({ app: this.app })]
   }
 
   get fetchAtLoad() {

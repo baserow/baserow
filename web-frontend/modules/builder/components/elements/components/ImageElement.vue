@@ -1,8 +1,12 @@
 <template>
   <div
+    v-bind="clickableElementAttributes"
     :class="classes"
     class="image-element"
     :style="getStyleOverride('image')"
+    @click="onElementClick"
+    @keydown="onElementKeydown"
+    @keyup="onElementKeyup"
   >
     <ABImage
       :alt="
@@ -17,13 +21,13 @@
 </template>
 
 <script>
-import element from '@baserow/modules/builder/mixins/element'
+import clickableElement from '@baserow/modules/builder/mixins/clickableElement'
 import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'ImageElement',
-  mixins: [element],
+  mixins: [clickableElement],
   props: {
     /**
      * @type {Object}
@@ -52,6 +56,7 @@ export default {
     classes() {
       return {
         'element--no-value': !this.imageSource && !this.resolvedAltText,
+        'element--clickable': this.isClickable,
       }
     },
   },

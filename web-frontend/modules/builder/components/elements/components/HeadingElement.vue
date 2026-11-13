@@ -1,9 +1,14 @@
 <template>
   <div
+    v-bind="clickableElementAttributes"
     class="heading-element"
     :class="{
       'element--no-value': !resolvedValue,
+      'element--clickable': isClickable,
     }"
+    @click="onElementClick"
+    @keydown="onElementKeydown"
+    @keyup="onElementKeyup"
   >
     <ABHeading :level="element.level" :style="getStyleOverride('typography')">
       {{
@@ -17,12 +22,12 @@
 </template>
 
 <script>
-import element from '@baserow/modules/builder/mixins/element'
+import clickableElement from '@baserow/modules/builder/mixins/clickableElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'HeadingElement',
-  mixins: [element],
+  mixins: [clickableElement],
   props: {
     /**
      * @type {Object}

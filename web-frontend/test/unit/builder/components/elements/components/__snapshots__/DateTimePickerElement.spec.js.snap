@@ -24,6 +24,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -98,6 +99,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -172,6 +174,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -246,6 +249,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -325,6 +329,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -404,6 +409,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -483,6 +489,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -562,6 +569,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"
@@ -641,6 +649,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
           
           <div
             class="ab-datetime-picker__wrapper"
+            data-builder-interactive=""
           >
             <i
               class="ab-icon iconoir-calendar ab-datetime-picker__icon"

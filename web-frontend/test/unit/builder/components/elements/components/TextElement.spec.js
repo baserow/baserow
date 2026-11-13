@@ -3,7 +3,7 @@ import TextElement from '@baserow/modules/builder/components/elements/components
 
 describe('TextElement', () => {
   test('renders Markdown with the Application Builder rules', async () => {
-    const page = {}
+    const page = { id: 1, elements: [], workflowActions: [] }
     const builder = { id: 1, theme: {} }
     const mode = 'public'
     const element = {

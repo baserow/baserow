@@ -40,6 +40,7 @@ describe('Invalid visibility conditions', () => {
   }
   const page = {
     id: 1,
+    workflowActions: [],
     elementMap: { 2: element, 3: inaccessibleInput, 4: accessibleInput },
     orderedElements: [accessibleInput, element, inaccessibleInput],
     graph: {
@@ -50,7 +51,7 @@ describe('Invalid visibility conditions', () => {
     },
   }
   const applicationContext = {
-    builder: { id: 1 },
+    builder: { id: 1, pages: [page] },
     workspace: {},
     page,
     element,

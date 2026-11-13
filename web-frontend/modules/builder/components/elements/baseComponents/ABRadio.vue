@@ -1,5 +1,5 @@
 <template>
-  <div class="ab-radio" @click="toggle">
+  <div class="ab-radio" data-builder-interactive @click="toggle">
     <input
       type="radio"
       :checked="modelValue"

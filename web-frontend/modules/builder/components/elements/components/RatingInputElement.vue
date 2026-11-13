@@ -6,6 +6,7 @@
     :error-message="displayFormDataError ? $t('error.requiredField') : ''"
   >
     <Rating
+      data-builder-interactive
       :value="inputValue"
       :max-value="element.max_value"
       :custom-color="resolveColor(element.color, colorVariables)"

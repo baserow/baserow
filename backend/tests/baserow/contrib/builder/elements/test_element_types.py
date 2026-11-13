@@ -32,6 +32,7 @@ from baserow.contrib.builder.elements.element_types import (
     LinkElementType,
     RatingInputElementType,
     RecordSelectorElementType,
+    SimpleContainerElementType,
     TextElementType,
     collection_element_types,
 )
@@ -1720,7 +1721,15 @@ def test_element_type_has_display_name(element_type):
 def test_element_type_get_event_names(data_fixture):
     page = data_fixture.create_builder_page()
     heading = data_fixture.create_builder_heading_element(page=page)
+    text = data_fixture.create_builder_text_element(page=page)
+    image = data_fixture.create_builder_image_element(page=page)
+    column = data_fixture.create_builder_column_element(page=page)
+    container = data_fixture.create_builder_element(
+        SimpleContainerElementType, page=page
+    )
     button = data_fixture.create_builder_button_element(page=page)
+    choice = data_fixture.create_builder_choice_element(page=page)
+    record_selector = data_fixture.create_builder_record_selector_element(page=page)
     form = data_fixture.create_builder_form_container_element(page=page)
     table = data_fixture.create_builder_table_element(
         page=page,
@@ -1748,8 +1757,14 @@ def test_element_type_get_event_names(data_fixture):
         element_type = element_type_registry.get_by_model(element.specific_class)
         return element_type.get_event_names(element)
 
-    assert get_event_names(heading) == []
+    assert get_event_names(heading) == ["click"]
+    assert get_event_names(text) == ["click"]
+    assert get_event_names(image) == ["click"]
+    assert get_event_names(column) == ["click"]
+    assert get_event_names(container) == ["click"]
     assert get_event_names(button) == ["click"]
+    assert get_event_names(choice) == ["change"]
+    assert get_event_names(record_selector) == ["change"]
     assert get_event_names(form) == ["submit"]
     assert get_event_names(table) == [f"{button_field.uid}_click"]
     assert get_event_names(menu) == [f"{button_item_uid}_click"]
