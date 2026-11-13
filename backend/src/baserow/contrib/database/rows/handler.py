@@ -61,12 +61,14 @@ from baserow.contrib.database.table.models import (
 from baserow.contrib.database.table.operations import (
     CreateRowDatabaseTableOperationType,
     ImportRowsDatabaseTableOperationType,
+    ListRowsDatabaseTableOperationType,
 )
 from baserow.contrib.database.table.signals import table_updated
 from baserow.contrib.database.trash.models import TrashedRows
 from baserow.contrib.database.views.operations import (
     CreateViewRowOperationType,
     DeleteViewRowOperationType,
+    ListViewRowsOperationType,
     MoveViewRowOperationType,
     ReadViewRowOperationType,
     RestoreViewRowOperationType,
@@ -94,8 +96,10 @@ from baserow.core.utils import Progress, get_non_unique_values, grouper
 from .constants import ROW_IMPORT_CREATION, ROW_IMPORT_VALIDATION
 from .error_report import RowErrorReport
 from .exceptions import (
+    CannotReadLinkedTable,
     FieldsNotWritable,
     InvalidRowLength,
+    LinkedRowsNotVisibleInView,
     RowDoesNotExist,
     RowIdsNotUnique,
 )
@@ -849,18 +853,9 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
-
-        # Apply view default values for fields not explicitly provided by the
+        # View default values are applied for fields not explicitly provided by the
         # user. View defaults take priority over field-level defaults.
-        if view is not None:
-            from baserow.contrib.database.views.handler import ViewHandler
-
-            view_defaults = ViewHandler().get_view_default_values_for_row_creation(
-                view, model=model
-            )
-            for field_name, default_value in view_defaults.items():
-                if field_name not in values:
-                    values[field_name] = default_value
+        self._check_linked_tables_and_apply_view_defaults(user, model, [values], view)
 
         return self.force_create_row(
             user,
@@ -977,6 +972,7 @@ class RowHandler:
         model: Optional[Type[GeneratedTableModel]] = None,
         view: Optional["View"] = None,
         values_already_prepared: bool = False,
+        check_linked_tables: bool = True,
     ) -> GeneratedTableModelForUpdate:
         """
         Updates one or more values of the provided row_id.
@@ -992,6 +988,8 @@ class RowHandler:
         :param values_already_prepared: Whether or not the values are already sanitized
             and validated for every field and can be used directly by the handler
             without any further check.
+        :param check_linked_tables: Whether writing a link requires read access to the
+            linked table.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :return: The updated row instance.
         """
@@ -1016,6 +1014,7 @@ class RowHandler:
                 model=model,
                 view=view,
                 values_already_prepared=values_already_prepared,
+                check_linked_tables=check_linked_tables,
             )
 
     def update_row(
@@ -1027,6 +1026,7 @@ class RowHandler:
         model: Optional[Type[GeneratedTableModel]] = None,
         view: Optional["View"] = None,
         values_already_prepared: bool = False,
+        check_linked_tables: bool = True,
     ) -> GeneratedTableModelForUpdate:
         """
         Updates one or more values of the provided row_id.
@@ -1042,6 +1042,9 @@ class RowHandler:
         :param values_already_prepared: Whether or not the values are already sanitized
             and validated for every field and can be used directly by the handler
             without any further check.
+        :param check_linked_tables: Whether writing a link requires read access to the
+            linked table. Undo and redo restore values of the user's own action, so
+            they don't need it.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :raises FieldDataConstraintException: When a field data constraint is violated.
         :return: The updated row instance.
@@ -1061,6 +1064,8 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
+        if check_linked_tables:
+            self.check_can_read_linked_tables(user, model, [values], view=view)
 
         if not values_already_prepared:
             values = self.prepare_values(model._field_objects, values)
@@ -1529,20 +1534,11 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
-
-        # Apply view default values for fields not explicitly provided by the user.
-        # View defaults take priority over field-level defaults.
-        if view is not None:
-            from baserow.contrib.database.views.handler import ViewHandler
-
-            view_defaults = ViewHandler().get_view_default_values_for_row_creation(
-                view, model=model
-            )
-            if view_defaults:
-                for row_values in rows_values:
-                    for field_name, default_value in view_defaults.items():
-                        if field_name not in row_values:
-                            row_values[field_name] = default_value
+        # View default values are applied for fields not explicitly provided by the
+        # user. View defaults take priority over field-level defaults.
+        self._check_linked_tables_and_apply_view_defaults(
+            user, model, rows_values, view
+        )
 
         return self.force_create_rows(
             user,
@@ -1980,6 +1976,23 @@ class RowHandler:
                     },
                 )
 
+        # Rows matched by an upsert don't write their skipped fields.
+        skipped_field_names = {field.db_column for field in skipped_fields}
+        update_map = update_handler.process_map
+        valid_rows, original_row_index_mapping = (
+            error_report.get_valid_rows_and_mapping()
+        )
+        self.check_can_read_linked_tables(
+            user,
+            model,
+            [
+                {k: v for k, v in row.items() if k not in skipped_field_names}
+                if update_map.get(original_row_index_mapping[index])
+                else row
+                for index, row in enumerate(valid_rows)
+            ],
+        )
+
         # STEP 1: pre-validate data with serializer
         if validate:
             (
@@ -2023,16 +2036,9 @@ class RowHandler:
 
         # split rows to insert and update lists. If there's no upsert field selected,
         # this will not populate rows_values_to_update.
-        update_map = update_handler.process_map
-
         rows_values_to_create = []
         rows_values_to_update = []
         if update_map:
-            skipped_field_names = set()
-
-            if skipped_fields:
-                skipped_field_names = {field.db_column for field in skipped_fields}
-
             for current_idx, import_idx in original_row_index_mapping.items():
                 row = valid_rows[current_idx]
                 if update_idx := update_map.get(import_idx):
@@ -2241,6 +2247,293 @@ class RowHandler:
         if unwritable_fields and raise_if_not_permitted:
             raise FieldsNotWritable(unwritable_fields)
         return unwritable_fields
+
+    def get_linked_tables_written_by_rows_values(
+        self, model: GeneratedTableModel, rows_values: List[Dict[str, Any]]
+    ) -> List[Table]:
+        """
+        Returns the tables that the provided rows values would link rows from. A link
+        row field with an empty value is ignored because clearing a relationship
+        doesn't reveal anything about the linked table.
+
+        :param model: The model of the table that the values are written to.
+        :param rows_values: The rows values, keyed by field name or field id.
+        :return: The distinct linked tables, with their workspace selected.
+        """
+
+        link_row_table_ids_by_field_id = {
+            field_id: field_object["field"].link_row_table_id
+            for field_id, field_object in model._field_objects.items()
+            if hasattr(field_object["field"], "link_row_table_id")
+        }
+        if not link_row_table_ids_by_field_id:
+            return []
+
+        linked_table_ids = set(link_row_table_ids_by_field_id.values())
+        table_ids = set()
+        for row_values in rows_values:
+            non_empty_values = {key: val for key, val in row_values.items() if val}
+            for field_id in self.extract_field_ids_from_dict(non_empty_values):
+                if field_id in link_row_table_ids_by_field_id:
+                    table_ids.add(link_row_table_ids_by_field_id[field_id])
+            if table_ids == linked_table_ids:
+                break
+
+        if not table_ids:
+            return []
+
+        return list(
+            Table.objects.filter(id__in=table_ids).select_related("database__workspace")
+        )
+
+    def check_can_list_rows_of_tables(self, user: AbstractUser, tables: List[Table]):
+        """
+        Checks that the user can list the rows of all the provided tables, with one
+        batch per workspace so the queries don't grow with the number of tables.
+
+        :param user: The user to check permissions for.
+        :param tables: The tables to check, with their workspace selected.
+        :raises CannotReadLinkedTable: If the user can't list the rows of a table.
+        """
+
+        tables_by_workspace = defaultdict(list)
+        for table in tables:
+            tables_by_workspace[table.database.workspace].append(table)
+
+        for workspace, workspace_tables in tables_by_workspace.items():
+            checks = {
+                table: PermissionCheck(
+                    user, ListRowsDatabaseTableOperationType.type, table
+                )
+                for table in workspace_tables
+            }
+            results = CoreHandler().check_multiple_permissions(
+                list(checks.values()), workspace=workspace
+            )
+            for table, check in checks.items():
+                if results[check] is not True:
+                    raise CannotReadLinkedTable(table.id, actor=user)
+
+    def check_can_read_linked_tables(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        rows_values: List[Dict[str, Any]],
+        view: Optional["View"] = None,
+    ):
+        """
+        Verifies that the user can read every table the rows values link rows from.
+        Linking a row returns its primary field value, and matching by name reveals
+        whether it exists, so writing a link is a read of the linked table.
+
+        A link to the table itself can also be allowed by the view the row is written
+        in, as long as the linked rows are visible in that view.
+
+        :param user: The user to check permissions for.
+        :param model: The model of the table that the values are written to.
+        :param rows_values: The rows values to check.
+        :param view: The view the row is written in, if any.
+        :raises CannotReadLinkedTable: If the user can't read a linked table.
+        """
+
+        linked_tables = self.get_linked_tables_written_by_rows_values(
+            model, rows_values
+        )
+        table_id = model.baserow_table_id
+        other_tables = [
+            table for table in linked_tables if view is None or table.id != table_id
+        ]
+        self.check_can_list_rows_of_tables(user, other_tables)
+        if len(other_tables) != len(linked_tables):
+            self._check_can_read_self_links_in_view(user, model, rows_values, view)
+
+    def get_rows_values_to_check_for_linked_tables(
+        self,
+        model: GeneratedTableModel,
+        rows_values: List[Dict[str, Any]],
+        view: Optional["View"],
+        view_defaults: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns the values of the rows created in the view whose linked tables must be
+        readable. Views that authorize their defaults when they're configured don't
+        need the defaults to be checked, also when they're sent as values. Other views
+        need the defaults that the values don't override to be checked.
+
+        :param model: The model of the table that the rows are created in.
+        :param rows_values: The values of the rows that are created.
+        :param view: The view the rows are created in, if any.
+        :param view_defaults: The default values of the view.
+        :return: A copy of the rows values to check.
+        """
+
+        if view is None or not view_defaults:
+            return [dict(row_values) for row_values in rows_values]
+
+        ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        if not ownership_type.default_values_authorized_when_configured:
+            return [{**view_defaults, **row_values} for row_values in rows_values]
+
+        return [
+            {
+                field_name: value
+                for field_name, value in row_values.items()
+                if field_name not in view_defaults
+                or not self._links_same_rows(
+                    model, field_name, value, view_defaults[field_name]
+                )
+            }
+            for row_values in rows_values
+        ]
+
+    def _links_same_rows(
+        self, model: GeneratedTableModel, field_name: str, value: Any, other: Any
+    ) -> bool:
+        """
+        Returns whether both values of the link row field link the same row ids.
+        Values that contain names never match, because a name can resolve to another
+        row.
+        """
+
+        field_ids = self.extract_field_ids_from_keys([field_name])
+        field_object = model._field_objects.get(field_ids[0]) if field_ids else None
+        if field_object is None or not hasattr(
+            field_object["field"], "link_row_table_id"
+        ):
+            return False
+
+        def get_row_ids(link_value):
+            if not isinstance(link_value, list):
+                return None
+            row_ids = set()
+            for item in link_value:
+                if isinstance(item, dict):
+                    item = item.get("id")
+                if not isinstance(item, int) or isinstance(item, bool):
+                    return None
+                row_ids.add(item)
+            return row_ids
+
+        row_ids = get_row_ids(value)
+        return row_ids is not None and row_ids == get_row_ids(other)
+
+    def _check_linked_tables_and_apply_view_defaults(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        rows_values: List[Dict[str, Any]],
+        view: Optional["View"],
+    ):
+        """
+        Verifies that the user can read the tables that the created rows link rows
+        from, and then applies the view's default values to the rows values for the
+        fields they don't provide.
+
+        :param user: The user to check permissions for.
+        :param model: The model of the table that the rows are created in.
+        :param rows_values: The values of the rows that are created, updated in place.
+        :param view: The view the rows are created in, if any.
+        :raises CannotReadLinkedTable: If the user can't read a linked table.
+        """
+
+        view_defaults = {}
+        if view is not None:
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            view_defaults = ViewHandler().get_view_default_values_for_row_creation(
+                view, model=model
+            )
+
+        rows_values_to_check = self.get_rows_values_to_check_for_linked_tables(
+            model, rows_values, view, view_defaults
+        )
+        self.check_can_read_linked_tables(user, model, rows_values_to_check, view=view)
+
+        for row_values, checked_values in zip(rows_values, rows_values_to_check):
+            # The check replaces self-link names by the checked ids.
+            for field_name in row_values:
+                if field_name in checked_values:
+                    row_values[field_name] = checked_values[field_name]
+            for field_name, default_value in view_defaults.items():
+                row_values.setdefault(field_name, default_value)
+
+    def _check_can_read_self_links_in_view(
+        self,
+        user: AbstractUser,
+        model: GeneratedTableModel,
+        rows_values: List[Dict[str, Any]],
+        view: "View",
+    ):
+        """
+        Verifies that the user can read the table or, if not, that all the rows the
+        values link to the table itself are visible in the view. A name or id that
+        doesn't match a row is refused like a row outside of the view, so the two can't
+        be told apart. The names are replaced by the checked ids in the rows values.
+
+        :param user: The user to check permissions for.
+        :param model: The model of the table that the values are written to.
+        :param rows_values: The rows values to check.
+        :param view: The view the row is written in.
+        :raises LinkedRowsNotVisibleInView: If a linked row isn't visible in the view.
+        """
+
+        table = model.baserow_table
+        if CoreHandler().check_permissions(
+            user,
+            ListRowsDatabaseTableOperationType.type,
+            workspace=table.database.workspace,
+            context=table,
+            raise_permission_exceptions=False,
+        ):
+            return
+
+        self_link_field_objects = {
+            field_id: field_object
+            for field_id, field_object in model._field_objects.items()
+            if getattr(field_object["field"], "link_row_table_id", None) == table.id
+        }
+        values_by_field_id = defaultdict(dict)
+        for row_index, row_values in enumerate(rows_values):
+            for key, value in row_values.items():
+                field_ids = self.extract_field_ids_from_keys([key])
+                if value and field_ids and field_ids[0] in self_link_field_objects:
+                    values_by_field_id[field_ids[0]][row_index] = (key, value)
+
+        row_ids = set()
+        for field_id, values_by_row in values_by_field_id.items():
+            field_object = self_link_field_objects[field_id]
+            try:
+                row_ids_by_row = field_object["type"].prepare_value_for_db_in_bulk(
+                    field_object["field"],
+                    {index: value for index, (_, value) in values_by_row.items()},
+                )
+            except ValidationError as exc:
+                # Only a name without a row says something about the hidden rows.
+                if getattr(exc, "code", None) != "missing_row":
+                    raise
+                raise LinkedRowsNotVisibleInView(table.id, actor=user) from exc
+            for row_index, (key, _) in values_by_row.items():
+                # Write the checked ids, so a rename can't change the linked rows.
+                rows_values[row_index][key] = row_ids_by_row[row_index]
+                row_ids.update(row_ids_by_row[row_index])
+
+        if not row_ids:
+            return
+
+        if model.objects.filter(id__in=row_ids).count() != len(row_ids):
+            raise LinkedRowsNotVisibleInView(table.id, actor=user)
+
+        try:
+            self._check_permissions_with_view_fallback(
+                ListRowsDatabaseTableOperationType.type,
+                ListViewRowsOperationType.type,
+                user,
+                table,
+                view,
+                list(row_ids),
+            )
+        except PermissionDenied as exc:
+            raise LinkedRowsNotVisibleInView(table.id, actor=user) from exc
 
     def _get_unwritable_fields(
         self,
@@ -2734,6 +3027,7 @@ class RowHandler:
         skip_search_update: bool = False,
         generate_error_report: bool = False,
         signal_params: Optional[Dict] = None,
+        check_linked_tables: bool = True,
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
@@ -2753,6 +3047,9 @@ class RowHandler:
             send the rows_created or similar signal. Defaults to True.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param check_linked_tables: Whether writing a link requires read access to the
+            linked table. Undo and redo restore values of the user's own action, so
+            they don't need it.
         :param skip_search_update: If you want to instead trigger the search handler
             cells update later on after many create_rows calls then set this to True
             but make sure you trigger it eventually.'
@@ -2779,6 +3076,8 @@ class RowHandler:
 
         self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
+        if check_linked_tables:
+            self.check_can_read_linked_tables(user, model, rows_values, view=view)
 
         return self.force_update_rows(
             user,

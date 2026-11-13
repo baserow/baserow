@@ -1619,6 +1619,14 @@ class ViewOwnershipType(Instance):
     A `ViewOwnershipType` represents allowed style of view ownership.
     """
 
+    default_values_authorized_when_configured = False
+    """
+    Whether a link row default value can be applied to a new row without the person
+    creating the row being able to read the linked table. That only holds for views
+    that the people using them don't configure themselves, so the check when saving
+    the default is what counts.
+    """
+
     def can_import_view(self, serialized_data: Dict, id_mapping: Dict) -> bool:
         """
         Returns True if the a view with this ownership can be imported.

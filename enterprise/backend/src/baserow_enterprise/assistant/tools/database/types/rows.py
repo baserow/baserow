@@ -8,6 +8,7 @@ database columns, with converters to/from Django ORM representations.
 from dataclasses import dataclass
 from typing import Any, Callable, Literal, Type
 
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 
 from pydantic import ConfigDict, Field, create_model
@@ -21,7 +22,11 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
+from baserow.contrib.database.table.operations import (
+    ListRowsDatabaseTableOperationType,
+)
 from baserow.contrib.database.views.view_filters import NotEmptyViewFilterType
+from baserow.core.handler import CoreHandler
 from baserow_enterprise.assistant.types import BaseModel
 
 from .base import format_date, format_datetime, parse_date, parse_datetime
@@ -50,7 +55,7 @@ class FieldDefinition:
 _none_to_empty = lambda v: v if v is not None else ""  # noqa: E731
 
 
-def _text_field_def(orm_field, orm_field_type):
+def _text_field_def(orm_field, orm_field_type, user):
     return FieldDefinition(
         str | None,
         Field(..., description="Single-line text", title=orm_field.name),
@@ -59,7 +64,7 @@ def _text_field_def(orm_field, orm_field_type):
     )
 
 
-def _long_text_field_def(orm_field, orm_field_type):
+def _long_text_field_def(orm_field, orm_field_type, user):
     return FieldDefinition(
         str | None,
         Field(..., description="Multi-line text", title=orm_field.name),
@@ -68,20 +73,20 @@ def _long_text_field_def(orm_field, orm_field_type):
     )
 
 
-def _number_field_def(orm_field, orm_field_type):
+def _number_field_def(orm_field, orm_field_type, user):
     return FieldDefinition(
         float | None,
         Field(..., description="Number or None", title=orm_field.name),
     )
 
 
-def _boolean_field_def(orm_field, orm_field_type):
+def _boolean_field_def(orm_field, orm_field_type, user):
     return FieldDefinition(
         bool, Field(..., description="Boolean", title=orm_field.name)
     )
 
 
-def _date_field_def(orm_field, orm_field_type):
+def _date_field_def(orm_field, orm_field_type, user):
     if orm_field.date_include_time:
         return FieldDefinition(
             str | None,
@@ -101,7 +106,7 @@ def _date_field_def(orm_field, orm_field_type):
     )
 
 
-def _single_select_field_def(orm_field, orm_field_type):
+def _single_select_field_def(orm_field, orm_field_type, user):
     choices = [option.value for option in orm_field.select_options.all()]
     if not choices:
         return FieldDefinition()  # Unsupported: no options defined
@@ -118,7 +123,7 @@ def _single_select_field_def(orm_field, orm_field_type):
     )
 
 
-def _multiple_select_field_def(orm_field, orm_field_type):
+def _multiple_select_field_def(orm_field, orm_field_type, user):
     choices = [option.value for option in orm_field.select_options.all()]
     if not choices:
         return FieldDefinition()  # Unsupported: no options defined
@@ -135,11 +140,21 @@ def _multiple_select_field_def(orm_field, orm_field_type):
     )
 
 
-def _link_row_field_def(orm_field, orm_field_type):
-    linked_model = orm_field.link_row_table.get_model()
+def _link_row_field_def(orm_field, orm_field_type, user):
+    linked_table = orm_field.link_row_table
+    linked_model = linked_table.get_model()
     linked_primary_key = linked_model.get_primary_field()
     if linked_primary_key is None:
         return FieldDefinition()
+
+    # Example rows and name lookups read the linked table.
+    can_read_linked_table = CoreHandler().check_permissions(
+        user,
+        ListRowsDatabaseTableOperationType.type,
+        workspace=linked_table.database.workspace,
+        context=linked_table,
+        raise_permission_exceptions=False,
+    )
 
     linked_pk = linked_primary_key.db_column
     queryset = linked_model.objects.only("id", linked_pk).enhance_by_fields(
@@ -165,11 +180,16 @@ def _link_row_field_def(orm_field, orm_field_type):
         queryset = queryset.annotate(**annotations).filter(q)
     # The readable value, as from_django_orm shows it. Not every field type
     # accepts it back, so the description points to the IDs as well.
-    examples = [(row.id, str(row)) for row in queryset[:10]]
+    examples = []
+    if can_read_linked_table:
+        examples = [(row.id, str(row)) for row in queryset[:10]]
 
     def to_django_orm(value):
         if isinstance(value, (str, int)):
             value = [value]
+        if value is not None and not can_read_linked_table:
+            # Left as sent; the row handler refuses the write.
+            return value
         if value is not None:
             try:
                 return LinkRowFieldType().prepare_value_for_db(orm_field, value)
@@ -226,17 +246,22 @@ _FIELD_DEF_BUILDERS: dict[str, Callable] = {
 }
 
 
-def get_field_definition(field_object: FieldObject) -> FieldDefinition:
+def get_field_definition(
+    field_object: FieldObject, user: AbstractUser
+) -> FieldDefinition:
     """
     Return a :class:`FieldDefinition` for a table field, or an empty
     (unsupported) definition if the field type has no registered builder.
+
+    :param field_object: The field object to describe.
+    :param user: The user the definition is built for.
     """
 
     orm_field_type = field_object["type"]
     builder = _FIELD_DEF_BUILDERS.get(orm_field_type.type)
     if builder is None:
         return FieldDefinition()
-    return builder(field_object["field"], orm_field_type)
+    return builder(field_object["field"], orm_field_type, user)
 
 
 # ---------------------------------------------------------------------------
@@ -248,12 +273,13 @@ FieldConversions = dict[str, tuple[str, Callable | None, Callable | None]]
 
 
 def _scan_table_fields(
-    table: Table, field_ids: list[int] | None = None
+    table: Table, user: AbstractUser, field_ids: list[int] | None = None
 ) -> tuple[dict[str, tuple], FieldConversions]:
     """
     Scan a table's fields and return Pydantic field specs plus ORM converters.
 
     :param table: The table to scan.
+    :param user: The user the fields are described for.
     :param field_ids: If given, only include fields with these IDs.
     :returns: ``(field_definitions, field_conversions)`` dicts keyed by field name.
     """
@@ -262,7 +288,7 @@ def _scan_table_fields(
     field_conversions: FieldConversions = {}
 
     for field_object in table.get_model().get_field_objects():
-        fd = get_field_definition(field_object)
+        fd = get_field_definition(field_object, user)
         if fd.type is None:
             continue
         if field_ids is not None and field_object["field"].id not in field_ids:
@@ -302,7 +328,7 @@ def _convert_fields(
 
 
 def get_create_row_model(
-    table: Table, field_ids: list[int] | None = None
+    table: Table, user: AbstractUser, field_ids: list[int] | None = None
 ) -> type[BaseModel]:
     """
     Build a Pydantic model for creating rows in the given table.
@@ -311,10 +337,11 @@ def get_create_row_model(
     ``to_django_orm()`` and ``from_django_orm()`` for ORM conversion.
 
     :param table: The table whose columns define the model fields.
+    :param user: The user the model is built for.
     :param field_ids: If given, only include these field IDs.
     """
 
-    field_definitions, field_conversions = _scan_table_fields(table, field_ids)
+    field_definitions, field_conversions = _scan_table_fields(table, user, field_ids)
 
     class CreateRowModel(BaseModel):
         model_config = ConfigDict(extra="forbid")
@@ -350,7 +377,7 @@ def get_create_row_model(
     )
 
 
-def get_update_row_model(table: Table) -> type[BaseModel]:
+def get_update_row_model(table: Table, user: AbstractUser) -> type[BaseModel]:
     """
     Build a Pydantic model for updating rows in the given table.
 
@@ -359,10 +386,11 @@ def get_update_row_model(table: Table) -> type[BaseModel]:
     so omitting a field means "don't change".
 
     :param table: The table whose columns define the model fields.
+    :param user: The user the model is built for.
     """
 
-    create_model_class = get_create_row_model(table)
-    _, field_conversions = _scan_table_fields(table)
+    create_model_class = get_create_row_model(table, user)
+    _, field_conversions = _scan_table_fields(table, user)
 
     # All fields become Optional with default=None
     update_fields = {

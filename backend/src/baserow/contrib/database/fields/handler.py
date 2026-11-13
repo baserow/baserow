@@ -815,9 +815,13 @@ class FieldHandler:
                 using=DEFAULT_DB_ALIAS
             )
 
-        # Write-only fields can't have view default values.
-        if baserow_field_type_changed and to_field_type.write_only:
-            ViewDefaultValue.objects.filter(field_id=field.id).delete()
+        view_ids_without_default_value = []
+        if to_field_type.should_delete_view_default_values(old_field, field):
+            default_values = ViewDefaultValue.objects.filter(field_id=field.id)
+            view_ids_without_default_value = list(
+                default_values.values_list("view_id", flat=True)
+            )
+            default_values.delete()
 
         to_field_type.after_update(
             old_field,
@@ -874,6 +878,7 @@ class FieldHandler:
             field_type_changed=baserow_field_type_changed,
             user=user,
         )
+        ViewHandler().send_default_values_changed(view_ids_without_default_value)
         update_collector.send_additional_field_updated_signals()
 
         if return_updated_fields:

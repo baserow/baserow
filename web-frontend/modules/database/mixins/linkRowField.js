@@ -41,12 +41,19 @@ export default {
         return false
       }
 
+      // Restricted view editors can read the table but not list its rows.
       return (
         this.$hasPermission(
           'database.table.read',
           linkedTable,
           this.workspace.id
-        ) && !this.readOnly
+        ) &&
+        this.$hasPermission(
+          'database.table.list_rows',
+          linkedTable,
+          this.workspace.id
+        ) &&
+        !this.readOnly
       )
     },
     /**

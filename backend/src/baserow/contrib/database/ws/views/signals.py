@@ -187,6 +187,13 @@ def view_updated(sender, view, old_view, user, **kwargs):
         broadcast_to(user, view, payload)
 
 
+@receiver(view_signals.view_default_values_changed)
+def view_default_values_changed(sender, view, **kwargs):
+    # Also sent to the client that made the change, because nothing else updates it.
+    payload = {"type": "force_view_refresh_and_default_values", "view_id": view.id}
+    broadcast_to(None, view, payload)
+
+
 @receiver(view_signals.view_deleted)
 def view_deleted(sender, view_id, view, user, **kwargs):
     payload = generate_view_deleted_payload(view.table_id, view_id)

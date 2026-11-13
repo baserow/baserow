@@ -23,6 +23,8 @@ from baserow.contrib.database.fields.models import Field, SpecificFieldForUpdate
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import View, ViewDefaultValue
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
@@ -69,6 +71,65 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
 
         backup_data: Optional[Dict[str, Any]]
         backup_uid: Optional[str] = None
+        # The view default values that the update deleted, so undo can restore them.
+        deleted_view_default_values: Optional[List[Dict[str, Any]]] = None
+
+    @classmethod
+    def _get_view_default_values(
+        cls, field: SpecificFieldForUpdate
+    ) -> List[Dict[str, Any]]:
+        return list(
+            ViewDefaultValue.objects.filter(field_id=field.id).values(
+                "view_id", "enabled", "value", "field_type", "function"
+            )
+        )
+
+    @classmethod
+    def _get_deleted_view_default_values(
+        cls, field: SpecificFieldForUpdate, view_default_values: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns the provided view default values of the field if the field update
+        deleted them.
+
+        :param field: The updated field.
+        :param view_default_values: The default values from before the update.
+        :return: The default values that don't exist anymore.
+        """
+
+        if (
+            view_default_values
+            and ViewDefaultValue.objects.filter(field_id=field.id).exists()
+        ):
+            return []
+        return view_default_values
+
+    @classmethod
+    def _restore_view_default_values(
+        cls, field: SpecificFieldForUpdate, view_default_values: List[Dict[str, Any]]
+    ):
+        """
+        Creates the view default values that the action being reverted deleted, for
+        the views that still exist.
+
+        :param field: The field that was updated back.
+        :param view_default_values: The default values to restore.
+        """
+
+        view_ids = set(
+            View.objects_and_trash.filter(
+                id__in=[value["view_id"] for value in view_default_values]
+            ).values_list("id", flat=True)
+        )
+        ViewDefaultValue.objects.bulk_create(
+            [
+                ViewDefaultValue(field_id=field.id, **value)
+                for value in view_default_values
+                if value["view_id"] in view_ids
+            ],
+            ignore_conflicts=True,
+        )
+        ViewHandler().send_default_values_changed(view_ids)
 
     @classmethod
     def do(
@@ -124,6 +185,8 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
             field, kwargs, to_field_type_name, backup_uuid
         )
 
+        view_default_values = cls._get_view_default_values(field)
+
         field, updated_fields = FieldHandler().update_field(
             user, field, new_type_name, return_updated_fields=True, **kwargs
         )
@@ -142,6 +205,9 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
             original_field_params=original_exported_values,
             backup_data=optional_backup_data,
             backup_uid=backup_uuid,
+            deleted_view_default_values=cls._get_deleted_view_default_values(
+                field, view_default_values
+            ),
         )
         workspace = table.database.workspace
         cls.register_action(user, params, cls.scope(table.id), workspace)
@@ -337,6 +403,8 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
         # want to fail and throw away all the users lost data. Instead we just find
         # a new free field name starting by adding the following postfix on and use
         # that instead.
+        view_default_values = cls._get_view_default_values(field)
+
         collision_postfix = "(From undo)" if for_undo else "(From redo)"
         handler.update_field(
             user,
@@ -347,6 +415,13 @@ class UpdateFieldActionType(UndoableActionCustomCleanupMixin, UndoableActionType
             after_schema_change_callback=after_field_schema_change_callback,
             **new_field_attributes,
         )
+
+        deleted_view_default_values = cls._get_deleted_view_default_values(
+            field, view_default_values
+        )
+        if params.deleted_view_default_values:
+            cls._restore_view_default_values(field, params.deleted_view_default_values)
+        params.deleted_view_default_values = deleted_view_default_values
 
         params.backup_data = optional_backup_data
         params.original_field_type = from_field_type_name

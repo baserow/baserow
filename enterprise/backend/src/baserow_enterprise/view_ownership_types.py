@@ -36,6 +36,7 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
     """
 
     type = "restricted"
+    default_values_authorized_when_configured = True
 
     def is_compatible_with_view_type(self, view_type) -> bool:
         # The form view is not related to showing data, so it does not make any sense to
