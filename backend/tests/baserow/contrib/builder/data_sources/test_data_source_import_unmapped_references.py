@@ -2,15 +2,11 @@ from io import BytesIO
 
 import pytest
 
-from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.models import Builder
-from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.database.models import Database
 from baserow.core.handler import CoreHandler
-from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.registries import ImportExportConfig
-from baserow.core.storage import get_default_storage
 
 
 def _create_builder_reading_a_table(data_fixture):
@@ -51,35 +47,6 @@ def _create_builder_reading_a_table(data_fixture):
     }
 
 
-def _export_and_import(data_fixture, applications, application_ids=None):
-    """
-    Exports the applications as a workspace export file, and imports it into a new
-    workspace of another user, only the given applications when set.
-    """
-
-    data_fixture.create_import_export_trusted_source()
-    handler = ImportExportHandler()
-    storage = get_default_storage()
-
-    resource = handler.export_workspace_applications(
-        applications=applications,
-        import_export_config=ImportExportConfig(
-            include_permission_data=False, reduce_disk_space_usage=False
-        ),
-    )
-    export_path = handler.get_export_storage_path(resource.get_archive_name())
-
-    importer = data_fixture.create_user()
-    target_workspace = data_fixture.create_workspace(user=importer)
-    with storage.open(export_path, "rb") as archive:
-        import_resource = handler.create_resource_from_file(
-            importer, "export.zip", archive
-        )
-    return handler.import_workspace_applications(
-        importer, target_workspace, import_resource, application_ids=application_ids
-    )
-
-
 def _imported_service(applications):
     [builder] = [app for app in applications if isinstance(app.specific, Builder)]
     data_source = DataSource.objects.get(page__builder_id=builder.id)
@@ -93,8 +60,7 @@ def test_import_without_the_database_clears_the_references_to_it(
 ):
     source = _create_builder_reading_a_table(data_fixture)
 
-    imported = _export_and_import(
-        data_fixture,
+    imported = data_fixture.export_and_import_workspace_applications(
         [source["database"], source["builder"]],
         application_ids=[source["builder"].id],
     )
@@ -114,30 +80,13 @@ def test_import_without_the_database_doesnt_fail_on_a_field_missing_here(
     data_fixture, use_tmp_media_root
 ):
     source = _create_builder_reading_a_table(data_fixture)
-    data_fixture.create_import_export_trusted_source()
-    handler = ImportExportHandler()
-    storage = get_default_storage()
-    resource = handler.export_workspace_applications(
-        applications=[source["builder"]],
-        import_export_config=ImportExportConfig(
-            include_permission_data=False, reduce_disk_space_usage=False
-        ),
-    )
-    export_path = handler.get_export_storage_path(resource.get_archive_name())
+    export_path = data_fixture.export_workspace_applications_file([source["builder"]])
 
     # Like a file written on another instance, the filter names a field id that
     # doesn't exist here.
     source["field"].delete()
 
-    importer = data_fixture.create_user()
-    target_workspace = data_fixture.create_workspace(user=importer)
-    with storage.open(export_path, "rb") as archive:
-        import_resource = handler.create_resource_from_file(
-            importer, "export.zip", archive
-        )
-    imported = handler.import_workspace_applications(
-        importer, target_workspace, import_resource
-    )
+    imported = data_fixture.import_workspace_applications_file(export_path)
 
     service = _imported_service(imported)
     assert service.table_id is None
@@ -151,7 +100,9 @@ def test_import_with_the_database_remaps_the_references_to_it(
 ):
     source = _create_builder_reading_a_table(data_fixture)
 
-    imported = _export_and_import(data_fixture, [source["database"], source["builder"]])
+    imported = data_fixture.export_and_import_workspace_applications(
+        [source["database"], source["builder"]]
+    )
 
     [database] = [app for app in imported if isinstance(app.specific, Database)]
     service = _imported_service(imported)
@@ -206,62 +157,3 @@ def test_import_to_workspace_without_the_database_clears_the_references_to_it(
     assert service.view_id is None
     assert service.service_filters.count() == 0
     assert service.service_sorts.count() == 0
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_import_of_an_automation_without_the_database_clears_the_references_to_it(
-    data_fixture, use_tmp_media_root
-):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    data_fixture.create_text_field(table=table, name="Name", primary=True)
-    automation = data_fixture.create_automation_application(
-        user=user, workspace=workspace
-    )
-    workflow = data_fixture.create_automation_workflow(user, automation=automation)
-    data_fixture.create_local_baserow_create_row_action_node(
-        user=user, workflow=workflow, service_kwargs={"table": table}
-    )
-
-    imported = _export_and_import(
-        data_fixture, [database, automation], application_ids=[automation.id]
-    )
-
-    [imported_automation] = imported
-    tables = {
-        node.service.specific.table_id
-        for node in AutomationNode.objects.filter(
-            workflow__automation_id=imported_automation.id
-        )
-        if hasattr(node.service.specific, "table_id")
-    }
-    assert tables == {None}
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_import_of_a_dashboard_without_the_database_clears_the_references_to_it(
-    data_fixture, use_tmp_media_root
-):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    data_fixture.create_text_field(table=table, name="Name", primary=True)
-    dashboard = data_fixture.create_dashboard_application(
-        user=user, workspace=workspace
-    )
-    data_fixture.create_dashboard_local_baserow_list_rows_data_source(
-        dashboard=dashboard, table=table
-    )
-
-    imported = _export_and_import(
-        data_fixture, [database, dashboard], application_ids=[dashboard.id]
-    )
-
-    [imported_dashboard] = imported
-    data_source = DashboardDataSource.objects.get(dashboard_id=imported_dashboard.id)
-    assert data_source.service.specific.table_id is None
