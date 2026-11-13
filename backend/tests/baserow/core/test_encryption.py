@@ -1,13 +1,19 @@
+from datetime import timedelta
 from io import StringIO
 
+from django.core import serializers
 from django.core.exceptions import FieldError, ImproperlyConfigured
 from django.core.management import CommandError, call_command
 from django.db import connection
 from django.test import override_settings
+from django.utils import timezone
 
 import pytest
 
+from baserow.contrib.integrations.mcp.exceptions import MCPServerCredentialUnavailable
+from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration
+from baserow.core import encryption
 from baserow.core.encryption import (
     DecryptionError,
     check_encryption_keys,
@@ -16,6 +22,9 @@ from baserow.core.encryption import (
     get_key_id,
     get_key_ring,
 )
+from baserow.core.fields import is_unreadable_secret
+from baserow.core.integrations.exceptions import IntegrationCredentialRequired
+from baserow.core.integrations.service import IntegrationService
 
 KEY_A = "a" * 40
 KEY_B = "b" * 40
@@ -281,3 +290,145 @@ def test_plain_text_starting_like_a_secret_is_still_read(data_fixture):
     assert reload(integration).oauth_access_token == "enc:abc"
     call_command("reencrypt_secrets", stdout=StringIO())
     assert reload(integration).oauth_access_token == "enc:abc"
+
+
+def header_server(data_fixture, user=None):
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_A):
+        return data_fixture.create_mcp_server_integration(
+            user=user, auth_header_name="Authorization", auth_header_value="Bearer a"
+        )
+
+
+@pytest.mark.django_db
+def test_an_unreadable_secret_still_protects_where_it_is_sent(data_fixture):
+    user = data_fixture.create_user()
+    integration = header_server(data_fixture, user)
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        copy = reload(integration)
+        assert is_unreadable_secret(copy.auth_header_value)
+        assert copy.auth_header_value
+        with pytest.raises(IntegrationCredentialRequired):
+            IntegrationService().update_integration(
+                user, copy, url="https://other.example.com/mcp"
+            )
+
+
+@pytest.mark.django_db
+def test_switching_the_sign_in_method_clears_an_unreadable_secret(data_fixture):
+    user = data_fixture.create_user()
+    integration = header_server(data_fixture, user)
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        IntegrationService().update_integration(
+            user, reload(integration), auth_type="none"
+        )
+
+    assert stored(integration, "auth_header_value") == ""
+
+
+@pytest.mark.django_db
+def test_an_unreadable_secret_is_never_sent(data_fixture):
+    integration = header_server(data_fixture)
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        with pytest.raises(MCPServerCredentialUnavailable):
+            MCPServerHandler().get_connection(reload(integration))
+
+
+@pytest.mark.django_db
+def test_an_unreadable_refresh_token_is_kept_instead_of_signing_out(data_fixture):
+    integration = data_fixture.create_mcp_server_integration(
+        auth_type="oauth", oauth_expires_at=timezone.now() + timedelta(seconds=5)
+    )
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_A):
+        write_stored(
+            integration, encrypt("refresh-1", REFRESH_CONTEXT), "oauth_refresh_token"
+        )
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        write_stored(integration, encrypt("access-1", TOKEN_CONTEXT))
+    refresh_token = stored(integration, "oauth_refresh_token")
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        with pytest.raises(MCPServerCredentialUnavailable):
+            MCPServerHandler().get_connection(reload(integration))
+
+    assert stored(integration, "oauth_refresh_token") == refresh_token
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        assert reload(integration).oauth_access_token == "access-1"
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENCRYPTION_KEY=KEY_A)
+def test_a_dump_keeps_secrets_encrypted_and_loads_them_back(data_fixture):
+    integration = header_server(data_fixture)
+    dump = serializers.serialize("json", [integration])
+
+    assert "Bearer a" not in dump
+    for obj in serializers.deserialize("json", dump):
+        obj.save()
+
+    assert reload(integration).auth_header_value == "Bearer a"
+
+
+@pytest.mark.django_db
+def test_a_dump_keeps_an_unreadable_secret_as_it_is_stored(data_fixture):
+    integration = header_server(data_fixture)
+    raw = stored(integration, "auth_header_value")
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        dump = serializers.serialize("json", [reload(integration)])
+        for obj in serializers.deserialize("json", dump):
+            obj.save()
+
+    assert stored(integration, "auth_header_value") == raw
+
+
+def test_keys_that_share_an_id_are_refused(monkeypatch):
+    encryption._build_key_ring.cache_clear()
+    monkeypatch.setattr(encryption, "_key_id", lambda key: "e35fbbf5")
+    try:
+        with override_settings(
+            BASEROW_ENCRYPTION_KEY=KEY_B, BASEROW_ENCRYPTION_KEY_FALLBACKS=[KEY_A]
+        ):
+            with pytest.raises(ImproperlyConfigured, match="e35fbbf5"):
+                get_key_ring()
+    finally:
+        encryption._build_key_ring.cache_clear()
+
+
+@pytest.mark.django_db
+def test_checking_fails_when_a_key_is_missing(data_fixture):
+    integration = data_fixture.create_mcp_server_integration()
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_A):
+        write_stored(integration, encrypt("access-1", TOKEN_CONTEXT))
+
+    with override_settings(BASEROW_ENCRYPTION_KEY=KEY_B):
+        out = StringIO()
+        with pytest.raises(CommandError, match="1 secrets"):
+            call_command("reencrypt_secrets", "--check", stdout=out, stderr=StringIO())
+
+    assert "(missing key): 1" in out.getvalue()
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENCRYPTION_KEY=KEY_A)
+def test_checking_and_reencrypting_fail_on_a_tampered_current_key_secret(
+    data_fixture,
+):
+    integration = data_fixture.create_mcp_server_integration()
+    value = encrypt("access-1", TOKEN_CONTEXT)
+    write_stored(
+        integration, value[:-2] + ("A" if value[-2] != "A" else "B") + value[-1]
+    )
+
+    for args in (["--check"], []):
+        out = StringIO()
+        with pytest.raises(CommandError, match="1 secrets"):
+            call_command("reencrypt_secrets", *args, stdout=out, stderr=StringIO())
+        assert "(can't be decrypted): 1" in out.getvalue()
+
+
+def test_the_batch_size_must_be_positive():
+    with pytest.raises(CommandError, match="batch-size"):
+        call_command("reencrypt_secrets", "--batch-size", "0")

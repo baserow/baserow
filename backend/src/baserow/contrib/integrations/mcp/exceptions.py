@@ -10,6 +10,13 @@ class MCPServerNotConnected(Exception):
     """The MCP server uses OAuth and no account is connected, or it expired."""
 
 
+class MCPServerCredentialUnavailable(MCPServerNotConnected):
+    """
+    A credential of the MCP server is stored but none of the configured
+    encryption keys can read it. It's kept for when the key is back.
+    """
+
+
 class MCPOAuthFailed(Exception):
     """An OAuth step with the MCP server's authorization server failed."""
 

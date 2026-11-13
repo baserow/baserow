@@ -344,15 +344,31 @@ class MultipleFlagField(models.CharField):
 
 class UndecryptableSecret(str):
     """
-    Stands in for a stored secret that no configured key can decrypt. It reads as
-    empty, so the row still loads and the secret can be entered again, and saving
-    the row unchanged keeps the stored value for when the key is back.
+    Stands in for a stored secret that no configured key can decrypt. It's
+    stored, so it's truthy: checks that ask whether a secret is set, e.g.
+    before its request target changes or to clear it, still see it. Its text is
+    empty and must never be sent: callers check `is_unreadable_secret` before
+    using it. Saving the row unchanged keeps the stored value for when the key
+    is back.
     """
 
     def __new__(cls, stored: str):
         secret = super().__new__(cls, "")
         secret.stored = stored
         return secret
+
+    def __bool__(self):
+        return True
+
+
+def is_unreadable_secret(value) -> bool:
+    """
+    :return: Whether the value is a stored secret that can't be decrypted with
+        the configured keys, so it can't be used until the key is back or the
+        secret is entered again.
+    """
+
+    return isinstance(value, UndecryptableSecret)
 
 
 class EncryptedTextField(models.TextField):
@@ -362,9 +378,11 @@ class EncryptedTextField(models.TextField):
     stored differently. Empty values stay empty, and plain text written before
     the field was encrypted is still read as is.
 
-    Values are only decrypted when read from the database. Whatever is written
-    is encrypted as given, so a stored ciphertext written back is never
-    decrypted for whoever wrote it.
+    Values are decrypted when read from the database and by `to_python`, which
+    Django calls to load serialized dumps. Whatever is assigned and saved is
+    encrypted as given, so a stored ciphertext written back is never decrypted
+    for whoever wrote it. Only trusted input may go through `to_python`, i.e.
+    fixtures and dumps, never values a user sends.
     """
 
     def __init__(self, *args, context: str, **kwargs):
@@ -415,7 +433,7 @@ class EncryptedTextField(models.TextField):
             return value
         return encrypt(str(value), self.context)
 
-    def from_db_value(self, value, expression, connection):
+    def _decrypt_stored(self, value):
         from baserow.core.encryption import DecryptionError, decrypt, is_encrypted
 
         if not isinstance(value, str) or not is_encrypted(value):
@@ -423,8 +441,18 @@ class EncryptedTextField(models.TextField):
         try:
             return decrypt(value, self.context)
         except DecryptionError as exc:
-            logger.warning("{} It reads as empty until the key is configured.", exc)
+            logger.warning("{} It can't be used until the key is configured.", exc)
             return UndecryptableSecret(value)
+
+    def from_db_value(self, value, expression, connection):
+        return self._decrypt_stored(value)
+
+    def to_python(self, value):
+        # Loading a dump goes through here: its values are encrypted as
+        # `value_to_string` wrote them, and would be encrypted twice otherwise.
+        if isinstance(value, UndecryptableSecret):
+            return value
+        return self._decrypt_stored(super().to_python(value))
 
     def value_to_string(self, obj):
         # Serialized dumps keep the secret encrypted.
