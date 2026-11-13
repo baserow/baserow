@@ -1,11 +1,120 @@
-.slack-bot-form__instructions {
-  color: $palette-neutral-900;
-  padding-left: 20px;
-  line-height: 170%;
+.slack-bot-form__heading {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
 
-  & pre {
-    margin: 0;
-    display: inline;
-    background-color: $color-neutral-100;
+.slack-bot-form__intro {
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: $palette-neutral-900;
+}
+
+.slack-bot-form__steps {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+
+.slack-bot-form__step {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 24px;
+
+  &:last-child {
+    padding-bottom: 0;
   }
+
+  // The line that joins a step to the one below it.
+  &:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    bottom: 0;
+    left: 12px;
+    width: 1px;
+    background-color: $palette-neutral-400;
+  }
+}
+
+.slack-bot-form__step-marker {
+  display: flex;
+  flex: 0 0 24px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 100%;
+  background-color: $palette-neutral-1200;
+  color: $white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.slack-bot-form__step-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.slack-bot-form__step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.slack-bot-form__step-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 24px;
+  color: $palette-neutral-1200;
+}
+
+.slack-bot-form__step-description {
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-900;
+}
+
+.slack-bot-form__step-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
+}
+
+.slack-bot-form__create {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.slack-bot-form__info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background-color: $palette-neutral-100;
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.slack-bot-form__warning {
+  margin: 16px 0 0;
+}
+
+.slack-bot-form__info-icon {
+  flex: 0 0 auto;
+  font-size: 16px;
+  line-height: 20px;
+}
+
+.slack-bot-form__command {
+  padding: 2px 5px;
+  border-radius: 4px;
+  background-color: $palette-neutral-200;
+  font-size: 12px;
 }

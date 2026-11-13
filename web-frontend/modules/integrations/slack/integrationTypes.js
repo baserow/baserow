@@ -39,10 +39,6 @@ export class SlackBotIntegrationType extends IntegrationType {
     return SlackBotForm
   }
 
-  get warning() {
-    return this.app.$i18n.t('slackBotIntegrationType.slackBotWarning')
-  }
-
   getDefaultValues() {
     // No `token`: the form starts it at null to mean "untouched", and a default
     // here would overwrite that sentinel on the create path.

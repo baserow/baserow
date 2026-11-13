@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Simplify the Slack integration setup with a link that creates a preconfigured Slack app",
+    "issue_origin": "github",
+    "issue_number": 6587,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-11-13"
+}

@@ -29,9 +29,9 @@ describe('SlackBotIntegrationType', () => {
     // A database's integrations are shared by everyone who can build in it,
     // and the create modal is where that decision gets made. Ownership would
     // remove the need for this (ADR 006 section 4).
-    expect(integrationType().warning).toBe(
-      'slackBotIntegrationType.slackBotWarning'
-    )
+    // The Slack form shows it under its setup steps, so the modal has nothing
+    // of its own to show above the form.
+    expect(integrationType().warning).toBe('')
     // The token is write-only: it can be replaced but never read back, so the
     // warning must not tell people it can be read.
     expect(en.slackBotIntegrationType.slackBotWarning).toBe(
