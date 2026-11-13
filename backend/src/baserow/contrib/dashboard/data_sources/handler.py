@@ -221,6 +221,7 @@ class DashboardDataSourceHandler:
         original_service_type = service_type_registry.get_by_model(
             data_source.service.specific
         )
+        original_table_id = getattr(data_source.service.specific, "table_id", None)
         original_service = data_source.service
         updated_service = None
         if service_type != original_service_type:
@@ -262,11 +263,27 @@ class DashboardDataSourceHandler:
         if original_service.id != data_source.service.id:
             self.service_handler.delete_service(service_type, original_service)
 
-        return UpdatedDashboardDataSource(
+        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
+        from baserow.contrib.dashboard.widgets.types import UpdatedWidget
+
+        updated = UpdatedDashboardDataSource(
             data_source,
             updated_service.original_service_values if updated_service else {},
             updated_service.new_service_values if updated_service else {},
         )
+        for widget in WidgetHandler().get_widgets_for_update(
+            data_source.dashboard, base_queryset=Widget.objects_and_trash.all()
+        ):
+            widget = widget.specific
+            widget.get_type().after_update(
+                UpdatedWidget(
+                    widget,
+                    {"data_source": {"table_id": original_table_id}},
+                    {"data_source": updated},
+                )
+            )
+        return updated
 
     def delete_data_source(self, data_source: DashboardDataSource):
         """
@@ -307,11 +324,22 @@ class DashboardDataSourceHandler:
                 "The service type is missing."
             )
 
+        if dispatch_context.dashboard is None:
+            dispatch_context.dashboard = data_source.dashboard
         specific_service = ServiceHandler().get_service(data_source.service.id)
         service_dispatch = self.service_handler.dispatch_service(
             specific_service, dispatch_context
         )
 
+        runtime_filter = dispatch_context.get_runtime_filter(specific_service)
+        if runtime_filter is not None and (
+            runtime_filter["filters"]
+            or (
+                getattr(specific_service, "view_id", None)
+                and specific_service.view.viewfilter_set.exists()
+            )
+        ):
+            return {**service_dispatch.data, "_is_filtered": True}
         return service_dispatch.data
 
     def export_data_source(

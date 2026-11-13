@@ -98,6 +98,36 @@ test('shows an optional tab badge without changing its navigation label', async 
   wrapper.unmount()
 })
 
+test('updates tab item badges while preserving the selected tab and default color', async () => {
+  const wrapper = await mountSuspended(Tabs, {
+    props: {
+      tabItems: [
+        { title: 'With a value', badge: '0', badgeColor: 'neutral' },
+        { title: 'When empty', badge: '0' },
+      ],
+    },
+  })
+  expect(wrapper.findAll('.badge').map((badge) => badge.text())).toEqual([
+    '0',
+    '0',
+  ])
+  expect(wrapper.findAll('.badge')[0].classes()).toContain('badge--neutral')
+  expect(wrapper.findAll('.badge')[1].classes()).toContain('badge--cyan')
+  await wrapper.findAll('.tabs__link')[1].trigger('click')
+  await wrapper.setProps({
+    tabItems: [
+      { title: 'With a value', badge: '2', badgeColor: 'neutral' },
+      { title: 'When empty', badge: '1' },
+    ],
+  })
+  expect(wrapper.findAll('.badge').map((badge) => badge.text())).toEqual([
+    '2',
+    '1',
+  ])
+  expect(wrapper.get('.tabs__item--active').text()).toContain('When empty')
+  wrapper.unmount()
+})
+
 test('selects a tab without a route with the keyboard', async () => {
   const wrapper = await mountSuspended(Tabs, {
     slots: {

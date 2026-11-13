@@ -2,6 +2,9 @@ from typing import Any
 
 from rest_framework import serializers
 
+from baserow.contrib.dashboard.data_providers import (
+    dashboard_options_data_provider_registry,
+)
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.types import WidgetDict
@@ -9,14 +12,16 @@ from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
 )
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.services.registries import service_type_registry
 
-from .models import SummaryWidget
+from .mixins import DisplayWidgetTypeMixin, FilterWidgetTypeMixin
+from .models import SummaryWidget, TextFilterWidget
 from .registries import WidgetType
 from .types import WidgetGridLayout
 
 
-class SummaryWidgetType(WidgetType):
+class SummaryWidgetType(DisplayWidgetTypeMixin, WidgetType):
     type = "summary"
     model_class = SummaryWidget
     grid_layout = WidgetGridLayout(
@@ -34,7 +39,7 @@ class SummaryWidgetType(WidgetType):
             required=False,
             default=None,
             help_text="References a data source field for the widget.",
-        )
+        ),
     }
     request_serializer_field_names = []
     request_serializer_field_overrides = {}
@@ -58,14 +63,6 @@ class SummaryWidgetType(WidgetType):
             )
             values["data_source"] = data_source
         return values
-
-    def before_trashed(self, instance: Widget):
-        instance.data_source.trashed = True
-        instance.data_source.save()
-
-    def before_restore(self, instance: Widget):
-        instance.data_source.trashed = False
-        instance.data_source.save()
 
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)
@@ -107,3 +104,117 @@ class SummaryWidgetType(WidgetType):
             storage=storage,
             cache=cache,
         )
+
+
+class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
+    type = "text_filter"
+    model_class = TextFilterWidget
+    allowed_fields = [
+        *WidgetType.allowed_fields,
+        "mode",
+        "multiple",
+        "options",
+        "placeholder",
+        "default_value",
+        "target_filters",
+    ]
+    serializer_field_names = [
+        "mode",
+        "multiple",
+        "options",
+        "placeholder",
+        "default_value",
+        "target_filters",
+    ]
+    public_serializer_field_names = [
+        "options",
+        "mode",
+        "multiple",
+        "placeholder",
+        "default_value",
+        *FilterWidgetTypeMixin.public_serializer_field_names,
+    ]
+    serializer_field_overrides = {
+        "options": FormulaSerializerField(
+            data_provider_type_registry=dashboard_options_data_provider_registry,
+        ),
+    }
+    public_serializer_field_overrides = serializer_field_overrides
+    grid_layout = WidgetGridLayout(
+        default_width=2,
+        default_height=2,
+        min_width=1,
+        min_height=2,
+        max_width=6,
+        max_height=3,
+    )
+
+    class SerializedDict(WidgetDict):
+        mode: str
+        multiple: bool
+        options: dict
+        placeholder: str
+        default_value: str | list[str]
+        target_filters: list
+
+    def prepare_value_for_db(self, values, instance=None):
+        if instance is None or {"default_value", "mode", "multiple"}.intersection(
+            values
+        ):
+            values["default_value"] = self.normalize_default_value(
+                values.get("default_value", getattr(instance, "default_value", "")),
+                values.get(
+                    "mode", getattr(instance, "mode", TextFilterWidget.Mode.INPUT)
+                ),
+                values.get("multiple", getattr(instance, "multiple", False)),
+            )
+        return super().prepare_value_for_db(values, instance)
+
+    def normalize_default_value(self, value, mode, multiple):
+        """Store a list for multiple dropdowns and one string for other modes."""
+        if not isinstance(value, str) and not (
+            isinstance(value, list) and all(isinstance(item, str) for item in value)
+        ):
+            raise serializers.ValidationError(
+                {"default_value": "Expected text or a list of text values."}
+            )
+        defaults = value if isinstance(value, list) else [value] if value else []
+        if mode == TextFilterWidget.Mode.DROPDOWN and multiple:
+            return defaults
+        return defaults[0] if defaults else ""
+
+    def get_filter_value(self, widget, values):
+        return values.get(
+            str(widget.id),
+            self.normalize_default_value(
+                widget.default_value, widget.mode, widget.multiple
+            ),
+        )
+
+    def after_import(self, widget, id_mapping, **kwargs):
+        from baserow.contrib.dashboard.formula_importer import import_formula
+
+        updated_models = super().after_import(widget, id_mapping, **kwargs)
+        widget.default_value = self.normalize_default_value(
+            widget.default_value, widget.mode, widget.multiple
+        )
+        widget.options = import_formula(
+            widget.options,
+            id_mapping,
+            data_provider_type_registry=dashboard_options_data_provider_registry,
+        )
+        updated_models.add(widget)
+        return updated_models
+
+    def validate_filter_value(self, widget, value):
+        if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
+            if not isinstance(value, list) or any(
+                not isinstance(item, str) for item in value
+            ):
+                raise serializers.ValidationError(
+                    "Expected a list of string filter values."
+                )
+            return value
+        if not isinstance(value, str):
+            raise serializers.ValidationError("Expected a string filter value.")
+        return value

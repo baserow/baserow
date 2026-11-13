@@ -22,10 +22,10 @@ export default (client) => {
     fetchInfo(slug, authToken = null) {
       return client.get(`/dashboard/public/${slug}/`, withAuthToken(authToken))
     },
-    dispatch(slug, dataSourceId, authToken = null) {
+    dispatch(slug, dataSourceId, authToken = null, context = {}) {
       return client.post(
         `/dashboard/public/${slug}/data-sources/${dataSourceId}/dispatch/`,
-        null,
+        context,
         withAuthToken(authToken)
       )
     },

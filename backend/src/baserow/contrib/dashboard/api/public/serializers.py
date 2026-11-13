@@ -72,14 +72,19 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
         return data
 
     class Meta(PublicServiceSerializer.Meta):
-        fields = PublicServiceSerializer.Meta.fields + ("name", "context_data")
+        fields = PublicServiceSerializer.Meta.fields + (
+            "name",
+            "context_data",
+        )
         extra_kwargs = {
             **PublicServiceSerializer.Meta.extra_kwargs,
             "name": {"read_only": True},
         }
 
 
-def serialize_public_data_source(data_source: DashboardDataSource) -> dict:
+def serialize_public_data_source(
+    data_source: DashboardDataSource, context_fields=None
+) -> dict:
     """
     Serializes a data source with the public serializer of its service type.
 
@@ -90,7 +95,7 @@ def serialize_public_data_source(data_source: DashboardDataSource) -> dict:
     return service_type_registry.get_serializer(
         data_source.service,
         PublicDashboardDataSourceSerializer,
-        context={"data_source": data_source},
+        context={"data_source": data_source, "allowed_fields": context_fields},
         extra_params={"public": True},
     ).data
 
@@ -111,12 +116,17 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
 
     @extend_schema_field(
         DiscriminatorCustomFieldsMappingSerializer(
-            widget_type_registry, WidgetSerializer, many=True
+            widget_type_registry,
+            WidgetSerializer,
+            many=True,
+            extra_params={"public": True},
         )
     )
     def get_widgets(self, instance):
         return [
-            widget_type_registry.get_serializer(widget, WidgetSerializer).data
+            widget.get_type()
+            .get_serializer(widget, WidgetSerializer, extra_params={"public": True})
+            .data
             for widget in self.context["widgets"]
         ]
 
@@ -126,8 +136,11 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
         )
     )
     def get_data_sources(self, instance):
+        from baserow.contrib.dashboard.widgets.options import get_option_context_fields
+
+        fields = get_option_context_fields(self.context["widgets"])
         return [
-            serialize_public_data_source(data_source)
+            serialize_public_data_source(data_source, fields.get(data_source.id))
             for data_source in self.context["data_sources"]
             if data_source.service_id
         ]

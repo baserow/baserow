@@ -105,7 +105,8 @@ export default {
       type: String,
       required: false,
       default: 'none',
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
   },
   emits: ['node-selected', 'node-toggled', 'node-unselected', 'example-click'],

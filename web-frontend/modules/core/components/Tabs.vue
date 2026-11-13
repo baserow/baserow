@@ -44,9 +44,8 @@
           />
           <Badge
             v-else-if="tab.badge"
-            color="cyan"
+            :color="tab.badgeColor || 'cyan'"
             size="small"
-            class="margin-left-1"
             >{{ tab.badge }}</Badge
           >
           <i v-if="tab.appendIcon" :class="tab.appendIcon"></i>
@@ -166,6 +165,12 @@ export default {
     }
   },
   watch: {
+    tabItems: {
+      handler(items) {
+        if (items) this.tabs = items
+      },
+      immediate: true,
+    },
     selectedIndex: {
       handler(i) {
         if (!this.route && i !== undefined) {
@@ -174,11 +179,6 @@ export default {
       },
       immediate: true,
     },
-  },
-  created() {
-    if (this.tabItems) {
-      this.tabs = this.tabItems
-    }
   },
   mounted() {
     // We'll call selectTab once all tabs are registered and mounted

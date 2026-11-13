@@ -22,6 +22,7 @@ def test_nothing_is_public_by_default():
     assert dispatch_context.search_query() is None
     assert dispatch_context.searchable_fields() == []
     assert dispatch_context.filters() is None
+    assert dispatch_context.get_runtime_filter(None) is None
     assert dispatch_context.sortings() is None
     assert dispatch_context.public_allowed_properties is None
 

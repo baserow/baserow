@@ -101,8 +101,8 @@ class WidgetHandler:
             widgets = specific_iterator(
                 queryset,
                 per_content_type_queryset_hook=(
-                    lambda widget, queryset: widget_type_registry.get_by_model(
-                        widget
+                    lambda model, queryset: widget_type_registry.get_by_model(
+                        model
                     ).enhance_queryset(queryset)
                 ),
             )
@@ -111,13 +111,14 @@ class WidgetHandler:
 
         return widgets
 
-    def get_widgets_for_update(self, dashboard: Dashboard) -> list[Widget]:
-        """Returns all active dashboard widgets locked for a layout mutation."""
+    def get_widgets_for_update(
+        self, dashboard: Dashboard, base_queryset: QuerySet | None = None
+    ) -> list[Widget]:
+        """Locks dashboard widgets in ID order, excluding trashed ones by default."""
 
+        queryset = base_queryset if base_queryset is not None else Widget.objects.all()
         return list(
-            Widget.objects.select_related(
-                "dashboard", "dashboard__workspace", "content_type"
-            )
+            queryset.select_related("dashboard", "dashboard__workspace", "content_type")
             .filter(dashboard=dashboard)
             .select_for_update(of=("self",))
             .order_by("id")
@@ -288,6 +289,9 @@ class WidgetHandler:
         """
 
         allowed_values = extract_allowed(kwargs, widget.get_type().allowed_fields)
+        allowed_values = widget.get_type().prepare_value_for_db(
+            allowed_values, instance=widget
+        )
 
         original_widget_values = widget.get_type().export_prepared_values(
             instance=widget
@@ -310,7 +314,7 @@ class WidgetHandler:
         :param widget: Widget to delete.
         """
 
-        widget_type = widget_type_registry.get_by_model(widget)
+        widget_type = widget.get_type()
         widget.delete()
         widget_type.after_delete(widget)
 
@@ -333,7 +337,7 @@ class WidgetHandler:
         :return: The serialized version.
         """
 
-        widget_type = widget_type_registry.get_by_model(widget)
+        widget_type = widget.get_type()
 
         return cast(
             WidgetDict,
