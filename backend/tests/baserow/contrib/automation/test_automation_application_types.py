@@ -105,6 +105,7 @@ def test_automation_export_serialized(data_fixture):
             {
                 "id": workflow.id,
                 "name": workflow.name,
+                "description": "",
                 "order": workflow.order,
                 "state": workflow.state,
                 "notification_recipient_emails": [],
@@ -112,6 +113,7 @@ def test_automation_export_serialized(data_fixture):
                     {
                         "id": trigger.id,
                         "label": trigger.label,
+                        "note": "",
                         "type": "local_baserow_rows_created",
                         "workflow_id": trigger.workflow_id,
                         "on_failure": "stop",
@@ -132,6 +134,7 @@ def test_automation_export_serialized(data_fixture):
                     {
                         "id": first_action.id,
                         "label": first_action.label,
+                        "note": "",
                         "type": "local_baserow_create_row",
                         "workflow_id": first_action.workflow_id,
                         "on_failure": "stop",

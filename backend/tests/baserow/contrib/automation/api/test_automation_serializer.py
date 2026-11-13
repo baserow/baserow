@@ -50,6 +50,7 @@ def test_serializer_get_workflows(automation_fixture):
         {
             "id": workflow.id,
             "name": "test",
+            "description": "",
             "order": 1,
             "automation_id": automation.id,
             "allow_test_run_until": None,

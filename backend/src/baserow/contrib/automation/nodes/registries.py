@@ -16,6 +16,7 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.constants import NOTE_MAX_LEN
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Workspace
@@ -86,6 +87,7 @@ class AutomationNodeType(
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
+            "note",
             "service",
         ]
 
@@ -285,6 +287,10 @@ class AutomationNodeType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
+
+        if prop_name == "note":
+            # The serializers refuse a longer note; an imported file is cut.
+            return (value or "")[:NOTE_MAX_LEN]
 
         if prop_name == "service" and value:
             serialized_service = value

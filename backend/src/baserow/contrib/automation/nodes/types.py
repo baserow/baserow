@@ -54,6 +54,7 @@ class AutomationNodeDict(TypedDict):
     id: int
     type: str
     label: str
+    note: str
     service: dict
     workflow_id: int
     on_failure: str

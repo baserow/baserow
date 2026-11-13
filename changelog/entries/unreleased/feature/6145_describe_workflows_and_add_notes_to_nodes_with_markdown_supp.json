@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Describe workflows and add notes to nodes, with Markdown support",
+    "issue_origin": "github",
+    "issue_number": 6145,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-13"
+}

@@ -163,6 +163,14 @@
     "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer.",
     "noHtmlContent": "This email has no HTML body."
   },
+  "noteField": {
+    "label": "Note",
+    "help": "Shown to everyone who can open this. Markdown is supported."
+  },
+  "noteIndicator": {
+    "title": "Note",
+    "show": "Show note"
+  },
   "action": {
     "cancel": "Cancel",
     "submit": "Submit"

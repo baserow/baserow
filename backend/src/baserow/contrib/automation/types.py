@@ -11,6 +11,7 @@ class AutomationWorkflowDict(TypedDict):
     untrusted_content: NotRequired[bool]
     id: int
     name: str
+    description: NotRequired[str]
     order: int
     nodes: List[AutomationNodeDict]
     state: WorkflowState

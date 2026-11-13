@@ -25,6 +25,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "description",
             "untrusted_content",
             "import_report",
             "order",
@@ -99,6 +100,7 @@ class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
         model = AutomationWorkflow
         fields = (
             "name",
+            "description",
             "untrusted_content",
             "allow_test_run",
             "state",
