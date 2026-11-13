@@ -30,7 +30,6 @@ class CompressedMsgPackSerializer(MsgPackSerializer):
     def as_bytes(self, message, *args, **kwargs):
         data = MsgPackSerializer.as_bytes(message, *args, **kwargs)
         if settings.REALTIME_COMPRESSION_ENABLED and len(data) >= COMPRESSION_MIN_BYTES:
-            print('compress')
             return zstd.compress(data)
         return data
 
