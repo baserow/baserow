@@ -14,6 +14,13 @@
         @input="handleNodeChange({ node: { label: $event } })"
       />
     </FormGroup>
+    <NoteField
+      :key="node.id"
+      class="margin-bottom-1"
+      :value="node.note"
+      :placeholder="$t('nodeSidePanel.notePlaceholder')"
+      @input="handleNodeChange({ node: { note: $event } })"
+    />
     <component
       :is="nodeType.formComponent"
       ref="formComponent"
@@ -51,6 +58,7 @@ import { reactive, ref } from 'vue'
 import ReadOnlyForm from '@baserow/modules/core/components/ReadOnlyForm'
 import AutomationBuilderFormulaInput from '@baserow/modules/automation/components/AutomationBuilderFormulaInput'
 import SimulateDispatchNodeForm from '@baserow/modules/automation/components/form/SimulateDispatchNodeForm'
+import NoteField from '@baserow/modules/core/components/NoteField'
 import NodeErrorHandlingForm from '@baserow/modules/automation/components/form/NodeErrorHandlingForm'
 import { DATA_PROVIDERS_ALLOWED_NODE_ACTIONS } from '@baserow/modules/automation/enums'
 import _ from 'lodash'

@@ -60,3 +60,7 @@ class RatingStyleChoices(models.TextChoices):
     THUMBS_UP = "thumbs-up"
     FLAG = "flag"
     SMILE = "smile"
+
+
+# The longest Markdown note an object using `NoteMixin` can carry.
+NOTE_MAX_LEN = 1000

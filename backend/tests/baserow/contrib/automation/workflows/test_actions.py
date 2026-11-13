@@ -392,3 +392,36 @@ def test_order_redo(data_fixture):
     OrderAutomationWorkflowActionType.redo(user, params, MagicMock())
     workflows_order = AutomationWorkflowHandler().get_workflows_order(automation)
     assert workflows_order == [workflow_2.id, workflow_1.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_description_undo_redo(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, description="Before"
+    )
+
+    UpdateAutomationWorkflowActionType.do(user, workflow.id, {"description": "After"})
+
+    workflow.refresh_from_db()
+    assert workflow.description == "After"
+
+    params = UpdateAutomationWorkflowActionType.Params(
+        automation_id=automation.id,
+        automation_name=automation.name,
+        workflow_id=workflow.id,
+        workflow_name=workflow.name,
+        workflow_original_params={"description": "Before"},
+        workflow_new_params={"description": "After"},
+    )
+    UpdateAutomationWorkflowActionType.undo(user, params, MagicMock())
+
+    workflow.refresh_from_db()
+    assert workflow.description == "Before"
+
+    UpdateAutomationWorkflowActionType.redo(user, params, MagicMock())
+
+    workflow.refresh_from_db()
+    assert workflow.description == "After"

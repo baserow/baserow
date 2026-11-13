@@ -63,6 +63,9 @@
   "workflowGeneralSettings": {
     "titleOverview": "Workflow settings",
     "nameLabel": "Workflow name",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "What is this workflow for?",
+    "descriptionHelp": "Shown to everyone who can open this workflow. Markdown is supported.",
     "workflowDisabledRecipientsLabel": "Notification recipients",
     "workflowDisabledRecipientsHelp": "These workspace members will get an in-app notification if this workflow is automatically disabled.",
     "selectWorkflowDisabledRecipients": "Select recipients",
@@ -86,6 +89,7 @@
     "settingsBtn": "Settings",
     "historyBtn": "History",
     "docsBtn": "Docs",
+    "descriptionBtn": "Description",
     "switchLabelDraft": "Draft",
     "switchLabelDisabled": "Disabled",
     "switchLabelPaused": "Paused",
@@ -99,7 +103,8 @@
     "previousNode": "Previous node"
   },
   "nodeSidePanel": {
-    "labelTitle": "Label"
+    "labelTitle": "Label",
+    "notePlaceholder": "What is this step for?"
   },
   "nodeErrorHandlingForm": {
     "title": "Error handling",
