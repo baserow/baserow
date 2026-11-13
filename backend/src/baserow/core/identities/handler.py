@@ -40,6 +40,31 @@ class IdentityHandler:
     def get_role_uid(cls, identity: User) -> str:
         return cls.get_workspace_user(identity).permissions
 
+    @staticmethod
+    def _identities() -> QuerySet[User]:
+        """
+        Returns the untrashed identities with their membership loaded, so reading
+        their workspace or role doesn't query again.
+
+        :return: The identities of every workspace.
+        """
+
+        return (
+            User.objects_and_identities.filter(
+                profile__user_type=UserProfile.UserType.IDENTITY,
+                profile__trashed=False,
+            )
+            .select_related("profile")
+            .prefetch_related(
+                Prefetch(
+                    "workspaceuser_set",
+                    queryset=WorkspaceUser.objects_and_identities.select_related(
+                        "workspace"
+                    ),
+                )
+            )
+        )
+
     def get_queryset(
         self, workspace: Workspace, *, for_selection: bool = False
     ) -> QuerySet[User]:
@@ -53,20 +78,8 @@ class IdentityHandler:
         """
 
         queryset = (
-            User.objects_and_identities.filter(
-                profile__user_type=UserProfile.UserType.IDENTITY,
-                profile__trashed=False,
-                workspaceuser__workspace=workspace,
-            )
-            .select_related("profile")
-            .prefetch_related(
-                Prefetch(
-                    "workspaceuser_set",
-                    queryset=WorkspaceUser.objects_and_identities.select_related(
-                        "workspace"
-                    ),
-                )
-            )
+            self._identities()
+            .filter(workspaceuser__workspace=workspace)
             .order_by("first_name", "id")
         )
         if for_selection:
@@ -87,18 +100,9 @@ class IdentityHandler:
         :return: The requested identity.
         """
 
-        queryset = (
-            base_queryset
-            if base_queryset is not None
-            else (
-                User.objects_and_identities.filter(
-                    profile__user_type=UserProfile.UserType.IDENTITY,
-                    profile__trashed=False,
-                ).select_related("profile")
-            )
-        )
+        queryset = base_queryset if base_queryset is not None else self._identities()
         if for_update:
-            queryset = queryset.select_for_update(of=("self",))
+            queryset = queryset.select_for_update(of=("self",), no_key=True)
         try:
             identity = queryset.get(id=identity_id)
         except User.DoesNotExist as exc:

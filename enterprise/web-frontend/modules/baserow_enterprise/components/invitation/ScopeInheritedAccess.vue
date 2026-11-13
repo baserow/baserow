@@ -224,28 +224,35 @@ export default {
       }
       return this.targetType.getScopeTypeName(scopeType, scope).toLowerCase()
     },
-    /** Counts the subjects per role, in the order of the roles. */
+    /**
+     * Counts the members per role, then the identities per role, of the enabled
+     * subject types, in the order of the roles.
+     */
     getCounts(access, roles) {
-      const counts = []
-      for (const subjectType of this.enabledSubjectTypes) {
+      const enabledTypes = this.enabledSubjectTypes.map(({ type }) => type)
+      const enabled = access.filter((entry) =>
+        enabledTypes.includes(entry.subject_type)
+      )
+      return [false, true].flatMap((identities) => {
         const perRole = {}
-        for (const entry of access) {
-          if (entry.subject_type === subjectType.type) {
+        for (const entry of enabled) {
+          if ((entry.user_type === 'identity') === identities) {
             perRole[entry.role] = (perRole[entry.role] || 0) + 1
           }
         }
-        for (const role of roles) {
-          const count = perRole[role.uid]
-          if (!count) {
-            continue
-          }
-          counts.push({
-            key: `${subjectType.type}:${role.uid}`,
-            label: this.$t('shareScope.roleCount', { count, role: role.name }),
+        return roles
+          .filter((role) => perRole[role.uid])
+          .map((role) => {
+            const count = perRole[role.uid]
+            const params = { count, role: role.name }
+            return {
+              key: `${identities ? 'identity' : 'member'}:${role.uid}`,
+              label: identities
+                ? this.$t('shareScope.identityRoleCount', params, count)
+                : this.$t('shareScope.roleCount', params),
+            }
           })
-        }
-      }
-      return counts
+      })
     },
     toggleContext(row, element) {
       this.openRowKey = row.key

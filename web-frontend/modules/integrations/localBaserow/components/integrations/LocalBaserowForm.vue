@@ -19,7 +19,10 @@
               :description="$t('localBaserowForm.currentUserDescription')"
             />
           </DropdownSection>
-          <DropdownSection :title="$t('subjectType.identities')">
+          <DropdownSection
+            v-if="canBindIdentities"
+            :title="$t('subjectType.identities')"
+          >
             <DropdownItem
               v-for="identity in results"
               :key="identity.id"
@@ -84,6 +87,10 @@ export default {
     currentUserKey() {
       return this.userSubjectType.getKey({ id: this.currentUserId })
     },
+    canBindIdentities() {
+      const { workspace } = this.application
+      return this.$hasPermission('identity.update', workspace, workspace.id)
+    },
     initialSubjectName() {
       const subject = this.defaultValues.authorized_subject
       // A trashed identity isn't selectable, so show nothing selected and let the
@@ -112,9 +119,13 @@ export default {
   },
   methods: {
     /**
-     * Fetches selectable workspace identities with their role as description.
+     * Fetches selectable workspace identities with their role as description,
+     * none for a user who may not bind identities.
      */
     async fetchIdentityPage(page, search) {
+      if (!this.canBindIdentities) {
+        return { data: { count: 0, next: null, previous: null, results: [] } }
+      }
       const workspaceId = this.application.workspace.id
       const [response, roles] = await Promise.all([
         IdentityService(this.$client).listPage(workspaceId, {

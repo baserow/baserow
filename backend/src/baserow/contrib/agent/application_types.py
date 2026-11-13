@@ -26,6 +26,7 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
@@ -65,7 +66,8 @@ class AgentApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
     ) -> tuple[str | None, int | None]:
         """
-        Keep existing identity references in internal copies of their workspace.
+        Keep existing identity references in internal copies of their workspace,
+        when the person copying may bind identities.
 
         A trashed identity remains configured so restoring it also restores access
         for the copy. Execution still requires an active identity.
@@ -86,6 +88,11 @@ class AgentApplicationType(ApplicationType):
             return None, None
         if workspace is None:
             return run_as
+        copied_by = import_export_config.copied_by
+        if copied_by is None or not IdentityService().check_can_bind(
+            copied_by, workspace, raise_permission_exceptions=False
+        ):
+            return None, None
         resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)
         if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
             return run_as

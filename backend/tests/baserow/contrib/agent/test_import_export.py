@@ -173,6 +173,28 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
 
 
 @pytest.mark.django_db
+def test_a_copy_keeps_run_as_only_for_identity_managers(data_fixture, configured_agent):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    agent = configured_agent(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=agent.workspace, user=member, permissions="MEMBER"
+    )
+    identity = data_fixture.create_identity(workspace=agent.workspace)
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+
+    by_admin = CoreHandler().duplicate_application(admin, agent).specific
+    by_member = CoreHandler().duplicate_application(member, agent).specific
+
+    assert by_admin.run_as_subject_id == identity.id
+    assert (by_member.run_as_subject_type, by_member.run_as_subject_id) == (
+        None,
+        None,
+    )
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("state", ["missing", "foreign", "unsupported", "unknown"])
 def test_run_as_copy_clears_invalid_references(data_fixture, configured_agent, state):
     user = data_fixture.create_user()

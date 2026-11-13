@@ -8,6 +8,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated, application_updated
 from baserow.core.types import PermissionCheck
@@ -107,7 +108,8 @@ class AgentService:
         :param agent_id: The Agent whose configuration is being edited.
         :param search: The optional identity-name search.
         :raises PermissionException: When the user may not read and update the Agent.
-        :return: Active identity options from the Agent's authoritative workspace.
+        :return: Active identity options from the Agent's authoritative workspace,
+            none when the user may not bind identities.
         """
 
         agent = self.get_authorized_agent(
@@ -117,6 +119,10 @@ class AgentService:
             ReadAgentConfigurationOperationType.type,
         )
         identities = IdentityHandler().get_queryset(agent.workspace, for_selection=True)
+        if not IdentityService().check_can_bind(
+            user, agent.workspace, raise_permission_exceptions=False
+        ):
+            identities = identities.none()
         if search := search.strip():
             identities = identities.filter(first_name__icontains=search)
         return identities.values("id", name=F("first_name"))
@@ -132,7 +138,7 @@ class AgentService:
         :param agent_id: The id of the Agent.
         :param values: The configuration values to set, by field name.
         :raises PermissionException: When the user may not update the Agent or read
-            its configuration.
+            its configuration, or may not bind it to a different identity.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
         :return: The Agent, its original and new configuration values, and the
@@ -146,6 +152,10 @@ class AgentService:
             ReadAgentConfigurationOperationType.type,
             for_update=True,
         )
+        run_as = [values.get(field) for field in self.handler.run_as_fields]
+        current_run_as = [getattr(agent, field) for field in self.handler.run_as_fields]
+        if any(run_as) and run_as != current_run_as:
+            IdentityService().check_can_bind(user, agent.workspace)
         updated = self.handler.update_configuration(agent, **values)
         if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.

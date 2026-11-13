@@ -37,12 +37,13 @@ describe('LocalBaserowForm', () => {
     await testApp.afterEach()
   })
 
-  async function mountComponent(defaultValues = {}) {
+  async function mountComponent(defaultValues = {}, mocks = {}) {
     return await testApp.mount(LocalBaserowForm, {
       props: {
         application: { id: 2, workspace: { id: 1 } },
         defaultValues,
       },
+      global: { mocks },
     })
   }
 
@@ -89,6 +90,19 @@ describe('LocalBaserowForm', () => {
         ],
       },
     ])
+  })
+
+  test('offers no identities to a user who may not bind them', async () => {
+    const wrapper = await mountComponent(
+      {},
+      { $hasPermission: (operation) => operation !== 'identity.update' }
+    )
+    await openDropdown(wrapper)
+
+    expect(sections(wrapper).map(({ title }) => title)).toEqual([
+      'subjectType.members',
+    ])
+    expect(testApp.mock.history.get).toEqual([])
   })
 
   test('tells when the workspace has no identities yet', async () => {

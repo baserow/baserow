@@ -462,6 +462,7 @@ class SnapshotHandler:
             reduce_disk_space_usage=False,
             is_duplicate=True,
             exclude_sensitive_data=False,
+            copied_by=snapshot.created_by,
         )
         # Temporary set the workspace for the application so that the permissions can
         # be correctly set during the import process.

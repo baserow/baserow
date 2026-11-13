@@ -15,6 +15,7 @@ from baserow.contrib.integrations.api.local_baserow.serializers import (
     LocalBaserowContextDataSerializer,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
@@ -130,6 +131,12 @@ class LocalBaserowIntegrationType(IntegrationType):
                 raise serializers.ValidationError(
                     {"authorized_subject_id": "The subject does not exist."}
                 )
+            is_current_binding = instance is not None and (
+                instance.authorized_subject_type,
+                instance.authorized_subject_id,
+            ) == (subject_type_name, subject_id)
+            if is_identity(subject) and not is_current_binding:
+                IdentityService().check_can_bind(user, workspace)
 
         return super().prepare_values(
             values, user, application=application, instance=instance

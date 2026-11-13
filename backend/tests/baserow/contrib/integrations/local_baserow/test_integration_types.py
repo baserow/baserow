@@ -11,6 +11,7 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
 from baserow.core.cache import local_cache
+from baserow.core.exceptions import PermissionException
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
@@ -100,6 +101,35 @@ def test_update_local_baserow_integration_keeps_existing_authorization(data_fixt
 
     assert updated_integration.name == "Renamed integration"
     assert updated_integration.authorized_subject == identity
+
+
+@pytest.mark.django_db
+def test_only_identity_managers_bind_an_integration_to_an_identity(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(member, "MEMBER")]
+    )
+    application = data_fixture.create_builder_application(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+    integration_type = integration_type_registry.get("local_baserow")
+    binding = {
+        "authorized_subject_type": "auth.User",
+        "authorized_subject_id": identity.id,
+    }
+
+    with pytest.raises(PermissionException):
+        IntegrationService().create_integration(
+            member, integration_type, application=application, **binding
+        )
+    integration = IntegrationService().create_integration(
+        admin, integration_type, application=application, **binding
+    )
+    kept = IntegrationService().update_integration(
+        member, integration, name="Renamed", **binding
+    )
+
+    assert kept.integration.authorized_subject == identity
 
 
 @pytest.mark.django_db

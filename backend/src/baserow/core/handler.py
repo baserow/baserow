@@ -966,7 +966,9 @@ class CoreHandler:
             raise ValueError(
                 "Identity membership is managed through the identity lifecycle."
             )
-        User.objects_and_identities.select_for_update(of=("self",)).get(pk=user.pk)
+        User.objects_and_identities.select_for_update(of=("self",), no_key=True).get(
+            pk=user.pk
+        )
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -1253,9 +1255,9 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
-            User.objects_and_identities.select_for_update(of=("self",)).get(
-                pk=workspace_user.user_id
-            )
+            User.objects_and_identities.select_for_update(
+                of=("self",), no_key=True
+            ).get(pk=workspace_user.user_id)
             if kwargs["permissions"] != "ADMIN":
                 CoreHandler.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
@@ -1301,7 +1303,7 @@ class CoreHandler:
                 "Cannot delete yourself from workspace."
             )
 
-        User.objects_and_identities.select_for_update(of=("self",)).get(
+        User.objects_and_identities.select_for_update(of=("self",), no_key=True).get(
             pk=workspace_user.user_id
         )
         if is_identity(workspace_user.user):
@@ -1624,7 +1626,9 @@ class CoreHandler:
 
         with atomic_if_not_already():
             # All membership writes lock the User, including IdentityHandler creation.
-            User.objects_and_identities.select_for_update(of=("self",)).get(pk=user.pk)
+            User.objects_and_identities.select_for_update(
+                of=("self",), no_key=True
+            ).get(pk=user.pk)
             if is_identity(user):
                 memberships = list(
                     WorkspaceUser.objects_and_identities.filter(user=user)

@@ -166,6 +166,15 @@ reports the binding as trashed, so it can be restored; a disabled, deleted or
 foreign one reports it as missing. Either way the Agent loses workspace access
 until someone with the right permissions picks an active identity.
 
+Binding an Agent application or a Local Baserow integration to an identity takes
+the permission to manage identities (`identity.update`, held by workspace
+admins). Everyone who can edit the bound application acts with the identity's
+access, so an application editor could otherwise reach data their own role
+hides. Keeping or clearing an existing binding needs no extra permission, and
+run-as choices list no identities for someone who can't bind them. A duplicate
+or snapshot restore keeps the binding only when the person copying may bind
+identities.
+
 Every shared tool entry point starts a new permission lifetime for each call,
 so a revoked or trashed identity stops acting on the next call even when the
 caller reuses its tool context. MCP refuses to register a tool function that

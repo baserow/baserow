@@ -90,11 +90,12 @@ class IdentityService:
         :return: The updated identity with its extension data loaded.
         """
 
+        workspace = IdentityHandler.get_workspace(identity)
         CoreHandler().check_permissions(
             user,
             UpdateIdentityOperationType.type,
-            workspace=IdentityHandler.get_workspace(identity),
-            context=IdentityHandler.get_workspace(identity),
+            workspace=workspace,
+            context=workspace,
         )
         # A membership lock can't serialize team edits when the team set is empty.
         identity = IdentityHandler().get_identity(identity.id, for_update=True)
@@ -103,7 +104,7 @@ class IdentityService:
             "role_uid" in values
             and values["role_uid"] != IdentityHandler.get_role_uid(identity)
             and not identity_extension_type_registry.role_uid_exists(
-                values["role_uid"], IdentityHandler.get_workspace(identity)
+                values["role_uid"], workspace
             )
         ):
             raise IdentityRoleDoesNotExist()
@@ -115,8 +116,7 @@ class IdentityService:
         for extension in identity_extension_type_registry.get_all():
             extension.update(identity, values, user)
         identity = IdentityHandler().get_identity(
-            identity.id,
-            IdentityHandler().get_queryset(IdentityHandler.get_workspace(identity)),
+            identity.id, IdentityHandler().get_queryset(workspace)
         )
         updated_values = {
             "name": identity.first_name,
@@ -143,13 +143,42 @@ class IdentityService:
         :param identity: The identity to delete.
         """
 
+        workspace = IdentityHandler.get_workspace(identity)
         CoreHandler().check_permissions(
             user,
             DeleteIdentityOperationType.type,
-            workspace=IdentityHandler.get_workspace(identity),
-            context=IdentityHandler.get_workspace(identity),
+            workspace=workspace,
+            context=workspace,
         )
         for extension in identity_extension_type_registry.get_all():
             extension.before_delete(identity, user)
         IdentityHandler().delete_identity(user, identity)
         identity_deleted.send(self, user=user, identity=identity)
+
+    def check_can_bind(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        raise_permission_exceptions: bool = True,
+    ) -> bool:
+        """
+        Checks whether the user may make an application act as an identity of the
+        workspace. Everyone who can edit that application then uses the identity's
+        access, so binding takes the permission to manage identities. Keeping or
+        clearing an existing binding needs no check.
+
+        :param user: The user binding the identity.
+        :param workspace: The workspace of the identity and the application.
+        :param raise_permission_exceptions: Raise when the user may not bind.
+        :raises PermissionException: When the user may not bind and
+            raise_permission_exceptions is True.
+        :return: Whether the user may bind an identity of the workspace.
+        """
+
+        return CoreHandler().check_permissions(
+            user,
+            UpdateIdentityOperationType.type,
+            workspace=workspace,
+            context=workspace,
+            raise_permission_exceptions=raise_permission_exceptions,
+        )

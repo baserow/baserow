@@ -10,7 +10,7 @@ from baserow_enterprise.role.models import Role
 
 
 @pytest.mark.django_db
-def test_application_builder_can_choose_an_identity_without_workspace_listing(
+def test_application_builder_cannot_bind_an_identity(
     api_client, enterprise_data_fixture, enable_enterprise, synced_roles
 ):
     user, token = enterprise_data_fixture.create_user_and_token()
@@ -47,9 +47,10 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
 
     assert workspace_options.status_code == 401
     assert choices.status_code == 200
-    assert [item["id"] for item in choices.json()["results"]] == [identity.id]
-    assert updated.status_code == 200
-    assert updated.json()["run_as"]["id"] == identity.id
+    assert choices.json()["results"] == []
+    assert updated.status_code == 401
+    application.refresh_from_db()
+    assert application.run_as_subject_id is None
 
 
 @pytest.mark.django_db
