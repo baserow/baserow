@@ -35,7 +35,11 @@
         >
       </template>
     </i18n-t>
-    <Tabs header-no-padding content-no-x-padding>
+    <Tabs
+      class="mcp-oauth-connections__tabs"
+      header-no-padding
+      content-no-x-padding
+    >
       <Tab title="Claude Code">
         <MarkdownIt
           class="mcp-oauth-connections__instructions margin-bottom-1"

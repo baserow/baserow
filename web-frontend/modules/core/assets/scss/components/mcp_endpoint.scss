@@ -119,6 +119,7 @@
 .mcp-endpoint__code {
   display: block;
   width: 100%;
+  overflow-x: auto;
   padding: 6px;
   font-size: 12px;
   background-color: $color-neutral-100;
