@@ -1,9 +1,15 @@
+import json
 from io import BytesIO
 
 import pytest
 
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.workflow_actions.models import (
+    BuilderWorkflowAction,
+    EventTypes,
+)
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.models import Database
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
@@ -45,6 +51,27 @@ def _create_builder_reading_a_table(data_fixture):
         "builder": builder,
         "service": service,
     }
+
+
+def _install_as_template(data_fixture, settings, tmpdir, applications):
+    """
+    Writes the applications as an official template file, like one written on
+    another installation, and installs it into a new workspace of another user.
+    """
+
+    config = ImportExportConfig(include_permission_data=False)
+    workspace = applications[0].workspace
+    exported = CoreHandler().export_workspace_applications(workspace, BytesIO(), config)
+    application_ids = {app.id for app in applications}
+    template_apps = [app for app in exported if app["id"] in application_ids]
+    tmpdir.join("unmapped-references.json").write(json.dumps({"export": template_apps}))
+    settings.APPLICATION_TEMPLATES_DIR = str(tmpdir)
+    template = data_fixture.create_template(slug="unmapped-references")
+
+    user = data_fixture.create_user()
+    target_workspace = data_fixture.create_workspace(user=user)
+    imported, _ = CoreHandler().install_template(user, target_workspace, template)
+    return imported
 
 
 def _imported_service(applications):
@@ -157,3 +184,71 @@ def test_import_to_workspace_without_the_database_clears_the_references_to_it(
     assert service.view_id is None
     assert service.service_filters.count() == 0
     assert service.service_sorts.count() == 0
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_template_install_without_the_database_clears_the_references_to_it(
+    data_fixture, settings, tmpdir, use_tmp_media_root
+):
+    source = _create_builder_reading_a_table(data_fixture)
+
+    imported = _install_as_template(data_fixture, settings, tmpdir, [source["builder"]])
+
+    # A template install is a duplicate, but the ids in the file come from the
+    # installation it was written on, so they aren't kept.
+    service = _imported_service(imported)
+    assert service.table_id is None
+    assert service.view_id is None
+    assert service.service_filters.count() == 0
+    assert service.service_sorts.count() == 0
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_template_install_clears_a_field_mapping_to_a_field_outside_it(
+    data_fixture, settings, tmpdir, use_tmp_media_root
+):
+    # Like some shipped templates, the file holds the database of the action's
+    # table, but one field mapping names a field that isn't part of it. The field
+    # still exists on this instance, in another table.
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=user, workspace=workspace)
+    table = data_fixture.create_database_table(user=user, database=database)
+    name_field = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    other_database = data_fixture.create_database_application(
+        user=user, workspace=workspace
+    )
+    other_table = data_fixture.create_database_table(user=user, database=other_database)
+    other_field = data_fixture.create_text_field(table=other_table, name="Order")
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, user=user
+    )
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration, table=table
+    )
+    service.field_mappings.create(field=name_field, value="'Name'", enabled=True)
+    service.field_mappings.create(field=other_field, value="'1'", enabled=True)
+    data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK.value, service=service
+    )
+
+    imported = _install_as_template(data_fixture, settings, tmpdir, [database, builder])
+
+    [imported_builder] = [app for app in imported if isinstance(app.specific, Builder)]
+    [imported_database] = [
+        app for app in imported if isinstance(app.specific, Database)
+    ]
+    action = BuilderWorkflowAction.objects.get(page__builder_id=imported_builder.id)
+    imported_service = action.specific.service.specific
+    imported_name_field = Field.objects.get(
+        table__database_id=imported_database.id, name="Name"
+    )
+    # A duplicate would keep the other field, as it stays in the same workspace.
+    assert [m.field_id for m in imported_service.field_mappings.all()] == [
+        imported_name_field.id
+    ]

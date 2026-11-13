@@ -2496,7 +2496,7 @@ class CoreHandler:
             progress_builder, len(exported_applications) * 1000
         )
         id_mapping: Dict[str, Any] = {}
-        if not import_export_config.is_duplicate:
+        if not import_export_config.keeps_unmapped_references:
             # The applications may come without the ones they reference, for example
             # a user template holds only some applications of its source. Such
             # references must be cleared, not kept as ids of the source.

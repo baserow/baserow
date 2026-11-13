@@ -139,6 +139,18 @@ class ImportExportConfig:
     check that against.
     """
 
+    @property
+    def keeps_unmapped_references(self) -> bool:
+        """
+        Whether a reference to something that isn't part of the import, like a
+        table of a database that isn't copied, keeps its id. Only a duplicate
+        keeps it: it stays on this instance, where the id is still the right
+        one. A template is imported as a duplicate, but its ids come from the
+        installation it was written on, so they're cleared like any import's.
+        """
+
+        return self.is_duplicate and not self.is_template
+
     exported_by: Optional["AbstractUser"] = None
     """
     The authenticated person exporting an archive, when there is one. Application

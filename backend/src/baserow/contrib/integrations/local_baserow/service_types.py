@@ -604,11 +604,12 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         if prop_name == "table_id" and "database_tables" in id_mapping:
             # A duplicate stays in the same workspace, so a table outside the
-            # duplicated scope is still the right target. An import can land in
-            # another workspace, where a kept id would reach a table the
-            # importer cannot see.
+            # duplicated scope is still the right target. An import, a template
+            # install included, can land in another workspace, where a kept id
+            # would reach a table the importer cannot see.
             config = kwargs.get("import_export_config")
-            unmapped = value if getattr(config, "is_duplicate", False) else None
+            keeps = getattr(config, "keeps_unmapped_references", False)
+            unmapped = value if keeps else None
             return id_mapping["database_tables"].get(value, unmapped)
 
         return super().deserialize_property(
@@ -2316,7 +2317,7 @@ class LocalBaserowUpsertRowServiceType(
         )
 
     def _import_field_mapping_field_id(
-        self, field_id: int, id_mapping: Dict[str, Any], is_duplicate: bool
+        self, field_id: int, id_mapping: Dict[str, Any], keeps_unmapped: bool
     ) -> Optional[int]:
         """
         The id a field mapping should point at once imported.
@@ -2326,7 +2327,8 @@ class LocalBaserowUpsertRowServiceType(
 
         :param field_id: The field id the mapping was exported with.
         :param id_mapping: The id mapping dict.
-        :param is_duplicate: Whether this import is a duplicate.
+        :param keeps_unmapped: Whether this import keeps unmapped references, see
+            `ImportExportConfig.keeps_unmapped_references`.
         :return: The field id to point at, or None to drop the mapping.
         """
 
@@ -2334,7 +2336,7 @@ class LocalBaserowUpsertRowServiceType(
             return field_id
 
         mapped_field_id = id_mapping["database_fields"].get(field_id)
-        if mapped_field_id is not None or not is_duplicate:
+        if mapped_field_id is not None or not keeps_unmapped:
             return mapped_field_id
 
         # `objects` excludes trashed fields, so this tells the two apart.
@@ -2361,12 +2363,12 @@ class LocalBaserowUpsertRowServiceType(
 
         if prop_name == "field_mappings":
             config = kwargs.get("import_export_config")
-            is_duplicate = getattr(config, "is_duplicate", False)
+            keeps_unmapped = getattr(config, "keeps_unmapped_references", False)
             return [
                 {
                     **item,
                     "field_id": self._import_field_mapping_field_id(
-                        item["field_id"], id_mapping, is_duplicate
+                        item["field_id"], id_mapping, keeps_unmapped
                     ),
                 }
                 for item in value

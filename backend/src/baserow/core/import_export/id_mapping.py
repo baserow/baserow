@@ -25,8 +25,9 @@ def seed_id_mappings(id_mapping: Dict[str, Any]) -> None:
     """
     Creates the mappings of applications an import may not hold, so references to
     anything that isn't imported are cleared instead of kept as the ids of the
-    source instance. Only an import that isn't a duplicate may be seeded: a
-    duplicate stays in the same workspace, where those ids are still right.
+    source instance. A duplicate isn't seeded, see
+    `ImportExportConfig.keeps_unmapped_references`: it stays on this instance,
+    where those ids are still right.
 
     :param id_mapping: The id mapping of the import, updated in place.
     """
