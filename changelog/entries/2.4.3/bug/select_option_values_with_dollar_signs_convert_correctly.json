@@ -1,6 +1,8 @@
 {
     "type": "bug",
     "message": "Fix select option values containing dollar signs not being converted correctly when changing the field type.",
+    "issue_origin": "github",
+    "issue_number": null,
     "domain": "database",
     "bullet_points": [],
     "created_at": "2026-11-14"

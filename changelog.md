@@ -1,5 +1,11 @@
 # Changelog
 
+## Released 2.4.3
+
+### Bug fixes
+* [Database] Fix select option values containing dollar signs not being converted correctly when changing the field type.
+
+
 ## Released 2.4.2
 
 ### New features
