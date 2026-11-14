@@ -6,7 +6,11 @@ from django.db.backends.base.schema import BaseDatabaseSchemaEditor
 from django.db.backends.ddl_references import Statement
 from django.db.backends.utils import strip_quotes
 
-from .sql_queries import sql_create_field_try_cast, sql_drop_field_try_cast
+from .sql_queries import (
+    generate_try_cast_dollar_tag,
+    sql_create_field_try_cast,
+    sql_drop_field_try_cast,
+)
 
 TRY_CAST_FUNCTION_PLACEHOLDER = "__baserow_field_try_cast__"
 
@@ -71,14 +75,13 @@ class PostgresqlLenientDatabaseSchemaEditor:
                 alter_column_prepare_new_value = self.alter_column_prepare_new_value
 
             quoted_column_name = self.quote_name(new_field.column)
-            for key, value in variables.items():
-                variables[key] = value.replace("$FUNCTION$", "")
             try_cast_function = self._try_cast_function_name(new_field)
             self.execute(sql_drop_field_try_cast % {"function_name": try_cast_function})
             self.execute(
                 sql_create_field_try_cast
                 % {
                     "function_name": try_cast_function,
+                    "fence": generate_try_cast_dollar_tag(variables.values()),
                     "column": quoted_column_name,
                     "type": new_type,
                     "alter_column_prepare_old_value": alter_column_prepare_old_value,

@@ -5502,7 +5502,10 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             if len(values_mapping) == 0:
                 return None
 
-            # Has been checked for issues, everything is properly escaped and safe.
+            # The option id is cast to an int and the option value is passed as a
+            # bound query parameter. The value is embedded in a dollar-quoted function
+            # body, which is delimited by an unguessable random tag (see
+            # `generate_try_cast_dollar_tag`) so a value can never break out of it.
             # fmt: off
             sql = (
                 f"""
@@ -5541,7 +5544,10 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             if len(values_mapping) == 0:
                 return None
 
-            # Has been checked for issues, everything is properly escaped and safe.
+            # The option id is cast to an int and the option value is passed as a
+            # bound query parameter. The value is embedded in a dollar-quoted function
+            # body, which is delimited by an unguessable random tag (see
+            # `generate_try_cast_dollar_tag`) so a value can never break out of it.
             return (
                 f"""p_in = (
                 SELECT value FROM (
