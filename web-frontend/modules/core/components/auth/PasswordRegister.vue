@@ -12,7 +12,7 @@
           <strong>{{ invitationDetails.invited_by }}</strong>
         </template>
         <template #workspace>
-          <strong>{{ invitationDetails.workspace }}</strong>
+          <strong>{{ invitationDestination }}</strong>
         </template>
       </i18n-t>
       <i18n-t v-else scope="global" keypath="invitationLinkMessage" tag="p">

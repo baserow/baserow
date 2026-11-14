@@ -80,7 +80,7 @@
             >
               <div class="data-table__table-cell-head">
                 <template v-if="col.sortable">
-                  <div>
+                  <div class="data-table__table-cell-head-title">
                     <button
                       type="button"
                       class="data-table__table-cell-head-link"
@@ -98,13 +98,11 @@
                   </div>
                 </template>
                 <template v-else>
-                  <div>
+                  <div class="data-table__table-cell-head-title">
                     {{ col.header }}
-                    <HelpIcon
-                      v-if="col.helpText"
-                      :tooltip="col.helpText"
-                    /></div
-                ></template>
+                    <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
+                  </div>
+                </template>
               </div>
             </th>
           </tr>

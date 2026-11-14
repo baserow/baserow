@@ -77,6 +77,103 @@ describe('TeamInvitationTargetType', () => {
       email: 'a@x.com',
     })
   })
+
+  test('supports links only for who can add members and create links', () => {
+    const granted = new Set([
+      'enterprise.teams.create_subject',
+      'workspace.create_invitation_link',
+    ])
+    const app = {
+      ...createApp(),
+      $hasPermission: vi.fn((operation) => granted.has(operation)),
+    }
+    const linkTarget = new TeamInvitationTargetType({ app })
+
+    expect(linkTarget.supportsInvitationLinks(workspace)).toBe(true)
+    expect(app.$hasPermission).toHaveBeenCalledWith(
+      'enterprise.teams.create_subject',
+      workspace,
+      12
+    )
+
+    granted.delete('workspace.create_invitation_link')
+    expect(linkTarget.supportsInvitationLinks(workspace)).toBe(false)
+  })
+
+  test('manages the links of the team without a role', async () => {
+    const link = { id: 9, name: 'Fair', slug: 'abc', team_id: 3 }
+    const app = {
+      ...createApp(),
+      $client: {
+        get: vi.fn().mockResolvedValue({ data: [link] }),
+        post: vi.fn().mockResolvedValue({ data: link }),
+        patch: vi.fn().mockResolvedValue({ data: { ...link, name: 'New' } }),
+        delete: vi.fn().mockResolvedValue({}),
+      },
+    }
+    const linkTarget = new TeamInvitationTargetType({ app })
+    const target = { type: 'team', team: { id: 3 } }
+
+    expect(await linkTarget.fetchInvitationLinks(workspace, target)).toEqual([
+      link,
+    ])
+    expect(app.$client.get).toHaveBeenCalledWith('/teams/3/invitation-links/')
+
+    await linkTarget.createInvitationLink(workspace, target, null)
+    expect(app.$client.post).toHaveBeenCalledWith(
+      '/teams/3/invitation-links/',
+      {}
+    )
+
+    const updated = await linkTarget.updateInvitationLink(
+      workspace,
+      target,
+      link,
+      { name: 'New' }
+    )
+    expect(updated.name).toBe('New')
+    expect(app.$client.patch).toHaveBeenCalledWith(
+      '/teams/3/invitation-links/9/',
+      { name: 'New' }
+    )
+
+    await linkTarget.deleteInvitationLink(workspace, target, link)
+    expect(app.$client.delete).toHaveBeenCalledWith(
+      '/teams/3/invitation-links/9/'
+    )
+  })
+
+  test('shows the role the team gives and asks first for admin teams', () => {
+    const team = { id: 3, name: 'Sales', default_role: 'EDITOR' }
+
+    expect(targetType.getInvitationLinkRole(workspace, { team }).name).toBe(
+      'Editor'
+    )
+    expect(
+      targetType.getInvitationLinkRole(workspace, {
+        team: { ...team, default_role: null },
+      })
+    ).toBe(null)
+    expect(targetType.getInvitationLinkRoleHelpText(workspace, { team })).toBe(
+      'teamInvitationTarget.linkRoleHelpText'
+    )
+    expect(
+      targetType.invitationLinkGrantsAdmin(workspace, { team }, null)
+    ).toBe(false)
+    expect(
+      targetType.invitationLinkGrantsAdmin(
+        workspace,
+        { team: { ...team, default_role: 'ADMIN' } },
+        null
+      )
+    ).toBe(true)
+    expect(targetType.getInvitationLinkAdminWarning(workspace, { team })).toBe(
+      'teamInvitationTarget.linkAdminWarning:{"name":"Sales"}'
+    )
+    expect(targetType.getInvitationLinkDeleteWarning(workspace, { team })).toBe(
+      'teamInvitationTarget.linkDeleteWarning:{"name":"Sales"}'
+    )
+  })
 })
 
 describe('TeamMembersInvitationRouteType', () => {
