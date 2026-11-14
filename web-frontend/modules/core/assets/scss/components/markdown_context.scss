@@ -1,0 +1,87 @@
+.markdown-context {
+  width: 360px;
+  max-width: 100%;
+  padding: 16px;
+  cursor: auto;
+}
+
+.markdown-context__title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $palette-neutral-900;
+}
+
+.markdown-context__content {
+  font-size: 13px;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+  overflow-wrap: anywhere;
+
+  > :first-child {
+    margin-top: 0;
+  }
+
+  > :last-child {
+    margin-bottom: 0;
+  }
+
+  p,
+  ul,
+  ol,
+  pre,
+  blockquote {
+    margin: 0 0 8px;
+  }
+
+  ul,
+  ol {
+    padding-left: 18px;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  code {
+    padding: 1px 4px;
+    font-size: 12px;
+    background: $palette-neutral-100;
+
+    @include rounded($rounded);
+  }
+
+  pre {
+    padding: 8px;
+    overflow-x: auto;
+    background: $palette-neutral-100;
+
+    @include rounded($rounded-md);
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
+
+  blockquote {
+    padding-left: 8px;
+    border-left: 2px solid $palette-neutral-400;
+    color: $palette-neutral-900;
+  }
+}

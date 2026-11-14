@@ -36,6 +36,7 @@ class AutomationNodeSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "label",
+            "note",
             "on_failure",
             "max_retries",
             "retry_condition",
@@ -101,6 +102,7 @@ class UpdateAutomationNodeSerializer(serializers.ModelSerializer):
         model = AutomationNode
         fields = (
             "label",
+            "note",
             "on_failure",
             "max_retries",
             "retry_condition",

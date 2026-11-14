@@ -986,3 +986,19 @@ def test_delete_node_updates_workflow_dirty_cache(data_fixture):
     AutomationNodeService().delete_node(user, node.id)
 
     assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
+def test_replace_node_clears_the_note(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    original_node = data_fixture.create_automation_node(
+        workflow=workflow, label="Invoice", note="Creates the invoice row"
+    )
+
+    replace_result = AutomationNodeService().replace_node(
+        user, original_node.id, "local_baserow_update_row"
+    )
+
+    assert replace_result.node.id != original_node.id
+    assert replace_result.node.note == ""

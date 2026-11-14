@@ -29,6 +29,15 @@
       <img v-else :alt="nodeType.name" :src="nodeType.image" />
     </div>
 
+    <!-- Placed before the title and moved after it with `order`, so the title
+         keeps the `:last-child` spacing it has on cards without options. -->
+    <NoteIndicator
+      ref="noteIndicator"
+      class="workflow-node-content__note"
+      :note="node.note"
+      @open="activeNodeContext = noteIndicator"
+    />
+
     <h1 class="workflow-node-content__title">{{ displayLabel }}</h1>
 
     <Badge
@@ -143,6 +152,7 @@ import { useStore } from 'vuex'
 import { ref } from 'vue'
 import { useVueFlow } from '@vue-flow/core'
 import WorkflowNodeContext from '@baserow/modules/automation/components/workflow/WorkflowNodeContext'
+import NoteIndicator from '@baserow/modules/core/components/NoteIndicator'
 import flushPromises from 'flush-promises'
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 import { resolveColor } from '@baserow/modules/core/utils/colors'
@@ -204,6 +214,8 @@ const openEditContext = () => {
     )
   }
 }
+
+const noteIndicator = ref(null)
 
 const replaceNodeContext = ref(null)
 

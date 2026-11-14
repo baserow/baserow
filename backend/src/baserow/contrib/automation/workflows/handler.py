@@ -18,6 +18,7 @@ from baserow.contrib.automation.automation_dispatch_context import (
 )
 from baserow.contrib.automation.constants import (
     IMPORT_SERIALIZED_IMPORTING,
+    WORKFLOW_DESCRIPTION_MAX_LEN,
     WORKFLOW_NAME_MAX_LEN,
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -95,6 +96,7 @@ class AutomationWorkflowHandler:
     allowed_fields = [
         "untrusted_content",
         "name",
+        "description",
         "allow_test_run_until",
         "state",
         "notification_recipients",
@@ -534,6 +536,7 @@ class AutomationWorkflowHandler:
         serialized = AutomationWorkflowDict(
             id=workflow.id,
             name=workflow.name,
+            description=workflow.description,
             order=workflow.order,
             nodes=serialized_nodes,
             state=workflow.state,
@@ -744,6 +747,10 @@ class AutomationWorkflowHandler:
             automation=automation,
             untrusted_content=serialized_workflow.get("untrusted_content", False),
             name=serialized_workflow["name"],
+            # The serializers refuse a longer description; an imported file is cut.
+            description=(serialized_workflow.get("description") or "")[
+                :WORKFLOW_DESCRIPTION_MAX_LEN
+            ],
             order=serialized_workflow["order"],
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
             graph=serialized_workflow.get("graph", {}),

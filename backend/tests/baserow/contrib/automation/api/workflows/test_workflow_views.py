@@ -64,6 +64,7 @@ def test_create_workflow(api_client, data_fixture):
         "automation_id": AnyInt(),
         "id": AnyInt(),
         "name": name,
+        "description": "",
         "notification_recipient_ids": [user.id],
         "order": AnyInt(),
         "state": "draft",
@@ -154,6 +155,7 @@ def test_read_workflow(api_client, data_fixture):
         "id": workflow.id,
         "order": AnyInt(),
         "name": workflow.name,
+        "description": "",
         "automation_id": automation.id,
         "allow_test_run_until": None,
         "simulate_until_node_id": None,
@@ -447,6 +449,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "automation_id": automation.id,
             "id": workflow.id,
             "name": "test",
+            "description": "",
             "notification_recipient_ids": [],
             "order": AnyInt(),
             "state": "draft",
@@ -923,3 +926,39 @@ def test_trust_is_scoped_to_one_workflow(api_client, data_fixture):
     assert sibling.untrusted_content is True
 
     assert workflow.import_report == [{"type": "automation_code_node", "id": 123}]
+
+
+@pytest.mark.django_db
+def test_update_workflow_description(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, name="test")
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.patch(
+        url,
+        {"description": "Sends the **weekly** report"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["description"] == "Sends the **weekly** report"
+
+
+@pytest.mark.django_db
+def test_update_workflow_description_too_long(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, name="test")
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.patch(
+        url,
+        {"description": "a" * 2001},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["description"][0]["code"] == "max_length"

@@ -12,6 +12,7 @@ from django.utils import timezone
 import pytest
 from freezegun import freeze_time
 
+from baserow.contrib.automation.constants import WORKFLOW_DESCRIPTION_MAX_LEN
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import (
@@ -491,6 +492,7 @@ def test_export_prepared_values(data_fixture):
 
     assert result == {
         "name": "test",
+        "description": "",
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
@@ -804,6 +806,7 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
     assert updated.workflow == workflow
     assert updated.original_values == {
         "name": "foo",
+        "description": "",
         "allow_test_run_until": None,
         "state": WorkflowState.DRAFT,
         "notification_recipients": [],
@@ -811,6 +814,7 @@ def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
     }
     assert updated.new_values == {
         "name": "foo",
+        "description": "",
         "allow_test_run_until": None,
         # The original workflow should indeed be unaffected
         "state": WorkflowState.DRAFT,
@@ -2875,3 +2879,95 @@ def test_get_state_reports_draft_without_a_published_version(data_fixture):
     with CaptureQueriesContext(connection) as queries:
         assert handler.get_state(annotated) == WorkflowState.DRAFT
     assert len(queries) == 0
+
+
+@pytest.mark.django_db
+def test_update_workflow_description(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    assert workflow.description == ""
+
+    AutomationWorkflowHandler().update_workflow(
+        workflow, description="Sends the **weekly** report"
+    )
+
+    workflow.refresh_from_db()
+    assert workflow.description == "Sends the **weekly** report"
+
+
+@pytest.mark.django_db
+def test_export_and_import_workflow_keeps_the_description(data_fixture):
+    workflow = data_fixture.create_automation_workflow(
+        description="Sends the weekly report"
+    )
+
+    exported = AutomationWorkflowHandler().export_workflow(workflow)
+    assert exported["description"] == "Sends the weekly report"
+
+    imported = AutomationWorkflowHandler().import_workflow_only(
+        workflow.automation, exported, {}
+    )
+
+    assert imported.description == "Sends the weekly report"
+
+
+@pytest.mark.django_db
+def test_import_workflow_without_a_description(data_fixture):
+    automation = data_fixture.create_automation_application()
+
+    workflow = AutomationWorkflowHandler().import_workflow_only(
+        automation,
+        {"name": "new workflow", "id": 1, "order": 88, "state": "draft"},
+        {},
+    )
+
+    assert workflow.description == ""
+
+
+@pytest.mark.django_db
+def test_duplicate_workflow_keeps_the_description_and_node_notes(data_fixture):
+    workflow = data_fixture.create_automation_workflow(
+        description="Sends the weekly report"
+    )
+    trigger = workflow.get_trigger()
+    trigger.note = "Runs on every new row"
+    trigger.save()
+
+    workflow_clone = AutomationWorkflowHandler().duplicate_workflow(workflow)
+
+    assert workflow_clone.description == "Sends the weekly report"
+    assert workflow_clone.get_trigger().note == "Runs on every new row"
+
+
+@pytest.mark.django_db
+def test_publish_keeps_the_description_and_node_notes(data_fixture):
+    workflow = data_fixture.create_automation_workflow(
+        description="Sends the weekly report"
+    )
+    trigger = workflow.get_trigger()
+    trigger.note = "Runs on every new row"
+    trigger.save()
+
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+
+    assert published_workflow.description == "Sends the weekly report"
+    assert published_workflow.get_trigger().note == "Runs on every new row"
+
+
+@pytest.mark.django_db
+def test_import_workflow_cuts_a_description_that_is_too_long(data_fixture):
+    automation = data_fixture.create_automation_application()
+
+    workflow = AutomationWorkflowHandler().import_workflow_only(
+        automation,
+        {
+            "name": "new workflow",
+            "description": "a" * (WORKFLOW_DESCRIPTION_MAX_LEN + 50),
+            "id": 1,
+            "order": 88,
+            "state": "draft",
+        },
+        {},
+    )
+
+    assert workflow.description == "a" * WORKFLOW_DESCRIPTION_MAX_LEN
