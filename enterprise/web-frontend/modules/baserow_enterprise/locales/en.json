@@ -1011,5 +1011,8 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
+  },
+  "madeWithBaserow": {
+    "reportAbuse": "Report abuse"
   }
 }
