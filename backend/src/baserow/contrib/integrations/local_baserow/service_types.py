@@ -76,6 +76,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
 )
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.contrib.database.views.service import ViewService
 from baserow.contrib.database.views.view_aggregations import (
     DistributionViewAggregationType,
@@ -1103,6 +1104,24 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
                         },
                         code="view_does_not_exist",
                     ) from exc
+
+                # A view the service already uses is kept as is, so only a view
+                # which is being set is checked.
+                view_is_being_set = getattr(instance, "view_id", None) != view.id
+                if (
+                    view_is_being_set
+                    and not view_ownership_type_registry.get(
+                        view.ownership_type
+                    ).can_be_used_by_integrations
+                ):
+                    raise DRFValidationError(
+                        detail={
+                            "detail": f"The view with ID {view_id} can't be used "
+                            "because of its ownership type.",
+                            "error": "invalid_view",
+                        },
+                        code="invalid_view",
+                    )
 
                 # If we're PATCHing with a `table_id` alongside the `view_id`,
                 # validate with that table, otherwise we're PATCHing with just a

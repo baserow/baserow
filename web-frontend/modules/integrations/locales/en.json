@@ -95,6 +95,7 @@
     "errorHTTPDataSourceNotTested": "Test the request to see its fields",
     "errorNoTableSelected": "No table selected",
     "errorMisconfiguredIntegration": "The integration is missing or has been trashed",
+    "errorViewUnusable": "The selected view can't be used, choose another one",
     "errorFilterInError": "At least one filter is misconfigured",
     "errorSortingInError": "At least one sort is misconfigured",
     "errorNoFieldSelected": "No fields selected",

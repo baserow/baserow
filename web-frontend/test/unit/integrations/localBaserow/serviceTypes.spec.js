@@ -380,6 +380,59 @@ describe('Local baserow service types', () => {
     ).toBe(null)
   })
 
+  test('getErrorMessage flags a service whose view is not offered by its integration', () => {
+    const application = { id: 1 }
+    const integration = {
+      id: 5,
+      type: 'local_baserow',
+      context_data: {
+        databases: [
+          {
+            id: 1,
+            tables: [{ id: 99 }, { id: 100 }],
+            views: [{ id: 7, table_id: 99 }],
+          },
+        ],
+      },
+    }
+    const fakeApp = {
+      $store: {
+        getters: { 'integration/getIntegrationById': () => integration },
+      },
+      $registry: {
+        get: () => ({ getErrorMessage: () => null }),
+      },
+      $i18n: { t: (key) => key },
+    }
+    const serviceType = new LocalBaserowListRowsServiceType({ app: fakeApp })
+    const getErrorMessage = (service) =>
+      serviceType.getErrorMessage({
+        service: { integration_id: 5, ...service },
+        application,
+      })
+
+    // The view is offered by the integration.
+    expect(getErrorMessage({ table_id: 99, view_id: 7 })).toBe(null)
+    // No view is selected.
+    expect(getErrorMessage({ table_id: 99, view_id: null })).toBe(null)
+    // The table is listed, but the view isn't, like a personal view.
+    expect(getErrorMessage({ table_id: 99, view_id: 8 })).toBe(
+      'serviceType.errorViewUnusable'
+    )
+    // The table isn't listed, so its views are unknown.
+    expect(getErrorMessage({ table_id: 101, view_id: 8 })).toBe(null)
+    // Without an application the integration can't be resolved.
+    expect(
+      serviceType.getErrorMessage({
+        service: { integration_id: 5, table_id: 99, view_id: 8 },
+      })
+    ).toBe(null)
+
+    expect(en.serviceType.errorViewUnusable).toBe(
+      "The selected view can't be used, choose another one"
+    )
+  })
+
   test('a trashed integration agent marks the integration and service as in error', () => {
     const integration = {
       id: 5,

@@ -9,6 +9,7 @@ from rest_framework import serializers
 
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.contrib.integrations.api.local_baserow.serializers import (
     LocalBaserowContextDataSerializer,
 )
@@ -326,15 +327,20 @@ class LocalBaserowIntegrationType(IntegrationType):
                 "table_id",
                 "order",
                 "content_type",
+                "ownership_type",
             ),
         )
 
         views_by_table = defaultdict(list)
-        [
-            views_by_table[view.table_id].append(view)
-            for view in views
-            if view.get_type().can_filter or view.get_type().can_sort
-        ]
+        for view in views:
+            # The integration is shared, so only views of an ownership type that
+            # integrations may use are offered.
+            if not view_ownership_type_registry.get(
+                view.ownership_type
+            ).can_be_used_by_integrations:
+                continue
+            if view.get_type().can_filter or view.get_type().can_sort:
+                views_by_table[view.table_id].append(view)
 
         database_map = {}
         for table in tables:

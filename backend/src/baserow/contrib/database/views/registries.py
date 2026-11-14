@@ -1619,6 +1619,14 @@ class ViewOwnershipType(Instance):
     A `ViewOwnershipType` represents allowed style of view ownership.
     """
 
+    can_be_used_by_integrations = True
+    """
+    Whether an integration, such as the Local Baserow one, may offer views of this
+    ownership type and let its services use them. An integration is shared by
+    everyone who works on the application, so views that belong to a single user
+    must set this to `False`.
+    """
+
     def can_import_view(self, serialized_data: Dict, id_mapping: Dict) -> bool:
         """
         Returns True if the a view with this ownership can be imported.
