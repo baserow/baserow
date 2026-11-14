@@ -65,3 +65,7 @@ class TeamSubjectNotInGroup(Exception):
         super().__init__(
             "This subject does not belong to the team's group.", *args, **kwargs
         )
+
+
+class TeamInvitationDoesNotExist(Exception):
+    """Raised when trying to get an invitation to a team that does not exist."""

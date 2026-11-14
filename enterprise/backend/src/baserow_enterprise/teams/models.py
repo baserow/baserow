@@ -9,7 +9,7 @@ from baserow.core.mixins import (
     HierarchicalModelMixin,
     TrashableModelMixin,
 )
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, WorkspaceInvitation
 from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.teams.mixins import ParentTeamTrashableModelMixin
 
@@ -125,3 +125,40 @@ class TeamSubject(
         """
 
         return self.subject_type.model_class()._meta.label
+
+
+class WorkspaceTeamInvitation(CreatedAndUpdatedOnMixin):
+    """
+    Adds the person a workspace invitation is addressed to to a team once they
+    accept it. One invitation can carry any number of these, one per team, so the
+    same pending invitation is reused when the person is invited to another team.
+    """
+
+    invitation = models.ForeignKey(
+        WorkspaceInvitation,
+        on_delete=models.CASCADE,
+        related_name="team_invitations",
+        help_text="The workspace invitation that adds the person to the team once "
+        "accepted.",
+    )
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+        help_text="The team the person joins once the invitation is accepted.",
+    )
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return f"<WorkspaceTeamInvitation {self.invitation.email} - {self.team}>"
+
+    class Meta:
+        ordering = ("id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["invitation", "team"],
+                name="team_invitation_team_uniqueness",
+            )
+        ]
