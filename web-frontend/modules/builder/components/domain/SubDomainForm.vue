@@ -66,6 +66,10 @@ export default {
           this.$t('error.maxLength', { max: 255 }),
           maxLength(255)
         ),
+        noDot: helpers.withMessage(
+          this.$t('subDomainForm.noDotError'),
+          (value) => !helpers.req(value) || !value.includes('.')
+        ),
       },
     }
   },
