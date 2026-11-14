@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Protected file downloads now require signing in again after a password change",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-11"
+}
