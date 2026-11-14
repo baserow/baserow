@@ -1,104 +1,98 @@
 <template>
-  <div>
-    <FormGroup
-      :required="!hasToken"
-      :label="$t('slackBotForm.tokenLabel')"
-      small-label
-      class="margin-bottom-3"
-      :helper-text="hasToken ? $t('slackBotForm.tokenConfigured') : ''"
-      :error-message="getFirstErrorMessage('token')"
-    >
-      <FormInput
-        v-model="values.token"
-        type="password"
-        autocomplete="new-password"
-        :placeholder="
-          hasToken
-            ? $t('slackBotForm.tokenKeepPlaceholder')
-            : $t('slackBotForm.tokenPlaceholder')
-        "
-      />
-    </FormGroup>
-    <hr />
-    <FormGroup
-      :label="$t('slackBotForm.supportHeading')"
-      small-label
-      class="margin-top-3 margin-bottom-2"
-    >
-      <p class="margin-bottom-2">{{ $t('slackBotForm.supportDescription') }}</p>
-      <Expandable card class="margin-bottom-2">
-        <template #header="{ toggle, expanded }">
-          <div class="flex flex-100 justify-content-space-between">
-            <a @click="toggle">
-              {{ $t('slackBotForm.supportSetupHeading') }}
-              <Icon
-                :icon="
-                  expanded
-                    ? 'iconoir-nav-arrow-down'
-                    : 'iconoir-nav-arrow-right'
-                "
-                type="secondary"
-              />
-            </a>
+  <div class="slack-bot-form">
+    <template v-if="!hasToken">
+      <h4 class="slack-bot-form__heading">
+        {{ $t('slackBotForm.heading') }}
+      </h4>
+      <p class="slack-bot-form__intro">{{ $t('slackBotForm.intro') }}</p>
+    </template>
+    <ol class="slack-bot-form__steps">
+      <li v-if="!hasToken" class="slack-bot-form__step">
+        <div class="slack-bot-form__step-marker">1</div>
+        <div class="slack-bot-form__step-body">
+          <div class="slack-bot-form__step-row">
+            <div>
+              <div class="slack-bot-form__step-title">
+                {{ $t('slackBotForm.stepCreateTitle') }}
+              </div>
+              <div class="slack-bot-form__step-description">
+                {{ $t('slackBotForm.stepCreateDescription') }}
+              </div>
+            </div>
+            <Button
+              tag="a"
+              type="secondary"
+              icon="iconoir-open-new-window"
+              class="slack-bot-form__create"
+              :href="createAppUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ $t('slackBotForm.createApp') }}
+            </Button>
           </div>
-        </template>
-        <template #default>
-          <p class="margin-bottom-2">
-            {{ $t('slackBotForm.supportSetupDescription') }}
-          </p>
-          <ol class="slack-bot-form__instructions">
-            <li>
-              <i18n-t scope="global" keypath="slackBotForm.supportSetupStep1">
-                <template #link>
-                  <a href="https://api.slack.com/apps" target="_blank">{{
-                    $t('slackBotForm.supportSetupStep1Link')
-                  }}</a>
-                </template>
-              </i18n-t>
-            </li>
-            <li>{{ $t('slackBotForm.supportSetupStep2') }}</li>
-            <li>{{ $t('slackBotForm.supportSetupStep3') }}</li>
-            <li>
-              <i18n-t scope="global" keypath="slackBotForm.supportSetupStep4">
-                <template #scope>
-                  <pre>chat:write</pre>
-                </template>
-              </i18n-t>
-            </li>
-          </ol>
-        </template>
-      </Expandable>
-      <Expandable card class="margin-bottom-2">
-        <template #header="{ toggle, expanded }">
-          <div class="flex flex-100 justify-content-space-between">
-            <a @click="toggle">
-              {{ $t('slackBotForm.supportPairingHeading') }}
-              <Icon
-                :icon="
-                  expanded
-                    ? 'iconoir-nav-arrow-down'
-                    : 'iconoir-nav-arrow-right'
-                "
-                type="secondary"
-              />
-            </a>
+          <div class="slack-bot-form__step-note">
+            {{ $t('slackBotForm.stepCreateAdmin') }}
           </div>
+        </div>
+      </li>
+      <li v-if="!hasToken" class="slack-bot-form__step">
+        <div class="slack-bot-form__step-marker">2</div>
+        <div class="slack-bot-form__step-body">
+          <div class="slack-bot-form__step-title">
+            {{ $t('slackBotForm.stepInstallTitle') }}
+          </div>
+          <div class="slack-bot-form__step-description">
+            {{ $t('slackBotForm.stepInstallDescription') }}
+          </div>
+        </div>
+      </li>
+      <li class="slack-bot-form__step">
+        <div v-if="!hasToken" class="slack-bot-form__step-marker">3</div>
+        <div class="slack-bot-form__step-body">
+          <FormGroup
+            :required="!hasToken"
+            :label="
+              hasToken
+                ? $t('slackBotForm.tokenLabel')
+                : $t('slackBotForm.stepTokenTitle')
+            "
+            small-label
+            :helper-text="
+              hasToken
+                ? $t('slackBotForm.tokenConfigured')
+                : $t('slackBotForm.stepTokenDescription')
+            "
+            :error-message="getFirstErrorMessage('token')"
+          >
+            <FormInput
+              v-model="values.token"
+              type="password"
+              autocomplete="new-password"
+              :placeholder="
+                hasToken
+                  ? $t('slackBotForm.tokenKeepPlaceholder')
+                  : $t('slackBotForm.tokenPlaceholder')
+              "
+            />
+          </FormGroup>
+        </div>
+      </li>
+    </ol>
+    <div class="slack-bot-form__info">
+      <i class="slack-bot-form__info-icon iconoir-info-empty"></i>
+      <i18n-t scope="global" keypath="slackBotForm.privateChannels" tag="span">
+        <template #command>
+          <code class="slack-bot-form__command">/invite @Baserow</code>
         </template>
-        <template #default>
-          <ol class="slack-bot-form__instructions">
-            <li>{{ $t('slackBotForm.supportPairingStep1') }}</li>
-            <li>{{ $t('slackBotForm.supportPairingStep2') }}</li>
-            <li>
-              <i18n-t scope="global" keypath="slackBotForm.supportPairingStep3">
-                <template #command>
-                  <pre>/invite @yourAppName yourChannel</pre>
-                </template>
-              </i18n-t>
-            </li>
-          </ol>
-        </template>
-      </Expandable>
-    </FormGroup>
+      </i18n-t>
+    </div>
+    <Alert type="warning" class="slack-bot-form__warning">
+      <template #title>{{
+        $t('integrationCreateEditModal.warningTitle')
+      }}</template>
+      <p>{{ $t('slackBotIntegrationType.slackBotWarning') }}</p>
+    </Alert>
   </div>
 </template>
 
@@ -106,6 +100,7 @@
 import form from '@baserow/modules/core/mixins/form'
 import { useVuelidate } from '@vuelidate/core'
 import { helpers } from '@vuelidate/validators'
+import { getSlackCreateAppUrl } from '@baserow/modules/integrations/slack/manifest'
 
 export default {
   mixins: [form],
@@ -128,6 +123,9 @@ export default {
   computed: {
     hasToken() {
       return this.defaultValues.has_token === true
+    },
+    createAppUrl() {
+      return getSlackCreateAppUrl()
     },
   },
   methods: {
