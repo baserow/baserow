@@ -691,7 +691,7 @@ SPECTACULAR_SETTINGS = {
         "name": "MIT",
         "url": "https://github.com/baserow/baserow/blob/develop/LICENSE",
     },
-    "VERSION": "2.4.2",
+    "VERSION": "2.4.3",
     "SERVE_INCLUDE_SCHEMA": False,
     # ReDoc 3 is incompatible with drf-spectacular's classic script template.
     # Pin the bundle so CDN releases cannot silently break the documentation.
