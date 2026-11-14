@@ -23,6 +23,7 @@ from baserow.core.exceptions import PermissionDenied
 from baserow.core.operations import ReadApplicationOperationType
 from baserow.core.registries import PermissionManagerType, operation_type_registry
 from baserow.core.subjects import AnonymousUserSubjectType, UserSubjectType
+from baserow.core.user.identity import is_human
 from baserow.core.user_sources.operations import (
     AuthenticateUserSourceOperationType,
     ListUserSourcesApplicationOperationType,
@@ -122,6 +123,11 @@ class AllowPublicBuilderManagerType(PermissionManagerType):
         UserSourceUserSubjectType.type,
         AnonymousUserSubjectType.type,
     ]
+
+    def actor_is_supported(self, actor):
+        if isinstance(actor, User):
+            return is_human(actor)
+        return super().actor_is_supported(actor)
 
     # Public elements, public data sources and public actions
     page_level_operations = [

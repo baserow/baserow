@@ -11,7 +11,8 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.notification_types import (
     FormSubmittedNotificationType,
 )
-from baserow.core.models import Agent, WorkspaceUser
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.models import WorkspaceUser
 from baserow.test_utils.helpers import AnyInt, setup_interesting_test_table
 
 
@@ -26,9 +27,8 @@ def test_agent_cannot_change_notification_subscription_of_user_with_same_id(
     form = data_fixture.create_form_view(table=table)
     if subscribed:
         form.users_to_notify_on_submit.add(user)
-    # These identities have independent sequences, so their IDs can overlap.
-    identity = Agent.objects.create(
-        id=user.id, workspace=table.database.workspace, name="Ops"
+    identity = IdentityHandler().create_identity(
+        workspace=table.database.workspace, name="Ops"
     )
 
     ViewHandler().update_view(

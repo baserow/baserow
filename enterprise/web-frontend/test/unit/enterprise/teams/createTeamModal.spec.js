@@ -3,13 +3,13 @@ import { flushPromises } from '@vue/test-utils'
 import { expect, test, vi } from 'vitest'
 import CreateTeamModal from '@baserow_enterprise/components/teams/CreateTeamModal'
 
-test('opens the user picker when loading agents fails', async () => {
+test('opens the user picker when loading identities fails', async () => {
   const handled = vi.fn()
   const client = {
     get: vi.fn().mockRejectedValue({
       handler: {
         getMessage: () => ({
-          title: 'Unable to load agents',
+          title: 'Unable to load identities',
           message: 'Try again',
         }),
         handled,
@@ -20,10 +20,6 @@ test('opens the user picker when loading agents fails', async () => {
     'auth.User': {
       type: 'auth.User',
       getId: (subject) => subject.user_id,
-    },
-    'core.Agent': {
-      type: 'core.Agent',
-      getId: (subject) => subject.id,
     },
   }
   const wrapper = await mountSuspended(CreateTeamModal, {
@@ -70,11 +66,11 @@ test('opens the user picker when loading agents fails', async () => {
     await wrapper.find('.invite').trigger('click')
     await flushPromises()
 
-    expect(client.get).toHaveBeenCalledWith('/agents/workspace/12/', {
+    expect(client.get).toHaveBeenCalledWith('/identities/workspace/12/', {
       params: { size: 200, page: 1 },
     })
     expect(wrapper.find('.picker').text()).toContain('Workspace user')
-    expect(wrapper.text()).toContain('Unable to load agents')
+    expect(wrapper.text()).toContain('Unable to load identities')
     expect(handled).toHaveBeenCalledOnce()
   } finally {
     wrapper.unmount()

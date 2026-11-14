@@ -149,6 +149,7 @@ from baserow.core.services.types import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck, Subject
+from baserow.core.user.identity import is_identity
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -185,9 +186,9 @@ class LocalBaserowServiceType(ServiceType):
         if service.integration_id:
             integration = service.integration.specific
             authorized_subject = integration.authorized_subject_including_trash
-            if getattr(authorized_subject, "trashed", False):
+            if is_identity(authorized_subject) and authorized_subject.profile.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "The integration's authorized agent is trashed"
+                    "The integration's authorized identity is trashed"
                 )
 
             # Nullable, and an import can leave the authorized user null. Refuse
@@ -222,7 +223,7 @@ class LocalBaserowServiceType(ServiceType):
         service: ServiceSubClass,
         dispatch_context: DispatchContext,
     ) -> None:
-        """Record when this service uses an authorized agent."""
+        """Record when this service uses an authorized identity."""
 
         if not service.integration_id:
             return

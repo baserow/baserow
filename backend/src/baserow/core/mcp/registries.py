@@ -13,6 +13,8 @@ from typing import (
     get_type_hints,
 )
 
+from django.core.exceptions import ImproperlyConfigured
+
 from asgiref.sync import sync_to_async
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 
@@ -192,6 +194,14 @@ class FunctionMCPTool(MCPTool):
 
     ignore_extra_arguments: bool = False
     """True to drop unknown arguments instead of rejecting the call."""
+
+    def __init__(self):
+        super().__init__()
+        if not getattr(type(self).function, "is_tool_execution", False):
+            raise ImproperlyConfigured(
+                f"The function of the MCP tool {self.type} must be decorated with "
+                "tool_execution, so every call rechecks the current permissions."
+            )
 
     @cached_property
     def input_schema(self) -> type[BaseModel]:

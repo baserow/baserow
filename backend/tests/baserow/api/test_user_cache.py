@@ -1,6 +1,9 @@
+from datetime import timedelta
+
 from django.db import connection
 from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext, override_settings
+from django.utils import timezone
 
 import pytest
 from freezegun import freeze_time
@@ -13,6 +16,7 @@ from baserow.core.user.cache import (
     invalidate_cached_user,
     set_cached_user,
 )
+from baserow.core.user.exceptions import DeactivatedUserException
 from baserow.core.user.handler import UserHandler
 
 _CACHE_ON = override_settings(BASEROW_CACHE_TTL_SECONDS=30)
@@ -169,6 +173,82 @@ def test_get_user_uses_cache_on_second_call(data_fixture):
         result2 = auth.get_user(token)
     assert len(ctx2.captured_queries) == 0
     assert result2.id == user.id
+
+
+@pytest.mark.django_db(transaction=True)
+@_CACHE_ON
+def test_old_release_cached_profile_authenticates_and_is_refreshed(
+    data_fixture, api_client, django_assert_num_queries
+):
+    user, token = data_fixture.create_user_and_token()
+    # These fields did not exist in profiles cached before migration 0135.
+    for field in ("user_type", "trashed", "last_active"):
+        del user.profile.__dict__[field]
+    set_cached_user(user)
+
+    response = api_client.get(
+        reverse("api:workspaces:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == 200
+    with django_assert_num_queries(0):
+        cached = get_cached_user(user.id)
+        assert cached.profile.user_type == "human"
+        assert cached.profile.trashed is False
+        assert cached.profile.last_active is None
+
+
+@pytest.mark.django_db
+@_CACHE_ON
+@pytest.mark.parametrize("kind", ["identity", "unknown", "missing_profile"])
+def test_incomplete_cached_profile_does_not_bypass_authoritative_user_type(
+    data_fixture, api_client, kind
+):
+    user, token = data_fixture.create_user_and_token()
+    if kind == "missing_profile":
+        user.profile.delete()
+    else:
+        user.profile.user_type = kind
+        user.profile.save(update_fields=["user_type"])
+    del user.profile.__dict__["user_type"]
+    set_cached_user(user)
+
+    response = api_client.get(
+        reverse("api:workspaces:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+@_CACHE_ON
+@pytest.mark.parametrize(
+    "change,error",
+    [
+        ("inactive", DeactivatedUserException),
+        ("password_changed", AuthenticationFailed),
+        ("deleted", AuthenticationFailed),
+    ],
+)
+def test_old_cached_profile_rechecks_current_account_status(
+    data_fixture, api_request_factory, change, error
+):
+    user, token = data_fixture.create_user_and_token()
+    if change == "inactive":
+        type(user)._base_manager.filter(pk=user.pk).update(is_active=False)
+    elif change == "password_changed":
+        type(user.profile)._base_manager.filter(pk=user.profile.pk).update(
+            last_password_change=timezone.now() + timedelta(minutes=1)
+        )
+    else:
+        type(user)._base_manager.filter(pk=user.pk).delete()
+    # The cached object still contains its original active state/password timestamp.
+    del user.profile.__dict__["user_type"]
+    set_cached_user(user)
+    request = api_request_factory.get("/", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    with pytest.raises(error):
+        JSONWebTokenAuthentication().authenticate(request)
 
 
 @pytest.mark.django_db

@@ -1,5 +1,5 @@
 from baserow.contrib.integrations.local_baserow.receivers import (  # noqa: F401
-    clear_permanently_deleted_agent_authorization,
+    clear_permanently_deleted_identity_authorization,
     clear_permanently_deleted_user_authorization,
     invalidate_table_cache,
 )

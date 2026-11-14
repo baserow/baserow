@@ -1014,6 +1014,27 @@ def test_import_export_view_ownership_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_import_personal_view_does_not_assign_identity_owner(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_grid_view(table=table, owned_by=user, ownership_type="personal")
+    database_type = application_type_registry.get("database")
+    config = ImportExportConfig(include_permission_data=False)
+    serialized = database_type.export_serialized(table.database, config)
+    serialized["tables"][0]["views"][0]["owned_by"] = identity.email
+
+    imported_database = database_type.import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    imported_table = imported_database.table_set.get()
+    assert not imported_table.view_set.exists()
+
+
+@pytest.mark.django_db
 def test_import_export_view_ownership_type_created_by_backward_compatible(data_fixture):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user(workspace=workspace)

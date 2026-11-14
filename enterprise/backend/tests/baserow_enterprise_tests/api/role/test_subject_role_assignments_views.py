@@ -10,7 +10,6 @@ from rest_framework.status import (
 )
 
 from baserow.core.cache import local_cache
-from baserow.core.models import Agent
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -155,7 +154,7 @@ def test_list_subject_role_assignments_pages_and_locks(api_client, data_fixture)
 
 
 @pytest.mark.django_db
-def test_list_subject_role_assignments_of_teams_and_agents(
+def test_list_subject_role_assignments_of_teams_and_identities(
     api_client, data_fixture, enterprise_data_fixture
 ):
     admin, token = data_fixture.create_user_and_token()
@@ -164,13 +163,15 @@ def test_list_subject_role_assignments_of_teams_and_agents(
     table.database.workspace = workspace
     table.database.save()
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="VIEWER")
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Bot", role_uid="VIEWER"
+    )
     assign(team, workspace, "EDITOR", table)
-    assign(agent, workspace, "VIEWER", table)
+    assign(identity, workspace, "VIEWER", table)
 
     for subject_type, subject_id, role in [
         ("baserow_enterprise.Team", team.id, "EDITOR"),
-        ("core.Agent", agent.id, "VIEWER"),
+        ("auth.User", identity.id, "VIEWER"),
     ]:
         response = list_subject_role_assignments(
             api_client,
@@ -214,7 +215,7 @@ def test_list_subject_role_assignments_denied(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_lists_of_members_teams_and_agents_count_their_roles(
+def test_lists_of_members_teams_and_identities_count_their_roles(
     api_client, data_fixture, enterprise_data_fixture
 ):
     admin, token = data_fixture.create_user_and_token()
@@ -225,11 +226,13 @@ def test_lists_of_members_teams_and_agents_count_their_roles(
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database)
     team = enterprise_data_fixture.create_team(workspace=workspace)
-    agent = Agent.objects.create(workspace=workspace, name="Bot", role_uid="VIEWER")
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Bot", role_uid="VIEWER"
+    )
     assign(member, workspace, "VIEWER", database.application_ptr)
     assign(member, workspace, "EDITOR", table)
     assign(team, workspace, "EDITOR", table)
-    assign(agent, workspace, "NO_ACCESS", table)
+    assign(identity, workspace, "NO_ACCESS", table)
     auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
     response = api_client.get(
@@ -249,7 +252,7 @@ def test_lists_of_members_teams_and_agents_count_their_roles(
     assert [item["role_assignment_count"] for item in response.json()] == [1]
 
     response = api_client.get(
-        reverse("api:agents:workspace", kwargs={"workspace_id": workspace.id}),
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
         **auth,
     )
     assert response.status_code == HTTP_200_OK
@@ -285,9 +288,12 @@ def test_counting_roles_of_members_does_not_grow_queries(api_client, data_fixtur
     assert count_queries() == queries_with_few_members
 
 
-def test_agents_list_documents_its_role_assignment_count():
-    from baserow.api.agents.serializers import AgentListSerializer, AgentSerializer
+def test_identities_list_documents_its_role_assignment_count():
+    from baserow.api.identities.serializers import (
+        IdentityListSerializer,
+        IdentitySerializer,
+    )
 
-    # The count is only added to the agents of a list response.
-    assert "role_assignment_count" in AgentListSerializer().fields
-    assert "role_assignment_count" not in AgentSerializer().fields
+    # The count is only added to the identities of a list response.
+    assert "role_assignment_count" in IdentityListSerializer().fields
+    assert "role_assignment_count" not in IdentitySerializer().fields

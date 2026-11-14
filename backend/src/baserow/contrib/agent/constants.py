@@ -1,7 +1,7 @@
 from enum import StrEnum
 
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.generative_ai.constants import WEB_SEARCH_MAX_PER_REPLY
+from baserow.core.subjects import UserSubjectType
 
 
 class AgentReadinessState(StrEnum):
@@ -29,7 +29,8 @@ class AgentRunAsState(StrEnum):
 
 
 AGENT_RUN_TYPE = "agent"
-RUN_AS_SUBJECT_TYPES = [AgentSubjectType.type]
+# Only identity users of that type, never people: see AgentHandler.resolve_run_as_subject.
+RUN_AS_SUBJECT_TYPES = [UserSubjectType.type]
 HISTORY_MESSAGE_LIMIT = 20
 REPLY_REQUEST_LIMIT = 20
 AGENT_NOT_READY = "not_ready"

@@ -79,7 +79,7 @@ export default {
       default: () => [],
     },
     /**
-     * The users and agents who are an admin of a level above the object, as
+     * The users and identities who are an admin of a level above the object, as
      * `{ '<subject type>:<id>': '<level>' }`. A role on the object would have
      * no effect on them.
      */
@@ -204,8 +204,8 @@ export default {
       )
     },
     /**
-     * The tab names as one list for a sentence, like "members, teams, agents"
-     * for the `unit` type or "members, teams, or agents" for `disjunction`.
+     * The tab names as one list for a sentence, like "members, teams, identities"
+     * for the `unit` type or "members, teams, or identities" for `disjunction`.
      */
     formatTabNames(type) {
       const locale = this.$i18n.locale

@@ -3,7 +3,8 @@ from django.urls import reverse
 import pytest
 
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
-from baserow.core.models import Agent, Operation
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.models import Operation
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -17,7 +18,7 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
         user=enterprise_data_fixture.create_user(), members=[user]
     )
     application = enterprise_data_fixture.create_agent_application(workspace=workspace)
-    identity = Agent.objects.create(workspace=workspace, name="Investor")
+    identity = IdentityHandler().create_identity(workspace=workspace, name="Investor")
     roles = RoleAssignmentHandler()
     roles.assign_role(user, workspace, Role.objects.get(uid="VIEWER"))
     roles.assign_role(
@@ -30,7 +31,7 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
 
     workspace_options = api_client.get(
         reverse("api:subjects:list"),
-        {"workspace_id": workspace.id, "subject_types": "core.Agent"},
+        {"workspace_id": workspace.id, "subject_types": "auth.User"},
         **auth,
     )
     choices = api_client.get(
@@ -39,7 +40,7 @@ def test_application_builder_can_choose_an_identity_without_workspace_listing(
     )
     updated = api_client.patch(
         reverse("api:agent:configuration", kwargs={"agent_id": application.id}),
-        {"run_as_subject_type": "core.Agent", "run_as_subject_id": identity.id},
+        {"run_as_subject_type": "auth.User", "run_as_subject_id": identity.id},
         format="json",
         **auth,
     )

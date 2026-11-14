@@ -61,7 +61,7 @@ import {
 
 import {
   MembersWorkspaceSettingsPageType,
-  AgentsWorkspaceSettingsPageType,
+  IdentitiesWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -77,11 +77,10 @@ import { CloudflareTurnstileCaptchaProviderType } from '@baserow/modules/core/ca
 
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 import {
-  GeneralAgentSettingsType,
-  McpServerAgentSettingsType,
-} from '@baserow/modules/core/agentSettingsTypes'
+  GeneralIdentitySettingsType,
+  McpServerIdentitySettingsType,
+} from '@baserow/modules/core/identitySettingsTypes'
 import {
-  AgentSubjectType,
   AnonymousUserSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes.jsx'
@@ -189,8 +188,8 @@ export default defineNuxtPlugin({
     registry.registerNamespace('guidedTour')
     registry.registerNamespace('admin')
     registry.registerNamespace('workspaceSettingsPage')
-    registry.registerNamespace('agentExtension')
-    registry.registerNamespace('agentSettings')
+    registry.registerNamespace('identityExtension')
+    registry.registerNamespace('identitySettings')
     registry.registerNamespace('subject')
     registry.registerNamespace('errorPage')
     registry.registerNamespace('twoFactorAuth')
@@ -202,7 +201,6 @@ export default defineNuxtPlugin({
 
     registry.register('subject', new UserSubjectType(context))
     registry.register('subject', new AnonymousUserSubjectType(context))
-    registry.register('subject', new AgentSubjectType(context))
 
     registry.register('invitationRoute', new EmailInvitationRouteType(context))
     registry.register('invitationRoute', new LinkInvitationRouteType(context))
@@ -211,8 +209,14 @@ export default defineNuxtPlugin({
       new WorkspaceInvitationTargetType(context)
     )
 
-    registry.register('agentSettings', new GeneralAgentSettingsType(context))
-    registry.register('agentSettings', new McpServerAgentSettingsType(context))
+    registry.register(
+      'identitySettings',
+      new GeneralIdentitySettingsType(context)
+    )
+    registry.register(
+      'identitySettings',
+      new McpServerIdentitySettingsType(context)
+    )
 
     registry.register('settings', new AccountSettingsType(context))
     registry.register('settings', new PasswordSettingsType(context))
@@ -297,7 +301,7 @@ export default defineNuxtPlugin({
     )
     registry.register(
       'workspaceSettingsPage',
-      new AgentsWorkspaceSettingsPageType(context)
+      new IdentitiesWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))

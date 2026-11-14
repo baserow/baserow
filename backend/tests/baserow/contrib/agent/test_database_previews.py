@@ -12,7 +12,7 @@ from baserow.contrib.agent.database_previews import (
     table_names,
     table_reference,
 )
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.tools import ToolContext
 
 
@@ -25,7 +25,9 @@ def accounts(data_fixture):
     name = data_fixture.create_text_field(table=table, name="Name", primary=True)
     secret = data_fixture.create_password_field(table=table, name="Secret")
     model = table.get_model()
-    identity = Agent.objects.create(workspace=database.workspace, name="Ops")
+    identity = IdentityHandler().create_identity(
+        workspace=database.workspace, name="Ops"
+    )
     return SimpleNamespace(
         ctx=ToolContext(user=identity, workspace=database.workspace),
         database=database,

@@ -22,10 +22,11 @@ from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Agent
+from baserow.core.models import WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
@@ -133,10 +134,10 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=agent.workspace, name="Investor", trashed=trashed
     )
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     AgentHandler().set_allowed_tools(
         agent, ["list_tables", "create_rows"], ask_first_names=["list_tables"]
@@ -174,13 +175,16 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
 def test_run_as_copy_clears_invalid_references(data_fixture, configured_agent, state):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     if state == "missing":
         identity.delete()
     elif state == "foreign":
-        identity.workspace = data_fixture.create_workspace()
-        identity.save()
+        WorkspaceUser.objects_and_identities.filter(user=identity).update(
+            workspace=data_fixture.create_workspace()
+        )
     elif state == "unsupported":
         agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", user.id
     else:
@@ -199,10 +203,10 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=agent.workspace, name="Investor", trashed=trashed_at_creation
     )
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     snapshot = data_fixture.create_snapshot(
@@ -215,7 +219,7 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
     archived = snapshot.snapshot_to_application.specific
     assert archived.workspace_id is None
     assert (archived.run_as_subject_type, archived.run_as_subject_id) == (
-        "core.Agent",
+        "auth.User",
         identity.id,
     )
     assert AgentHandler().get_tool_configuration(archived)["allowed_tools"] == [
@@ -223,11 +227,11 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         "create_rows",
     ]
 
-    identity.trashed = True
-    identity.save()
+    identity.profile.trashed = True
+    identity.profile.save(update_fields=["trashed"])
     restored = snapshots.perform_restore(snapshot, Progress(total=100)).specific
     assert (restored.run_as_subject_type, restored.run_as_subject_id) == (
-        "core.Agent",
+        "auth.User",
         identity.id,
     )
     handler = AgentHandler()
@@ -242,8 +246,9 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         is None
     )
 
-    identity.trashed = False
-    identity.save()
+    identity.profile.trashed = False
+
+    identity.profile.save(update_fields=["trashed"])
     assert (
         handler.get_usable_run_as_subject(
             restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
@@ -278,14 +283,16 @@ def test_run_as_is_exported_only_for_internal_copies(
     data_fixture, configured_agent, config_values, keeps_identity
 ):
     agent = configured_agent()
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     config = ImportExportConfig(include_permission_data=False, **config_values)
 
     serialized = AgentApplicationType().export_serialized(agent, config)
 
     if keeps_identity:
-        assert serialized["run_as_subject_type"] == "core.Agent"
+        assert serialized["run_as_subject_type"] == "auth.User"
         assert serialized["run_as_subject_id"] == identity.id
     else:
         assert "run_as_subject_type" not in serialized
@@ -297,8 +304,10 @@ def test_portable_import_clears_run_as_even_when_identity_exists(
     data_fixture, configured_agent
 ):
     agent = configured_agent()
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     imported = AgentApplicationType().import_serialized(
@@ -318,8 +327,10 @@ def test_template_install_clears_run_as_with_a_destination_identity_collision(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     template = data_fixture.create_template(slug="agent-identity-collision")
     settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)

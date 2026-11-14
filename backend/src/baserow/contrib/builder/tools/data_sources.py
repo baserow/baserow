@@ -12,7 +12,7 @@ from pydantic import Field
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import raise_if_permission_denied
 
 from . import BuilderWriteOptions, helpers
@@ -31,6 +31,7 @@ from .types import (
 from .types.limits import MAX_ITEMS_PER_CALL
 
 
+@tool_execution
 def list_data_sources(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -110,6 +111,7 @@ def create_data_sources_with_options(
     return result
 
 
+@tool_execution
 def create_data_sources(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -153,6 +155,7 @@ def update_data_source_on_page(
     return orm_ds, ds_type, formula_errors
 
 
+@tool_execution
 def update_data_source(
     ctx: ToolContext,
     data_source_id: Annotated[
