@@ -53,6 +53,32 @@ class AgentAllowedTool(models.Model):
         ]
 
 
+class AgentAction(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
+    """One named tool backed by its own configured integration service."""
+
+    agent = models.ForeignKey(
+        AgentApplication, on_delete=models.CASCADE, related_name="actions"
+    )
+    service = models.OneToOneField(
+        Service, on_delete=models.CASCADE, related_name="agent_action"
+    )
+    name = models.CharField(max_length=64)
+    description = models.TextField(blank=True, default="")
+    inputs = models.JSONField(default=list, blank=True)
+    enabled = models.BooleanField(default=True, db_default=True)
+    ask_first = models.BooleanField(default=False, db_default=False)
+
+    class Meta:
+        ordering = ("id",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agent", "name"],
+                condition=Q(trashed=False),
+                name="agent_action_unique_live_name",
+            )
+        ]
+
+
 class AgentTrigger(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     """An agent-owned trigger service whose events start shared conversations."""
 
@@ -259,8 +285,8 @@ class AgentToolApproval(BigAutoFieldMixin, models.Model):
         blank=True,
         default="",
         db_default="",
-        help_text="For an MCP tool, its server, account and definition when the "
-        "call was held. An approved call only runs while they're the same.",
+        help_text="For an MCP tool or an action, a digest of what it was when the "
+        "call was held. An approved call only runs while it's the same.",
     )
     status = models.CharField(
         max_length=16,

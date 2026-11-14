@@ -353,7 +353,75 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
   }
 }
 
+const isEmpty = (value) =>
+  value == null || value === '' || (Array.isArray(value) && !value.length)
+
+/**
+ * How the calls of a configured action look. Its builder names the tool, so
+ * the type is the action's service type instead.
+ */
+export class ActionToolPresentationType extends ToolPresentationType {
+  /** The translation keys of the service's fields, in the order people read them. */
+  get fieldLabels() {
+    return {}
+  }
+
+  /** The resolved values in reading order, without the ones left empty. */
+  getInput({ input }, t) {
+    const values = input.values || {}
+    const labels = this.fieldLabels
+    const keys = [
+      ...Object.keys(labels).filter((key) => key in values),
+      ...Object.keys(values).filter((key) => !(key in labels)),
+    ]
+    return {
+      ...input,
+      values: Object.fromEntries(
+        keys
+          .filter((key) => !isEmpty(values[key]))
+          .map((key) => [labels[key] ? t(labels[key]) : key, values[key]])
+      ),
+    }
+  }
+}
+
+export class SMTPEmailToolPresentationType extends ActionToolPresentationType {
+  static getType() {
+    return 'smtp_email'
+  }
+
+  get fieldLabels() {
+    return {
+      from_email: 'smtpEmailForm.fromEmail',
+      from_name: 'smtpEmailForm.fromName',
+      to_emails: 'smtpEmailForm.toEmails',
+      cc_emails: 'smtpEmailForm.ccEmails',
+      bcc_emails: 'smtpEmailForm.bccEmails',
+      subject: 'smtpEmailForm.subject',
+      body: 'smtpEmailForm.body',
+      body_type: 'smtpEmailForm.bodyType',
+      integration_id: 'smtpEmailForm.integrationDropdownLabel',
+      use_instance_smtp_settings: 'smtpEmailForm.smtpConfigurationMode',
+    }
+  }
+
+  getLabel(t) {
+    return t('agent.toolSendEmail')
+  }
+
+  getActivity({ status }, t) {
+    return t(
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolSendEmailRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolSendEmailDone'
+          : 'agent.toolSendEmail'
+    )
+  }
+}
+
 export const agentToolPresentationTypes = [
+  SMTPEmailToolPresentationType,
   WebSearchToolPresentationType,
   ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,

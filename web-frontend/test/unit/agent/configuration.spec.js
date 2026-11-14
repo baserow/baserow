@@ -87,6 +87,28 @@ describe('Agent configuration', () => {
     expect(wrapper.element.querySelectorAll('form form')).toHaveLength(0)
   })
 
+  test('offers configured action types from the configuration API', async () => {
+    mockConfiguration(
+      testApp,
+      completeConfiguration({ available_action_types: ['smtp_email'] })
+    )
+    testApp.mock.onGet('application/10/integrations/').reply(200, [])
+    testApp.mock.onGet('/agent/10/actions/').reply(200, [])
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.actions')
+    await flushPromises()
+
+    const add = wrapper.get('.agent-actions__header button')
+    expect(add.text()).toBe('agent.addAction')
+    await add.trigger('click')
+    await flushPromises()
+    expect(
+      wrapper
+        .findAll('.grouped-menu__actions .menu-list__item-button')
+        .map((item) => item.text())
+    ).toEqual([expect.stringContaining('serviceType.coreSMTPEmail')])
+  })
+
   test('keeps the open form when the Agent changes in the background', async () => {
     const wrapper = await mount()
     await openSection(wrapper, 'agent.instructions')
@@ -604,8 +626,12 @@ describe('Agent configuration', () => {
     mockConfiguration(testApp, incompleteConfiguration('model_identifier'))
     const wrapper = await mount()
 
-    const [instructionsSection, , , , settingsSection] = wrapper.findAll(
-      '.menu-list__item-button'
+    const sections = wrapper.findAll('.menu-list__item-button')
+    const instructionsSection = sections.find((section) =>
+      section.text().includes('agent.instructions')
+    )
+    const settingsSection = sections.find((section) =>
+      section.text().includes('agent.agentSettings')
     )
 
     expect(instructionsSection.find('.icon--error').exists()).toBe(false)
@@ -2159,7 +2185,7 @@ describe('Agent configuration', () => {
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(5)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(6)
   })
 
   test('warns when model availability cannot be loaded until retry', async () => {

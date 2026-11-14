@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import NotRequired, TypedDict
+from typing import TYPE_CHECKING, NotRequired, TypedDict
 from uuid import UUID
 
 from django.db.models import F, Value
@@ -14,6 +14,9 @@ from baserow.core.types import Subject
 
 from .constants import AgentConfigurationErrorCode, AgentReadinessState, AgentRunAsState
 from .models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
+
+if TYPE_CHECKING:
+    from .action_tools.tools import BoundActionTool
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,8 @@ class AgentConfiguration:
     web_search_blocked_by_tools: bool
     ask_first_tools: list[str]
     available_trigger_types: list[str]
+    available_action_types: list[str]
+    max_actions: int | None
     max_queued_trigger_runs: int
     max_parallel_trigger_runs: int
     errors: dict[str, AgentConfigurationErrorCode]
@@ -163,6 +168,8 @@ class AgentReplyRequest:
     """The tools the reply may call, none without an identity to act as."""
     ask_first_tool_names: list[str] = field(default_factory=list)
     """The allowed tools whose calls wait for the owner's approval."""
+    action_tools: list["BoundActionTool"] = field(default_factory=list)
+    """The enabled actions, which don't act as the Agent's identity."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
     mcp_servers: tuple[MCPServerSnapshot, ...] = ()
@@ -201,7 +208,7 @@ class AgentReplyResult:
     waiting_calls: list[ChatRunWaitingCall] = field(default_factory=list)
     """The calls held for the owner's approval, when the run paused."""
     tool_keys: dict[str, str] = field(default_factory=dict)
-    """The approval key of each held MCP call's tool, by tool name."""
+    """The approval key of each held MCP or action call's tool, by tool name."""
     paused_run: AgentPausedRun | None = None
     """The paused run, to resume once its held calls are decided."""
 

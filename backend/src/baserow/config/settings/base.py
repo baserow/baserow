@@ -2134,6 +2134,9 @@ AGENT_TRIGGER_MAX_PARALLEL_RUNS = int(
 BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
     int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0) or None
 )
+BASEROW_AGENT_MAX_ACTIONS_PER_AGENT = (
+    int(os.getenv("BASEROW_AGENT_MAX_ACTIONS_PER_AGENT") or 0) or None
+)
 
 # Deprecated provider connection/model environment variables. Manage providers and
 # models under AI providers instead. Keep these settings for compatibility and the

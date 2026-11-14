@@ -159,6 +159,15 @@ class ServiceType(
 
         return False
 
+    def get_configuration_errors(self, service: ServiceSubClass) -> dict[str, str]:
+        """Return statically detectable errors, without resolving or dispatching.
+
+        Consumers can keep incomplete drafts and omit them from execution. Formula
+        context references and integration ownership are checked by their caller.
+        """
+
+        return {}
+
     def raise_if_deactivated(self, workspace: Workspace) -> None:
         """Reject use of a deactivated service type when called by its consumer."""
 
@@ -591,9 +600,13 @@ class ServiceType(
         )
         try:
             with transaction.atomic():
-                resolved_values = self.resolve_service_formulas(
-                    service, dispatch_context
+                resolved_values = (dispatch_context.resolved_values or {}).get(
+                    service.id
                 )
+                if resolved_values is None:
+                    resolved_values = self.resolve_service_formulas(
+                        service, dispatch_context
+                    )
                 if not sends_outside:
                     serialized_data = self._dispatch_and_transform(
                         service, resolved_values, dispatch_context

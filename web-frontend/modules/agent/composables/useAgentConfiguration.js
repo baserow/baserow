@@ -49,6 +49,8 @@ const CONFIGURATION_FIELDS = [
   CONFIGURATION_FIELD.WEB_SEARCH_AVAILABLE,
   CONFIGURATION_FIELD.WEB_SEARCH_BLOCKED_BY_TOOLS,
   CONFIGURATION_FIELD.AVAILABLE_TRIGGER_TYPES,
+  CONFIGURATION_FIELD.AVAILABLE_ACTION_TYPES,
+  CONFIGURATION_FIELD.MAX_ACTIONS,
   CONFIGURATION_FIELD.MAX_QUEUED_TRIGGER_RUNS,
   CONFIGURATION_FIELD.MAX_PARALLEL_TRIGGER_RUNS,
 ]
@@ -67,6 +69,8 @@ const emptyConfiguration = () => ({
   web_search_available: false,
   web_search_blocked_by_tools: false,
   available_trigger_types: [],
+  available_action_types: [],
+  max_actions: null,
   max_queued_trigger_runs: null,
   max_parallel_trigger_runs: null,
 })
