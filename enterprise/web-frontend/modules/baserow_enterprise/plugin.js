@@ -32,8 +32,14 @@ import {
 } from '@baserow_enterprise/agentExtensionTypes'
 import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes.jsx'
-import { ScopeInvitationTargetType } from '@baserow_enterprise/invitationTargetTypes'
-import { MemberInvitationRouteType } from '@baserow_enterprise/invitationRouteTypes'
+import {
+  ScopeInvitationTargetType,
+  TeamInvitationTargetType,
+} from '@baserow_enterprise/invitationTargetTypes'
+import {
+  MemberInvitationRouteType,
+  TeamMembersInvitationRouteType,
+} from '@baserow_enterprise/invitationRouteTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -211,8 +217,16 @@ export default defineNuxtPlugin({
       new ScopeInvitationTargetType(context)
     )
     $registry.register(
+      'invitationTarget',
+      new TeamInvitationTargetType(context)
+    )
+    $registry.register(
       'invitationRoute',
       new MemberInvitationRouteType(context)
+    )
+    $registry.register(
+      'invitationRoute',
+      new TeamMembersInvitationRouteType(context)
     )
 
     $registry.register('job', new AuditLogExportJobType(context))

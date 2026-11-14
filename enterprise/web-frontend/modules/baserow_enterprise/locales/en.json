@@ -109,15 +109,10 @@
     "submit": "Save",
     "nameTitle": "Name",
     "roleTitle": "Default role",
-    "inviteMembers": "Manage access",
-    "identityLabel": "Identity",
-    "membersTitle": "Team members",
-    "noSubjectsSelected": "No one has access through this team yet.",
-    "accessModalTitle": "Manage team access",
-    "accessModalDescription": "Choose the people and identities who belong to this team.",
     "roleHelpText": "User specific roles will always override Team roles."
   },
   "editTeamContext": {
+    "manageMembers": "Manage members",
     "edit": "Edit team",
     "remove": "Delete team"
   },
@@ -133,8 +128,17 @@
     "roleHelpText": "Can be overriden with roles on databases and tables.",
     "search": "Search teams"
   },
+  "teamMembersSummary": {
+    "title": "Members",
+    "empty": "No one is in this team yet",
+    "twoNames": "{first} and {second}",
+    "moreNames": "{first}, {second} and {count} more",
+    "manage": "Manage members",
+    "add": "Add members"
+  },
   "subjectSampleField": {
-    "titleAttr": "{subjectCount} members in this team."
+    "titleAttr": "{subjectCount} members in this team.",
+    "manageMembers": "Manage members"
   },
   "enterpriseIdentities": {
     "teams": "Teams",
@@ -385,6 +389,25 @@
   },
   "inviteModal": {
     "memberRoute": "Invite members"
+  },
+  "teamInvitationTarget": {
+    "title": "Manage {name} members",
+    "subtitle": "Team in {workspace}",
+    "subtitleWithRole": "Team in {workspace} • {role}",
+    "navigationLabel": "team"
+  },
+  "teamMembersRoute": {
+    "name": "Team members",
+    "placeholder": "Search members to add",
+    "noResults": "No members match your search.",
+    "emailDisabled": "Only members of the workspace can join a team. Invite them to the workspace first.",
+    "add": "Add",
+    "addCount": "Add {count}",
+    "alreadyInTeam": "Already a member of this team",
+    "inTeamHint": "In team",
+    "membersTitle": "Members",
+    "emptyTitle": "This team has no members yet.",
+    "emptyDescription": "Members get the team's role on everything it has access to."
   },
   "scopeInvitationTarget": {
     "title": "Share {name}",

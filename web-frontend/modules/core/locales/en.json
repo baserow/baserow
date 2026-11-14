@@ -508,6 +508,9 @@
     "message": "Anyone with this link can join the workspace as an admin, and admins can manage everything in it, including its members and invite links. Only share it with people you trust.",
     "confirm": "Invite as admin"
   },
+  "scopeAccessList": {
+    "remove": "Remove"
+  },
   "inviteInput": {
     "batchLimitExceeded": "You can invite up to {limit} email addresses at once. Remove extra addresses to continue.",
     "placeholder": "Type or paste email addresses",
