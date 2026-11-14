@@ -147,6 +147,8 @@ import AggregationGroupByForm from '@baserow_premium/integrations/localBaserow/c
 import AggregationSortByForm from '@baserow_premium/integrations/localBaserow/components/services/AggregationSortByForm'
 import tableFields from '@baserow/modules/database/mixins/tableFields'
 import ServiceRefinementForms from '@baserow/modules/integrations/localBaserow/components/services/ServiceRefinementForms'
+import serviceFiltersSync from '@baserow/modules/integrations/localBaserow/mixins/serviceFiltersSync'
+import { computed } from 'vue'
 
 const includesIfSet = (array) => (value) => {
   if (value === null || value === undefined) {
@@ -164,7 +166,16 @@ export default {
     AggregationSortByForm,
     ServiceRefinementForms,
   },
-  mixins: [form, tableFields],
+  mixins: [form, tableFields, serviceFiltersSync],
+  provide() {
+    return {
+      // Identifies the data source to the filter form, e.g. for Kuma.
+      serviceFilterTarget: computed(() => ({
+        kind: 'dashboard_data_source',
+        id: this.dataSource.id,
+      })),
+    }
+  },
   props: {
     dashboard: {
       type: Object,
@@ -379,6 +390,9 @@ export default {
     }
   },
   methods: {
+    getServiceFiltersSource() {
+      return this.dataSource
+    },
     onBucketLimitUpdated(bucketLimit) {
       this.$emit('values-changed', { bucket_limit: bucketLimit })
     },

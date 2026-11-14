@@ -12,6 +12,8 @@ GROUP_AUTOMATION_DELETE = "automation_delete"
 GROUP_DASHBOARD_READ = "dashboard_read"
 GROUP_DASHBOARD_EDIT = "dashboard_edit"
 GROUP_DASHBOARD_DELETE = "dashboard_delete"
+GROUP_DATA_SOURCES_READ = "data_sources_read"
+GROUP_DATA_SOURCES_EDIT = "data_sources_edit"
 GROUP_AUDIT_LOG_READ = "audit_log_read"
 GROUP_BUILDER_READ = "builder_read"
 GROUP_BUILDER_EDIT = "builder_edit"
@@ -21,6 +23,7 @@ AREA_WORKSPACE = "workspace"
 AREA_DATABASE = "database"
 AREA_AUTOMATION = "automation"
 AREA_DASHBOARD = "dashboard"
+AREA_DATA_SOURCES = "data_sources"
 AREA_AUDIT_LOG = "audit_log"
 AREA_BUILDER = "builder"
 
@@ -153,6 +156,20 @@ class BuilderDeleteMCPToolGroup(MCPToolGroup):
     title = "Delete in application builders"
     area = AREA_BUILDER
     order = 130
+
+
+class DataSourcesReadMCPToolGroup(MCPToolGroup):
+    type = GROUP_DATA_SOURCES_READ
+    title = "Read data source filters"
+    area = AREA_DATA_SOURCES
+    order = 140
+
+
+class DataSourcesEditMCPToolGroup(MCPToolGroup):
+    type = GROUP_DATA_SOURCES_EDIT
+    title = "Edit data source filters"
+    area = AREA_DATA_SOURCES
+    order = 150
 
 
 mcp_tool_group_registry = MCPToolGroupRegistry()

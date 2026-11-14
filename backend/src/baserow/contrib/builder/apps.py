@@ -543,3 +543,14 @@ class BuilderConfig(AppConfig):
         mcp_tool_registry.register(UpdateElementActionMcpTool())
         mcp_tool_registry.register(SetupPageMcpTool())
         mcp_tool_registry.register(SetThemeMcpTool())
+
+        from baserow.contrib.builder.data_sources.service_filter_target_types import (
+            BuilderDataSourceServiceFilterTargetType,
+        )
+        from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+            service_filter_target_type_registry,
+        )
+
+        service_filter_target_type_registry.register(
+            BuilderDataSourceServiceFilterTargetType()
+        )
