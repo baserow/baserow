@@ -27,6 +27,7 @@ from baserow.contrib.database.db.schema import (
     safe_django_schema_editor,
 )
 from baserow.contrib.database.db.sql_queries import (
+    generate_try_cast_dollar_tag,
     sql_create_pg_temp_try_cast,
     sql_drop_pg_temp_try_cast,
 )
@@ -1487,6 +1488,9 @@ class FieldHandler:
             cursor.execute(
                 sql_create_pg_temp_try_cast
                 % {
+                    "fence": generate_try_cast_dollar_tag(
+                        variables.values() if isinstance(variables, dict) else ()
+                    ),
                     "alter_column_prepare_old_value": alter_column_prepare_old_value
                     or "",
                     "alter_column_prepare_new_value": "",

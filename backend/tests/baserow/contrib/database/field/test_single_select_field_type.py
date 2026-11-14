@@ -131,35 +131,85 @@ def test_can_convert_a_single_select_option_field_with_dollar_dollar_option(
 
 
 @pytest.mark.django_db
-def test_cant_use_dollar_end_tag_as_option_name_during_conversion(
+def test_dollar_quote_tag_in_option_value_is_preserved_during_conversion(
     data_fixture,
 ):
+    """
+    A select option value is embedded in the body of the generated try_cast function,
+    which is dollar-quoted. If that body were delimited by a fixed tag, a value
+    containing the tag could break out of the body and inject SQL. The body is instead
+    delimited by an unguessable random tag (see `generate_try_cast_dollar_tag`), so
+    even values that contain the literal tag - or a nested variant that would defeat a
+    single non-recursive str.replace - are stored verbatim and cannot break out.
+    """
+
     user = data_fixture.create_user()
     database = data_fixture.create_database_application(user=user, name="Placeholder")
     table = data_fixture.create_database_table(name="Example", database=database)
 
     field_handler = FieldHandler()
+    row_handler = RowHandler()
+
+    option_values = [
+        "a$FUNCTION$b",
+        "some $FUNCTION$ thing",
+        # A nested variant that a single str.replace("$FUNCTION$", "") would collapse
+        # back into a working $FUNCTION$ tag.
+        "x$FUNC$FUNCTION$TION$ injected",
+        "x$FUNCTION$ language plpgsql; select pg_sleep(0); --",
+    ]
+
+    for option_value in option_values:
+        field = field_handler.create_field(
+            user=user,
+            table=table,
+            type_name="single_select",
+            name=f"select for {option_value}",
+            select_options=[{"value": option_value, "color": "red"}],
+        )
+        select_option = field.select_options.all()[0]
+        row = row_handler.create_row(
+            user, table, {f"field_{field.id}": select_option.id}
+        )
+
+        field_handler.update_field(user=user, field=field, new_type_name="text")
+
+        new_row = row_handler.get_row(user, table, row.id)
+        assert getattr(new_row, f"field_{field.id}") == option_value
+
+
+@pytest.mark.django_db
+def test_get_unique_row_values_with_dollar_quote_tag_in_option_value(data_fixture):
+    """
+    Regression test for a SQL injection: get_unique_row_values embeds the select
+    option values in the body of the generated try_cast function. A value containing
+    the dollar-quote tag that delimits that body must not be able to break out of it.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user, name="Placeholder")
+    table = data_fixture.create_database_table(name="Example", database=database)
+
+    field_handler = FieldHandler()
+    row_handler = RowHandler()
+
     field = field_handler.create_field(
         user=user,
         table=table,
         type_name="single_select",
         name="Single select",
         select_options=[
-            {
-                "value": "some $FUNCTION$ thing",
-                "color": "red",
-            }
+            {"value": "a$FUNCTION$b", "color": "red"},
+            {"value": "x$FUNCTION$ language plpgsql; select 1; --", "color": "blue"},
         ],
     )
-    select_option = field.select_options.all()[0]
+    options = list(field.select_options.all())
+    for option in options:
+        row_handler.create_row(user, table, {f"field_{field.id}": option.id})
 
-    row_handler = RowHandler()
-    row = row_handler.create_row(user, table, {f"field_{field.id}": select_option.id})
+    unique_values = field_handler.get_unique_row_values(field, limit=10)
 
-    field_handler.update_field(user=user, field=field, new_type_name="text")
-
-    new_row = row_handler.get_row(user, table, row.id)
-    assert getattr(new_row, f"field_{field.id}") == "some  thing"
+    assert set(unique_values) == {option.value for option in options}
 
 
 @pytest.mark.django_db
