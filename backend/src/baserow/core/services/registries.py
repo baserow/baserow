@@ -278,6 +278,20 @@ class ServiceType(
             metadata.
         """
 
+    def outdates_sample_data(self, changes: Dict[str, Tuple]) -> bool:
+        """
+        Whether an update making the given changes leaves the service's sample
+        data describing something else than what the service now returns. The
+        sample data of such a service is cleared, so the service has to be
+        tested again before its sample data is used.
+
+        :param changes: The changes made to the service, as passed to
+            `after_update`.
+        :return: True when the sample data must be cleared.
+        """
+
+        return False
+
     def after_update(
         self,
         instance: ServiceSubClass,

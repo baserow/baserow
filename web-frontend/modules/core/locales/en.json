@@ -1379,7 +1379,10 @@
   },
   "dataExplorerNode": {
     "showMore": "Show more repetitions",
-    "selectNode": "Select"
+    "selectNode": "Select",
+    "emptyValue": "empty",
+    "itemCount": "{count} item | {count} items",
+    "fieldCount": "{count} field | {count} fields"
   },
   "richTextEditor": {
     "errorUnsupportedImageTitle": "Image can't be embedded",

@@ -206,3 +206,124 @@ describe('NodeExplorerContent help tooltip', () => {
     expect(wrapper.emitted('example-click')).toEqual([[child.examples[0]]])
   })
 })
+
+describe('NodeExplorerContent sample values', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const values = {
+    'previous_node.1.name': 'Acme Ltd',
+    'previous_node.1.note': '',
+    'previous_node.1.tags': ['a', 'b'],
+    'previous_node.1.owner': { id: 1, name: 'Ada' },
+  }
+
+  const dataNode = (identifier, overrides = {}) => ({
+    name: identifier,
+    identifier,
+    type: 'string',
+    icon: 'iconoir-text',
+    ...overrides,
+  })
+
+  function mountContent(node, props = {}) {
+    return testApp.mount(NodeExplorerContent, {
+      props: {
+        node,
+        depth: 2,
+        path: `previous_node.1.${node.identifier}`,
+        searchPath: `previous_node.1.${node.identifier}`,
+        openNodes: new Set(),
+        getValue: (path) => values[path],
+        ...props,
+      },
+      global: {
+        provide: { getFormulaMode: () => 'simple', nodesHierarchy: [] },
+        stubs: { FormulaInputField: FormulaInputFieldStub },
+      },
+    })
+  }
+
+  const valueOf = (wrapper) => wrapper.find('.node-explorer-content__value')
+
+  test('shows the value next to the name', async () => {
+    const wrapper = await mountContent(dataNode('name'))
+
+    expect(valueOf(wrapper).text()).toBe('Acme Ltd')
+    expect(valueOf(wrapper).attributes('title')).toBe('Acme Ltd')
+    // The value is guaranteed its own length, so a long name can't hide it.
+    expect(valueOf(wrapper).attributes('style')).toContain(
+      '--node-explorer-content-value-length: 9'
+    )
+    expect(valueOf(wrapper).classes()).not.toContain(
+      'node-explorer-content__value--muted'
+    )
+  })
+
+  test('shows a muted placeholder for an empty value', async () => {
+    const wrapper = await mountContent(dataNode('note'))
+
+    expect(valueOf(wrapper).text()).toBe('dataExplorerNode.emptyValue')
+    expect(valueOf(wrapper).classes()).toContain(
+      'node-explorer-content__value--muted'
+    )
+  })
+
+  test('summarises lists and objects', async () => {
+    const list = await mountContent(dataNode('tags', { type: 'array' }))
+    const object = await mountContent(dataNode('owner', { type: 'object' }))
+
+    expect(valueOf(list).text()).toContain('dataExplorerNode.itemCount')
+    expect(valueOf(object).text()).toContain('dataExplorerNode.fieldCount')
+  })
+
+  test('shows nothing when the value is unknown', async () => {
+    const wrapper = await mountContent(dataNode('unknown'))
+
+    expect(valueOf(wrapper).exists()).toBe(false)
+  })
+
+  test('shows nothing when no values are provided', async () => {
+    const wrapper = await mountContent(dataNode('name'), { getValue: null })
+
+    expect(valueOf(wrapper).exists()).toBe(false)
+    expect(wrapper.find('.node-explorer-content__name').classes()).toEqual([
+      'node-explorer-content__name',
+    ])
+  })
+
+  test('passes the values down to its children', async () => {
+    const parent = dataNode('1', {
+      type: 'object',
+      nodes: [dataNode('name'), dataNode('unknown')],
+    })
+    const wrapper = await mountContent(parent, {
+      depth: 1,
+      path: 'previous_node.1',
+      searchPath: 'previous_node.1',
+      openNodes: new Set(['previous_node.1']),
+    })
+
+    expect(
+      wrapper.findAll('.node-explorer-content__value').map((el) => el.text())
+    ).toEqual(['Acme Ltd'])
+  })
+
+  test('shows the hint of a node', async () => {
+    const wrapper = await mountContent(
+      dataNode('1', { hint: 'Test this step to see its values' }),
+      { depth: 1, path: 'previous_node.1', searchPath: 'previous_node.1' }
+    )
+
+    expect(wrapper.find('.node-explorer-content__hint').text()).toBe(
+      'Test this step to see its values'
+    )
+  })
+})
