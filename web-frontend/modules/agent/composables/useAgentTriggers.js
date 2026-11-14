@@ -11,9 +11,17 @@ import {
   defaultTriggerMessage,
   serviceTypeOf,
 } from '@baserow/modules/agent/utils/triggers'
+import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 
 const TYPED_SAVE_DELAY = 500
-const TRIGGER_FIELDS = ['type', 'name', 'enabled', 'message', 'on_overlap']
+const TRIGGER_FIELDS = [
+  'type',
+  'name',
+  'enabled',
+  'message',
+  'on_overlap',
+  'batch_size',
+]
 const PICKED_FIELDS = ['type', 'name', 'enabled', 'on_overlap']
 const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
 const TYPE_CHANGE_FIELDS = ['type', 'service', 'message']
@@ -34,18 +42,27 @@ const savedValuesOf = (trigger) =>
  * Page-local trigger list of one Agent. Cards show their edits at once, and each
  * edited field is saved in a request of its own, one at a time per trigger, so a
  * rejected value never holds back another field and a slow save never reverts a
- * newer edit.
+ * newer edit. What each trigger type's form may choose from is loaded for the
+ * Agent's run identity, and again whenever that identity changes.
  *
  * @param {import('vue').Ref<object>} agent The Agent whose triggers are listed.
- * @returns {object} The triggers, their loading and saving state, and actions.
+ * @param {Function} getRunAs Returns the Agent's configured run identity, or
+ *   null.
+ * @returns {object} The triggers, their loading and saving state, the options
+ *   of each trigger type with a counter that changes whenever they reload,
+ *   whether either failed to load, and actions.
  */
-export function useAgentTriggers(agent) {
+export function useAgentTriggers(agent, getRunAs = () => null) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
   const service = AgentTriggerService($client)
   const triggers = ref([])
+  // By type: its form choices and default overlap rule; null while loading.
+  const triggerTypes = ref(null)
+  const typesVersion = ref(0)
   const loading = ref(false)
   const loadError = ref(false)
+  const typesLoadError = ref(false)
   const savingIds = reactive(new Set())
   const serviceErrors = reactive({})
   // Per trigger id: how often a failed save reverted its service values.
@@ -58,8 +75,10 @@ export function useAgentTriggers(agent) {
   // Per trigger id: the fields due to be sent.
   const dueFields = new Map()
   const inFlight = new Set()
+  const refusedSwitchOns = new Set()
   let scope = 0
   let listRequest = 0
+  let typesRequest = 0
 
   const agentId = () => agent.value?.id
   const scopeIsCurrent = (currentScope) => scope === currentScope
@@ -78,6 +97,7 @@ export function useAgentTriggers(agent) {
     typedFields.delete(triggerId)
     dueFields.delete(triggerId)
     saved.delete(triggerId)
+    refusedSwitchOns.delete(triggerId)
     delete serviceErrors[triggerId]
     delete serviceReverts[triggerId]
   }
@@ -131,8 +151,41 @@ export function useAgentTriggers(agent) {
   }
 
   /**
+   * Loads what each trigger type's form may choose from for the Agent's run
+   * identity, ignoring a reply that a newer load or reset replaced. When it
+   * fails, the forms still open, with nothing to choose from until a retry.
+   */
+  async function fetchTriggerTypes() {
+    if (!agentId()) return
+    const currentScope = scope
+    const request = ++typesRequest
+    const isCurrent = () =>
+      scopeIsCurrent(currentScope) && request === typesRequest
+    try {
+      const { data } = await service.listTypes(agentId())
+      if (!isCurrent()) return
+      triggerTypes.value = Object.fromEntries(
+        data.map(({ type, ...options }) => [type, options])
+      )
+      typesLoadError.value = false
+    } catch {
+      if (!isCurrent()) return
+      triggerTypes.value = {}
+      typesLoadError.value = true
+    } finally {
+      if (isCurrent()) typesVersion.value++
+    }
+  }
+
+  /** Loads again the triggers or the trigger types that failed to load. */
+  function retryLoad() {
+    if (loadError.value) fetchTriggers()
+    if (typesLoadError.value) fetchTriggerTypes()
+  }
+
+  /**
    * Creates a trigger of the given type with the type's defaults and the default
-   * opening message.
+   * opening message; the server picks its default overlap rule.
    *
    * @param {string} type The service type of the trigger.
    * @returns {Promise<object|null>} The created trigger, or null when it failed.
@@ -144,7 +197,7 @@ export function useAgentTriggers(agent) {
     try {
       const { data } = await service.create(agentId(), {
         type,
-        message: defaultTriggerMessage(t, serviceType),
+        message: defaultTriggerMessage(t, serviceType, defaults),
         service: defaults,
       })
       if (scopeIsCurrent(currentScope)) {
@@ -227,7 +280,9 @@ export function useAgentTriggers(agent) {
         sent
       )
       if (!scopeIsCurrent(currentScope)) return
-      if (sent.service) delete serviceErrors[trigger.id]
+      const switchedOnAgain =
+        sent.enabled && refusedSwitchOns.delete(trigger.id)
+      if (sent.service || switchedOnAgain) delete serviceErrors[trigger.id]
       adoptSaved(trigger, sent, data)
     } catch (error) {
       if (scopeIsCurrent(currentScope)) handleSaveError(trigger, sent, error)
@@ -272,8 +327,9 @@ export function useAgentTriggers(agent) {
 
   /**
    * Keeps rejected service values shown with their error, to be sent again with
-   * the next service edit; otherwise shows the server's values again for what
-   * failed, remounting the service form so it shows them too.
+   * the next service edit; turns a switch-on the run identity can't back off,
+   * with its error; otherwise shows the server's values again for what failed,
+   * remounting the service form so it shows them too.
    *
    * @param {object} trigger The trigger whose save failed.
    * @param {object} sent The values that were sent.
@@ -286,6 +342,14 @@ export function useAgentTriggers(agent) {
       const detail = error.response.data.detail
       serviceErrors[trigger.id] =
         typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
+      return
+    }
+    if (code === API_ERROR_CODE.AGENT_TRIGGER_NO_ACCESS) {
+      serviceErrors[trigger.id] = t('agent.triggerNoAccess')
+      if (values && 'enabled' in sent && trigger.enabled === sent.enabled) {
+        trigger.enabled = values.enabled
+        refusedSwitchOns.add(trigger.id)
+      }
       return
     }
     if (code === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
@@ -337,8 +401,8 @@ export function useAgentTriggers(agent) {
    *
    * @param {object} trigger The trigger the card shows.
    * @param {object} values The edited `type`, `name`, `enabled`, `on_overlap`,
-   *   `message` or service values; a new type comes with all the values of its
-   *   service.
+   *   `batch_size`, `message` or service values; a new type comes with all the
+   *   values of its service.
    */
   function updateTrigger(trigger, values) {
     if (!saved.has(trigger.id)) return
@@ -383,9 +447,9 @@ export function useAgentTriggers(agent) {
     if (
       previousType &&
       trigger.message?.formula ===
-        defaultTriggerMessage(t, previousType).formula
+        defaultTriggerMessage(t, previousType, trigger.service).formula
     ) {
-      values.message = defaultTriggerMessage(t, serviceType)
+      values.message = defaultTriggerMessage(t, serviceType, values.service)
     }
     updateTrigger(trigger, values)
   }
@@ -425,6 +489,8 @@ export function useAgentTriggers(agent) {
     for (const triggerId of [...saved.keys()]) forget(triggerId)
     ++scope
     triggers.value = []
+    triggerTypes.value = null
+    typesLoadError.value = false
     loading.value = false
     loadError.value = false
     savingIds.clear()
@@ -433,24 +499,35 @@ export function useAgentTriggers(agent) {
     dueFields.clear()
   }
 
-  onMounted(fetchTriggers)
+  onMounted(() => {
+    fetchTriggers()
+    fetchTriggerTypes()
+  })
   watch(
     () => agent.value?.id,
     () => {
       reset()
       fetchTriggers()
+      fetchTriggerTypes()
     }
   )
+  watch(() => {
+    const runAs = getRunAs()
+    return [runAs?.type, runAs?.id, getRunAsStatus(runAs)].join(':')
+  }, fetchTriggerTypes)
   onBeforeUnmount(flushScheduledSaves)
 
   return {
     triggers,
+    triggerTypes,
+    typesVersion,
     loading,
     loadError,
+    typesLoadError,
     savingIds,
     serviceErrors,
     serviceReverts,
-    fetchTriggers,
+    retryLoad,
     createTrigger,
     updateTrigger,
     changeTriggerType,

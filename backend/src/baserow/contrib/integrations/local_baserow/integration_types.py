@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
 
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.integrations.api.local_baserow.serializers import (
@@ -17,8 +18,9 @@ from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.types import Subject
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -299,21 +301,41 @@ class LocalBaserowIntegrationType(IntegrationType):
         return {"databases": databases}
 
     @staticmethod
-    def get_local_baserow_databases(integration: LocalBaserowIntegration) -> List:
+    def get_local_baserow_databases(
+        integration: LocalBaserowIntegration,
+    ) -> List[Database]:
         """
-        This method returns the databases that the user has access to in a query
-        efficient way while also checking for permissions. It will do so by fetching
-        all the tables at ones, and then group them by database.
+        The databases the integration's authorized subject has access to.
 
-        A side effect of this solution is that databases without tables don't show up
-        in this list.
+        :param integration: The Local Baserow integration.
+        :return: The databases with their tables and views, see
+            `get_local_baserow_databases_for`.
         """
 
         if not integration.application.workspace_id:
             return []
 
-        subject = integration.specific.authorized_subject
-        workspace = integration.application.workspace
+        return LocalBaserowIntegrationType.get_local_baserow_databases_for(
+            integration.specific.authorized_subject,
+            integration.application.workspace,
+        )
+
+    @staticmethod
+    def get_local_baserow_databases_for(
+        subject: Optional[Subject], workspace: Workspace
+    ) -> List[Database]:
+        """
+        This method returns the databases that the subject has access to in a query
+        efficient way while also checking for permissions. It will do so by fetching
+        all the tables at ones, and then group them by database.
+
+        A side effect of this solution is that databases without tables don't show up
+        in this list.
+
+        :param subject: The subject the tables and views are listed for.
+        :param workspace: The workspace the databases are in.
+        :return: The databases, each with its `tables` and `views` set.
+        """
 
         tables = TableHandler().list_workspace_tables(subject, workspace)
 

@@ -979,7 +979,12 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "web_search_enabled": False,
         "web_search_available": True,
         "web_search_blocked_by_tools": False,
-        "available_trigger_types": ["periodic"],
+        "available_trigger_types": [
+            "local_baserow_rows_created",
+            "local_baserow_rows_updated",
+            "local_baserow_rows_deleted",
+            "periodic",
+        ],
         "available_action_types": ["smtp_email"],
         "max_actions": None,
         "max_queued_trigger_runs": 10,

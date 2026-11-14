@@ -2522,6 +2522,8 @@ class CoreWaitServiceType(CoreServiceType):
 class CorePeriodicTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
     type = "periodic"
     model_class = CorePeriodicService
+    # The next tick makes up for a skipped one.
+    events_can_be_skipped = True
 
     allowed_fields = [
         "interval",

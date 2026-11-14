@@ -462,6 +462,17 @@ class AgentHandler:
             resolution.subject if resolution.status == AgentRunAsState.ACTIVE else None
         )
 
+    def get_run_identity(self, agent: AgentApplication) -> Subject | None:
+        """
+        :param agent: The Agent, with its workspace.
+        :return: The Agent's run identity when the Agent may act as it now, or
+            None when it has none or the identity is trashed or gone.
+        """
+
+        return self.get_usable_run_as_subject(
+            agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
+        )
+
     def update_configuration(
         self, agent: AgentApplication, **values: str | int | list[str] | None
     ) -> AgentConfigurationUpdated:
@@ -1375,6 +1386,7 @@ class AgentHandler:
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
+            started_by_trigger=conversation.is_shared,
         )
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:

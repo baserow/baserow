@@ -44,7 +44,6 @@ export const TRIGGER_OVERLAP_OPTIONS = Object.freeze([
     value: 'skip',
     label: 'agent.triggerOnOverlapSkip',
     hint: 'agent.triggerOnOverlapSkipHint',
-    recommended: true,
   },
   {
     value: 'wait',
@@ -67,7 +66,12 @@ export const TRIGGER_SKIP_REASON_TEXT = Object.freeze({
   agent_rate_limited: 'agent.triggerSkippedAgentRateLimited',
   previous_running: 'agent.triggerSkippedPreviousRunning',
   queue_full: 'agent.triggerSkippedQueueFull',
+  no_access: 'agent.triggerSkippedNoAccess',
+  event_too_large: 'agent.triggerSkippedEventTooLarge',
 })
+
+// Mirrors the backend's AGENT_TRIGGER_MAX_BATCH_SIZE.
+export const TRIGGER_MAX_BATCH_SIZE = 100
 
 // Mirrors the backend's AGENT_TRIGGER_NAME_MAX_LENGTH.
 export const TRIGGER_NAME_MAX_LENGTH = 75
@@ -104,6 +108,7 @@ export const API_ERROR_CODE = Object.freeze({
   AGENT_CONVERSATION_READ_ONLY: 'ERROR_AGENT_CONVERSATION_READ_ONLY',
   AGENT_TRIGGER_DOES_NOT_EXIST: 'ERROR_AGENT_TRIGGER_DOES_NOT_EXIST',
   TRIGGER_SERVICE_MISCONFIGURED: 'ERROR_TRIGGER_SERVICE_MISCONFIGURED',
+  AGENT_TRIGGER_NO_ACCESS: 'ERROR_AGENT_TRIGGER_NO_ACCESS',
 })
 
 export const MCP_SERVER_INTEGRATION_TYPE = 'mcp_server'

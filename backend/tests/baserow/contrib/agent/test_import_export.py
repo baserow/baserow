@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from io import BytesIO
 
 import pytest
 from freezegun import freeze_time
@@ -16,6 +17,7 @@ from baserow.contrib.agent.models import (
     AgentTrigger,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_DAY
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
@@ -675,8 +677,8 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         service_type_registry.get("periodic"),
         {"interval": PERIODIC_INTERVAL_DAY, "hour": 9},
         message="'Digest'",
-        name="Morning digest",
         on_overlap=AgentTrigger.OnOverlap.WAIT,
+        name="Morning digest",
     )
     fired_at = datetime(2026, 11, 10, 9, 0, tzinfo=timezone.utc)
     AgentTrigger.objects.filter(id=trigger.id).update(
@@ -701,6 +703,7 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         "enabled",
         "message",
         "on_overlap",
+        "batch_size",
         "service",
     }
     assert copy.service_id != trigger.service_id
@@ -765,3 +768,55 @@ def test_duplicate_keeps_shared_conversations_on_the_copied_trigger(
     )
     assert conversation.trigger == copied.triggers.get()
     assert conversation.messages.get().role == AgentMessage.Role.TRIGGER
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exported,imported", [(5, 5), (None, 20), (0, 20), (101, 20), ("7", 20)]
+)
+def test_a_trigger_batch_size_is_copied_and_invalid_values_get_the_default(
+    data_fixture, configured_agent, exported, imported
+):
+    agent = configured_agent()
+    data_fixture.create_agent_trigger(agent=agent)
+    serialized = export_internal(agent)
+    serialized["triggers"][0]["batch_size"] = exported
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.triggers.get().batch_size == imported
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_row_trigger_message_follows_its_fields_into_another_workspace(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Orders")
+    name = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=table, integration=None
+    )
+    data_fixture.create_agent_trigger(
+        agent=agent, service=service, message=f"get('trigger.rows.0.{name.db_column}')"
+    )
+    imported_workspace = data_fixture.create_workspace(user=user)
+    config = ImportExportConfig(include_permission_data=False)
+    handler = CoreHandler()
+
+    exported = handler.export_workspace_applications(workspace, BytesIO(), config)
+    handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    copy = AgentTrigger.objects.get(agent__workspace=imported_workspace)
+    imported_name = Field.objects.get(
+        table__database__workspace=imported_workspace, name="Name"
+    )
+    assert copy.service.specific.table_id == imported_name.table_id
+    assert copy.message["formula"] == f"get('trigger.rows.0.{imported_name.db_column}')"

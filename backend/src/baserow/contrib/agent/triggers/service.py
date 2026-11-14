@@ -1,10 +1,12 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 
+from baserow.contrib.agent.constants import AGENT_TRIGGER_DEFAULT_BATCH_SIZE
+from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
-from baserow.contrib.agent.types import AgentTriggerUpdated
+from baserow.contrib.agent.types import AgentTriggerTypeOptions, AgentTriggerUpdated
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.operations import UpdateApplicationOperationType
@@ -71,6 +73,27 @@ class AgentTriggerService:
         )
         return list(self.handler.list_triggers(agent))
 
+    def list_trigger_types(
+        self, user: AbstractUser, agent_id: int
+    ) -> list[AgentTriggerTypeOptions]:
+        """
+        Describe the trigger types the Agent may use, as its run identity sees
+        them, to a user allowed to read its configuration.
+
+        :param user: The user configuring triggers.
+        :param agent_id: The id of the Agent.
+        :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
+        :raises PermissionException: When the user may not read the configuration.
+        :return: One entry per available type, in registry order.
+        """
+
+        agent = self.agent_service.get_authorized_agent(
+            user, agent_id, ReadAgentConfigurationOperationType.type
+        )
+        return self.handler.list_trigger_types(
+            agent, AgentHandler().get_run_identity(agent)
+        )
+
     def get_trigger(
         self, user: AbstractUser, agent_id: int, trigger_id: int
     ) -> AgentTrigger:
@@ -100,7 +123,8 @@ class AgentTriggerService:
         message: BaserowFormulaObject | str = "",
         enabled: bool = True,
         service_values: dict | None = None,
-        on_overlap: str = AgentTrigger.OnOverlap.SKIP,
+        on_overlap: str | None = None,
+        batch_size: int = AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         name: str = "",
     ) -> AgentTrigger:
         """
@@ -115,7 +139,9 @@ class AgentTriggerService:
         :param service_values: Initial values of the service, by field name, or
             None to leave it unconfigured.
         :param on_overlap: What a firing does while a reply of the trigger is still
-            going.
+            going, or None for the type's default.
+        :param batch_size: How many records of a list payload one conversation
+            receives.
         :param name: The trigger's name, or blank for the type's default.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
@@ -124,6 +150,8 @@ class AgentTriggerService:
         :raises AgentTriggerTypeNotAvailable: When the type isn't one the Agent's
             configuration offers.
         :raises ServiceMisconfigured: When the service values are invalid.
+        :raises AgentTriggerNoAccess: When the Agent's run identity can't read what
+            the trigger watches; nothing is saved.
         :return: The created trigger, armed when its service is configured.
         """
 
@@ -136,15 +164,20 @@ class AgentTriggerService:
         prepared_service_values = service_type.prepare_values(
             service_values or {}, user
         )
-        return self.handler.create_trigger(
+        trigger = self.handler.create_trigger(
             agent,
             service_type,
             prepared_service_values,
             message=message,
             enabled=enabled,
             on_overlap=on_overlap,
+            batch_size=batch_size,
             name=name,
         )
+        self.handler.check_identity_can_read(
+            trigger, AgentHandler().get_run_identity(agent)
+        )
+        return trigger
 
     @transaction.atomic
     def update_trigger(
@@ -156,14 +189,16 @@ class AgentTriggerService:
         message: BaserowFormulaObject | str | None = None,
         service_values: dict | None = None,
         on_overlap: str | None = None,
+        batch_size: int | None = None,
         name: str | None = None,
         service_type_name: str | None = None,
     ) -> AgentTriggerUpdated:
         """
-        Change a trigger's name, switch, message, overlap rule, type or service
-        values, for a user who may update and read its Agent's configuration.
-        Switching it off cancels its queued replies. Another type replaces the
-        service with a new one, as on create.
+        Change a trigger's name, switch, message, overlap rule, batch size, type or
+        service values, for a user who may update and read its Agent's
+        configuration. Switching it off cancels its queued replies. Another type
+        replaces the service with a new one, as on create. A new service or a
+        switch-on must be readable by the Agent's run identity.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -172,6 +207,7 @@ class AgentTriggerService:
         :param message: The new message formula, or None to keep it.
         :param service_values: The service values to set, by field name, or None.
         :param on_overlap: The new overlap rule, or None to keep it.
+        :param batch_size: The new batch size, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
         :param service_type_name: The service type the trigger should have, whose
@@ -185,6 +221,8 @@ class AgentTriggerService:
         :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
             reschedule a type the Agent's configuration doesn't offer.
         :raises ServiceMisconfigured: When the service values are invalid.
+        :raises AgentTriggerNoAccess: When a new service or a switch-on isn't
+            readable by the Agent's run identity; nothing is saved.
         :return: The updated trigger and the names of the parts that changed.
         """
 
@@ -206,15 +244,22 @@ class AgentTriggerService:
             prepared_service_values = service_type.prepare_values(
                 service_values, user, trigger.service.specific
             )
-        return self.handler.update_trigger(
+        updated = self.handler.update_trigger(
             trigger,
             enabled=enabled,
             message=message,
             prepared_service_values=prepared_service_values,
             on_overlap=on_overlap,
+            batch_size=batch_size,
             name=name,
             service_type=service_type if changes_type else None,
         )
+        changed = updated.changed_fields
+        if "service" in changed or ("enabled" in changed and trigger.enabled):
+            self.handler.check_identity_can_read(
+                trigger, AgentHandler().get_run_identity(trigger.agent)
+            )
+        return updated
 
     @transaction.atomic
     def delete_trigger(

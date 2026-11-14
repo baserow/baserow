@@ -484,7 +484,7 @@ build-final-web-frontend-image-manual:
 # ==================================== E2E TESTS ======================================
 
 e2e-tests-group-1:
-  image: mcr.microsoft.com/playwright:v1.48.2
+  image: mcr.microsoft.com/playwright:v1.64.1
   stage: test
   services:
     - name: pgvector/pgvector:pg14

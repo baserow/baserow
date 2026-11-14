@@ -9,6 +9,8 @@ import AgentWhenItRunsSection from '@baserow/modules/agent/components/configurat
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
 import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
+import { CorePeriodicTriggerServiceType } from '@baserow/modules/integrations/core/serviceTypes'
+import { LocalBaserowRowsCreatedTriggerServiceType } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import agentLocale from '@baserow/modules/agent/locales/en.json'
 import integrationsLocale from '@baserow/modules/integrations/locales/en.json'
 import {
@@ -20,6 +22,78 @@ import {
   useFakeTimers,
   workspace,
 } from './helpers'
+
+const rowsSchema = {
+  type: 'array',
+  title: 'Table31Schema',
+  items: {
+    type: 'object',
+    properties: {
+      id: { type: 'number', title: 'Id' },
+      field_1: { type: 'string', title: 'Name' },
+    },
+  },
+}
+
+const rowsTrigger = (extra = {}) => ({
+  id: 2,
+  type: 'local_baserow_rows_created',
+  name: '',
+  enabled: true,
+  message: { formula: "'New orders'", mode: 'simple', version: '0.1' },
+  service: {
+    id: 7,
+    type: 'local_baserow_rows_created',
+    table_id: 31,
+    integration_id: null,
+    schema: rowsSchema,
+  },
+  on_overlap: 'wait',
+  batch_size: 20,
+  last_fired_on: null,
+  last_skipped_on: null,
+  last_skipped_reason: '',
+  ...extra,
+})
+
+const databases = [
+  {
+    id: 3,
+    name: 'Sales',
+    tables: [
+      {
+        id: 31,
+        database_id: 3,
+        name: 'Orders',
+        is_data_sync: false,
+        is_two_way_data_sync: false,
+      },
+    ],
+    views: [],
+  },
+]
+
+const triggerTypeOf = (type) =>
+  type.startsWith('local_baserow_')
+    ? { type, form_choices: { databases }, default_on_overlap: 'wait' }
+    : { type, form_choices: null, default_on_overlap: 'skip' }
+
+const activeRunAs = {
+  run_as: {
+    type: 'core.Agent',
+    id: 4,
+    name: 'Reader',
+    trashed: false,
+    status: 'active',
+  },
+}
+
+const DEFAULT_ROWS_MESSAGE = {
+  formula:
+    "concat(get('trigger.count'), ' rows were created in ', get('trigger.table'), ': ', get('trigger.rows'))",
+  mode: 'simple',
+  version: '0.1',
+}
 
 const patches = (testApp) =>
   testApp.mock.history.patch.map(({ url, data }) => [url, JSON.parse(data)])
@@ -41,20 +115,25 @@ describe('Agent triggers', () => {
     vi.useRealTimers()
   })
 
+  // A test mocks the trigger types before mounting to answer differently first.
   const mountSection = (
     triggers,
     availableTypes = ['periodic'],
     editable = true,
     maxQueuedTriggerRuns = 10,
-    maxParallelTriggerRuns = 5
+    configuration = {}
   ) => {
     testApp.mock.onGet('/agent/10/triggers/').reply(200, triggers)
+    testApp.mock
+      .onGet('/agent/10/trigger-types/')
+      .reply(200, availableTypes.map(triggerTypeOf))
     return testApp.mount(AgentWhenItRunsSection, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
           max_queued_trigger_runs: maxQueuedTriggerRuns,
-          max_parallel_trigger_runs: maxParallelTriggerRuns,
+          max_parallel_trigger_runs: 5,
+          ...configuration,
         }),
         editable,
       },
@@ -316,7 +395,11 @@ describe('Agent triggers', () => {
     await flushPromises()
 
     expect(toggle().attributes('aria-checked')).toBe('true')
-    expect(testApp.mock.history.get).toHaveLength(1)
+    expect(
+      testApp.mock.history.get.filter(
+        ({ url }) => url === '/agent/10/triggers/'
+      )
+    ).toHaveLength(1)
   })
 
   test('a failed service save shows the saved schedule in the form again', async () => {
@@ -476,9 +559,11 @@ describe('Agent triggers', () => {
       messages: { en: { ...agentLocale, ...integrationsLocale } },
     }).global
 
-    expect(
-      defaultTriggerMessage(t, { name: t('serviceType.corePeriodic') })
-    ).toEqual({
+    const periodic = new CorePeriodicTriggerServiceType({
+      app: { $i18n: { t } },
+    })
+
+    expect(defaultTriggerMessage(t, periodic)).toEqual({
       formula: "concat('Periodic trigger fired at ', get('trigger.fired_at'))",
       mode: 'simple',
       version: '0.1',
@@ -489,7 +574,7 @@ describe('Agent triggers', () => {
     const trigger = periodicTrigger({
       message: defaultTriggerMessage(
         (key, values) => `${values.trigger} fired at`,
-        { name: 'Periodic trigger' }
+        { name: 'Periodic trigger', getEventDescriptionTemplate: () => null }
       ),
     })
     const wrapper = await testApp.mount(AgentTriggerMessageInput, {
@@ -595,47 +680,6 @@ describe('Agent triggers', () => {
     ])
   })
 
-  test('shows a trigger by its name, else by the default its type words', async () => {
-    const wrapper = await mountSection([
-      periodicTrigger(),
-      periodicTrigger({ id: 3, name: 'Morning digest' }),
-    ])
-
-    expect(
-      wrapper.findAll('.agent-trigger-card__name').map((name) => name.text())
-    ).toEqual(['serviceType.corePeriodicNameHour', 'Morning digest'])
-  })
-
-  test('renames a trigger inline, and clearing the name shows the default again', async () => {
-    testApp.mock
-      .onPatch('/agent/10/triggers/1/')
-      .replyOnce(200, periodicTrigger({ name: 'Morning digest' }))
-    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
-    const wrapper = await mountSection([periodicTrigger()])
-    const name = wrapper.get('.agent-trigger-card__name-text')
-    const rename = async (text, endKey) => {
-      await wrapper.get('.agent-trigger-card__rename').trigger('click')
-      name.element.textContent = text
-      await name.trigger('input')
-      await (endKey
-        ? name.trigger('keydown', { key: endKey })
-        : name.trigger('focusout'))
-      await flushPromises()
-    }
-
-    await rename('  Morning digest ', 'Enter')
-
-    expect(name.text()).toBe('Morning digest')
-
-    await rename('', null)
-
-    expect(patches(testApp)).toEqual([
-      ['/agent/10/triggers/1/', { name: 'Morning digest' }],
-      ['/agent/10/triggers/1/', { name: '' }],
-    ])
-    expect(name.text()).toBe('serviceType.corePeriodicNameHour')
-  })
-
   test('cuts a long name by characters, never inside an emoji', async () => {
     testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
     const wrapper = await mountSection([periodicTrigger()])
@@ -650,42 +694,6 @@ describe('Agent triggers', () => {
 
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { name: kept }],
-    ])
-  })
-
-  test('changes the trigger type from its header and keeps a message of its own', async () => {
-    const httpType = testApp.getRegistry().get('service', 'http_trigger')
-    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, {
-      ...periodicTrigger(),
-      type: 'http_trigger',
-      service: { id: 6, type: 'http_trigger' },
-    })
-    const wrapper = await mountSection(
-      [periodicTrigger()],
-      ['periodic', 'http_trigger']
-    )
-    const card = wrapper.get('.agent-trigger-card')
-
-    await card.get('.agent-trigger-card__type').trigger('click')
-    await flushPromises()
-    const picker = card.findComponent(AgentTriggerPicker)
-    await picker.get('.menu-search__input').setValue(httpType.name)
-    await picker
-      .get('.grouped-menu__actions .menu-list__item-button')
-      .trigger('click')
-    await flushPromises()
-
-    expect(patches(testApp)).toEqual([
-      [
-        '/agent/10/triggers/1/',
-        {
-          type: 'http_trigger',
-          service: {
-            type: 'http_trigger',
-            ...httpType.getDefaultValues(null, {}),
-          },
-        },
-      ],
     ])
   })
 
@@ -775,7 +783,7 @@ describe('Agent triggers', () => {
         ['periodic'],
         true,
         maxQueued,
-        maxParallel
+        { max_parallel_trigger_runs: maxParallel }
       )
       const hints = wrapper.findAll('.agent-trigger-card__overlap-option-hint')
 
@@ -788,6 +796,8 @@ describe('Agent triggers', () => {
     ['agent_rate_limited', 'agent.triggerSkippedAgentRateLimited'],
     ['previous_running', 'agent.triggerSkippedPreviousRunning'],
     ['queue_full', 'agent.triggerSkippedQueueFull'],
+    ['no_access', 'agent.triggerSkippedNoAccess'],
+    ['event_too_large', 'agent.triggerSkippedEventTooLarge'],
   ])(
     'says why a firing was skipped until a later one is accepted: %s',
     async (reason, text) => {
@@ -829,4 +839,397 @@ describe('Agent triggers', () => {
       'agent.triggerSkippedRateLimited'
     )
   })
+
+  test('offers the tables the run identity reads and shows the saved one', async () => {
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    expect(
+      card.findAll('.dropdown__selected-text').map((item) => item.text())
+    ).toEqual(['Sales', 'Orders'])
+    expect(card.find('.agent-trigger-card__note').exists()).toBe(false)
+    expect(patches(testApp)).toEqual([])
+  })
+
+  test('asks for workspace access, and reloads the choices once the agent has it', async () => {
+    testApp.mock.onGet('/agent/10/trigger-types/').replyOnce(200, [
+      triggerTypeOf('periodic'),
+      {
+        type: 'local_baserow_rows_created',
+        form_choices: { databases: [] },
+        default_on_overlap: 'wait',
+      },
+    ])
+    const types = ['periodic', 'local_baserow_rows_created']
+    const wrapper = await mountSection(
+      [periodicTrigger(), rowsTrigger()],
+      types
+    )
+    const rowsCard = () => wrapper.findAll('.agent-trigger-card')[1]
+    const notes = () =>
+      wrapper.findAll('.agent-trigger-card__note').map((note) => note.text())
+    const selected = () =>
+      rowsCard()
+        .findAll('.dropdown__selected-text')
+        .map((item) => item.text())
+
+    expect(notes()).toEqual(['agent.triggerNeedsWorkspaceAccess'])
+    expect(rowsCard().find('.agent-trigger-card__note').exists()).toBe(true)
+    expect(selected()).not.toContain('Orders')
+
+    await wrapper.setProps({
+      configuration: completeConfiguration({
+        available_trigger_types: types,
+        max_queued_trigger_runs: 10,
+        ...activeRunAs,
+      }),
+    })
+    await flushPromises()
+
+    expect(notes()).toEqual([])
+    expect(selected()).toEqual(['Sales', 'Orders'])
+  })
+
+  test('retries the trigger types with the list when both failed to load', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/agent/10/triggers/').replyOnce(500)
+    testApp.mock.onGet('/agent/10/trigger-types/').replyOnce(500)
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+
+    await wrapper.get('.alert__actions button').trigger('click')
+    await flushPromises()
+
+    expect(
+      wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
+    ).toEqual(['Sales', 'Orders'])
+  })
+
+  test('offers to retry the trigger types alone when only they failed to load', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet('/agent/10/trigger-types/').replyOnce(500)
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    expect(wrapper.text()).toContain('agent.triggerTypesLoadError')
+
+    await wrapper.get('.alert__actions button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('agent.triggerTypesLoadError')
+    expect(testApp.mock.history.get.map(({ url }) => url)).toEqual([
+      '/agent/10/triggers/',
+      '/agent/10/trigger-types/',
+      '/agent/10/trigger-types/',
+    ])
+    expect(
+      wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
+    ).toEqual(['Sales', 'Orders'])
+  })
+
+  test('saves how many rows each conversation gets, for list triggers only', async () => {
+    useFakeTimers()
+    testApp.mock
+      .onPatch('/agent/10/triggers/2/')
+      .reply(200, rowsTrigger({ batch_size: 5 }))
+    const wrapper = await mountSection(
+      [periodicTrigger(), rowsTrigger()],
+      ['periodic', 'local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    const [periodicCard, rowsCard] = wrapper.findAll('.agent-trigger-card')
+    const field = rowsCard.get('.agent-trigger-card__batch-size')
+
+    expect(periodicCard.find('.agent-trigger-card__batch-size').exists()).toBe(
+      false
+    )
+    expect(field.text()).toContain('agent.triggerBatchSizeHelper')
+
+    await field.get('input').setValue(0)
+    await field.get('input').setValue(5)
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/2/', { batch_size: 5 }],
+    ])
+  })
+
+  test('rejects a batch size outside 1 to 100 without saving what was typed on the way', async () => {
+    useFakeTimers()
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    const field = wrapper.get('.agent-trigger-card__batch-size')
+    const input = field.get('input')
+
+    for (const typed of [1, 15, 150]) await input.setValue(typed)
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(field.text()).toContain('agent.triggerBatchSizeInvalid')
+    expect(patches(testApp)).toEqual([])
+
+    await input.trigger('blur')
+
+    expect(input.element.value).toBe('20')
+    expect(field.text()).not.toContain('agent.triggerBatchSizeInvalid')
+  })
+
+  test('lists the rows, their count and table, and when it fired', async () => {
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+
+    await wrapper.get('.agent-trigger-card__schema-toggle').trigger('click')
+
+    expect(
+      wrapper
+        .findAll('.agent-trigger-card__schema-list li')
+        .map((item) => item.text())
+    ).toEqual([
+      'agent.triggerRowsarray',
+      'serviceType.eventCountnumber',
+      'serviceType.eventTablestring',
+      'agent.triggerFiredAtstring',
+    ])
+  })
+
+  test('recommends the overlap rule the trigger type defaults to', async () => {
+    const wrapper = await mountSection(
+      [rowsTrigger()],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+
+    expect(
+      wrapper
+        .findAll('.agent-trigger-card__overlap-option-label')
+        .map((label) => label.text())
+    ).toEqual([
+      'agent.triggerOnOverlapSkip',
+      'agent.triggerOnOverlapWait agent.triggerOnOverlapRecommended',
+      'agent.triggerOnOverlapParallel',
+    ])
+  })
+
+  test('opens a new row trigger with how many rows changed where, and the rows', async () => {
+    const { createI18n } = await vi.importActual('vue-i18n')
+    const { t } = createI18n({
+      legacy: false,
+      locale: 'en',
+      messages: { en: { ...agentLocale, ...integrationsLocale } },
+    }).global
+    const rowsCreated = new LocalBaserowRowsCreatedTriggerServiceType({
+      app: { $i18n: { t } },
+    })
+
+    expect(defaultTriggerMessage(t, rowsCreated)).toEqual(DEFAULT_ROWS_MESSAGE)
+  })
+
+  test('shows the default row message as Count, Table and Rows chips', async () => {
+    const trigger = rowsTrigger({ message: DEFAULT_ROWS_MESSAGE })
+    const wrapper = await testApp.mount(AgentTriggerMessageInput, {
+      props: { modelValue: trigger.message },
+      global: {
+        provide: { applicationContext: reactive({ agent, trigger }) },
+      },
+    })
+    await flushPromises()
+
+    expect(
+      wrapper.findAll('.get-formula-component').map((chip) => chip.text())
+    ).toEqual([
+      'agent.triggerData serviceType.eventCount',
+      'agent.triggerData serviceType.eventTable',
+      'agent.triggerData agent.triggerRows',
+    ])
+    expect(wrapper.text()).toContain('rows were created in')
+    expect(
+      wrapper.findComponent(FormulaInputField).props('allowNodeSelection')
+    ).toBe('array')
+  })
+
+  test('shows when the run identity cannot read the table and turns the switch back off until a switch-on is accepted', async () => {
+    testApp.mock.onPatch('/agent/10/triggers/2/').replyOnce(400, {
+      error: 'ERROR_AGENT_TRIGGER_NO_ACCESS',
+      detail:
+        "The agent's workspace access can't read what this trigger watches.",
+    })
+    testApp.mock.onPatch('/agent/10/triggers/2/').reply(200, rowsTrigger())
+    const wrapper = await mountSection(
+      [rowsTrigger({ enabled: false })],
+      ['local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    await card.get('.agent-trigger-card__switch').trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/2/', { enabled: true }],
+    ])
+    expect(card.get('[role="alert"]').text()).toBe('agent.triggerNoAccess')
+    expect(
+      card.get('.agent-trigger-card__switch').attributes('aria-checked')
+    ).toBe('false')
+
+    await card.get('.agent-trigger-card__switch').trigger('click')
+    await flushPromises()
+
+    expect(card.find('[role="alert"]').exists()).toBe(false)
+    expect(
+      card.get('.agent-trigger-card__switch').attributes('aria-checked')
+    ).toBe('true')
+  })
+
+  test('shows a trigger by its name, else by the default its type words', async () => {
+    const wrapper = await mountSection(
+      [
+        periodicTrigger(),
+        periodicTrigger({ id: 3, name: 'Morning digest' }),
+        rowsTrigger(),
+        rowsTrigger({
+          id: 4,
+          service: { ...rowsTrigger().service, table_id: 99 },
+        }),
+      ],
+      ['periodic', 'local_baserow_rows_created']
+    )
+
+    expect(
+      wrapper.findAll('.agent-trigger-card__name').map((name) => name.text())
+    ).toEqual([
+      'serviceType.corePeriodicNameHour',
+      'Morning digest',
+      'serviceType.localBaserowRowsCreatedInTable',
+      'serviceType.localBaserowRowsCreated',
+    ])
+  })
+
+  test('renames a trigger inline, and clearing the name shows the default again', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(200, periodicTrigger({ name: 'Morning digest' }))
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
+    const wrapper = await mountSection([periodicTrigger()])
+    const name = wrapper.get('.agent-trigger-card__name-text')
+    const rename = async (text, endKey) => {
+      await wrapper.get('.agent-trigger-card__rename').trigger('click')
+      name.element.textContent = text
+      await name.trigger('input')
+      await (endKey
+        ? name.trigger('keydown', { key: endKey })
+        : name.trigger('focusout'))
+      await flushPromises()
+    }
+
+    await rename('  Morning digest ', 'Enter')
+
+    expect(name.text()).toBe('Morning digest')
+
+    await rename('', null)
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { name: 'Morning digest' }],
+      ['/agent/10/triggers/1/', { name: '' }],
+    ])
+    expect(name.text()).toBe('serviceType.corePeriodicNameHour')
+  })
+
+  test.each([
+    ['swaps the default message for the new type default', true],
+    ['keeps a message of its own', false],
+  ])(
+    'changes the trigger type from its header and %s',
+    async (_, defaultMessage) => {
+      const defaultOf = (type) =>
+        defaultTriggerMessage(
+          (key) => key,
+          testApp.getRegistry().get('service', type)
+        )
+      const message = defaultMessage
+        ? defaultOf('periodic')
+        : periodicTrigger().message
+      const changed = rowsTrigger({ id: 1, message: DEFAULT_ROWS_MESSAGE })
+      testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, changed)
+      const wrapper = await mountSection(
+        [periodicTrigger({ message })],
+        ['periodic', 'local_baserow_rows_created']
+      )
+      const card = wrapper.get('.agent-trigger-card')
+
+      await card.get('.agent-trigger-card__type').trigger('click')
+      await flushPromises()
+      const picker = card.findComponent(AgentTriggerPicker)
+      await picker
+        .get('.menu-search__input')
+        .setValue('serviceType.localBaserowRowsCreated')
+      await picker
+        .get('.grouped-menu__actions .menu-list__item-button')
+        .trigger('click')
+      await flushPromises()
+
+      expect(patches(testApp)).toEqual([
+        [
+          '/agent/10/triggers/1/',
+          {
+            type: 'local_baserow_rows_created',
+            service: { type: 'local_baserow_rows_created' },
+            ...(defaultMessage
+              ? { message: defaultOf('local_baserow_rows_created') }
+              : {}),
+          },
+        ],
+      ])
+      expect(
+        card
+          .findComponent({ name: 'LocalBaserowSignalTriggerServiceForm' })
+          .exists()
+      ).toBe(true)
+      expect(card.find('.agent-trigger-card__batch-size').exists()).toBe(true)
+      expect(
+        card
+          .findAll('.agent-trigger-card__overlap-option-label')
+          .map((label) => label.text())
+      ).toEqual([
+        'agent.triggerOnOverlapSkip',
+        'agent.triggerOnOverlapWait agent.triggerOnOverlapRecommended',
+        'agent.triggerOnOverlapParallel',
+      ])
+      expect(card.get('.agent-trigger-card__schema-count').text()).toBe(
+        'agent.triggerDataValues - 4'
+      )
+    }
+  )
 })

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from uuid import uuid4
 
 from django.db import DatabaseError, connection, transaction
@@ -27,11 +28,15 @@ from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
     CorePeriodicTriggerServiceType,
 )
+from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowRowsCreatedTriggerServiceType,
+)
 from baserow.contrib.integrations.tasks import call_periodic_services_that_are_due
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.models import Agent as Identity
+from baserow.core.services.models import Service
 from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
     service_type_registry,
@@ -354,7 +359,7 @@ def test_a_trashed_agent_queues_nothing_but_keeps_its_schedule(
     trigger = periodic_trigger(data_fixture, agent)
     AgentApplication.objects_and_trash.filter(id=agent.id).update(trashed=True)
     queued = mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversation.delay"
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
     )
 
     tick()
@@ -370,7 +375,7 @@ def test_a_trigger_that_cannot_be_queued_does_not_stop_the_others(
     agent = configured_agent()
     triggers = [periodic_trigger(data_fixture, agent) for _ in range(2)]
     queued = mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversation.delay",
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay",
         side_effect=[ConnectionError("broker down"), None],
     )
 
@@ -412,6 +417,46 @@ def test_a_failing_trigger_is_rolled_back_and_logged_while_the_others_start(
     assert AgentMessage.objects.count() == 2
     assert [log.record["message"] for log in logs] == [
         f"Could not start agent trigger {failing.id}."
+    ]
+    assert isinstance(captured.call_args.args[0], error)
+    assert next_run_at(failing) == next_run_at(working) == DUE_AT + timedelta(minutes=1)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "fail,error",
+    [(raise_an_error, RuntimeError), (raise_a_database_error, DatabaseError)],
+)
+def test_a_trigger_failing_before_its_rules_run_is_logged_while_the_others_start(
+    data_fixture, configured_agent, mocker, logs, fail, error
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    failing = periodic_trigger(data_fixture, agent)
+    working = periodic_trigger(data_fixture, agent, message="'Second'")
+    original = CorePeriodicTriggerServiceType.split_event_payload
+
+    def split_or_fail(
+        service_type: CorePeriodicTriggerServiceType,
+        service: Service,
+        event_payload: dict[str, Any],
+        size: int,
+    ) -> list[dict[str, Any]]:
+        if service.id == failing.service_id:
+            fail()
+        return original(service_type, service, event_payload, size)
+
+    mocker.patch.object(
+        CorePeriodicTriggerServiceType, "split_event_payload", split_or_fail
+    )
+    captured = mocker.patch(
+        "baserow.contrib.agent.triggers.dispatcher.exception_capturer"
+    )
+
+    tick()
+
+    assert AgentConversation.objects.get().trigger_id == working.id
+    assert [log.record["message"] for log in logs] == [
+        f"Could not fire agent trigger {failing.id}."
     ]
     assert isinstance(captured.call_args.args[0], error)
     assert next_run_at(failing) == next_run_at(working) == DUE_AT + timedelta(minutes=1)
@@ -778,6 +823,30 @@ def test_an_event_caused_by_the_agent_itself_starts_nothing(
     assert AgentConversation.objects.get().trigger_id == trigger.id
 
 
+@pytest.mark.django_db
+def test_a_firing_queued_before_a_type_change_starts_nothing(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent)
+
+    with TestCase.captureOnCommitCallbacks() as queued_starts:
+        agent_trigger_dispatcher.on_event([trigger.service], {})
+    locked = AgentTrigger.objects.select_for_update().get(id=trigger.id)
+    AgentTriggerHandler().update_trigger(
+        locked,
+        service_type=service_type_registry.get(
+            LocalBaserowRowsCreatedTriggerServiceType.type
+        ),
+    )
+    for start in queued_starts:
+        start()
+
+    trigger.refresh_from_db()
+    assert not AgentConversation.objects.exists()
+    assert (trigger.last_skipped_on, trigger.last_fired_on) == (None, None)
+
+
 def switch_off(trigger: AgentTrigger) -> None:
     locked = AgentTrigger.objects.select_for_update().get(id=trigger.id)
     AgentTriggerHandler().update_trigger(locked, enabled=False)
@@ -785,7 +854,7 @@ def switch_off(trigger: AgentTrigger) -> None:
 
 def apply_a_firing(trigger: AgentTrigger) -> None:
     agent_trigger_dispatcher.start(
-        trigger.id, trigger.service_id, "Check the inbox", None
+        trigger.id, trigger.service_id, [("Check the inbox", None)]
     )
 
 
@@ -850,7 +919,7 @@ def test_a_hand_off_waits_for_a_firing_holding_the_workspace_run_lock(
 
     with transaction.atomic():
         agent_trigger_dispatcher.start(
-            firing.id, firing.service_id, "Check the inbox", None
+            firing.id, firing.service_id, [("Check the inbox", None)]
         )
         assert ChatRun.objects.count() == 1
         hand_off = in_another_connection(
@@ -873,7 +942,7 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
 
     def tick_without_starting():
         mocker.patch(
-            "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversation.delay"
+            "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
         )
         with freeze_time(TICK_AT):
             call_periodic_services_that_are_due()
@@ -885,26 +954,3 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
         in_another_connection(tick_without_starting).result(timeout=10)
 
         assert next_run_at(trigger) == DUE_AT + timedelta(minutes=1)
-
-
-@pytest.mark.django_db
-def test_a_firing_queued_before_a_type_change_starts_nothing(
-    data_fixture, configured_agent, mocker
-):
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
-    agent = configured_agent(user=data_fixture.create_user())
-    trigger = periodic_trigger(data_fixture, agent)
-
-    with TestCase.captureOnCommitCallbacks() as queued_starts:
-        agent_trigger_dispatcher.on_event([trigger.service], {})
-    AgentTriggerHandler().update_trigger(
-        AgentTrigger.objects.get(id=trigger.id),
-        service_type=service_type_registry.get("http_trigger"),
-    )
-    for start in queued_starts:
-        start()
-
-    assert not AgentConversation.objects.exists()

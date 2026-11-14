@@ -117,6 +117,15 @@ class AgentTriggerUpdated:
 
 
 @dataclass(frozen=True)
+class AgentTriggerTypeOptions:
+    """A trigger type an agent may use, as the agent's run identity sees it."""
+
+    type: str
+    form_choices: dict | None
+    default_on_overlap: AgentTrigger.OnOverlap
+
+
+@dataclass(frozen=True)
 class AgentToolDecisionsResult:
     """Saved decisions on a reply's held calls, and what they changed."""
 
@@ -180,6 +189,8 @@ class AgentReplyRequest:
     """The provider's web search, when it's turned on and the model has one."""
     web_search_enabled: bool = False
     """Whether web search is turned on, even when the model can't use it."""
+    started_by_trigger: bool = False
+    """Whether a trigger started the conversation, so its prompt is outside data."""
 
 
 @dataclass(frozen=True)

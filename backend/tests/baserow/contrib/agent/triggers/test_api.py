@@ -18,15 +18,18 @@ from baserow.contrib.agent.triggers.actions import (
     UpdateAgentTriggerActionType,
 )
 from baserow.contrib.agent.triggers.service import AgentTriggerService
-from baserow.contrib.integrations.core.models import (
-    CoreHTTPTriggerService,
-    CorePeriodicService,
-)
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
     CorePeriodicTriggerServiceType,
 )
+from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
+from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowRowsCreatedTriggerServiceType,
+)
 from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Agent as Identity
 from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
 
@@ -53,7 +56,12 @@ def test_configuration_lists_the_available_trigger_types(
     agent = data_fixture.create_agent_application(user=api_user)
     url = agent_url(agent, "configuration")
 
-    assert api_client.get(url).json()["available_trigger_types"] == ["periodic"]
+    assert api_client.get(url).json()["available_trigger_types"] == [
+        "local_baserow_rows_created",
+        "local_baserow_rows_updated",
+        "local_baserow_rows_deleted",
+        "periodic",
+    ]
 
     mocker.patch(
         "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
@@ -94,6 +102,7 @@ def call(
             user, agent.id, trigger.id, enabled=False
         ),
         "delete": lambda: service.delete_trigger(user, agent.id, trigger.id),
+        "list_types": lambda: service.list_trigger_types(user, agent.id),
     }
     return calls[name]()
 
@@ -104,6 +113,7 @@ def call(
     [
         ("list", [ReadAgentConfigurationOperationType]),
         ("get", [ReadAgentConfigurationOperationType]),
+        ("list_types", [ReadAgentConfigurationOperationType]),
         (
             "create",
             [UpdateApplicationOperationType, ReadAgentConfigurationOperationType],
@@ -631,50 +641,256 @@ def test_a_trigger_saves_its_overlap_rule_and_shows_its_last_firing(
     assert rejected.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
-@pytest.fixture
-def http_trigger_available(mocker):
-    """Offer the HTTP trigger beside the periodic one, so a type can change."""
+@pytest.mark.django_db
+def test_a_trigger_saves_how_many_rows_each_conversation_gets(
+    data_fixture, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    list_url = agent_url(agent, "triggers:list")
 
+    default = api_client.post(list_url, {"type": "periodic", "message": MESSAGE})
+    chosen = api_client.post(
+        list_url, {"type": "periodic", "message": MESSAGE, "batch_size": 5}
+    )
+    too_small = api_client.post(
+        list_url, {"type": "periodic", "message": MESSAGE, "batch_size": 0}
+    )
+
+    assert (default.json()["batch_size"], chosen.json()["batch_size"]) == (20, 5)
+    assert too_small.status_code == 400
+    assert too_small.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert AgentTrigger.objects.count() == 2
+
+    url = agent_url(agent, "triggers:item", trigger_id=default.json()["id"])
+    updated = api_client.patch(url, {"batch_size": 100})
+    too_large = api_client.patch(url, {"batch_size": 101})
+
+    assert updated.status_code == 200, updated.json()
+    assert updated.json()["batch_size"] == 100
+    assert registered.call_args.args[1]["changed_fields"] == ["batch_size"]
+    assert too_large.status_code == 400
+    assert AgentTrigger.objects.get(id=default.json()["id"]).batch_size == 100
+
+
+@pytest.mark.django_db
+def test_a_new_trigger_waits_unless_its_events_can_be_skipped(
+    data_fixture, api_client, api_user, mocker
+):
     mocker.patch(
         "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
+        ("periodic", LocalBaserowRowsCreatedTriggerServiceType.type),
+    )
+    agent = data_fixture.create_agent_application(user=api_user)
+    url = agent_url(agent, "triggers:list")
+    rows = {"type": LocalBaserowRowsCreatedTriggerServiceType.type, "message": MESSAGE}
+
+    responses = [
+        api_client.post(url, rows),
+        api_client.post(url, {"type": "periodic", "message": MESSAGE}),
+        api_client.post(url, {**rows, "on_overlap": "skip"}),
+    ]
+
+    assert [response.json()["on_overlap"] for response in responses] == [
+        "wait",
+        "skip",
+        "skip",
+    ]
+
+
+ROWS_CREATED = LocalBaserowRowsCreatedTriggerServiceType.type
+
+
+def agent_reading_orders(
+    data_fixture, user: AbstractUser
+) -> tuple[AgentApplication, Table]:
+    """An agent of the user acting as a member identity, and an Orders table."""
+
+    agent = data_fixture.create_agent_application(user=user)
+    identity = Identity.objects.create(workspace=agent.workspace, name="Reader")
+    AgentApplication.objects.filter(id=agent.id).update(
+        run_as_subject_type="core.Agent", run_as_subject_id=identity.id
+    )
+    database = data_fixture.create_database_application(
+        workspace=agent.workspace, name="Sales"
+    )
+    return agent, data_fixture.create_database_table(database=database, name="Orders")
+
+
+def remove_run_identity(agent: AgentApplication) -> None:
+    AgentApplication.objects.filter(id=agent.id).update(
+        run_as_subject_type=None, run_as_subject_id=None
+    )
+
+
+@pytest.mark.django_db
+def test_trigger_types_offer_what_the_run_identity_reads(
+    data_fixture, api_client, api_user
+):
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    url = agent_url(agent, "triggers:types")
+
+    response = api_client.get(url)
+
+    assert response.status_code == 200, response.json()
+    by_type = {item["type"]: item for item in response.json()}
+    assert list(by_type) == [
+        "local_baserow_rows_created",
+        "local_baserow_rows_updated",
+        "local_baserow_rows_deleted",
+        "periodic",
+    ]
+    assert by_type["periodic"] == {
+        "type": "periodic",
+        "form_choices": None,
+        "default_on_overlap": "skip",
+    }
+    rows = by_type[ROWS_CREATED]
+    [database] = rows["form_choices"]["databases"]
+    assert (rows["default_on_overlap"], database["name"], database["views"]) == (
+        "wait",
+        "Sales",
+        [],
+    )
+    assert [(item["id"], item["name"]) for item in database["tables"]] == [
+        (table.id, "Orders")
+    ]
+
+    remove_run_identity(agent)
+
+    unset = {item["type"]: item for item in api_client.get(url).json()}
+    assert unset[ROWS_CREATED]["form_choices"] == {"databases": []}
+
+
+@pytest.mark.django_db
+def test_a_row_trigger_is_refused_a_table_its_run_identity_cannot_read(
+    data_fixture, api_client, api_user
+):
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    elsewhere = data_fixture.create_database_table(user=api_user, name="Elsewhere")
+    url = agent_url(agent, "triggers:list")
+
+    refused = api_client.post(
+        url,
+        {
+            "type": ROWS_CREATED,
+            "message": MESSAGE,
+            "service": {"table_id": elsewhere.id},
+        },
+    )
+
+    assert refused.status_code == 400, refused.json()
+    assert refused.json()["error"] == "ERROR_AGENT_TRIGGER_NO_ACCESS"
+    assert not AgentTrigger.objects.exists()
+
+    created = api_client.post(
+        url,
+        {"type": ROWS_CREATED, "message": MESSAGE, "service": {"table_id": table.id}},
+    )
+    item = agent_url(agent, "triggers:item", trigger_id=created.json()["id"])
+    moved = api_client.patch(item, {"service": {"table_id": elsewhere.id}})
+
+    assert created.status_code == 200, created.json()
+    assert moved.status_code == 400
+    assert moved.json()["error"] == "ERROR_AGENT_TRIGGER_NO_ACCESS"
+    assert (
+        LocalBaserowRowsCreated.objects.get(
+            agent_trigger__id=created.json()["id"]
+        ).table_id
+        == table.id
+    )
+
+
+@pytest.mark.django_db
+def test_a_row_trigger_cannot_switch_on_once_its_run_identity_is_gone(
+    data_fixture, api_client, api_user
+):
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    created = api_client.post(
+        agent_url(agent, "triggers:list"),
+        {
+            "type": ROWS_CREATED,
+            "message": MESSAGE,
+            "enabled": False,
+            "service": {"table_id": table.id},
+        },
+    )
+    item = agent_url(agent, "triggers:item", trigger_id=created.json()["id"])
+    remove_run_identity(agent)
+
+    switched = api_client.patch(item, {"enabled": True})
+    edited = api_client.patch(
+        item, {"message": MESSAGE, "on_overlap": "skip", "batch_size": 5}
+    )
+
+    assert switched.status_code == 400
+    assert switched.json()["error"] == "ERROR_AGENT_TRIGGER_NO_ACCESS"
+    assert edited.status_code == 200, edited.json()
+    trigger = AgentTrigger.objects.get(id=created.json()["id"])
+    assert (trigger.enabled, trigger.on_overlap, trigger.batch_size) == (
+        False,
+        "skip",
+        5,
     )
 
 
 @pytest.mark.django_db
 def test_changing_the_type_replaces_the_service_and_keeps_the_trigger(
-    data_fixture, periodic_trigger, api_client, api_user, mocker, http_trigger_available
+    data_fixture, api_client, api_user, mocker
 ):
-    agent = data_fixture.create_agent_application(user=api_user)
-    trigger = periodic_trigger(agent, interval="DAY", hour=9, minute=0, timezone="UTC")
-    AgentTrigger.objects.filter(id=trigger.id).update(name="Digest")
-    old_service_id = trigger.service_id
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    old_service = data_fixture.create_core_periodic_service(
+        interval="DAY", hour=9, minute=0, timezone="UTC"
+    )
+    trigger = data_fixture.create_agent_trigger(
+        agent=agent,
+        service=old_service,
+        message=MESSAGE,
+        name="Digest",
+        on_overlap="wait",
+        batch_size=5,
+        last_skipped_on=timezone.now(),
+        last_skipped_reason="rate_limited",
+    )
+    conversation = data_fixture.create_shared_agent_conversation(
+        agent=agent, trigger=trigger
+    )
     registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
     url = agent_url(agent, "triggers:item", trigger_id=trigger.id)
-    message = {**MESSAGE, "formula": "'New request'"}
+    message = {**MESSAGE, "formula": "'New orders'"}
 
-    response = api_client.patch(url, {"type": "http_trigger", "message": message})
+    response = api_client.patch(
+        url,
+        {"type": ROWS_CREATED, "service": {"table_id": table.id}, "message": message},
+    )
 
     assert response.status_code == 200, response.json()
     assert (response.json()["id"], response.json()["type"]) == (
         trigger.id,
-        "http_trigger",
+        ROWS_CREATED,
     )
     trigger.refresh_from_db()
-    assert not CorePeriodicService.objects.filter(id=old_service_id).exists()
-    assert (trigger.enabled, trigger.name, trigger.message) == (
-        True,
-        "Digest",
-        message,
-    )
+    assert trigger.service.specific.table_id == table.id
+    assert not CorePeriodicService.objects.filter(id=old_service.id).exists()
+    assert (
+        trigger.enabled,
+        trigger.name,
+        trigger.on_overlap,
+        trigger.batch_size,
+        trigger.message,
+        trigger.last_skipped_on,
+        trigger.last_skipped_reason,
+    ) == (True, "Digest", "wait", 5, message, None, "")
+    conversation.refresh_from_db()
+    assert conversation.trigger_id == trigger.id
     assert registered.call_args.args[1] == {
         "agent_id": agent.id,
         "trigger_id": trigger.id,
-        "trigger_type": "http_trigger",
+        "trigger_type": ROWS_CREATED,
         "changed_fields": ["message", "type", "service"],
     }
 
-    http_service_id = trigger.service_id
+    rows_service_id = trigger.service_id
     schedule = {"interval": "DAY", "hour": 9, "minute": 0, "timezone": "UTC"}
     with freeze_time("2026-11-10 07:30"):
         token = data_fixture.generate_token(api_user)
@@ -684,20 +900,18 @@ def test_changing_the_type_replaces_the_service_and_keeps_the_trigger(
     assert back.status_code == 200, back.json()
     service = CorePeriodicService.objects.get(agent_trigger__id=trigger.id)
     assert service.next_run_at == datetime(2026, 11, 10, 9, 0, tzinfo=dt_timezone.utc)
-    assert not CoreHTTPTriggerService.objects.filter(id=http_service_id).exists()
+    assert not LocalBaserowRowsCreated.objects.filter(id=rows_service_id).exists()
 
 
 @pytest.mark.django_db
 def test_changing_only_the_type_starts_from_the_new_types_defaults(
-    data_fixture, api_client, api_user, http_trigger_available
+    data_fixture, api_client, api_user
 ):
-    agent = data_fixture.create_agent_application(user=api_user)
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    rows_service = data_fixture.create_local_baserow_rows_created_service(table=table)
     trigger = data_fixture.create_agent_trigger(
-        agent=agent,
-        service=data_fixture.create_core_http_trigger_service(),
-        message=MESSAGE,
+        agent=agent, service=rows_service, message=MESSAGE
     )
-    http_service_id = trigger.service_id
 
     response = api_client.patch(
         agent_url(agent, "triggers:item", trigger_id=trigger.id), {"type": "periodic"}
@@ -706,24 +920,37 @@ def test_changing_only_the_type_starts_from_the_new_types_defaults(
     assert response.status_code == 200, response.json()
     service = CorePeriodicService.objects.get(agent_trigger__id=trigger.id)
     assert (service.interval, service.minute) == (None, 0)
-    assert not CoreHTTPTriggerService.objects.filter(id=http_service_id).exists()
+    assert not LocalBaserowRowsCreated.objects.filter(id=rows_service.id).exists()
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("type_name", ["http_trigger", "unknown"])
-def test_changing_to_a_type_the_agent_can_not_use_is_refused(
-    data_fixture, periodic_trigger, api_client, api_user, type_name
+@pytest.mark.parametrize(
+    "payload,error",
+    [
+        ({"type": "http_trigger"}, "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
+        ({"type": "unknown"}, "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
+        (
+            {"type": ROWS_CREATED, "service": {"table_id": "elsewhere"}},
+            "ERROR_AGENT_TRIGGER_NO_ACCESS",
+        ),
+    ],
+)
+def test_changing_the_type_is_refused_like_a_new_trigger(
+    data_fixture, periodic_trigger, api_client, api_user, payload, error
 ):
-    agent = data_fixture.create_agent_application(user=api_user)
+    agent, _ = agent_reading_orders(data_fixture, api_user)
+    elsewhere = data_fixture.create_database_table(user=api_user, name="Elsewhere")
     trigger = periodic_trigger(agent, interval="DAY", hour=9)
     service_id = trigger.service_id
+    if "service" in payload:
+        payload["service"]["table_id"] = elsewhere.id
 
     response = api_client.patch(
-        agent_url(agent, "triggers:item", trigger_id=trigger.id), {"type": type_name}
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), payload
     )
 
     assert response.status_code == 400
-    assert response.json()["error"] == "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"
+    assert response.json()["error"] == error
     trigger.refresh_from_db()
     assert trigger.service_id == service_id
     assert CorePeriodicService.objects.get(id=service_id).interval == "DAY"
