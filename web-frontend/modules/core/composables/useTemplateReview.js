@@ -61,7 +61,7 @@ export function useTemplateReview() {
     } = template
     try {
       if (MODERATIONS.includes(action)) {
-        const { data } = await service[action](id, ...args)
+        const { data } = await service[action](id, revisionId, ...args)
         return data
       }
       await service[SERVICE_METHODS[action]](

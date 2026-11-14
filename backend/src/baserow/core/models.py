@@ -954,6 +954,36 @@ class TemplateQuerySet(QuerySet):
 
         return self.with_can_approve().filter(can_approve=True)
 
+    def approvable_without_review(self) -> "TemplateQuerySet":
+        """
+        The pending rows an admin can approve, of templates without an open
+        rejection: what is approved when approval isn't required.
+
+        :return: Those rows, annotated like `with_template_state`.
+        """
+
+        return (
+            self.approvable()
+            .filter(review_state=Template.ReviewState.PENDING)
+            .with_template_state()
+            .filter(has_open_rejection=False)
+        )
+
+    def with_updated_since_blocked(self) -> "TemplateQuerySet":
+        """
+        Annotates the rows with `updated_since_blocked`: whether the revision was
+        made after its template was last blocked. Null when it isn't blocked.
+
+        :return: The rows, annotated.
+        """
+
+        return self.annotate(
+            updated_since_blocked=ExpressionWrapper(
+                Q(created_on__gt=Coalesce("root__blocked_at", "blocked_at")),
+                output_field=models.BooleanField(),
+            )
+        )
+
     def official_owned_or_linked(
         self, actor: Any, private_link_token: str | None = None
     ):

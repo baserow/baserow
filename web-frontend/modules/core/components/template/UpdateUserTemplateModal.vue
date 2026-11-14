@@ -251,6 +251,12 @@ export default {
       )
     },
     reviewNotice() {
+      if (this.template.state === 'blocked') {
+        return {
+          title: 'updateUserTemplateModal.blockedTitle',
+          text: 'updateUserTemplateModal.blockedText',
+        }
+      }
       if (
         this.template.update_needs_review &&
         (!this.showVisibility || this.values.makePublic)

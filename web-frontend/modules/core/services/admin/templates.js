@@ -22,11 +22,16 @@ export default (client) => {
         reviewed_on: reviewedOn,
       })
     },
-    block(templateId, reason) {
-      return client.post(`/admin/templates/${templateId}/block/`, { reason })
+    block(templateId, revisionId, reason) {
+      return client.post(`/admin/templates/${templateId}/block/`, {
+        revision_id: revisionId,
+        reason,
+      })
     },
-    unblock(templateId) {
-      return client.post(`/admin/templates/${templateId}/unblock/`)
+    unblock(templateId, revisionId) {
+      return client.post(`/admin/templates/${templateId}/unblock/`, {
+        revision_id: revisionId,
+      })
     },
   })
 }

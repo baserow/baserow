@@ -83,7 +83,7 @@ const ITEMS = {
   },
   unblock: {
     label: 'templatesAdmin.unblock',
-    icon: 'iconoir-undo',
+    icon: 'iconoir-check',
     moderates: true,
   },
   delete: { label: 'templatesAdmin.delete', icon: 'iconoir-bin', danger: true },

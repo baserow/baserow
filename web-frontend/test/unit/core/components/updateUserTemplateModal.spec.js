@@ -130,6 +130,7 @@ describe('UpdateUserTemplateModal', () => {
     ['1.rejected-update', 'rejected', false, false, 'rejected'],
     ['1.in_review-update', 'in_review', false, true, 'inReview'],
     ['1.public+in_review-update', 'in_review', true, true, 'inReview'],
+    ['1.blocked-update', 'blocked', true, true, 'blocked'],
   ])(
     '%s tells what the update does to the review',
     async (id, state, listed, updateNeedsReview, notice) => {
@@ -141,6 +142,9 @@ describe('UpdateUserTemplateModal', () => {
       expect(
         wrapper.findAll('.alert p').map((text) => text.text())
       ).toStrictEqual(notice ? [`updateUserTemplateModal.${notice}Text`] : [])
+      expect(
+        wrapper.findAll('.alert__title').map((title) => title.text())
+      ).toStrictEqual(notice ? [`updateUserTemplateModal.${notice}Title`] : [])
     }
   )
 

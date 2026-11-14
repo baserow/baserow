@@ -35,6 +35,7 @@ from tests.baserow.core.user_templates.utils import (
     make_private,
     make_public,
     recorded_actions,
+    template_row_writes,
 )
 
 
@@ -402,35 +403,106 @@ def test_template_lists_read_only_the_later_revisions(data_fixture):
     assert rows_filtered_per_row(owned) < templates // 4
 
 
-def block(admin, root, reason="Spam"):
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "action,revision_states",
+    [
+        ("approve", ["rejected"]),
+        ("approve", ["rejected", "in_review"]),
+        ("approve", ["rejected", "resubmitted"]),
+        ("reject", ["public"]),
+        ("reject", ["public", "public"]),
+    ],
+)
+def test_review_writes_each_template_row_once(data_fixture, action, revision_states):
+    admin = data_fixture.create_user(is_staff=True)
+    root, latest = create_reviewable(data_fixture, revision_states)
+
+    with template_row_writes() as writes:
+        review(action, admin, root, latest.id)
+
+    assert writes and set(writes.values()) == {1}
+
+
+def latest_id(root):
+    return UserTemplateHandler().get_latest_revision(root).id
+
+
+def block(admin, root, reason="Spam", revision_id=None):
     return action_type_registry.get_by_type(BlockUserTemplateAdminActionType).do(
-        admin, root.id, reason
+        admin, root.id, revision_id or latest_id(root), reason
     )
 
 
-def unblock(admin, root):
+def unblock(admin, root, revision_id=None):
     return action_type_registry.get_by_type(UnblockUserTemplateAdminActionType).do(
-        admin, root.id
+        admin, root.id, revision_id or latest_id(root)
     )
+
+
+def create_blocked(data_fixture, admin, revision_states, changed):
+    with freeze_time("2026-11-01 12:00"):
+        root, latest = create_reviewable(data_fixture, revision_states)
+        Template.objects.filter(id=latest.id).exclude(id=root.id).update(
+            workspace=data_fixture.create_database_application().workspace
+        )
+        block(admin, root)
+    if changed:
+        workspace = data_fixture.create_workspace()
+        data_fixture.create_database_application(workspace=workspace)
+        with freeze_time("2026-11-01 12:01"):
+            latest = UserTemplateHandler().create_template_revision(
+                user=root.owner,
+                root=root,
+                base_revision=latest,
+                name="Edited",
+                description="",
+                icon=ICON,
+                category_ids=[data_fixture.create_template_category().id],
+                workspace=workspace,
+            )
+    if changed == "reblocked":
+        with freeze_time("2026-11-01 12:02"):
+            block(admin, root, "Still spam")
+    return root, latest
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "revision_states,edited_while_blocked",
+    "revision_states,changed,approval_off,expected",
     [
-        (["shared"], False),
-        (["in_review"], False),
-        (["public"], False),
-        (["public", "in_review"], False),
-        (["rejected"], False),
-        (["public"], True),
-        (["rejected"], True),
-        (["in_review"], True),
+        (["shared"], False, False, ("private", None, False, False)),
+        (["shared"], True, False, ("private", None, False, False)),
+        (["rejected"], False, False, ("rejected", None, False, True)),
+        (["rejected"], True, False, ("rejected", None, False, True)),
+        (["in_review"], False, False, ("in_review", None, True, False)),
+        (["in_review"], True, False, ("in_review", None, True, False)),
+        (["public"], False, False, ("public", "same", False, False)),
+        (["public"], True, False, ("public", "latest", False, False)),
+        (["public", "in_review"], False, False, ("public", "latest", False, False)),
+        (["public", "in_review"], True, False, ("public", "latest", False, False)),
+        (["public"], "reblocked", False, ("public", "latest", False, False)),
+        (
+            ["public", "in_review"],
+            "reblocked",
+            False,
+            ("public", "latest", False, False),
+        ),
+        (["public", "rejected"], False, False, ("rejected", "same", False, True)),
+        (["public", "rejected"], True, False, ("public", "latest", False, False)),
+        (["in_review"], False, True, ("public", "latest", False, False)),
+        (["rejected"], True, True, ("rejected", None, False, True)),
+        (["resubmitted"], False, True, ("in_review", None, True, True)),
     ],
 )
-def test_block_then_unblock(data_fixture, revision_states, edited_while_blocked):
+def test_unblock_restores_the_state_before_the_block(
+    data_fixture, revision_states, changed, approval_off, expected
+):
+    state, listed, latest_pending, open_rejection = expected
     admin = data_fixture.create_user(is_staff=True)
-    root, _ = create_reviewable(data_fixture, revision_states)
+    root, latest = create_blocked(data_fixture, admin, revision_states, changed)
+    if approval_off:
+        CoreHandler().update_settings(admin, user_templates_require_approval=False)
     block_fields = {"blocked_at", "blocked_by_id", "blocked_reason"}
 
     def snapshot():
@@ -440,37 +512,35 @@ def test_block_then_unblock(data_fixture, revision_states, edited_while_blocked)
         ]
 
     before = snapshot()
-
-    with recorded_actions() as blocked:
-        latest = block(admin, root)
-
-    assert snapshot() == before
-    assert get_state(root) == UserTemplateState.BLOCKED
-    if edited_while_blocked:
-        latest = UserTemplateHandler().create_template_revision(
-            user=root.owner,
-            root=root,
-            base_revision=latest,
-            name="Edited",
-            description="",
-            icon=ICON,
-            category_ids=[data_fixture.create_template_category().id],
-            workspace=data_fixture.create_workspace(),
-        )
+    root_before = next(row for row in before if row["id"] == root.id)
 
     with recorded_actions() as unblocked:
         assert unblock(admin, root).id == latest.id
 
-    root = Template.objects.get(id=root.id)
+    root.refresh_from_db()
+    listed_id = latest.id if listed == "latest" else None
     assert (root.blocked_at, root.blocked_by, root.blocked_reason) == (None, None, "")
-    assert root.public_revision_id is None
-    assert root.private_link_token == before[0]["private_link_token"]
-    assert not Template.objects.open_reviews().filter_by_root(id=root.id).exists()
-    assert get_state(root) == UserTemplateState.PRIVATE
-    assert Template.objects.with_template_state().get(
-        id=root.id
-    ).has_open_rejection is ("rejected" in revision_states)
-    assert [entry[0] for entry in blocked] == ["admin_block_user_template"]
+    assert get_state(root) == state
+    assert root.public_revision_id == (
+        listed_id or (listed and root_before["public_revision_id"])
+    )
+    assert root.private_link_token == root_before["private_link_token"]
+    pending = Template.objects.filter_by_root(id=root.id).filter(
+        review_state=Template.ReviewState.PENDING
+    )
+    assert list(pending.values_list("id", flat=True)) == (
+        [latest.id] if latest_pending else []
+    )
+    assert (
+        Template.objects.with_template_state().get(id=root.id).has_open_rejection
+        is open_rejection
+    )
+    if listed_id:
+        listed_revision = Template.objects.get(id=listed_id)
+        assert listed_revision.reviewed_by == admin
+        assert listed_revision.submitted_on is not None
+    else:
+        assert snapshot() == before
     assert unblocked == [
         (
             "admin_unblock_user_template",
@@ -478,9 +548,63 @@ def test_block_then_unblock(data_fixture, revision_states, edited_while_blocked)
                 "template_id": root.id,
                 "template_name": latest.name,
                 "owner_id": root.owner_id,
+                "state": state,
+                "listed_revision_id": listed_id,
+                "listed": bool(listed),
             },
         )
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "revision_states,changed,approval_off",
+    [
+        (["shared"], False, False),
+        (["public"], True, False),
+        (["in_review"], False, True),
+    ],
+)
+def test_unblock_writes_each_template_row_once(
+    data_fixture, revision_states, changed, approval_off
+):
+    admin = data_fixture.create_user(is_staff=True)
+    root, _ = create_blocked(data_fixture, admin, revision_states, changed)
+    if approval_off:
+        CoreHandler().update_settings(admin, user_templates_require_approval=False)
+
+    with template_row_writes() as writes:
+        unblock(admin, root)
+
+    assert writes and set(writes.values()) == {1}
+
+
+@pytest.mark.parametrize(
+    "outcome,text",
+    [
+        ({}, "unblocked"),
+        ({"state": "rejected", "listed_revision_id": None}, "unblocked, now rejected"),
+        (
+            {"state": "rejected", "listed_revision_id": None, "listed": True},
+            "unblocked, listed, its edit now rejected",
+        ),
+        (
+            {"state": "public", "listed_revision_id": None, "listed": True},
+            "unblocked, now listed",
+        ),
+        (
+            {"state": "public", "listed_revision_id": 5},
+            "unblocked and listed with revision 5",
+        ),
+    ],
+)
+def test_unblock_audit_describes_the_state(outcome, text):
+    params = {"template_id": 1, "template_name": "Old", "owner_id": 2, **outcome}
+
+    assert (
+        UnblockUserTemplateAdminActionType.get_long_description(params)
+        == f'Template "Old" (1) {text}'
+    )
 
 
 @pytest.mark.django_db
@@ -501,7 +625,7 @@ def test_block_again_and_unblock_without_block(data_fixture):
     root.refresh_from_db()
     assert root.blocked_reason == "Scam"
     assert root.blocked_by == second_admin
-    assert root.blocked_at.isoformat() == "2026-11-01T12:00:00+00:00"
+    assert root.blocked_at.isoformat() == "2026-11-02T12:00:00+00:00"
     assert list(Template.objects.values().order_by("id")) == before
     assert get_state(listed) == UserTemplateState.PUBLIC
     params = {"template_id": root.id, "template_name": root.name}
@@ -512,3 +636,47 @@ def test_block_again_and_unblock_without_block(data_fixture):
         )
         for reason in ["Spam", "Scam"]
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "revision_states,seen,refused",
+    [
+        (["rejected", "private"], "previous", False),
+        (["public"], "other", True),
+    ],
+)
+def test_block_refuses_a_revision_of_another_template(
+    data_fixture, revision_states, seen, refused
+):
+    admin = data_fixture.create_user(is_staff=True)
+    root, _ = create_reviewable(data_fixture, revision_states)
+    if seen == "other":
+        revision_id = create_reviewable(data_fixture, ["public"])[1].id
+    else:
+        revision_id = root.id
+    before = list(Template.objects.values().order_by("id"))
+
+    if refused:
+        with pytest.raises(TemplateUpdated):
+            block(admin, root, revision_id=revision_id)
+        assert list(Template.objects.values().order_by("id")) == before
+    else:
+        block(admin, root, revision_id=revision_id)
+        assert get_state(root) == UserTemplateState.BLOCKED
+
+
+@pytest.mark.django_db
+def test_unblock_with_approval_off_leaves_other_templates_alone(data_fixture):
+    admin = data_fixture.create_user(is_staff=True)
+    other, _ = create_reviewable(data_fixture, ["in_review"])
+    root, _ = create_reviewable(data_fixture, ["shared"])
+    block(admin, other)
+    block(admin, root)
+    CoreHandler().update_settings(admin, user_templates_require_approval=False)
+
+    unblock(admin, root)
+
+    other.refresh_from_db()
+    assert other.blocked_at is not None
+    assert other.public_revision_id is None
