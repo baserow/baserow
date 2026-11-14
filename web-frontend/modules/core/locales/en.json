@@ -494,9 +494,26 @@
     "linkInviteAs": "Invite as",
     "linkCopy": "Copy link",
     "linkDelete": "Delete link",
+    "linkAddPassword": "Protect with a password",
+    "linkPasswordProtected": "Password protected",
     "pendingTitle": "Pending invitations",
     "pendingEmptyTitle": "No invitations are pending.",
     "pendingEmptyDescription": "Invitations show up here until they are accepted."
+  },
+  "invitationLinkPasswordModal": {
+    "newTitle": "Protect link with a password",
+    "changeTitle": "Change link password",
+    "description": "People who open the link must enter this password before they can see or join it. Changing it locks out everyone who only knows the previous one.",
+    "save": "Save password",
+    "remove": "Remove password"
+  },
+  "invitationLinkPassword": {
+    "title": "This invite link is password protected",
+    "description": "Enter the password you were given to continue.",
+    "passwordLabel": "Password",
+    "continue": "Continue",
+    "incorrectTitle": "Incorrect password",
+    "incorrectMessage": "The password is not correct. Ask the person who shared the link for the right one."
   },
   "invitationLinkDeleteModal": {
     "title": "Delete link",
