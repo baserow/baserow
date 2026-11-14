@@ -531,7 +531,9 @@ class GenerativeAIModelType(Instance):
             state = get_ai_provider_state(workspace)
         workspace_providers = state.owned_providers
         instance_providers = state.instance_providers
-        disabled_provider_ids = state.disabled_instance_provider_ids
+        disabled_provider_ids = (
+            state.disabled_instance_provider_ids | state.excluded_instance_provider_ids
+        )
 
         workspace_provider = workspace_providers.get(self.type)
         if workspace_provider is None and model_settings_override is None:
@@ -718,7 +720,9 @@ class GenerativeAIModelType(Instance):
         if state is None:
             state = get_ai_provider_state(workspace)
         instance_providers = state.instance_providers
-        disabled_provider_ids = state.disabled_instance_provider_ids
+        disabled_provider_ids = (
+            state.disabled_instance_provider_ids | state.excluded_instance_provider_ids
+        )
 
         workspace_provider = state.owned_providers.get(self.type)
         if workspace_provider is not None and workspace_provider.is_active:

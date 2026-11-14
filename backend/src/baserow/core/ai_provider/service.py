@@ -2,6 +2,7 @@ from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateWorkspaceOperationType
@@ -16,6 +17,18 @@ from .signals import ai_provider_updated
 
 
 class AIProviderService:
+    @staticmethod
+    def _resolve_excluded_workspaces(workspace: Workspace | None, values: dict) -> None:
+        if "excluded_workspace_ids" not in values:
+            return
+        if workspace is not None:
+            raise AIProviderIsReadOnly()
+        workspace_ids = set(values.pop("excluded_workspace_ids"))
+        workspaces = list(Workspace.objects_and_trash.filter(id__in=workspace_ids))
+        if {workspace.id for workspace in workspaces} != workspace_ids:
+            raise WorkspaceDoesNotExist()
+        values["excluded_workspaces"] = workspaces
+
     @staticmethod
     def _scope_provider_result(
         provider: AIProviderConfig, workspace: Workspace | None
@@ -109,6 +122,7 @@ class AIProviderService:
         cls, user: AbstractUser, workspace_id: int | None = None, **values
     ) -> AIProviderConfig | WorkspaceAIProviderConfig:
         workspace = cls._check_permissions(user, workspace_id)
+        cls._resolve_excluded_workspaces(workspace, values)
         provider = AIProviderHandler.create_provider(workspace=workspace, **values)
         cls._send_updated(user, workspace, True, provider.provider_type)
         return cls._scope_provider_result(provider, workspace)
@@ -122,6 +136,7 @@ class AIProviderService:
         **values,
     ) -> AIProviderConfig | WorkspaceAIProviderConfig:
         workspace = cls._check_permissions(user, workspace_id)
+        cls._resolve_excluded_workspaces(workspace, values)
         provider = AIProviderHandler.get_provider(
             provider_id,
             workspace=workspace,
@@ -137,8 +152,13 @@ class AIProviderService:
             return cls._scope_provider_result(provider, workspace)
 
         was_active = provider.is_active
+        exclusions_changed = "excluded_workspaces" in values and {
+            workspace.id for workspace in values["excluded_workspaces"]
+        } != {workspace.id for workspace in provider.excluded_workspaces.all()}
         provider = AIProviderHandler.update_provider(provider, **values)
-        model_availability_updated = provider.is_active != was_active
+        model_availability_updated = (
+            provider.is_active != was_active or exclusions_changed
+        )
         cls._send_updated(
             user,
             workspace,

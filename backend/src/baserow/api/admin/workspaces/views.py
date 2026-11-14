@@ -70,11 +70,14 @@ class WorkspacesAdminView(AdminListingView):
 class WorkspaceOptionsAdminView(APIListingView):
     permission_classes = (IsAdminUser,)
     serializer_class = AdminWorkspaceOptionsSerializer
+    pagination_class = PageNumberPaginationWithApproximateCount
     search_fields = ["name"]
     default_order_by = "name"
 
     def get_queryset(self, request):
-        return Workspace.objects.filter(template__isnull=True)
+        # Checking the join column lets PostgreSQL recognize an anti join and
+        # estimate the workspace count without the selective NULL-id filter.
+        return Workspace.objects.filter(template__workspace_id__isnull=True)
 
     @extend_schema(
         tags=["Admin"],

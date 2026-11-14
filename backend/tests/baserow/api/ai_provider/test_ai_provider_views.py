@@ -49,6 +49,231 @@ def staff_headers(data_fixture):
     return {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
 
+@pytest.mark.django_db
+def test_instance_provider_exclusions_can_be_created_replaced_and_removed(
+    api_client, data_fixture, staff_headers
+):
+    first = data_fixture.create_workspace(name="Excluded workspace")
+    second = data_fixture.create_workspace(name="Another workspace")
+    response = api_client.post(
+        reverse("api:ai_provider:list"),
+        {
+            "provider_type": "openai",
+            "api_key": "instance-secret",
+            "excluded_workspace_ids": [first.id, first.id],
+        },
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_201_CREATED
+    assert response.json()["excluded_workspaces"] == [
+        {"id": first.id, "name": first.name}
+    ]
+    provider_id = response.json()["id"]
+    url = reverse("api:ai_provider:item", kwargs={"provider_id": provider_id})
+    with patch("baserow.core.ai_provider.service.ai_provider_updated.send") as updated:
+        response = api_client.patch(
+            url,
+            {"excluded_workspace_ids": [second.id]},
+            format="json",
+            **staff_headers,
+        )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["excluded_workspaces"] == [
+        {"id": second.id, "name": second.name}
+    ]
+    assert updated.call_args.kwargs["model_availability_updated"] is True
+    assert updated.call_args.kwargs["workspace"] is None
+    response = api_client.get(reverse("api:ai_provider:list"), **staff_headers)
+    assert response.json()[0]["excluded_workspaces"] == [
+        {"id": second.id, "name": second.name}
+    ]
+    with patch("baserow.core.ai_provider.service.ai_provider_updated.send") as updated:
+        response = api_client.patch(
+            url,
+            {"api_key": "replacement", "excluded_workspace_ids": [second.id]},
+            format="json",
+            **staff_headers,
+        )
+    assert response.status_code == HTTP_200_OK
+    assert updated.call_args.kwargs["model_availability_updated"] is False
+    with patch("baserow.core.ai_provider.service.ai_provider_updated.send") as updated:
+        response = api_client.patch(
+            url,
+            {"api_key": "another-replacement"},
+            format="json",
+            **staff_headers,
+        )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["excluded_workspaces"] == [
+        {"id": second.id, "name": second.name}
+    ]
+    assert list(
+        AIProviderConfig.objects.get(id=provider_id).excluded_workspaces.all()
+    ) == [second]
+    assert updated.call_args.kwargs["model_availability_updated"] is False
+
+    response = api_client.patch(
+        url,
+        {"excluded_workspace_ids": []},
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["excluded_workspaces"] == []
+    assert not AIProviderConfig.objects.get(id=provider_id).excluded_workspaces.exists()
+
+
+@pytest.mark.django_db
+def test_instance_provider_exclusions_reject_unknown_workspaces_without_changes(
+    api_client, data_fixture, staff_headers
+):
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    provider.excluded_workspaces.add(workspace)
+    for invalid, status in [
+        ([0], HTTP_400_BAD_REQUEST),
+        (["invalid"], HTTP_400_BAD_REQUEST),
+        ([workspace.id + 1000], HTTP_404_NOT_FOUND),
+    ]:
+        response = api_client.patch(
+            reverse("api:ai_provider:item", kwargs={"provider_id": provider.id}),
+            {"excluded_workspace_ids": invalid, "is_active": False},
+            format="json",
+            **staff_headers,
+        )
+        assert response.status_code == status
+        provider.refresh_from_db()
+        assert provider.is_active is True
+        assert list(provider.excluded_workspaces.all()) == [workspace]
+
+
+@pytest.mark.django_db
+def test_excluded_workspace_cannot_see_enable_test_or_select_instance_provider(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    other = data_fixture.create_workspace()
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    provider.excluded_workspaces.add(workspace, other)
+    model = AIProviderModel.objects.create(
+        provider_config=provider, model_identifier="gpt-5", feature_types=["kuma"]
+    )
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    query = f"?workspace_id={workspace.id}"
+    response = api_client.get(reverse("api:ai_provider:list") + query, **headers)
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == []
+    response = api_client.patch(
+        reverse("api:ai_provider:item", kwargs={"provider_id": provider.id}) + query,
+        {"is_active": True},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    response = api_client.post(
+        reverse("api:ai_provider:test_models") + query,
+        {"model_ids": [model.id]},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    response = api_client.put(
+        reverse("api:ai_provider:feature_item", kwargs={"feature_type": "kuma"})
+        + query,
+        {"mode": "model", "model_id": model.id},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert set(provider.excluded_workspaces.all()) == {workspace, other}
+
+
+@pytest.mark.django_db
+def test_workspace_admin_cannot_configure_exclusions_or_see_other_workspace_names(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    other = data_fixture.create_workspace()
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    provider.excluded_workspaces.add(other)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    query = f"?workspace_id={workspace.id}"
+    response = api_client.get(reverse("api:ai_provider:list") + query, **headers)
+    assert response.status_code == HTTP_200_OK
+    assert "excluded_workspaces" not in response.json()[0]
+    response = api_client.post(
+        reverse("api:ai_provider:list") + query,
+        {
+            "provider_type": "openai",
+            "api_key": "own-secret",
+            "excluded_workspace_ids": [],
+        },
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_AI_PROVIDER_IS_READ_ONLY"
+    own_provider = AIProviderConfig.objects.create(
+        provider_type="openai", workspace=workspace, api_key="own-secret"
+    )
+    for target in [provider, own_provider]:
+        response = api_client.patch(
+            reverse("api:ai_provider:item", kwargs={"provider_id": target.id}) + query,
+            {"excluded_workspace_ids": [other.id]},
+            format="json",
+            **headers,
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json()["error"] == "ERROR_AI_PROVIDER_IS_READ_ONLY"
+
+
+@pytest.mark.django_db
+def test_exclusions_survive_editing_a_provider_while_the_workspace_is_trashed(
+    api_client, data_fixture, staff_headers
+):
+    workspace = data_fixture.create_workspace(name="Temporarily trashed")
+    provider = AIProviderConfig.objects.create(provider_type="openai", api_key="secret")
+    provider.excluded_workspaces.add(workspace)
+    workspace.trashed = True
+    workspace.save(update_fields=["trashed"])
+
+    response = api_client.get(reverse("api:ai_provider:list"), **staff_headers)
+    assert response.json()[0]["excluded_workspaces"] == [
+        {"id": workspace.id, "name": workspace.name}
+    ]
+    response = api_client.patch(
+        reverse("api:ai_provider:item", kwargs={"provider_id": provider.id}),
+        {"api_key": "replacement", "excluded_workspace_ids": [workspace.id]},
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["excluded_workspaces"] == [
+        {"id": workspace.id, "name": workspace.name}
+    ]
+
+    workspace.trashed = False
+    workspace.save(update_fields=["trashed"])
+    assert provider.excluded_workspaces.filter(id=workspace.id).exists()
+
+    workspace.trashed = True
+    workspace.save(update_fields=["trashed"])
+    response = api_client.patch(
+        reverse("api:ai_provider:item", kwargs={"provider_id": provider.id}),
+        {"excluded_workspace_ids": []},
+        format="json",
+        **staff_headers,
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["excluded_workspaces"] == []
+    workspace.trashed = False
+    workspace.save(update_fields=["trashed"])
+    assert not provider.excluded_workspaces.filter(id=workspace.id).exists()
+
+
 def _request_ai_provider_api(api_client, case, headers):
     method, url_name = case
     provider = AIProviderConfig.objects.create(
@@ -505,6 +730,7 @@ def test_provider_crud_never_returns_api_key(api_client, staff_headers):
         "provider_type": "openai",
         "extra_settings": {"organization": "org-1"},
         "is_active": True,
+        "excluded_workspaces": [],
         "models": [
             {
                 "id": response.json()["models"][0]["id"],

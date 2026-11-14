@@ -7,6 +7,9 @@ describe('AIProviderFeatureSettings', () => {
   let testApp = null
 
   const translate = (key, values = {}) => {
+    if (key === 'aiProviderAdmin.modelUnavailableInWorkspace') {
+      return 'Selected model unavailable in this workspace'
+    }
     if (key === 'aiProviderAdmin.kumaUseLegacy') {
       return `Use environment model (deprecated): ${values.model}`
     }
@@ -326,6 +329,21 @@ describe('AIProviderFeatureSettings', () => {
       'Selected model unavailable — using deprecated environment model: groq:legacy-model'
     )
     expect(invalidOption.classes()).toContain('disabled')
+  })
+
+  test('does not promise an environment fallback for an unavailable workspace selection', async () => {
+    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+    testApp.store.commit('aiProvider/SET_PROVIDERS', [])
+    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+      { feature_type: 'kuma', mode: 'model', state: 'invalid', model: null },
+    ])
+
+    const wrapper = await mountComponent('openai/gpt-5.6', { workspaceId: 42 })
+
+    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
+      'Selected model unavailable in this workspace'
+    )
+    expect(wrapper.text()).not.toContain('using deprecated environment model')
   })
 
   test('shows that an invalid selection has no legacy environment model', async () => {

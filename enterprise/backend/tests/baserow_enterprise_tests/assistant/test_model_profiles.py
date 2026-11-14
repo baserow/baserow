@@ -15,7 +15,10 @@ from baserow.core.generative_ai.model_profiles import (
 )
 from baserow.core.models import Workspace
 from baserow_enterprise.assistant import model_profiles as model_profiles_module
-from baserow_enterprise.assistant.exceptions import AssistantModelDisabledError
+from baserow_enterprise.assistant.exceptions import (
+    AssistantConfiguredModelNotAvailableError,
+    AssistantModelDisabledError,
+)
 from baserow_enterprise.assistant.model_profiles import (
     DOCUMENTATION,
     ORCHESTRATOR,
@@ -381,6 +384,88 @@ def test_workspace_disabled_kuma_raises_even_when_inherited_model_is_valid(
 
     with pytest.raises(AssistantModelDisabledError):
         resolve_assistant_model(workspace=workspace)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("explicit_selection", [False, True])
+def test_excluded_kuma_provider_does_not_fall_back_to_environment(
+    data_fixture, settings, mocker, explicit_selection
+):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "openai:legacy-model"
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        models_data=[
+            {"model_identifier": "gpt-5.4", "feature_types": [AI_PROVIDER_FEATURE_KUMA]}
+        ],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=provider.models.get(),
+    )
+    if explicit_selection:
+        AIProviderHandler.update_feature_setting(
+            AI_PROVIDER_FEATURE_KUMA,
+            AI_PROVIDER_FEATURE_MODE_MODEL,
+            workspace=workspace,
+            model=provider.models.get(),
+        )
+    AIProviderHandler.update_provider(provider, excluded_workspaces=[workspace])
+    retrying_model = mocker.patch.object(model_profiles_module, "RetryingModel")
+
+    with pytest.raises(AssistantConfiguredModelNotAvailableError):
+        resolve_assistant_model(workspace=workspace)
+
+    retrying_model.assert_not_called()
+    assert resolve_assistant_model().database_model.id == provider.models.get().id
+
+    AIProviderHandler.update_provider(provider, excluded_workspaces=[])
+    restored = resolve_assistant_model(workspace=workspace)
+    assert restored.source == "database"
+    assert restored.model_string == "openai:gpt-5.4"
+
+
+@pytest.mark.django_db
+def test_excluded_instance_kuma_keeps_workspace_owned_selection_available(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    instance_provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        models_data=[
+            {"model_identifier": "gpt-5.4", "feature_types": [AI_PROVIDER_FEATURE_KUMA]}
+        ],
+    )
+    workspace_provider = AIProviderHandler.create_provider(
+        "openai",
+        workspace=workspace,
+        api_key="workspace-key",
+        models_data=[
+            {"model_identifier": "gpt-5.4", "feature_types": [AI_PROVIDER_FEATURE_KUMA]}
+        ],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=instance_provider.models.get(),
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        workspace=workspace,
+        model=workspace_provider.models.get(),
+    )
+    AIProviderHandler.update_provider(
+        instance_provider, excluded_workspaces=[workspace]
+    )
+
+    profile = resolve_assistant_model(workspace=workspace)
+
+    assert profile.database_model.provider_config_id == workspace_provider.id
+    assert profile.create_model().wrapped._provider.client.api_key == "workspace-key"
 
 
 def test_explicit_model_profile_does_not_load_persisted_provider_state(mocker):

@@ -138,7 +138,8 @@ def test_listing_workspaces_resolves_ai_state_independently_of_workspace_count(
         for query in queries.captured_queries
         if any(table in query["sql"] for table in provider_tables)
     ]
-    assert len(provider_queries) == 4, provider_queries
+    # Workspace exclusions add one batched query, regardless of workspace count.
+    assert len(provider_queries) == 5, provider_queries
 
 
 @pytest.mark.django_db

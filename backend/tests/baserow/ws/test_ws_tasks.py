@@ -255,7 +255,9 @@ def _run_instance_ai_provider_update() -> tuple[list[str], list]:
 
 
 @pytest.mark.django_db
-def test_instance_ai_provider_update_never_touches_workspaces(data_fixture, settings):
+def test_instance_ai_provider_update_only_reads_excluded_workspaces(
+    data_fixture, settings
+):
     settings.BASEROW_USE_LOCAL_CACHE = False
     staff_ids = {data_fixture.create_user(is_staff=True).id for _ in range(2)}
     AIProviderHandler.create_provider(
@@ -277,7 +279,8 @@ def test_instance_ai_provider_update_never_touches_workspaces(data_fixture, sett
         for sql in one_workspace_sql + five_workspaces_sql
         if '"core_workspace"' in sql or '"core_workspaceuser"' in sql
     ]
-    assert workspace_sql == []
+    exclusions_table = AIProviderConfig.excluded_workspaces.through._meta.db_table
+    assert all(exclusions_table in sql for sql in workspace_sql)
     assert len(one_workspace_sql) == len(five_workspaces_sql)
 
 
@@ -1072,7 +1075,7 @@ def test_workspace_ai_provider_broadcast_reuses_the_loaded_provider_state(
         for query in queries.captured_queries
         if any(table in query["sql"] for table in provider_tables)
     ]
-    assert len(provider_queries) == 4, provider_queries
+    assert len(provider_queries) == 5, provider_queries
 
 
 @pytest.mark.django_db

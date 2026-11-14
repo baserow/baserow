@@ -33,6 +33,7 @@ from .exceptions import (
     AIProviderDoesNotExist,
     AIProviderFeatureModelNotAvailable,
     AIProviderFeatureModeNotAllowed,
+    AIProviderIsReadOnly,
     AIProviderModelAlreadyConfigured,
     AIProviderModelDoesNotExist,
     AIProviderModelInUse,
@@ -134,22 +135,24 @@ class AIProviderHandler:
         return cls._workspace_provider_config(provider, workspace_enabled)
 
     @staticmethod
-    def _inherited_scope() -> Q:
+    def _inherited_scope(workspace: Workspace) -> Q:
         """
         Instance providers a workspace is allowed to see. What the instance
         disabled stays private to the instance admin, so a workspace never
         learns it exists.
         """
 
-        return Q(workspace__isnull=True, is_active=True)
+        return Q(workspace__isnull=True, is_active=True) & ~Q(
+            excluded_workspaces=workspace
+        )
 
     @staticmethod
-    def _inherited_model_scope() -> Q:
+    def _inherited_model_scope(workspace: Workspace) -> Q:
         return Q(
             provider_config__workspace__isnull=True,
             provider_config__is_active=True,
             is_enabled=True,
-        )
+        ) & ~Q(provider_config__excluded_workspaces=workspace)
 
     @staticmethod
     def _models_prefetch(inherited: bool) -> Prefetch | str:
@@ -159,10 +162,19 @@ class AIProviderHandler:
             "models", queryset=AIProviderModel.objects.filter(is_enabled=True)
         )
 
+    @staticmethod
+    def _excluded_workspaces_prefetch() -> Prefetch:
+        # Preserve exclusions while a workspace is in the trash, including when
+        # the admin saves the provider form before that workspace is restored.
+        return Prefetch(
+            "excluded_workspaces",
+            queryset=Workspace.objects_and_trash.only("id", "name"),
+        )
+
     @classmethod
-    def _inherited_providers(cls) -> list[AIProviderConfig]:
+    def _inherited_providers(cls, workspace: Workspace) -> list[AIProviderConfig]:
         return list(
-            AIProviderConfig.objects.filter(cls._inherited_scope())
+            AIProviderConfig.objects.filter(cls._inherited_scope(workspace))
             .prefetch_related(cls._models_prefetch(True))
             .order_by("id")
         )
@@ -186,10 +198,14 @@ class AIProviderHandler:
 
         queryset = AIProviderConfig.objects.prefetch_related("models").order_by("id")
         if workspace is None:
-            return list(queryset.filter(workspace__isnull=True))
+            return list(
+                queryset.filter(workspace__isnull=True).prefetch_related(
+                    cls._excluded_workspaces_prefetch()
+                )
+            )
 
         owned = list(queryset.filter(workspace=workspace))
-        inherited = cls._inherited_providers()
+        inherited = cls._inherited_providers(workspace)
         disabled_provider_ids = set(
             AIProviderWorkspaceOverride.objects.filter(
                 workspace=workspace,
@@ -220,7 +236,9 @@ class AIProviderHandler:
         """
 
         if state.workspace is None:
-            return sorted(state.instance_providers.values(), key=lambda p: p.id)
+            providers = sorted(state.instance_providers.values(), key=lambda p: p.id)
+            prefetch_related_objects(providers, cls._excluded_workspaces_prefetch())
+            return providers
 
         providers = [
             cls._workspace_provider_config(provider)
@@ -233,6 +251,7 @@ class AIProviderHandler:
             )
             for provider in state.instance_providers.values()
             if provider.is_active
+            and provider.id not in state.excluded_instance_provider_ids
         ]
         return sorted(providers, key=lambda provider: provider.id)
 
@@ -247,13 +266,15 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(workspace=workspace)
             if include_inherited:
-                scope |= cls._inherited_scope()
+                scope |= cls._inherited_scope(workspace)
         try:
             provider = AIProviderConfig.objects.get(scope, id=provider_id)
         except AIProviderConfig.DoesNotExist as exc:
             raise AIProviderDoesNotExist(provider_id) from exc
         inherited = workspace is not None and provider.workspace_id is None
         prefetch_related_objects([provider], cls._models_prefetch(inherited))
+        if workspace is None:
+            prefetch_related_objects([provider], cls._excluded_workspaces_prefetch())
         return provider
 
     @classmethod
@@ -267,7 +288,7 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(provider_config__workspace=workspace)
             if include_inherited:
-                scope |= cls._inherited_model_scope()
+                scope |= cls._inherited_model_scope(workspace)
         try:
             return AIProviderModel.objects.select_related("provider_config").get(
                 scope, id=model_id
@@ -286,7 +307,7 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(provider_config__workspace=workspace)
             if include_inherited:
-                scope |= cls._inherited_model_scope()
+                scope |= cls._inherited_model_scope(workspace)
         models_by_id = {
             model.id: model
             for model in AIProviderModel.objects.filter(scope, id__in=model_ids)
@@ -326,7 +347,10 @@ class AIProviderHandler:
         extra_settings: dict[str, Any] | None = None,
         models_data: list[dict[str, Any]] | None = None,
         workspace: Workspace | None = None,
+        excluded_workspaces: list[Workspace] | None = None,
     ) -> AIProviderConfig:
+        if workspace is not None and excluded_workspaces is not None:
+            raise AIProviderIsReadOnly()
         get_supported_provider_type(provider_type)
         api_key = api_key.strip()
         if AIProviderConfig.objects.filter(
@@ -360,11 +384,17 @@ class AIProviderHandler:
                 for model in models_data
             ]
         )
+        if excluded_workspaces is not None:
+            provider.excluded_workspaces(manager="objects_and_trash").set(
+                excluded_workspaces
+            )
         clear_ai_provider_state_cache()
         return cls.get_provider(provider.id, workspace=workspace)
 
     @classmethod
     def update_provider(cls, provider: AIProviderConfig, **values) -> AIProviderConfig:
+        if provider.workspace_id is not None and "excluded_workspaces" in values:
+            raise AIProviderIsReadOnly(provider.id)
         api_key = values["api_key"].strip() if "api_key" in values else provider.api_key
         extra_settings = values.get("extra_settings", provider.extra_settings)
         model_identifiers = list(
@@ -396,9 +426,13 @@ class AIProviderHandler:
         if "extra_settings" in values:
             provider.extra_settings = validated_extra_settings
             update_fields.append("extra_settings")
-        if update_fields:
+        if "excluded_workspaces" in values:
+            provider.excluded_workspaces(manager="objects_and_trash").set(
+                values["excluded_workspaces"]
+            )
             update_fields.append("updated_on")
-            provider.save(update_fields=update_fields)
+        if update_fields:
+            provider.save(update_fields=set(update_fields) | {"updated_on"})
             if connection_settings_changed:
                 provider.models.update(
                     last_test_at=None,
@@ -699,6 +733,8 @@ class AIProviderHandler:
             return False
         if provider.workspace_id is not None:
             return provider.workspace_id == state.workspace_id
+        if provider.id in state.excluded_instance_provider_ids:
+            return False
         # The legacy env model ignored workspace AI settings; inheritance keeps that.
         if inherited or state.workspace is None:
             return True
