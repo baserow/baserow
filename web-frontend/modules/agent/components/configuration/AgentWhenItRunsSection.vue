@@ -42,10 +42,12 @@
         :editable="editable"
         :max-queued-trigger-runs="configuration.max_queued_trigger_runs"
         :max-parallel-trigger-runs="configuration.max_parallel_trigger_runs"
+        :available-types="availableTypes"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
         :service-reverts="serviceReverts[trigger.id] || 0"
         @update="updateTrigger(trigger, $event)"
+        @change-type="changeTriggerType(trigger, $event)"
         @delete="deleteTrigger(trigger)"
       />
     </div>
@@ -92,6 +94,7 @@ const {
   fetchTriggers,
   createTrigger,
   updateTrigger,
+  changeTriggerType,
   deleteTrigger,
 } = useAgentTriggers(agent)
 // A trigger added before the list loaded would be dropped by the list reply.

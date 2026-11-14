@@ -200,19 +200,26 @@ class AgentTriggerDispatcher:
             )
             content = AgentTriggerHandler().payload_as_message(payload)
             failure = AGENT_TRIGGER_MESSAGE_FAILED
+        service_id = trigger.service_id
         # A broker error for one trigger mustn't drop the starts queued after it.
         transaction.on_commit(
-            lambda: start_trigger_conversation.delay(trigger.id, content, failure),
+            lambda: start_trigger_conversation.delay(
+                trigger.id, service_id, content, failure
+            ),
             robust=True,
         )
 
-    def start(self, trigger_id: int, content: str, failure: str | None) -> None:
+    def start(
+        self, trigger_id: int, service_id: int, content: str, failure: str | None
+    ) -> None:
         """
-        Apply the rules of a trigger that fired, if it still can run: start or
-        queue its conversation and tell the readers, or record why the firing was
-        skipped. A failure is logged and reported, never raised.
+        Apply the rules of a trigger that fired, if it still has the service that
+        fired and still can run: start or queue its conversation and tell the
+        readers, or record why the firing was skipped. A failure is logged and
+        reported, never raised.
 
         :param trigger_id: The id of the trigger that fired.
+        :param service_id: The id of the service the message was resolved from.
         :param content: The resolved message opening the conversation.
         :param failure: The error code failing the reply instead of running it, or
             None.
@@ -221,7 +228,11 @@ class AgentTriggerDispatcher:
         try:
             with transaction.atomic():
                 trigger = self._lock(trigger_id)
-                if trigger is None or not self._is_runnable(trigger):
+                if (
+                    trigger is None
+                    or not self._has_service(trigger, service_id)
+                    or not self._is_runnable(trigger)
+                ):
                     return
                 # Read under the lock, so saved times follow the order rules ran in.
                 now = timezone.now()
@@ -234,6 +245,26 @@ class AgentTriggerDispatcher:
         except Exception as e:
             logger.exception("Could not start agent trigger {}.", trigger_id)
             exception_capturer(e)
+
+    def _has_service(self, trigger: AgentTrigger, service_id: int) -> bool:
+        """
+        Whether the trigger still has the service its message was resolved from.
+        A builder who replaced it changed what the trigger watches, so the firing
+        is dropped without recording a skip the new service didn't cause.
+
+        :param trigger: The locked trigger.
+        :param service_id: The id of the service the message was resolved from.
+        :return: True when the trigger's service is still that one.
+        """
+
+        if trigger.service_id == service_id:
+            return True
+        logger.debug(
+            "Agent trigger {} skipped: its service {} was replaced.",
+            trigger.id,
+            service_id,
+        )
+        return False
 
     def _lock(self, trigger_id: int) -> AgentTrigger | None:
         """

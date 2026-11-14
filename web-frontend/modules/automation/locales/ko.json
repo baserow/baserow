@@ -121,9 +121,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "트리거는 삭제할 수 없고, 교체만 가능합니다.",
-        "localBaserowRowsCreatedLabel": "{tableName}에 행이 생성됩니다",
-        "localBaserowRowsUpdatedLabel": "{tableName} 테이블의 행이 업데이트되었습니다",
-        "localBaserowRowsDeletedLabel": "{tableName} 테이블에서 행이 삭제되었습니다",
         "localBaserowCreateRowLabel": "{tableName} 테이블에 행을 생성합니다",
         "localBaserowUpdateRowLabel": "{tableName} 테이블의 행을 업데이트합니다",
         "localBaserowDeleteRowLabel": "{tableName} 테이블의 행을 삭제합니다",

@@ -121,9 +121,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "Les déclencheurs ne peuvent être supprimés, seulement remplacés.",
-        "localBaserowRowsCreatedLabel": "Des lignes sont créées dans {tableName}",
-        "localBaserowRowsUpdatedLabel": "Des lignes sont mises à jour dans {tableName}",
-        "localBaserowRowsDeletedLabel": "Des lignes sont supprimées dans {tableName}",
         "localBaserowCreateRowLabel": "Créer une ligne dans {tableName}",
         "localBaserowUpdateRowLabel": "Modifier une ligne dans {tableName}",
         "localBaserowDeleteRowLabel": "Supprimer des lignes dans {tableName}",

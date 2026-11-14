@@ -784,7 +784,9 @@ def switch_off(trigger: AgentTrigger) -> None:
 
 
 def apply_a_firing(trigger: AgentTrigger) -> None:
-    agent_trigger_dispatcher.start(trigger.id, "Check the inbox", None)
+    agent_trigger_dispatcher.start(
+        trigger.id, trigger.service_id, "Check the inbox", None
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -847,7 +849,9 @@ def test_a_hand_off_waits_for_a_firing_holding_the_workspace_run_lock(
     queued = queued_reply(waiting)
 
     with transaction.atomic():
-        agent_trigger_dispatcher.start(firing.id, "Check the inbox", None)
+        agent_trigger_dispatcher.start(
+            firing.id, firing.service_id, "Check the inbox", None
+        )
         assert ChatRun.objects.count() == 1
         hand_off = in_another_connection(
             lambda: AgentHandler().start_queued_replies(waiting)
@@ -881,3 +885,26 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
         in_another_connection(tick_without_starting).result(timeout=10)
 
         assert next_run_at(trigger) == DUE_AT + timedelta(minutes=1)
+
+
+@pytest.mark.django_db
+def test_a_firing_queued_before_a_type_change_starts_nothing(
+    data_fixture, configured_agent, mocker
+):
+    mocker.patch(
+        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
+        ("periodic", "http_trigger"),
+    )
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent)
+
+    with TestCase.captureOnCommitCallbacks() as queued_starts:
+        agent_trigger_dispatcher.on_event([trigger.service], {})
+    AgentTriggerHandler().update_trigger(
+        AgentTrigger.objects.get(id=trigger.id),
+        service_type=service_type_registry.get("http_trigger"),
+    )
+    for start in queued_starts:
+        start()
+
+    assert not AgentConversation.objects.exists()

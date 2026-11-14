@@ -133,9 +133,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "Triggery mogą być wyłącznie zamienione, nie można ich usunąć.",
-        "localBaserowRowsCreatedLabel": "Wiersze zostaną utworzone w tabeli {tableName}",
-        "localBaserowRowsUpdatedLabel": "Wiersze zostaną zaktualizowane w tabeli {tableName}",
-        "localBaserowRowsDeletedLabel": "Wiersze zostaną usunięte z tabeli {tableName}",
         "localBaserowCreateRowLabel": "Utwórz wiersz w tabeli {tableName}",
         "localBaserowUpdateRowLabel": "Zaktualizuj wiersz w tabeli {tableName}",
         "localBaserowDeleteRowLabel": "Usuń wiersze z tabeli {tableName}",

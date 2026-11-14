@@ -2,18 +2,30 @@
   <article class="agent-trigger-card" :aria-busy="saving">
     <header class="agent-trigger-card__header">
       <div class="agent-trigger-card__title">
-        <span
+        <button
           v-tooltip="typeName"
+          type="button"
           class="agent-trigger-card__type"
-          role="img"
-          :aria-label="typeName"
+          :disabled="!editable"
+          aria-haspopup="menu"
+          :aria-label="
+            editable
+              ? $t('agent.triggerChangeType', { type: typeName })
+              : typeName
+          "
+          @click="typePicker.toggle($event.currentTarget)"
         >
           <Icon
             :icon="serviceType?.icon || 'iconoir-flash'"
             class="agent-trigger-card__icon"
             aria-hidden="true"
           />
-        </span>
+          <i
+            v-if="editable"
+            class="agent-trigger-card__chevron iconoir-nav-arrow-down"
+            aria-hidden="true"
+          />
+        </button>
         <div class="agent-trigger-card__name" @click="startRename">
           <Editable
             ref="nameEditable"
@@ -200,6 +212,13 @@
         {{ $t('agent.deleteTrigger') }}
       </ButtonText>
     </footer>
+    <AgentTriggerPicker
+      v-if="editable"
+      ref="typePicker"
+      :available-types="availableTypes"
+      :workspace="workspace"
+      @select="$emit('change-type', $event)"
+    />
   </article>
 </template>
 
@@ -221,6 +240,7 @@ import ButtonText from '@baserow/modules/core/components/ButtonText'
 import Editable from '@baserow/modules/core/components/Editable'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
+import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
 import moment from '@baserow/modules/core/moment'
 import {
@@ -246,12 +266,15 @@ const props = defineProps({
   serviceError: { type: String, default: '' },
   /** How often a failed save reverted the service values the form shows. */
   serviceReverts: { type: Number, default: 0 },
+  /** The trigger types the Agent's configuration offers, to change to. */
+  availableTypes: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['update', 'delete'])
+const emit = defineEmits(['update', 'change-type', 'delete'])
 const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
 const form = ref(null)
+const typePicker = ref(null)
 const nameEditable = ref(null)
 const renaming = ref(false)
 const overlapId = useId()

@@ -653,6 +653,42 @@ describe('Agent triggers', () => {
     ])
   })
 
+  test('changes the trigger type from its header and keeps a message of its own', async () => {
+    const httpType = testApp.getRegistry().get('service', 'http_trigger')
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, {
+      ...periodicTrigger(),
+      type: 'http_trigger',
+      service: { id: 6, type: 'http_trigger' },
+    })
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic', 'http_trigger']
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    await card.get('.agent-trigger-card__type').trigger('click')
+    await flushPromises()
+    const picker = card.findComponent(AgentTriggerPicker)
+    await picker.get('.menu-search__input').setValue(httpType.name)
+    await picker
+      .get('.grouped-menu__actions .menu-list__item-button')
+      .trigger('click')
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        {
+          type: 'http_trigger',
+          service: {
+            type: 'http_trigger',
+            ...httpType.getDefaultValues(null, {}),
+          },
+        },
+      ],
+    ])
+  })
+
   test('offers the overlap rule as radios in its own section and saves a choice at once', async () => {
     testApp.mock
       .onPatch('/agent/10/triggers/1/')

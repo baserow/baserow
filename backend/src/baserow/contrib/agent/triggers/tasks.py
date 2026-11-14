@@ -10,20 +10,21 @@ from .handler import AgentTriggerHandler
 
 @app.task
 def start_trigger_conversation(
-    trigger_id: int, content: str, failure: str | None
+    trigger_id: int, service_id: int, content: str, failure: str | None
 ) -> None:
     """
     Apply the rules of a trigger that fired, after the event that fired it
     committed.
 
     :param trigger_id: The id of the trigger that fired.
+    :param service_id: The id of the service the message was resolved from.
     :param content: The resolved message opening the conversation.
     :param failure: The error code failing the reply instead of running it, or None.
     """
 
     from .dispatcher import agent_trigger_dispatcher
 
-    agent_trigger_dispatcher.start(trigger_id, content, failure)
+    agent_trigger_dispatcher.start(trigger_id, service_id, content, failure)
 
 
 @app.task(ignore_result=True)
