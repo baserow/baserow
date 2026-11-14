@@ -8,7 +8,7 @@ ms-python.python
 ms-python.vscode-pylance
 mtxr.sqltools
 mtxr.sqltools-driver-pg
-Orta.vscode-jest
+vitest.explorer
 ryanluker.vscode-coverage-gutters
 sibiraj-s.vscode-scss-formatter
 stylelint.vscode-stylelint
