@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("integrations", "0042_corehttpdatasourceservice"),
+        ("integrations", "0043_mcp_server_encrypted_secrets"),
     ]
 
     operations = [

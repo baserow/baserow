@@ -214,9 +214,9 @@ def test_0032_coreperiodicservice_timezone_defaults_existing_rows_to_utc(
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0043_clears_legacy_agent_authorization(migrator, teardown_table_metadata):
+def test_0044_clears_legacy_agent_authorization(migrator, teardown_table_metadata):
     old_state = migrator.migrate(
-        [("integrations", "0042_corehttpdatasourceservice")]
+        [("integrations", "0043_mcp_server_encrypted_secrets")]
     )
     ContentType = old_state.apps.get_model("contenttypes", "ContentType")
     Workspace = old_state.apps.get_model("core", "Workspace")
@@ -242,7 +242,7 @@ def test_0043_clears_legacy_agent_authorization(migrator, teardown_table_metadat
             authorized_subject_id=1,
         )
 
-    migrator.migrate([("integrations", "0043_clear_legacy_agent_authorization")])
+    migrator.migrate([("integrations", "0044_clear_legacy_agent_authorization")])
 
     authorizations = Integration.objects.order_by("id").values_list(
         "authorized_subject_type", "authorized_subject_id"

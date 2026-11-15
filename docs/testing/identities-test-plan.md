@@ -290,7 +290,7 @@ The current real migration cases are `test_0138_identity_upgrade_and_guarded_rol
 and `test_0138_discards_legacy_agents_without_converting_references`. They check old
 Agent queries/workspace deletion during rollout, the rollback guard and the removal
 of Agent trash entries. `test_0073_deletes_rows_whose_subject_is_a_legacy_agent` and
-`test_0043_clears_legacy_agent_authorization` cover the enterprise and integrations
+`test_0044_clears_legacy_agent_authorization` cover the enterprise and integrations
 cleanup. The earlier
 four-case results above predate the decision to discard disposable legacy data.
 `test_identity_indexes.py` additionally interrupts the actual 0139 index build and
