@@ -38,7 +38,12 @@ class Command(BaseCommand):
         "connections from their channel groups, so every realtime message keeps "
         "being copied to them in Redis until the group expiry passes. It also "
         "removes the memberships that are older than the group expiry, which only "
-        "happens by itself when a message is sent to the group."
+        "happens by itself when a message is sent to the group. The channel layer "
+        "renews the memberships of live connections and lets the others expire "
+        "within minutes, so this is only needed once after upgrading from a "
+        "version that kept them for a day. Don't run it during a deployment: "
+        "processes of a version that doesn't renew yet would lose the memberships "
+        "of their live connections."
     )
 
     def add_arguments(self, parser):
