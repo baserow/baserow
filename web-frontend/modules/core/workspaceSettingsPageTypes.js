@@ -1,6 +1,17 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 
+/**
+ * Returns the route to open instead of one that isn't among the pages the user
+ * may see, which would render nothing. Null when the route is one of them.
+ */
+export function getFallbackSettingsRoute(pages, routeName) {
+  if (pages.some((page) => page.to?.name === routeName)) {
+    return null
+  }
+  return pages.find((page) => page.navigable)?.to ?? null
+}
+
 export class WorkspaceSettingsPageType extends Registerable {
   /**
    * The name of the page in the tabs navigation at the top of the page.

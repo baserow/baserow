@@ -1,6 +1,9 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { IdentitiesWorkspaceSettingsPageType } from '@baserow/modules/core/workspaceSettingsPageTypes'
+import {
+  getFallbackSettingsRoute,
+  IdentitiesWorkspaceSettingsPageType,
+} from '@baserow/modules/core/workspaceSettingsPageTypes'
 
 describe('IdentitiesWorkspaceSettingsPageType', () => {
   test('is only visible when the permission is enabled', () => {
@@ -23,5 +26,21 @@ describe('IdentitiesWorkspaceSettingsPageType', () => {
 
     hasPermission.mockReturnValue(false)
     expect(pageType.hasPermission(workspace)).toBe(false)
+  })
+})
+
+describe('getFallbackSettingsRoute', () => {
+  const members = { to: { name: 'settings-members' }, navigable: true }
+  const lockedTeams = { to: { name: 'settings-teams' }, navigable: false }
+
+  test.each([
+    ['settings-members', null],
+    ['settings-teams', null],
+    ['settings-identities', members.to],
+    ['settings', members.to],
+  ])('route %s falls back to %o', (routeName, fallback) => {
+    expect(getFallbackSettingsRoute([lockedTeams, members], routeName)).toBe(
+      fallback
+    )
   })
 })
