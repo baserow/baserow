@@ -81,6 +81,7 @@ For each finding record:
 bypass (R1). Verification also encountered existing test isolation problems and a
 local Firefox startup failure. No implementation or test-expectation fixes were
 made during this pass. The verification run is complete within the limits below.
+R1 was fixed after this pass; see its resolution.
 
 | Check                                              | Result                                       | Interpretation                                                                                                                                |
 | -------------------------------------------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -135,6 +136,14 @@ it, but snapshot retained identity 3`. This also reproduces after the administra
   uses the real role manager, duplicate handler, snapshot export/import and restore
   action; no permission mocks. It also reproduced with a custom role lacking the
   identity-update operation.
+- **Resolution:** The restore action passes the restoring person to
+  `perform_restore`, which checks that person's restore permission and hands them
+  to the import as `restored_by`. The Agent keeps its binding only when they may
+  bind identities. `copied_by` stays unset on restore, so credential checks keyed
+  on it behave as before. Covered by
+  `test_a_restored_snapshot_keeps_run_as_only_for_identity_managers`,
+  `test_a_snapshot_restore_keeps_apps_the_restorer_cant_read` and
+  `test_restore_snapshot_checks_the_person_restoring`.
 
 ### T1 — Existing tests leak model mocks into the shared service registry
 

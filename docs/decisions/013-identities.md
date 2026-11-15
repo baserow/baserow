@@ -171,9 +171,10 @@ the permission to manage identities (`identity.update`, held by workspace
 admins). Everyone who can edit the bound application acts with the identity's
 access, so an application editor could otherwise reach data their own role
 hides. Keeping or clearing an existing binding needs no extra permission, and
-run-as choices list no identities for someone who can't bind them. A duplicate
-or snapshot restore keeps the binding only when the person copying may bind
-identities.
+run-as choices list no identities for someone who can't bind them. A duplicated
+or restored Agent application keeps its binding only when the person copying or
+restoring may bind identities. A copied Local Baserow integration keeps its
+authorized subject, identity or person, as integrations always have.
 
 Every shared tool entry point starts a new permission lifetime for each call,
 so a revoked or trashed identity stops acting on the next call even when the

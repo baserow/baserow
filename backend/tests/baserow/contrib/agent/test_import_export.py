@@ -195,6 +195,41 @@ def test_a_copy_keeps_run_as_only_for_identity_managers(data_fixture, configured
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "created_by,restored_by,keeps_run_as",
+    [("admin", "member", False), ("member", "admin", True)],
+)
+def test_a_restored_snapshot_keeps_run_as_only_for_identity_managers(
+    data_fixture,
+    configured_agent,
+    use_tmp_media_root,
+    created_by,
+    restored_by,
+    keeps_run_as,
+):
+    people = {"admin": data_fixture.create_user(), "member": data_fixture.create_user()}
+    agent = configured_agent(user=people["admin"])
+    data_fixture.create_user_workspace(
+        workspace=agent.workspace, user=people["member"], permissions="MEMBER"
+    )
+    identity = data_fixture.create_identity(workspace=agent.workspace)
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=agent, name=agent.name, created_by=people[created_by]
+    )
+    snapshots = SnapshotHandler()
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=people[restored_by]
+    ).specific
+
+    assert restored.run_as_subject_id == (identity.id if keeps_run_as else None)
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("state", ["missing", "foreign", "unsupported", "unknown"])
 def test_run_as_copy_clears_invalid_references(data_fixture, configured_agent, state):
     user = data_fixture.create_user()
@@ -253,7 +288,9 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
 
     identity.profile.trashed = True
     identity.profile.save(update_fields=["trashed"])
-    restored = snapshots.perform_restore(snapshot, Progress(total=100)).specific
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=user
+    ).specific
     assert (restored.run_as_subject_type, restored.run_as_subject_id) == (
         "auth.User",
         identity.id,
@@ -620,13 +657,14 @@ def test_an_imported_tool_is_hashed_from_what_is_imported(data_fixture):
     assert tool.definition_hash != "a" * 64
 
 
-@pytest.mark.django_db
-def test_a_duplicate_leaves_out_apps_the_copier_cant_read(data_fixture, mocker):
+@pytest.fixture
+def unreadable_mcp_server(data_fixture, mocker):
+    """An MCP server its owner may copy but not read, as under a narrower role."""
+
     user = data_fixture.create_user()
     server = data_fixture.create_mcp_server_integration(
         user=user, auth_header_name="Authorization", auth_header_value="Bearer s3cr3t"
     )
-    # As under a role that may duplicate the Agent but not read this app.
     original = CoreHandler.check_multiple_permissions
 
     def deny_reading_integrations(self, checks, *args, **kwargs):
@@ -641,10 +679,35 @@ def test_a_duplicate_leaves_out_apps_the_copier_cant_read(data_fixture, mocker):
     mocker.patch.object(
         CoreHandler, "check_multiple_permissions", deny_reading_integrations
     )
+    return user, server
+
+
+@pytest.mark.django_db
+def test_a_duplicate_leaves_out_apps_the_copier_cant_read(unreadable_mcp_server):
+    user, server = unreadable_mcp_server
 
     duplicate = CoreHandler().duplicate_application(user, server.application)
 
     assert not MCPServerIntegration.objects.filter(application=duplicate).exists()
+
+
+@pytest.mark.django_db
+def test_a_snapshot_restore_keeps_apps_the_restorer_cant_read(
+    data_fixture, unreadable_mcp_server, use_tmp_media_root
+):
+    user, server = unreadable_mcp_server
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=server.application, name="s", created_by=user
+    )
+    snapshots = SnapshotHandler()
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=user
+    )
+
+    assert MCPServerIntegration.objects.filter(application=restored).exists()
 
 
 @pytest.mark.django_db

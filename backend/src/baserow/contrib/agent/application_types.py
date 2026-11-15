@@ -67,7 +67,7 @@ class AgentApplicationType(ApplicationType):
     ) -> tuple[str | None, int | None]:
         """
         Keep existing identity references in internal copies of their workspace,
-        when the person copying may bind identities.
+        when the person copying or restoring may bind identities.
 
         A trashed identity remains configured so restoring it also restores access
         for the copy. Execution still requires an active identity.
@@ -88,9 +88,9 @@ class AgentApplicationType(ApplicationType):
             return None, None
         if workspace is None:
             return run_as
-        copied_by = import_export_config.copied_by
-        if copied_by is None or not IdentityService().check_can_bind(
-            copied_by, workspace, raise_permission_exceptions=False
+        binder = import_export_config.copied_by or import_export_config.restored_by
+        if binder is None or not IdentityService().check_can_bind(
+            binder, workspace, raise_permission_exceptions=False
         ):
             return None, None
         resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)

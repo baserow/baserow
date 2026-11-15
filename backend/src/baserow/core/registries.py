@@ -160,6 +160,12 @@ class ImportExportConfig:
     System and CLI exports leave this unset; copying retains its existing context.
     """
 
+    restored_by: Optional["AbstractUser"] = None
+    """
+    Who restores a snapshot. Kept apart from `copied_by` so a restore carries
+    every credential the snapshot holds.
+    """
+
 
 class Plugin(APIUrlsInstanceMixin, Instance):
     """
