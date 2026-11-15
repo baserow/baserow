@@ -36,9 +36,15 @@ from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.feature_flags import FF_IDENTITIES, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.actions import (
+    CreateIdentityActionType,
+    DeleteIdentityActionType,
+    UpdateIdentityActionType,
+)
 from baserow.core.identities.exceptions import (
     IdentityDoesNotExist,
     IdentityRoleDoesNotExist,
@@ -175,7 +181,9 @@ class WorkspaceIdentitiesView(APIView, SearchableViewMixin, SortableViewMixin):
 
         feature_flag_is_enabled(FF_IDENTITIES, raise_if_disabled=True)
         workspace = CoreHandler().get_workspace(workspace_id)
-        identity = IdentityService().create_identity(request.user, workspace, **data)
+        identity = action_type_registry.get_by_type(CreateIdentityActionType).do(
+            request.user, workspace, **data
+        )
         return Response(IdentitySerializer(identity).data)
 
 
@@ -210,7 +218,9 @@ class IdentityView(APIView):
         """Updates an existing identity."""
 
         identity = IdentityHandler().get_identity(identity_id)
-        identity = IdentityService().update_identity(request.user, identity, **data)
+        identity = action_type_registry.get_by_type(UpdateIdentityActionType).do(
+            request.user, identity, **data
+        )
         return Response(IdentitySerializer(identity).data)
 
     @extend_schema(
@@ -234,5 +244,7 @@ class IdentityView(APIView):
         """Deletes an existing identity."""
 
         identity = IdentityHandler().get_identity(identity_id)
-        IdentityService().delete_identity(request.user, identity)
+        action_type_registry.get_by_type(DeleteIdentityActionType).do(
+            request.user, identity
+        )
         return Response(status=204)
