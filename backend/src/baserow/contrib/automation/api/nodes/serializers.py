@@ -1,3 +1,6 @@
+from typing import Any
+
+from django.contrib.auth.models import AbstractUser
 from django.utils.functional import lazy
 
 from drf_spectacular.types import OpenApiTypes
@@ -7,18 +10,70 @@ from rest_framework import serializers
 from baserow.api.services.serializers import (
     PolymorphicServiceRequestSerializer,
     PolymorphicServiceSerializer,
+    ServiceSerializer,
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.graph.types import GraphPointPosition
+from baserow.core.services.models import Service
+
+
+class AutomationServiceSerializer(ServiceSerializer):
+    """
+    The service of a node. Its schema and context data name the fields of the
+    table it uses, which is not always a table the reader may see, so they are
+    left out when the context's `service_table_access` says the reader may not.
+    """
+
+    table_accessible = serializers.SerializerMethodField(
+        help_text="Whether the reader may see the fields of the table this service "
+        "uses. The schema and context data are left out when they may not."
+    )
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_table_accessible(self, instance: Service) -> bool:
+        access = self.context.get("service_table_access")
+        return access is None or access.allows(instance.specific)
+
+    def get_schema(self, instance: Service) -> dict[str, Any] | None:
+        if not self.get_table_accessible(instance):
+            return None
+        return super().get_schema(instance)
+
+    def get_context_data(self, instance: Service) -> dict[str, Any] | None:
+        if not self.get_table_accessible(instance):
+            return None
+        return super().get_context_data(instance)
+
+    def get_context_data_schema(self, instance: Service) -> dict[str, Any] | None:
+        if not self.get_table_accessible(instance):
+            return None
+        return super().get_context_data_schema(instance)
+
+    class Meta(ServiceSerializer.Meta):
+        fields = ServiceSerializer.Meta.fields + ("table_accessible",)
+
+
+def node_serializer_context(user: AbstractUser) -> dict[str, Any]:
+    """
+    The context to serialize nodes for a user with, so the services of the nodes
+    only show the tables the user may see.
+    """
+
+    return {"service_table_access": ServiceTableAccess(user)}
+
+
+class AutomationPolymorphicServiceSerializer(PolymorphicServiceSerializer):
+    base_class = AutomationServiceSerializer
 
 
 class AutomationNodeSerializer(serializers.ModelSerializer):
     """Basic automation node serializer."""
 
     type = serializers.SerializerMethodField(help_text="The automation node type.")
-    service = PolymorphicServiceSerializer(
+    service = AutomationPolymorphicServiceSerializer(
         help_text="The service associated with this automation node."
     )
     # The model field is a `TextField` subclass, which a `ModelSerializer`

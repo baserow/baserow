@@ -39,6 +39,7 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
@@ -156,15 +157,20 @@ def _compact_properties(schema: dict[str, Any]) -> dict[str, Any]:
     return properties
 
 
-def output_schema(node: AutomationNode) -> dict[str, Any]:
+def output_schema(node: AutomationNode, access: ServiceTableAccess) -> dict[str, Any]:
     """
     What a node outputs, for the formulas of the nodes after it: the formula path
     to its data and its properties, keyed as the path expects.
+
+    :param access: Whether the user may see the fields of the node's table. The
+        properties are left out when they may not, as they name those fields.
     """
 
     service = node.service.specific
     service_type = service.get_type()
-    schema = service_type.generate_schema(service) or {}
+    schema = (
+        service_type.generate_schema(service) if access.allows(service) else None
+    ) or {}
     if schema.get("type") == "array":
         schema = schema.get("items") or {}
     path = f"previous_node.{node.id}"
@@ -174,6 +180,7 @@ def output_schema(node: AutomationNode) -> dict[str, Any]:
 
 
 def node_outputs(
+    user: AbstractUser,
     workflow: AutomationWorkflow,
 ) -> Callable[[int], dict[str, Any] | None]:
     """
@@ -182,11 +189,12 @@ def node_outputs(
     """
 
     cache: dict[int, dict[str, Any] | None] = {}
+    access = ServiceTableAccess(user)
 
     def outputs(node_id: int) -> dict[str, Any] | None:
         if node_id not in cache:
             node = AutomationNode.objects.filter(workflow=workflow, id=node_id).first()
-            cache[node_id] = None if node is None else output_schema(node)
+            cache[node_id] = None if node is None else output_schema(node, access)
         return cache[node_id]
 
     return outputs
@@ -230,11 +238,12 @@ def describe_workflow_nodes(
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
+    access = ServiceTableAccess(ctx.user)
     nodes = []
     for node, previous, output in nodes_in_order(ctx.user, workflow):
         description = describe_node(node, previous, output)
         if with_output_schema:
-            description["output_schema"] = output_schema(node)
+            description["output_schema"] = output_schema(node, access)
         nodes.append(description)
     return nodes
 
@@ -377,7 +386,9 @@ def create_node(
     """
 
     ctx.update_status(_("Creating node %(label)s...") % {"label": spec.label})
-    values = ServiceValues(field_ids, refs=refs.ids(), outputs=node_outputs(workflow))
+    values = ServiceValues(
+        field_ids, refs=refs.ids(), outputs=node_outputs(ctx.user, workflow)
+    )
     data: dict[str, Any] = {"label": spec.label}
     if isinstance(spec, TriggerNodeCreate):
         data["service"] = spec.to_orm_service_dict()
@@ -501,7 +512,7 @@ def update_node(
         as_formulas,
         refs=refs,
         updating=True,
-        outputs=node_outputs(workflow),
+        outputs=node_outputs(ctx.user, workflow),
     )
     data: dict[str, Any] = {}
     if node_update.label is not None:

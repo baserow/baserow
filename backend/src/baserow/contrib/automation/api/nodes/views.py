@@ -41,6 +41,7 @@ from baserow.contrib.automation.api.nodes.serializers import (
     MoveAutomationNodeSerializer,
     ReplaceAutomationNodeSerializer,
     UpdateAutomationNodeSerializer,
+    node_serializer_context,
 )
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
@@ -148,7 +149,9 @@ class AutomationNodesView(APIView):
         )
 
         serializer = automation_node_type_registry.get_serializer(
-            node, AutomationNodeSerializer
+            node,
+            AutomationNodeSerializer,
+            context=node_serializer_context(request.user),
         )
         return Response(serializer.data)
 
@@ -188,9 +191,11 @@ class AutomationNodesView(APIView):
 
         nodes = AutomationNodeService().get_nodes(request.user, workflow)
 
+        # One context for every node, so each table is checked once.
+        context = node_serializer_context(request.user)
         data = [
             automation_node_type_registry.get_serializer(
-                node, AutomationNodeSerializer
+                node, AutomationNodeSerializer, context=context
             ).data
             for node in nodes
         ]
@@ -266,7 +271,9 @@ class AutomationNodeView(APIView):
         node = UpdateAutomationNodeActionType.do(request.user, node_id, data)
 
         serializer = automation_node_type_registry.get_serializer(
-            node, AutomationNodeSerializer
+            node,
+            AutomationNodeSerializer,
+            context=node_serializer_context(request.user),
         )
 
         return Response(serializer.data)
@@ -353,7 +360,9 @@ class DuplicateAutomationNodeView(APIView):
         duplicated_node = DuplicateAutomationNodeActionType.do(request.user, node_id)
         return Response(
             automation_node_type_registry.get_serializer(
-                duplicated_node, AutomationNodeSerializer
+                duplicated_node,
+                AutomationNodeSerializer,
+                context=node_serializer_context(request.user),
             ).data
         )
 
@@ -400,7 +409,9 @@ class ReplaceAutomationNodeView(APIView):
 
         return Response(
             automation_node_type_registry.get_serializer(
-                replaced_node, AutomationNodeSerializer
+                replaced_node,
+                AutomationNodeSerializer,
+                context=node_serializer_context(request.user),
             ).data
         )
 

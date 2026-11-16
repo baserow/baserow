@@ -24,6 +24,7 @@ from baserow.contrib.automation.tools.types import (
     SERVICE_ATTRIBUTES,
     matching_branches,
 )
+from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.formula.literals import FORMULA_PREFIX
 from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext
@@ -249,11 +250,15 @@ class WorkflowExamples:
         if workflow.id not in self._workflows:
             previous_of = {}
             examples = {}
+            access = ServiceTableAccess(self.user)
             for node, previous, _output in shared_nodes.nodes_in_order(
                 self.user, workflow
             ):
                 previous_of[node.id] = previous.id if previous else None
                 service = node.service.specific
+                if not access.allows(service):
+                    # Its schema names the fields of a table the user may not see.
+                    continue
                 schema = service.get_type().generate_schema(service)
                 if not schema:
                     continue

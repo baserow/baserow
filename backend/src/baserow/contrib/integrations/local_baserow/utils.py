@@ -1,9 +1,12 @@
 from typing import Any, Callable, List, Optional, Union
 
+from django.contrib.auth.models import AbstractUser
+
 from loguru import logger
 from rest_framework.fields import Field
 from rest_framework.serializers import Serializer
 
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.fields.utils import (
     guess_json_type_from_response_serializer_field,
 )
@@ -16,10 +19,12 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import subject_type_registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
+from baserow.core.services.models import Service
 from baserow.core.types import Subject
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
@@ -133,3 +138,40 @@ def guess_cast_function_from_response_serializer_field(
         if json_type_choice
         else None
     )
+
+
+class ServiceTableAccess:
+    """
+    Whether a user may see the fields of the table a service reads or writes.
+    The schema and context data of such a service name the table's fields, so
+    they are only shown to a user who may list them. Each table is checked once,
+    so one instance can be shared by every service of a request.
+    """
+
+    def __init__(self, user: Optional[AbstractUser]):
+        self.user = user
+        self._allowed: dict[int, bool] = {}
+
+    def allows(self, service: Service) -> bool:
+        """
+        :param service: The specific service.
+        :return: False when the service has a table whose fields the user may
+            not list, True otherwise.
+        """
+
+        table_id = getattr(service, "table_id", None)
+        if table_id is None:
+            return True
+
+        if table_id not in self._allowed:
+            table = service.table
+            self._allowed[table_id] = self.user is not None and (
+                CoreHandler().check_permissions(
+                    self.user,
+                    ListFieldsOperationType.type,
+                    workspace=table.database.workspace,
+                    context=table,
+                    raise_permission_exceptions=False,
+                )
+            )
+        return self._allowed[table_id]

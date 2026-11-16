@@ -1775,3 +1775,38 @@ def test_a_failed_read_before_generation_leaves_the_formula_error(
     assert calls == []
     [error] = result["formula_errors"]
     assert error["error"] == "read failed"
+
+
+@pytest.mark.django_db
+def test_formula_examples_leave_out_tables_the_user_cannot_see(
+    enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    fixture = enterprise_data_fixture
+    admin = fixture.create_user()
+    workspace = fixture.create_workspace(user=admin)
+    table = fixture.create_database_table(
+        database=fixture.create_database_application(workspace=workspace)
+    )
+    fixture.create_text_field(table=table, name="Salary")
+    workflow = fixture.create_automation_workflow(
+        automation=fixture.create_automation_application(workspace=workspace),
+        trigger_type="local_baserow_rows_created",
+        trigger_service_kwargs={"table": table},
+    )
+    action = fixture.create_core_router_action_node(workflow=workflow)
+    restricted = fixture.create_user()
+    fixture.create_user_workspace(
+        user=restricted, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=workflow.automation.application_ptr,
+    )
+
+    seen = automation_agents.WorkflowExamples(admin).context_for(action)
+    assert "Salary" in str(seen.get_context_metadata())
+
+    hidden = automation_agents.WorkflowExamples(restricted).context_for(action)
+    assert "Salary" not in str(hidden.context) + str(hidden.get_context_metadata())
