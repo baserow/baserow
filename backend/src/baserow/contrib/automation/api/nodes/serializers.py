@@ -22,15 +22,24 @@ from baserow.core.services.models import Service
 
 class AutomationServiceSerializer(ServiceSerializer):
     """
-    The service of a node. Its schema and context data name the fields of the
-    table it uses, which is not always a table the reader may see, so they are
-    left out when the context's `service_table_access` says the reader may not.
+    The service of a node. Its schema, context data and sample data name the
+    fields of the table it uses, which is not always a table the reader may see,
+    so they are left out when the context's `service_table_access` says the
+    reader may not.
     """
 
     table_accessible = serializers.SerializerMethodField(
         help_text="Whether the reader may see the fields of the table this service "
-        "uses. The schema and context data are left out when they may not."
+        "uses. The schema, context data and sample data are left out when they "
+        "may not."
     )
+
+    def to_representation(self, instance: Service) -> dict[str, Any]:
+        data = super().to_representation(instance)
+        if not data["table_accessible"]:
+            # The rows of a test run, keyed by field name.
+            data["sample_data"] = None
+        return data
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_table_accessible(self, instance: Service) -> bool:
@@ -56,10 +65,10 @@ class AutomationServiceSerializer(ServiceSerializer):
         fields = ServiceSerializer.Meta.fields + ("table_accessible",)
 
 
-def node_serializer_context(user: AbstractUser) -> dict[str, Any]:
+def node_serializer_context(user: AbstractUser | None) -> dict[str, Any]:
     """
     The context to serialize nodes for a user with, so the services of the nodes
-    only show the tables the user may see.
+    only show the tables the user may see. Without a user, no table is shown.
     """
 
     return {"service_table_access": ServiceTableAccess(user)}

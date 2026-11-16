@@ -1810,3 +1810,31 @@ def test_formula_examples_leave_out_tables_the_user_cannot_see(
 
     hidden = automation_agents.WorkflowExamples(restricted).context_for(action)
     assert "Salary" not in str(hidden.context) + str(hidden.get_context_metadata())
+
+
+@pytest.mark.django_db
+def test_formula_requests_leave_out_fields_the_user_cannot_see(
+    enterprise_data_fixture, enable_enterprise, synced_roles, row_action_node
+):
+    admin, node, field = row_action_node
+    workspace = node.workflow.automation.workspace
+    field.name = "Salary"
+    field.save()
+    restricted = enterprise_data_fixture.create_user()
+    enterprise_data_fixture.create_user_workspace(
+        user=restricted, workspace=workspace, permissions="NO_ACCESS"
+    )
+    RoleAssignmentHandler().assign_role(
+        restricted,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=node.workflow.automation.application_ptr,
+    )
+    errors = [{"field_id": field.id, "field": "values", "formula": "", "error": ""}]
+
+    def requests_for(user):
+        access = automation_agents.ServiceTableAccess(user)
+        return automation_agents.formula_requests(node, errors, access)
+
+    assert requests_for(admin)[field.id]["name"] == "Salary"
+    assert "Salary" not in str(requests_for(restricted))

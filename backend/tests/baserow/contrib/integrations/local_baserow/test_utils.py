@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test.utils import override_settings
 
@@ -23,6 +25,7 @@ from rest_framework.serializers import ListSerializer, Serializer
 
 from baserow.contrib.database.api.fields.serializers import FileFieldRequestSerializer
 from baserow.contrib.integrations.local_baserow.utils import (
+    ServiceTableAccess,
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
     prepare_files_for_db,
@@ -36,6 +39,7 @@ from baserow.core.formula.validator import (
     ensure_integer,
     ensure_string,
 )
+from baserow.core.handler import CoreHandler
 from baserow.core.models import Agent
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -564,3 +568,31 @@ def test_prepare_file_for_db_with_mix(data_fixture, fake):
             "visible_name": "filename",
         },
     ]
+
+
+@pytest.mark.django_db
+def test_service_table_access_reads_each_table_in_one_query(
+    data_fixture, django_assert_num_queries
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    services = [
+        data_fixture.create_local_baserow_list_rows_service(
+            table=data_fixture.create_database_table(
+                database=data_fixture.create_database_application(workspace=workspace)
+            )
+        )
+        for _ in range(3)
+    ]
+    # Read again, as the nodes of a request are: nothing of the table is loaded.
+    services = [type(service).objects.get(pk=service.pk) for service in services]
+    access = ServiceTableAccess(user)
+
+    # Only the reads of the tables: the permission checks are left out.
+    with (
+        patch.object(CoreHandler, "check_permissions", return_value=True),
+        django_assert_num_queries(len(services)),
+    ):
+        assert all(access.allows(service) for service in services)
+        # Each table is checked once.
+        assert all(access.allows(service) for service in services)

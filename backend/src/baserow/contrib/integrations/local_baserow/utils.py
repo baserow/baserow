@@ -10,6 +10,7 @@ from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.fields.utils import (
     guess_json_type_from_response_serializer_field,
 )
+from baserow.contrib.database.table.models import Table
 from baserow.core.formula.service_file import ServiceFile
 from baserow.core.formula.validator import (
     ensure_array,
@@ -164,9 +165,15 @@ class ServiceTableAccess:
             return True
 
         if table_id not in self._allowed:
-            table = service.table
-            self._allowed[table_id] = self.user is not None and (
-                CoreHandler().check_permissions(
+            table = (
+                Table.objects_and_trash.select_related("database__workspace")
+                .filter(id=table_id)
+                .first()
+            )
+            self._allowed[table_id] = (
+                self.user is not None
+                and table is not None
+                and CoreHandler().check_permissions(
                     self.user,
                     ListFieldsOperationType.type,
                     workspace=table.database.workspace,

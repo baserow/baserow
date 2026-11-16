@@ -186,16 +186,17 @@ def _describe(error: dict[str, Any], base: str) -> str:
 
 
 def formula_requests(
-    node: AutomationNode, errors: list[dict[str, Any]]
+    node: AutomationNode, errors: list[dict[str, Any]], access: ServiceTableAccess
 ) -> dict[Any, Any]:
     """
     What to ask the generator for a node's formula errors, keyed as
-    ``_request_key``. A row value is described with its field.
+    ``_request_key``. A row value is described with its field, unless the user
+    may not see the fields of the node's table.
     """
 
     fields = {}
-    if any("field_id" in error for error in errors):
-        service = node.service.specific
+    service = node.service.specific if any("field_id" in e for e in errors) else None
+    if service is not None and access.allows(service):
         schema = service.get_type().generate_schema(service) or {}
         fields = {
             int(field["id"]): field
@@ -243,6 +244,7 @@ class WorkflowExamples:
 
     def __init__(self, user, refs: dict[int, str] | None = None):
         self.user = user
+        self.access = ServiceTableAccess(user)
         self.refs = refs or {}
         self._workflows: dict[int, tuple[dict, dict]] = {}
 
@@ -250,13 +252,12 @@ class WorkflowExamples:
         if workflow.id not in self._workflows:
             previous_of = {}
             examples = {}
-            access = ServiceTableAccess(self.user)
             for node, previous, _output in shared_nodes.nodes_in_order(
                 self.user, workflow
             ):
                 previous_of[node.id] = previous.id if previous else None
                 service = node.service.specific
-                if not access.allows(service):
+                if not self.access.allows(service):
                     # Its schema names the fields of a table the user may not see.
                     continue
                 schema = service.get_type().generate_schema(service)
@@ -476,7 +477,10 @@ def _repair_node(
         _("Generating formulas for node '%(label)s'...") % {"label": node.label}
     )
     context = examples.context_for(node)
-    generated = generate_formula(formula_requests(node, node_errors), context) or {}
+    generated = (
+        generate_formula(formula_requests(node, node_errors, examples.access), context)
+        or {}
+    )
     # The user may cancel while the model runs; nothing is written then.
     raise_if_cancelled()
 

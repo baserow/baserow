@@ -1,11 +1,15 @@
 import json
+from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.dispatch import receiver
 
-from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
+from baserow.contrib.automation.api.nodes.serializers import (
+    AutomationNodeSerializer,
+    node_serializer_context,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.object_scopes import AutomationNodeObjectScopeType
@@ -63,15 +67,27 @@ def broadcast_node_event(node: AutomationNode, user: AbstractUser, event_type: s
     them out for the users who may not see them.
     """
 
+    def node_event(context: dict[str, Any]) -> dict[str, Any]:
+        return bounded_node_event(
+            {
+                "type": event_type,
+                "node": AutomationNodeSerializer(node, context=context).data,
+            }
+        )
+
     workspace_id = node.workflow.automation.workspace_id
-    event = bounded_node_event(
-        {"type": event_type, "node": AutomationNodeSerializer(node).data}
-    )
+    # Shows every table: only sent to the users who may see them.
+    event = node_event({})
     web_socket_id = getattr(user, "web_socket_id", None)
     table_id = getattr(node.service.specific, "table_id", None)
     if table_id is not None:
         broadcast_node_event_to_permitted_users.delay(
-            workspace_id, node.id, table_id, event, web_socket_id
+            workspace_id,
+            node.id,
+            table_id,
+            event,
+            node_event(node_serializer_context(None)),
+            web_socket_id,
         )
     else:
         broadcast_to_permitted_users.delay(

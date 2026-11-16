@@ -8,6 +8,7 @@ import pytest
 
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.core.handler import CoreHandler
@@ -23,8 +24,9 @@ def enable_enterprise_and_roles_for_all_tests_here(enable_enterprise, synced_rol
 @pytest.fixture
 def workflow_on_a_secret_table(enterprise_data_fixture):
     """
-    A workflow whose trigger reads a table with a "Salary" field, and a user who
-    may build the workflow but has no access to the table's database.
+    A workflow whose trigger reads a table with a "Salary" field and has the rows
+    of a test run, and a user who may build the workflow but has no access to the
+    table's database.
     """
 
     fixture = enterprise_data_fixture
@@ -43,6 +45,9 @@ def workflow_on_a_secret_table(enterprise_data_fixture):
         workflow,
         service={"table_id": table.id},
     )
+    # As a test run stores the rows: keyed by field name.
+    trigger.service.sample_data = {"data": [{"id": 1, "Salary": "Paid 250k"}]}
+    trigger.service.save()
 
     restricted, restricted_token = fixture.create_user_and_token()
     fixture.create_user_workspace(
@@ -57,11 +62,16 @@ def workflow_on_a_secret_table(enterprise_data_fixture):
     return admin, workflow, trigger, admin_token, restricted_token, restricted
 
 
+TABLE_DERIVED_KEYS = ("schema", "context_data", "context_data_schema", "sample_data")
+
+
 def _assert_hides_the_table(response, node):
     assert "Salary" not in response.content.decode()
     assert "Over 100k" not in response.content.decode()
+    assert "Paid 250k" not in response.content.decode()
     service = node["service"]
     assert service["table_accessible"] is False
+    assert service["sample_data"] is None
     assert service["schema"] is None
     assert service["context_data"] is None
     assert service["context_data_schema"] is None
@@ -88,6 +98,7 @@ def test_listing_nodes_hides_the_fields_of_a_table_the_user_cannot_see(
     properties = node["service"]["schema"]["items"]["properties"]
     assert "Salary" in [prop["title"] for prop in properties.values()]
     assert "Over 100k" in response.content.decode()
+    assert "Paid 250k" in response.content.decode()
     assert node["service"]["table_accessible"] is True
 
 
@@ -196,23 +207,26 @@ def test_node_events_hide_the_fields_of_a_table_the_user_cannot_see(
     assert full["type"] == hidden["type"] == f"automation_node_{event_type}"
     assert full["node"]["id"] == hidden["node"]["id"]
     assert "Salary" in str(full)
+    if event_type == "updated":
+        assert "Paid 250k" in str(full)
     assert full["node"]["service"]["table_accessible"] is True
     assert full["node"]["service"]["schema"] is not None
 
     assert "Salary" not in str(hidden)
     assert "Over 100k" not in str(hidden)
+    assert "Paid 250k" not in str(hidden)
     assert hidden["node"]["service"]["table_accessible"] is False
-    for key in ("schema", "context_data", "context_data_schema"):
+    for key in TABLE_DERIVED_KEYS:
         assert hidden["node"]["service"][key] is None
     # Everything else is what the users who may see the table get.
     assert {
         key: value
         for key, value in hidden["node"]["service"].items()
-        if key not in ("schema", "context_data", "context_data_schema")
+        if key not in TABLE_DERIVED_KEYS
     } == {
         key: value
         for key, value in full["node"]["service"].items()
-        if key not in ("schema", "context_data", "context_data_schema")
+        if key not in TABLE_DERIVED_KEYS
     } | {"table_accessible": False}
     assert {k: v for k, v in hidden["node"].items() if k != "service"} == {
         k: v for k, v in full["node"].items() if k != "service"
@@ -256,3 +270,42 @@ def test_node_events_cost_the_same_queries_for_more_users(
     more_queries, sent = broadcast()
     assert len(sent) == 5
     assert more_queries == queries
+
+
+@broadcast_node_events
+@pytest.mark.django_db(transaction=True)
+def test_node_events_check_the_table_in_its_own_workspace(
+    django_capture_on_commit_callbacks, enterprise_data_fixture
+):
+    """
+    The table of a node's service is checked in the table's workspace, so an
+    admin of the automation's workspace isn't shown a table of another one.
+    """
+
+    fixture = enterprise_data_fixture
+    admin = fixture.create_user()
+    workspace = fixture.create_workspace(user=admin)
+    workflow = fixture.create_automation_workflow(
+        automation=fixture.create_automation_application(workspace=workspace),
+        trigger_type="local_baserow_rows_created",
+    )
+    elsewhere = fixture.create_database_table(
+        database=fixture.create_database_application(
+            workspace=fixture.create_workspace()
+        )
+    )
+    fixture.create_text_field(table=elsewhere, name="Salary")
+    trigger = workflow.get_trigger()
+    service = trigger.service.specific
+    service.table = elsewhere
+    service.save()
+
+    # Sent directly: the service handlers refuse a table of another workspace.
+    sent = _broadcast_node_events(
+        django_capture_on_commit_callbacks,
+        lambda: automation_node_updated.send(None, user=None, node=trigger),
+    )
+
+    (event,) = sent[admin.id]
+    assert event["node"]["service"]["table_accessible"] is False
+    assert "Salary" not in str(event)
