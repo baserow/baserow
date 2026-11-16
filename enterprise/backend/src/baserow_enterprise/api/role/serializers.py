@@ -65,7 +65,7 @@ class SubjectTypeField(serializers.ChoiceField):
     """
 
     def to_representation(self, value):
-        return subject_type_registry.get_by_model(value.model_class()).type
+        return subject_type_registry.get_by_content_type(value).type
 
     def to_internal_value(self, data):
         return subject_type_registry.get(data).get_content_type()

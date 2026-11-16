@@ -158,8 +158,8 @@ class FieldPermissionsHandler:
         active_assignment_ids = set()
         workspace = field.table.database.workspace
         for assignments_for_type in assignments_by_type.values():
-            subject_type = subject_type_registry.get_for_class(
-                assignments_for_type[0].subject_type.model_class()
+            subject_type = subject_type_registry.get_by_content_type(
+                assignments_for_type[0].subject_type
             )
             subjects = [assignment.subject for assignment in assignments_for_type]
             active_assignment_ids.update(
@@ -199,8 +199,8 @@ class FieldPermissionsHandler:
         return [
             {
                 "subject_id": assignment.subject_id,
-                "subject_type": subject_type_registry.get_for_class(
-                    assignment.subject_type.model_class()
+                "subject_type": subject_type_registry.get_by_content_type(
+                    assignment.subject_type
                 ).type,
             }
             for assignment in cls._get_field_permission_subjects(field)
