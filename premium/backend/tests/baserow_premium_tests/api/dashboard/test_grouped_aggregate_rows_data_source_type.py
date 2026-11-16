@@ -487,6 +487,7 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source_without_group_by_
     response_json = response.json()
     assert response.status_code == HTTP_200_OK, response_json
     assert response_json == {
+        **({"_is_filtered": True} if filter_mode else {}),
         "has_next_page": False,
         "results": [
             {

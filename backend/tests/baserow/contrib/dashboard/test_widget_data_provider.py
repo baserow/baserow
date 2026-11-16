@@ -580,10 +580,8 @@ def test_target_import(filter_dashboard, deferred, enabled, monkeypatch):
         if deferred:
             assert finalized == []
             assert finalized_sources == []
-            assert (
-                TextFilterWidget.objects.get(dashboard=copied).target_filters
-                == widget.target_filters
-            )
+            # Relational links are written after all target IDs are remapped.
+            assert TextFilterWidget.objects.get(dashboard=copied).target_filters == []
     copied_widget = TextFilterWidget.objects.get(dashboard=copied)
     copied_target = SummaryWidget.objects.get(dashboard=copied)
     assert finalized == [copied_target.id]
@@ -862,7 +860,7 @@ def test_widget_type_hooks_control_dispatch(filter_dashboard, monkeypatch):
     widget.target_filters[0]["group"]["filters"][0]["value"] = (
         BaserowFormulaObject.create(f"get('widget_data.{widget.id}')")
     )
-    TextFilterWidget.objects.filter(id=widget.id).update(target_filters=[])
+    widget.filter_targets.all().delete()
 
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     with local_cache.context():

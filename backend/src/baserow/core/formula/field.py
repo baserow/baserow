@@ -266,8 +266,6 @@ class FormulaField(models.TextField):
 
 class JSONFormulaField(models.JSONField):
     def __init__(self, *args, **kwargs):
-        # Paths containing * traverse nested lists, e.g. "*.group.filters.*.value".
-        # Paths without wildcards retain the legacy dictionary/list behavior.
         self.properties = kwargs.pop("properties", [])
         super().__init__(*args, **kwargs)
 
@@ -346,26 +344,6 @@ class JSONFormulaField(models.JSONField):
             format=value.get("fmt", value.get("format")),
         )
 
-    def _transform_wildcard_path(self, value, path, transform):
-        """
-        Transform configured leaves in nested JSON, with * matching list items.
-        Missing properties and null intermediate groups are left unchanged. Copy
-        visited containers so preparing or reading formulas never mutates input.
-        """
-        if not path:
-            return transform(value)
-        part, *rest = path
-        if part == "*" and isinstance(value, list):
-            return [
-                self._transform_wildcard_path(item, rest, transform) for item in value
-            ]
-        if isinstance(value, dict) and part in value:
-            return {
-                **value,
-                part: self._transform_wildcard_path(value[part], rest, transform),
-            }
-        return value
-
     def _transform_db_properties(
         self, value: JSONFormulaFieldDatabaseValue
     ) -> JSONFormulaFieldResult:
@@ -383,11 +361,6 @@ class JSONFormulaField(models.JSONField):
         # Each property represents a path to a formula field
         # we need to convert from minified to full.
         for path in self.properties:
-            if "*" in path.split("."):
-                value = self._transform_wildcard_path(
-                    value, path.split("."), self._transform_db_property
-                )
-                continue
             # A path can be nested, e.g. "parent.child",
             # or just a single level, e.g. "parent".
             parent_path, child_path = (
@@ -535,11 +508,6 @@ class JSONFormulaField(models.JSONField):
         # Each property represents a path to a formula field
         # we need to convert from full to minified.
         for path in self.properties:
-            if "*" in path.split("."):
-                value = self._transform_wildcard_path(
-                    value, path.split("."), self._transform_python_property
-                )
-                continue
             # A path can be nested, e.g. "parent.child",
             # or just a single level, e.g. "parent".
             parent_path, child_path = (

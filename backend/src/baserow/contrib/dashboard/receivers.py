@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
@@ -23,8 +24,22 @@ def invalidate_changed_widget_properties(sender, instance, **kwargs):
     from baserow.contrib.dashboard.formula_property_extractor import (
         invalidate_widget_properties,
     )
-    from baserow.contrib.dashboard.widgets.models import Widget
+    from baserow.contrib.dashboard.widgets.models import (
+        Widget,
+        WidgetFilterCondition,
+        WidgetFilterGroup,
+        WidgetFilterTarget,
+    )
 
+    if isinstance(
+        instance, (WidgetFilterTarget, WidgetFilterGroup, WidgetFilterCondition)
+    ):
+        # Cascade deletion can already have removed the owner; no cache remains
+        # useful in that case, and the widget's own signal handles invalidation.
+        try:
+            instance = instance.get_widget()
+        except ObjectDoesNotExist:
+            return
     if not isinstance(instance, Widget):
         return
     from baserow.contrib.dashboard.widgets.handler import WidgetHandler

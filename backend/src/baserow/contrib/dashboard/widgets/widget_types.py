@@ -135,11 +135,14 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         *FilterWidgetTypeMixin.public_serializer_field_names,
     ]
     serializer_field_overrides = {
+        "target_filters": serializers.JSONField(required=False),
         "options": FormulaSerializerField(
             data_provider_type_registry=dashboard_options_data_provider_registry,
         ),
     }
-    public_serializer_field_overrides = serializer_field_overrides
+    public_serializer_field_overrides = {
+        "options": serializer_field_overrides["options"]
+    }
     grid_layout = WidgetGridLayout(
         default_width=2,
         default_height=2,

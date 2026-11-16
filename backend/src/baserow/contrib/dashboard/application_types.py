@@ -231,8 +231,9 @@ class DashboardApplicationType(ApplicationType):
             )
             data_source_progress.increment()
 
+        imported_widgets = []
         for serialized_widget in serialized_widgets:
-            WidgetHandler().import_widget(
+            imported_widget = WidgetHandler().import_widget(
                 cast(Dashboard, application),
                 serialized_widget,
                 id_mapping,
@@ -240,12 +241,13 @@ class DashboardApplicationType(ApplicationType):
                 storage,
                 self.cache,
             )
+            imported_widgets.append(imported_widget)
             widgets_progress.increment()
 
         def finalize_imported_widgets():
             """Let every widget type finish importing once all mappings are available."""
             import_context = {}
-            for widget in WidgetHandler().get_widgets(application):
+            for widget in imported_widgets:
                 widget_type = widget.get_type()
                 for updated in widget_type.after_import(
                     widget,

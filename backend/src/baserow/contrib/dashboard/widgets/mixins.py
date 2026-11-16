@@ -191,6 +191,13 @@ class FilterWidgetTypeMixin:
 
         return [FilterWidgetPublicSerializerMixin]
 
+    def enhance_queryset(self, queryset):
+        return (
+            super()
+            .enhance_queryset(queryset)
+            .prefetch_related("filter_targets__groups__conditions")
+        )
+
     def validate_target_filters(self, links, dashboard_id):
         """Validate explicit links before persisting either API or internal changes."""
         from rest_framework.exceptions import ValidationError
@@ -306,6 +313,13 @@ class FilterWidgetTypeMixin:
             if link.get("empty_behavior") == "apply_alternative":
                 return link["alternative_group"]
         return None
+
+    def create_instance_from_serialized(self, serialized_values, **kwargs):
+        """Defer filter links until all imported widget IDs can be remapped."""
+        links = serialized_values.pop("target_filters", [])
+        widget = super().create_instance_from_serialized(serialized_values, **kwargs)
+        widget.target_filters = links
+        return widget
 
     def after_import(self, widget, id_mapping, **kwargs):
         """Remap target IDs, fields and formulas after all widgets are imported."""
