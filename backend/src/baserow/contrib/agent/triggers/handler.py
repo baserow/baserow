@@ -201,10 +201,8 @@ class AgentTriggerHandler:
         """
 
         replaced_service = None
-        if (
-            service_type is not None
-            and service_type.type != trigger.service.get_type().type
-        ):
+        previous_type = trigger.service.get_type().type
+        if service_type is not None and service_type.type != previous_type:
             replaced_service = trigger.service.specific
             trigger.service = ServiceHandler().create_service(
                 service_type, **(prepared_service_values or {})
@@ -244,7 +242,11 @@ class AgentTriggerHandler:
             self.arm(trigger)
         if service_changed:
             changed_fields.append("service")
-        return AgentTriggerUpdated(trigger, changed_fields)
+        return AgentTriggerUpdated(
+            trigger,
+            changed_fields,
+            previous_type if replaced_service is not None else None,
+        )
 
     def _update_service(
         self, trigger: AgentTrigger, prepared_service_values: dict | None

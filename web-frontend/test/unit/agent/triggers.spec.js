@@ -825,6 +825,86 @@ describe('Agent triggers', () => {
     expect(patches(testApp)).toHaveLength(1)
   })
 
+  test('adopting a type changed elsewhere replaces the old service settings', async () => {
+    useFakeTimers()
+    const response = { ...httpTrigger(), name: 'Renamed trigger' }
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(200, response)
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, {
+        ...response,
+        service: { ...response.service, wait_for_response: true },
+      })
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic', 'http_trigger']
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    await card.get('.agent-trigger-card__rename').trigger('click')
+    const name = card.get('.agent-trigger-card__name-text')
+    name.element.textContent = 'Renamed trigger'
+    await name.trigger('input')
+    await name.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+
+    expect(
+      card.findComponent({ name: 'CorePeriodicTriggerServiceForm' }).exists()
+    ).toBe(false)
+    expect(card.get('.webhook-service-form__webhook-url').text()).toContain(
+      'http-service'
+    )
+    const form = card.findComponent({ name: 'CoreHTTPTriggerServiceForm' })
+    await form.get('.checkbox').trigger('click')
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      ['/agent/10/triggers/1/', { name: 'Renamed trigger' }],
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'http_trigger', wait_for_response: true } },
+      ],
+    ])
+  })
+
+  test('a rename response keeps a newer local type selection', async () => {
+    useFakeTimers()
+    const first = deferredReply()
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(first.reply)
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, { ...httpTrigger(), name: 'Renamed trigger' })
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic', 'http_trigger']
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    await card.get('.agent-trigger-card__rename').trigger('click')
+    const name = card.get('.agent-trigger-card__name-text')
+    name.element.textContent = 'Renamed trigger'
+    await name.trigger('input')
+    await name.trigger('keydown', { key: 'Enter' })
+    await chooseTriggerType(card, 'http_trigger')
+    first.resolve(200, periodicTrigger({ name: 'Renamed trigger' }))
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toHaveLength(2)
+    expect(patches(testApp)[1][1]).toMatchObject({
+      type: 'http_trigger',
+      service: { type: 'http_trigger' },
+    })
+    expect(patches(testApp)[1][1].service).not.toHaveProperty('interval')
+    expect(
+      card.findComponent({ name: 'CorePeriodicTriggerServiceForm' }).exists()
+    ).toBe(false)
+  })
+
   test('offers the overlap rule as radios in its own section and saves a choice at once', async () => {
     testApp.mock
       .onPatch('/agent/10/triggers/1/')

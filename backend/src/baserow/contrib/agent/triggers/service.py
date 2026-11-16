@@ -72,7 +72,12 @@ class AgentTriggerService:
         return list(self.handler.list_triggers(agent))
 
     def get_trigger(
-        self, user: AbstractUser, agent_id: int, trigger_id: int
+        self,
+        user: AbstractUser,
+        agent_id: int,
+        trigger_id: int,
+        *,
+        for_update: bool = False,
     ) -> AgentTrigger:
         """
         Return one trigger to a user allowed to read its Agent's configuration.
@@ -80,6 +85,8 @@ class AgentTriggerService:
         :param user: The user reading the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
         :param trigger_id: The id of the trigger.
+        :param for_update: Whether to lock the Agent and trigger until the caller's
+            transaction ends, keeping the service type stable during validation.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger or it
             is trashed.
@@ -88,7 +95,11 @@ class AgentTriggerService:
         """
 
         return self._get_authorized_trigger(
-            user, agent_id, trigger_id, ReadAgentConfigurationOperationType.type
+            user,
+            agent_id,
+            trigger_id,
+            ReadAgentConfigurationOperationType.type,
+            for_update=for_update,
         )
 
     @transaction.atomic

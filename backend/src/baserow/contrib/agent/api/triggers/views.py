@@ -199,13 +199,13 @@ class AgentTriggerView(APIView):
     def patch(self, request: Request, agent_id: int, trigger_id: int) -> Response:
         """
         Validates service values against the type the payload names, else the
-        trigger's own type, which only they need to look up.
+        trigger's own type, locked so it cannot change before the values are saved.
         """
 
         service_type_name = request.data.get("type")
         if service_type_name is None and "service" in request.data:
             trigger = AgentTriggerService().get_trigger(
-                request.user, agent_id, trigger_id
+                request.user, agent_id, trigger_id, for_update=True
             )
             service_type_name = trigger.service.get_type().type
         data = validate_data(

@@ -118,6 +118,7 @@ class UpdateAgentTriggerActionType(ActionType):
         trigger_id: int
         trigger_type: str
         changed_fields: list[str]
+        previous_trigger_type: str | None = None
 
     @classmethod
     @transaction.atomic
@@ -134,9 +135,9 @@ class UpdateAgentTriggerActionType(ActionType):
         service_type_name: str | None = None,
     ) -> AgentTrigger:
         """
-        Change a trigger and audit which of its parts changed, never their values:
-        the message and service values are configuration. An update that changes
-        nothing isn't audited, and a type change is audited with the new type.
+        Change a trigger and audit its changed parts and, on a type change, both
+        types. Message and service configuration values are not recorded. An
+        update that changes nothing isn't audited.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -180,6 +181,7 @@ class UpdateAgentTriggerActionType(ActionType):
                     trigger.id,
                     trigger.service.get_type().type,
                     updated.changed_fields,
+                    updated.previous_type,
                 ),
                 cls.scope(trigger.agent_id),
                 trigger.agent.workspace,

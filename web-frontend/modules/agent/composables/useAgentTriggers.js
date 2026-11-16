@@ -239,7 +239,8 @@ export function useAgentTriggers(agent) {
   /**
    * Takes the server's reply as saved, and shows its values where the card still
    * shows what was sent: a field edited meanwhile keeps the newer edit. Service
-   * values only merge while the card still shows the response's type.
+   * values only merge while the card still shows the response's type. Adopting a
+   * different type replaces its service rather than mixing the types' settings.
    *
    * @param {object} trigger The saved trigger.
    * @param {object} sent The values that were sent.
@@ -257,7 +258,10 @@ export function useAgentTriggers(agent) {
         trigger[field] = latest[field]
       }
     }
-    if (trigger.type === latest.type) {
+    if (trigger.type === latest.type && trigger.service.type !== latest.type) {
+      trigger.service = cloneDeep(latest.service)
+      delete serviceErrors[trigger.id]
+    } else if (trigger.type === latest.type) {
       const sentService = sent.service || {}
       const previousService = 'type' in sent ? {} : previous.service
       trigger.service = Object.fromEntries(
