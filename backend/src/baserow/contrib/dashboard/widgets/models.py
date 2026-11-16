@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
-from baserow.core.formula.field import FormulaField
+from baserow.core.formula.field import FormulaField, JSONFormulaField
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     FractionOrderableMixin,
@@ -13,8 +13,6 @@ from baserow.core.mixins import (
     TrashableModelMixin,
     WithRegistry,
 )
-
-from .fields import TargetFiltersField
 
 if TYPE_CHECKING:
     from baserow.contrib.dashboard.models import Dashboard
@@ -124,7 +122,8 @@ class TextFilterWidget(Widget):
     options = FormulaField(db_default="")
     multiple = models.BooleanField(default=False, db_default=False)
 
-    target_filters = TargetFiltersField(
+    target_filters = JSONFormulaField(
+        properties=["*.group.filters.*.value", "*.alternative_group.filters.*.value"],
         default=list,
         db_default=[],
         blank=True,

@@ -405,3 +405,46 @@ def test_json_formula_field_round_trips_markdown_format_in_list():
         }
     ]
     assert field._transform_db_properties(prepped) == fields
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_json_formula_field_nested_wildcard_paths_round_trip(nested):
+    """Nested condition formulas round-trip without touching input or other values."""
+    from copy import deepcopy
+
+    prefix = "links." if nested else ""
+    field = JSONFormulaField(
+        properties=[
+            f"{prefix}*.group.filters.*.value",
+            f"{prefix}*.alternative_group.filters.*.value",
+        ]
+    )
+    formula = BaserowFormulaObject.create("get('widget_data.12')")
+    links = [
+        {
+            "target_widget_id": 2,
+            "group": {"filters": [{"field": 3, "value": formula}]},
+            "alternative_group": {"filters": [{"field": 4, "value": formula}]},
+            "label": "unchanged",
+        },
+        {"group": {"filters": []}},
+        {"group": None, "alternative_group": None},
+        {},
+    ]
+    value = {"links": links, "other": "untouched"} if nested else links
+    original = deepcopy(value)
+    prepared = field.get_prep_value(value)
+    prepared_links = prepared["links"] if nested else prepared
+    for key in ("group", "alternative_group"):
+        assert prepared_links[0][key]["filters"][0]["value"] == {
+            "f": "get('widget_data.12')",
+            "m": "simple",
+            "v": "0.1",
+        }
+    assert prepared_links[1:] == links[1:]
+    assert value == original
+    assert field.get_prep_value(value) == prepared
+    assert field.to_python(prepared) == original
+    assert field.from_db_value(json.dumps(prepared), None, None) == original
+    assert field.to_python(None) is None
+    assert field.get_prep_value([]) == []
