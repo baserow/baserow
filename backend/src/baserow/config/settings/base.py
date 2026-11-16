@@ -2136,16 +2136,15 @@ AGENT_TRIGGER_MAX_PARALLEL_RUNS = int(
     os.getenv("BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS") or 5
 )
 
-# 0 or less is no limit for both.
+# 0 or less is no limit for all three.
 BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
     max(int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0), 0) or None
 )
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER = (
+    max(int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER") or 0), 0) or None
+)
 BASEROW_AGENT_MAX_ACTIONS_PER_AGENT = (
     max(int(os.getenv("BASEROW_AGENT_MAX_ACTIONS_PER_AGENT") or 0), 0) or None
-)
-
-BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER = (
-    int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER") or 0) or None
 )
 
 # Deprecated provider connection/model environment variables. Manage providers and

@@ -95,6 +95,8 @@ def test_per_user_limit_and_userless_runs(
         create_run(chat_id=n + 1, user=first.created_by, workspace=first.workspace)
     with pytest.raises(ChatRunLimitReached):
         create_run(chat_id=99, user=first.created_by, workspace=first.workspace)
+    ChatRun.objects.filter(id=first.id).update(status=ChatRunStatus.COMPLETED)
+    create_run(chat_id=99, user=first.created_by, workspace=first.workspace)
     user_limit.assert_called_with(first.created_by)
     user_limit.reset_mock()
     ChatRunHandler().create_run("fake", 100, first.workspace, None, {})
