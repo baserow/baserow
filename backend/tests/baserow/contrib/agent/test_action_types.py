@@ -82,13 +82,16 @@ def test_the_starter_only_selects_an_instance_server_that_delivers():
 
 
 @pytest.mark.django_db
-def test_a_stored_formula_with_an_invalid_argument_only_marks_its_field(
-    configured_email,
+@pytest.mark.parametrize(
+    "formula",
+    ["minus('abc', 1)", "(" * 1000 + "'a'" + ")" * 1000],
+    ids=["refused argument", "nested too deeply"],
+)
+def test_a_stored_formula_that_cannot_be_checked_only_marks_its_field(
+    configured_email, formula
 ):
     action = configured_email
-    action.service.body = BaserowFormulaObject.create(
-        "minus('abc', 1)", mode="advanced"
-    )
+    action.service.body = BaserowFormulaObject.create(formula, mode="advanced")
 
     errors = SMTPEmailAgentActionType().get_configuration_errors(action)
 

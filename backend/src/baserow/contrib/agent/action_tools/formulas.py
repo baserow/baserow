@@ -2,10 +2,6 @@
 
 from typing import Any
 
-from django.core.exceptions import ValidationError
-
-from baserow.core.exceptions import InstanceTypeDoesNotExist
-from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.formula_validation_visitor import (
     BaserowFormulaValidationVisitor,
@@ -78,8 +74,8 @@ def get_formula_errors(
     :param service: The action's specific service.
     :param inputs: The action's declared inputs.
     :return: ``invalid`` by service field, for each formula that doesn't parse,
-        has an argument its function refuses, or reads something else than a
-        declared input.
+        has an argument its function refuses, reads something else than a
+        declared input, or fails the check in any other way.
     """
 
     errors = {}
@@ -91,6 +87,7 @@ def get_formula_errors(
             ActionFormulaValidationVisitor(inputs).visit(
                 get_parse_tree_for_formula(value["formula"])
             )
-        except (BaserowFormulaException, InstanceTypeDoesNotExist, ValidationError):
+        # A stored formula can make the parser or a function's check raise anything.
+        except Exception:
             errors[formula.key] = "invalid"
     return errors
