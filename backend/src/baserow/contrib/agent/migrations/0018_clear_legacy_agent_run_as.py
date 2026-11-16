@@ -14,7 +14,7 @@ def clear_legacy_agent_run_as(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("agent", "0016_agent_trigger_guard_rails"),
+        ("agent", "0017_agent_actions"),
         ("core", "0138_user_identities"),
     ]
 
