@@ -29,7 +29,11 @@ import {
 } from '@baserow/modules/builder/enums'
 import ColumnElement from '@baserow/modules/builder/components/elements/components/ColumnElement'
 import ButtonElement from '@baserow/modules/builder/components/elements/components/ButtonElement'
-import { ChangeEvent, ClickEvent, SubmitEvent } from '@baserow/modules/builder/eventTypes'
+import {
+  ChangeEvent,
+  ClickEvent,
+  SubmitEvent,
+} from '@baserow/modules/builder/eventTypes'
 import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { isFormulaValid, resolveFormula } from '@baserow/modules/core/formula'
 import FormContainerElement from '@baserow/modules/builder/components/elements/components/FormContainerElement.vue'

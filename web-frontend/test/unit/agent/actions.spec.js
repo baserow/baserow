@@ -115,6 +115,8 @@ describe('Agent action editor', () => {
       for (const toggle of wrapper.findAll('.agent-action-inputs__toggle'))
         await toggle.trigger('click')
     }
+    await vi.dynamicImportSettled()
+    await flushPromises()
     return wrapper
   }
   function saveEdits(original = emailAction()) {

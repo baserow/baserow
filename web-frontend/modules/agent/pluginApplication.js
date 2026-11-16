@@ -1,7 +1,11 @@
-import { TriggerDataProviderType } from '@baserow/modules/agent/dataProviderTypes'
+import {
+  TriggerDataProviderType,
+  ActionInputDataProviderType,
+} from '@baserow/modules/agent/dataProviderTypes'
 import { agentToolPresentationTypes } from '@baserow/modules/agent/toolPresentationTypes'
 import { AgentChatRunType } from '@baserow/modules/agent/chatRunTypes'
 import {
+  ActionsAgentConfigurationSectionType,
   ConnectedAppsAgentConfigurationSectionType,
   InstructionsAgentConfigurationSectionType,
   WhenItRunsAgentConfigurationSectionType,
@@ -19,8 +23,22 @@ export default async function register(nuxtApp) {
   nuxtApp.$registry.registerNamespace('agentConfigurationSection')
   $registry.registerNamespace('agentDataProvider')
   $registry.register('agentDataProvider', new TriggerDataProviderType(context))
-  $registry.register('agentConfigurationSection', new WhenItRunsAgentConfigurationSectionType(context))
-  $registry.register('agentConfigurationSection', new ConnectedAppsAgentConfigurationSectionType(context))
+  $registry.register(
+    'agentDataProvider',
+    new ActionInputDataProviderType(context)
+  )
+  $registry.register(
+    'agentConfigurationSection',
+    new ActionsAgentConfigurationSectionType(context)
+  )
+  $registry.register(
+    'agentConfigurationSection',
+    new WhenItRunsAgentConfigurationSectionType(context)
+  )
+  $registry.register(
+    'agentConfigurationSection',
+    new ConnectedAppsAgentConfigurationSectionType(context)
+  )
   nuxtApp.$registry.register(
     'agentConfigurationSection',
     new InstructionsAgentConfigurationSectionType(context)

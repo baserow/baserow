@@ -130,9 +130,17 @@ const CoreResponseServiceForm = lazyComponent(() =>
   )
 )
 
-const CoreWaitServiceForm = lazyComponent(() => import('@baserow/modules/integrations/components/authoringBundle').then(bundle => bundle.serviceTypesCoreWaitServiceForm))
+const CoreWaitServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreWaitServiceForm
+  )
+)
 
-const CoreHTTPDataSourceServiceForm = lazyComponent(() => import('@baserow/modules/integrations/components/authoringBundle').then(bundle => bundle.serviceTypesCoreHTTPDataSourceServiceForm))
+const CoreHTTPDataSourceServiceForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreHTTPDataSourceServiceForm
+  )
+)
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
