@@ -16,7 +16,7 @@ from opentelemetry import trace
 from baserow.core.emails import NotificationsSummaryEmail
 from baserow.core.models import User, UserProfile, Workspace
 from baserow.core.telemetry.utils import baserow_trace
-from baserow.core.user.identity import is_human
+from baserow.core.user.identity import is_human, load_user_types
 from baserow.core.utils import (
     atomic_if_not_already,
     grouper,
@@ -590,6 +590,8 @@ class NotificationHandler:
         # Prefetch the user profiles if possible to avoid N+1 queries later
         if isinstance(recipients, QuerySet) and issubclass(recipients.model, User):
             recipients = recipients.select_related("profile")
+        recipients = list(recipients)
+        load_user_types(recipients)
 
         notification_recipients = NotificationRecipient.objects.bulk_create(
             [

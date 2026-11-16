@@ -1,5 +1,22 @@
+from collections.abc import Iterable
+
 from django.contrib.auth.models import AbstractUser
-from django.db.models import Q
+from django.db.models import Q, prefetch_related_objects
+
+
+def load_user_types(users: Iterable[object]) -> None:
+    """
+    Loads the missing profiles of the given users in one query. Reading the type of a
+    user loads its profile, so call this before classifying a list of users instead
+    of asking every caller to preload profiles.
+
+    :param users: The actors to load the profile of. Other objects are skipped.
+    """
+
+    without_duplicates = {
+        id(user): user for user in users if isinstance(user, AbstractUser)
+    }
+    prefetch_related_objects(list(without_duplicates.values()), "profile")
 
 
 def get_user_type(user: object) -> str | None:
@@ -12,7 +29,10 @@ def get_user_type(user: object) -> str | None:
 
 
 def is_human(user: object) -> bool:
-    """Return whether the stored User represents a human, regardless of status."""
+    """
+    Return whether the stored User represents a human, regardless of status. Call
+    `load_user_types` first when classifying a list of users.
+    """
 
     return get_user_type(user) == "human"
 

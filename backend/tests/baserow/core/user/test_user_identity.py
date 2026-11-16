@@ -5,9 +5,32 @@ from django.contrib.auth.models import AnonymousUser
 
 import pytest
 
-from baserow.core.user.identity import is_human, is_identity
+from baserow.core.user.identity import is_human, is_identity, load_user_types
 
 User = get_user_model()
+
+
+@pytest.mark.django_db
+def test_load_user_types_loads_missing_profiles_in_one_query(
+    data_fixture, django_assert_num_queries
+):
+    loaded = User.objects.select_related("profile").get(
+        id=data_fixture.create_user().id
+    )
+    human = User.objects.get(id=data_fixture.create_user().id)
+    identity = User.objects_and_identities.get(id=data_fixture.create_identity().id)
+    without_profile = User.objects_and_identities.create(username="missing-profile")
+    actors = [loaded, human, identity, without_profile, AnonymousUser(), None]
+
+    with django_assert_num_queries(1):
+        load_user_types(actors)
+
+    with django_assert_num_queries(0):
+        load_user_types(actors)
+        assert [is_human(actor) for actor in actors] == [True, True] + [False] * 4
+        assert [is_identity(actor) for actor in actors] == [False, False, True] + (
+            [False] * 3
+        )
 
 
 @pytest.mark.django_db

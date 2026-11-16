@@ -273,6 +273,34 @@ def test_workspace_member_permission_manager(data_fixture, django_assert_num_que
     assert len(filtered[0]) == 0
 
 
+def _batched_check_query_count(data_fixture, actor_count: int) -> int:
+    members = [data_fixture.create_user() for _ in range(actor_count)]
+    workspace = data_fixture.create_workspace(members=members)
+    identities = [
+        data_fixture.create_identity(workspace=workspace, role_uid="MEMBER")
+        for _ in range(actor_count)
+    ]
+    actors = list(
+        User.objects_and_identities.filter(
+            id__in=[actor.id for actor in members + identities]
+        )
+    )
+    with local_cache.context(), CaptureQueriesContext(connection) as queries:
+        allowed = CoreHandler().check_permission_for_multiple_actors(
+            actors, ListApplicationsWorkspaceOperationType.type, workspace, workspace
+        )
+    assert len(allowed) == len(actors)
+    return len(queries)
+
+
+@pytest.mark.django_db
+def test_batched_permission_check_queries_do_not_grow_with_actors(data_fixture):
+    few = _batched_check_query_count(data_fixture, 2)
+    many = _batched_check_query_count(data_fixture, 20)
+
+    assert many <= few
+
+
 @pytest.mark.django_db
 def test_basic_permission_manager_batches_workspace_roles_by_subject_type(
     data_fixture, mocker

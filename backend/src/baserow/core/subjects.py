@@ -13,7 +13,6 @@ from django.db.models import (
     QuerySet,
     Value,
     When,
-    prefetch_related_objects,
 )
 from django.db.models.functions import Cast
 
@@ -21,7 +20,7 @@ from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
 from baserow.core.registries import SubjectType
 from baserow.core.types import Subject
-from baserow.core.user.identity import is_human, is_identity
+from baserow.core.user.identity import is_human, is_identity, load_user_types
 
 
 def _memberships(include_trash: bool) -> QuerySet[WorkspaceUser]:
@@ -225,6 +224,7 @@ class UserSubjectType(SubjectType):
     def are_workspace_roles_available(self, subjects, workspace):
         from baserow.core.identities.registries import identity_extension_type_registry
 
+        load_user_types(subjects)
         identities = [subject for subject in subjects if is_identity(subject)]
         if not identities:
             return [True] * len(subjects)
@@ -244,8 +244,7 @@ class UserSubjectType(SubjectType):
         workspace: Workspace,
         include_trash: bool = False,
     ) -> List[bool]:
-        # Loads missing profiles in one query, keeping those already loaded.
-        prefetch_related_objects(list(subjects), "profile")
+        load_user_types(subjects)
         prefetched = getattr(workspace, "_prefetched_objects_cache", {})
         if (
             not include_trash

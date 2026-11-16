@@ -44,7 +44,7 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import is_human, is_identity
+from baserow.core.user.identity import is_human, is_identity, load_user_types
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_files.exceptions import TemplateImportWithoutFilesZip
 from baserow.core.user_files.template_files import template_file_owner
@@ -342,6 +342,7 @@ class CoreHandler:
 
         result = {}
         undetermined_checks = set(checks)
+        load_user_types(check.actor for check in checks)
 
         for permission_manager_name in settings.PERMISSION_MANAGERS:
             if not undetermined_checks:
