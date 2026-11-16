@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.core.mail.backends.locmem import EmailBackend
+from django.test.utils import override_settings
 
 import pytest
 
@@ -67,6 +68,17 @@ def test_input_reference_validation_accepts_decorated_literals(
     assert adapter.get_configuration_errors(action) == {}
     action.inputs.pop(0)
     assert adapter.get_configuration_errors(action) == {"to_emails": "invalid"}
+
+
+@override_settings(
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend",
+    EMAIL_HOST="localhost",
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+)
+def test_the_starter_only_selects_an_instance_server_that_delivers():
+    service = SMTPEmailAgentActionType().get_defaults()["service"]
+
+    assert service["use_instance_smtp_settings"] is False
 
 
 @pytest.mark.django_db

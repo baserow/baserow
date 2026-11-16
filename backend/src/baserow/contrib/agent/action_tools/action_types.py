@@ -28,7 +28,9 @@ class SMTPEmailAgentActionType(AgentActionType):
         inputs, service = (
             [],
             {
-                "use_instance_smtp_settings": self.service_type.instance_smtp_is_available(),
+                "use_instance_smtp_settings": (
+                    self.service_type.instance_smtp_unavailable_reason() is None
+                ),
                 "body_type": "plain",
             },
         )
