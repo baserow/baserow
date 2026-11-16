@@ -111,6 +111,16 @@ class LocalBaserowTableServiceFilterableMixin:
         filters: List[Dict]
         filter_groups: List[Dict]
 
+    def is_filtered(self, service, dispatch_context):
+        """Use runtime conditions when supplied, otherwise the stored conditions."""
+        runtime_filter = dispatch_context.get_runtime_filter(service)
+        has_conditions = (
+            bool(runtime_filter["filters"])
+            if runtime_filter is not None
+            else bool(service.service_filters_with_untrashed_fields)
+        )
+        return has_conditions or super().is_filtered(service, dispatch_context)
+
     def enhance_queryset(self, queryset):
         return (
             super()

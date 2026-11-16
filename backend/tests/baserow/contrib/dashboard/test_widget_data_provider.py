@@ -1320,3 +1320,45 @@ def test_widget_formula_generator_includes_both_condition_branches(filter_dashbo
     formulas = list(widget.get_type().formula_generator(widget))
     assert group["filters"][0]["value"] in formulas
     assert alternative in formulas
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("filtered", [True, False])
+def test_dispatch_filter_indicator_delegates_to_service_type(
+    filter_dashboard, monkeypatch, filtered
+):
+    """The service type owns filter status, independently of dashboard filter logic."""
+    _, _, dashboard, source, _, _ = filter_dashboard
+    service_type = source.service.get_type()
+    calls = []
+
+    def is_filtered(service, context):
+        calls.append((service.id, context.dashboard.id))
+        return filtered
+
+    monkeypatch.setattr(service_type, "is_filtered", is_filtered)
+    result = DashboardDataSourceHandler().dispatch_data_source(
+        source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+    )
+    assert result.get("_is_filtered", False) is filtered
+    assert calls == [(source.service_id, dashboard.id)]
+
+
+@pytest.mark.django_db
+def test_service_filter_status_without_dashboard_runtime_filters(
+    filter_dashboard, data_fixture
+):
+    """Other dispatch contexts use stored conditions when no runtime tree exists."""
+    from baserow.core.services.dispatch_context import DispatchContext
+
+    _, _, dashboard, source, _, condition = filter_dashboard
+    service = source.service.specific
+    context = DispatchContext(workspace=dashboard.workspace)
+    assert service.get_type().is_filtered(service, context) is False
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field_id=condition["field"],
+        type="equal",
+        value=BaserowFormulaObject.create("Alpha", mode="raw"),
+    )
+    assert service.get_type().is_filtered(service, context) is True

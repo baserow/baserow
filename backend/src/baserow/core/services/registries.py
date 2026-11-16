@@ -497,6 +497,10 @@ class ServiceType(
             path = self.prepare_value_path(service, path)
         return get_value_at_path(result, path)
 
+    def is_filtered(self, service: Service, dispatch_context: DispatchContext) -> bool:
+        """Report whether this service's dispatched result is restricted by filters."""
+        return False
+
     def dispatch_transform(
         self,
         data: Any,

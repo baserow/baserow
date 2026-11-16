@@ -1034,6 +1034,12 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
     The `ServiceType` for `LocalBaserowViewService` subclasses.
     """
 
+    def is_filtered(self, service, dispatch_context):
+        """Include filters configured on the selected database view."""
+        return bool(
+            service.view_id and service.view.viewfilter_set.exists()
+        ) or super().is_filtered(service, dispatch_context)
+
     @property
     def allowed_fields(self):
         return super().allowed_fields + ["view"]

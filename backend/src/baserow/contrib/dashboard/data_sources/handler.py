@@ -334,14 +334,7 @@ class DashboardDataSourceHandler:
             specific_service, dispatch_context
         )
 
-        runtime_filter = dispatch_context.get_runtime_filter(specific_service)
-        if runtime_filter is not None and (
-            runtime_filter["filters"]
-            or (
-                getattr(specific_service, "view_id", None)
-                and specific_service.view.viewfilter_set.exists()
-            )
-        ):
+        if specific_service.get_type().is_filtered(specific_service, dispatch_context):
             return {**service_dispatch.data, "_is_filtered": True}
         return service_dispatch.data
 
