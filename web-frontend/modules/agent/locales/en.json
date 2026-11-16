@@ -407,6 +407,7 @@
   },
   "trashType": {
     "agent_conversation": "conversation",
-    "agent_trigger": "trigger"
+    "agent_trigger": "trigger",
+    "agent_action": "action"
   }
 }
