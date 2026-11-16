@@ -44,7 +44,7 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import is_human, is_identity, load_user_types
+from baserow.core.user.identity import load_user_types
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_files.exceptions import TemplateImportWithoutFilesZip
 from baserow.core.user_files.template_files import template_file_owner
@@ -963,13 +963,7 @@ class CoreHandler:
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
 
-        if not is_human(user):
-            raise ValueError(
-                "Identity membership is managed through the identity lifecycle."
-            )
-        User.objects_and_identities.select_for_update(of=("self",), no_key=True).get(
-            pk=user.pk
-        )
+        self._lock_person(user.pk)
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -1256,9 +1250,7 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
-            User.objects_and_identities.select_for_update(
-                of=("self",), no_key=True
-            ).get(pk=workspace_user.user_id)
+            self._lock_user(workspace_user.user_id)
             if kwargs["permissions"] != "ADMIN":
                 CoreHandler.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
@@ -1304,13 +1296,7 @@ class CoreHandler:
                 "Cannot delete yourself from workspace."
             )
 
-        User.objects_and_identities.select_for_update(of=("self",), no_key=True).get(
-            pk=workspace_user.user_id
-        )
-        if is_identity(workspace_user.user):
-            raise ValueError(
-                "Identity membership is managed through the identity lifecycle."
-            )
+        self._lock_person(workspace_user.user_id)
         self.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
         before_workspace_user_deleted.send(
@@ -1622,25 +1608,12 @@ class CoreHandler:
         :param user: the user we want to add.
         :param permissions: the permissions of the user in this workspace. 'member' by
             default if not specified.
+        :raises ValueError: When the user is not a person.
         :return: The created or existing `WorkspaceUser` object.
         """
 
         with atomic_if_not_already():
-            # All membership writes lock the User, including IdentityHandler creation.
-            User.objects_and_identities.select_for_update(
-                of=("self",), no_key=True
-            ).get(pk=user.pk)
-            if is_identity(user):
-                memberships = list(
-                    WorkspaceUser.objects_and_identities_and_trash.filter(user=user)
-                )
-                if len(memberships) != 1 or memberships[0].workspace_id != workspace.id:
-                    raise ValueError(
-                        "An identity must retain its single workspace membership."
-                    )
-                return memberships[0]
-            if not is_human(user):
-                raise ValueError("A workspace member must be a user or an identity.")
+            self._lock_person(user.pk)
             workspace_user, created = WorkspaceUser.objects.get_or_create(
                 user=user,
                 workspace=workspace,
@@ -3196,6 +3169,38 @@ class CoreHandler:
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
 
+    @staticmethod
+    def _lock_user(user_id: int) -> None:
+        """
+        Locks a person or an identity, so that concurrent writes to its memberships
+        wait for each other. The identity handler takes the same lock.
+
+        :param user_id: The id of the user whose membership is written.
+        """
+
+        User.objects_and_identities.select_for_update(of=("self",), no_key=True).get(
+            pk=user_id
+        )
+
+    @staticmethod
+    def _lock_person(user_id: int) -> None:
+        """
+        Locks a person whose membership is about to be written. Only a person joins
+        or leaves a workspace this way, the membership of an identity follows the
+        identity.
+
+        :param user_id: The id of the user whose membership is written.
+        :raises ValueError: When the user is not a person.
+        """
+
+        try:
+            User.objects.select_for_update(of=("self",), no_key=True).get(pk=user_id)
+        except User.DoesNotExist:
+            raise ValueError(
+                "Only a person joins or leaves a workspace this way. The membership "
+                "of an identity follows the identity."
+            )
+
     @classmethod
     def raise_if_user_is_last_admin_of_workspace(cls, workspace_user: WorkspaceUser):
         """
@@ -3205,18 +3210,14 @@ class CoreHandler:
         :return:
         """
 
-        if not is_human(workspace_user.user):
-            return
-        admins_in_workspace_count = len(
+        admins = list(
             WorkspaceUser.objects.filter(
                 workspace=workspace_user.workspace, permissions="ADMIN"
             ).select_for_update(of=("self",))
         )
 
-        is_subject_admin = workspace_user.permissions == "ADMIN"
-        is_subject_last_admin = is_subject_admin and admins_in_workspace_count == 1
-
-        if is_subject_last_admin:
+        # Only people are counted, so an identity is never the last admin.
+        if [admin.id for admin in admins] == [workspace_user.id]:
             raise LastAdminOfWorkspace()
 
     def create_initial_workspace(self, user: AbstractUser) -> Workspace:

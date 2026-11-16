@@ -167,8 +167,12 @@ def test_identity_admin_does_not_replace_last_human_admin(data_fixture):
         handler.leave_workspace(human, workspace)
     with pytest.raises(LastAdminOfWorkspace):
         handler.force_update_workspace_user(None, membership, permissions="MEMBER")
-    with pytest.raises(ValueError):
-        handler.add_user_to_workspace(data_fixture.create_workspace(), identity)
+    identity_membership = workspace.get_workspace_user(identity)
+    for target_workspace in (workspace, data_fixture.create_workspace()):
+        with pytest.raises(ValueError):
+            handler.add_user_to_workspace(target_workspace, identity)
     with pytest.raises(ValueError):
         handler.leave_workspace(identity, workspace)
+    with pytest.raises(ValueError):
+        handler.delete_workspace_user(human, identity_membership)
     assert WorkspaceUser.objects_and_identities.filter(user=identity).count() == 1
