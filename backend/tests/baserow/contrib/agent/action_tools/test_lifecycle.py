@@ -50,7 +50,7 @@ def test_create_seeds_independent_inputs_and_audits_only_identifiers(
         bodies.append(response.json())
     first, second = bodies
     assert [item["name"] for item in bodies] == ["send_email", "send_email_2"]
-    assert first["enabled"] is True and first["ask_first"] is False
+    assert first["enabled"] is True and first["ask_first"] is True
     assert first["description"]
     assert [(i["name"], i["type"], i["required"]) for i in first["inputs"]] == [
         ("to_email", "email", True),

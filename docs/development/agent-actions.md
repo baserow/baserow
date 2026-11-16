@@ -22,6 +22,9 @@ action model, and readiness is derived, never stored.
 Actions don't act as the agent's identity. They are offered with or without
 workspace access and act through their own service.
 
+A new action starts enabled, with Ask first on: it acts outside Baserow, on
+values the model chose. Tools that change data and MCP tools start the same way.
+
 ## Inputs and formulas
 
 `AgentAction.inputs` is a JSON list of `{id, name, type, description, required}`.

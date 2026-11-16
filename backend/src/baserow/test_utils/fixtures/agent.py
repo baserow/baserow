@@ -28,8 +28,12 @@ class AgentApplicationFixtures:
         return AgentApplication.objects.create(**kwargs)
 
     def create_agent_action(self, agent=None, **kwargs) -> AgentAction:
-        """Create an email action with the production starter, without permissions."""
+        """
+        Create an email action with the production starter, without permissions.
+        Unlike a new action, it doesn't ask first unless the test says so.
+        """
 
+        kwargs.setdefault("ask_first", False)
         agent = agent or self.create_agent_application()
         defaults = agent_action_type_registry.get("smtp_email").get_defaults()
         service_values = defaults.pop("service")

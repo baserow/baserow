@@ -32,7 +32,7 @@ class Migration(migrations.Migration):
                 ("description", models.TextField(blank=True, default="")),
                 ("inputs", models.JSONField(blank=True, default=list)),
                 ("enabled", models.BooleanField(db_default=True, default=True)),
-                ("ask_first", models.BooleanField(db_default=False, default=False)),
+                ("ask_first", models.BooleanField(db_default=True, default=True)),
                 (
                     "agent",
                     models.ForeignKey(
