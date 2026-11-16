@@ -596,3 +596,16 @@ def test_service_table_access_reads_each_table_in_one_query(
         assert all(access.allows(service) for service in services)
         # Each table is checked once.
         assert all(access.allows(service) for service in services)
+
+
+@pytest.mark.django_db
+def test_service_table_access_without_a_user_reads_nothing(
+    data_fixture, django_assert_num_queries
+):
+    service = data_fixture.create_local_baserow_list_rows_service(
+        table=data_fixture.create_database_table()
+    )
+    service = type(service).objects.get(pk=service.pk)
+
+    with django_assert_num_queries(0):
+        assert ServiceTableAccess(None).allows(service) is False

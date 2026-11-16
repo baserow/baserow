@@ -13,7 +13,10 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
-from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+from baserow.contrib.automation.nodes.access import (
+    AutomationNodeAccess,
+    visible_schema,
+)
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
@@ -162,9 +165,10 @@ def output_schema(node: AutomationNode, access: AutomationNodeAccess) -> dict[st
     What a node outputs, for the formulas of the nodes after it: the formula path
     to its data and its properties, keyed as the path expects.
 
-    :param access: Whether the user may see what the node outputs. When they may
-        not, as it shows a table they may not see, the properties are left out
-        and `table_accessible` is False.
+    :param access: What the user may see of the node. When they may not see its
+        table, the properties are left out and `table_accessible` is False. When
+        they may not see a table of a node it reads, the properties built from
+        its test run data are left out and `reads_hidden_data` is True.
     """
 
     service = node.service.specific
@@ -172,35 +176,50 @@ def output_schema(node: AutomationNode, access: AutomationNodeAccess) -> dict[st
     path = f"previous_node.{node.id}"
     if service_type.returns_list(service):
         path += ".0"
-    if not access.allows(service):
+    if not access.table_allows(service):
         return {"formula_path": path, "properties": {}, "table_accessible": False}
-    schema = service_type.generate_schema(service) or {}
+    schema = visible_schema(service, access) or {}
     if schema.get("type") == "array":
         schema = schema.get("items") or {}
-    return {"formula_path": path, "properties": _compact_properties(schema)}
+    output = {"formula_path": path, "properties": _compact_properties(schema)}
+    if not access.data_allows(service):
+        output["reads_hidden_data"] = True
+    return output
 
 
-def node_outputs(
-    user: AbstractUser,
-    workflow: AutomationWorkflow,
-) -> Callable[[int], dict[str, Any] | None]:
+class NodeOutputs:
     """
-    Returns the output schema of a node of the workflow by its ID, or None when
-    the workflow has no such node, reading each node once.
+    The output schema of a node of a workflow by its ID, or None when the
+    workflow has no such node, reading each node once.
     """
 
-    cache: dict[int, dict[str, Any] | None] = {}
-    access = AutomationNodeAccess(user)
+    def __init__(self, user: AbstractUser, workflow: AutomationWorkflow):
+        self.workflow = workflow
+        self.access = AutomationNodeAccess(user)
+        self._cache: dict[int, dict[str, Any] | None] = {}
 
-    def outputs(node_id: int) -> dict[str, Any] | None:
-        if node_id not in cache:
-            node = AutomationNode.objects.filter(workflow=workflow, id=node_id).first()
+    def __call__(self, node_id: int) -> dict[str, Any] | None:
+        if node_id not in self._cache:
+            node = AutomationNode.objects.filter(
+                workflow=self.workflow, id=node_id
+            ).first()
             if node is not None:
-                access.add_nodes([node])
-            cache[node_id] = None if node is None else output_schema(node, access)
-        return cache[node_id]
+                self.access.add_nodes([node])
+            self._cache[node_id] = (
+                None if node is None else output_schema(node, self.access)
+            )
+        return self._cache[node_id]
 
-    return outputs
+    def any_hidden(self) -> bool:
+        """Whether a node of the workflow shows data the user may not see."""
+
+        return self.access.workflow_has_hidden_data(self.workflow)
+
+
+def node_outputs(user: AbstractUser, workflow: AutomationWorkflow) -> NodeOutputs:
+    """The output schemas of the nodes of a workflow, as the user may see them."""
+
+    return NodeOutputs(user, workflow)
 
 
 def describe_node(
@@ -242,7 +261,13 @@ def describe_workflow_nodes(
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
     ordered = nodes_in_order(ctx.user, workflow)
-    access = AutomationNodeAccess(ctx.user).add_nodes(node for node, _, _ in ordered)
+    access = (
+        AutomationNodeAccess(ctx.user).add_nodes(
+            (node for node, _, _ in ordered), all_of_workflow=True
+        )
+        if with_output_schema
+        else None
+    )
     nodes = []
     for node, previous, output in ordered:
         description = describe_node(node, previous, output)

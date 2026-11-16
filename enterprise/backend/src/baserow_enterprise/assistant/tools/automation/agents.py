@@ -16,7 +16,10 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 
-from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+from baserow.contrib.automation.nodes.access import (
+    AutomationNodeAccess,
+    visible_schema,
+)
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools import nodes as shared_nodes
@@ -196,7 +199,7 @@ def formula_requests(
 
     fields = {}
     service = node.service.specific if any("field_id" in e for e in errors) else None
-    if service is not None and access.allows(service):
+    if service is not None and access.table_allows(service):
         schema = service.get_type().generate_schema(service) or {}
         fields = {
             int(field["id"]): field
@@ -253,14 +256,14 @@ class WorkflowExamples:
             previous_of = {}
             examples = {}
             ordered = shared_nodes.nodes_in_order(self.user, workflow)
-            self.access.add_nodes(node for node, _, _ in ordered)
+            self.access.add_nodes(
+                (node for node, _, _ in ordered), all_of_workflow=True
+            )
             for node, previous, _output in ordered:
                 previous_of[node.id] = previous.id if previous else None
                 service = node.service.specific
-                if not self.access.allows(service):
-                    # It shows the data of a table the user may not see.
-                    continue
-                schema = service.get_type().generate_schema(service)
+                # As the user may see it.
+                schema = visible_schema(service, self.access)
                 if not schema:
                     continue
                 metadata = minimize_json_schema(schema)

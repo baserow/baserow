@@ -201,6 +201,49 @@ def _listed_paths(output: dict[str, Any]) -> str:
     return ", ".join(paths)
 
 
+def _check_hidden_reads(
+    field: str,
+    formula: str,
+    outputs: Callable[[int], dict[str, Any] | None],
+) -> None:
+    """
+    Refuse a formula that reads a node the user may not see the output of, as it
+    shows a table they may not see. Its outputs aren't listed, nor is a path
+    checked against them, so that the error doesn't tell its fields.
+    """
+
+    from baserow.contrib.automation.nodes.access import formula_reads
+
+    reads = formula_reads([formula])
+    for node_id in sorted(reads.node_ids):
+        output = outputs(node_id)
+        if output is None:
+            continue
+        if output.get("table_accessible") is False:
+            raise InvalidAutomationFormula(
+                field,
+                formula,
+                f"Node {node_id} shows a table you can't access, so this formula "
+                "can't read it.",
+            )
+        if output.get("reads_hidden_data") and not output["properties"]:
+            raise InvalidAutomationFormula(
+                field,
+                formula,
+                f"Node {node_id} reads data of a table you can't access, so this "
+                "formula can't read it.",
+            )
+    any_hidden = getattr(outputs, "any_hidden", None)
+    if reads.any_node and any_hidden is not None and any_hidden():
+        raise InvalidAutomationFormula(
+            field,
+            formula,
+            "The formula reads a path it builds, and this workflow has nodes that "
+            "show a table you can't access, so it can't be checked. Read each "
+            "node with get('previous_node.<node id>...').",
+        )
+
+
 def check_output_paths(
     field: str,
     formula: str,
@@ -215,6 +258,7 @@ def check_output_paths(
     :raises InvalidAutomationFormula: Naming the paths the node outputs.
     """
 
+    _check_hidden_reads(field, formula, outputs)
     for _, _, node_id, rest in previous_node_paths(formula):
         if not node_id.isdigit():
             continue
@@ -227,13 +271,6 @@ def check_output_paths(
                 formula,
                 f"Node {node_id} is not in this workflow, so '{path}' can't be "
                 "read. list_nodes gives the nodes and their output paths.",
-            )
-        if output.get("table_accessible") is False:
-            raise InvalidAutomationFormula(
-                field,
-                formula,
-                f"Node {node_id} shows a table you can't access, so '{path}' "
-                "can't be read.",
             )
         if not _matches_output(segments, output):
             raise InvalidAutomationFormula(

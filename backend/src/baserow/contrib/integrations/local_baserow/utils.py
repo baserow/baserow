@@ -161,8 +161,13 @@ class ServiceTableAccess:
         """
 
         table_id = getattr(service, "table_id", None)
-        if table_id is None:
-            return True
+        return table_id is None or self.allows_table(table_id)
+
+    def allows_table(self, table_id: int) -> bool:
+        """Whether the user may list the fields of the table."""
+
+        if self.user is None:
+            return False
 
         if table_id not in self._allowed:
             table = (
@@ -171,8 +176,7 @@ class ServiceTableAccess:
                 .first()
             )
             self._allowed[table_id] = (
-                self.user is not None
-                and table is not None
+                table is not None
                 and CoreHandler().check_permissions(
                     self.user,
                     ListFieldsOperationType.type,

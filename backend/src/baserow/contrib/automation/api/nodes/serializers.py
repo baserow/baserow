@@ -12,7 +12,10 @@ from baserow.api.services.serializers import (
     PolymorphicServiceSerializer,
     ServiceSerializer,
 )
-from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+from baserow.contrib.automation.nodes.access import (
+    AutomationNodeAccess,
+    visible_schema,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -22,34 +25,36 @@ from baserow.core.services.models import Service
 
 class AutomationServiceSerializer(ServiceSerializer):
     """
-    The service of a node. Its schema, context data and sample data name the
-    fields of the table it uses, which is not always a table the reader may see,
-    so they are left out when the context's `service_table_access` says the
-    reader may not.
+    The service of a node, as the context's `service_table_access` lets the
+    reader see it. Its schema and context data name the fields of its table, so
+    they are left out when the reader may not see that table. Its sample data
+    holds the rows of its table and the values of the nodes it reads, so it is
+    left out when the reader may not see one of those tables either, and so is
+    what the schema builds from it. Without that context, nothing of a table is
+    shown.
     """
 
     table_accessible = serializers.SerializerMethodField(
         help_text="Whether the reader may see the fields of the table this service "
-        "uses. The schema, context data and sample data are left out when they "
-        "may not."
+        "uses. The schema and context data are left out when they may not."
     )
+
+    def _access(self):
+        return self.context.get("service_table_access") or AutomationNodeAccess(None)
 
     def to_representation(self, instance: Service) -> dict[str, Any]:
         data = super().to_representation(instance)
-        if not data["table_accessible"]:
-            # The rows of a test run, keyed by field name.
+        if not self._access().data_allows(instance.specific):
+            # The rows of a test run, and the values of the nodes it reads.
             data["sample_data"] = None
         return data
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_table_accessible(self, instance: Service) -> bool:
-        access = self.context.get("service_table_access")
-        return access is None or access.allows(instance.specific)
+        return self._access().table_allows(instance.specific)
 
     def get_schema(self, instance: Service) -> dict[str, Any] | None:
-        if not self.get_table_accessible(instance):
-            return None
-        return super().get_schema(instance)
+        return visible_schema(instance.specific, self._access())
 
     def get_context_data(self, instance: Service) -> dict[str, Any] | None:
         if not self.get_table_accessible(instance):
@@ -66,7 +71,9 @@ class AutomationServiceSerializer(ServiceSerializer):
 
 
 def node_serializer_context(
-    user: AbstractUser | None, nodes: Iterable[AutomationNode]
+    user: AbstractUser | None,
+    nodes: Iterable[AutomationNode],
+    all_of_workflow: bool = False,
 ) -> dict[str, Any]:
     """
     The context to serialize nodes for a user with, so the services of the nodes
@@ -74,9 +81,11 @@ def node_serializer_context(
     read. Without a user, no table is shown.
 
     :param nodes: The nodes that will be serialized.
+    :param all_of_workflow: Whether the nodes are all those of their workflow.
     """
 
-    return {"service_table_access": AutomationNodeAccess(user).add_nodes(nodes)}
+    access = AutomationNodeAccess(user).add_nodes(nodes, all_of_workflow)
+    return {"service_table_access": access}
 
 
 class AutomationPolymorphicServiceSerializer(PolymorphicServiceSerializer):

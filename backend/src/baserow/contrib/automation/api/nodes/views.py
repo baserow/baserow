@@ -192,7 +192,7 @@ class AutomationNodesView(APIView):
         nodes = list(AutomationNodeService().get_nodes(request.user, workflow))
 
         # One context for every node, so each table is checked once.
-        context = node_serializer_context(request.user, nodes)
+        context = node_serializer_context(request.user, nodes, all_of_workflow=True)
         data = [
             automation_node_type_registry.get_serializer(
                 node, AutomationNodeSerializer, context=context
