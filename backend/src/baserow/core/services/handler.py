@@ -9,6 +9,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.integrations.exceptions import (
     IntegrationDoesNotExist,
     IntegrationNotInApplication,
+    IntegrationTypeNotAllowed,
 )
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -229,7 +230,10 @@ class ServiceHandler:
         service.delete()
 
     def _check_service_integration(
-        self, service: Service, application_id: Optional[int] = None
+        self,
+        service: Service,
+        application_id: Optional[int] = None,
+        integration: Optional[Integration] = None,
     ):
         """
         Checks that the service can read through its integration before it's used.
@@ -237,36 +241,70 @@ class ServiceHandler:
         :param service: The service about to be used.
         :param application_id: When given, the service's integration must belong
             to this application.
+        :param integration: The service's integration, when the caller already
+            loaded it. It's fetched otherwise, so that a dispatch never trusts a
+            stale one.
         :raises ServiceImproperlyConfiguredDispatchException: When the integration
             is trashed, belongs to another application, or is required but missing.
         """
 
         if service.integration_id is not None:
-            try:
-                integration = IntegrationHandler().get_integration(
-                    service.integration_id, specific=False
-                )
-            except IntegrationDoesNotExist:
-                # The referenced integration has been trashed (soft-deleted). A
-                # trashed integration must never be dispatched - e.g. a deleted SMTP
-                # integration would otherwise still send emails - so treat the
-                # service as misconfigured.
+            if integration is None:
+                try:
+                    integration = IntegrationHandler().get_integration(
+                        service.integration_id, specific=False
+                    )
+                except IntegrationDoesNotExist:
+                    integration = None
+            # The referenced integration has been trashed (soft-deleted). A
+            # trashed integration must never be dispatched - e.g. a deleted SMTP
+            # integration would otherwise still send emails - so treat the
+            # service as misconfigured.
+            if integration is None or integration.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration used by this service has been trashed."
                 )
             try:
                 IntegrationHandler().check_integration_usable(
-                    integration, application_id=application_id
+                    integration,
+                    application_id=application_id,
+                    integration_types=(
+                        [service.get_type().integration_type]
+                        if service.get_type().integration_type
+                        else None
+                    ),
                 )
             except IntegrationNotInApplication as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The integration used by this service belongs to another "
                     "application."
                 ) from exc
+            except IntegrationTypeNotAllowed as exc:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "The integration has the wrong type for this service."
+                ) from exc
         elif service.get_type().requires_integration(service):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No integration selected"
             )
+
+    def get_configuration_errors(
+        self, service: Service, application_id: Optional[int] = None
+    ) -> dict[str, str]:
+        """Check saved configuration without network calls or formula evaluation."""
+
+        errors = service.get_type().get_configuration_errors(service)
+        try:
+            self._check_service_integration(
+                service,
+                application_id,
+                integration=service.integration if service.integration_id else None,
+            )
+        except ServiceImproperlyConfiguredDispatchException:
+            errors["integration_id"] = (
+                "unavailable" if service.integration_id else "required"
+            )
+        return errors
 
     def dispatch_service(
         self,

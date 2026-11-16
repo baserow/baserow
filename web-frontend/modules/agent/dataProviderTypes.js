@@ -41,3 +41,31 @@ export class TriggerDataProviderType extends DataProviderType {
     }
   }
 }
+
+/** Formula paths use stable IDs; titles follow editable input names. */
+export class ActionInputDataProviderType extends DataProviderType {
+  static getType() {
+    return 'tool_input'
+  }
+
+  get name() {
+    return this.app.$i18n.t('agent.actionInputs')
+  }
+
+  getDataSchema(applicationContext) {
+    return {
+      type: 'object',
+      title: this.name,
+      properties: Object.fromEntries(
+        (applicationContext?.action?.inputs || []).map((input) => [
+          input.id,
+          {
+            type: input.type === 'email' ? 'string' : input.type,
+            title: input.name,
+            description: input.description,
+          },
+        ])
+      ),
+    }
+  }
+}

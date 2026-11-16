@@ -1,4 +1,4 @@
-import { defineComponent, nextTick } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { vi } from 'vitest'
 
@@ -47,6 +47,7 @@ const InjectedFormulaInputStub = defineComponent({
 
 const IntegrationDropdownStub = defineComponent({
   name: 'IntegrationDropdown',
+  emits: ['update:modelValue'],
   props: {
     modelValue: {
       type: Number,
@@ -71,14 +72,28 @@ const IntegrationDropdownStub = defineComponent({
       default: false,
     },
   },
-  template: `
-    <div
-      :modelvalue="modelValue"
-      :application="application"
-      :integrations="integrations"
-      :integration-type="integrationType"
-    />
-  `,
+  render() {
+    return h(
+      'div',
+      {
+        modelvalue: this.modelValue,
+        application: this.application,
+        integrations: this.integrations,
+        'integration-type': this.integrationType,
+      },
+      this.integrations.length
+        ? this.integrations.map((integration) =>
+            h(
+              'button',
+              {
+                onClick: () => this.$emit('update:modelValue', integration.id),
+              },
+              String(integration.id)
+            )
+          )
+        : undefined
+    )
+  },
 })
 
 const DropdownStub = defineComponent({
@@ -286,7 +301,7 @@ describe('Core SMTP email service form', () => {
     expect(changed).toHaveLength(0)
   })
 
-  test('without the new prop the form reads the service as before', async () => {
+  test('an unavailable saved instance choice shows custom configuration without rewriting it', async () => {
     const stale = {
       use_instance_smtp_settings: true,
       instance_smtp_settings_enabled: false,
@@ -301,7 +316,40 @@ describe('Core SMTP email service form', () => {
       wrapper
         .find('[placeholder="smtpEmailForm.fromEmailPlaceholder"]')
         .exists()
+    ).toBe(true)
+    expect(
+      (wrapper.emitted('values-changed') || []).some(
+        ([values]) => values.use_instance_smtp_settings === false
+      )
     ).toBe(false)
+  })
+
+  test('selecting an integration repairs a stale instance choice', async () => {
+    const service = {
+      use_instance_smtp_settings: true,
+      instance_smtp_settings_enabled: false,
+    }
+    const wrapper = await mountComponent({
+      service,
+      integrations: [{ id: 7, type: 'smtp' }],
+    })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.emitted('values-changed').at(-1)[0]).toMatchObject({
+      integration_id: 7,
+      use_instance_smtp_settings: false,
+    })
+  })
+
+  test('a host can offer inline integration editing without an integrations page', async () => {
+    const wrapper = await mountComponent({
+      service: { instance_smtp_settings_enabled: false },
+      application: { id: 1, type: 'agent' },
+      props: { allowIntegrationEditing: true },
+    })
+    expect(
+      wrapper.findComponent(IntegrationDropdownStub).props('allowEditing')
+    ).toBe(true)
   })
 
   test('an integration can be edited from a database but not a builder', async () => {

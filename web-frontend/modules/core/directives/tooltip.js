@@ -129,6 +129,25 @@ export default {
           el.tooltipElement.style.top = rect.bottom + gap + 'px'
           el.tooltipElement.style.left = rect.left + rect.width / 2 + 'px'
       }
+
+      if (position === 'top' || position === 'bottom') {
+        const anchor = rect.left + rect.width / 2
+        const width = rectTooltip.width
+        const left = Math.max(
+          8,
+          Math.min(
+            anchor - width / 2,
+            document.documentElement.clientWidth - width - 8
+          )
+        )
+        // These placements use translateX(-50%). Shift the box at viewport edges
+        // while keeping the arrow on the target rather than the box's center.
+        el.tooltipElement.style.left = left + width / 2 + 'px'
+        el.tooltipElement.style.setProperty(
+          '--tooltip-cursor-position-left',
+          Math.max(6, Math.min(width - 6, anchor - left)) + 'px'
+        )
+      }
     }
     el.removeTimeout = () => {
       if (el.tooltipTimeout) {

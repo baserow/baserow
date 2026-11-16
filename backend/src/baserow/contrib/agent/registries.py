@@ -2,7 +2,7 @@ import asyncio
 import inspect
 import json
 from dataclasses import replace
-from typing import Any, Callable, get_type_hints
+from typing import Any, Awaitable, Callable, get_type_hints
 
 from asgiref.sync import async_to_sync, sync_to_async
 from loguru import logger
@@ -182,10 +182,15 @@ async def _run_tool(
     :return: What ``_call_tool`` returns.
     """
 
-    # On the worker's own thread, so tools share its connection and never leak one.
-    running = asyncio.ensure_future(
+    return await shield_tool_call(
         sync_to_async(_call_tool)(tool_type, ctx, arguments, input_shower(run_ctx))
     )
+
+
+async def shield_tool_call(work: Awaitable[ToolReturn]) -> ToolReturn:
+    """Wait for a tool's side effects before acknowledging cancellation."""
+
+    running = asyncio.ensure_future(work)
     try:
         return await asyncio.shield(running)
     except asyncio.CancelledError:
@@ -211,6 +216,16 @@ class AgentToolType(Instance):
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
+
+    def hold_call(
+        self,
+        ctx: ToolContext,
+        arguments: dict[str, Any],
+        show_input: Callable[[dict[str, Any]], None],
+    ) -> ToolReturn:
+        """Prepare the readable request before deferring this workspace call."""
+
+        return hold_call(self, ctx, arguments, show_input)
 
     def get_step_input(self, arguments: dict[str, Any]) -> dict[str, Any]:
         """

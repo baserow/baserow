@@ -97,6 +97,7 @@ describe('Agent configuration sections', () => {
       'Plugin settings',
       'agent.whenItRuns',
       'agent.workspaceAccess',
+      'agent.actions',
       'agent.connectedApps',
       'agent.agentSettings',
     ])
@@ -122,7 +123,7 @@ describe('Agent configuration sections', () => {
     const back = wrapper.get('button[aria-label="action.back"]')
     expect(back.attributes('type')).toBe('button')
     await back.trigger('click')
-    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(6)
+    expect(wrapper.findAll('.menu-list__item-button')).toHaveLength(7)
     const close = wrapper.get('button[aria-label="action.close"]')
     expect(close.attributes('type')).toBe('button')
     await close.trigger('click')
@@ -135,9 +136,9 @@ describe('Agent configuration sections', () => {
     expect(wrapper.get('aside').attributes('aria-busy')).toBe('true')
     expect(wrapper.get('.skeleton').attributes('aria-hidden')).toBe('true')
     expect(wrapper.findAll('.agent-configuration__skeleton-row')).toHaveLength(
-      5
+      6
     )
-    expect(wrapper.findAll('.skeleton-block')).toHaveLength(15)
+    expect(wrapper.findAll('.skeleton-block')).toHaveLength(18)
     expect(wrapper.find('.menu-list__item-button').exists()).toBe(false)
   })
 })

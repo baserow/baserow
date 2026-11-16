@@ -329,16 +329,6 @@
   border-top: 1px solid $palette-neutral-200;
 }
 
-.agent-trigger-picker {
-  --grouped-menu-panel-height: auto;
-
-  overflow: hidden;
-
-  .grouped-menu__menu-list .menu-list__items {
-    max-height: 320px;
-  }
-}
-
 .agent-trigger-start {
   width: 100%;
   overflow: hidden;

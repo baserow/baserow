@@ -43,9 +43,9 @@ from baserow.contrib.agent.constants import (
     DISALLOWED_TOOL_CALL_NOTE,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
-    MCP_TOOL_CHANGED_CALL_NOTE,
     REJECTED_TOOL_CALL_NOTE,
     RUN_AS_LOST_TOOL_CALL_NOTE,
+    TOOL_CHANGED_CALL_NOTE,
     TOOL_RETRIES,
 )
 from baserow.contrib.agent.handler import AgentHandler
@@ -2477,7 +2477,7 @@ def test_an_approved_mcp_call_does_not_run_when_its_server_account_or_tool_chang
     assert [
         (part.tool_call_id, part.outcome, part.content)
         for part in received[-1][-1].parts
-    ] == [("call_mcp", "denied", MCP_TOOL_CHANGED_CALL_NOTE)]
+    ] == [("call_mcp", "denied", TOOL_CHANGED_CALL_NOTE)]
 
 
 @pytest.mark.django_db

@@ -30,6 +30,10 @@ if TYPE_CHECKING:
 
 # Providers accept tool names matching ^[a-zA-Z0-9_-]{1,64}$.
 MODEL_TOOL_NAME_MAX_LENGTH = 64
+MODEL_TOOL_NAME_PREFIX = "mcp"
+RESERVED_MODEL_TOOL_NAME = re.compile(rf"{MODEL_TOOL_NAME_PREFIX}\d+_")
+"""Matches the start of every name `model_tool_names` gives, which no other tool
+of a reply may use."""
 _INVALID_NAME_CHARACTERS = re.compile(r"[^a-zA-Z0-9_-]")
 
 # The server validates arguments against its own schema; Baserow only checks
@@ -165,7 +169,7 @@ class MCPServerSnapshot:
         :return: The tools by the name the model calls them with.
         """
 
-        prefix = f"mcp{self.integration_id}_"
+        prefix = f"{MODEL_TOOL_NAME_PREFIX}{self.integration_id}_"
         names: dict[str, MCPToolSnapshot] = {}
         for tool in self.tools:
             name = (prefix + _INVALID_NAME_CHARACTERS.sub("_", tool.name))[

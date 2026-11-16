@@ -12,6 +12,8 @@ from baserow.core.signals import application_pending_count_updated, application_
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
+from .action_tools.handler import AgentActionHandler
+from .action_tools.signals import agent_action_updated
 from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
 from .exceptions import (
     AgentConversationReadOnly,
@@ -636,9 +638,7 @@ class AgentService:
             if approval.status == AgentToolApproval.Status.REJECTED
         ]
         always_allowed_tools = (
-            self._stop_asking_first(user, agent_id, approved_tools)
-            if always_allow
-            else []
+            self._stop_asking_first(user, agent_id, decided) if always_allow else []
         )
         application_pending_count_updated.send(
             self, application=agent, user_ids=conversation.pending_count_user_ids
@@ -655,21 +655,38 @@ class AgentService:
         )
 
     def _stop_asking_first(
-        self, user: AbstractUser, agent_id: int, tool_names: list[str]
+        self,
+        user: AbstractUser,
+        agent_id: int,
+        approvals: list[AgentToolApproval],
     ) -> list[str]:
         """
-        Stop asking first for the given tools, telling the Agent's open pages when
-        its configuration changed.
+        Stop asking first for the tools of the approved calls, telling the Agent's
+        open pages when its configuration changed. An action only stops asking
+        while it's still the one whose call was approved.
 
         :param user: The user deciding, already allowed to update the configuration.
         :param agent_id: The id of the Agent.
-        :param tool_names: The tools of the approved calls.
+        :param approvals: The decisions saved in this request.
         :return: The tools that stopped asking first.
         """
 
+        approved = {
+            approval.tool_name: approval.tool_key
+            for approval in approvals
+            if approval.status == AgentToolApproval.Status.APPROVED
+        }
         # Locked after the conversation, as trashing it needs the Agent row too.
         agent = self.handler.get_agent(agent_id, for_update=True)
-        stopped = self.handler.stop_asking_first(agent, tool_names)
+        stopped = self.handler.stop_asking_first(agent, list(approved))
         if stopped:
             application_updated.send(self, application=agent, user=user)
+        for tool in self.handler.get_action_tools(agent):
+            if tool.ask_first and approved.get(tool.type) == tool.approval_key:
+                updated = AgentActionHandler().update_action(
+                    tool.action, ask_first=False
+                )
+                # No session edited the action, so the approver's own is told too.
+                agent_action_updated.send(self, action=updated.action, user=None)
+                stopped.append(tool.type)
         return stopped

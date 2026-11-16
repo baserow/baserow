@@ -3,7 +3,9 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import cases from '@baserow_test_cases/agent_tools.json'
 import coreEn from '@baserow/modules/core/locales/en.json'
 import agentEn from '@baserow/modules/agent/locales/en.json'
+import integrationsEn from '@baserow/modules/integrations/locales/en.json'
 import { groupAgentTools } from '@baserow/modules/agent/agentTools'
+import { actionFieldLabel } from '@baserow/modules/agent/utils/actionLabels'
 import { STEP_ERROR_CODE } from '@baserow/modules/core/chatRuns/constants'
 import {
   groupToolSteps,
@@ -14,7 +16,7 @@ const { createI18n } = await vi.importActual('vue-i18n')
 const i18n = createI18n({
   legacy: false,
   locale: 'en',
-  messages: { en: { ...coreEn, ...agentEn } },
+  messages: { en: { ...coreEn, ...agentEn, ...integrationsEn } },
   missingWarn: false,
   fallbackWarn: false,
 })
@@ -59,7 +61,10 @@ describe('Agent tool presentations', () => {
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
         // The provider runs web search, so the backend has no agent tool for it.
-        .filter((type) => !['mcp_server_tool', 'web_search'].includes(type))
+        .filter(
+          (type) =>
+            !['mcp_server_tool', 'web_search', 'smtp_email'].includes(type)
+        )
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
     for (const { name, input, preview, facts } of cases.tools) {
@@ -88,6 +93,52 @@ describe('Agent tool presentations', () => {
         )
       }
     }
+  })
+
+  test('resolved action details use the presentation type independently of the editable name', () => {
+    // The backend stores the values as JSON, which doesn't keep their order.
+    const values = {
+      body: 'Hello Alex',
+      subject: 'A fixed template',
+      body_type: 'plain',
+      cc_emails: [],
+      from_name: '',
+      to_emails: ['fixed@example.com'],
+      bcc_emails: [],
+      from_email: 'sender@example.com',
+    }
+    const activity = toolActivity(
+      step('custom_welcome_email', 'waiting', {
+        presentation_type: 'smtp_email',
+        input: { values, truncated: true },
+      }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe('Send email')
+    expect(Object.entries(activity.input.values)).toEqual([
+      ['From Email', 'sender@example.com'],
+      ['To Emails', ['fixed@example.com']],
+      ['Subject', 'A fixed template'],
+      ['Body', 'Hello Alex'],
+      ['Body Type', 'plain'],
+    ])
+    expect(activity.input.truncated).toBe(true)
+    expect(
+      toolActivity(
+        step('renamed_email', 'done', { presentation_type: 'smtp_email' }),
+        registry,
+        t
+      ).title
+    ).toBe('Email sent')
+  })
+
+  test('an action names a field like its service form, else like every action', () => {
+    const label = (type, field) => actionFieldLabel(registry, type, field, t)
+    expect(label('smtp_email', 'to_emails')).toBe('To Emails')
+    expect(label('smtp_email', 'name')).toBe('Tool name')
+    expect(label('another_service', 'integration_id')).toBe('Integration')
+    expect(label('smtp_email', 'unknown_field')).toBe('unknown_field')
   })
 
   test.each([

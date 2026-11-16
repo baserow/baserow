@@ -20,11 +20,12 @@
     >
       <IntegrationDropdown
         v-if="application"
-        v-model="values.integration_id"
+        :model-value="values.integration_id"
         :application="application"
         :integrations="integrations"
         :integration-type="integrationType"
         :allow-editing="editableFromHere"
+        @update:model-value="selectIntegration"
       />
     </FormGroup>
 
@@ -139,6 +140,11 @@ export default {
   },
   mixins: [form],
   props: {
+    // Hosts without an integrations page can offer editing in the dropdown.
+    allowIntegrationEditing: {
+      type: Boolean,
+      default: false,
+    },
     application: {
       type: Object,
       required: false,
@@ -218,7 +224,10 @@ export default {
     // Where the instance is not offered, an integration is what sends, even
     // if the stored choice still names the instance.
     sendsThroughInstance() {
-      if (this.instanceSmtpAvailable === false) {
+      if (
+        this.instanceSmtpAvailable === false ||
+        (this.allowIntegration && !this.showInstanceSmtpOption)
+      ) {
         return false
       }
       return this.values.use_instance_smtp_settings
@@ -226,7 +235,9 @@ export default {
     // A database has no integrations page of its own, so the dropdown is the
     // only place to edit one, as with the Slack action.
     editableFromHere() {
-      return this.application?.type === 'database'
+      return (
+        this.allowIntegrationEditing || this.application?.type === 'database'
+      )
     },
     integrations() {
       if (!this.application) {
@@ -241,6 +252,12 @@ export default {
     },
     integrationType() {
       return this.$registry.get('integration', SMTPIntegrationType.getType())
+    },
+  },
+  methods: {
+    selectIntegration(integrationId) {
+      this.values.integration_id = integrationId
+      this.values.use_instance_smtp_settings = false
     },
   },
 }

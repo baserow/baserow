@@ -52,6 +52,9 @@ export default {
     'scss/dollar-variable-pattern': null,
     'scss/dollar-variable-empty-line-before': null,
 
+    // A mixin's body ends up inside a rule, which stylelint can't see.
+    'no-invalid-position-declaration': [true, { ignoreAtRules: ['mixin'] }],
+
     // Keep your other choices
     'media-feature-range-notation': 'prefix',
     'color-function-notation': 'legacy',

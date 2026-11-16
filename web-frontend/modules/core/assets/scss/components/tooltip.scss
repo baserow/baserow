@@ -54,6 +54,8 @@
 
   &.tooltip--body {
     position: absolute;
+    width: max-content;
+    max-width: calc(100vw - 16px);
     z-index: $z-index-tooltip;
     animation: tooltip-fade-in 0.08s ease-out;
   }
