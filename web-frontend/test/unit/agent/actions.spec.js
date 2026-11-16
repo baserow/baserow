@@ -368,7 +368,7 @@ describe('Agent action editor', () => {
       .setValue('recipient')
     await inputToggle.trigger('click')
     await cardToggle.trigger('click')
-    await wrapper.get('.agent-card-list__toggle-all').trigger('click')
+    await wrapper.get('.agent-actions__toggle-all').trigger('click')
     await inputToggle.trigger('click')
     expect(
       wrapper.get('.agent-action-inputs__editor input').element.value
@@ -383,7 +383,7 @@ describe('Agent action editor', () => {
       true,
       false
     )
-    const all = wrapper.get('.agent-card-list__toggle-all')
+    const all = wrapper.get('.agent-actions__toggle-all')
     await all.trigger('click')
     expect(
       wrapper

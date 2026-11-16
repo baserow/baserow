@@ -19,7 +19,7 @@
     </p>
     <ButtonText
       v-if="actions.length"
-      class="agent-card-list__toggle-all"
+      class="agent-actions__toggle-all"
       type="secondary"
       size="small"
       button-type="button"
