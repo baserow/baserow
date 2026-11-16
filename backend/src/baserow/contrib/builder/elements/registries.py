@@ -4,11 +4,13 @@ from contextlib import contextmanager
 from typing import (
     Any,
     Callable,
+    Collection,
+    Container,
     Dict,
     Generator,
-    Iterable,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
     TypedDict,
@@ -119,13 +121,14 @@ class ElementType(
         return values
 
     def export_prepared_values(
-        self, instance: Element, field_names: Optional[Iterable[str]] = None
+        self, instance: Element, field_names: Optional[Collection[str]] = None
     ) -> Dict[str, Any]:
         """
-        Returns a JSON-serializable dict of the element's `allowed_fields`, used by
-        the undo/redo `ActionHandler` to snapshot values so they can be restored
-        later. Relation fields are exported as their id so the result stays
-        JSON-serializable.
+        Returns a JSON-serializable dict of the values `update_element` accepts, the
+        element's `allowed_fields` and the ones every element has such as styles
+        and visibility, used by the undo/redo `ActionHandler` to snapshot values so
+        they can be restored later. Relation fields are exported as their id so the
+        result stays JSON-serializable.
 
         Note: re-applying a stored relation id through `update_element` only
         round-trips for element types whose update path accepts that id (e.g. those
@@ -143,9 +146,11 @@ class ElementType(
 
         from django.core.exceptions import FieldDoesNotExist
 
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
         values: Dict[str, Any] = {}
-        for field_name in self.allowed_fields:
-            if not self.exports(field_name, field_names):
+        for field_name in ElementHandler.allowed_fields_update + self.allowed_fields:
+            if not self.exports(field_name, field_names) or field_name in values:
                 continue
             try:
                 model_field = instance._meta.get_field(field_name)
@@ -154,6 +159,10 @@ class ElementType(
                 continue
 
             if model_field.is_relation:
+                if field_name not in self.allowed_fields:
+                    # Like the background file: the update takes the object, so
+                    # its id can't be replayed.
+                    continue
                 # Use the relation's attname (e.g. "data_source_id") to read the id,
                 # which keeps the value JSON-serializable. allowed_fields may already
                 # use the attname form, so we never construct "<name>_id" ourselves.
@@ -164,13 +173,27 @@ class ElementType(
         return values
 
     @staticmethod
-    def exports(field_name: str, field_names: Optional[Iterable[str]]) -> bool:
+    def exports(field_name: str, field_names: Optional[Container[str]]) -> bool:
         """
         :return: Whether `export_prepared_values` called with `field_names` exports
             `field_name`.
         """
 
         return field_names is None or field_name in field_names
+
+    def get_uids_removed_by_update(
+        self, instance: Element, values: Dict[str, Any]
+    ) -> Set[str]:
+        """
+        The uids of the items, like table columns or menu items, that an update
+        with `values` removes. Their click actions go with them.
+
+        :param instance: The element before the update.
+        :param values: The values it's updated with.
+        :return: The removed uids.
+        """
+
+        return set()
 
     def validate_position_as_child(
         self, place_in_container: str, instance: ElementSubClass

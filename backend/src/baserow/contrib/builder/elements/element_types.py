@@ -6,9 +6,9 @@ from decimal import Decimal, InvalidOperation
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     Generator,
-    Iterable,
     List,
     Optional,
     Set,
@@ -1984,7 +1984,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         }
 
     def export_prepared_values(
-        self, instance: ChoiceElement, field_names: Optional[Iterable[str]] = None
+        self, instance: ChoiceElement, field_names: Optional[Collection[str]] = None
     ) -> Dict[str, Any]:
         """
         Adds the options, which are saved by `after_update`, so that undo and redo
@@ -1993,9 +1993,12 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
         values = super().export_prepared_values(instance, field_names)
         if self.exports("options", field_names):
-            values["options"] = list(
-                instance.choiceelementoption_set.order_by("id").values("value", "name")
-            )
+            values["options"] = [
+                {"value": option.value, "name": option.name}
+                for option in sorted(
+                    instance.choiceelementoption_set.all(), key=lambda option: option.id
+                )
+            ]
         return values
 
     def serialize_property(
@@ -2528,7 +2531,7 @@ class MenuElementType(ElementType):
         }
 
     def export_prepared_values(
-        self, instance: MenuElement, field_names: Optional[Iterable[str]] = None
+        self, instance: MenuElement, field_names: Optional[Collection[str]] = None
     ) -> Dict[str, Any]:
         """
         Adds the menu items, which are saved by `after_update`, so that undo and
@@ -2540,7 +2543,9 @@ class MenuElementType(ElementType):
         if not self.exports("menu_items", field_names):
             return values
 
-        items = list(instance.menu_items.order_by("menu_item_order", "id"))
+        items = sorted(
+            instance.menu_items.all(), key=lambda item: (item.menu_item_order, item.id)
+        )
         children: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
         for item in items:
             if item.parent_menu_item_id is not None:
@@ -2552,6 +2557,18 @@ class MenuElementType(ElementType):
             if item.parent_menu_item_id is None
         ]
         return values
+
+    def get_uids_removed_by_update(
+        self, instance: MenuElement, values: Dict[str, Any]
+    ) -> Set[str]:
+        if "menu_items" not in values:
+            return super().get_uids_removed_by_update(instance, values)
+        kept = {
+            str(item.get("uid"))
+            for parent in values["menu_items"]
+            for item in (parent, *parent.get("children", []))
+        }
+        return {str(item.uid) for item in instance.menu_items.all()} - kept
 
     def before_delete(self, instance: MenuElement) -> None:
         """
@@ -2595,10 +2612,12 @@ class MenuElementType(ElementType):
 
         # Get all workflow actions associated with this menu element. This runs
         # during permanent deletion, when the element is already trashed, so we use
-        # the manager that still includes actions of trashed elements.
+        # the manager that still includes actions of trashed elements. Actions in
+        # the trash themselves are kept: an undo or redo can restore them, and the
+        # element's deletion cascades to them.
         all_workflow_actions = (
             BuilderWorkflowAction.objects_including_trashed_elements.filter(
-                element=instance
+                element=instance, trashed=False
             )
         )
 

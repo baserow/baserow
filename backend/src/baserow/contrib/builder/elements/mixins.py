@@ -2,11 +2,12 @@ from contextlib import ExitStack, contextmanager
 from typing import (
     Any,
     Callable,
+    Collection,
     Dict,
     Generator,
-    Iterable,
     List,
     Optional,
+    Set,
     Tuple,
     Type,
 )
@@ -243,7 +244,7 @@ class CollectionElementTypeMixin:
     def export_prepared_values(
         self,
         instance: CollectionElementSubClass,
-        field_names: Optional[Iterable[str]] = None,
+        field_names: Optional[Collection[str]] = None,
     ):
         """
         Adds the property options, which are saved by `after_update`, so that undo
@@ -252,11 +253,17 @@ class CollectionElementTypeMixin:
 
         values = super().export_prepared_values(instance, field_names)
         if self.exports("property_options", field_names):
-            values["property_options"] = list(
-                instance.property_options.order_by("id").values(
-                    "schema_property", "searchable", "filterable", "sortable"
+            values["property_options"] = [
+                {
+                    "schema_property": option.schema_property,
+                    "searchable": option.searchable,
+                    "filterable": option.filterable,
+                    "sortable": option.sortable,
+                }
+                for option in sorted(
+                    instance.property_options.all(), key=lambda option: option.id
                 )
-            )
+            ]
         return values
 
     def after_update(
@@ -738,7 +745,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     def export_prepared_values(
         self,
         instance: CollectionElementSubClass,
-        field_names: Optional[Iterable[str]] = None,
+        field_names: Optional[Collection[str]] = None,
     ):
         """
         Adds the fields, which are saved by `after_update`, so that undo and redo
@@ -755,9 +762,18 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
                     "config": field.config,
                     "styles": field.styles,
                 }
-                for field in instance.fields.order_by("order", "id")
+                # The model's ordering is the columns' order.
+                for field in instance.fields.all()
             ]
         return values
+
+    def get_uids_removed_by_update(
+        self, instance: CollectionElementSubClass, values: Dict[str, Any]
+    ) -> Set[str]:
+        if "fields" not in values:
+            return super().get_uids_removed_by_update(instance, values)
+        kept = {str(field.get("uid")) for field in values["fields"]}
+        return {str(field.uid) for field in instance.fields.all()} - kept
 
     def get_event_names(self, instance: CollectionElementSubClass) -> List[str]:
         """

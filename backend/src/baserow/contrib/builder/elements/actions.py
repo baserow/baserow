@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Any, Dict
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -17,12 +17,16 @@ from baserow.contrib.builder.elements.trash_types import ElementTrashableItemTyp
 from baserow.contrib.builder.elements.types import ElementsAndWorkflowActions
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.contrib.builder.workflow_actions.trash_types import (
+    BuilderWorkflowActionTrashableItemType,
+)
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
     ActionScopeStr,
     ActionTypeDescription,
     UndoableActionType,
 )
+from baserow.core.exceptions import TrashItemDoesNotExist
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.trash.handler import TrashHandler
 
@@ -118,6 +122,8 @@ class UpdateElementActionType(UndoableActionType):
         element_type: str
         element_original_params: Dict[str, Any]
         element_new_params: Dict[str, Any]
+        # The click actions of the columns or menu items the update removed.
+        trashed_workflow_action_ids: List[int] = field(default_factory=list)
 
     @classmethod
     def do(cls, user: AbstractUser, element: Element, new_data: dict) -> Element:
@@ -134,6 +140,7 @@ class UpdateElementActionType(UndoableActionType):
                 updated.element.get_type().type,
                 updated.original_values,
                 updated.new_values,
+                updated.trashed_workflow_action_ids,
             ),
             scope=cls.scope(updated.element.page),
             workspace=builder.workspace,
@@ -147,6 +154,16 @@ class UpdateElementActionType(UndoableActionType):
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
         cls._replay(user, params.element_id, params.element_original_params)
+        for workflow_action_id in params.trashed_workflow_action_ids:
+            try:
+                TrashHandler.restore_item(
+                    user,
+                    BuilderWorkflowActionTrashableItemType.type,
+                    workflow_action_id,
+                )
+            except TrashItemDoesNotExist:
+                # Restored from the trash, or emptied from it, since.
+                pass
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
@@ -155,7 +172,7 @@ class UpdateElementActionType(UndoableActionType):
     @classmethod
     def _replay(cls, user: AbstractUser, element_id: int, values: Dict[str, Any]):
         element = ElementHandler().get_element_for_update(element_id)
-        # A page linked to when the values were saved can be deleted since.
+        # A page linked to when the values were saved can be removed since.
         values = PageHandler().without_links_to_deleted_pages(
             element.page.builder, values
         )

@@ -318,9 +318,11 @@ class ButtonCollectionFieldType(CollectionFieldType):
     def before_delete(self, instance: CollectionField):
         # We delete the related workflow actions. This can run while the owning
         # element is trashed (permanent deletion), so we use the manager that still
-        # includes actions of trashed elements.
+        # includes actions of trashed elements. Actions in the trash themselves are
+        # kept: an undo or redo can restore them, and the element's deletion
+        # cascades to them.
         BuilderWorkflowAction.objects_including_trashed_elements.filter(
-            event__startswith=instance.uid
+            event__startswith=instance.uid, trashed=False
         ).delete()
 
 
