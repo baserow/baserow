@@ -1,5 +1,7 @@
 from importlib import import_module
+from types import SimpleNamespace
 
+from django.contrib.auth import get_user_model
 from django.db import OperationalError, connection
 from django.db.migrations.loader import MigrationLoader
 
@@ -8,9 +10,28 @@ import pytest
 from baserow.core.models import UserProfile
 from baserow.core.psycopg import errors, psycopg
 
+User = get_user_model()
+
+
+@pytest.mark.django_db
+def test_0139_gives_a_user_without_a_profile_a_human_one(data_fixture):
+    person = data_fixture.create_user()
+    stray = User.objects_and_identities.create(username="missing-profile")
+    migration = import_module("baserow.core.migrations.0139_userprofile_trashed_idx")
+    historical = MigrationLoader(connection).project_state(
+        [("core", "0138_user_identities")]
+    )
+    assert not User.objects.filter(id=stray.id).exists()
+
+    migration.create_missing_user_profiles(
+        historical.apps, SimpleNamespace(connection=connection)
+    )
+
+    assert User.objects.filter(id__in=[person.id, stray.id]).count() == 2
+
 
 @pytest.mark.django_db(transaction=True)
-def test_0136_can_retry_after_interrupted_concurrent_build(data_fixture):
+def test_0139_can_retry_after_interrupted_concurrent_build(data_fixture):
     user = data_fixture.create_user()
     migration = import_module("baserow.core.migrations.0139_userprofile_trashed_idx")
     operation = migration.Migration.operations[0]
