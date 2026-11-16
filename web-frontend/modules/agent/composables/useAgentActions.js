@@ -19,9 +19,18 @@ const EDITABLE_FIELDS = [
 ]
 const missing = (error) =>
   error.response?.data?.error === 'ERROR_AGENT_ACTION_DOES_NOT_EXIST'
+const isCallable = (action) =>
+  action.enabled && !Object.keys(action.errors || {}).length
 
-/** Page-local drafts, with one serialized save per independently configured action. */
-export function useAgentActions(agent) {
+/**
+ * Page-local drafts, with one serialized save per independently configured action.
+ *
+ * @param {import('vue').Ref<object>} agent The Agent whose actions are edited.
+ * @param {Function} onCallableChange Called when the Agent gains its first
+ *   action the model can call, or loses its last one: the configuration
+ *   depends on whether it has one.
+ */
+export function useAgentActions(agent, onCallableChange = () => {}) {
   const { $client, $registry } = useNuxtApp()
   const { t } = useI18n()
   const store = useStore()
@@ -34,6 +43,13 @@ export function useAgentActions(agent) {
   const saved = new Map()
   let scope = 0
   let request = 0
+  let hadCallable = null
+
+  function reportCallable() {
+    const hasCallable = [...saved.values()].some(({ data }) => isCallable(data))
+    if (hadCallable !== null && hasCallable !== hadCallable) onCallableChange()
+    hadCallable = hasCallable
+  }
 
   function track(action) {
     const entry = {
@@ -61,6 +77,7 @@ export function useAgentActions(agent) {
   function remove(id) {
     forget(id)
     actions.value = actions.value.filter((action) => action.id !== id)
+    reportCallable()
   }
 
   function changes(action, baseline = saved.get(action.id)?.data) {
@@ -123,6 +140,7 @@ export function useAgentActions(agent) {
       for (const id of saved.keys()) {
         if (!data.some((action) => action.id === id)) forget(id)
       }
+      reportCallable()
     } catch {
       if (isCurrent()) loadError.value = true
     } finally {
@@ -141,6 +159,7 @@ export function useAgentActions(agent) {
         track(data)
         actions.value.push(data)
       }
+      reportCallable()
       return data
     } catch (error) {
       notifyIf(error, 'action')
@@ -174,6 +193,7 @@ export function useAgentActions(agent) {
       if (entry.cancelled) return
       // Navigation detaches the card, but its last edits still belong to this save.
       adopt(action, data, baseline, entry)
+      if (isCurrent()) reportCallable()
       if (isCurrent() && !Object.keys(changes(action)).length)
         delete saveErrors[action.id]
     } catch (error) {
@@ -268,6 +288,7 @@ export function useAgentActions(agent) {
       ++scope
       for (const id of saved.keys()) forget(id, true)
       actions.value = []
+      hadCallable = null
       fetchActions({ integrations: true })
     }
   )
@@ -285,6 +306,7 @@ export function useAgentActions(agent) {
           track(event.action)
           actions.value.push(event.action)
         }
+        reportCallable()
       }
     },
     // A reconnect replays several events at once, and each one must be applied.

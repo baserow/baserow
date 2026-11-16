@@ -592,6 +592,24 @@ describe('Agent action editor', () => {
     ).toEqual(['send_summary'])
   })
 
+  test('the configuration reloads only when the agent gains or loses a callable action', async () => {
+    useFakeTimers()
+    const action = emailAction({ errors: {} })
+    saveEdits(action)
+    const wrapper = await mountSection([action])
+    await wrapper.get('.agent-action-card__body input').setValue('send_summary')
+    await settle()
+    expect(wrapper.emitted('reload')).toBeUndefined()
+
+    await wrapper
+      .findAll('[role="switch"]')[0]
+      .trigger('keydown', { key: 'Enter' })
+    await settle()
+
+    expect(patches(testApp).at(-1)[1]).toEqual({ enabled: false })
+    expect(wrapper.emitted('reload')).toHaveLength(1)
+  })
+
   test('read-only configuration has no editing or deleting actions', async () => {
     const wrapper = await mountSection([emailAction()], false)
     expect(wrapper.find('.agent-actions__header button').exists()).toBe(false)

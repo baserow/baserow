@@ -86,6 +86,7 @@ const props = defineProps({
   configuration: { type: Object, required: true },
   editable: Boolean,
 })
+const emit = defineEmits(['reload'])
 const store = useStore()
 const agent = inject('agentApplication')
 const picker = ref(null)
@@ -106,7 +107,7 @@ const {
   updateAction,
   deleteAction,
   flush,
-} = useAgentActions(agent)
+} = useAgentActions(agent, () => emit('reload'))
 const { expandedIds, allExpanded, toggle, toggleAll } =
   useExpandedItems(actions)
 const atLimit = computed(
