@@ -8,6 +8,8 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from channels_redis.core import RedisChannelLayer
 
+from baserow.core.utils import grouper
+
 # A live process empties its mailbox within milliseconds, so it is nearly always
 # empty. A dead one fills up to the capacity and stays full: its messages are only
 # removed when they expire, and are then replaced right away. Both are a part of
@@ -18,17 +20,6 @@ DEAD_WHEN_UNREAD_FOR_PART_OF_EXPIRY = 1 / 2
 # only behind for a moment keeps its memberships.
 SECOND_LOOK_AFTER_SECONDS = 2
 BATCH_SIZE = 500
-
-
-def get_process(channel: bytes) -> bytes:
-    """
-    :param channel: The name of a channel that belongs to a process, for example
-        `specific.<process>!<connection>`.
-    :return: The part all channels of the process share, which is also the name of
-        the mailbox the process reads its messages from.
-    """
-
-    return channel.split(b"!", 1)[0] + b"!"
 
 
 class Command(BaseCommand):
@@ -71,22 +62,26 @@ class Command(BaseCommand):
             await channel_layer.close_pools()
 
     async def _cleanup(self, channel_layer: RedisChannelLayer, dry_run: bool):
-        prefix = channel_layer.prefix
-        expired_before = time.time() - channel_layer.group_expiry
+        # The same moment the channel layer uses when it sends to a group.
+        expired_at = int(time.time()) - channel_layer.group_expiry
 
         self.stdout.write("Finding the channel groups...")
         groups = []
         for index in range(channel_layer.ring_size):
             connection = channel_layer.connection(index)
-            async for key in connection.scan_iter(f"{prefix}:group:*", count=5000):
+            async for key in connection.scan_iter(
+                channel_layer._group_key("*"), count=5000
+            ):
                 groups.append((index, key))
 
         self.stdout.write(f"Reading the members of {len(groups)} groups...")
         members_per_group = {}
+        # With one channel of each process, because the capacity of a mailbox is
+        # configured by channel name.
+        processes = {}
         memberships = Counter()
         expired = Counter()
-        for start in range(0, len(groups), BATCH_SIZE):
-            batch = groups[start : start + BATCH_SIZE]
+        for batch in grouper(BATCH_SIZE, groups):
             pipelines = {}
             for index, key in batch:
                 if index not in pipelines:
@@ -101,20 +96,23 @@ class Command(BaseCommand):
             for index, key in batch:
                 members = []
                 for member, score in next(results[index]):
-                    if score < expired_before:
+                    channel = member.decode()
+                    if score <= expired_at:
                         expired[key] += 1
-                    elif b"!" in member:
+                    elif "!" in channel:
                         # Only the channels of websocket consumers belong to a
                         # process.
-                        members.append(member)
-                        memberships[get_process(member)] += 1
+                        process = channel_layer.non_local_name(channel)
+                        processes.setdefault(process, channel)
+                        members.append((member, process))
+                        memberships[process] += 1
                 members_per_group[(index, key)] = members
 
         self.stdout.write(f"Checking the mailboxes of {len(memberships)} processes...")
-        dead = await self._get_dead_processes(channel_layer, memberships)
+        dead = await self._get_dead_processes(channel_layer, processes)
         for process in dead:
             self.stdout.write(
-                f"  {process.decode()} is dead: {memberships[process]} memberships"
+                f"  {process} is dead: {memberships[process]} memberships"
             )
         dead_memberships = sum(memberships[process] for process in dead)
         self.stdout.write(
@@ -133,55 +131,52 @@ class Command(BaseCommand):
                     transaction=False
                 )
             pipeline = pipelines[index]
-            dead_members = [m for m in members if get_process(m) in dead]
-            for start in range(0, len(dead_members), BATCH_SIZE):
-                pipeline.zrem(key, *dead_members[start : start + BATCH_SIZE])
+            dead_members = [member for member, process in members if process in dead]
+            for dead_members_batch in grouper(BATCH_SIZE, dead_members):
+                pipeline.zrem(key, *dead_members_batch)
             if key in expired:
-                pipeline.zremrangebyscore(key, "-inf", f"({expired_before}")
+                pipeline.zremrangebyscore(key, min=0, max=expired_at)
             if len(pipeline) >= BATCH_SIZE:
                 removed += sum(await pipeline.execute())
         for pipeline in pipelines.values():
             removed += sum(await pipeline.execute())
         for process in dead:
-            mailbox = prefix.encode() + process
+            mailbox = self._get_mailbox(channel_layer, process)
             # The messages the process was handling when it died never expire.
             await self._get_mailbox_connection(channel_layer, process).unlink(
-                mailbox, mailbox + b"$inflight"
+                mailbox, channel_layer._backup_channel_name(mailbox)
             )
         self.stdout.write(self.style.SUCCESS(f"Removed {removed} memberships."))
 
-    def _get_mailbox_connection(self, channel_layer: RedisChannelLayer, process: bytes):
-        return channel_layer.connection(channel_layer.consistent_hash(process.decode()))
+    def _get_mailbox(self, channel_layer: RedisChannelLayer, process: str) -> str:
+        return channel_layer.prefix + process
+
+    def _get_mailbox_connection(self, channel_layer: RedisChannelLayer, process: str):
+        return channel_layer.connection(channel_layer.consistent_hash(process))
 
     async def _get_oldest_message(
-        self, channel_layer: RedisChannelLayer, process: bytes
+        self, channel_layer: RedisChannelLayer, process: str
     ) -> tuple[bytes, float] | None:
-        mailbox = channel_layer.prefix.encode() + process
         connection = self._get_mailbox_connection(channel_layer, process)
-        oldest = await connection.zrange(mailbox, 0, 0, withscores=True)
+        oldest = await connection.zrange(
+            self._get_mailbox(channel_layer, process), 0, 0, withscores=True
+        )
         return tuple(oldest[0]) if oldest else None
 
     async def _get_dead_processes(
-        self, channel_layer: RedisChannelLayer, processes: Counter
-    ) -> list[bytes]:
-        """
-        :param channel_layer: The channel layer the processes receive through.
-        :param processes: The processes that have memberships.
-        :return: The ones that stopped reading their mailbox.
-        """
-
+        self, channel_layer: RedisChannelLayer, processes: dict[str, str]
+    ) -> list[str]:
         full_for = channel_layer.expiry * DEAD_WHEN_FULL_FOR_PART_OF_EXPIRY
         unread_for = channel_layer.expiry * DEAD_WHEN_UNREAD_FOR_PART_OF_EXPIRY
         suspects = {}
-        for process, _ in processes.most_common():
+        for process, channel in processes.items():
             oldest = await self._get_oldest_message(channel_layer, process)
             if oldest is None:
                 continue
-            mailbox = channel_layer.prefix.encode() + process
             connection = self._get_mailbox_connection(channel_layer, process)
-            size = await connection.zcard(mailbox)
+            size = await connection.zcard(self._get_mailbox(channel_layer, process))
             age = time.time() - oldest[1]
-            capacity = channel_layer.get_capacity(process.decode())
+            capacity = channel_layer.get_capacity(channel)
             if age > unread_for or (size >= capacity and age > full_for):
                 suspects[process] = oldest
         if not suspects:

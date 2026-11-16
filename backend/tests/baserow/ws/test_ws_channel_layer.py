@@ -8,7 +8,6 @@ from django.test.utils import override_settings
 import msgpack
 import pytest
 from channels_redis.core import RedisChannelLayer
-from fakeredis import FakeAsyncRedis, FakeRedis, FakeServer
 
 from baserow.ws.channel_layer import (
     COMPRESSED_MSGPACK_SERIALIZER_FORMAT,
@@ -87,19 +86,8 @@ GROUP_KEY = "asgi:group:table-1"
 
 
 @pytest.fixture
-def channel_layer_redis():
-    server = FakeServer()
-    with patch.object(
-        RetryingRedisChannelLayer,
-        "connection",
-        lambda self, index: FakeAsyncRedis(server=server),
-    ):
-        yield FakeRedis(server=server)
-
-
-@pytest.fixture
 def make_layer():
-    """Channel layers whose renewal stops with the test instead of its event loop."""
+    # Nothing else stops the renewal task before the event loop of the test closes.
 
     layers = []
 
@@ -115,8 +103,6 @@ def make_layer():
 
 @asynccontextmanager
 async def receiving(layer, channel):
-    """Waits on the channel like a consumer does, without needing a message."""
-
     async def wait_forever(self, channel):
         await asyncio.Event().wait()
 
@@ -241,3 +227,22 @@ async def test_groups_are_renewed_periodically(channel_layer_redis, make_layer):
         channel_layer_redis.delete(GROUP_KEY)
         await asyncio.sleep(0.5)
         assert channel_layer_redis.zcard(GROUP_KEY) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_group_discarded_during_a_renewal_is_not_added_again(
+    channel_layer_redis, make_layer
+):
+    layer = make_layer(group_expiry=900)
+    await layer.group_add("table-1", CHANNEL)
+    await layer.group_add("table-2", CHANNEL)
+    last_group = list(layer._group_memberships[CHANNEL])[-1]
+
+    async with receiving(layer, CHANNEL):
+        with patch("baserow.ws.channel_layer.GROUP_RENEWAL_BATCH_SIZE", 1):
+            renewal = asyncio.ensure_future(layer.renew_group_memberships())
+            await asyncio.sleep(0)
+            await layer.group_discard(last_group, CHANNEL)
+            await renewal
+
+    assert channel_layer_redis.zscore(f"asgi:group:{last_group}", CHANNEL) is None

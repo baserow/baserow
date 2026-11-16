@@ -273,10 +273,9 @@ CELERY_RESULT_EXPIRES = int(
 # channels-redis blocks for five seconds while waiting for messages. Leave headroom
 # above that wait so redis-py's socket deadline does not close idle WebSockets.
 CHANNELS_REDIS_SOCKET_TIMEOUT = 10
-# How long a connection stays in a channel group without renewing its membership.
-# The channel layer renews the memberships of live connections, so this is how long
-# the connections of a killed or restarted process keep receiving a copy of every
-# group message.
+# Short, because the connections of a killed or restarted process keep receiving a
+# copy of every group message until this passes. The channel layer renews the
+# memberships of live connections, so those are not affected.
 CHANNELS_REDIS_GROUP_EXPIRY = 15 * 60
 # Whether large realtime messages are compressed before they are written to Redis.
 # Only turn this on once every backend process runs a version that can read them.

@@ -7,9 +7,6 @@ from django.core.management.base import CommandError
 from django.test.utils import override_settings
 
 import pytest
-from fakeredis import FakeAsyncRedis, FakeRedis, FakeServer
-
-from baserow.ws.channel_layer import RetryingRedisChannelLayer
 
 REDIS_CHANNEL_LAYERS = {
     "default": {
@@ -21,18 +18,12 @@ COMMAND = "baserow.ws.management.commands.cleanup_dead_channel_subscriptions"
 
 
 @pytest.fixture
-def channel_layer_redis():
-    server = FakeServer()
+def channel_layer_redis(channel_layer_redis):
     with (
         override_settings(CHANNEL_LAYERS=REDIS_CHANNEL_LAYERS),
-        patch.object(
-            RetryingRedisChannelLayer,
-            "connection",
-            lambda self, index: FakeAsyncRedis(server=server),
-        ),
         patch(f"{COMMAND}.SECOND_LOOK_AFTER_SECONDS", 0),
     ):
-        yield FakeRedis(server=server)
+        yield channel_layer_redis
 
 
 def fill(client):
@@ -58,10 +49,8 @@ def fill(client):
             "sse_client_i": now - 3 * 86400,
         },
     )
-    # Dead: full, and nobody read it for a while.
     client.zadd("asgispecific.dead!", {f"m{i}": now - 15 for i in range(100)})
     client.zadd("asgispecific.dead!$inflight", {"m": now - 300})
-    # Alive, but with a short backlog.
     client.zadd("asgispecific.busy!", {f"m{i}": now - 3 for i in range(100)})
     client.zadd("asgispecific.alive!", {"m": now - 0.2})
 
@@ -134,6 +123,21 @@ def test_cleanup_removes_a_process_whose_messages_expired(channel_layer_redis):
     assert members(channel_layer_redis, "asgi:group:users") == []
 
 
+def test_cleanup_keeps_a_process_that_is_behind_without_a_full_mailbox(
+    channel_layer_redis,
+):
+    now = time.time()
+    channel_layer_redis.zadd("asgi:group:users", {"specific.slow!a": now})
+    channel_layer_redis.zadd(
+        "asgispecific.slow!", {f"m{i}": now - 15 for i in range(5)}
+    )
+
+    call_command("cleanup_dead_channel_subscriptions", stdout=StringIO())
+
+    assert members(channel_layer_redis, "asgi:group:users") == ["specific.slow!a"]
+    assert channel_layer_redis.exists("asgispecific.slow!")
+
+
 def test_cleanup_needs_the_redis_channel_layer():
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="Redis channel layer"):
         call_command("cleanup_dead_channel_subscriptions")
