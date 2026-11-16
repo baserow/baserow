@@ -2144,6 +2144,10 @@ BASEROW_AGENT_MAX_ACTIONS_PER_AGENT = (
     max(int(os.getenv("BASEROW_AGENT_MAX_ACTIONS_PER_AGENT") or 0), 0) or None
 )
 
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER = (
+    int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER") or 0) or None
+)
+
 # Deprecated provider connection/model environment variables. Manage providers and
 # models under AI providers instead. Keep these settings for compatibility and the
 # migrate_ai_provider_settings import command; runtime fallback remains supported.
