@@ -567,6 +567,31 @@ describe('Agent action editor', () => {
     expect(patches(testApp)).toEqual([])
   })
 
+  test('realtime changes replayed in one batch are all applied', async () => {
+    const events = {}
+    registerRealtimeEvents({
+      registerEvent: (name, handler) => {
+        events[name] = handler
+      },
+    })
+    const wrapper = await mountSection([emailAction()])
+
+    // A reconnect replays the events it missed without yielding in between.
+    events.agent_action_created(
+      { store: testApp.store },
+      { agent_id: 10, action: emailAction({ id: 2, name: 'send_summary' }) }
+    )
+    events.agent_action_deleted(
+      { store: testApp.store },
+      { agent_id: 10, action_id: 1 }
+    )
+    await flushPromises()
+
+    expect(
+      wrapper.findAll('.agent-action-card__title').map((node) => node.text())
+    ).toEqual(['send_summary'])
+  })
+
   test('read-only configuration has no editing or deleting actions', async () => {
     const wrapper = await mountSection([emailAction()], false)
     expect(wrapper.find('.agent-actions__header button').exists()).toBe(false)

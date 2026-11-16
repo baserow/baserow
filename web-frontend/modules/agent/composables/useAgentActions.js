@@ -286,7 +286,9 @@ export function useAgentActions(agent) {
           actions.value.push(event.action)
         }
       }
-    }
+    },
+    // A reconnect replays several events at once, and each one must be applied.
+    { flush: 'sync' }
   )
   // Editing a connection can repair an unconfigured action without changing it.
   watch(
