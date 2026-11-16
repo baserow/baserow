@@ -19,14 +19,23 @@ def _cache_key(user_id: int) -> str:
     return f"{_KEY_PREFIX}{user_id}"
 
 
-def _with_complete_profile(user: AbstractUser | None) -> AbstractUser | None:
-    # The previous release caches profiles without user_type; treat them as misses.
+def has_complete_profile(user: AbstractUser | None) -> bool:
+    """
+    Returns whether a cached user came with its whole profile. A profile cached by
+    the previous release lacks the columns this release added.
+
+    :param user: The user read from a cache.
+    :return: Whether the user can be used without reading its profile again.
+    """
+
     if user is None or not type(user).profile.is_cached(user):
-        return None
+        return False
     profile = getattr(user, "profile", None)
-    if profile is None or profile.get_deferred_fields():
-        return None
-    return user
+    return profile is not None and not profile.get_deferred_fields()
+
+
+def _with_complete_profile(user: AbstractUser | None) -> AbstractUser | None:
+    return user if has_complete_profile(user) else None
 
 
 def get_cached_user(user_id: int) -> AbstractUser | None:
