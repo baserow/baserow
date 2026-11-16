@@ -67,6 +67,16 @@ describe('FormTextarea.vue', () => {
     expect(wrapper.emitted('input')[0]).toEqual(['new value'])
   })
 
+  it('emits the value converted by toValue', async () => {
+    const wrapper = shallowMount(FormTextarea, {
+      propsData: { toValue: (value) => value.trim() },
+    })
+
+    await wrapper.find('textarea').setValue(' new value ')
+
+    expect(wrapper.emitted('input')[0]).toEqual(['new value'])
+  })
+
   it('sets textarea value when value prop changes', async () => {
     const wrapper = shallowMount(FormTextarea, {
       propsData: {
