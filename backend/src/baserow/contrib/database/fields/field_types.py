@@ -194,7 +194,7 @@ from baserow.core.storage import (
     get_default_storage,
 )
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user.identity import IDENTITY_EMAIL_DOMAIN, get_user_label
+from baserow.core.user.identity import get_user_label, has_internal_email
 from baserow.core.user_files.exceptions import (
     InvalidUserFileNameError,
     UserFileDoesNotExist,
@@ -8369,7 +8369,7 @@ class MultipleCollaboratorsFieldType(
         # An identity has no real email, so its export only says what it is.
         result = [
             f"{user.first_name} <identity>"
-            if user.email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
+            if has_internal_email(user)
             else f"{user.first_name} <{user.email}>"
             for user in value
         ]
