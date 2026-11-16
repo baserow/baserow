@@ -1,9 +1,12 @@
 import json
 import re
 from typing import Any
+from urllib.parse import parse_qsl, quote_plus, urlsplit, urlunsplit
 from uuid import uuid4
 
 from django.conf import settings
+
+from requests import exceptions as request_exceptions
 
 from baserow.contrib.agent.models import AgentAction
 from baserow.contrib.integrations.core.constants import BODY_TYPE, HTTP_METHOD
@@ -11,31 +14,42 @@ from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreSMTPEmailService,
 )
+from baserow.core.formula import resolve_formula
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
+from baserow.core.formula.validator import ensure_string
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
+    ResponseTooLargeDispatchException,
     RuntimeDispatchException,
 )
 from baserow.core.services.types import DispatchResult
-from baserow.core.tools.errors import ToolInputError
+from baserow.core.tools.errors import ToolFailedError, ToolInputError
 
+from .data_providers import AgentActionDispatchContext
 from .registries import AgentActionDefaults, AgentActionType
 
-HTTP_ACTION_MAX_BODY_BYTES = 64 * 1024
-"""The largest body a call may send, so a held call and its step stay readable."""
+HTTP_ACTION_MAX_REQUEST_BYTES = 64 * 1024
+"""The most a call may send: its URL, headers, query parameters and body."""
+
+HTTP_ACTION_MAX_URL_BYTES = 8 * 1024
+"""The longest URL a call may send, which servers commonly refuse past this."""
 
 HTTP_ACTION_MAX_RESULT_CHARACTERS = 20_000
 """The longest response body the model reads, as text, before it is cut."""
 
 HIDDEN_VALUE = "••••••••"
-"""Shown in place of a value the builder fixed, where credentials usually sit."""
+"""Shown in place of a value the approver doesn't read, where credentials sit."""
 
-_HTTP_ROW_ERROR_KEY = re.compile(r"^(header|param|form_data)_\d+$")
-_HTTP_ROW_FIELDS = {
-    "header": "headers",
-    "param": "query_params",
-    "form_data": "form_data",
-}
+_HTTP_ROWS = (
+    ("query_params", "param"),
+    ("headers", "header"),
+    ("form_data", "form_data"),
+)
+"""Each list of key and value rows, with the prefix of its resolved values."""
+
+_SINGLE_INPUT = re.compile(r"""^get\(\s*(['"])tool_input\.[^'"]+\1\s*\)$""")
+_LINE_BREAK = re.compile(r"[\r\n]")
 
 
 class SMTPEmailAgentActionType(AgentActionType):
@@ -103,6 +117,17 @@ class SMTPEmailAgentActionType(AgentActionType):
 
 
 class HTTPRequestAgentActionType(AgentActionType):
+    """
+    Sends a request to an API. The approver reads the values the model chose,
+    and the URL. A value the builder fixed, or that mixes fixed text with an
+    input, is where an API key usually sits: it isn't shown nor kept with a
+    held call, and is resolved again once the call is approved.
+
+    Resolved values are keyed by the position of each row, `headers.0` and so
+    on, rather than by the row's ID. Rows are recreated when they're saved, so
+    an edit undone while a call waits leaves the action unchanged with new IDs.
+    """
+
     type = "http_request"
 
     def get_defaults(self) -> AgentActionDefaults:
@@ -135,99 +160,241 @@ class HTTPRequestAgentActionType(AgentActionType):
         }
 
     def get_configuration_errors(self, action: AgentAction) -> dict[str, str]:
-        # A header, query parameter or form data row is reported by the list it
-        # sits in, which is what the action's form labels.
-        errors = {}
-        for key, error in super().get_configuration_errors(action).items():
-            match = _HTTP_ROW_ERROR_KEY.match(key)
-            errors[_HTTP_ROW_FIELDS[match.group(1)] if match else key] = error
-        return errors
+        # A row is reported by the list it sits in, which the form labels.
+        service = action.service.specific
+        lists = {
+            f"{prefix}_{row.id}": field
+            for field, prefix in _HTTP_ROWS
+            for row in getattr(service, field).all()
+        }
+        return {
+            lists.get(key, key): error
+            for key, error in super().get_configuration_errors(action).items()
+        }
 
     def prepare(self, action: AgentAction, arguments: dict[str, Any]) -> dict[str, Any]:
         """
-        Resolve a call, and refuse one whose body can't be sent as it is, so it
+        Resolve a call, and refuse one that can't be sent as it is, so it
         neither waits for approval nor goes out.
 
-        :raises ToolInputError: When a JSON body isn't valid JSON, or the body is
-            larger than ``HTTP_ACTION_MAX_BODY_BYTES``.
+        :raises ToolInputError: When the URL, a header or the body is malformed,
+            the request is too large, or a request carrying hidden values would
+            go to a host the agent chose.
         """
 
-        resolved_values = super().prepare(action, arguments)
         service = action.service.specific
-        if service.body_type == BODY_TYPE.FORM:
-            body = "".join(
-                resolved_values[f"form_data_{row.id}"]
-                for row in service.form_data.all()
-            )
-        elif service.body_type in (BODY_TYPE.JSON, BODY_TYPE.RAW):
-            body = resolved_values["body_content"]
-        else:
-            body = ""
-        if len(body.encode()) > HTTP_ACTION_MAX_BODY_BYTES:
+        resolved_values = super().prepare(action, arguments)
+        values = {
+            key: resolved_values[key]
+            for key in ("url", "body_content")
+            if key in resolved_values
+        }
+        for field, prefix in _HTTP_ROWS:
+            for position, row in enumerate(getattr(service, field).all()):
+                if f"{prefix}_{row.id}" in resolved_values:
+                    values[f"{field}.{position}"] = resolved_values[
+                        f"{prefix}_{row.id}"
+                    ]
+        self._check_request(action, service, values)
+        return values
+
+    def _check_request(
+        self,
+        action: AgentAction,
+        service: CoreHTTPRequestService,
+        values: dict[str, str],
+    ) -> None:
+        url = values["url"]
+        parts = urlsplit(url)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
             raise ToolInputError(
-                f"The request body is larger than {HTTP_ACTION_MAX_BODY_BYTES // 1024}"
+                "The address must be a full URL starting with http:// or https://."
+            )
+        if len(url.encode()) > HTTP_ACTION_MAX_URL_BYTES:
+            raise ToolInputError(
+                f"The address is longer than {HTTP_ACTION_MAX_URL_BYTES // 1024} KB."
+            )
+        if sum(len(value.encode()) for value in values.values()) > (
+            HTTP_ACTION_MAX_REQUEST_BYTES
+        ):
+            raise ToolInputError(
+                f"The request is larger than {HTTP_ACTION_MAX_REQUEST_BYTES // 1024}"
                 " KB."
             )
+        for position, row in enumerate(service.headers.all()):
+            if _LINE_BREAK.search(row.key + values[f"headers.{position}"]):
+                raise ToolInputError(f'The header "{row.key}" contains a line break.')
+        body = values.get("body_content")
         if service.body_type == BODY_TYPE.JSON and body:
             try:
-                json.loads(body, strict=False)
-            except json.JSONDecodeError as exc:
+                json.loads(body, strict=False, parse_constant=_refuse_constant)
+            except (json.JSONDecodeError, ValueError) as exc:
                 raise ToolInputError(
-                    f"The request body is not valid JSON: {exc.msg}.",
+                    f"The request body is not valid JSON: {exc}.",
                     hint="Send the body as one JSON value, with every string "
                     "quoted and escaped.",
                 ) from exc
-        return resolved_values
+        # A URL that mixes fixed text with an input may carry a key itself.
+        if not self._is_shown(service, "url") or any(
+            value and not self._is_shown(service, key)
+            for key, value in values.items()
+            if key != "url"
+        ):
+            self._check_fixed_host(action, service, parts)
+
+    def _check_fixed_host(self, action, service, parts) -> None:
+        """
+        A request carrying values the approver doesn't read must go where the
+        builder pointed it, or the model could send an API key elsewhere. Its
+        host is resolved with every input empty and must be the same.
+        """
+
+        if not _reads_tool_input(service.url):
+            return
+        try:
+            fixed = urlsplit(
+                ensure_string(
+                    resolve_formula(
+                        service.url,
+                        formula_runtime_function_registry,
+                        AgentActionDispatchContext(
+                            workspace=action.agent.workspace,
+                            tool_inputs={item["id"]: "" for item in action.inputs},
+                        ),
+                    )
+                )
+            )
+        except Exception:
+            fixed = None
+        if (
+            fixed is None
+            or not fixed.hostname
+            or (fixed.scheme, fixed.hostname, fixed.port)
+            != (parts.scheme, parts.hostname, parts.port)
+        ):
+            raise ToolInputError(
+                "This request sends fixed headers or values, so the agent can't "
+                "choose the server it goes to. Start the URL with a fixed address, "
+                "up to the host."
+            )
+
+    def get_held_values(
+        self, action: AgentAction, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        service = action.service.specific
+        return {
+            key: value
+            for key, value in resolved_values.items()
+            if self._is_shown(service, key)
+        }
+
+    def complete_held_values(
+        self,
+        action: AgentAction,
+        arguments: dict[str, Any],
+        held_values: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {**self.prepare(action, arguments), **held_values}
 
     def get_preview_values(
         self, service: CoreHTTPRequestService, resolved_values: dict[str, Any]
     ) -> dict[str, Any]:
-        def rows(items, prefix):
-            # What the model chose is shown. What the builder fixed is where an
-            # API key or a token sits, so it stays hidden.
-            return {
-                row.key: (
-                    resolved_values[f"{prefix}_{row.id}"]
-                    if _reads_tool_input(row.value)
-                    else HIDDEN_VALUE
-                )
-                for row in items
-            }
+        def shown(key):
+            return (
+                resolved_values[key] if self._is_shown(service, key) else HIDDEN_VALUE
+            )
 
+        url = resolved_values["url"]
         values = {
             "http_method": service.http_method,
-            "url": resolved_values["url"],
-            "query_params": rows(service.query_params.all(), "param"),
-            "headers": rows(service.headers.all(), "header"),
-            "body_type": service.body_type,
+            "url": url if self._is_shown(service, "url") else _hide_url_secrets(url),
         }
-        if service.body_type == BODY_TYPE.FORM:
-            values["form_data"] = rows(service.form_data.all(), "form_data")
-        elif service.body_type != BODY_TYPE.NONE:
-            values["body_content"] = resolved_values["body_content"]
+        for field, _ in _HTTP_ROWS:
+            rows = getattr(service, field).all()
+            values[field] = {
+                row.key: shown(f"{field}.{position}")
+                for position, row in enumerate(rows)
+                if f"{field}.{position}" in resolved_values
+            }
+        values["body_type"] = service.body_type
+        if "body_content" in resolved_values:
+            values["body_content"] = shown("body_content")
         # A request without any of a kind of row reads better without its name.
         return {key: value for key, value in values.items() if value != {}}
+
+    def _is_shown(self, service: CoreHTTPRequestService, key: str) -> bool:
+        """
+        :param key: A resolved value's key.
+        :return: Whether the approver reads the value: only when it is exactly
+            one input, as the model chose it.
+        """
+
+        if key in ("url", "body_content"):
+            formula = getattr(service, key)
+        else:
+            field, position = key.split(".")
+            formula = list(getattr(service, field).all())[int(position)].value
+        return formula.get("mode") != BASEROW_FORMULA_MODE_RAW and bool(
+            _SINGLE_INPUT.match((formula.get("formula") or "").strip())
+        )
 
     def dispatch(
         self, action: AgentAction, resolved_values: dict[str, Any]
     ) -> DispatchResult:
         """
-        Send the request. A refused or unreachable address is an error the
-        model can act on, rather than an unknown failure.
+        Send the request, with each row's value given to the row now at its
+        position. Failures are explained: whether the model can fix them, or
+        what happened to the request.
         """
 
+        service = action.service.specific
+        values = {
+            key: resolved_values[key]
+            for key in ("url", "body_content")
+            if key in resolved_values
+        }
+        for field, prefix in _HTTP_ROWS:
+            for position, row in enumerate(getattr(service, field).all()):
+                if f"{field}.{position}" in resolved_values:
+                    values[f"{prefix}_{row.id}"] = resolved_values[
+                        f"{field}.{position}"
+                    ]
         try:
-            return super().dispatch(action, resolved_values)
+            result = super().dispatch(action, values)
         except AddressNotAllowedDispatchException as exc:
             raise ToolInputError(
                 "This address can't be called from this Baserow instance."
             ) from exc
+        except ResponseTooLargeDispatchException as exc:
+            raise ToolFailedError(
+                "The API answered with more than this Baserow instance accepts."
+            ) from exc
         except RuntimeDispatchException as exc:
-            raise ToolInputError(
-                "The request didn't reach the server or got no complete answer.",
+            if isinstance(
+                exc.__cause__,
+                (
+                    request_exceptions.InvalidURL,
+                    request_exceptions.InvalidHeader,
+                    request_exceptions.InvalidJSONError,
+                    request_exceptions.MissingSchema,
+                ),
+            ):
+                raise ToolInputError(
+                    "The request can't be sent: its address, a header or its "
+                    "body is malformed."
+                ) from exc
+            raise ToolFailedError(
+                "The request didn't reach the API or got no complete answer.",
                 hint="Say that the API couldn't be reached. Try again only if "
                 "the user asks to.",
             ) from exc
+        if result.data.get("timed_out"):
+            raise ToolFailedError(
+                f"The API didn't answer within {service.timeout} seconds.",
+                hint="The API may still have done what was asked. Check before "
+                "calling it again.",
+            )
+        return result
 
     def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
         """
@@ -237,15 +404,16 @@ class HTTPRequestAgentActionType(AgentActionType):
         """
 
         data = result.data
-        body = data["body"]
-        text = body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)
         answer = {
             "status_code": data["status_code"],
             "content_type": data["headers"].get("content-type", ""),
-            "body": body,
+            "body": data["body"],
             "body_omitted": data["body_omitted"],
         }
-        if len(text) > HTTP_ACTION_MAX_RESULT_CHARACTERS:
+        # The raw body is the text of the body already, so it measures it.
+        if len(data["raw_body"]) > HTTP_ACTION_MAX_RESULT_CHARACTERS:
+            body = data["body"]
+            text = body if isinstance(body, str) else json.dumps(body)
             answer["body"] = text[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
             answer["body_truncated"] = True
         return answer
@@ -254,9 +422,31 @@ class HTTPRequestAgentActionType(AgentActionType):
 def _reads_tool_input(value: dict[str, Any]) -> bool:
     """
     :param value: A stored formula.
-    :return: Whether it is built from what the model provides.
+    :return: Whether it may read what the model provides.
     """
 
     return value.get("mode") != BASEROW_FORMULA_MODE_RAW and "tool_input." in (
         value.get("formula") or ""
     )
+
+
+def _refuse_constant(name: str) -> None:
+    raise ValueError(f"{name} is not allowed")
+
+
+def _hide_url_secrets(url: str) -> str:
+    """
+    :param url: A URL the builder fixed, at least in part.
+    :return: The URL with its password and query values hidden, which is where
+        a key sits in a URL. Where it goes stays readable.
+    """
+
+    parts = urlsplit(url)
+    netloc = parts.netloc
+    if parts.password is not None:
+        netloc = netloc.replace(f":{parts.password}@", f":{HIDDEN_VALUE}@", 1)
+    query = "&".join(
+        f"{quote_plus(key)}={HIDDEN_VALUE}"
+        for key, _ in parse_qsl(parts.query, keep_blank_values=True)
+    )
+    return urlunsplit(parts._replace(netloc=netloc, query=query))

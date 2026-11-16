@@ -199,7 +199,8 @@ class BoundActionTool:
     ) -> ToolReturn:
         """
         Hold a call for approval, keeping the resolved values its approver reads
-        in the paused run so that the approved call sends exactly those.
+        in the paused run so that the approved call sends exactly those. Values
+        the type hides from the approver aren't kept.
 
         :param ctx: Who the reply's other tools act for, unused by an action.
         :param arguments: The validated arguments.
@@ -212,9 +213,12 @@ class BoundActionTool:
         try:
             with local_cache.context():
                 resolved_values = self._prepare(arguments, show_input)
+                held_values = self.action_type.get_held_values(
+                    self.action, resolved_values
+                )
         except Exception as exc:
             return failed_call(self, exc)
-        raise ApprovalRequired(metadata={RESOLVED_VALUES_METADATA_KEY: resolved_values})
+        raise ApprovalRequired(metadata={RESOLVED_VALUES_METADATA_KEY: held_values})
 
     @with_usable_db_connection
     def _call(
@@ -229,8 +233,9 @@ class BoundActionTool:
 
         :param arguments: The validated arguments.
         :param show_input: Adds the readable request to the call's step.
-        :param approved_values: The values resolved when the call was held, for
-            an approved call. Any other call is resolved now.
+        :param approved_values: The values kept when the call was held, for an
+            approved call, which the action type completes. Any other call is
+            resolved now.
         :return: The service's result, or an ``error`` with its code as metadata.
         """
 
@@ -239,7 +244,9 @@ class BoundActionTool:
                 if approved_values is None:
                     resolved_values = self._prepare(arguments, show_input)
                 else:
-                    resolved_values = approved_values
+                    resolved_values = self.action_type.complete_held_values(
+                        self.action, arguments, approved_values
+                    )
                     show_input(
                         self.action_type.get_preview(self.action, resolved_values)
                     )

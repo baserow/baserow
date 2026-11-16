@@ -61,9 +61,11 @@ A broken action is left out; it never fails the reply.
    resolved values.
 3. The readable request, built from those values, is shown on the step. Each
    action type decides how to limit what a call may send and what its preview
-   shows. Send email limits neither yet; HTTP request limits the body (see below).
-4. With Ask first, the call is held. The resolved values are kept in the paused
-   run (`ApprovalRequired(metadata=...)`) with the action's approval key.
+   shows. Send email limits neither yet; HTTP request limits the request (below).
+4. With Ask first, the call is held. The resolved values the type keeps
+   (`get_held_values`, all of them by default) are kept in the paused run
+   (`ApprovalRequired(metadata=...)`) with the action's approval key. An approved
+   call rebuilds what it sends from them (`complete_held_values`).
 5. `dispatch` sends the resolved values through `ServiceHandler.dispatch_service`.
    The dispatch context carries them (`DispatchContext.resolved_values`), so the
    service doesn't resolve its formulas again: what people read is what is sent,
@@ -86,16 +88,28 @@ Not covered: the instance's own SMTP settings can change between hold and approv
 
 - A new action is a POST with a JSON body bound to one `body` input. Its URL is
   empty, which is a configuration error, so it isn't offered until it has one.
-- `prepare` refuses a JSON body that isn't valid JSON and any body over 64 KB, as
-  an input error the model can fix. Nothing waits for approval or goes out.
-- The preview shows the method, the URL, the body and every header, query
-  parameter and form data row by its key. A row's value is shown only when it
-  reads a tool input: the values the builder fixed are where API keys sit, so they
-  show as `••••••••`. The body is always shown, being what is approved.
+  Only what the body type sends is resolved and checked.
+- `prepare` refuses, as an input error the model can fix: a URL that isn't a full
+  `http(s)` address or is over 8 KB, a request over 64 KB in all, a header with a
+  line break, and a JSON body that isn't valid JSON (`NaN` included). Nothing
+  waits for approval or goes out.
+- The approver reads a value only when its formula is exactly one input, as the
+  model chose it. A value the builder fixed, or one that mixes fixed text with an
+  input, is where a key sits: it shows as `••••••••`. The URL always shows where
+  it goes, with its password and query values hidden unless the model chose the
+  whole URL.
+- Hidden values aren't kept with a held call (`get_held_values`). An approved
+  call resolves them again from its arguments and sends the shown values as kept
+  (`complete_held_values`). Values are keyed by row position, as saving rows
+  recreates them with new IDs.
+- A request carrying a hidden value only goes to the host the builder set: the
+  URL is resolved with every input empty and must have the same scheme, host and
+  port. Otherwise the model could send a key elsewhere.
 - The model reads the status, the content type and the body back. A body longer
   than 20,000 characters comes back as the start of its text with
-  `body_truncated`, as it stays in every later turn. A refused or unreachable
-  address is an input error with its own message.
+  `body_truncated`. A refused address or a malformed request is an input error;
+  an unreachable API, a timeout and a too large answer are failures
+  (`ToolFailedError`) that say what happened.
 - Headers, query parameters and form data rows are ordered by ID, so the
   exported service, and the approval key, read the same each time.
 

@@ -115,6 +115,37 @@ class AgentActionType(Instance, ABC):
             )
         )
 
+    def get_held_values(
+        self, action: AgentAction, resolved_values: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Select what a call waiting for approval keeps in the paused run.
+
+        :param action: The action called.
+        :param resolved_values: What ``prepare`` returned for the call.
+        :return: The values kept, all of them unless the type hides some from
+            the approver: those shouldn't be stored where the approval waits.
+        """
+
+        return resolved_values
+
+    def complete_held_values(
+        self,
+        action: AgentAction,
+        arguments: dict[str, Any],
+        held_values: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Rebuild the values an approved call sends from what was kept.
+
+        :param action: The action called, unchanged since the call was held.
+        :param arguments: The call's arguments.
+        :param held_values: What ``get_held_values`` kept.
+        :return: The values to send.
+        """
+
+        return held_values
+
     def get_preview(
         self, action: AgentAction, resolved_values: dict[str, Any]
     ) -> dict[str, Any]:

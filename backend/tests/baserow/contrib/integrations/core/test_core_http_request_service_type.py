@@ -239,6 +239,7 @@ def test_core_http_request_timeout_returns_504(data_fixture, timeout_exception):
         "body_omitted": False,
         "headers": {},
         "status_code": 504,
+        "timed_out": True,
     }
 
 
