@@ -8,8 +8,10 @@
 }
 
 @mixin thin-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: $palette-neutral-500 transparent;
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-width: thin;
+    scrollbar-color: $palette-neutral-500 transparent;
+  }
 
   &::-webkit-scrollbar {
     width: 10px;
