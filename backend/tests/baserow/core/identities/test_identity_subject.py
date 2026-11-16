@@ -49,6 +49,8 @@ def test_registry_gives_each_user_type_its_own_subject_type(data_fixture):
     assert human_type.type == identity_type.type == UserSubjectType.type
     assert human_type.is_interactive_user
     assert not identity_type.is_interactive_user
+    with pytest.raises(NotImplementedError):
+        _ = subject_type_registry.get_by_model(human).is_interactive_user
 
 
 @pytest.mark.django_db

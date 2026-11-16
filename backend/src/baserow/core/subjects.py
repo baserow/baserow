@@ -81,6 +81,13 @@ class UserSubjectType(SubjectType):
 
     has_direct_workspace_roles = True
 
+    @property
+    def is_interactive_user(self) -> bool:
+        # It differs per subject, so an answer here would be wrong for one of them.
+        raise NotImplementedError(
+            "Read it from subject_type_registry.get_specific_type(subject)."
+        )
+
     def get_specific_type(self, subject: AbstractUser) -> "UserSubjectType":
         return identity_subject_type if is_identity(subject) else human_subject_type
 
@@ -374,6 +381,7 @@ class HumanSubjectType(UserSubjectType):
 class IdentitySubjectType(UserSubjectType):
     """Holds what is specific to an identity."""
 
+    is_interactive_user = False
     # The email of an identity is an internal key, so nobody selects it by email.
     lookup_fields = SubjectType.lookup_fields
 
