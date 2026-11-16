@@ -264,19 +264,20 @@ class AgentTriggerDispatcher:
         Apply the rules of a trigger to each firing of one event, in order, if the
         trigger still has the service that fired and still can run: start or
         queue each conversation and tell the readers, or record why a firing was
-        skipped. An event its agent's run identity couldn't read is recorded as
-        skipped. Each firing
-        applies in its own savepoint, so a failing one is logged and reported and
-        the next one still applies. The
-        batches the event had no room for are recorded as a skip after the
-        others. A failure is logged and reported, never raised.
+        skipped. An event the agent's run identity couldn't read when it
+        happened, or can't read now, is recorded as skipped: the identity may
+        have changed or lost its access since. Each firing applies in its own
+        savepoint, so a failing one is logged and reported and the next one still
+        applies. The batches the event had no room for are recorded as a skip
+        after the others. A failure is logged and reported, never raised.
 
         :param trigger_id: The id of the trigger that fired.
         :param service_id: The id of the service the firings were resolved from.
         :param firings: Each firing's resolved message and the error code failing
             its reply, or None, in the event's order.
         :param dropped_batches: How many batches of the event were left out.
-        :param can_read: Whether the run identity could read the event's data.
+        :param can_read: Whether the run identity could read the event's data
+            when the event happened.
         """
 
         try:
@@ -288,7 +289,7 @@ class AgentTriggerDispatcher:
                     or not self._is_runnable(trigger)
                 ):
                     return
-                if not can_read:
+                if not can_read or not self._can_read(trigger):
                     self._record_skip(trigger, AgentTrigger.SkipReason.NO_ACCESS)
                     return
                 for content, failure in firings:
@@ -321,9 +322,8 @@ class AgentTriggerDispatcher:
 
     def _can_read(self, trigger: AgentTrigger) -> bool:
         """
-        :param trigger: The trigger, with its agent, workspace and the service
-            the event matched.
-        :return: Whether the agent's run identity may read what the trigger
+        :param trigger: The trigger, with its agent, workspace and service.
+        :return: Whether the agent's run identity may now read what that service
             watches; a type whose events carry no workspace data needs none.
         """
 

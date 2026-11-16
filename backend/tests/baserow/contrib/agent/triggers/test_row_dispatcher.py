@@ -196,24 +196,35 @@ def test_a_failing_batch_is_rolled_back_and_logged_while_the_next_ones_apply(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("lost", ["removed", "trashed", "revoked"])
+@pytest.mark.parametrize("when", ["before the event", "before its task runs"])
 def test_a_trigger_whose_run_identity_cannot_read_the_table_starts_nothing(
-    data_fixture, orders, mocker, lost
+    data_fixture, orders, mocker, lost, when
 ):
     trigger = row_trigger(data_fixture, orders)
-    if lost == "removed":
-        AgentApplication.objects.filter(id=orders.agent.id).update(
-            run_as_subject_type=None, run_as_subject_id=None
-        )
-    elif lost == "trashed":
-        Identity.objects.filter(id=orders.identity.id).update(trashed=True)
-    else:
-        mocker.patch.object(
-            LocalBaserowRowsCreatedTriggerServiceType,
-            "can_subject_read",
-            return_value=False,
-        )
+    queued = mocker.patch(
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
+    )
 
+    def lose_access() -> None:
+        if lost == "removed":
+            AgentApplication.objects.filter(id=orders.agent.id).update(
+                run_as_subject_type=None, run_as_subject_id=None
+            )
+        elif lost == "trashed":
+            Identity.objects.filter(id=orders.identity.id).update(trashed=True)
+        else:
+            mocker.patch.object(
+                LocalBaserowRowsCreatedTriggerServiceType,
+                "can_subject_read",
+                return_value=False,
+            )
+
+    if when == "before the event":
+        lose_access()
     create_orders(orders, 3)
+    if when == "before its task runs":
+        lose_access()
+    start_trigger_conversations(*queued.call_args.args)
 
     trigger.refresh_from_db()
     assert not AgentConversation.objects.exists()
