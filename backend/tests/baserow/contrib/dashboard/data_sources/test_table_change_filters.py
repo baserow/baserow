@@ -17,6 +17,7 @@ from baserow.contrib.dashboard.widgets.models import TextFilterWidget
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.scopes import ApplicationActionScopeType
+from baserow.core.cache import local_cache
 from baserow.core.formula import BaserowFormulaObject
 
 
@@ -99,12 +100,13 @@ def test_table_change_resets_and_restores_all_conditions(table_change):
     assert owner.default_value == "France"
     source.refresh_from_db()
     assert not source.service.specific.service_filters.exists()
-    assert (
-        DashboardDataSourceHandler().dispatch_data_source(
-            source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-        )["result"]
-        == "40"
-    )
+    with local_cache.context():
+        assert (
+            DashboardDataSourceHandler().dispatch_data_source(
+                source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+            )["result"]
+            == "40"
+        )
     scopes = [ApplicationActionScopeType.value(dashboard.id)]
     for operation, links, expected in [
         (ActionHandler.undo, before, "10"),
@@ -115,12 +117,13 @@ def test_table_change_resets_and_restores_all_conditions(table_change):
         owner.refresh_from_db()
         source.refresh_from_db()
         assert owner.target_filters == links
-        assert (
-            DashboardDataSourceHandler().dispatch_data_source(
-                source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-            )["result"]
-            == expected
-        )
+        with local_cache.context():
+            assert (
+                DashboardDataSourceHandler().dispatch_data_source(
+                    source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+                )["result"]
+                == expected
+            )
 
 
 @pytest.mark.django_db
@@ -211,3 +214,44 @@ def test_shared_source_resets_and_restores_each_display(table_change, data_fixtu
     assert actions and not actions[0].error
     owner.refresh_from_db()
     assert owner.target_filters == before
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_source_restore_hook_runs_for_every_widget_type(table_change, monkeypatch):
+    """The restoration event reaches all types after source configuration is restored."""
+    from baserow.contrib.dashboard.widgets.models import Widget
+    from baserow.contrib.dashboard.widgets.registries import WidgetType
+
+    user, _, dashboard, source, owner, table, field = table_change
+    original_table_id = source.service.specific.table_id
+    original_links = deepcopy(owner.target_filters)
+    observed = {}
+
+    def after_data_source_restore(self, widget, updated_source, restoration_data):
+        assert updated_source.data_source.service.specific.table_id == original_table_id
+        observed[widget.id] = restoration_data
+        return False
+
+    monkeypatch.setattr(
+        WidgetType, "after_data_source_restore", after_data_source_restore
+    )
+    UpdateDashboardDataSourceActionType.do(
+        user,
+        source.id,
+        source.service.get_type(),
+        {"table_id": table.id, "field_id": field.id},
+    )
+    actions = ActionHandler.undo(
+        user, [ApplicationActionScopeType.value(dashboard.id)], "table-change"
+    )
+    assert actions and not actions[0].error
+    assert set(observed) == set(
+        Widget.objects.filter(dashboard=dashboard).values_list("id", flat=True)
+    )
+    assert observed[owner.id] == {"target_filters": [original_links[0]]}
+    assert all(
+        not data for widget_id, data in observed.items() if widget_id != owner.id
+    )
+    owner.refresh_from_db()
+    assert owner.target_filters == original_links

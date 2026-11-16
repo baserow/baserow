@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING, Optional
-from uuid import uuid4
 
 from django.http import HttpRequest
 
@@ -46,14 +45,13 @@ class DashboardDispatchContext(DispatchContext):
         self.data_provider_registry = dashboard_data_provider_type_registry
         self.request = request
         self.widget = widget
-        self._runtime_filter_cache_id = uuid4().hex
 
         super().__init__(workspace)
 
     def get_runtime_filter(self, service):
         """Return the complete configured filter for this display widget."""
         return local_cache.get(
-            f"dashboard_runtime_filter_{self._runtime_filter_cache_id}_{service.id}",
+            f"dashboard_runtime_filter_{service.id}",
             lambda: self._get_runtime_filter(service),
         )
 

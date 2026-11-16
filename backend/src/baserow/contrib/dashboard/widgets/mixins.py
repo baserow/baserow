@@ -254,10 +254,19 @@ class FilterWidgetTypeMixin:
             )
         return super().prepare_value_for_db(values, instance)
 
-    def restore_data_source_filter_links(self, instance, original_links):
-        """Restore affected target links while preserving other current conditions."""
-        super().restore_data_source_filter_links(instance, original_links)
-        replacements = {link["target_widget_id"]: link for link in original_links}
+    def after_data_source_restore(
+        self, instance, updated_data_source, restoration_data
+    ):
+        """Restore saved target links while preserving other current conditions."""
+        changed = super().after_data_source_restore(
+            instance, updated_data_source, restoration_data
+        )
+        if "target_filters" not in restoration_data:
+            return changed
+        replacements = {
+            link["target_widget_id"]: link
+            for link in restoration_data["target_filters"]
+        }
         self.set_target_filters(
             instance,
             [
@@ -265,6 +274,8 @@ class FilterWidgetTypeMixin:
                 for link in self.get_target_filters(instance)
             ],
         )
+
+        return True
 
     def formula_generator(self, instance):
         """Include both branches of each target's contributed condition formulas."""

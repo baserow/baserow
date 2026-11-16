@@ -100,9 +100,11 @@ class WidgetType(
 
         return updated_widget
 
-    def restore_data_source_filter_links(self, instance, original_links):
-        """Restore widget-specific links saved before a data source update."""
-        pass
+    def after_data_source_restore(
+        self, instance, updated_data_source, restoration_data
+    ):
+        """Restore related widget state after a source update; return whether it changed."""
+        return False
 
     def get_dispatch_data(self, instance: Widget, values):
         """Resolve supplied runtime input, with no default unless the type defines one."""

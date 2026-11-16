@@ -13,6 +13,7 @@ from baserow.contrib.dashboard.data_sources.dispatch_context import (
 from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, TextFilterWidget
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.exceptions import InvalidFormulaContext
@@ -717,14 +718,15 @@ def test_whitespace_activates_constant_only_group(filter_dashboard):
     condition["value"] = BaserowFormulaObject.create("Beta", mode="raw")
     widget.save()
     for value, expected in [("", "70"), (" ", "20")]:
-        assert DashboardDataSourceHandler().dispatch_data_source(
-            source,
-            DashboardDispatchContext(
-                HttpRequest(),
-                dashboard=dashboard,
-                data={"widget_data": {str(widget.id): value}},
-            ),
-        ) == {"result": expected, **({"_is_filtered": True} if value != "" else {})}
+        with local_cache.context():
+            assert DashboardDataSourceHandler().dispatch_data_source(
+                source,
+                DashboardDispatchContext(
+                    HttpRequest(),
+                    dashboard=dashboard,
+                    data={"widget_data": {str(widget.id): value}},
+                ),
+            ) == {"result": expected, **({"_is_filtered": True} if value != "" else {})}
 
 
 @pytest.mark.django_db
@@ -773,14 +775,15 @@ def test_import_remaps_contributed_fields_and_results(data_fixture, filter_dashb
     for key in ("group", "alternative_group"):
         assert copied_widget.target_filters[0][key]["filters"][0]["field"] == name.id
     for value, expected in [("Alpha", "100"), ("", "200")]:
-        assert DashboardDataSourceHandler().dispatch_data_source(
-            target.data_source,
-            DashboardDispatchContext(
-                HttpRequest(),
-                dashboard=copied,
-                data={"widget_data": {str(copied_widget.id): value}},
-            ),
-        ) == {"result": expected, "_is_filtered": True}
+        with local_cache.context():
+            assert DashboardDataSourceHandler().dispatch_data_source(
+                target.data_source,
+                DashboardDispatchContext(
+                    HttpRequest(),
+                    dashboard=copied,
+                    data={"widget_data": {str(copied_widget.id): value}},
+                ),
+            ) == {"result": expected, "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -810,12 +813,13 @@ def test_contribution_update_undo_redo(filter_dashboard, disable):
         if operation:
             actions = operation(user, scopes, "contribution-update")
             assert actions and not actions[0].error
-        assert DashboardDataSourceHandler().dispatch_data_source(
-            source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-        ) == {
-            "result": expected,
-            **({"_is_filtered": True} if expected != "70" else {}),
-        }
+        with local_cache.context():
+            assert DashboardDataSourceHandler().dispatch_data_source(
+                source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+            ) == {
+                "result": expected,
+                **({"_is_filtered": True} if expected != "70" else {}),
+            }
 
 
 @pytest.mark.django_db
@@ -865,10 +869,11 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
     TextFilterWidget.objects.filter(id=widget.id).update(target_filters=[])
 
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
-        "result": "20",
-        "_is_filtered": True,
-    }
+    with local_cache.context():
+        assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
+            "result": "20",
+            "_is_filtered": True,
+        }
     serializer = DashboardDispatchSerializer(
         data={"widget_data": {str(widget.id): "Alpha"}},
         context={"dashboard": dashboard},
@@ -876,9 +881,10 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
     assert serializer.is_valid(), serializer.errors
 
     monkeypatch.setattr(future_type, "is_filter_widget", False)
-    assert DashboardDataSourceHandler().dispatch_data_source(
-        source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    ) == {"result": "70"}
+    with local_cache.context():
+        assert DashboardDataSourceHandler().dispatch_data_source(
+            source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+        ) == {"result": "70"}
     serializer = DashboardDispatchSerializer(
         data={"widget_data": {str(widget.id): "Alpha"}},
         context={"dashboard": dashboard},
@@ -888,9 +894,10 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
     monkeypatch.setattr(future_type, "is_filter_widget", True)
     display_type = original_lookup(SummaryWidget)
     monkeypatch.setattr(display_type, "is_display_widget", False)
-    assert DashboardDataSourceHandler().dispatch_data_source(
-        source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    ) == {"result": "70"}
+    with local_cache.context():
+        assert DashboardDataSourceHandler().dispatch_data_source(
+            source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+        ) == {"result": "70"}
 
 
 @pytest.mark.django_db
@@ -986,14 +993,18 @@ def test_source_operator_combines_multiple_inputs(filter_dashboard, operator, bo
         ("", "Beta", "20"),
         ("", "", "70"),
     ]:
-        assert DashboardDataSourceHandler().dispatch_data_source(
-            source,
-            DashboardDispatchContext(
-                HttpRequest(),
-                dashboard=dashboard,
-                data={"widget_data": {str(first.id): a, str(second.id): b}},
-            ),
-        ) == {"result": expected, **({"_is_filtered": True} if bool(a or b) else {})}
+        with local_cache.context():
+            assert DashboardDataSourceHandler().dispatch_data_source(
+                source,
+                DashboardDispatchContext(
+                    HttpRequest(),
+                    dashboard=dashboard,
+                    data={"widget_data": {str(first.id): a, str(second.id): b}},
+                ),
+            ) == {
+                "result": expected,
+                **({"_is_filtered": True} if bool(a or b) else {}),
+            }
 
 
 @pytest.mark.django_db
@@ -1182,7 +1193,8 @@ def test_filter_status_tracks_source_conditions_and_empty_groups(
     widget.save()
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     handler = DashboardDataSourceHandler()
-    assert handler.dispatch_data_source(source, context) == {"result": "70"}
+    with local_cache.context():
+        assert handler.dispatch_data_source(source, context) == {"result": "70"}
     stored_filter = data_fixture.create_local_baserow_table_service_filter(
         service=source.service.specific,
         field_id=condition["field"],
@@ -1190,13 +1202,15 @@ def test_filter_status_tracks_source_conditions_and_empty_groups(
         value=BaserowFormulaObject.create("Beta", mode="raw"),
     )
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    assert handler.dispatch_data_source(source, context) == {
-        "result": "20",
-        "_is_filtered": True,
-    }
+    with local_cache.context():
+        assert handler.dispatch_data_source(source, context) == {
+            "result": "20",
+            "_is_filtered": True,
+        }
     stored_filter.delete()
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    assert handler.dispatch_data_source(source, context) == {"result": "70"}
+    with local_cache.context():
+        assert handler.dispatch_data_source(source, context) == {"result": "70"}
 
 
 @pytest.mark.django_db

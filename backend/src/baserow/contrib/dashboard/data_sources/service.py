@@ -246,13 +246,17 @@ class DashboardDataSourceService:
         filter_links = filter_links or {}
         for widget in WidgetHandler().get_widgets_for_update(
             updated.data_source.dashboard,
-            base_queryset=Widget.objects_and_trash.filter(id__in=filter_links),
+            base_queryset=Widget.objects_and_trash.all(),
         ):
             widget = widget.specific
-            widget.get_type().restore_data_source_filter_links(
-                widget, filter_links[str(widget.id)]
+            original_links = filter_links.get(str(widget.id))
+            restoration_data = (
+                {"target_filters": original_links} if original_links is not None else {}
             )
-            if not widget.trashed:
+            changed = widget.get_type().after_data_source_restore(
+                widget, updated, restoration_data
+            )
+            if changed and not widget.trashed:
                 widget_updated.send(self, user=user, widget=widget)
         return updated
 
