@@ -20,6 +20,7 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaO
 from baserow.core.formula.validator import ensure_string
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
+    RedirectNotAllowedDispatchException,
     ResponseTooLargeDispatchException,
     RuntimeDispatchException,
 )
@@ -205,8 +206,14 @@ class HTTPRequestAgentActionType(AgentActionType):
         values: dict[str, str],
     ) -> None:
         url = values["url"]
-        parts = urlsplit(url)
-        if parts.scheme not in ("http", "https") or not parts.hostname:
+        try:
+            parts = urlsplit(url)
+            # Reading the port checks it, which parsing doesn't.
+            valid = parts.scheme in ("http", "https") and parts.hostname
+            valid = valid and (parts.port is None or parts.port > 0)
+        except ValueError:
+            valid = False
+        if not valid:
             raise ToolInputError(
                 "The address must be a full URL starting with http:// or https://."
             )
@@ -214,7 +221,15 @@ class HTTPRequestAgentActionType(AgentActionType):
             raise ToolInputError(
                 f"The address is longer than {HTTP_ACTION_MAX_URL_BYTES // 1024} KB."
             )
-        if sum(len(value.encode()) for value in values.values()) > (
+        # The keys of the rows that are sent count too, as the builder may add
+        # as many as they like.
+        keys = [
+            row.key
+            for field, prefix in _HTTP_ROWS
+            for position, row in enumerate(getattr(service, field).all())
+            if f"{field}.{position}" in values
+        ]
+        if sum(len(text.encode()) for text in [*values.values(), *keys]) > (
             HTTP_ACTION_MAX_REQUEST_BYTES
         ):
             raise ToolInputError(
@@ -264,14 +279,15 @@ class HTTPRequestAgentActionType(AgentActionType):
                     )
                 )
             )
+            same = bool(fixed.hostname) and (
+                fixed.scheme,
+                fixed.hostname,
+                fixed.port,
+            ) == (parts.scheme, parts.hostname, parts.port)
+        # The empty-input URL may not resolve, or not parse.
         except Exception:
-            fixed = None
-        if (
-            fixed is None
-            or not fixed.hostname
-            or (fixed.scheme, fixed.hostname, fixed.port)
-            != (parts.scheme, parts.hostname, parts.port)
-        ):
+            same = False
+        if not same:
             raise ToolInputError(
                 "This request sends fixed headers or values, so the agent can't "
                 "choose the server it goes to. Start the URL with a fixed address, "
@@ -365,6 +381,13 @@ class HTTPRequestAgentActionType(AgentActionType):
             raise ToolInputError(
                 "This address can't be called from this Baserow instance."
             ) from exc
+        except RedirectNotAllowedDispatchException as exc:
+            raise ToolFailedError(
+                "The API redirected the request to another server, so it wasn't "
+                "followed.",
+                hint="Say where the API redirects only if the answer shows it. Use "
+                "the address the user or the action gives.",
+            ) from exc
         except ResponseTooLargeDispatchException as exc:
             raise ToolFailedError(
                 "The API answered with more than this Baserow instance accepts."
@@ -410,10 +433,11 @@ class HTTPRequestAgentActionType(AgentActionType):
             "body": data["body"],
             "body_omitted": data["body_omitted"],
         }
-        # The raw body is the text of the body already, so it measures it.
-        if len(data["raw_body"]) > HTTP_ACTION_MAX_RESULT_CHARACTERS:
-            body = data["body"]
-            text = body if isinstance(body, str) else json.dumps(body)
+        # Measured as the model reads it: the raw body leaves the empty
+        # items of a list out.
+        body = data["body"]
+        text = body if isinstance(body, str) else json.dumps(body)
+        if len(text) > HTTP_ACTION_MAX_RESULT_CHARACTERS:
             answer["body"] = text[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
             answer["body_truncated"] = True
         return answer
@@ -437,14 +461,14 @@ def _refuse_constant(name: str) -> None:
 def _hide_url_secrets(url: str) -> str:
     """
     :param url: A URL the builder fixed, at least in part.
-    :return: The URL with its password and query values hidden, which is where
-        a key sits in a URL. Where it goes stays readable.
+    :return: The URL with its user, password and query values hidden, which is
+        where a key sits in a URL. Where it goes stays readable.
     """
 
     parts = urlsplit(url)
     netloc = parts.netloc
-    if parts.password is not None:
-        netloc = netloc.replace(f":{parts.password}@", f":{HIDDEN_VALUE}@", 1)
+    if "@" in netloc:
+        netloc = f"{HIDDEN_VALUE}@{netloc.rsplit('@', 1)[1]}"
     query = "&".join(
         f"{quote_plus(key)}={HIDDEN_VALUE}"
         for key, _ in parse_qsl(parts.query, keep_blank_values=True)

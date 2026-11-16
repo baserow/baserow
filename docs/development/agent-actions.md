@@ -90,14 +90,14 @@ Not covered: the instance's own SMTP settings can change between hold and approv
   empty, which is a configuration error, so it isn't offered until it has one.
   Only what the body type sends is resolved and checked.
 - `prepare` refuses, as an input error the model can fix: a URL that isn't a full
-  `http(s)` address or is over 8 KB, a request over 64 KB in all, a header with a
+  `http(s)` address or is over 8 KB, a request over 64 KB in all, keys included, a header with a
   line break, and a JSON body that isn't valid JSON (`NaN` included). Nothing
   waits for approval or goes out.
 - The approver reads a value only when its formula is exactly one input, as the
   model chose it. A value the builder fixed, or one that mixes fixed text with an
   input, is where a key sits: it shows as `••••••••`. The URL always shows where
-  it goes, with its password and query values hidden unless the model chose the
-  whole URL.
+  it goes, with its user, password and query values hidden unless the model chose
+  the whole URL.
 - Hidden values aren't kept with a held call (`get_held_values`). An approved
   call resolves them again from its arguments and sends the shown values as kept
   (`complete_held_values`). Values are keyed by row position, as saving rows
@@ -105,6 +105,10 @@ Not covered: the instance's own SMTP settings can change between hold and approv
 - A request carrying a hidden value only goes to the host the builder set: the
   URL is resolved with every input empty and must have the same scheme, host and
   port. Otherwise the model could send a key elsewhere.
+- A call only follows a redirect on the same host, and never from https to
+  http. Its headers and body would otherwise go where the approver never saw.
+  Builder and automation requests follow every redirect, as before
+  (`DispatchContext.redirects_stay_on_host`).
 - The model reads the status, the content type and the body back. A body longer
   than 20,000 characters comes back as the start of its text with
   `body_truncated`. A refused address or a malformed request is an input error;

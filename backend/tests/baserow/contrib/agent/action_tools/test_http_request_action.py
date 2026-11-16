@@ -18,7 +18,10 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.integrations.core.constants import BODY_TYPE
 from baserow.contrib.integrations.core.models import HTTPHeader
 from baserow.core.formula.types import BaserowFormulaObject
-from baserow.core.services.exceptions import ResponseTooLargeDispatchException
+from baserow.core.services.exceptions import (
+    RedirectNotAllowedDispatchException,
+    ResponseTooLargeDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.tools.errors import ToolErrorCode, classify_tool_error
 
@@ -149,7 +152,9 @@ def test_the_approver_reads_only_what_the_model_chose_and_where_it_goes(
 ):
     action = update(
         http_action,
-        url=raw("https://user:URL_PASSWORD@api.example.com/orders?api_key=URLSECRET"),
+        url=raw(
+            "https://API_USER:URL_PASSWORD@api.example.com/orders?api_key=URLSECRET"
+        ),
     )
     action_type = HTTPRequestAgentActionType()
 
@@ -158,8 +163,7 @@ def test_the_approver_reads_only_what_the_model_chose_and_where_it_goes(
 
     assert values == {
         "http_method": "POST",
-        "url": f"https://user:{HIDDEN_VALUE}@api.example.com/orders"
-        f"?api_key={HIDDEN_VALUE}",
+        "url": f"https://{HIDDEN_VALUE}@api.example.com/orders?api_key={HIDDEN_VALUE}",
         "headers": {
             "Authorization": HIDDEN_VALUE,
             "X-Trace": "t-1",
@@ -221,6 +225,8 @@ def test_a_request_that_cannot_be_sent_is_refused_when_prepared(
     "url,message",
     [
         ("api.example.com/orders", "full URL"),
+        ("http://[", "full URL"),
+        ("https://api.example.com:99999/orders", "full URL"),
         ("https://api.example.com/" + "a" * 9000, "longer than 8 KB"),
     ],
 )
@@ -382,6 +388,12 @@ def test_the_model_reads_a_short_answer_whole_and_the_start_of_a_long_one(
     assert result["body"] == json.dumps(long_json)[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
     assert result["body_truncated"] is True
 
+    # The raw body of a list leaves its empty items out, so it can't measure it.
+    empty_items = [None] * HTTP_ACTION_MAX_RESULT_CHARACTERS
+    result = result_of(answer(empty_items))
+    assert result["body"] == json.dumps(empty_items)[:HTTP_ACTION_MAX_RESULT_CHARACTERS]
+    assert result["body_truncated"] is True
+
     result = result_of(answer("%PDF", content_type="application/pdf"))
     assert (result["body"], result["body_omitted"]) == ("", True)
 
@@ -410,6 +422,11 @@ def test_the_model_reads_a_short_answer_whole_and_the_start_of_a_long_one(
             request_exceptions.InvalidHeader(),
             "malformed",
             ToolErrorCode.INVALID_INPUT,
+        ),
+        (
+            RedirectNotAllowedDispatchException("elsewhere"),
+            "redirected the request to another server",
+            ToolErrorCode.FAILED,
         ),
     ],
 )
@@ -471,3 +488,30 @@ def test_rows_read_by_id_whatever_order_the_table_holds_them_in(http_action):
     action.service = action.service.specific
     exported = ServiceHandler().export_service(action.service)["headers"]
     assert [header["key"] for header in exported] == [f"X-{n}" for n in range(4)]
+
+
+@pytest.mark.django_db
+def test_the_keys_of_the_rows_count_towards_the_size_limit(http_action):
+    action = update(
+        http_action,
+        headers=[
+            {"key": f"X-{number}-" + "k" * 240, "value": raw("")}
+            for number in range(300)
+        ],
+    )
+
+    with pytest.raises(Exception, match="larger than 64 KB") as error:
+        HTTPRequestAgentActionType().prepare(action, {"body": "{}"})
+    assert code_of(error.value) == ToolErrorCode.INVALID_INPUT
+
+
+@pytest.mark.django_db
+def test_a_call_only_follows_redirects_that_stay_on_its_host(http_action):
+    _, _, action = http_action
+    action_type = HTTPRequestAgentActionType()
+    resolved = action_type.prepare(action, {"body": "{}"})
+
+    with patch(SEND, return_value=answer({"id": 7})) as send:
+        action_type.dispatch(action, resolved)
+
+    assert send.call_args.kwargs["redirects_stay_on_host"] is True

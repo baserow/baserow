@@ -121,6 +121,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
+    RedirectNotAllowedDispatchException,
     RemoteBusyDispatchException,
     RemoteRefusedDispatchException,
     RuntimeDispatchException,
@@ -784,11 +785,16 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 params=query_params,
                 deadline=deadline,
                 operation_timeout=service.timeout,
+                redirects_stay_on_host=dispatch_context.redirects_stay_on_host,
                 **body_kwargs,
             )
-        except ServiceImproperlyConfiguredDispatchException:
-            # Too big. The message names no address, so it travels as it is
-            # rather than as an unknown error.
+        except (
+            ServiceImproperlyConfiguredDispatchException,
+            RedirectNotAllowedDispatchException,
+        ):
+            # Too big, or redirected where the caller doesn't follow. The
+            # message names no address, so it travels as it is rather than as
+            # an unknown error.
             raise
         except UnacceptableAddressException as e:
             # Refused before anything was sent, so a caller counting outbound
