@@ -52,10 +52,14 @@ export default {
             'service',
             this.dataSource.type
           )
-          // A sum over no matching rows is null in SQL; show the empty total as zero.
           const resultData =
-            this.dataSource.aggregation_type === 'sum' && data.result === null
-              ? { ...data, result: 0 }
+            data.result === null
+              ? {
+                  ...data,
+                  result: this.$registry
+                    .get('viewAggregation', this.dataSource.aggregation_type)
+                    .getEmptyValue(),
+                }
               : data
           return serviceType.getResult(this.dataSource, resultData)
         }
