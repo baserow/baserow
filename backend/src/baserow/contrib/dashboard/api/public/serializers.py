@@ -142,9 +142,7 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
         )
 
         data_sources = list(self.context["data_sources"])
-        fields = get_dashboard_used_property_names(
-            self.context["widgets"], data_sources
-        )
+        fields = get_dashboard_used_property_names(self.context["widgets"])
         return [
             serialize_public_data_source(
                 data_source, fields.get(data_source.service_id)

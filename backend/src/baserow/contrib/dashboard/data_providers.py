@@ -122,13 +122,11 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
         """Resolve a context reference to properties of its owning service."""
         self.is_valid(path)
         source_id, *rest = path
-        sources = kwargs.get("data_sources")
-        source = (
-            sources.get(int(source_id))
-            if sources is not None
-            else self._get_data_source(source_id)
-        )
+        source = self._get_data_source(source_id)
         if source is None or not source.service_id:
+            return {}
+        dashboard_id = kwargs.get("dashboard_id")
+        if dashboard_id is not None and source.dashboard_id != dashboard_id:
             return {}
         service = source.service.specific
         return {

@@ -7,18 +7,15 @@ WIDGET_PROPERTIES_CACHE_TTL_SECONDS = 60 * 60
 WIDGET_PROPERTIES_LOCK_TIMEOUT_SECONDS = 60
 
 
-def get_dashboard_used_property_names(widgets, data_sources):
+def get_dashboard_used_property_names(widgets):
     """Ask each widget type for the service properties used by its formulas."""
-    sources = {source.id: source for source in data_sources}
     result = {}
     for widget in widgets:
         result = merge_dicts_no_duplicates(
             result,
             global_cache.get(
                 get_widget_properties_cache_key(widget.id),
-                default=lambda: widget.get_type().extract_properties(
-                    widget, data_sources=sources
-                ),
+                default=lambda: widget.get_type().extract_properties(widget),
                 timeout=WIDGET_PROPERTIES_CACHE_TTL_SECONDS,
                 lock_timeout=WIDGET_PROPERTIES_LOCK_TIMEOUT_SECONDS,
             ),

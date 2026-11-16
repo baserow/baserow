@@ -1238,7 +1238,7 @@ def test_context_provider_collects_nested_references_without_evaluating(
             ),
         ],
         dashboard_property_data_provider_registry,
-        data_sources={source.id: source},
+        dashboard_id=source.dashboard_id,
     )
     assert set(properties[source.service_id]) == {"field_886", "field_887"}
 
@@ -1519,3 +1519,36 @@ def test_dispatch_validates_every_registered_data_provider(filter_dashboard, val
     finally:
         registry.unregister(ExtraProvider.type)
         registry.unregister(DefaultValidationProvider.type)
+
+
+@pytest.mark.django_db
+def test_context_property_extraction_uses_handler_and_dashboard_scope(
+    filter_dashboard, context_options, monkeypatch
+):
+    """Handler lookups retain deleted-source handling and widget dashboard isolation."""
+    from baserow.contrib.dashboard.data_providers import (
+        DashboardDataSourceContextDataProviderType,
+    )
+
+    _, _, dashboard, source, _, _ = filter_dashboard
+    provider = DashboardDataSourceContextDataProviderType()
+    original_get = DashboardDataSourceHandler.get_data_source
+    lookups = []
+
+    def get_data_source(self, source_id, **kwargs):
+        lookups.append(source_id)
+        return original_get(self, source_id, **kwargs)
+
+    monkeypatch.setattr(DashboardDataSourceHandler, "get_data_source", get_data_source)
+    path = [str(source.id), context_options.db_column, "*", "value"]
+    assert provider.extract_properties(path, dashboard_id=dashboard.id) == {
+        source.service_id: [context_options.db_column]
+    }
+    assert lookups == [source.id]
+    assert provider.extract_properties(path, dashboard_id=dashboard.id + 1) == {}
+    assert (
+        provider.extract_properties(
+            ["999999999", context_options.db_column], dashboard_id=dashboard.id
+        )
+        == {}
+    )

@@ -59,7 +59,7 @@ class WidgetType(
         return extract_formula_properties(
             self.formula_generator(instance),
             dashboard_property_data_provider_registry,
-            **kwargs,
+            **{**kwargs, "dashboard_id": instance.dashboard_id},
         )
 
     def get_grid_layout(self) -> WidgetGridLayout:
