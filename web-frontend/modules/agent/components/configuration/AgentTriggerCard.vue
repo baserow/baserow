@@ -90,6 +90,8 @@
             :service-type="serviceType"
             :default-values="trigger.service"
             :loading="saving"
+            :allow-test-run="false"
+            :allow-workflow-response="false"
             @values-changed="onServiceValuesChanged"
           />
         </div>

@@ -889,12 +889,8 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
 
 @pytest.mark.django_db
 def test_a_firing_queued_before_a_type_change_starts_nothing(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent
 ):
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
     agent = configured_agent(user=data_fixture.create_user())
     trigger = periodic_trigger(data_fixture, agent)
 
@@ -912,12 +908,8 @@ def test_a_firing_queued_before_a_type_change_starts_nothing(
 
 @pytest.mark.django_db
 def test_an_accepted_queued_reply_keeps_its_message_after_a_type_change(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent
 ):
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     trigger = periodic_trigger(data_fixture, agent, on_overlap="wait")

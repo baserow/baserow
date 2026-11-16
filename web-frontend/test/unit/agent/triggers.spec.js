@@ -33,7 +33,7 @@ const httpTrigger = () =>
       uid: 'http-service',
       schema: null,
       exclude_get: false,
-      is_public: false,
+      is_public: true,
       wait_for_response: false,
       response_timeout_seconds: 10,
     },
@@ -118,6 +118,38 @@ describe('Agent triggers', () => {
       [
         '/agent/10/triggers/1/',
         { service: { type: 'periodic', interval: 'DAY' } },
+      ],
+    ])
+  })
+
+  test('hosts HTTP with one live URL and saves its method option without workflow response settings', async () => {
+    useFakeTimers()
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, httpTrigger())
+    const wrapper = await mountSection(
+      [httpTrigger()],
+      ['periodic', 'http_trigger']
+    )
+    const card = wrapper.get('.agent-trigger-card')
+    const form = card.findComponent({ name: 'CoreHTTPTriggerServiceForm' })
+
+    expect(form.get('.webhook-service-form__webhook-url').text()).toMatch(
+      /\/api\/webhooks\/http-service\/$/
+    )
+    expect(form.find('.radio-group').exists()).toBe(false)
+    expect(form.find('.checkbox').exists()).toBe(false)
+    expect(form.find('input[type="number"]').exists()).toBe(false)
+
+    await choose(
+      form.get('.dropdown'),
+      'coreHTTPTriggerServiceForm.methodsOptionExcludeGet'
+    )
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'http_trigger', exclude_get: true } },
       ],
     ])
   })
@@ -834,7 +866,7 @@ describe('Agent triggers', () => {
       .onPatch('/agent/10/triggers/1/')
       .reply(200, {
         ...response,
-        service: { ...response.service, wait_for_response: true },
+        service: { ...response.service, exclude_get: true },
       })
     const wrapper = await mountSection(
       [periodicTrigger()],
@@ -856,7 +888,10 @@ describe('Agent triggers', () => {
       'http-service'
     )
     const form = card.findComponent({ name: 'CoreHTTPTriggerServiceForm' })
-    await form.get('.checkbox').trigger('click')
+    await choose(
+      form.get('.dropdown'),
+      'coreHTTPTriggerServiceForm.methodsOptionExcludeGet'
+    )
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
 
@@ -864,7 +899,7 @@ describe('Agent triggers', () => {
       ['/agent/10/triggers/1/', { name: 'Renamed trigger' }],
       [
         '/agent/10/triggers/1/',
-        { service: { type: 'http_trigger', wait_for_response: true } },
+        { service: { type: 'http_trigger', exclude_get: true } },
       ],
     ])
   })

@@ -178,10 +178,37 @@ core when another background feature needs it.
   after it commits. Rate limits and auto-disable follow before other types are offered.
 - Follow-ups: editors continuing shared conversations, in-app notifications for their
   waiting approvals, the
-  agent-level pause switch, "Run once" and "Last run", HTTP, email and row triggers in
+  agent-level pause switch, "Run once" and "Last run", email and row triggers in
   the picker, per trigger rate limits and auto-disable, the setup wizard's "Run
   automatically" step, the "Who can use it" role settings, a "Row comment is created"
   trigger type, and the `manual` type (hidden until something can start an agent).
+
+## Adding another trigger
+
+Reuse the registered integration service type and its form. Agents already listen
+to every `TriggerServiceTypeMixin`, call `arm()` and resolve messages against the
+service's payload and schema. Do not add an agent-specific service, model, endpoint
+or dispatcher for an existing trigger. Qualify the type through the Agent API,
+its real event entry point and the mounted Agent form before adding its identifier
+to `AGENT_TRIGGER_TYPES_ENABLED`. Verify copy/import, disabled and trashed agents,
+and the existing consumer's behavior as well.
+
+Forms can accept host capabilities where their consumer's behavior differs. The
+HTTP form defaults to Automation's test/published URLs and workflow response
+settings; the Agent card passes `allowTestRun=false` and
+`allowWorkflowResponse=false`. This exposes one live URL and the shared method
+option without coupling the HTTP form to an Agent application type.
+
+An Agent HTTP webhook acknowledges a valid request with `204` and starts a run in
+the background. This acknowledgement does not guarantee a run was accepted: the
+usual readiness, rate and overlap rules still apply. It never returns the agent's
+reply, even if workflow response settings were supplied through the API. The
+message can use the shared `trigger.raw_body`, `trigger.body`,
+`trigger.query_params` and `trigger.headers` values; a blank message includes the
+payload. Body and query field pickers depend on the service's sample schema, so
+without samples use Raw body or enter a formula path. Copies get a fresh URL and
+remain disabled until enabled. Anyone with the live URL can send input to the
+agent; its tools still use the configured run identity and approval policy.
 
 ## Revisit triggers
 
