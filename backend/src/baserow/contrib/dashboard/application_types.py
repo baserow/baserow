@@ -228,6 +228,7 @@ class DashboardApplicationType(ApplicationType):
                 files_zip,
                 storage,
                 self.cache,
+                import_export_config=import_export_config,
             )
             data_source_progress.increment()
 
@@ -246,14 +247,12 @@ class DashboardApplicationType(ApplicationType):
 
         def finalize_imported_widgets():
             """Let every widget type finish importing once all mappings are available."""
-            import_context = {}
             for widget in imported_widgets:
                 widget_type = widget.get_type()
                 for updated in widget_type.after_import(
                     widget,
                     id_mapping,
                     import_export_config=import_export_config,
-                    import_context=import_context,
                 ):
                     updated.save()
 

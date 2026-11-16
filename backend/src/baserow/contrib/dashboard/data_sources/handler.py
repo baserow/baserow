@@ -13,6 +13,7 @@ from baserow.contrib.dashboard.data_sources.exceptions import (
 )
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.models import Dashboard
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -373,6 +374,7 @@ class DashboardDataSourceHandler:
             service=serialized_service,
         )
 
+    @deferred_callback_context()
     def import_data_source(
         self,
         dashboard: Dashboard,
@@ -381,6 +383,7 @@ class DashboardDataSourceHandler:
         files_zip: ExportZipFile | None = None,
         storage: Storage | None = None,
         cache: dict[str, any] | None = None,
+        import_export_config: ImportExportConfig | None = None,
     ) -> DashboardDataSource:
         """
         Creates an instance using the serialized version previously exported with
@@ -412,7 +415,7 @@ class DashboardDataSourceHandler:
                 files_zip=files_zip,
                 storage=storage,
                 cache=cache,
-                import_formula=lambda formula, id_mapping, **kwargs: formula,
+                import_export_config=import_export_config,
             )
 
         data_source = DashboardDataSource.objects.create(
@@ -425,5 +428,30 @@ class DashboardDataSourceHandler:
         id_mapping["dashboard_data_sources"][serialized_data_source["id"]] = (
             data_source.id
         )
+
+        if service is not None:
+
+            def finalize_service():
+                """Remap formulas and service references once all import IDs exist."""
+                from baserow.contrib.dashboard.formula_importer import import_formula
+
+                service_type = service.get_type()
+                updated_models = service_type.import_formulas(
+                    service,
+                    id_mapping,
+                    import_formula,
+                    import_export_config=import_export_config,
+                )
+                updated_models.update(
+                    service_type.after_import(
+                        service,
+                        id_mapping,
+                        import_export_config=import_export_config,
+                    )
+                )
+                for updated in updated_models:
+                    updated.save()
+
+            deferred_callback_context.register(finalize_service)
 
         return data_source

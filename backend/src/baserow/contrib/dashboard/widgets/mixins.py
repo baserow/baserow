@@ -67,29 +67,6 @@ class DisplayWidgetTypeMixin:
 
         return updated_widget
 
-    def after_import(self, widget, id_mapping, **kwargs):
-        """Finalize the display's source once, even when widgets share that source."""
-        from baserow.contrib.dashboard.formula_importer import import_formula
-
-        updated_models = super().after_import(widget, id_mapping, **kwargs)
-        source = self.get_data_source(widget)
-        finalized_sources = kwargs.get("import_context", {}).setdefault(
-            "data_source_ids", set()
-        )
-        if (
-            source is not None
-            and source.service_id
-            and source.id not in finalized_sources
-        ):
-            service = source.service.specific
-            updated_models.update(
-                service.get_type().after_import(
-                    service, id_mapping, **{**kwargs, "import_formula": import_formula}
-                )
-            )
-            finalized_sources.add(source.id)
-        return updated_models
-
     def before_trashed(self, instance, requesting_user, trash_entry):
         """Snapshot and remove filter links before trashing the display's source."""
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
