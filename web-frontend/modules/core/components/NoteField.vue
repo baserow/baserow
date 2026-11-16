@@ -10,6 +10,7 @@
       :value="values.note"
       :rows="rows"
       :placeholder="placeholder"
+      :disabled="disabled"
       :error="v$.note.$error"
       @input="onInput"
       @focus="focused = true"
@@ -49,6 +50,11 @@ const props = defineProps({
     type: Number,
     required: false,
     default: 4,
+  },
+  disabled: {
+    type: Boolean,
+    required: false,
+    default: false,
   },
   // Mirrors `NOTE_MAX_LEN` in the backend.
   maxLength: {

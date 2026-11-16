@@ -165,7 +165,7 @@
   },
   "noteField": {
     "label": "Note",
-    "help": "Shown to everyone who can open this. Markdown is supported."
+    "help": "Shown to everyone who can open this and included in exports. Markdown is supported."
   },
   "noteIndicator": {
     "title": "Note",

@@ -410,6 +410,18 @@ class NoteMixin(models.Model):
     class Meta:
         abstract = True
 
+    @staticmethod
+    def clean_imported_note(value: Optional[str]) -> str:
+        """
+        Prepares a note read from an import file. The serializers refuse a note
+        that is too long; an imported one is cut to the limit instead.
+
+        :param value: The note found in the import file, if any.
+        :return: The note to store.
+        """
+
+        return (value or "")[:NOTE_MAX_LEN]
+
 
 class AbstractModelMeta(abc.ABCMeta, type(models.Model)):
     pass

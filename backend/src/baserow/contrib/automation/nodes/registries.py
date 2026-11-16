@@ -16,9 +16,9 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.core.constants import NOTE_MAX_LEN
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.mixins import NoteMixin
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -289,8 +289,7 @@ class AutomationNodeType(
         """
 
         if prop_name == "note":
-            # The serializers refuse a longer note; an imported file is cut.
-            return (value or "")[:NOTE_MAX_LEN]
+            return NoteMixin.clean_imported_note(value)
 
         if prop_name == "service" and value:
             serialized_service = value

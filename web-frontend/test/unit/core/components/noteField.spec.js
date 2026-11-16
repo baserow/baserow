@@ -82,4 +82,12 @@ describe('NoteField', () => {
 
     expect(textarea.element.value).toBe('a'.repeat(11))
   })
+
+  test('can be disabled', async () => {
+    const wrapper = await mountSuspended(NoteField, {
+      props: { value: 'abc', disabled: true },
+    })
+
+    expect(wrapper.find('textarea').attributes('disabled')).toBeDefined()
+  })
 })

@@ -1,4 +1,5 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { flushPromises } from '@vue/test-utils'
 import NoteIndicator from '@baserow/modules/core/components/NoteIndicator'
 import MarkdownContext from '@baserow/modules/core/components/MarkdownContext'
 
@@ -39,5 +40,21 @@ describe('NoteIndicator', () => {
     await wrapper.find('.note-indicator').trigger('click')
 
     expect(wrapper.emitted('open')).toHaveLength(1)
+  })
+
+  test('opening a note hides the one that was open', async () => {
+    const first = await mountIndicator({ note: 'First' })
+    const second = await mountIndicator({ note: 'Second' })
+    const isOpen = (wrapper) =>
+      wrapper.findComponent({ name: 'Context' }).vm.open
+
+    await first.find('.note-indicator').trigger('click')
+    await flushPromises()
+    expect(isOpen(first)).toBe(true)
+
+    await second.find('.note-indicator').trigger('click')
+    await flushPromises()
+    expect(isOpen(first)).toBe(false)
+    expect(isOpen(second)).toBe(true)
   })
 })
