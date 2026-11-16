@@ -39,10 +39,12 @@ def _memberships(include_trash: bool) -> QuerySet[WorkspaceUser]:
     :return: The membership queryset.
     """
 
-    memberships = WorkspaceUser.objects_and_identities.all()
-    if not include_trash:
-        memberships = memberships.filter(workspace__trashed=False)
-    return memberships
+    manager = (
+        WorkspaceUser.objects_and_identities_and_trash
+        if include_trash
+        else WorkspaceUser.objects_and_identities
+    )
+    return manager.all()
 
 
 def without_prefetched_memberships(workspace: Workspace) -> Workspace:
@@ -417,7 +419,7 @@ class IdentitySubjectType(UserSubjectType):
         active_here = Q(workspace=workspace, workspace__trashed=False)
         # Memberships in trashed workspaces count: a second one must not add scope.
         identity_ids = set(
-            WorkspaceUser.objects_and_identities.filter(
+            WorkspaceUser.objects_and_identities_and_trash.filter(
                 user_id__in=[subject.id for subject in subjects]
             )
             .values("user_id")

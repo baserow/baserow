@@ -24,7 +24,7 @@ class IdentityHandler:
         prefetched = getattr(identity, "_prefetched_objects_cache", {})
         memberships = prefetched.get("workspaceuser_set")
         if memberships is None:
-            memberships = WorkspaceUser.objects_and_identities.filter(
+            memberships = WorkspaceUser.objects_and_identities_and_trash.filter(
                 user_id=identity.id
             ).select_related("workspace")[:2]
         memberships = list(memberships)
@@ -58,7 +58,7 @@ class IdentityHandler:
             .prefetch_related(
                 Prefetch(
                     "workspaceuser_set",
-                    queryset=WorkspaceUser.objects_and_identities.select_related(
+                    queryset=WorkspaceUser.objects_and_identities_and_trash.select_related(
                         "workspace"
                     ),
                 )

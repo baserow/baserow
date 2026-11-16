@@ -480,9 +480,11 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         :return: The related workspace user instance.
         """
 
-        memberships = WorkspaceUser.objects_and_identities.all()
-        if not include_trash:
-            memberships = memberships.filter(workspace__trashed=False)
+        memberships = (
+            WorkspaceUser.objects_and_identities_and_trash
+            if include_trash
+            else WorkspaceUser.objects_and_identities
+        )
         return memberships.get(user=user, workspace=self)
 
     def __str__(self):
@@ -502,8 +504,9 @@ class WorkspaceUser(
     objects = human_memberships(make_trash_manager(False, parent="workspace"))()
     trash = human_memberships(make_trash_manager(True, parent="workspace"))()
     objects_and_trash = human_memberships(CTEManager)()
-    # Every membership, including identities and those in trashed workspaces.
-    objects_and_identities = CTEManager()
+    # These also return the memberships of identities, which the others leave out.
+    objects_and_identities = make_trash_manager(False, parent="workspace")()
+    objects_and_identities_and_trash = CTEManager()
 
     user = models.ForeignKey(
         User,

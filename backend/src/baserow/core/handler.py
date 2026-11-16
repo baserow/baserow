@@ -1632,7 +1632,7 @@ class CoreHandler:
             ).get(pk=user.pk)
             if is_identity(user):
                 memberships = list(
-                    WorkspaceUser.objects_and_identities.filter(user=user)
+                    WorkspaceUser.objects_and_identities_and_trash.filter(user=user)
                 )
                 if len(memberships) != 1 or memberships[0].workspace_id != workspace.id:
                     raise ValueError(
@@ -2141,7 +2141,7 @@ class CoreHandler:
         """
 
         workspace_users = WorkspaceUser.objects_and_identities.filter(
-            workspace_id=workspace_id, workspace__trashed=False
+            workspace_id=workspace_id
         ).select_related("user")
 
         if only_emails:

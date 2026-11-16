@@ -71,7 +71,8 @@ are outside this decision.
 User.objects.all()                          # Human users, including inactive users
 User.objects_and_identities.all()           # Users and identities, including trashed identities
 WorkspaceUser.objects.all()                 # Human memberships
-WorkspaceUser.objects_and_identities.all()  # Every membership, including trashed workspaces
+WorkspaceUser.objects_and_identities.all()  # Memberships of users and identities
+WorkspaceUser.objects_and_identities_and_trash.all()  # Also in trashed workspaces
 ```
 
 `User.objects` stays people-only even though every identity is a User; see
@@ -85,8 +86,9 @@ WorkspaceUser follows the same rule. Its default managers, and therefore
 `workspace.workspaceuser_set`, return human memberships only, so member
 administration, invitations, seat counts and code outside this repository never
 see an identity by accident. Permission checks and identity management opt in
-through `WorkspaceUser.objects_and_identities`, which returns every membership;
-the caller filters trashed workspaces. A forgotten opt-in denies an identity
+through `WorkspaceUser.objects_and_identities`. Like `objects` it leaves out
+trashed workspaces, and `objects_and_identities_and_trash` includes them, as
+`objects_and_trash` does for people. A forgotten opt-in denies an identity
 instead of listing or billing it.
 
 ### Types and runtime classification

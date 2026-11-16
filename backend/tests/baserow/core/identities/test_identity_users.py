@@ -106,3 +106,26 @@ def test_standard_user_manager_creates_human_profiles():
     assert User.objects.get_by_natural_key(person.username) == person
     assert is_human(person) and is_human(admin)
     assert admin.is_staff and admin.is_superuser
+
+
+@pytest.mark.django_db
+def test_identity_membership_managers_follow_the_trashed_workspace_pair(data_fixture):
+    workspace = data_fixture.create_workspace()
+    human = data_fixture.create_user(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace)
+
+    def members(manager):
+        memberships = manager.filter(workspace=workspace)
+        return set(memberships.values_list("user_id", flat=True))
+
+    assert members(WorkspaceUser.objects) == {human.id}
+    assert members(WorkspaceUser.objects_and_identities) == {human.id, identity.id}
+
+    Workspace.objects.filter(id=workspace.id).update(trashed=True)
+
+    assert members(WorkspaceUser.objects_and_identities) == set()
+    assert members(WorkspaceUser.objects_and_trash) == {human.id}
+    assert members(WorkspaceUser.objects_and_identities_and_trash) == {
+        human.id,
+        identity.id,
+    }

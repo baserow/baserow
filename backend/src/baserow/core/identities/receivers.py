@@ -11,7 +11,7 @@ from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
 def remember_workspace_identity_users(sender, instance, using, **kwargs):
     # Memberships disappear before the workspace's post-delete signal.
     instance._identity_user_ids_to_delete = list(
-        WorkspaceUser.objects_and_identities.using(using)
+        WorkspaceUser.objects_and_identities_and_trash.using(using)
         .filter(
             workspace_id=instance.id,
             user__profile__user_type=UserProfile.UserType.IDENTITY,

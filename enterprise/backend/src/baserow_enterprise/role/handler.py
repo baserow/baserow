@@ -974,7 +974,7 @@ class RoleAssignmentHandler:
         """
 
         if include_trash:
-            workspace_users = WorkspaceUser.objects_and_identities.filter(
+            workspace_users = WorkspaceUser.objects_and_identities_and_trash.filter(
                 workspace__in=workspaces, user_id=actor.id
             )
             return {wu.workspace_id: wu.permissions for wu in workspace_users}
@@ -995,9 +995,7 @@ class RoleAssignmentHandler:
 
         if workspaces_to_query:
             workspace_users = WorkspaceUser.objects_and_identities.filter(
-                workspace__in=workspaces_to_query,
-                workspace__trashed=False,
-                user_id=actor.id,
+                workspace__in=workspaces_to_query, user_id=actor.id
             )
             for workspace_user in workspace_users:
                 permissions_per_workspace[workspace_user.workspace_id] = (
