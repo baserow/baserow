@@ -59,6 +59,15 @@ export class ApplicationType extends Registerable {
   }
 
   /**
+   * The name used for a trashed application of this type in the trash, for
+   * example in "{user} deleted {type} {title}".
+   */
+  getTrashItemTypeName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('trashType.application')
+  }
+
+  /**
    * The form component that will be rendered when creating a new instance of
    * this application. By default the ApplicationForm component is returned, but
    * this only contains a name field. If custom fields are required upon

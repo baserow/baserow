@@ -45,6 +45,7 @@
             v-for="item in trashContents"
             :key="'trash-item-' + item.id"
             :trash-entry="item"
+            :trash-item-type-name="getTrashItemTypeName(item)"
             :disabled="loadingContents || shouldTrashEntryBeDisabled(item)"
             @restore="$emit('restore', $event)"
           ></TrashEntry>
@@ -176,6 +177,24 @@ export default {
       if (!this.loadingContents) {
         this.$refs.emptyModal.show()
       }
+    },
+    /**
+     * Every application is trashed as an `application` entry, so its type is
+     * named after the application's own type, like "automation".
+     */
+    getTrashItemTypeName(entry) {
+      if (entry.trash_item_type !== 'application') {
+        return null
+      }
+      const application = this.selectedTrashWorkspace.applications.find(
+        (app) => app.id === entry.trash_item_id
+      )
+      if (!application) {
+        return null
+      }
+      return this.$registry
+        .get('application', application.type)
+        .getTrashItemTypeName()
     },
     shouldTrashEntryBeDisabled(entry) {
       const entryIsForSelectedItem =

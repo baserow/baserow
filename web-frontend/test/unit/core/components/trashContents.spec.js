@@ -28,6 +28,11 @@ describe('TrashContents', () => {
             getters: { 'workspace/get': () => storeWorkspace },
           },
           $hasPermission: hasPermission,
+          $registry: {
+            get: (registry, type) => ({
+              getTrashItemTypeName: () => `trashType.${type}`,
+            }),
+          },
         },
       },
     })
@@ -65,5 +70,29 @@ describe('TrashContents', () => {
     })
 
     expect(wrapper.vm.canEmpty).toBe(true)
+  })
+
+  it('names application entries after the type of the application', () => {
+    const wrapper = mountContents({
+      props: {
+        selectedTrashWorkspace: {
+          ...workspace,
+          applications: [{ id: 20, type: 'automation', trashed: true }],
+        },
+      },
+    })
+
+    expect(
+      wrapper.vm.getTrashItemTypeName({
+        trash_item_type: 'application',
+        trash_item_id: 20,
+      })
+    ).toBe('trashType.automation')
+    expect(
+      wrapper.vm.getTrashItemTypeName({
+        trash_item_type: 'table',
+        trash_item_id: 20,
+      })
+    ).toBeNull()
   })
 })

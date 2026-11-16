@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes restoring and emptying the trash for deleted automations",
+    "issue_origin": "github",
+    "issue_number": 6601,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-04"
+}

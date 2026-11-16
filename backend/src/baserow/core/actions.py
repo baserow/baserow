@@ -391,7 +391,7 @@ def _restore_application(user: AbstractUser, application_id: int) -> None:
     application = Application.objects_and_trash.get(id=application_id)
     trash_type = trash_item_type_registry.get_by_model(application.specific_class)
     TrashHandler.restore_item(
-        user, trash_type.type, application_id, parent_trash_item_id=None
+        user, trash_type.entry_type, application_id, parent_trash_item_id=None
     )
 
 

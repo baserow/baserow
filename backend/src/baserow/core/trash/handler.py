@@ -101,7 +101,7 @@ class TrashHandler:
                         user_who_trashed=requesting_user,
                         workspace=workspace,
                         application=application,
-                        trash_item_type=trash_item_type.type,
+                        trash_item_type=trash_item_type.entry_type,
                         trash_item_id=trash_item.id,
                         name=trash_item_type.get_name(trash_item),
                         names=trash_item_type.get_names(trash_item),

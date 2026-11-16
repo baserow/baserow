@@ -12,7 +12,7 @@
         {{
           $t('trashEntry.name', {
             user: trashEntry.user_who_trashed || $t('trashEntry.deletedUser'),
-            type: $t('trashType.' + trashEntry.trash_item_type),
+            type: typeName,
             title: trashItemTitle,
             parent: trashEntry.parent_name
               ? $t('trashEntry.fromParent', { parent: trashEntry.parent_name })
@@ -63,6 +63,15 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * Replaces the name derived from the trash item type, for entries whose type
+     * is shared by items with different names, like applications.
+     */
+    trashItemTypeName: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   emits: ['restore'],
   data() {
@@ -72,10 +81,16 @@ export default {
     timeAgo() {
       return moment.utc(this.trashEntry.trashed_at).fromNow()
     },
+    typeName() {
+      return (
+        this.trashItemTypeName ||
+        this.$t('trashType.' + this.trashEntry.trash_item_type)
+      )
+    },
     trashItemTitle() {
       if (this.trashEntry.name === '') {
         return this.$t('trashEntry.unnamed', {
-          type: this.$t('trashType.' + this.trashEntry.trash_item_type),
+          type: this.typeName,
           id: this.trashEntry.trash_item_id,
         })
       } else {
