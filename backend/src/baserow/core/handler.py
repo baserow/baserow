@@ -2131,8 +2131,17 @@ class CoreHandler:
     def get_user_email_mapping(
         cls, workspace_id: int, only_emails: list[Email]
     ) -> UserEmailMapping:
-        workspace_users = WorkspaceUser.objects.filter(
-            workspace_id=workspace_id
+        """
+        Returns the people and identities of a workspace by email, so a copy can
+        resolve the users its rows are attributed to.
+
+        :param workspace_id: The workspace the copy is imported into.
+        :param only_emails: Limits the mapping to these emails when not empty.
+        :return: The member of the workspace for each email.
+        """
+
+        workspace_users = WorkspaceUser.objects_and_identities.filter(
+            workspace_id=workspace_id, workspace__trashed=False
         ).select_related("user")
 
         if only_emails:
