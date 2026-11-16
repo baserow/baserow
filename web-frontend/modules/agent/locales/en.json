@@ -403,7 +403,10 @@
     "actionLimitReached": "This agent has reached its action limit ({limit}).",
     "toolSendEmail": "Send email",
     "toolSendEmailRunning": "Sending email…",
-    "toolSendEmailDone": "Email sent"
+    "toolSendEmailDone": "Email sent",
+    "toolHTTPRequest": "Send HTTP request",
+    "toolHTTPRequestRunning": "Sending HTTP request…",
+    "toolHTTPRequestDone": "HTTP request sent"
   },
   "trashType": {
     "agent_conversation": "conversation",

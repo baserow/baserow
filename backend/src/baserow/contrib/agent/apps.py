@@ -16,7 +16,10 @@ class AgentConfig(AppConfig):
         from baserow.core.services.registries import service_type_registry
         from baserow.core.trash.registries import trash_item_type_registry
 
-        from .action_tools.action_types import SMTPEmailAgentActionType
+        from .action_tools.action_types import (
+            HTTPRequestAgentActionType,
+            SMTPEmailAgentActionType,
+        )
         from .action_tools.actions import (
             CreateAgentActionActionType,
             DeleteAgentActionActionType,
@@ -113,6 +116,7 @@ class AgentConfig(AppConfig):
         trash_item_type_registry.register(AgentTriggerTrashableItemType())
         trash_item_type_registry.register(AgentActionTrashableItemType())
         agent_action_type_registry.register(SMTPEmailAgentActionType())
+        agent_action_type_registry.register(HTTPRequestAgentActionType())
         agent_action_data_provider_type_registry.register(ToolInputDataProviderType())
         chat_run_type_registry.register(AgentChatRunType())
         agent_data_provider_type_registry.register(TriggerDataProviderType())

@@ -129,6 +129,15 @@ class AgentActionType(Instance, ABC):
             "values": self.get_preview_values(action.service.specific, resolved_values)
         }
 
+    def get_tool_result(self, action: AgentAction, result: DispatchResult) -> Any:
+        """
+        :param action: The action called.
+        :param result: What the service's dispatch returned.
+        :return: What the model reads about the call, kept in the conversation.
+        """
+
+        return result.data
+
     def dispatch(
         self, action: AgentAction, resolved_values: dict[str, Any]
     ) -> DispatchResult:

@@ -251,6 +251,11 @@ class HTTPFormData(models.Model):
     key = models.CharField(max_length=255, help_text="The form data key.")
     value = FormulaField(blank=True, help_text="The form data value.")
 
+    class Meta:
+        # The order they were added in, so the request and its export read the
+        # same each time.
+        ordering = ("id",)
+
 
 class HTTPHeader(models.Model):
     """
@@ -263,6 +268,11 @@ class HTTPHeader(models.Model):
     key = models.CharField(max_length=255, help_text="The header key.")
     value = FormulaField(blank=True, help_text="The header value.")
 
+    class Meta:
+        # The order they were added in, so the request and its export read the
+        # same each time.
+        ordering = ("id",)
+
 
 class HTTPQueryParam(models.Model):
     """
@@ -274,6 +284,11 @@ class HTTPQueryParam(models.Model):
     )
     key = models.CharField(max_length=255, help_text="The query parameter key.")
     value = FormulaField(blank=True, help_text="The query parameter value.")
+
+    class Meta:
+        # The order they were added in, so the request and its export read the
+        # same each time.
+        ordering = ("id",)
 
 
 class CoreSMTPEmailService(Service):

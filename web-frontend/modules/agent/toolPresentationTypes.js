@@ -420,8 +420,42 @@ export class SMTPEmailToolPresentationType extends ActionToolPresentationType {
   }
 }
 
+export class HTTPRequestToolPresentationType extends ActionToolPresentationType {
+  static getType() {
+    return 'http_request'
+  }
+
+  get fieldLabels() {
+    return {
+      http_method: 'coreHTTPRequestServiceForm.httpMethod',
+      url: 'coreHTTPRequestServiceForm.url',
+      query_params: 'coreHTTPRequestServiceForm.queryParams',
+      headers: 'coreHTTPRequestServiceForm.headers',
+      body_type: 'coreHTTPRequestServiceForm.bodyType',
+      body_content: 'coreHTTPRequestServiceForm.bodyContent',
+      form_data: 'coreHTTPRequestServiceForm.formData',
+      timeout: 'coreHTTPRequestServiceForm.timeout',
+    }
+  }
+
+  getLabel(t) {
+    return t('agent.toolHTTPRequest')
+  }
+
+  getActivity({ status }, t) {
+    return t(
+      status === STEP_STATUS.RUNNING
+        ? 'agent.toolHTTPRequestRunning'
+        : status === STEP_STATUS.DONE
+          ? 'agent.toolHTTPRequestDone'
+          : 'agent.toolHTTPRequest'
+    )
+  }
+}
+
 export const agentToolPresentationTypes = [
   SMTPEmailToolPresentationType,
+  HTTPRequestToolPresentationType,
   WebSearchToolPresentationType,
   ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,

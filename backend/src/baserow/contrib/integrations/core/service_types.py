@@ -531,6 +531,13 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             .prefetch_related("headers", "query_params", "form_data")
         )
 
+    def get_configuration_errors(
+        self, service: CoreHTTPRequestService
+    ) -> dict[str, str]:
+        if not (service.url or {}).get("formula", "").strip():
+            return {"url": "required"}
+        return {}
+
     def max_dispatch_seconds(self, service: CoreHTTPRequestService) -> int:
         # For a click, whose request gets one timeout in all. The watchdog
         # hangs up at the deadline; should the hang-up land late, a read

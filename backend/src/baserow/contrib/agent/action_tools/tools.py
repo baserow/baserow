@@ -244,6 +244,8 @@ class BoundActionTool:
                         self.action_type.get_preview(self.action, resolved_values)
                     )
                 result = self.action_type.dispatch(self.action, resolved_values)
-                return ToolReturn(return_value=result.data)
+                return ToolReturn(
+                    return_value=self.action_type.get_tool_result(self.action, result)
+                )
         except Exception as exc:
             return failed_call(self, exc)

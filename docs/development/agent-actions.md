@@ -2,8 +2,8 @@
 
 An agent's **Actions** section holds tools its builder configures: a named tool,
 the inputs the model fills in, and an existing integration service whose fields use
-those inputs. Send email is the first action type. This page is the contract the
-shared code keeps, and what the next action type has to add.
+those inputs. Send email and HTTP request are the action types so far. This page
+is the contract the shared code keeps, and what the next action type has to add.
 
 ## What owns what
 
@@ -11,13 +11,13 @@ One `AgentAction` per configured action. It belongs to the agent and owns one
 `Service`. The action's type is its service's type, so there is no polymorphic
 action model, and readiness is derived, never stored.
 
-| Owner                                | Responsibility                                                                                  |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `AgentAction`                        | Name the model calls, instructions, declared inputs, enabled and Ask first.                     |
-| Service and integration              | Configuration, formulas, validation, credentials and delivery.                                  |
-| `AgentActionType` (`action_tools/`)  | Opts a service type in. Supplies the starter of a new action and the request people read.       |
-| `BoundActionTool`                    | The tool of one reply: schema, argument validation, preview, approval and dispatch.             |
-| Presenter (`toolPresentationTypes`)  | Labels and order of the service's fields, for the step card and the configuration errors.      |
+| Owner                               | Responsibility                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| `AgentAction`                       | Name the model calls, instructions, declared inputs, enabled and Ask first.               |
+| Service and integration             | Configuration, formulas, validation, credentials and delivery.                            |
+| `AgentActionType` (`action_tools/`) | Opts a service type in. Supplies the starter of a new action and the request people read. |
+| `BoundActionTool`                   | The tool of one reply: schema, argument validation, preview, approval and dispatch.       |
+| Presenter (`toolPresentationTypes`) | Labels and order of the service's fields, for the step card and the configuration errors. |
 
 Actions don't act as the agent's identity. They are offered with or without
 workspace access and act through their own service.
@@ -61,7 +61,7 @@ A broken action is left out; it never fails the reply.
    resolved values.
 3. The readable request, built from those values, is shown on the step. Each
    action type decides how to limit what a call may send and what its preview
-   shows. Send email limits neither yet.
+   shows. Send email limits neither yet; HTTP request limits the body (see below).
 4. With Ask first, the call is held. The resolved values are kept in the paused
    run (`ApprovalRequired(metadata=...)`) with the action's approval key.
 5. `dispatch` sends the resolved values through `ServiceHandler.dispatch_service`.
@@ -82,6 +82,23 @@ while it is unchanged.
 
 Not covered: the instance's own SMTP settings can change between hold and approval.
 
+## HTTP request
+
+- A new action is a POST with a JSON body bound to one `body` input. Its URL is
+  empty, which is a configuration error, so it isn't offered until it has one.
+- `prepare` refuses a JSON body that isn't valid JSON and any body over 64 KB, as
+  an input error the model can fix. Nothing waits for approval or goes out.
+- The preview shows the method, the URL, the body and every header, query
+  parameter and form data row by its key. A row's value is shown only when it
+  reads a tool input: the values the builder fixed are where API keys sit, so they
+  show as `••••••••`. The body is always shown, being what is approved.
+- The model reads the status, the content type and the body back. A body longer
+  than 20,000 characters comes back as the start of its text with
+  `body_truncated`, as it stays in every later turn. A refused or unreachable
+  address is an input error with its own message.
+- Headers, query parameters and form data rows are ordered by ID, so the
+  exported service, and the approval key, read the same each time.
+
 ## Limits
 
 `BASEROW_AGENT_MAX_ACTIONS_PER_AGENT` caps the actions one agent can have. It is
@@ -100,12 +117,13 @@ duplicated agent keeps the actions it had.
 
 1. Subclass `AgentActionType` in `contrib/agent/action_tools/action_types.py`
    with the service type's name as `type`, and register it in `apps.py`. Implement:
-   - `get_defaults()`: the starter name, instructions, inputs and service values.
-   - `get_preview_values(service, resolved_values)`: an explicit allowlist of what
-     people read, fixed settings included. Never credentials.
+    - `get_defaults()`: the starter name, instructions, inputs and service values.
+    - `get_preview_values(service, resolved_values)`: an explicit allowlist of what
+      people read, fixed settings included. Never credentials.
 
-   Decide there how to limit what a call may send and what its preview shows:
-   nothing shared limits either.
+    Decide there how to limit what a call may send and what its preview shows:
+    nothing shared limits either.
+
 2. Make sure the service's resolved values survive JSON, as they wait in the paused
    run. Convert them in the type if they don't.
 3. Register an `ActionToolPresentationType` under the same type name, with the

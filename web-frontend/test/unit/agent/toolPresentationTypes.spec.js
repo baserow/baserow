@@ -63,7 +63,12 @@ describe('Agent tool presentations', () => {
         // The provider runs web search, so the backend has no agent tool for it.
         .filter(
           (type) =>
-            !['mcp_server_tool', 'web_search', 'smtp_email'].includes(type)
+            ![
+              'mcp_server_tool',
+              'web_search',
+              'smtp_email',
+              'http_request',
+            ].includes(type)
         )
         .sort()
     ).toEqual(cases.tools.map(({ name }) => name).sort())
@@ -131,6 +136,39 @@ describe('Agent tool presentations', () => {
         t
       ).title
     ).toBe('Email sent')
+  })
+
+  test('an HTTP request reads in the order of its form, with hidden values kept', () => {
+    const values = {
+      body_content: '{"order": 7}',
+      headers: { Authorization: '••••••••', 'X-Trace': 't-1' },
+      url: 'https://api.example.com/orders',
+      body_type: 'json',
+      http_method: 'POST',
+    }
+    const activity = toolActivity(
+      step('call_api', 'waiting', {
+        presentation_type: 'http_request',
+        input: { values },
+      }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe('Send HTTP request')
+    expect(Object.entries(activity.input.values)).toEqual([
+      ['HTTP method', 'POST'],
+      ['Endpoint URL', 'https://api.example.com/orders'],
+      ['Headers', { Authorization: '••••••••', 'X-Trace': 't-1' }],
+      ['Body type', 'json'],
+      ['Body content', '{"order": 7}'],
+    ])
+    expect(
+      toolActivity(
+        step('call_api', 'done', { presentation_type: 'http_request' }),
+        registry,
+        t
+      ).title
+    ).toBe('HTTP request sent')
   })
 
   test('an action names a field like its service form, else like every action', () => {
