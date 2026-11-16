@@ -9,18 +9,20 @@ Contains:
 """
 
 import re
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple
 
 from django.db import transaction
 from django.utils.translation import gettext as _
 
 from loguru import logger
 
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools.formulas import formula_error
+from baserow.contrib.automation.tools.types import matching_branches
 from baserow.core.formula.literals import FORMULA_PREFIX
-from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext
 from baserow.core.tools.formula_utils import (
     BaseFormulaContext,
@@ -96,42 +98,72 @@ _DESCRIPTIONS = {
 # The service attribute a formula error's field is stored in, where they differ.
 _SERVICE_ATTRIBUTES = {"prompt": "ai_prompt"}
 
-# Told for a value whose generated formula wasn't written because the user
-# changed it meanwhile. Kept apart from formula_errors, which the model retries.
+# Told for a value whose generated formula wasn't written because it changed
+# meanwhile. Kept apart from formula_errors, which the model retries.
 _KEPT_NOTE = (
-    "Not updated: the user changed this value while its formula was generated, "
-    "so their value was kept. Tell them, and don't change it unless they ask."
+    "Not updated: this value was changed, in the editor or by another client, "
+    "while its formula was generated, so the newer value was kept. Tell the "
+    "user, and don't change it unless they ask."
 )
+
+# A branch the label no longer names: the update refuses it and reports why.
+_NO_BRANCH = object()
 
 
 # The refusal of a row value whose field is not in the table.
 _REFUSED_FIELD_RE = re.compile(r"Field (\d+) is not in table ")
 
 
-def _stored_value(service, error: dict[str, Any]) -> Any:
-    """What the value of a formula error holds now in a node's service."""
+def _current_values(service, errors: list[dict[str, Any]]) -> dict[Any, Any]:
+    """
+    What the values of a node's formula errors hold now, keyed as
+    ``_request_key``. A row value is its mapping and whether it is enabled, or
+    None when the field isn't mapped. A branch is found the way the update finds
+    it.
+    """
 
-    if "field_id" in error:
-        mapping = service.field_mappings.filter(field_id=error["field_id"]).first()
-        return None if mapping is None else (mapping.value, mapping.enabled)
-    if "edge_label" in error:
-        edge = service.edges.filter(label=error["edge_label"]).first()
-        return None if edge is None else edge.condition
-    field = error["field"]
-    return getattr(service, _SERVICE_ATTRIBUTES.get(field, field), None)
+    mappings = (
+        {
+            mapping.field_id: (mapping.value, mapping.enabled)
+            for mapping in service.field_mappings.all()
+        }
+        if any("field_id" in error for error in errors)
+        else {}
+    )
+    edges = (
+        list(service.edges.all())
+        if any("edge_label" in error for error in errors)
+        else []
+    )
+    values = {}
+    for error in errors:
+        if "field_id" in error:
+            value = mappings.get(error["field_id"])
+        elif "edge_label" in error:
+            matches = matching_branches([e.label for e in edges], error["edge_label"])
+            value = edges[matches[0]].condition if len(matches) == 1 else _NO_BRANCH
+        else:
+            # No default: a field stored under another name must fail here, not
+            # read as empty.
+            field = error["field"]
+            value = getattr(service, _SERVICE_ATTRIBUTES.get(field, field))
+        values[_request_key(error)] = value
+    return values
 
 
 def _stored_values(node_id: int, errors: list[dict[str, Any]]) -> dict[Any, Any]:
     """
-    The values of a node's formula errors as the tool left them, keyed as
-    ``_request_key``, to tell after generation which ones the user changed.
+    The values of a node's formula errors as the tool left them, to tell after
+    generation which ones changed meanwhile.
+
+    :raises AutomationNodeDoesNotExist: When the node is gone, so nothing is
+        generated for it.
     """
 
     node = AutomationNode.objects.filter(id=node_id).first()
     if node is None:
-        return {}
-    service = node.service.specific
-    return {_request_key(error): _stored_value(service, error) for error in errors}
+        raise AutomationNodeDoesNotExist(node_id)
+    return _current_values(node.service.specific, errors)
 
 
 def _request_key(error: dict[str, Any]) -> Any:
@@ -256,39 +288,73 @@ class WorkflowExamples:
         return context
 
 
+class RepairResult(NamedTuple):
+    """What a repair left: the formula errors still to fix, and the values it
+    kept because they changed while their formulas were generated."""
+
+    formula_errors: list[dict[str, Any]]
+    kept: list[dict[str, Any]]
+
+
+def _failed_repair(
+    raise_if_cancelled: Callable[[], None],
+    exc: Exception,
+    node_id: int,
+    errors: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """The errors of a node whose repair failed. The nodes are committed, so a
+    failed repair only leaves its errors."""
+
+    raise_if_cancelled()
+    raise_if_permission_denied(exc)
+    logger.exception("Failed to repair formulas of node {}: {}", node_id, exc)
+    return [{**error, "error": str(exc)} for error in errors]
+
+
 def repair_formula_errors(
     tool_context: ToolContext,
     tool_helpers: "ToolHelpers",
     formula_errors: list[dict[str, Any]],
     refs: dict[int, str] | None = None,
-) -> list[dict[str, Any]]:
+) -> RepairResult:
     """
     Generate the formulas the shared tools could not store, and write each node's
     in its own transaction. Runs after the nodes are committed, so the model is
-    never called inside a transaction.
+    never called inside a transaction. A value that changed while the formulas
+    were generated is kept, not overwritten.
 
+    :param formula_errors: All the errors of the call, so every value is read
+        before any formula is generated.
     :param refs: The ref each node was created under, to help the generator.
-    :return: The formula errors that remain.
     """
 
     if not formula_errors:
-        return []
+        return RepairResult([], [])
 
     generate_formula = get_generate_formulas_tool(tool_helpers.model_profile)
     raise_if_cancelled = tool_helpers.raise_if_cancelled
     field_ids = shared_nodes.table_field_ids()
     examples = WorkflowExamples(tool_context.user, refs)
     remaining: list[dict[str, Any]] = []
+    kept: list[dict[str, Any]] = []
     by_node: dict[int, list[dict[str, Any]]] = {}
     for error in formula_errors:
         by_node.setdefault(error["node_id"], []).append(error)
+
     # Read before any formula is generated: a value that differs when it is
-    # written was changed by the user meanwhile.
-    stored = {
-        node_id: _stored_values(node_id, node_errors)
-        for node_id, node_errors in by_node.items()
-    }
+    # written was changed meanwhile.
+    stored: dict[int, dict[Any, Any]] = {}
     for node_id, node_errors in by_node.items():
+        try:
+            stored[node_id] = _stored_values(node_id, node_errors)
+        except Exception as exc:
+            remaining.extend(
+                _failed_repair(raise_if_cancelled, exc, node_id, node_errors)
+            )
+
+    for node_id, node_stored in stored.items():
+        node_errors = by_node[node_id]
+        node_kept: list[dict[str, Any]] = []
         try:
             remaining.extend(
                 _repair_node(
@@ -299,28 +365,30 @@ def repair_formula_errors(
                     generate_formula=generate_formula,
                     field_ids=field_ids,
                     examples=examples,
-                    stored=stored[node_id],
+                    stored=node_stored,
+                    kept=node_kept,
                 )
             )
         except Exception as exc:
-            # The nodes are committed, so a failed repair only leaves its errors.
-            raise_if_cancelled()
-            raise_if_permission_denied(exc)
-            logger.exception("Failed to repair formulas of node {}: {}", node_id, exc)
-            remaining.extend({**error, "error": str(exc)} for error in node_errors)
-    return remaining
+            # A kept value stays kept: reported as an error, it would be retried
+            # over the newer value.
+            kept_keys = {_request_key(error) for error in node_kept}
+            remaining.extend(
+                _failed_repair(
+                    raise_if_cancelled,
+                    exc,
+                    node_id,
+                    [e for e in node_errors if _request_key(e) not in kept_keys],
+                )
+            )
+        kept.extend(node_kept)
+    return RepairResult(remaining, kept)
 
 
-def split_kept_edits(
-    remaining: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """
-    Split what a repair left into the formula errors still to fix and the values
-    it kept because the user changed them while their formulas were generated.
-    """
+def kept_report(kept: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The kept values as the tools return them, each with what to do about it."""
 
-    errors = [error for error in remaining if not error.get("kept_newer_value")]
-    kept = [
+    return [
         {
             **{
                 key: error[key]
@@ -329,10 +397,8 @@ def split_kept_edits(
             },
             "note": _KEPT_NOTE,
         }
-        for error in remaining
-        if error.get("kept_newer_value")
+        for error in kept
     ]
-    return errors, kept
 
 
 def repaired_nodes(
@@ -376,14 +442,15 @@ def _repair_node(
     field_ids: Callable[[int], set[int]],
     examples: WorkflowExamples,
     stored: dict[Any, Any],
+    kept: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """
-    Generate one node's formulas and write them in their own transaction. A value
-    the user changed while the formula was generated is kept.
+    Generate one node's formulas and write them in their own transaction.
 
     :param raise_if_cancelled: Raises when the user cancelled the request.
     :param stored: The values of the node's errors before generation, keyed as
         ``_request_key``.
+    :param kept: Gets the errors whose value changed meanwhile and was kept.
     :return: The node's formula errors that remain.
     """
 
@@ -396,23 +463,26 @@ def _repair_node(
     # The user may cancel while the model runs; nothing is written then.
     raise_if_cancelled()
 
-    repaired = [e for e in node_errors if _request_key(e) in generated]
     remaining = [e for e in node_errors if _request_key(e) not in generated]
-    if not repaired:
+    if len(remaining) == len(node_errors):
         return remaining
+    repaired = []
     with transaction.atomic():
-        # Locked so an edit saved from now on waits for this write.
-        service = ServiceHandler().get_service_for_update(node.service_id)
-        # A value that is gone now is left to the update, which reports it.
-        now = {_request_key(e): _stored_value(service, e) for e in repaired}
-        changed = [
-            e
-            for e in repaired
-            if now[_request_key(e)] is not None
-            and now[_request_key(e)] != stored.get(_request_key(e))
-        ]
-        remaining.extend({**error, "kept_newer_value": True} for error in changed)
-        repaired = [e for e in repaired if e not in changed]
+        # Locks the service row, so an editor save from now on waits for this
+        # write and the values read below can't change before it.
+        Service.objects.select_for_update(of=("self",)).filter(
+            id=node.service_id
+        ).exists()
+        service = node.service.get_type().model_class.objects.get(id=node.service_id)
+        now = _current_values(
+            service, [e for e in node_errors if _request_key(e) in generated]
+        )
+        for key, value in now.items():
+            error = next(e for e in node_errors if _request_key(e) == key)
+            if value is _NO_BRANCH or value == stored[key]:
+                repaired.append(error)
+            else:
+                kept.append(error)
         if not repaired:
             return remaining
         node, values, _changed = shared_nodes.update_node(

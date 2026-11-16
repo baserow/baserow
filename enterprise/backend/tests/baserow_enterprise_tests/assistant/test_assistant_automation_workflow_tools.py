@@ -102,7 +102,9 @@ def mock_formula_generator(request, monkeypatch):
         return
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.automation.agents.repair_formula_errors",
-        lambda tool_context, tool_helpers, formula_errors, refs=None: [],
+        lambda tool_context, tool_helpers, formula_errors, refs=None: (
+            automation_agents.RepairResult([], [])
+        ),
     )
 
 
@@ -1158,3 +1160,71 @@ def test_kuma_is_not_offered_publishing():
     assert "publish_workflow" not in {tool.__name__ for tool in TOOL_FUNCTIONS}
     assert "pause_workflow" not in AGENT_SYSTEM_PROMPT
     assert "pause_workflow" not in {tool.__name__ for tool in TOOL_FUNCTIONS}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_workflows_keeps_a_later_workflow_value_edited_meanwhile(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    from baserow.contrib.automation.nodes.models import AutomationNode
+    from baserow.contrib.automation.nodes.service import AutomationNodeService
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    ctx = make_test_ctx(user, workspace)
+    calls = []
+
+    def generate(formulas, context):
+        # While the first workflow's formula is generated, the user edits the
+        # second workflow's email.
+        if not calls:
+            second = AutomationNode.objects.get(label="Email 2")
+            AutomationNodeService().update_node(
+                user, second.id, service={"subject": "'Edited'"}
+            )
+        calls.append(formulas)
+        return {"subject": "'Generated'"}
+
+    monkeypatch.setattr(
+        automation_agents, "get_generate_formulas_tool", lambda _profile: generate
+    )
+
+    result = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name=f"Workflow {index}",
+                trigger=TriggerNodeCreate(
+                    ref="trigger",
+                    label="Periodic Trigger",
+                    type="periodic",
+                    periodic_interval={"interval": "DAY"},
+                ),
+                nodes=[
+                    ActionNodeCreate(
+                        ref="email",
+                        label=f"Email {index}",
+                        previous_node_ref="trigger",
+                        type="smtp_email",
+                        to_emails="test@example.com",
+                        subject="$formula: the trigger name",
+                        body="Hello",
+                    )
+                ],
+            )
+            for index in (1, 2)
+        ],
+        thought="create two workflows",
+    )
+
+    subjects = {
+        node.label: node.service.specific.subject["formula"]
+        for node in AutomationNode.objects.filter(label__startswith="Email ")
+    }
+    assert subjects == {"Email 1": "'Generated'", "Email 2": "'Edited'"}
+    assert [kept["node_label"] for kept in result["kept_user_edits"]] == ["Email 2"]
+    assert "formula_errors" not in result

@@ -157,6 +157,18 @@ class ServiceValues:
 # ---------------------------------------------------------------------------
 
 
+def matching_branches(labels: list[str], label: str) -> list[int]:
+    """
+    The indexes of the router branches a label names: those with that exact
+    label, or else those whose label differs only in case.
+    """
+
+    exact = [index for index, other in enumerate(labels) if other == label]
+    return exact or [
+        index for index, other in enumerate(labels) if other.lower() == label.lower()
+    ]
+
+
 def _is_blank(value: Any) -> bool:
     """
     Whether a required value carries nothing to act on. Only text is judged
@@ -829,8 +841,11 @@ def _router_update_service(
         if update.condition is None:
             # A branch listed without a condition keeps it.
             continue
-        matches = [edge for edge in edges if edge["label"] == update.label] or [
-            edge for edge in edges if edge["label"].lower() == update.label.lower()
+        matches = [
+            edges[index]
+            for index in matching_branches(
+                [edge["label"] for edge in edges], update.label
+            )
         ]
         if len(matches) != 1:
             labels = ", ".join(f"'{edge['label']}'" for edge in edges) or "none"

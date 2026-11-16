@@ -101,4 +101,4 @@ def test_automation_formula_repair_forwards_request_model_profile():
         )
 
     factory.assert_called_once_with(model_profile)
-    assert remaining == [error]
+    assert remaining == automation_agents.RepairResult([error], [])
