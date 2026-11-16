@@ -344,6 +344,39 @@ def test_always_allow_stops_the_approved_action_asking_first(
 
 
 @pytest.mark.django_db
+def test_always_allow_tells_every_session_that_ask_first_is_off(
+    email_action, mocker, mailoutbox, django_capture_on_commit_callbacks
+):
+    user, agent, action, _, _ = email_action
+    user.web_socket_id = "approver-session"
+    action.ask_first = True
+    action.save()
+    respond(mocker, ({0: email_call(action.name)},))
+    reply = pause(user, agent)
+    broadcast = mocker.patch(
+        "baserow.contrib.agent.ws.signals.broadcast_to_permitted_users.delay"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        AgentService().decide_approvals(
+            user,
+            agent.id,
+            reply.conversation.uuid,
+            [{"id": reply.approvals.get().id, "approved": True}],
+            always_allow=True,
+        )
+
+    # The approver's own Actions section is open beside the chat and must learn it.
+    [(args, kwargs)] = [
+        call
+        for call in broadcast.call_args_list
+        if call.args[4]["type"] == "agent_action_updated"
+    ]
+    assert args[4]["action"]["ask_first"] is False
+    assert kwargs["ignore_web_socket_id"] is None
+
+
+@pytest.mark.django_db
 def test_pending_email_does_not_send_once_its_integration_is_trashed(
     email_action, mocker, mailoutbox
 ):

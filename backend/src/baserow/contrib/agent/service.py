@@ -12,6 +12,8 @@ from baserow.core.signals import application_pending_count_updated, application_
 from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
+from .action_tools.handler import AgentActionHandler
+from .action_tools.signals import agent_action_updated
 from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
 from .exceptions import (
     AgentConversationReadOnly,
@@ -669,9 +671,6 @@ class AgentService:
         :return: The tools that stopped asking first.
         """
 
-        # Import locally: action CRUD uses AgentService for application access.
-        from .action_tools.service import AgentActionService
-
         approved = {
             approval.tool_name: approval.tool_key
             for approval in approvals
@@ -684,8 +683,10 @@ class AgentService:
             application_updated.send(self, application=agent, user=user)
         for tool in self.handler.get_action_tools(agent):
             if tool.ask_first and approved.get(tool.type) == tool.approval_key:
-                AgentActionService().update_action(
-                    user, agent_id, tool.action.id, ask_first=False
+                updated = AgentActionHandler().update_action(
+                    tool.action, ask_first=False
                 )
+                # No session edited the action, so the approver's own is told too.
+                agent_action_updated.send(self, action=updated.action, user=None)
                 stopped.append(tool.type)
         return stopped
