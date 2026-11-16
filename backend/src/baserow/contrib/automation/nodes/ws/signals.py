@@ -62,9 +62,9 @@ def bounded_node_event(event: dict) -> dict:
 
 def broadcast_node_event(node: AutomationNode, user: AbstractUser, event_type: str):
     """
-    Broadcasts the node to the users who may read it. A node whose service uses a
-    table names that table's fields, so it is broadcast with a task that leaves
-    them out for the users who may not see them.
+    Broadcasts the node to the users who may read it. A node that shows the data
+    of tables, its own or those of the nodes it reads, is broadcast with a task
+    that sends the users who may not see one of them a copy without that data.
     """
 
     def node_event(context: dict[str, Any]) -> dict[str, Any]:
@@ -79,14 +79,16 @@ def broadcast_node_event(node: AutomationNode, user: AbstractUser, event_type: s
     # Shows every table: only sent to the users who may see them.
     event = node_event({})
     web_socket_id = getattr(user, "web_socket_id", None)
-    table_id = getattr(node.service.specific, "table_id", None)
-    if table_id is not None:
+    # Without a user, every node that shows a table is hidden.
+    hidden_context = node_serializer_context(None, [node])
+    table_ids = hidden_context["service_table_access"].table_ids(node)
+    if table_ids:
         broadcast_node_event_to_permitted_users.delay(
             workspace_id,
             node.id,
-            table_id,
+            sorted(table_ids),
             event,
-            node_event(node_serializer_context(None)),
+            node_event(hidden_context),
             web_socket_id,
         )
     else:

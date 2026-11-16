@@ -1833,7 +1833,7 @@ def test_formula_requests_leave_out_fields_the_user_cannot_see(
     errors = [{"field_id": field.id, "field": "values", "formula": "", "error": ""}]
 
     def requests_for(user):
-        access = automation_agents.ServiceTableAccess(user)
+        access = automation_agents.AutomationNodeAccess(user).add_nodes([node])
         return automation_agents.formula_requests(node, errors, access)
 
     assert requests_for(admin)[field.id]["name"] == "Salary"

@@ -13,6 +13,7 @@ from django.utils.translation import gettext as _
 
 from pydantic import Field
 
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
@@ -39,7 +40,6 @@ from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
-from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
@@ -157,25 +157,26 @@ def _compact_properties(schema: dict[str, Any]) -> dict[str, Any]:
     return properties
 
 
-def output_schema(node: AutomationNode, access: ServiceTableAccess) -> dict[str, Any]:
+def output_schema(node: AutomationNode, access: AutomationNodeAccess) -> dict[str, Any]:
     """
     What a node outputs, for the formulas of the nodes after it: the formula path
     to its data and its properties, keyed as the path expects.
 
-    :param access: Whether the user may see the fields of the node's table. The
-        properties are left out when they may not, as they name those fields.
+    :param access: Whether the user may see what the node outputs. When they may
+        not, as it shows a table they may not see, the properties are left out
+        and `table_accessible` is False.
     """
 
     service = node.service.specific
     service_type = service.get_type()
-    schema = (
-        service_type.generate_schema(service) if access.allows(service) else None
-    ) or {}
-    if schema.get("type") == "array":
-        schema = schema.get("items") or {}
     path = f"previous_node.{node.id}"
     if service_type.returns_list(service):
         path += ".0"
+    if not access.allows(service):
+        return {"formula_path": path, "properties": {}, "table_accessible": False}
+    schema = service_type.generate_schema(service) or {}
+    if schema.get("type") == "array":
+        schema = schema.get("items") or {}
     return {"formula_path": path, "properties": _compact_properties(schema)}
 
 
@@ -189,11 +190,13 @@ def node_outputs(
     """
 
     cache: dict[int, dict[str, Any] | None] = {}
-    access = ServiceTableAccess(user)
+    access = AutomationNodeAccess(user)
 
     def outputs(node_id: int) -> dict[str, Any] | None:
         if node_id not in cache:
             node = AutomationNode.objects.filter(workflow=workflow, id=node_id).first()
+            if node is not None:
+                access.add_nodes([node])
             cache[node_id] = None if node is None else output_schema(node, access)
         return cache[node_id]
 
@@ -238,9 +241,10 @@ def describe_workflow_nodes(
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
-    access = ServiceTableAccess(ctx.user)
+    ordered = nodes_in_order(ctx.user, workflow)
+    access = AutomationNodeAccess(ctx.user).add_nodes(node for node, _, _ in ordered)
     nodes = []
-    for node, previous, output in nodes_in_order(ctx.user, workflow):
+    for node, previous, output in ordered:
         description = describe_node(node, previous, output)
         if with_output_schema:
             description["output_schema"] = output_schema(node, access)
@@ -261,7 +265,8 @@ def list_nodes(
     the container's id as parent_node_id instead. A router lists its branches.
     output_schema
     says what a node outputs: a later node's formula reads a property with
-    get('<formula_path>.<property key>').
+    get('<formula_path>.<property key>'). A node with table_accessible false shows
+    a table you can't access, so formulas can't read it.
     """
 
     return {"nodes": describe_workflow_nodes(ctx, workflow_id)}

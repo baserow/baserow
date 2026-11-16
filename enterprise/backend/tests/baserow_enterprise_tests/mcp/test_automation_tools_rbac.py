@@ -172,6 +172,7 @@ def test_list_nodes_hides_the_fields_of_a_table_the_user_cannot_see(team):
     assert node["output_schema"] == {
         "formula_path": f"previous_node.{trigger.id}.0",
         "properties": {},
+        "table_accessible": False,
     }
     assert "Salary" not in text
     assert f"field_{salary.id}" not in text

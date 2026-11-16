@@ -9,9 +9,12 @@ import pytest
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.signals import automation_node_updated
+from baserow.contrib.automation.tools.nodes import list_nodes, update_nodes
+from baserow.contrib.automation.tools.types import NodeUpdate
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.core.handler import CoreHandler
+from baserow.core.tools import ToolContext
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -309,3 +312,207 @@ def test_node_events_check_the_table_in_its_own_workspace(
     (event,) = sent[admin.id]
     assert event["node"]["service"]["table_accessible"] is False
     assert "Salary" not in str(event)
+
+
+def _formula(formula):
+    return {"formula": formula, "mode": "simple", "version": "0.1"}
+
+
+def _add_node(admin, workflow, node_type, after, sample_data=None, **values):
+    """A node after another, with the given service values and test run data."""
+
+    node = AutomationNodeService().create_node(
+        admin,
+        automation_node_type_registry.get(node_type),
+        workflow,
+        reference_node_id=after.id,
+        service={},
+    )
+    service = node.service.specific
+    for name, value in values.items():
+        setattr(service, name, value)
+    service.sample_data = sample_data
+    service.save()
+    return node
+
+
+@pytest.fixture
+def nodes_after_a_secret_trigger(workflow_on_a_secret_table):
+    """
+    An iterator over the rows of the trigger, an email that reads a value of the
+    trigger's row, and an email that reads nothing of the trigger. The test run
+    data of the first two holds the trigger's rows.
+    """
+
+    admin, workflow, trigger, _, _, _ = workflow_on_a_secret_table
+    iterator = _add_node(
+        admin,
+        workflow,
+        "iterator",
+        trigger,
+        source=_formula(f"get('previous_node.{trigger.id}')"),
+        sample_data={"data": {"results": [{"id": 1, "Salary": "Paid 250k"}]}},
+    )
+    email = _add_node(
+        admin,
+        workflow,
+        "smtp_email",
+        iterator,
+        body=_formula(f"get('current_iteration.{iterator.id}.item.Salary')"),
+        sample_data={"data": {"body": "Paid 250k"}},
+    )
+    unrelated = _add_node(
+        admin,
+        workflow,
+        "smtp_email",
+        email,
+        body=_formula("'Weekly report'"),
+        sample_data={"data": {"body": "Weekly report"}},
+    )
+    return iterator, email, unrelated
+
+
+@pytest.mark.django_db
+def test_nodes_reading_a_secret_table_are_hidden_too(
+    api_client, workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    _, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    iterator, email, unrelated = nodes_after_a_secret_trigger
+    url = reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {restricted_token}")
+
+    assert response.status_code == 200
+    assert "Paid 250k" not in response.content.decode()
+    services = {node["id"]: node["service"] for node in response.json()}
+    for node in (iterator, email):
+        assert services[node.id]["table_accessible"] is False
+        for key in TABLE_DERIVED_KEYS:
+            assert services[node.id][key] is None
+    assert services[unrelated.id]["table_accessible"] is True
+    assert services[unrelated.id]["sample_data"] == {"data": {"body": "Weekly report"}}
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {admin_token}")
+
+    services = {node["id"]: node["service"] for node in response.json()}
+    assert services[iterator.id]["schema"]["items"]["properties"]["Salary"]
+    assert services[email.id]["sample_data"] == {"data": {"body": "Paid 250k"}}
+    assert all(service["table_accessible"] for service in services.values())
+
+
+@pytest.mark.django_db
+def test_list_nodes_tool_hides_nodes_reading_a_secret_table(
+    workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    _, workflow, _, _, _, restricted = workflow_on_a_secret_table
+    iterator, email, unrelated = nodes_after_a_secret_trigger
+    ctx = ToolContext(user=restricted, workspace=workflow.automation.workspace)
+
+    outputs = {
+        node["id"]: node["output_schema"]
+        for node in list_nodes(ctx, workflow.id)["nodes"]
+    }
+
+    assert outputs[iterator.id]["table_accessible"] is False
+    assert outputs[iterator.id]["properties"] == {}
+    assert outputs[email.id]["table_accessible"] is False
+    assert "table_accessible" not in outputs[unrelated.id]
+
+
+@pytest.mark.django_db
+def test_a_formula_reading_a_secret_table_is_refused_without_naming_its_fields(
+    workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    admin, workflow, trigger, _, _, restricted = workflow_on_a_secret_table
+    _, _, unrelated = nodes_after_a_secret_trigger
+    formula = f"get('previous_node.{trigger.id}.0.nonexistent')"
+
+    def update_as(user):
+        ctx = ToolContext(user=user, workspace=workflow.automation.workspace)
+        return update_nodes(
+            ctx, workflow.id, [NodeUpdate(node_id=unrelated.id, subject=formula)]
+        )
+
+    (error,) = update_as(restricted)["formula_errors"]
+    assert error["error"] == (
+        f"Node {trigger.id} shows a table you can't access, so "
+        f"'previous_node.{trigger.id}.0.nonexistent' can't be read."
+    )
+    unrelated.service.specific.refresh_from_db()
+    assert unrelated.service.specific.subject["formula"] != formula
+
+    # A user who may see the table is told what the node outputs.
+    (error,) = update_as(admin)["formula_errors"]
+    assert "Salary" in error["error"]
+
+
+@pytest.mark.django_db
+def test_run_results_of_nodes_reading_a_secret_table_are_hidden(
+    api_client,
+    enterprise_data_fixture,
+    workflow_on_a_secret_table,
+    nodes_after_a_secret_trigger,
+):
+    _, workflow, trigger, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    iterator, email, unrelated = nodes_after_a_secret_trigger
+    run = enterprise_data_fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow
+    )
+    results = {}
+    for node, result in (
+        (trigger, {"results": [{"id": 1, "Salary": "Paid 250k"}]}),
+        (iterator, {"results": [{"id": 1, "Salary": "Paid 250k"}]}),
+        (email, {"body": "Paid 250k"}),
+        (unrelated, {"body": "Weekly report"}),
+    ):
+        node_history = enterprise_data_fixture.create_automation_node_history(
+            workflow_history=run, node=node
+        )
+        enterprise_data_fixture.create_automation_node_result(
+            node_history=node_history, result=result
+        )
+        results[node.id] = node_history.id
+
+    def result_of(node, token):
+        response = api_client.get(
+            reverse(
+                "api:automation:history:node_result",
+                kwargs={"node_history_id": results[node.id]},
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == 200, response.json()
+        return response.json()["result"]
+
+    for node in (trigger, iterator, email):
+        assert result_of(node, restricted_token) is None
+        assert "Paid 250k" in str(result_of(node, admin_token))
+    assert result_of(unrelated, restricted_token) == {"body": "Weekly report"}
+
+
+@broadcast_node_events
+@pytest.mark.django_db(transaction=True)
+def test_node_events_of_nodes_reading_a_secret_table_are_hidden(
+    django_capture_on_commit_callbacks,
+    workflow_on_a_secret_table,
+    nodes_after_a_secret_trigger,
+):
+    admin, _, _, _, _, restricted = workflow_on_a_secret_table
+    _, email, unrelated = nodes_after_a_secret_trigger
+
+    def rename(node):
+        return _broadcast_node_events(
+            django_capture_on_commit_callbacks,
+            lambda: AutomationNodeService().update_node(admin, node.id, label="New"),
+        )
+
+    sent = rename(email)
+    (full,) = sent[admin.id]
+    (hidden,) = sent[restricted.id]
+    assert full["node"]["service"]["sample_data"] == {"data": {"body": "Paid 250k"}}
+    assert "Paid 250k" not in str(hidden)
+    assert hidden["node"]["service"]["table_accessible"] is False
+
+    sent = rename(unrelated)
+    assert sent[restricted.id] == sent[admin.id]
+    assert sent[restricted.id][0]["node"]["service"]["table_accessible"] is True

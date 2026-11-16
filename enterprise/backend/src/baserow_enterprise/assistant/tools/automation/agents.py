@@ -16,6 +16,7 @@ from django.utils.translation import gettext as _
 
 from loguru import logger
 
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools import nodes as shared_nodes
@@ -24,7 +25,6 @@ from baserow.contrib.automation.tools.types import (
     SERVICE_ATTRIBUTES,
     matching_branches,
 )
-from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.formula.literals import FORMULA_PREFIX
 from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext
@@ -186,7 +186,7 @@ def _describe(error: dict[str, Any], base: str) -> str:
 
 
 def formula_requests(
-    node: AutomationNode, errors: list[dict[str, Any]], access: ServiceTableAccess
+    node: AutomationNode, errors: list[dict[str, Any]], access: AutomationNodeAccess
 ) -> dict[Any, Any]:
     """
     What to ask the generator for a node's formula errors, keyed as
@@ -244,7 +244,7 @@ class WorkflowExamples:
 
     def __init__(self, user, refs: dict[int, str] | None = None):
         self.user = user
-        self.access = ServiceTableAccess(user)
+        self.access = AutomationNodeAccess(user)
         self.refs = refs or {}
         self._workflows: dict[int, tuple[dict, dict]] = {}
 
@@ -252,13 +252,13 @@ class WorkflowExamples:
         if workflow.id not in self._workflows:
             previous_of = {}
             examples = {}
-            for node, previous, _output in shared_nodes.nodes_in_order(
-                self.user, workflow
-            ):
+            ordered = shared_nodes.nodes_in_order(self.user, workflow)
+            self.access.add_nodes(node for node, _, _ in ordered)
+            for node, previous, _output in ordered:
                 previous_of[node.id] = previous.id if previous else None
                 service = node.service.specific
                 if not self.access.allows(service):
-                    # Its schema names the fields of a table the user may not see.
+                    # It shows the data of a table the user may not see.
                     continue
                 schema = service.get_type().generate_schema(service)
                 if not schema:

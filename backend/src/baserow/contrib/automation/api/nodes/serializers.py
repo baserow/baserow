@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Iterable
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.functional import lazy
@@ -12,9 +12,9 @@ from baserow.api.services.serializers import (
     PolymorphicServiceSerializer,
     ServiceSerializer,
 )
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.services.models import Service
@@ -65,13 +65,18 @@ class AutomationServiceSerializer(ServiceSerializer):
         fields = ServiceSerializer.Meta.fields + ("table_accessible",)
 
 
-def node_serializer_context(user: AbstractUser | None) -> dict[str, Any]:
+def node_serializer_context(
+    user: AbstractUser | None, nodes: Iterable[AutomationNode]
+) -> dict[str, Any]:
     """
     The context to serialize nodes for a user with, so the services of the nodes
-    only show the tables the user may see. Without a user, no table is shown.
+    only show the tables the user may see, directly or through the nodes they
+    read. Without a user, no table is shown.
+
+    :param nodes: The nodes that will be serialized.
     """
 
-    return {"service_table_access": ServiceTableAccess(user)}
+    return {"service_table_access": AutomationNodeAccess(user).add_nodes(nodes)}
 
 
 class AutomationPolymorphicServiceSerializer(PolymorphicServiceSerializer):

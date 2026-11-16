@@ -30,6 +30,7 @@ from baserow.contrib.automation.history.exceptions import (
     AutomationWorkflowHistoryNotRunning,
 )
 from baserow.contrib.automation.history.service import AutomationHistoryService
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 
 AUTOMATION_HISTORY_TAG = "Automation history"
 
@@ -175,5 +176,9 @@ class AutomationNodeResultView(APIView):
         node_result = AutomationHistoryService().get_node_history_result(
             request.user, node_history_id
         )
-        serializer = AutomationNodeResultSerializer(node_result)
-        return Response(serializer.data)
+        data = AutomationNodeResultSerializer(node_result).data
+        node = node_result.node_history.node
+        if AutomationNodeAccess(request.user).node_hidden(node):
+            # The result holds the data of a table the user may not see.
+            data["result"] = None
+        return Response(data)

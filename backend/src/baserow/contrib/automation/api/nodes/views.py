@@ -151,7 +151,7 @@ class AutomationNodesView(APIView):
         serializer = automation_node_type_registry.get_serializer(
             node,
             AutomationNodeSerializer,
-            context=node_serializer_context(request.user),
+            context=node_serializer_context(request.user, [node]),
         )
         return Response(serializer.data)
 
@@ -189,10 +189,10 @@ class AutomationNodesView(APIView):
     def get(self, request, workflow_id: int):
         workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
-        nodes = AutomationNodeService().get_nodes(request.user, workflow)
+        nodes = list(AutomationNodeService().get_nodes(request.user, workflow))
 
         # One context for every node, so each table is checked once.
-        context = node_serializer_context(request.user)
+        context = node_serializer_context(request.user, nodes)
         data = [
             automation_node_type_registry.get_serializer(
                 node, AutomationNodeSerializer, context=context
@@ -273,7 +273,7 @@ class AutomationNodeView(APIView):
         serializer = automation_node_type_registry.get_serializer(
             node,
             AutomationNodeSerializer,
-            context=node_serializer_context(request.user),
+            context=node_serializer_context(request.user, [node]),
         )
 
         return Response(serializer.data)
@@ -362,7 +362,7 @@ class DuplicateAutomationNodeView(APIView):
             automation_node_type_registry.get_serializer(
                 duplicated_node,
                 AutomationNodeSerializer,
-                context=node_serializer_context(request.user),
+                context=node_serializer_context(request.user, [duplicated_node]),
             ).data
         )
 
@@ -411,7 +411,7 @@ class ReplaceAutomationNodeView(APIView):
             automation_node_type_registry.get_serializer(
                 replaced_node,
                 AutomationNodeSerializer,
-                context=node_serializer_context(request.user),
+                context=node_serializer_context(request.user, [replaced_node]),
             ).data
         )
 
