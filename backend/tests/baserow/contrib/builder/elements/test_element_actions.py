@@ -18,6 +18,10 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.core.action.handler import ActionHandler
+from baserow.core.formula.types import (
+    BASEROW_FORMULA_MODE_ADVANCED,
+    BaserowFormulaObject,
+)
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -297,3 +301,162 @@ def test_shared_element_action_is_scoped_to_shared_page(data_fixture):
     )
     element.refresh_from_db(fields=["trashed"])
     assert not element.trashed
+
+
+def _undo(user, page, session_id):
+    ActionHandler.undo(user, [PageActionScopeType.value(page.id)], session_id)
+
+
+def _redo(user, page, session_id):
+    ActionHandler.redo(user, [PageActionScopeType.value(page.id)], session_id)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_table_element_fields_action_undo_redo(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {"name": "Id", "type": "text", "config": {"value": "''"}},
+            {"name": "Name", "type": "text", "config": {"value": "'Name'"}},
+        ],
+    )
+    columns = [
+        {
+            "uid": str(column.uid),
+            "name": column.name,
+            "type": column.type,
+            "config": dict(column.config),
+            "styles": column.styles,
+        }
+        for column in table.fields.order_by("order")
+    ]
+    uids = [column["uid"] for column in columns]
+    columns[0]["config"]["value"] = BaserowFormulaObject.create(
+        "get('current_record.id')", mode=BASEROW_FORMULA_MODE_ADVANCED
+    )
+
+    def column_values():
+        return [
+            (str(column.uid), column.name, column.config["value"]["formula"])
+            for column in table.fields.order_by("order")
+        ]
+
+    UpdateElementActionType.do(user, table, {"fields": columns})
+    generated = [
+        (uids[0], "Id", "get('current_record.id')"),
+        (uids[1], "Name", "'Name'"),
+    ]
+    assert column_values() == generated
+
+    _undo(user, page, session_id)
+    assert column_values() == [(uids[0], "Id", "''"), (uids[1], "Name", "'Name'")]
+
+    _redo(user, page, session_id)
+    assert column_values() == generated
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_collection_element_property_options_action_undo_redo(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(page=page)
+    UpdateElementActionType.do(
+        user,
+        table,
+        {"property_options": [{"schema_property": "field_1", "sortable": True}]},
+    )
+    UpdateElementActionType.do(
+        user,
+        table,
+        {"property_options": [{"schema_property": "field_2", "filterable": True}]},
+    )
+
+    def options():
+        return list(
+            table.property_options.order_by("schema_property").values_list(
+                "schema_property", "sortable", "filterable"
+            )
+        )
+
+    assert options() == [("field_2", False, True)]
+
+    _undo(user, page, session_id)
+    assert options() == [("field_1", True, False)]
+
+    _redo(user, page, session_id)
+    assert options() == [("field_2", False, True)]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_menu_element_items_action_undo_redo(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    menu = data_fixture.create_builder_menu_element(page=page)
+    home, about, team = (str(uuid.uuid4()) for _ in range(3))
+
+    def link(uid, name, **kwargs):
+        return {"uid": uid, "type": "link", "variant": "link", "name": name, **kwargs}
+
+    UpdateElementActionType.do(
+        user, menu, {"menu_items": [link(home, "Home"), link(about, "About")]}
+    )
+    UpdateElementActionType.do(
+        user,
+        menu,
+        {"menu_items": [link(about, "About us", children=[link(team, "Team")])]},
+    )
+
+    def items():
+        return sorted(
+            (
+                str(item.uid),
+                item.name,
+                item.parent_menu_item and str(item.parent_menu_item.uid),
+            )
+            for item in menu.menu_items.all()
+        )
+
+    changed = sorted([(about, "About us", None), (team, "Team", about)])
+    assert items() == changed
+
+    _undo(user, page, session_id)
+    assert items() == sorted([(home, "Home", None), (about, "About", None)])
+
+    _redo(user, page, session_id)
+    assert items() == changed
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_choice_element_options_action_undo_redo(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    choice = data_fixture.create_builder_choice_element(page=page)
+    UpdateElementActionType.do(user, choice, {"options": [{"value": "a", "name": "A"}]})
+    UpdateElementActionType.do(
+        user,
+        choice,
+        {"options": [{"value": "b", "name": "B"}, {"value": None, "name": "C"}]},
+    )
+
+    def options():
+        return list(
+            choice.choiceelementoption_set.order_by("id").values_list("value", "name")
+        )
+
+    assert options() == [("b", "B"), (None, "C")]
+
+    _undo(user, page, session_id)
+    assert options() == [("a", "A")]
+
+    _redo(user, page, session_id)
+    assert options() == [("b", "B"), (None, "C")]

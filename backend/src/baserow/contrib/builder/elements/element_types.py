@@ -1,5 +1,6 @@
 import abc
 import uuid
+from collections import defaultdict
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import (
@@ -1981,6 +1982,19 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             "options": ChoiceOptionSerializer(many=True, required=False),
         }
 
+    def export_prepared_values(self, instance: ChoiceElement) -> Dict[str, Any]:
+        """
+        Adds the options, which are saved by `after_update`, so that undo and redo
+        can restore them.
+        """
+
+        return {
+            **super().export_prepared_values(instance),
+            "options": list(
+                instance.choiceelementoption_set.order_by("id").values("value", "name")
+            ),
+        }
+
     def serialize_property(
         self,
         element: ChoiceElement,
@@ -2489,6 +2503,42 @@ class MenuElementType(ElementType):
         self, queryset: QuerySet[MenuItemElement]
     ) -> QuerySet[MenuItemElement]:
         return queryset.prefetch_related("menu_items")
+
+    def export_prepared_values(self, instance: MenuElement) -> Dict[str, Any]:
+        """
+        Adds the menu items, which are saved by `after_update`, so that undo and
+        redo can restore them. Sub-links are nested as the `children` of their
+        parent item, the shape `after_update` expects.
+        """
+
+        def item_values(item: MenuItemElement) -> Dict[str, Any]:
+            return {
+                "uid": str(item.uid),
+                "type": item.type,
+                "variant": item.variant,
+                "name": item.name,
+                "navigation_type": item.navigation_type,
+                "navigate_to_page_id": item.navigate_to_page_id,
+                "navigate_to_url": item.navigate_to_url,
+                "page_parameters": item.page_parameters,
+                "query_parameters": item.query_parameters,
+                "target": item.target,
+            }
+
+        items = list(instance.menu_items.order_by("menu_item_order", "id"))
+        children: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
+        for item in items:
+            if item.parent_menu_item_id is not None:
+                children[item.parent_menu_item_id].append(item_values(item))
+
+        return {
+            **super().export_prepared_values(instance),
+            "menu_items": [
+                {**item_values(item), "children": children[item.id]}
+                for item in items
+                if item.parent_menu_item_id is None
+            ],
+        }
 
     def before_delete(self, instance: MenuElement) -> None:
         """

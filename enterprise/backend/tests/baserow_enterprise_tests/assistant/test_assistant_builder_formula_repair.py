@@ -6,8 +6,12 @@ reported the way Kuma's tools always did.
 
 from typing import Any
 
+from django.db import transaction
+
 import pytest
 
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.contrib.builder.action_scopes import PageActionScopeType
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
@@ -29,6 +33,7 @@ from baserow.contrib.builder.tools.types import (
     TableFieldConfig,
 )
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.core.action.handler import ActionHandler
 from baserow.core.exceptions import PermissionException
 from baserow.core.tools import ToolContext
 from baserow.core.user_sources.models import UserSource
@@ -744,6 +749,47 @@ def test_kuma_table_columns_are_repaired_by_their_path(listed, monkeypatch):
     assert asked == [{"fields.0.value": "the id"}]
     table = ElementHandler().get_element(result["ref_to_id_map"]["t"])
     assert table.fields.get().config["value"]["formula"] == "get('current_record.id')"
+
+
+@pytest.mark.django_db
+def test_undo_and_redo_of_kuma_generated_table_column_formulas(listed, monkeypatch):
+    use_generator(
+        monkeypatch,
+        lambda formulas, context: {"fields.0.value": "get('current_record.id')"},
+    )
+
+    result = create_collection_elements(
+        listed["ctx"],
+        page_id=listed["page"].id,
+        elements=[
+            CollectionElementCreate(
+                ref="t",
+                type="table",
+                data_source=listed["data_source"].id,
+                fields=[TableFieldConfig(name="Id", value="$formula: the id")],
+            )
+        ],
+        thought="test",
+    )
+
+    table = ElementHandler().get_element(result["ref_to_id_map"]["t"])
+
+    def formula():
+        return table.fields.get().config["value"]["formula"]
+
+    assert formula() == "get('current_record.id')"
+    user = listed["user"]
+    scopes = [PageActionScopeType.value(listed["page"].id)]
+    session_id = get_untrusted_client_session_id(user)
+
+    # The generated formulas are their own action, after the table's creation.
+    with transaction.atomic():
+        ActionHandler.undo(user, scopes, session_id)
+    assert formula() == "''"
+
+    with transaction.atomic():
+        ActionHandler.redo(user, scopes, session_id)
+    assert formula() == "get('current_record.id')"
 
 
 @pytest.mark.django_db

@@ -128,7 +128,9 @@ class ElementType(
         round-trips for element types whose update path accepts that id (e.g. those
         exposing an `<field>_id` allowed field). Update undo/redo therefore only
         snapshots the fields actually changed by an update (see the update action),
-        keeping scalar/JSON field changes fully reversible.
+        keeping scalar/JSON field changes fully reversible. Element types that save
+        related objects in `after_update` (e.g. table fields or menu items) add them
+        here in the shape `update_element` accepts.
 
         :param instance: The element instance to export values for.
         :return: A dict of prepared values keyed by field name.

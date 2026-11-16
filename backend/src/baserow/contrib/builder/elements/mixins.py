@@ -230,6 +230,21 @@ class CollectionElementTypeMixin:
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).prefetch_related("property_options")
 
+    def export_prepared_values(self, instance: CollectionElementSubClass):
+        """
+        Adds the property options, which are saved by `after_update`, so that undo
+        and redo can restore them.
+        """
+
+        return {
+            **super().export_prepared_values(instance),
+            "property_options": list(
+                instance.property_options.order_by("id").values(
+                    "schema_property", "searchable", "filterable", "sortable"
+                )
+            ),
+        }
+
     def after_update(
         self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]
     ):
@@ -705,6 +720,26 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
 
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         fields: List[Dict]
+
+    def export_prepared_values(self, instance: CollectionElementSubClass):
+        """
+        Adds the fields, which are saved by `after_update`, so that undo and redo
+        can restore them.
+        """
+
+        return {
+            **super().export_prepared_values(instance),
+            "fields": [
+                {
+                    "uid": str(field.uid),
+                    "name": field.name,
+                    "type": field.type,
+                    "config": field.config,
+                    "styles": field.styles,
+                }
+                for field in instance.fields.order_by("order", "id")
+            ],
+        }
 
     def get_event_names(self, instance: CollectionElementSubClass) -> List[str]:
         """
