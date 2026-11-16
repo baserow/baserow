@@ -1376,3 +1376,61 @@ def test_service_filter_status_without_dashboard_runtime_filters(
         value=BaserowFormulaObject.create("Alpha", mode="raw"),
     )
     assert service.get_type().is_filtered(service, context) is True
+
+
+@pytest.mark.django_db
+def test_public_property_cache_reuses_widgets_and_invalidates_changes(
+    api_client, filter_dashboard, context_options, data_fixture, monkeypatch
+):
+    """Global entries survive requests but track widget and source configuration edits."""
+    from baserow.contrib.dashboard.widgets.widget_types import TextFilterWidgetType
+
+    _, _, dashboard, source, widget, _ = filter_dashboard
+    parsed_widgets = []
+    original_extract = TextFilterWidgetType.extract_properties
+
+    def extract_properties(self, instance, **kwargs):
+        parsed_widgets.append(instance.id)
+        return original_extract(self, instance, **kwargs)
+
+    monkeypatch.setattr(TextFilterWidgetType, "extract_properties", extract_properties)
+    url = reverse("api:dashboard:public:info", kwargs={"slug": dashboard.slug})
+    assert api_client.get(url).status_code == 200
+    assert api_client.get(url).status_code == 200
+    assert parsed_widgets == [widget.id]
+
+    # A different widget gets its own cache entry and does not evict this one.
+    summary = SummaryWidget.objects.filter(dashboard=dashboard).first()
+    summary.title = "Updated title"
+    summary.save(update_fields=["title"])
+    assert api_client.get(url).status_code == 200
+    assert parsed_widgets == [widget.id]
+
+    field = data_fixture.create_single_select_field(table=source.service.specific.table)
+    data_fixture.create_select_option(
+        field=field, value="Updated options", color="blue"
+    )
+    widget.options = BaserowFormulaObject.create(
+        f"get('data_source_context.{source.id}.{field.db_column}.*.value')"
+    )
+    widget.save(update_fields=["options"])
+    response = api_client.get(url)
+    assert response.status_code == 200
+    public_source = next(
+        item for item in response.json()["data_sources"] if item["id"] == source.id
+    )
+    assert set(public_source["context_data"]) == {field.db_column}
+    assert parsed_widgets == [widget.id, widget.id]
+
+    service = source.service.specific
+    source.service = data_fixture.create_local_baserow_list_rows_service(
+        table=service.table, integration=service.integration
+    )
+    source.save(update_fields=["service"])
+    response = api_client.get(url)
+    assert response.status_code == 200
+    public_source = next(
+        item for item in response.json()["data_sources"] if item["id"] == source.id
+    )
+    assert set(public_source["context_data"]) == {field.db_column}
+    assert parsed_widgets == [widget.id, widget.id, widget.id]
