@@ -19,7 +19,9 @@
       </span>
       <span
         class="node-explorer-content__name"
-        :class="{ 'node-explorer-content__name--with-value': valuePreview }"
+        :class="{
+          'node-explorer-content__name--with-value': valuePreview || node.hint,
+        }"
         >{{ node.name }}</span
       >
       <span
@@ -34,6 +36,10 @@
         :title="valuePreview.text"
         >{{ valuePreview.text }}</span
       >
+      <span v-else-if="node.hint" class="node-explorer-content__hint">
+        <i class="iconoir-warning-triangle" />
+        {{ node.hint }}
+      </span>
       <span v-if="isSelected" class="node-explorer-content__selected-icon">
         <i class="iconoir-check-circle" />
       </span>
@@ -52,9 +58,6 @@
         @mouseenter="onTooltipEnter"
         @mouseleave="onTooltipLeave"
       />
-    </div>
-    <div v-if="node.hint" class="node-explorer-content__hint">
-      {{ node.hint }}
     </div>
     <div v-if="hasChildren && isOpen" class="node-explorer-content__children">
       <template v-if="node.type !== 'array'">

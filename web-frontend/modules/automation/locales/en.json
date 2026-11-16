@@ -97,7 +97,7 @@
     "currentNode": "This node",
     "item": "Item",
     "previousNode": "Previous node",
-    "testToSeeValues": "Test this step to see its values"
+    "requiresTesting": "Requires testing"
   },
   "nodeSidePanel": {
     "labelTitle": "Label"

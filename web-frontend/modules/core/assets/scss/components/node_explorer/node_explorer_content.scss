@@ -32,15 +32,17 @@
   font-style: italic;
 }
 
+// A note about the node, shown where its value would be. It's not one of its
+// values: it has its own colour and an icon so that it can't be taken for one.
 .node-explorer-content__hint {
-  margin: 0 5px 2px 34px;
+  display: flex;
+  flex: 1 1000 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
   font-size: 12px;
-  line-height: 18px;
-  color: $palette-neutral-500;
-}
-
-.node-explorer-content--level-0 > .node-explorer-content__hint {
-  margin-left: 15px;
+  color: $palette-yellow-900;
+  white-space: nowrap;
 }
 
 .node-explorer-content__content {

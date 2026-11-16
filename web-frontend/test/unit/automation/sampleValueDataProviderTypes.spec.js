@@ -153,7 +153,7 @@ describe('Automation data providers sample values', () => {
         properties: { 1: { ...imported.service.schema, title: 'Fetch' } },
       })
       expect(dataProvider.getNodes({ workflow }).nodes[0].hint).toBe(
-        'dataProviderType.testToSeeValues'
+        'dataProviderType.requiresTesting'
       )
     })
 
@@ -180,8 +180,8 @@ describe('Automation data providers sample values', () => {
 
       expect(nodes.map(({ identifier, hint }) => [identifier, hint])).toEqual([
         ['1', undefined],
-        ['3', 'dataProviderType.testToSeeValues'],
-        ['4', 'dataProviderType.testToSeeValues'],
+        ['3', 'dataProviderType.requiresTesting'],
+        ['4', 'dataProviderType.requiresTesting'],
       ])
     })
   })
@@ -231,10 +231,10 @@ describe('Automation data providers sample values', () => {
 
       expect(hintOf(objectNode())).toBeUndefined()
       expect(hintOf(objectNode({ sample_data: null }))).toBe(
-        'dataProviderType.testToSeeValues'
+        'dataProviderType.requiresTesting'
       )
       expect(hintOf(objectNode({ sample_data: { _error: 'Boom' } }))).toBe(
-        'dataProviderType.testToSeeValues'
+        'dataProviderType.requiresTesting'
       )
     })
   })

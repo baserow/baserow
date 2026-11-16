@@ -101,7 +101,7 @@ export class PreviousNodeDataProviderType extends DataProviderType {
         }
         return {
           ...node,
-          hint: this.app.$i18n.t('dataProviderType.testToSeeValues'),
+          hint: this.app.$i18n.t('dataProviderType.requiresTesting'),
         }
       }),
     }
@@ -292,7 +292,7 @@ export class CurrentNodeDataProviderType extends DataProviderType {
     }
     return {
       ...providerNode,
-      hint: this.app.$i18n.t('dataProviderType.testToSeeValues'),
+      hint: this.app.$i18n.t('dataProviderType.requiresTesting'),
     }
   }
 
