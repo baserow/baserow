@@ -1,3 +1,5 @@
+from django.db import connection
+
 import pytest
 
 
@@ -31,6 +33,13 @@ def test_0073_deletes_rows_whose_subject_is_a_legacy_agent(
 
     migrator.migrate([("baserow_enterprise", "0073_delete_legacy_agent_subjects")])
 
-    for model in (RoleAssignment, TeamSubject):
-        remaining = model.objects.values_list("subject_type_id", flat=True)
-        assert list(remaining) == [user_type.id]
+    remaining = [
+        list(model.objects.values_list("subject_type_id", flat=True))
+        for model in (RoleAssignment, TeamSubject)
+    ]
+    # Later migration tests share this database and create rows with fixed ids.
+    with connection.cursor() as cursor:
+        cursor.execute(f'TRUNCATE "{Workspace._meta.db_table}" CASCADE')
+        cursor.execute(f'DELETE FROM "{Role._meta.db_table}" WHERE id = %s', [role.id])
+
+    assert remaining == [[user_type.id], [user_type.id]]

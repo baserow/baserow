@@ -1,3 +1,5 @@
+from django.db import connection
+
 import pytest
 
 
@@ -27,7 +29,13 @@ def test_0018_clears_run_as_bindings_to_legacy_agents(
 
     migrator.migrate([("agent", "0018_clear_legacy_agent_run_as")])
 
-    bindings = AgentApplication.objects.order_by("id").values_list(
-        "run_as_subject_type", "run_as_subject_id"
+    bindings = list(
+        AgentApplication.objects.order_by("id").values_list(
+            "run_as_subject_type", "run_as_subject_id"
+        )
     )
-    assert list(bindings) == [(None, None), ("auth.User", 1)]
+    # Later migration tests share this database and create rows with fixed ids.
+    with connection.cursor() as cursor:
+        cursor.execute(f'TRUNCATE "{Workspace._meta.db_table}" CASCADE')
+
+    assert bindings == [(None, None), ("auth.User", 1)]
