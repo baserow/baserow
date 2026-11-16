@@ -24,6 +24,7 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.registries import (
@@ -1251,6 +1252,10 @@ class ViewFilterType(Instance):
         """
 
         raise NotImplementedError("Each must have his own get_filter method.")
+
+    def prepare_value(self, value: Any) -> str:
+        """Convert a resolved formula value to this filter's input representation."""
+        return ensure_string(value)
 
     def get_preload_values(self, view_filter) -> dict:
         """

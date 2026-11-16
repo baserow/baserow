@@ -2285,6 +2285,27 @@ const parseIdFilterValue = (value) => {
   return isInteger(trimmed) ? parseInt(trimmed) : NaN
 }
 
+const parseSelectOptionValue = (value) => {
+  const id = parseIdFilterValue(value)
+  return Number.isNaN(id) ? String(value).trim() : id
+}
+
+const matchesSelectOption = (option, values) =>
+  option != null &&
+  values.some((value) =>
+    typeof value === 'number' ? option.id === value : option.value === value
+  )
+
+const parseSelectOptionValues = (value, papa) => {
+  if (value == null || String(value).trim() === '') return null
+  const tokens = Array.isArray(value)
+    ? value
+    : papa.stringToArray(String(value))
+  return _.uniq(
+    tokens.map(parseSelectOptionValue).filter((item) => item !== null)
+  )
+}
+
 export class SingleSelectEqualViewFilterType extends ViewFilterType {
   static getType() {
     return 'single_select_equal'
@@ -2311,12 +2332,12 @@ export class SingleSelectEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    const filterValueId = parseIdFilterValue(filterValue)
+    const filterValueId = parseSelectOptionValue(filterValue)
     if (filterValueId === null) {
       return null
     }
 
-    return rowValue != null && rowValue.id === filterValueId
+    return matchesSelectOption(rowValue, [filterValueId])
   }
 }
 
@@ -2346,12 +2367,12 @@ export class SingleSelectNotEqualViewFilterType extends ViewFilterType {
   }
 
   matches(rowValue, filterValue, field, fieldType) {
-    const filterValueId = parseIdFilterValue(filterValue)
+    const filterValueId = parseSelectOptionValue(filterValue)
     if (filterValueId === null) {
       return null
     }
 
-    return rowValue == null || rowValue.id !== filterValueId
+    return !matchesSelectOption(rowValue, [filterValueId])
   }
 }
 
@@ -2381,8 +2402,7 @@ export class SingleSelectIsAnyOfViewFilterType extends ViewFilterType {
   }
 
   prepareValue(value, field) {
-    const t = (this._prepareValue(value, field) || []).join(',')
-    return t
+    return this.app.$papa.arrayToString(this._prepareValue(value, field) || [])
   }
 
   /**
@@ -2394,18 +2414,12 @@ export class SingleSelectIsAnyOfViewFilterType extends ViewFilterType {
    * @private
    */
   _prepareValue(value, field) {
-    if (value == null || value === '') {
-      return null
-    }
-    const _parsed = this.app.$papa
-      .stringToArray(String(value))
-      .map((v) => parseInt(v))
-    return _.uniq(_parsed)
+    return parseSelectOptionValues(value, this.app.$papa)
   }
 
   matches(rowValue, filterValue, field, fieldType) {
     const parsedValue = this._prepareValue(filterValue)
-    return parsedValue === null || _.includes(parsedValue, rowValue?.id)
+    return parsedValue === null || matchesSelectOption(rowValue, parsedValue)
   }
 }
 
@@ -2421,7 +2435,7 @@ export class SingleSelectIsNoneOfViewFilterType extends SingleSelectIsAnyOfViewF
 
   matches(rowValue, filterValue, field, fieldType) {
     const parsedValue = this._prepareValue(filterValue)
-    return parsedValue === null || !_.includes(parsedValue, rowValue?.id)
+    return parsedValue === null || !matchesSelectOption(rowValue, parsedValue)
   }
 }
 
@@ -2451,17 +2465,11 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
   }
 
   prepareValue(value, field) {
-    return (this._prepareValue(value, field) || []).join(',')
+    return this.app.$papa.arrayToString(this._prepareValue(value, field) || [])
   }
 
   _prepareValue(value, field) {
-    if (value == null || value === '') {
-      return null
-    }
-    const _parsed = this.app.$papa
-      .stringToArray(String(value))
-      .map((v) => parseInt(v))
-    return _.uniq(_parsed)
+    return parseSelectOptionValues(value, this.app.$papa)
   }
 
   matches(rowValue, filterValue, field, fieldType) {
@@ -2469,7 +2477,7 @@ export class MultipleSelectHasFilterType extends ViewFilterType {
     return (
       parsedValue === null ||
       (rowValue?.length &&
-        rowValue.some((opt) => _.includes(parsedValue, opt?.id)))
+        rowValue.some((opt) => matchesSelectOption(opt, parsedValue)))
     )
   }
 }
@@ -2500,17 +2508,11 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
   }
 
   prepareValue(value, field) {
-    return (this._prepareValue(value, field) || []).join(',')
+    return this.app.$papa.arrayToString(this._prepareValue(value, field) || [])
   }
 
   _prepareValue(value, field) {
-    if (value == null || value === '') {
-      return null
-    }
-    const _parsed = this.app.$papa
-      .stringToArray(String(value))
-      .map((v) => parseInt(v))
-    return _.uniq(_parsed)
+    return parseSelectOptionValues(value, this.app.$papa)
   }
 
   matches(rowValue, filterValue, field, fieldType) {
@@ -2519,7 +2521,7 @@ export class MultipleSelectHasNotFilterType extends ViewFilterType {
       parsedValue === null ||
       rowValue == null ||
       rowValue.length === 0 ||
-      rowValue.every((opt) => !_.includes(parsedValue, opt?.id))
+      rowValue.every((opt) => !matchesSelectOption(opt, parsedValue))
     )
   }
 }

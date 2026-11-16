@@ -1598,3 +1598,90 @@ def test_permanent_and_widget_groups_keep_their_internal_or(
     assert DashboardDataSourceHandler().dispatch_data_source(
         source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
     ) == {"result": "30", "_is_filtered": True}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("stored", [False, True])
+@pytest.mark.parametrize(
+    "field_type,operator,expected",
+    [
+        ("single_select", "single_select_equal", 20),
+        ("single_select", "single_select_not_equal", 50),
+        ("single_select", "single_select_is_any_of", 30),
+        ("single_select", "single_select_is_none_of", 40),
+        ("multiple_select", "multiple_select_has", 30),
+        ("multiple_select", "multiple_select_has_not", 40),
+    ],
+)
+def test_dropdown_selection_labels_in_runtime_and_stored_conditions(
+    filter_dashboard, data_fixture, stored, field_type, operator, expected
+):
+    """Formula lists retain quoted labels through both service filter adapters."""
+    from decimal import Decimal
+
+    from baserow.contrib.dashboard.widgets.service import WidgetService
+    from baserow.contrib.database.fields.handler import FieldHandler
+
+    user, _, dashboard, source, widget, _ = filter_dashboard
+    table = source.service.specific.table
+    field = FieldHandler().create_field(
+        user,
+        table,
+        field_type,
+        name="Category",
+        select_options=[
+            {"value": "Alpha", "color": "blue"},
+            {"value": 'Fruit, "Fresh"', "color": "green"},
+            {"value": "Other", "color": "red"},
+        ],
+    )
+    options = list(field.select_options.order_by("id"))
+    for row, option in zip(table.get_model().objects.order_by("id"), options):
+        RowHandler().update_row(
+            user,
+            table,
+            row,
+            values={
+                field.db_column: [option.id]
+                if field_type == "multiple_select"
+                else option.id
+            },
+        )
+    condition = {
+        "field": field.id,
+        "type": operator,
+        "value": BaserowFormulaObject.create(f"get('widget_data.{widget.id}')"),
+    }
+    links = widget.target_filters
+    links[0]["group"]["filters"] = [condition]
+    multiple = operator not in ("single_select_equal", "single_select_not_equal")
+    WidgetService().update_widget(
+        user,
+        widget.id,
+        mode="dropdown",
+        multiple=multiple,
+        default_value=[] if multiple else "",
+        options=BaserowFormulaObject.create(
+            f"get('data_source_context.{source.id}.{field.db_column}.*.value')"
+        ),
+        target_filters=[] if stored else links,
+    )
+    if stored:
+        data_fixture.create_local_baserow_table_service_filter(
+            service=source.service.specific,
+            field=field,
+            type=operator,
+            value=condition["value"],
+        )
+    selection = ["Alpha", 'Fruit, "Fresh"'] if multiple else 'Fruit, "Fresh"'
+    request = HttpRequest()
+    request.user = user
+    with local_cache.context():
+        context = DashboardDispatchContext(
+            request,
+            workspace=dashboard.workspace,
+            dashboard=dashboard,
+            data={"widget_data": {str(widget.id): selection}},
+        )
+        result = DashboardDataSourceHandler().dispatch_data_source(source, context)
+    assert Decimal(str(result["result"])) == expected

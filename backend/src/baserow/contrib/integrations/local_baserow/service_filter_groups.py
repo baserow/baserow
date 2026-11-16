@@ -10,7 +10,6 @@ from baserow.contrib.database.fields.field_filters import (
 from baserow.contrib.database.views.registries import view_filter_type_registry
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.validator import ensure_string
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -82,8 +81,8 @@ class LocalBaserowServiceGroupedFiltersAdapter(GroupedFiltersAdapter):
         return AnnotatedQ(annotations, q)
 
     def get_filter_values(self, value, view_filter_type):
-        """Stored service conditions retain their existing scalar conversion."""
-        return [ensure_string(value)], "AND"
+        """Let each operator prepare its resolved formula value."""
+        return [view_filter_type.prepare_value(value)], "AND"
 
 
 def validate_runtime_filter_group(group, service):
@@ -164,7 +163,7 @@ class RuntimeFilterGroupAdapter(LocalBaserowServiceGroupedFiltersAdapter):
             and value
             and view_filter_type.type in ("equal", "not_equal")
         ):
-            return [ensure_string(item) for item in value], (
+            return [view_filter_type.prepare_value(item) for item in value], (
                 "OR" if view_filter_type.type == "equal" else "AND"
             )
         return super().get_filter_values(value, view_filter_type)
