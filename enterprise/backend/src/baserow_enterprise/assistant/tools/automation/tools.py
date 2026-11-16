@@ -123,8 +123,11 @@ def add_nodes(
         {key: node[key] for key in ("id", "label", "type")}
         for node in result["created_nodes"]
     ]
+    formula_errors, kept = agents.split_kept_edits(formula_errors)
     if formula_errors:
         result["formula_errors"] = formula_errors
+    if kept:
+        result["kept_user_edits"] = kept
     return result
 
 
@@ -192,6 +195,7 @@ def create_workflows(
     )
     created_workflows = []
     formula_errors = []
+    kept_edits = []
     errors = list(creation.failed)
     for workflow_spec, workflow, node_creation in creation.created:
         created_workflows.append(shared_workflows.describe_workflow(workflow))
@@ -203,8 +207,10 @@ def create_workflows(
             node_creation.formula_errors,
             {node.id: ref for ref, node in node_creation.nodes},
         )
+        workflow_errors, kept = agents.split_kept_edits(workflow_errors)
         formula_errors.extend(workflow_errors)
-        if not workflow_errors and not node_creation.errors:
+        kept_edits.extend(kept)
+        if not workflow_errors and not kept and not node_creation.errors:
             run_created[workflow.id] = reconciliation.VerifiedWorkflowCreation(
                 request=workflow_spec.model_dump(),
                 configuration=reconciliation.workflow_configuration_fingerprint(
@@ -247,6 +253,8 @@ def create_workflows(
         result["errors"] = errors
     if formula_errors:
         result["formula_errors"] = formula_errors
+    if kept_edits:
+        result["kept_user_edits"] = kept_edits
     return result
 
 
@@ -291,8 +299,11 @@ def update_nodes(
         for node in agents.repaired_nodes(to_repair, formula_errors)
         if node["node_id"] not in updated_ids
     ]
+    formula_errors, kept = agents.split_kept_edits(formula_errors)
     if formula_errors:
         result["formula_errors"] = formula_errors
+    if kept:
+        result["kept_user_edits"] = kept
     return result
 
 

@@ -1525,3 +1525,62 @@ def test_a_refused_branch_leaves_the_other_branches_repaired(
     (error,) = result["formula_errors"]
     assert error["edge_label"] == "A"
     assert router.service.specific.edges.get(label="B").condition["formula"] == "true"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("edited", ["row_id", "values"])
+def test_formula_repair_keeps_a_value_edited_while_it_was_generated(
+    data_fixture, monkeypatch, real_formula_pass, row_action_node, edited
+):
+    user, node, field = row_action_node
+    workflow = node.workflow
+
+    def edit_then_generate(formulas, context):
+        # The user saves the value in the editor while the model runs.
+        if edited == "row_id":
+            service = {"row_id": "'7'"}
+        else:
+            service = {
+                "field_mappings": [
+                    {"field_id": field.id, "value": "'Edited'", "enabled": True}
+                ]
+            }
+        AutomationNodeService().update_node(user, node.id, service=service)
+        return {"row_id": "'99'", field.id: "'Generated'"}
+
+    monkeypatch.setattr(
+        automation_agents,
+        "get_generate_formulas_tool",
+        lambda _profile: edit_then_generate,
+    )
+
+    result = update_nodes(
+        make_test_ctx(user, workflow.automation.workspace),
+        workflow_id=workflow.id,
+        nodes=[
+            NodeUpdate(
+                node_id=node.id,
+                row_id="$formula: the trigger row" if edited == "row_id" else None,
+                values=(
+                    [AutomationFieldValue(field_id=field.id, value="$formula: x")]
+                    if edited == "values"
+                    else None
+                ),
+            )
+        ],
+        thought="generate a formula",
+    )
+
+    service = AutomationNode.objects.get(id=node.id).service.specific
+    if edited == "row_id":
+        stored = service.row_id
+        expected = "7"
+    else:
+        stored = service.field_mappings.get(field=field).value
+        expected = "Edited"
+    assert resolve_formula(stored, formula_runtime_function_registry, {}) == expected
+    # Reported apart from formula_errors, so Kuma doesn't retry and overwrite it.
+    assert "formula_errors" not in result
+    [kept] = result["kept_user_edits"]
+    assert kept["node_id"] == node.id
+    assert "kept" in kept["note"]

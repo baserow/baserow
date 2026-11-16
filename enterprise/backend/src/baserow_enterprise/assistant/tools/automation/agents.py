@@ -20,6 +20,7 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools.formulas import formula_error
 from baserow.core.formula.literals import FORMULA_PREFIX
+from baserow.core.services.handler import ServiceHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.formula_utils import (
     BaseFormulaContext,
@@ -92,8 +93,45 @@ _DESCRIPTIONS = {
 }
 
 
+# The service attribute a formula error's field is stored in, where they differ.
+_SERVICE_ATTRIBUTES = {"prompt": "ai_prompt"}
+
+# Told for a value whose generated formula wasn't written because the user
+# changed it meanwhile. Kept apart from formula_errors, which the model retries.
+_KEPT_NOTE = (
+    "Not updated: the user changed this value while its formula was generated, "
+    "so their value was kept. Tell them, and don't change it unless they ask."
+)
+
+
 # The refusal of a row value whose field is not in the table.
 _REFUSED_FIELD_RE = re.compile(r"Field (\d+) is not in table ")
+
+
+def _stored_value(service, error: dict[str, Any]) -> Any:
+    """What the value of a formula error holds now in a node's service."""
+
+    if "field_id" in error:
+        mapping = service.field_mappings.filter(field_id=error["field_id"]).first()
+        return None if mapping is None else (mapping.value, mapping.enabled)
+    if "edge_label" in error:
+        edge = service.edges.filter(label=error["edge_label"]).first()
+        return None if edge is None else edge.condition
+    field = error["field"]
+    return getattr(service, _SERVICE_ATTRIBUTES.get(field, field), None)
+
+
+def _stored_values(node_id: int, errors: list[dict[str, Any]]) -> dict[Any, Any]:
+    """
+    The values of a node's formula errors as the tool left them, keyed as
+    ``_request_key``, to tell after generation which ones the user changed.
+    """
+
+    node = AutomationNode.objects.filter(id=node_id).first()
+    if node is None:
+        return {}
+    service = node.service.specific
+    return {_request_key(error): _stored_value(service, error) for error in errors}
 
 
 def _request_key(error: dict[str, Any]) -> Any:
@@ -244,6 +282,12 @@ def repair_formula_errors(
     by_node: dict[int, list[dict[str, Any]]] = {}
     for error in formula_errors:
         by_node.setdefault(error["node_id"], []).append(error)
+    # Read before any formula is generated: a value that differs when it is
+    # written was changed by the user meanwhile.
+    stored = {
+        node_id: _stored_values(node_id, node_errors)
+        for node_id, node_errors in by_node.items()
+    }
     for node_id, node_errors in by_node.items():
         try:
             remaining.extend(
@@ -255,6 +299,7 @@ def repair_formula_errors(
                     generate_formula=generate_formula,
                     field_ids=field_ids,
                     examples=examples,
+                    stored=stored[node_id],
                 )
             )
         except Exception as exc:
@@ -264,6 +309,30 @@ def repair_formula_errors(
             logger.exception("Failed to repair formulas of node {}: {}", node_id, exc)
             remaining.extend({**error, "error": str(exc)} for error in node_errors)
     return remaining
+
+
+def split_kept_edits(
+    remaining: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """
+    Split what a repair left into the formula errors still to fix and the values
+    it kept because the user changed them while their formulas were generated.
+    """
+
+    errors = [error for error in remaining if not error.get("kept_newer_value")]
+    kept = [
+        {
+            **{
+                key: error[key]
+                for key in ("node_id", "node_label", "field", "field_id", "edge_label")
+                if key in error
+            },
+            "note": _KEPT_NOTE,
+        }
+        for error in remaining
+        if error.get("kept_newer_value")
+    ]
+    return errors, kept
 
 
 def repaired_nodes(
@@ -306,11 +375,15 @@ def _repair_node(
     generate_formula: Callable,
     field_ids: Callable[[int], set[int]],
     examples: WorkflowExamples,
+    stored: dict[Any, Any],
 ) -> list[dict[str, Any]]:
     """
-    Generate one node's formulas and write them in their own transaction.
+    Generate one node's formulas and write them in their own transaction. A value
+    the user changed while the formula was generated is kept.
 
     :param raise_if_cancelled: Raises when the user cancelled the request.
+    :param stored: The values of the node's errors before generation, keyed as
+        ``_request_key``.
     :return: The node's formula errors that remain.
     """
 
@@ -325,24 +398,37 @@ def _repair_node(
 
     repaired = [e for e in node_errors if _request_key(e) in generated]
     remaining = [e for e in node_errors if _request_key(e) not in generated]
-    if repaired:
-        with transaction.atomic():
-            node, values, _changed = shared_nodes.update_node(
-                tool_context,
-                node.workflow,
-                _formula_update(node_id, repaired, generated),
-                field_ids,
-                as_formulas=True,
-                # The generator sees each node's ref and may name it by it.
-                refs={ref: node_id for node_id, ref in examples.refs.items()},
-            )
-        for error in repaired:
-            refusals = [
-                message for message in values.errors if _refuses(message, error)
-            ]
-            if refusals:
-                remaining.append({**error, "error": " ".join(refusals)})
-        remaining.extend(
-            formula_error(node, exc, **target) for exc, target in values.invalid
+    if not repaired:
+        return remaining
+    with transaction.atomic():
+        # Locked so an edit saved from now on waits for this write.
+        service = ServiceHandler().get_service_for_update(node.service_id)
+        # A value that is gone now is left to the update, which reports it.
+        now = {_request_key(e): _stored_value(service, e) for e in repaired}
+        changed = [
+            e
+            for e in repaired
+            if now[_request_key(e)] is not None
+            and now[_request_key(e)] != stored.get(_request_key(e))
+        ]
+        remaining.extend({**error, "kept_newer_value": True} for error in changed)
+        repaired = [e for e in repaired if e not in changed]
+        if not repaired:
+            return remaining
+        node, values, _changed = shared_nodes.update_node(
+            tool_context,
+            node.workflow,
+            _formula_update(node_id, repaired, generated),
+            field_ids,
+            as_formulas=True,
+            # The generator sees each node's ref and may name it by it.
+            refs={ref: node_id for node_id, ref in examples.refs.items()},
         )
+    for error in repaired:
+        refusals = [message for message in values.errors if _refuses(message, error)]
+        if refusals:
+            remaining.append({**error, "error": " ".join(refusals)})
+    remaining.extend(
+        formula_error(node, exc, **target) for exc, target in values.invalid
+    )
     return remaining
