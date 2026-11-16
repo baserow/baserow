@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from django.db import connection
+
 from freezegun import freeze_time
 import pytest
 
@@ -222,7 +224,9 @@ def test_0044_clears_legacy_agent_authorization(migrator, teardown_table_metadat
     Workspace = old_state.apps.get_model("core", "Workspace")
     Application = old_state.apps.get_model("core", "Application")
     Integration = old_state.apps.get_model("integrations", "LocalBaserowIntegration")
+    User = old_state.apps.get_model("auth", "User")
 
+    user = User.objects.create(username="legacy-authorization")
     content_type, _ = ContentType.objects.get_or_create(
         app_label="integrations", model="localbaserowintegration"
     )
@@ -232,19 +236,27 @@ def test_0044_clears_legacy_agent_authorization(migrator, teardown_table_metadat
         order=1,
         content_type=content_type,
     )
-    for subject_type in ("core.Agent", "auth.User"):
+    for subject_type, subject_id in (("core.Agent", 1), ("auth.User", user.id)):
         Integration.objects.create(
             application=application,
             name=subject_type,
             order=1,
             content_type=content_type,
             authorized_subject_type=subject_type,
-            authorized_subject_id=1,
+            authorized_subject_id=subject_id,
         )
 
     migrator.migrate([("integrations", "0044_clear_legacy_agent_authorization")])
 
-    authorizations = Integration.objects.order_by("id").values_list(
-        "authorized_subject_type", "authorized_subject_id"
+    authorizations = list(
+        Integration.objects.order_by("id").values_list(
+            "authorized_subject_type", "authorized_subject_id"
+        )
     )
-    assert list(authorizations) == [(None, None), ("auth.User", 1)]
+    # Later migration tests share this database and create rows with fixed ids.
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'TRUNCATE "{Workspace._meta.db_table}", "{User._meta.db_table}" CASCADE'
+        )
+
+    assert authorizations == [(None, None), ("auth.User", user.id)]
