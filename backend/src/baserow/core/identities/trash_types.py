@@ -16,15 +16,17 @@ class IdentityTrashableItemType(TrashableItemType):
     def get_type_display_name(self):
         return _("identity")
 
-    def lookup_trashed_item(self, trashed_entry, trash_item_lookup_cache=None):
-        profile = super().lookup_trashed_item(trashed_entry, trash_item_lookup_cache)
+    def _check_is_identity(self, profile: UserProfile) -> None:
         if not is_identity(profile.user):
             raise TrashItemDoesNotExist()
+
+    def lookup_trashed_item(self, trashed_entry, trash_item_lookup_cache=None):
+        profile = super().lookup_trashed_item(trashed_entry, trash_item_lookup_cache)
+        self._check_is_identity(profile)
         return profile
 
     def trash(self, item_to_trash, requesting_user, trash_entry):
-        if not is_identity(item_to_trash.user):
-            raise TrashItemDoesNotExist()
+        self._check_is_identity(item_to_trash)
         super().trash(item_to_trash, requesting_user, trash_entry)
 
     def get_parent(self, trashed_item):
@@ -38,8 +40,7 @@ class IdentityTrashableItemType(TrashableItemType):
         identity_created.send(self, user=None, identity=trashed_item.user)
 
     def permanently_delete_item(self, trashed_item, trash_item_lookup_cache=None):
-        if not is_identity(trashed_item.user):
-            raise TrashItemDoesNotExist()
+        self._check_is_identity(trashed_item)
         trashed_item.user.delete()
 
     def get_restore_operation_type(self):

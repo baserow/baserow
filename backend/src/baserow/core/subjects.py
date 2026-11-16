@@ -372,6 +372,9 @@ class HumanSubjectType(UserSubjectType):
 class IdentitySubjectType(UserSubjectType):
     """Holds what is specific to an identity."""
 
+    # The email of an identity is an internal key, so nobody selects it by email.
+    lookup_fields = SubjectType.lookup_fields
+
     def get_specific_type(self, subject: AbstractUser) -> "IdentitySubjectType":
         return self
 

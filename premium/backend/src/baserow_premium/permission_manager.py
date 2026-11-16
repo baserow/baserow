@@ -223,18 +223,12 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
                 context, at_scope_type=view_scope_type
             )
 
-            # Personal views are owned by users. Other subject types can never own
-            # one, even when their integer ID matches the owner's user ID.
-            if not is_human(actor) and view.ownership_type == OWNERSHIP_TYPE_PERSONAL:
-                result_by_check[check] = PermissionDenied(
-                    "Only users can access personal views"
-                )
-                continue
-
-            # The remaining ownership rules depend on a per-user premium license, which
-            # only applies to users. Let the lower permission managers decide for other
-            # actors like tokens or anonymous users.
+            # Personal views and the per-user licence behind them only apply to people.
             if not is_human(actor):
+                if view.ownership_type == OWNERSHIP_TYPE_PERSONAL:
+                    result_by_check[check] = PermissionDenied(
+                        "Only users can access personal views"
+                    )
                 continue
 
             premium = local_cache.get(

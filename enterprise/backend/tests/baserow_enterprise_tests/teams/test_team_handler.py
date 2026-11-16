@@ -403,3 +403,21 @@ def test_list_subjects_in_team(data_fixture, enterprise_data_fixture):
     assert qs.count() == 2
     assert sales_subject_1 in qs
     assert sales_subject_2 in qs
+
+
+@pytest.mark.django_db
+def test_an_identity_joins_a_team_by_id_and_never_by_email(data_fixture):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    identity = data_fixture.create_identity(workspace=workspace)
+    team = TeamHandler().create_team(admin, "Team", workspace)
+
+    with pytest.raises(TeamSubjectBadRequest):
+        TeamHandler().create_subject(
+            admin, {"email": identity.email}, "auth.User", team
+        )
+
+    membership = TeamHandler().create_subject(
+        admin, {"id": identity.id}, "auth.User", team
+    )
+    assert membership.subject_id == identity.id

@@ -20,10 +20,9 @@ from baserow.core.operations import (
     CreateInvitationLinkWorkspaceOperationType,
     ListInvitationsWorkspaceOperationType,
 )
-from baserow.core.registries import subject_type_registry
+from baserow.core.registries import SubjectType, subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user.identity import is_identity
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.models import (
@@ -501,6 +500,27 @@ class TeamHandler:
 
         return TeamSubject.objects.bulk_create(bulk_teamsubjects)
 
+    def _check_subject_lookups(
+        self, subject_type: SubjectType, subject_lookup: Dict[str, Union[str, int]]
+    ) -> None:
+        """
+        Refuses the lookups that the subject type doesn't support.
+
+        :param subject_type: The subject type that the lookup is for.
+        :param subject_lookup: The lookup that selects the subject.
+        :raises TeamSubjectBadRequest: When a lookup is not supported.
+        """
+
+        unexpected_lookups = [
+            lookup
+            for lookup in subject_lookup
+            if not subject_type.supports_lookup_field(lookup)
+        ]
+        if unexpected_lookups:
+            raise TeamSubjectBadRequest(
+                f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
+            )
+
     def create_subject(
         self,
         user: AbstractUser,
@@ -521,15 +541,7 @@ class TeamHandler:
             )
 
         subject_type = subject_type_registry.get(subject_natural_key)
-        unexpected_lookups = [
-            lookup
-            for lookup in subject_lookup
-            if not subject_type.supports_lookup_field(lookup)
-        ]
-        if unexpected_lookups:
-            raise TeamSubjectBadRequest(
-                f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
-            )
+        self._check_subject_lookups(subject_type, subject_lookup)
 
         # Get the model for this `subject_natural_key`.
         model_class = subject_type.model_class
@@ -542,8 +554,10 @@ class TeamHandler:
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
-        if "email" in subject_lookup and is_identity(subject):
-            raise TeamSubjectBadRequest("Identity team members must be selected by ID.")
+        # The specific type can refuse a lookup that its stored type accepts.
+        self._check_subject_lookups(
+            subject_type_registry.get_specific_type(subject), subject_lookup
+        )
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 
