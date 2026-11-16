@@ -11,6 +11,9 @@
         <Badge v-if="showsListed(row)" color="neutral" rounded>{{
           $t('userTemplateList.stateListed')
         }}</Badge>
+        <Badge v-if="row.updated_since_blocked" color="yellow" size="small">{{
+          $t('templatesAdmin.updatedSinceBlocked')
+        }}</Badge>
       </div>
       <div
         v-if="row.description"

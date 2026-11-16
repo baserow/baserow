@@ -335,8 +335,8 @@ describe('TemplatesAdminTable', () => {
   )
 
   test.each([
-    ['public', 'block', { reason: 'Spam' }],
-    ['blocked', 'unblock', undefined],
+    ['public', 'block', { revision_id: 7, reason: 'Spam' }],
+    ['blocked', 'unblock', { revision_id: 7 }],
   ])(
     'moderates a %s template with %s from its menu, then refreshes',
     async (state, action, body) => {
@@ -347,7 +347,7 @@ describe('TemplatesAdminTable', () => {
       const wrapper = await mountTable([template])
 
       await clickAction(wrapper, template, action)
-      if (body) {
+      if (action === 'block') {
         const modal = document.body.querySelector('.user-template-modal')
         expect(modal.querySelector('h2').textContent).toBe(
           'rejectTemplateModal.blockTitle'
@@ -359,9 +359,7 @@ describe('TemplatesAdminTable', () => {
       expect(testApp.mock.history.post.map(({ url }) => url)).toEqual([
         `/admin/templates/3/${action}/`,
       ])
-      expect(
-        body && JSON.parse(testApp.mock.history.post[0].data)
-      ).toStrictEqual(body)
+      expect(JSON.parse(testApp.mock.history.post[0].data)).toStrictEqual(body)
       expect(testApp.store.state.toast.items).toEqual([])
       await expectRefreshed()
     }
@@ -909,13 +907,22 @@ describe('TemplatesAdminTable', () => {
       '/admin/templates/3/unblock/',
     ])
   })
-
   test.each([
-    ['saved', false],
-    ['saved while its menu is open again', true],
+    [
+      'refused as outdated',
+      [400, { error: 'ERROR_TEMPLATE_UPDATED', detail: 'Updated.' }],
+      false,
+      'templatesAdmin.changedTitle',
+    ],
+    [
+      'saved while its menu is open again',
+      [200, { ...row('blocked'), reason: 'Scam' }],
+      true,
+      'templateDetails.blockReasonChangedTitle',
+    ],
   ])(
     'closes the preview of a blocked template when its new block reason is %s',
-    async (_, reopensMenu) => {
+    async (_, response, reopensMenu, toastTitle) => {
       testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
       const { reply, send } = heldBack()
       testApp.mock.onPost('/admin/templates/3/block/').reply(reply)
@@ -939,10 +946,13 @@ describe('TemplatesAdminTable', () => {
         await openPreviewMenu()
         expect(menuLabels()).toContain('templateDetails.changeBlockReason')
       }
-      send([200, { ...row('blocked'), reason: 'Scam' }])
+      send(response)
       await flushPromises()
 
       expect(JSON.parse(testApp.mock.history.post[0].data).reason).toBe('Scam')
+      expect(testApp.store.state.toast.items).toMatchObject([
+        { title: toastTitle },
+      ])
       await expectRefreshed()
       expect(document.body.querySelector('.template-details')).toBe(null)
     }

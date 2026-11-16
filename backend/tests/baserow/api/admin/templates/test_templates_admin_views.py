@@ -90,6 +90,7 @@ def test_list_rows(api_client, data_fixture):
         "listed": True,
         "can_approve": True,
         "edited_since_submitted": False,
+        "updated_since_blocked": False,
         "can_reject": True,
         "reject_unlists": False,
         "updated_on": "2026-10-01T12:00:00Z",
@@ -101,6 +102,34 @@ def test_list_rows(api_client, data_fixture):
     assert admin_rows(
         api_client, token, "in_review", "revision_id", ids=str(edited.id)
     ) == [latest.id]
+
+    owner, owner_token = data_fixture.create_user_and_token()
+    names = ["root_only", "edited_before", "edited_at_block", "edited_after"]
+    with freeze_time("2026-10-01 11:59"):
+        templates = {name: create_template(data_fixture, owner) for name in names}
+        data_fixture.create_user_template_revision(templates["edited_before"])
+    data_fixture.create_user_template_revision(templates["edited_at_block"])
+    for template in templates.values():
+        data_fixture.set_user_template_state(template, "blocked")
+    with freeze_time("2026-10-01 12:01"):
+        data_fixture.create_user_template_revision(templates["edited_after"])
+
+    blocked = admin_rows(api_client, token, "blocked", "id", "updated_since_blocked")
+
+    assert dict(blocked) == {
+        templates["root_only"].id: False,
+        templates["edited_before"].id: False,
+        templates["edited_at_block"].id: False,
+        templates["edited_after"].id: True,
+    }
+    response = api_client.get(
+        reverse("api:templates:list"),
+        {"view": "flat", "owned": "true"},
+        HTTP_AUTHORIZATION=f"JWT {owner_token}",
+    )
+    owned = response.json()["results"]
+    assert len(owned) == 4
+    assert not any("updated_since_blocked" in row for row in owned)
 
 
 @pytest.mark.parametrize(
@@ -401,22 +430,35 @@ def test_admin_is_shown_what_a_review_does(
 
 
 @pytest.mark.parametrize(
-    "action,state,result",
-    [("block", "in_review", "blocked"), ("unblock", "blocked", "private")],
+    "action,state,result,own",
+    [
+        ("block", "in_review", "blocked", False),
+        ("unblock", "private", "private", False),
+        ("unblock", "public", "public", False),
+        ("unblock", "rejected", "rejected", False),
+        ("unblock", "public", "public", True),
+    ],
 )
-def test_block_and_unblock(api_client, data_fixture, action, state, result):
-    token = get_staff_token(data_fixture)
-    root = create_template(data_fixture, None, state)
+def test_block_and_unblock(api_client, data_fixture, action, state, result, own):
+    admin, token = data_fixture.create_user_and_token(is_staff=True)
+    root = create_template(data_fixture, admin if own else None, state)
+    if action == "unblock":
+        Template.objects.filter(id=root.id).update(
+            blocked_at=datetime(2026, 11, 1, tzinfo=timezone.utc),
+            blocked_reason="Spam",
+        )
 
-    response = review_template(api_client, token, action, root.id, reason="Spam")
+    response = review_template(
+        api_client, token, action, root.id, revision_id=root.id, reason="Spam"
+    )
 
     assert response.status_code == HTTP_200_OK
     row = response.json()
-    reason = "Spam" if result == "blocked" else None
+    reason = {"blocked": "Spam", "rejected": "Reason"}.get(result)
     assert (row["id"], row["state"], row["reason"]) == (root.id, result, reason)
     tabs = admin_page(api_client, token)
     assert {state: rows for state, rows in tabs.items() if rows} == (
-        {"blocked": [row]} if result == "blocked" else {}
+        {} if result == "private" else {result: [row]}
     )
 
 
@@ -480,6 +522,14 @@ def test_block_and_unblock(api_client, data_fixture, action, state, result):
             "ERROR_TEMPLATE_HAS_NO_CONTENT",
         ),
         (
+            "unblock",
+            ["public_blocked", "private"],
+            "latest",
+            (None, None),
+            "Spam",
+            "ERROR_TEMPLATE_HAS_NO_CONTENT",
+        ),
+        (
             "block",
             ["public"],
             "missing",
@@ -499,6 +549,24 @@ def test_block_and_unblock(api_client, data_fixture, action, state, result):
             for action in ["reject", "block"]
             for reason in ["  ", "x" * 1001]
         ],
+        *[
+            (
+                action,
+                revision_states,
+                revision,
+                (None, None),
+                "Spam",
+                error,
+            )
+            for action, revision_states in [
+                ("block", ["blocked", "private"]),
+                ("unblock", ["blocked", "private"]),
+            ]
+            for revision, error in [
+                ("omitted", "ERROR_REQUEST_BODY_VALIDATION"),
+                ("previous", "ERROR_TEMPLATE_UPDATED"),
+            ]
+        ],
     ],
 )
 def test_review_errors(
@@ -508,18 +576,19 @@ def test_review_errors(
     latest = data_fixture.set_user_template_revision_states(root, revision_states)
     template_id = 0 if revision == "missing" else root.id
     revision_id = root.id if revision == "previous" else latest.id
+    body = {
+        "revision_id": revision_id,
+        "state": seen[0],
+        "listed": seen[1],
+        "reviewed_on": Template.objects.get(id=revision_id).reviewed_on,
+        "reason": reason,
+    }
+    if revision == "omitted":
+        del body["revision_id"]
     before = list(Template.objects.values().order_by("id"))
 
     response = review_template(
-        api_client,
-        get_staff_token(data_fixture),
-        action,
-        template_id,
-        revision_id=revision_id,
-        state=seen[0],
-        listed=seen[1],
-        reviewed_on=Template.objects.get(id=revision_id).reviewed_on,
-        reason=reason,
+        api_client, get_staff_token(data_fixture), action, template_id, **body
     )
 
     missing = error == "ERROR_TEMPLATE_DOES_NOT_EXIST"

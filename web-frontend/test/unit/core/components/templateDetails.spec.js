@@ -317,11 +317,11 @@ describe('TemplateDetails', () => {
     testApp.mock
       .onPost('/admin/templates/5/unblock/')
       .reply(200, { state: 'private', reason: null })
-    const shown = ref({ ...template, type: 'user' })
+    const shown = ref({ ...template, type: 'user', revision_id: 4 })
     const states = [
-      { state: 'blocked', reason: 'Spam' },
-      { state: 'blocked', reason: 'Spam, again' },
-      { state: 'private', reason: null },
+      { state: 'blocked', reason: 'Spam', revision_id: 6 },
+      { state: 'blocked', reason: 'Spam, again', revision_id: 6 },
+      { state: 'private', reason: null, revision_id: 6 },
     ]
     const moderated = vi.fn(() => {
       shown.value = {
@@ -349,9 +349,15 @@ describe('TemplateDetails', () => {
     expect(
       testApp.mock.history.post.map(({ url, data }) => [url, data])
     ).toStrictEqual([
-      ['/admin/templates/5/block/', JSON.stringify({ reason: 'Spam' })],
-      ['/admin/templates/5/block/', JSON.stringify({ reason: 'Spam, again' })],
-      ['/admin/templates/5/unblock/', undefined],
+      [
+        '/admin/templates/5/block/',
+        JSON.stringify({ revision_id: 4, reason: 'Spam' }),
+      ],
+      [
+        '/admin/templates/5/block/',
+        JSON.stringify({ revision_id: 6, reason: 'Spam, again' }),
+      ],
+      ['/admin/templates/5/unblock/', JSON.stringify({ revision_id: 6 })],
     ])
     expect(testApp.store.state.toast.items).toMatchObject([
       { type: 'success', title: 'templateDetails.blockReasonChangedTitle' },
@@ -364,6 +370,37 @@ describe('TemplateDetails', () => {
     expect(wrapper.find('.template-details__state').exists()).toBe(false)
     expect(await menuLabels(wrapper)).toContain('templatesAdmin.block')
   })
+
+  test.each([['block'], ['unblock']])(
+    'shows the template again when its %s is refused as outdated',
+    async (action) => {
+      testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+      testApp.dontFailOnErrorResponses()
+      testApp.mock
+        .onPost(`/admin/templates/5/${action}/`)
+        .reply(400, { error: 'ERROR_TEMPLATE_UPDATED', detail: 'Updated.' })
+      const moderated = vi.fn()
+      const wrapper = await mountModerated(
+        { ...template, type: 'user', state: 'blocked', reason: 'Spam' },
+        moderated
+      )
+
+      if (action === 'block') {
+        await clickMenuItem(wrapper, 'templateDetails.changeBlockReason')
+        await submitReason(
+          'Spam, again',
+          'rejectTemplateModal.changeBlockReason'
+        )
+      } else {
+        await clickMenuItem(wrapper, 'templatesAdmin.unblock')
+      }
+
+      expect(moderated).toHaveBeenCalledTimes(1)
+      expect(
+        testApp.store.state.toast.items.map(({ title }) => title)
+      ).toStrictEqual(['templatesAdmin.changedTitle'])
+    }
+  )
 
   test('tells only that the template changed when staff block one deleted since', async () => {
     testApp.authenticate({ id: 1, preferences: {}, is_staff: true })

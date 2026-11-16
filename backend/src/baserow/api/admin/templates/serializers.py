@@ -60,6 +60,11 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         help_text="Whether the template was edited since the revision was "
         "submitted, which is why an admin can't approve it.",
     )
+    updated_since_blocked = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether the latest revision was made after the template was "
+        "blocked; false outside the blocked tab.",
+    )
     can_reject = serializers.SerializerMethodField(
         help_text="Whether an admin can reject the template: in review, or listed."
     )
@@ -107,6 +112,7 @@ class AdminUserTemplateSerializer(TemplateSerializer):
             "listed",
             "can_approve",
             "edited_since_submitted",
+            "updated_since_blocked",
             "can_reject",
             "reject_unlists",
             "updated_on",
@@ -167,7 +173,14 @@ class AdminRejectUserTemplateSerializer(AdminApproveUserTemplateSerializer):
     )
 
 
-class AdminBlockUserTemplateSerializer(serializers.Serializer):
+class AdminUnblockUserTemplateSerializer(serializers.Serializer):
+    revision_id = serializers.IntegerField(
+        help_text="The id of the revision the admin saw. For a blocked template it "
+        "must still be its latest revision."
+    )
+
+
+class AdminBlockUserTemplateSerializer(AdminUnblockUserTemplateSerializer):
     reason = serializers.CharField(
         max_length=1000, help_text="Why the template is blocked, shown to its author."
     )

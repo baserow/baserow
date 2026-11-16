@@ -8,8 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 10:46+0000
-"
+"POT-Creation-Date: 2026-11-09 10:46+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -992,25 +991,87 @@ msgid ""
 msgstr ""
 
 #: src/baserow/core/user_templates/actions.py:587
-msgid "Change template private link"
+msgid "Admin blocked template"
 msgstr ""
 
 #: src/baserow/core/user_templates/actions.py:588
 #, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) blocked: \"%(reason)s\""
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:635
+msgid "Admin unblocked template"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:636
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) unblocked"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:641
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) unblocked, now private"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:646
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) unblocked, now rejected"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:651
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) unblocked, now in review"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:657
+#, python-format
+msgid "Template \"%(template_name)s\" (%(template_id)s) unblocked, now listed"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:664
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) unblocked, listed, its edit "
+"now rejected"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:670
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) unblocked, listed, its edit "
+"now in review"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:677
+#, python-format
+msgid ""
+"Template \"%(template_name)s\" (%(template_id)s) unblocked and listed with "
+"revision %(listed_revision_id)s"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:743
+msgid "Change template private link"
+msgstr ""
+
+#: src/baserow/core/user_templates/actions.py:744
+#, python-format
 msgid "Template \"%(template_name)s\" (%(template_id)s) private link created"
 msgstr ""
 
-#: src/baserow/core/user_templates/actions.py:631
+#: src/baserow/core/user_templates/actions.py:787
 #, python-format
 msgid ""
 "Template \"%(template_name)s\" (%(template_id)s) private link turned off"
 msgstr ""
 
-#: src/baserow/core/user_templates/actions.py:643
+#: src/baserow/core/user_templates/actions.py:799
 msgid "Regenerate template private link"
 msgstr ""
 
-#: src/baserow/core/user_templates/actions.py:644
+#: src/baserow/core/user_templates/actions.py:800
 #, python-format
 msgid ""
 "Template \"%(template_name)s\" (%(template_id)s) private link regenerated"
