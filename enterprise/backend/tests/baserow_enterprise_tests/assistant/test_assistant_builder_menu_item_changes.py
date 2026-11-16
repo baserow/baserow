@@ -380,7 +380,7 @@ def test_removing_a_dropdown_removes_its_sub_links(seeded: SeededMenu) -> None:
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("actions", [1, 0])
-def test_a_removed_button_reports_its_deleted_click_actions(
+def test_a_removed_button_reports_its_trashed_click_actions(
     seeded: SeededMenu, actions: int
 ) -> None:
     if not actions:
@@ -393,7 +393,7 @@ def test_a_removed_button_reports_its_deleted_click_actions(
             "uid": seeded.uids["Help"],
             "name": "Help",
             "type": "button",
-            "deleted_click_actions": actions,
+            "trashed_click_actions": actions,
         }
     ]
 
@@ -408,7 +408,7 @@ def test_removed_buttons_are_counted_in_one_query(
         with CaptureQueriesContext(connection) as captured:
             change = _merge(buttons, remove=list(buttons.uids.values())[:removing])
         queries[removing] = len(captured)
-        counts = [item["deleted_click_actions"] for item in change.removed]
+        counts = [item["trashed_click_actions"] for item in change.removed]
         assert counts == [1] * removing
 
     assert queries[1] == queries[3]
@@ -422,7 +422,7 @@ def test_each_removed_button_reports_its_own_click_actions(
 
     change = _merge(buttons, remove=list(buttons.uids.values()))
 
-    counts = [item["deleted_click_actions"] for item in change.removed]
+    counts = [item["trashed_click_actions"] for item in change.removed]
     assert counts == [2, 0, 1]
 
 
@@ -436,7 +436,7 @@ def test_a_name_freed_in_the_same_call_can_be_reused(seeded: SeededMenu) -> None
 
     assert _tree(change)[-1] == ("Help", [])
     assert change.menu_items[-1]["type"] == "link"
-    assert change.removed[0]["deleted_click_actions"] == 1
+    assert change.removed[0]["trashed_click_actions"] == 1
 
 
 @pytest.mark.django_db

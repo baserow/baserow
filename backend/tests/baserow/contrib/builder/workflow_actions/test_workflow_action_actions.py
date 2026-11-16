@@ -334,8 +334,9 @@ def test_service_workflow_action_delete_undo_redo_preserves_service(data_fixture
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_undo_of_open_page_workflow_action_drops_a_link_to_a_trashed_page(
-    data_fixture,
+@pytest.mark.parametrize("how", ["trash", "delete"])
+def test_undo_of_open_page_workflow_action_with_a_link_to_a_removed_page(
+    data_fixture, how
 ):
     session_id = str(uuid.uuid4())
     user = data_fixture.create_user(session_id=session_id)
@@ -355,9 +356,15 @@ def test_undo_of_open_page_workflow_action_drops_a_link_to_a_trashed_page(
     UpdateBuilderWorkflowActionActionType.do(
         user, workflow_action, navigate_to_page_id=page.id
     )
-    TrashHandler.trash(user, page.builder.workspace, page.builder, other_page)
+    other_page_id = other_page.id
+    if how == "trash":
+        TrashHandler.trash(user, page.builder.workspace, page.builder, other_page)
+    else:
+        other_page.delete()
 
     ActionHandler.undo(user, _scope(page), session_id)
 
     workflow_action.refresh_from_db()
-    assert workflow_action.navigate_to_page_id is None
+    # A trashed page can still be restored.
+    expected = other_page_id if how == "trash" else None
+    assert workflow_action.navigate_to_page_id == expected

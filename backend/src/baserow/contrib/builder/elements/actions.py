@@ -122,8 +122,11 @@ class UpdateElementActionType(UndoableActionType):
         element_type: str
         element_original_params: Dict[str, Any]
         element_new_params: Dict[str, Any]
-        # The click actions of the columns or menu items the update removed.
+        # The click actions trashed with the columns or menu items that the update,
+        # or its last redo, removed. Undo restores them.
         trashed_workflow_action_ids: List[int] = field(default_factory=list)
+        # The same for the last undo. Redo restores them.
+        undo_trashed_workflow_action_ids: List[int] = field(default_factory=list)
 
     @classmethod
     def do(cls, user: AbstractUser, element: Element, new_data: dict) -> Element:
@@ -153,8 +156,38 @@ class UpdateElementActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        cls._replay(user, params.element_id, params.element_original_params)
-        for workflow_action_id in params.trashed_workflow_action_ids:
+        trashed = cls._replay(user, params.element_id, params.element_original_params)
+        cls._restore_workflow_actions(user, params.trashed_workflow_action_ids)
+        action_to_undo.params["undo_trashed_workflow_action_ids"] = trashed
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        trashed = cls._replay(user, params.element_id, params.element_new_params)
+        cls._restore_workflow_actions(user, params.undo_trashed_workflow_action_ids)
+        action_to_redo.params["trashed_workflow_action_ids"] = trashed
+
+    @classmethod
+    def _replay(
+        cls, user: AbstractUser, element_id: int, values: Dict[str, Any]
+    ) -> List[int]:
+        """
+        :return: The ids of the click actions trashed with the columns or menu
+            items the replay removes.
+        """
+
+        element = ElementHandler().get_element_for_update(element_id)
+        # A page linked to when the values were saved can be deleted since.
+        values = PageHandler().without_links_to_deleted_pages(
+            element.page.builder, values
+        )
+        updated = ElementService().update_element(user, element, **values)
+        return updated.trashed_workflow_action_ids
+
+    @classmethod
+    def _restore_workflow_actions(
+        cls, user: AbstractUser, workflow_action_ids: List[int]
+    ):
+        for workflow_action_id in workflow_action_ids:
             try:
                 TrashHandler.restore_item(
                     user,
@@ -164,19 +197,6 @@ class UpdateElementActionType(UndoableActionType):
             except TrashItemDoesNotExist:
                 # Restored from the trash, or emptied from it, since.
                 pass
-
-    @classmethod
-    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
-        cls._replay(user, params.element_id, params.element_new_params)
-
-    @classmethod
-    def _replay(cls, user: AbstractUser, element_id: int, values: Dict[str, Any]):
-        element = ElementHandler().get_element_for_update(element_id)
-        # A page linked to when the values were saved can be removed since.
-        values = PageHandler().without_links_to_deleted_pages(
-            element.page.builder, values
-        )
-        ElementService().update_element(user, element, **values)
 
 
 class DeleteElementActionType(UndoableActionType):

@@ -367,6 +367,6 @@ def _removed_items(
     for item in removed:
         listed = RemovedMenuItem(uid=str(item.uid), name=item.name, type=item.type)
         if item.type == MenuItemElement.TYPES.BUTTON:
-            listed["deleted_click_actions"] = click_actions.get(_click_event(item), 0)
+            listed["trashed_click_actions"] = click_actions.get(_click_event(item), 0)
         items.append(listed)
     return items

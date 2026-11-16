@@ -22,6 +22,7 @@ from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.contrib.builder.pages.trash_types import PageTrashableItemType
 from baserow.contrib.builder.workflow_actions.actions import (
     CreateBuilderWorkflowActionActionType,
 )
@@ -525,10 +526,13 @@ def _remove_page(user, page, how):
         page.delete()
 
 
+def _restore_page(user, page):
+    TrashHandler.restore_item(user, PageTrashableItemType.type, page.id)
+
+
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-@pytest.mark.parametrize("how", ["trash", "delete"])
-def test_undo_of_menu_items_drops_a_link_to_a_removed_page(data_fixture, how):
+def test_undo_of_menu_items_drops_a_link_to_a_deleted_page(data_fixture):
     session_id = str(uuid.uuid4())
     user = data_fixture.create_user(session_id=session_id)
     page = data_fixture.create_builder_page(user=user)
@@ -553,7 +557,7 @@ def test_undo_of_menu_items_drops_a_link_to_a_removed_page(data_fixture, how):
         },
     )
     UpdateElementActionType.do(user, menu, {"menu_items": [link("Renamed")]})
-    _remove_page(user, other_page, how)
+    _remove_page(user, other_page, "delete")
 
     _undo(user, page, session_id)
 
@@ -563,8 +567,44 @@ def test_undo_of_menu_items_drops_a_link_to_a_removed_page(data_fixture, how):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_undo_of_menu_items_keeps_a_link_to_a_trashed_page(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    other_page = data_fixture.create_builder_page(builder=page.builder)
+    menu = data_fixture.create_builder_menu_element(page=page)
+    uid = str(uuid.uuid4())
+
+    def link(name, **kwargs):
+        return {"uid": uid, "type": "link", "variant": "link", "name": name, **kwargs}
+
+    UpdateElementActionType.do(
+        user,
+        menu,
+        {
+            "menu_items": [
+                link(
+                    "Other",
+                    navigation_type="page",
+                    navigate_to_page_id=other_page.id,
+                )
+            ]
+        },
+    )
+    UpdateElementActionType.do(user, menu, {"menu_items": [link("Renamed")]})
+    _remove_page(user, other_page, "trash")
+
+    _undo(user, page, session_id)
+    _restore_page(user, other_page)
+
+    item = menu.menu_items.get()
+    assert (item.name, item.navigate_to_page_id) == ("Other", other_page.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 @pytest.mark.parametrize("how", ["trash", "delete"])
-def test_undo_of_table_fields_drops_a_link_to_a_removed_page(data_fixture, how):
+def test_undo_of_table_fields_with_a_link_to_a_removed_page(data_fixture, how):
     session_id = str(uuid.uuid4())
     user = data_fixture.create_user(session_id=session_id)
     page = data_fixture.create_builder_page(user=user)
@@ -603,7 +643,9 @@ def test_undo_of_table_fields_drops_a_link_to_a_removed_page(data_fixture, how):
 
     column = table.fields.get()
     assert column.name == "Open"
-    assert column.config["navigate_to_page_id"] is None
+    # A trashed page can still be restored.
+    expected = other_page.id if how == "trash" else None
+    assert column.config["navigate_to_page_id"] == expected
 
 
 @pytest.mark.django_db
@@ -635,30 +677,36 @@ def test_undo_of_a_link_with_page_parameters_to_a_trashed_page(data_fixture):
     _remove_page(user, item_page, "trash")
 
     _undo(user, page, session_id)
+    _restore_page(user, item_page)
 
     link.refresh_from_db()
     assert link.navigation_type == "page"
-    assert link.navigate_to_page_id is None
+    assert link.navigate_to_page_id == item_page.id
+    assert [param["name"] for param in link.page_parameters] == ["id"]
 
 
 @pytest.mark.django_db
-def test_only_links_to_removed_pages_are_cleared(data_fixture):
+def test_only_links_to_deleted_pages_are_cleared(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     kept = data_fixture.create_builder_page(builder=page.builder)
-    removed = data_fixture.create_builder_page(builder=page.builder)
-    _remove_page(user, removed, "trash")
+    trashed = data_fixture.create_builder_page(builder=page.builder)
+    deleted = data_fixture.create_builder_page(builder=page.builder)
+    deleted_id = deleted.id
+    _remove_page(user, trashed, "trash")
+    _remove_page(user, deleted, "delete")
 
     values = PageHandler().without_links_to_deleted_pages(
         page.builder,
         {
             "fields": [
                 {"config": {"navigate_to_page_id": str(kept.id)}},
-                {"config": {"navigate_to_page_id": removed.id}},
+                {"config": {"navigate_to_page_id": trashed.id}},
+                {"config": {"navigate_to_page_id": deleted_id}},
                 {
                     "config": {
                         "navigation_type": "custom",
-                        "navigate_to_page_id": removed.id,
+                        "navigate_to_page_id": deleted_id,
                     }
                 },
             ]
@@ -667,9 +715,37 @@ def test_only_links_to_removed_pages_are_cleared(data_fixture):
 
     assert [field["config"]["navigate_to_page_id"] for field in values["fields"]] == [
         str(kept.id),
+        trashed.id,
         None,
-        removed.id,
+        deleted_id,
     ]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_and_redo_round_trip_click_actions_a_replay_trashes(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(page=page, fields=[])
+    UpdateElementActionType.do(user, table, {"fields": [_button_column()]})
+    [go] = table.fields.all()
+    # A collaborator's click action, outside this user's undo history.
+    action = data_fixture.create_notification_workflow_action(
+        page=page, element=table, event=f"{go.uid}_click"
+    )
+
+    _undo(user, page, session_id)  # The column, and so its click action, goes.
+    assert not _live(action)
+
+    _redo(user, page, session_id)
+    assert _live(action)
+
+    _undo(user, page, session_id)
+    assert not _live(action)
+
+    _redo(user, page, session_id)
+    assert _live(action)
 
 
 def _button_column(name="Go"):

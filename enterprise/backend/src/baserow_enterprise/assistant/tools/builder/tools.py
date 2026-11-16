@@ -980,9 +980,8 @@ def update_element(
       it or to work around a setting you can't change (a link's target, styles,
       link, tags or image settings): tell the user to change it in the table's
       editor.
-    - Remove a column only when the user asked for it, and confirm first: undo
-      doesn't revert column changes, and removed columns and their click actions
-      are gone for good.
+    - Remove a column only when the user asked for it, and confirm first. Its click
+      actions go to the trash, and undo restores both.
 
     ## Dynamic Values with $formula:
     - value: "$formula: the product name from the data source"
@@ -1006,9 +1005,8 @@ def update_element(
       create_element_actions.
     - reorder_menu_items lists every top-level item that stays; sub-links can't be
       reordered.
-    - Remove an item only when the user asked for it: its sub-links go with it, undo
-      doesn't restore removed items, and a removed button's click actions are gone for
-      good.
+    - Remove an item only when the user asked for it: its sub-links go with it, and a
+      removed button's click actions go to the trash. Undo restores them.
     """
 
     user = ctx.deps.user

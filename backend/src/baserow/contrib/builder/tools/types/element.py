@@ -705,9 +705,13 @@ def _update_table_formulas(
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
-    # The element replaces its whole list of columns.
-    columns = orm_element.get_type().export_prepared_values(orm_element, ["fields"])[
-        "fields"
+    # The element replaces its whole list of columns. The configs are copied: they
+    # can be the prefetched columns' own, which the undo snapshot reads.
+    columns = [
+        {**column, "config": dict(column["config"])}
+        for column in orm_element.get_type().export_prepared_values(
+            orm_element, ["fields"]
+        )["fields"]
     ]
     changed = False
     for key, formula in formulas.items():
@@ -1804,7 +1808,7 @@ class ElementUpdate(BaseModel):
     remove_table_columns: list[str] | None = Field(
         max_length=MAX_NESTED_ITEMS,
         default=None,
-        description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Undo doesn't restore them or their click actions.",
+        description="(table) Uids of columns to delete, from list_elements. Only remove columns the user asked to remove. Their click actions go to the trash; undo restores both.",
     )
     orientation: Literal["vertical", "horizontal"] | None = Field(
         default=None, description="(repeat) Orientation."
@@ -1838,7 +1842,7 @@ class ElementUpdate(BaseModel):
     remove_menu_items: list[str] | None = Field(
         max_length=MAX_NESTED_ITEMS,
         default=None,
-        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Undo doesn't restore them or their click actions.",
+        description="(menu, header, footer) Uids of items to delete, from list_elements. A removed item's sub-links go with it. Only remove items the user asked to remove. Their click actions go to the trash; undo restores both.",
     )
 
     # -- Dispatch -------------------------------------------------------------

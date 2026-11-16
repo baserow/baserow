@@ -496,19 +496,16 @@ class PageHandler:
         collect(values)
         return links
 
-    def _linkable_page_ids(
-        self, builder: Builder, page_ids: Set[int], include_trash: bool
-    ) -> Set[int]:
+    def _linkable_page_ids(self, builder: Builder, page_ids: Set[int]) -> Set[int]:
         """
-        :return: The ids among `page_ids` of the builder's pages a link can open.
-            The shared page isn't one.
+        :return: The ids among `page_ids` of the builder's pages a link can open,
+            trashed ones included. The shared page isn't one.
         """
 
-        manager = Page.objects_and_trash if include_trash else Page.objects
         return set(
-            manager.filter(builder=builder, id__in=page_ids, shared=False).values_list(
-                "id", flat=True
-            )
+            Page.objects_and_trash.filter(
+                builder=builder, id__in=page_ids, shared=False
+            ).values_list("id", flat=True)
         )
 
     def raise_if_page_links_outside_builder(
@@ -541,9 +538,7 @@ class PageHandler:
         if not page_ids:
             return
         # The editor sends links to a trashed page back.
-        missing = page_ids - self._linkable_page_ids(
-            builder, page_ids, include_trash=True
-        )
+        missing = page_ids - self._linkable_page_ids(builder, page_ids)
         if missing:
             raise DRFValidationError(
                 f"The page with id {min(missing)} doesn't exist.",
@@ -553,22 +548,20 @@ class PageHandler:
     def without_links_to_deleted_pages(self, builder: Builder, values: Any) -> Any:
         """
         Clear every `navigate_to_page_id`, nested ones included, that names a page
-        that is trashed or no longer exists. Trashing a page clears the links of
-        table columns to it too. Used to replay values saved before the page was
-        removed, such as an undo snapshot.
+        that no longer exists. A trashed page's links are kept, so they work again
+        when it's restored. Used to replay values saved before the page was
+        deleted, such as an undo snapshot.
 
         :param builder: The builder the values belong to.
         :param values: The values to replay.
-        :return: A copy of the values without the links to removed pages.
+        :return: A copy of the values without the links to deleted pages.
         """
 
         values = deepcopy(values)
         links = self._page_links(values)
         if not links:
             return values
-        found = self._linkable_page_ids(
-            builder, {page_id for _, page_id in links}, include_trash=False
-        )
+        found = self._linkable_page_ids(builder, {page_id for _, page_id in links})
         for link, page_id in links:
             if page_id not in found:
                 link["navigate_to_page_id"] = None

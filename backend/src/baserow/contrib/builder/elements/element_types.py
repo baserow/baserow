@@ -1086,7 +1086,10 @@ class NavigationElementManager:
 
         if len(page_params) != 0 and navigate_to_page_id is not None:
             page = (
-                PageHandler().get_page(navigate_to_page_id)
+                # A link can name a trashed page, as the editor or an undo sends it.
+                PageHandler().get_page(
+                    navigate_to_page_id, base_queryset=Page.objects_and_trash
+                )
                 if navigate_to_page_id is not None
                 else instance.navigate_to_page
             )
