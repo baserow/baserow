@@ -908,3 +908,35 @@ def test_a_firing_queued_before_a_type_change_starts_nothing(
         start()
 
     assert not AgentConversation.objects.exists()
+
+
+@pytest.mark.django_db
+def test_an_accepted_queued_reply_keeps_its_message_after_a_type_change(
+    data_fixture, configured_agent, mocker
+):
+    mocker.patch(
+        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
+        ("periodic", "http_trigger"),
+    )
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = periodic_trigger(data_fixture, agent, on_overlap="wait")
+    conversation = (
+        AgentHandler()
+        .start_trigger_conversation(trigger, "Old event: Order 123", start_run=False)
+        .conversation
+    )
+    reply = reply_of(conversation)
+    assert reply.status == "queued"
+
+    AgentTriggerService().update_trigger(
+        user, agent.id, trigger.id, service_type_name="http_trigger"
+    )
+    trigger.refresh_from_db()
+    started = agent_trigger_dispatcher.start_queued_replies(trigger)
+
+    reply.refresh_from_db()
+    assert started == [reply]
+    assert reply.status == "running"
+    assert reply.conversation_id == conversation.id
+    assert conversation.messages.get(role="trigger").content == "Old event: Order 123"

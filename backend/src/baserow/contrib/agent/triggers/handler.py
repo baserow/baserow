@@ -178,7 +178,9 @@ class AgentTriggerHandler:
         Switching it off cancels its queued replies. Another service type replaces
         the service with a new one of that type and clears the last skip, which
         the old type caused; the trigger keeps its id, so its conversations stay
-        linked, and its other settings.
+        linked, and its other settings. Accepted queued replies keep their stored
+        messages and can still run. Firings from the replaced service that have
+        not yet created a conversation are dropped by the dispatcher.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.

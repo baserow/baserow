@@ -227,7 +227,9 @@ export function useAgentTriggers(agent) {
         sent
       )
       if (!scopeIsCurrent(currentScope)) return
-      if (sent.service) delete serviceErrors[trigger.id]
+      if (sent.service && trigger.type === data.type) {
+        delete serviceErrors[trigger.id]
+      }
       adoptSaved(trigger, sent, data)
     } catch (error) {
       if (scopeIsCurrent(currentScope)) handleSaveError(trigger, sent, error)
@@ -236,7 +238,8 @@ export function useAgentTriggers(agent) {
 
   /**
    * Takes the server's reply as saved, and shows its values where the card still
-   * shows what was sent: a field edited meanwhile keeps the newer edit.
+   * shows what was sent: a field edited meanwhile keeps the newer edit. Service
+   * values only merge while the card still shows the response's type.
    *
    * @param {object} trigger The saved trigger.
    * @param {object} sent The values that were sent.
@@ -254,26 +257,34 @@ export function useAgentTriggers(agent) {
         trigger[field] = latest[field]
       }
     }
-    const sentService = sent.service || {}
-    const previousService = 'type' in sent ? {} : previous.service
-    trigger.service = Object.fromEntries(
-      Object.entries({ ...trigger.service, ...latest.service }).map(
-        ([field, value]) => {
-          const showsSaved = isEqual(
-            trigger.service[field],
-            field in sentService ? sentService[field] : previousService[field]
-          )
-          return [field, showsSaved ? value : trigger.service[field]]
-        }
+    if (trigger.type === latest.type) {
+      const sentService = sent.service || {}
+      const previousService = 'type' in sent ? {} : previous.service
+      trigger.service = Object.fromEntries(
+        Object.entries({ ...trigger.service, ...latest.service }).map(
+          ([field, value]) => {
+            const showsSaved =
+              !(field in trigger.service) ||
+              isEqual(
+                trigger.service[field],
+                field in sentService
+                  ? sentService[field]
+                  : previousService[field]
+              )
+            return [field, showsSaved ? value : trigger.service[field]]
+          }
+        )
       )
-    )
+    }
+    trigger.last_skipped_on = data.last_skipped_on
+    trigger.last_skipped_reason = data.last_skipped_reason
     entry.values = latest
   }
 
   /**
-   * Keeps rejected service values shown with their error, to be sent again with
-   * the next service edit; otherwise shows the server's values again for what
-   * failed, remounting the service form so it shows them too.
+   * Keeps rejected same-type service edits shown with their error. A failed type
+   * change restores the saved type and service together, unless another type
+   * was picked meanwhile. Other failures revert only the values still shown.
    *
    * @param {object} trigger The trigger whose save failed.
    * @param {object} sent The values that were sent.
@@ -282,26 +293,29 @@ export function useAgentTriggers(agent) {
   function handleSaveError(trigger, sent, error) {
     const code = errorCode(error)
     const { values } = saved.get(trigger.id) || {}
+    const showsSentService = sent.service?.type === trigger.type
     if (code === API_ERROR_CODE.TRIGGER_SERVICE_MISCONFIGURED) {
+      if (!showsSentService) return
       const detail = error.response.data.detail
       serviceErrors[trigger.id] =
         typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
-      return
-    }
-    if (code === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
+      if (!('type' in sent)) return
+    } else if (code === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
       removeTrigger(trigger)
       return
+    } else {
+      notifyIf(error, 'trigger')
     }
-    notifyIf(error, 'trigger')
     if (!values) return
     for (const field of TRIGGER_FIELDS) {
       if (field in sent && isEqual(trigger[field], sent[field])) {
         trigger[field] = values[field]
       }
     }
-    if ('type' in sent && trigger.type === values.type) {
+    if (!showsSentService) return
+    if ('type' in sent) {
       trigger.service = cloneDeep(values.service)
-    } else if (sent.service) {
+    } else {
       const reverted = { ...trigger.service }
       for (const [field, value] of Object.entries(sent.service)) {
         if (isEqual(trigger.service[field], value)) {
@@ -310,9 +324,7 @@ export function useAgentTriggers(agent) {
       }
       trigger.service = reverted
     }
-    if (sent.service) {
-      serviceReverts[trigger.id] = (serviceReverts[trigger.id] || 0) + 1
-    }
+    serviceReverts[trigger.id] = (serviceReverts[trigger.id] || 0) + 1
   }
 
   function scheduleSave(trigger, fields) {
