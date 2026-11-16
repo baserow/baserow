@@ -154,6 +154,24 @@ def test_an_approved_email_does_not_send_when_its_action_changed(
 
 
 @pytest.mark.django_db
+def test_an_approved_email_sends_after_its_integration_was_renamed_and_moved(
+    email_action, mocker, mailoutbox
+):
+    user, agent, action, integration, _ = email_action
+    action.ask_first = True
+    action.save()
+    respond(mocker, ({0: email_call(action.name)},))
+    reply = pause(user, agent)
+
+    integration.name = "Renamed"
+    integration.order += 1
+    integration.save()
+    run_reply(decide(user, reply, approved=True))
+
+    assert [email.to for email in mailoutbox] == [["alice@example.com"]]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("ask_first", [False, True])
 def test_a_call_sends_the_values_its_step_shows(
     email_action, mocker, mailoutbox, ask_first

@@ -39,12 +39,19 @@ def get_approval_key(action: AgentAction) -> str:
     """
     :param action: The action, with its specific service.
     :return: A digest of what the model is told and of the configuration a call
-        is sent with, its integration included, so an approval only applies while
-        the action stays the same.
+        is sent with, its integration's settings included, so an approval only
+        applies while the action stays the same.
     """
 
     service = action.service
-    integration = service.integration if service.integration_id else None
+    integration = None
+    if service.integration_id:
+        integration = IntegrationHandler().export_integration(
+            service.integration.specific
+        )
+        # A new name or place in the list doesn't change where a call is sent.
+        for listing_field in ("name", "order"):
+            integration.pop(listing_field, None)
     payload = json.dumps(
         [
             action.id,
@@ -52,8 +59,7 @@ def get_approval_key(action: AgentAction) -> str:
             action.description,
             action.inputs,
             ServiceHandler().export_service(service),
-            integration
-            and IntegrationHandler().export_integration(integration.specific),
+            integration,
         ],
         sort_keys=True,
         default=str,

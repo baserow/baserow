@@ -73,7 +73,8 @@ An approved call is denied instead of sent when:
 
 - the action is no longer offered: deleted, renamed, disabled or broken;
 - its approval key changed: the key digests the action's name, instructions and
-  inputs, its exported service and its exported integration;
+  inputs, its exported service and its exported integration, without the
+  integration's name and place in the list;
 - it came back without its resolved values.
 
 "Always allow" only stops asking first for the action whose call was approved,
