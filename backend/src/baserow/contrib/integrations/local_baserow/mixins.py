@@ -48,6 +48,12 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     ServiceSortPropertyDoesNotExist,
 )
+from baserow.core.services.filter_groups import (
+    replace_filters,
+    serialize_filter,
+    serialize_filter_group,
+    sync_filter_groups,
+)
 from baserow.core.services.types import (
     DispatchResult,
     FormulaToResolve,
@@ -149,30 +155,17 @@ class LocalBaserowTableServiceFilterableMixin:
         """
 
         return [
-            {
-                "field_id": f.field_id,
-                "type": f.type,
-                "value": f.value,
-                "group": f.group_id,
-            }
-            for f in service.service_filters_with_untrashed_fields
+            serialize_filter(condition, group_id=condition.group_id)
+            for condition in service.service_filters_with_untrashed_fields
         ]
 
     def serialize_filter_groups(self, service: ServiceSubClass):
-        """
-        Responsible for serializing the service `filter_groups`.
-
-        :param service: the service instance.
-        :return: A list of serialized filter group dictionaries.
-        """
-
+        """Serialize service groups using their persisted IDs as references."""
         return [
-            {
-                "id": g.id,
-                "filter_type": g.filter_type,
-                "parent_group": g.parent_group_id,
-            }
-            for g in service.service_filter_groups.all()
+            serialize_filter_group(
+                group, reference=group.id, parent_reference=group.parent_group_id
+            )
+            for group in service.service_filter_groups.all()
         ]
 
     def export_prepared_values(self, instance):
@@ -527,65 +520,12 @@ class LocalBaserowTableServiceFilterableMixin:
         :return: A mapping of client group id to the persisted group instance.
         """
 
-        existing_by_id = {
-            str(group.id): group for group in service.service_filter_groups.all()
-        }
-        incoming_ids = {str(group["id"]) for group in service_filter_groups}
-
-        # Delete groups which are no longer present in the payload. This cascades to
-        # their filters, which is correct: removing a group removes its filters.
-        for group_id, group in list(existing_by_id.items()):
-            if group_id not in incoming_ids:
-                group.delete()
-                del existing_by_id[group_id]
-
-        client_id_to_group: Dict[str, LocalBaserowTableServiceFilterGroup] = {}
-        pending = list(service_filter_groups)
-
-        def upsert(group, parent):
-            group_id = str(group["id"])
-            existing = existing_by_id.get(group_id)
-            if existing is not None:
-                existing.filter_type = group["filter_type"]
-                existing.parent_group = parent
-                existing.save()
-                return existing
-            return LocalBaserowTableServiceFilterGroup.objects.create(
-                service=service,
-                filter_type=group["filter_type"],
-                parent_group=parent,
-            )
-
-        # Resolve parent references iteratively so that a parent group is always
-        # persisted before its children, regardless of the order in the payload.
-        while pending:
-            still_pending = []
-            for group in pending:
-                parent_client_id = group.get("parent_group_id")
-                parent_resolved = (
-                    parent_client_id is None
-                    or str(parent_client_id) in client_id_to_group
-                )
-                if not parent_resolved:
-                    still_pending.append(group)
-                    continue
-                parent = (
-                    client_id_to_group[str(parent_client_id)]
-                    if parent_client_id is not None
-                    else None
-                )
-                client_id_to_group[str(group["id"])] = upsert(group, parent)
-
-            if len(still_pending) == len(pending):
-                # No progress: the remaining groups reference missing parents. Persist
-                # them as top-level groups so we never loop forever or lose data.
-                for group in still_pending:
-                    client_id_to_group[str(group["id"])] = upsert(group, None)
-                break
-
-            pending = still_pending
-
-        return client_id_to_group
+        return sync_filter_groups(
+            service.service_filter_groups.all(),
+            service_filter_groups,
+            owner_values={"service": service},
+            allow_unresolved_parents=True,
+        )
 
     def update_service_filters(
         self,
@@ -620,25 +560,11 @@ class LocalBaserowTableServiceFilterableMixin:
             if service_filters is None:
                 return
 
-            service.service_filters.all().delete()
-
-            def build_filter(index, service_filter):
-                service_filter = {**service_filter}
-                group_client_id = service_filter.pop("group_id", None)
-                group = (
-                    client_id_to_group.get(str(group_client_id))
-                    if group_client_id is not None
-                    else None
-                )
-                return LocalBaserowTableServiceFilter(
-                    **service_filter, service=service, order=index, group=group
-                )
-
-            LocalBaserowTableServiceFilter.objects.bulk_create(
-                [
-                    build_filter(index, service_filter)
-                    for index, service_filter in enumerate(service_filters)
-                ]
+            replace_filters(
+                service.service_filters.all(),
+                service_filters,
+                groups=client_id_to_group,
+                owner_values={"service": service},
             )
 
     def _invalidate_refinement_prefetch_cache(self, service):

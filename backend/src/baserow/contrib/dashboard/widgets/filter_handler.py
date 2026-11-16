@@ -1,6 +1,11 @@
 from copy import deepcopy
 
-from baserow.core.formula.field import FormulaField
+from baserow.core.services.filter_groups import (
+    replace_filters,
+    serialize_filter,
+    serialize_filter_group,
+    sync_filter_groups,
+)
 
 from .models import WidgetFilterCondition, WidgetFilterGroup, WidgetFilterTarget
 
@@ -41,12 +46,12 @@ class WidgetFilterHandler:
                 for child in children:
                     parent = group_by_id[child.parent_group_id]
                     result["filter_groups"].append(
-                        {
-                            **child.configuration,
-                            "id": child.reference,
-                            "parent_group": parent.reference,
-                            "filter_type": child.filter_type,
-                        }
+                        serialize_filter_group(
+                            child,
+                            reference=child.reference,
+                            parent_reference=parent.reference,
+                            extra=child.configuration,
+                        )
                     )
                 conditions = [
                     (g, c) for g in [root, *children] for c in g.conditions.all()
@@ -54,15 +59,16 @@ class WidgetFilterHandler:
                 for group, condition in sorted(
                     conditions, key=lambda item: item[1].order
                 ):
-                    value = {
-                        **condition.configuration,
-                        "field": condition.field_id,
-                        "type": condition.type,
-                        "value": condition.value,
-                    }
-                    if group.id != root.id or "group" in value:
-                        value["group"] = group.reference
-                    result["filters"].append(value)
+                    result["filters"].append(
+                        serialize_filter(
+                            condition,
+                            field_key="field",
+                            group_id=group.reference,
+                            include_group=group.id != root.id
+                            or "group" in condition.configuration,
+                            extra=condition.configuration,
+                        )
+                    )
                 link[branch] = result
             links.append(link)
         return links
@@ -105,7 +111,6 @@ class WidgetFilterHandler:
 
     def _create_branch(self, target, configuration, alternative):
         """Create a branch root, resolve nested group references, then its formulas."""
-        formula_field = FormulaField()
         root = WidgetFilterGroup.objects.create(
             target=target,
             alternative=alternative,
@@ -116,46 +121,47 @@ class WidgetFilterHandler:
                 if key not in ("filter_type", "filters", "filter_groups")
             },
         )
-        groups = {None: root}
-        pending = list(enumerate(configuration.get("filter_groups", [])))
-        while pending:
-            remaining = []
-            for index, group in pending:
-                parent = group.get("parent_group")
-                if parent not in groups:
-                    remaining.append((index, group))
-                    continue
-                groups[group["id"]] = WidgetFilterGroup.objects.create(
-                    target=target,
-                    parent_group=groups[parent],
-                    alternative=alternative,
-                    filter_type=group.get("filter_type", "AND"),
-                    order=index,
-                    reference=group["id"],
-                    configuration={
+        groups = sync_filter_groups(
+            WidgetFilterGroup.objects.none(),
+            [
+                {
+                    "id": group["id"],
+                    "parent_group_id": group.get("parent_group"),
+                    "reference": group["id"],
+                    "filter_type": group.get("filter_type", "AND"),
+                    "order": index,
+                    "configuration": {
                         key: value
                         for key, value in group.items()
                         if key not in ("id", "parent_group", "filter_type")
                     },
-                )
-            if len(remaining) == len(pending):
-                raise ValueError("Invalid filter group hierarchy.")
-            pending = remaining
+                }
+                for index, group in enumerate(configuration.get("filter_groups", []))
+            ],
+            owner_values={"target": target, "alternative": alternative},
+            root=root,
+        )
         conditions = []
-        for index, condition in enumerate(configuration.get("filters", [])):
-            condition["value"] = formula_field.to_python(condition.get("value", ""))
+        value_field = WidgetFilterCondition._meta.get_field("value")
+        for condition in configuration.get("filters", []):
+            condition["value"] = value_field.to_python(condition.get("value", ""))
             conditions.append(
-                WidgetFilterCondition(
-                    group=groups[condition.get("group")],
-                    field_id=condition["field"],
-                    type=condition["type"],
-                    value=condition["value"],
-                    order=index,
-                    configuration={
+                {
+                    "field_id": condition["field"],
+                    "type": condition["type"],
+                    "value": condition["value"],
+                    "group_id": condition.get("group"),
+                    "configuration": {
                         key: value
                         for key, value in condition.items()
                         if key not in ("field", "type", "value")
                     },
-                )
+                }
             )
-        WidgetFilterCondition.objects.bulk_create(conditions)
+        replace_filters(
+            WidgetFilterCondition.objects.none(),
+            conditions,
+            groups=groups,
+            owner_values={},
+            root=root,
+        )
