@@ -47,7 +47,8 @@ def test_non_positive_realtime_replay_retention_is_rejected(retention_hours: str
     ],
 )
 @pytest.mark.parametrize(
-    "configured,expected", [(None, "None"), ("", "None"), ("0", "None"), ("10", "10")]
+    "configured,expected",
+    [(None, "None"), ("", "None"), ("0", "None"), ("-1", "None"), ("10", "10")],
 )
 def test_agent_limits_are_optional(name: str, configured: str | None, expected: str):
     env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
