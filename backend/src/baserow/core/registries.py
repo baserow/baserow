@@ -51,6 +51,7 @@ from .types import (
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
+    from django.contrib.contenttypes.models import ContentType
 
     from baserow.core.models import (
         Application,
@@ -1744,6 +1745,17 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
 
     name = "subject"
     does_not_exist_exception_class = SubjectTypeNotExist
+
+    def get_by_content_type(self, content_type: "ContentType") -> SubjectType:
+        """
+        Returns the subject type of the subjects stored under the given content type.
+
+        :param content_type: The content type of a stored subject reference.
+        :raises SubjectTypeNotExist: When no subject type is registered for it.
+        :return: The subject type.
+        """
+
+        return self.get_for_class(content_type.model_class())
 
     def get_specific_type(self, subject: Subject) -> SubjectType:
         """
