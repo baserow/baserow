@@ -240,11 +240,16 @@ def template_row_writes():
             "CREATE TRIGGER log_template_write AFTER UPDATE ON core_template "
             "FOR EACH ROW EXECUTE FUNCTION pg_temp.log_template_write()"
         )
-    yield writes
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT id, count(*) FROM template_writes GROUP BY id")
-        writes.update(cursor.fetchall())
-        cursor.execute("DROP TRIGGER log_template_write ON core_template")
+    try:
+        yield writes
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id, count(*) FROM template_writes GROUP BY id")
+            writes.update(cursor.fetchall())
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("DROP TRIGGER log_template_write ON core_template")
+            cursor.execute("DROP FUNCTION pg_temp.log_template_write()")
+            cursor.execute("DROP TABLE template_writes")
 
 
 def make_public(user, template):
