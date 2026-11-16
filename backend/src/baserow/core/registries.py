@@ -1591,11 +1591,7 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
         :return: The subjects, or None when this type is not stored in the database.
         """
 
-        # By name: importing the trash mixin here loads models too early.
-        manager = getattr(self.model_class, "objects", None)
-        if include_trash:
-            manager = getattr(self.model_class, "objects_and_trash", manager)
-        return None if manager is None else manager.all()
+        return None
 
     def get_trashed_subjects_queryset(self) -> Optional[QuerySet]:
         """
@@ -1604,8 +1600,7 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
         :return: The trashed subjects, or None when this type cannot be trashed.
         """
 
-        trash_manager = getattr(self.model_class, "trash", None)
-        return None if trash_manager is None else trash_manager.all()
+        return None
 
     def get_options_queryset(
         self,
