@@ -70,6 +70,20 @@ def test_input_reference_validation_accepts_decorated_literals(
 
 
 @pytest.mark.django_db
+def test_a_stored_formula_with_an_invalid_argument_only_marks_its_field(
+    configured_email,
+):
+    action = configured_email
+    action.service.body = BaserowFormulaObject.create(
+        "minus('abc', 1)", mode="advanced"
+    )
+
+    errors = SMTPEmailAgentActionType().get_configuration_errors(action)
+
+    assert errors == {"body": "invalid"}
+
+
+@pytest.mark.django_db
 def test_preview_is_bounded_but_delivery_retains_full_payload(
     configured_email, mailoutbox
 ):

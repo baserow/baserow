@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from django.core.exceptions import ValidationError
+
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
@@ -75,8 +77,9 @@ def get_formula_errors(
 
     :param service: The action's specific service.
     :param inputs: The action's declared inputs.
-    :return: ``invalid`` by service field, for each formula that doesn't parse or
-        reads something else than a declared input.
+    :return: ``invalid`` by service field, for each formula that doesn't parse,
+        has an argument its function refuses, or reads something else than a
+        declared input.
     """
 
     errors = {}
@@ -88,6 +91,6 @@ def get_formula_errors(
             ActionFormulaValidationVisitor(inputs).visit(
                 get_parse_tree_for_formula(value["formula"])
             )
-        except (BaserowFormulaException, InstanceTypeDoesNotExist):
+        except (BaserowFormulaException, InstanceTypeDoesNotExist, ValidationError):
             errors[formula.key] = "invalid"
     return errors
