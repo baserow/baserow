@@ -5,6 +5,7 @@
       :alt="alt"
       :src="src"
       :loading="lazy ? 'lazy' : null"
+      v-bind="imageAttributes"
     />
   </div>
 </template>
@@ -40,6 +41,15 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    /**
+     * @type {Object} - Extra attributes and listeners for the image itself, such
+     * as the ones that make it clickable.
+     */
+    imageAttributes: {
+      type: Object,
+      required: false,
+      default: () => ({}),
     },
   },
 }

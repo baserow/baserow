@@ -284,6 +284,32 @@ describe('Clickable containers', () => {
       )
     })
 
+    test('exposes the button role only around noninteractive content', async () => {
+      const { wrapper } = await mountTree({
+        outerType,
+        innerType,
+        actionIds: [11],
+      })
+      await flushPromises()
+      expect(getSurface(wrapper, 11).attributes('role')).toBe('button')
+
+      const withInput = await mountTree({
+        outerType,
+        innerType,
+        childType: 'input_text',
+        actionIds: [11],
+      })
+      await flushPromises()
+      const surface = getSurface(withInput.wrapper, 11)
+      expect(withInput.wrapper.find('input').exists()).toBe(true)
+      expect(surface.attributes('role')).toBeUndefined()
+      expect(surface.attributes('tabindex')).toBe('0')
+
+      await surface.trigger('keydown', { key: 'Enter' })
+      await flushPromises()
+      expect(notificationTitles()).toEqual(['Element 11'])
+    })
+
     test('edits a child rating input without triggering a parent action', async () => {
       const { wrapper } = await mountTree({
         outerType,

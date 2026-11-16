@@ -1,22 +1,20 @@
 <template>
   <div
-    v-bind="clickableElementAttributes"
     class="heading-element"
     :class="{
       'element--no-value': !resolvedValue,
-      'element--clickable': isClickable,
     }"
-    @click="onElementClick"
-    @keydown="onElementKeydown"
-    @keyup="onElementKeyup"
   >
     <ABHeading :level="element.level" :style="getStyleOverride('typography')">
-      {{
-        element.value
-          ? resolvedValue ||
-            (mode === 'editing' ? $t('headingElement.emptyValue') : '&nbsp;')
-          : $t('headingElement.missingValue')
-      }}
+      <!-- The button sits inside the heading so the heading keeps its role. -->
+      <span
+        v-bind="clickableElementAttributes"
+        :class="isClickable ? 'element--clickable' : undefined"
+        @click="onElementClick"
+        @keydown="onElementKeydown"
+        @keyup="onElementKeyup"
+        >{{ headingText }}</span
+      >
     </ABHeading>
   </div>
 </template>
@@ -42,6 +40,19 @@ export default {
   computed: {
     resolvedValue() {
       return ensureString(this.resolveFormula(this.element.value))
+    },
+    headingText() {
+      if (!this.element.value) {
+        return this.$t('headingElement.missingValue')
+      }
+      return (
+        this.resolvedValue ||
+        (this.mode === 'editing' ? this.$t('headingElement.emptyValue') : ' ')
+      )
+    },
+    canContainInteractiveContent() {
+      // The click target only holds the heading text.
+      return false
     },
   },
 }

@@ -1,14 +1,12 @@
 <template>
   <div
-    v-bind="clickableElementAttributes"
     :class="classes"
     class="image-element"
     :style="getStyleOverride('image')"
-    @click="onElementClick"
-    @keydown="onElementKeydown"
-    @keyup="onElementKeyup"
   >
+    <!-- Only the picture is clickable, not the empty space beside it. -->
     <ABImage
+      :image-attributes="imageAttributes"
       :alt="
         element.alt_text
           ? resolvedAltText ||
@@ -56,7 +54,22 @@ export default {
     classes() {
       return {
         'element--no-value': !this.imageSource && !this.resolvedAltText,
-        'element--clickable': this.isClickable,
+      }
+    },
+    canContainInteractiveContent() {
+      // The click target is the image itself.
+      return false
+    },
+    imageAttributes() {
+      if (!this.isClickable) {
+        return {}
+      }
+      return {
+        ...this.clickableElementAttributes,
+        class: 'element--clickable',
+        onClick: this.onElementClick,
+        onKeydown: this.onElementKeydown,
+        onKeyup: this.onElementKeyup,
       }
     },
   },

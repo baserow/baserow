@@ -134,17 +134,24 @@ describe('Clickable display elements', () => {
     })
   }
 
+  // The click target is the heading's text, the text element itself and the
+  // image itself, so the heading keeps its role and blank space isn't clickable.
+  const clickTarget = (wrapper, targetSelector) =>
+    targetSelector ? wrapper.get(targetSelector) : wrapper
+
   describe.each([
-    ['heading', HeadingElement, '.ab-heading'],
-    ['text', TextElement, '.ab-text'],
-    ['image', ImageElement, 'img'],
-  ])('%s', (type, component, contentSelector) => {
+    ['heading', HeadingElement, '.ab-heading > span', '.ab-heading > span'],
+    ['text', TextElement, '.ab-text', null],
+    ['image', ImageElement, 'img', 'img'],
+  ])('%s', (type, component, contentSelector, targetSelector) => {
     test('executes the configured workflow when its content is clicked', async () => {
       const wrapper = await mountElement(component, type)
+      const target = clickTarget(wrapper, targetSelector)
 
-      expect(wrapper.attributes('role')).toBe('button')
-      expect(wrapper.attributes('tabindex')).toBe('0')
-      expect(wrapper.classes()).toContain('element--clickable')
+      expect(target.attributes('role')).toBe('button')
+      expect(target.attributes('tabindex')).toBe('0')
+      expect(target.classes()).toContain('element--clickable')
+      expect(wrapper.findAll('[role="button"]')).toHaveLength(1)
       await wrapper.get(contentSelector).trigger('click')
       await flushPromises()
 
@@ -154,7 +161,10 @@ describe('Clickable display elements', () => {
     })
 
     test('supports Enter and Space without firing Space until keyup', async () => {
-      const wrapper = await mountElement(component, type)
+      const wrapper = clickTarget(
+        await mountElement(component, type),
+        targetSelector
+      )
 
       await wrapper.trigger('keydown', { key: 'Enter' })
       await flushPromises()
@@ -180,6 +190,8 @@ describe('Clickable display elements', () => {
 
       expect(wrapper.attributes('role')).toBeUndefined()
       expect(wrapper.attributes('tabindex')).toBeUndefined()
+      expect(wrapper.find('[role="button"], [tabindex]').exists()).toBe(false)
+      expect(wrapper.find('.element--clickable').exists()).toBe(false)
       expect(wrapper.classes()).not.toContain('element--clickable')
       await wrapper.get(contentSelector).trigger('click')
       await wrapper.trigger('keydown', { key: 'Enter' })
@@ -209,6 +221,46 @@ describe('Clickable display elements', () => {
         false
       )
     })
+  })
+
+  test('keeps the heading role around its clickable text', async () => {
+    const wrapper = await mountElement(HeadingElement, 'heading')
+    const heading = wrapper.get('.ab-heading')
+
+    expect(heading.element.tagName).toBe('H2')
+    expect(heading.attributes('role')).toBeUndefined()
+    expect(heading.get('[role="button"]').text()).toBe('Display content')
+    expect(wrapper.attributes('role')).toBeUndefined()
+  })
+
+  test('ignores clicks on the space beside the image', async () => {
+    const wrapper = await mountElement(ImageElement, 'image')
+
+    await wrapper.get('.ab-image').trigger('click')
+    await wrapper.trigger('click')
+    await flushPromises()
+    expect(notifications()).toHaveLength(0)
+
+    await wrapper.get('img').trigger('click')
+    await flushPromises()
+    expect(notifications()).toHaveLength(1)
+  })
+
+  test('keeps Markdown text with links focusable without a button role', async () => {
+    const wrapper = await mountElement(TextElement, 'text', {
+      elementValues: {
+        format: 'markdown',
+        value: { mode: 'raw', formula: '[Visit](https://example.com) now' },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.attributes('role')).toBeUndefined()
+    expect(wrapper.attributes('tabindex')).toBe('0')
+
+    await wrapper.trigger('keydown', { key: 'Enter' })
+    await flushPromises()
+    expect(notifications()).toMatchObject([{ title: 'Clicked' }])
   })
 
   test('executes workflows in preview mode', async () => {
