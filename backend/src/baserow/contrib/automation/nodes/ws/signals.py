@@ -18,6 +18,9 @@ from baserow.contrib.automation.nodes.signals import (
     automation_node_deleted,
     automation_node_updated,
 )
+from baserow.contrib.automation.nodes.ws.tasks import (
+    broadcast_node_event_to_permitted_users,
+)
 from baserow.contrib.automation.workflows.object_scopes import (
     AutomationWorkflowObjectScopeType,
 )
@@ -53,22 +56,38 @@ def bounded_node_event(event: dict) -> dict:
     return {**event, "node": node, "requires_refresh": True}
 
 
-@receiver(automation_node_created)
-def node_created(sender, node: AutomationNode, user: AbstractUser, **kwargs):
-    transaction.on_commit(
-        lambda: broadcast_to_permitted_users.delay(
-            node.workflow.automation.workspace_id,
+def broadcast_node_event(node: AutomationNode, user: AbstractUser, event_type: str):
+    """
+    Broadcasts the node to the users who may read it. A node whose service uses a
+    table names that table's fields, so it is broadcast with a task that leaves
+    them out for the users who may not see them.
+    """
+
+    workspace_id = node.workflow.automation.workspace_id
+    event = bounded_node_event(
+        {"type": event_type, "node": AutomationNodeSerializer(node).data}
+    )
+    web_socket_id = getattr(user, "web_socket_id", None)
+    table_id = getattr(node.service.specific, "table_id", None)
+    if table_id is not None:
+        broadcast_node_event_to_permitted_users.delay(
+            workspace_id, node.id, table_id, event, web_socket_id
+        )
+    else:
+        broadcast_to_permitted_users.delay(
+            workspace_id,
             ReadAutomationNodeOperationType.type,
             AutomationNodeObjectScopeType.type,
             node.id,
-            bounded_node_event(
-                {
-                    "type": "automation_node_created",
-                    "node": AutomationNodeSerializer(node).data,
-                }
-            ),
-            getattr(user, "web_socket_id", None),
+            event,
+            web_socket_id,
         )
+
+
+@receiver(automation_node_created)
+def node_created(sender, node: AutomationNode, user: AbstractUser, **kwargs):
+    transaction.on_commit(
+        lambda: broadcast_node_event(node, user, "automation_node_created")
     )
 
 
@@ -95,17 +114,5 @@ def node_deleted(
 @receiver(automation_node_updated)
 def node_updated(sender, node: AutomationNode, user: AbstractUser, **kwargs):
     transaction.on_commit(
-        lambda: broadcast_to_permitted_users.delay(
-            node.workflow.automation.workspace_id,
-            ReadAutomationNodeOperationType.type,
-            AutomationNodeObjectScopeType.type,
-            node.id,
-            bounded_node_event(
-                {
-                    "type": "automation_node_updated",
-                    "node": AutomationNodeSerializer(node).data,
-                }
-            ),
-            getattr(user, "web_socket_id", None),
-        )
+        lambda: broadcast_node_event(node, user, "automation_node_updated")
     )
