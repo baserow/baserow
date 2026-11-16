@@ -84,12 +84,12 @@ web frontend. This whole directory is also added to the web-frontend container.
   `--target dev` to instead get a dev ready image.
 * `intellij-idea.webpack.config.js` a webpack config file that can be used by Intellij
   iDEA. It adds the correct aliases for the editor.
-* `jest.config.js`: config file for running the tests with JEST.
 * `justfile`: contains commands to install dependencies, run the linter, and run
   the tests.
 * `nuxt.config.js`: base Nuxt config for the development environment.
 * `package.json`: main package config including all the dependencies for the
   web-frontend.
+* `vitest.config.ts`: config file for running the tests with Vitest.
 * `yarn.lock`: auto generated file containing a list of the dependencies installed via
   yarn.
 

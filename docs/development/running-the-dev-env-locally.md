@@ -35,7 +35,7 @@ This guide covers running Baserow's backend and frontend natively on your machin
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
 
-5. **Node.js 24** - For the frontend
+5. **Node.js 24.15 or later (24.x)** - For the frontend
    ```bash
    # Using nvm (recommended)
    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -45,6 +45,10 @@ This guide covers running Baserow's backend and frontend natively on your machin
    # macOS with Homebrew
    brew install node@24
    ```
+   Older 24.x versions fail `yarn install` with `The engine "node" is incompatible
+   with this module`; run `nvm install 24` again (or `brew upgrade node@24`) to get
+   the latest 24.x. nvm keeps global packages per Node version, so run
+   `npm install -g yarn` again after switching.
 6. **Yarn** - Frontend package manager
    ```bash
    npm install -g yarn
@@ -169,7 +173,7 @@ just shell_plus
 ```bash
 # From project root (just f is shorthand for just frontend)
 just f lint              # Run ESLint + Stylelint
-just f test              # Run Jest tests
+just f test              # Run Vitest tests
 just f fix               # Auto-fix code style
 
 # From web-frontend/
@@ -281,8 +285,8 @@ just test-db stop
 ### Frontend Tests
 
 ```bash
-just f test              # Run Jest tests
-just f test --watch      # Watch mode
+just f test              # Run Vitest tests
+just f yarn test:core    # Watch mode (core tests; also test:premium, test:enterprise)
 ```
 
 ## Database Operations

@@ -53,17 +53,18 @@ Install the following tools:
    run `backend/tests/baserow/core/test_core_models.py` for instance.
 1. Now lets set up your frontend dev by changing directory to `baserow/web-frontend`
 1. Use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) to install the correct version of `node`.
-   To determine the version of Node.js to use, see the `runtimeVersion` inside the
-   `launch.json` file. E.g. if the version is `v16.15.0`, you can install it with:
-   `nvm install v16.15.0` and then enable it with `nvm use v16.15.0`. Alternatively,
-   see `baserow/docs/installation/supported.md` to determine the supported version
-   of Node.js to use.
+   You need Node.js 24.15 or later in the 24.x line: install it with `nvm install 24`
+   and enable it with `nvm use 24`. Older 24.x versions fail `yarn install` with
+   `The engine "node" is incompatible with this module`; run `nvm install 24` again to
+   get the latest 24.x, then `npm install -g yarn` again (nvm keeps global packages
+   per Node version). See `baserow/docs/installation/supported.md` for the supported
+   versions of Node.js.
 1. Install `yarn` globally: `npm install -g yarn`
 1. Now run `just f install` to install dependencies (or `yarn install` directly).
 1. Select "Trust Project" if you see an VSCode popup after running yarn install
-1. If you do not see Jest tests in the testing menu:
-   1. Type: Ctrl + Shift + P or open the command palette
-   1. Type: Jest: Start All Runners
+1. Install the [Vitest extension](https://marketplace.visualstudio.com/items?itemName=vitest.explorer)
+   (`vitest.explorer`). It finds the core, premium and enterprise Vitest configs and
+   lists their tests in the testing menu.
 1. Confirm you can run a web-frontend unit test from vscode
 
 # Recommended Plugins
@@ -76,7 +77,7 @@ Otherwise, you can manually install:
 1. Eslint
 1. Gitlab Workflow
 1. Gitlens
-1. Jest
+1. Vitest
 1. SCSS Formatter
 1. Stylelint
 1. Mypy

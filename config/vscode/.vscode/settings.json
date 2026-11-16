@@ -3,10 +3,7 @@
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true,
   "python.testing.pytestArgs": ["backend"],
-  "jest.autoRun": "off",
-  "jest.rootPath": "web-frontend",
-  "jest.jestCommandLine": "node_modules/.bin/jest --config jest.config.js --runInBand --watchAll=false",
-  "coverage-gutters.coverageBaseDir": "**/*coverage",
+  "vitest.configSearchPatternExclude": "{**/node_modules/**,**/vendor/**,**/.*/**,**/*.d.ts,**/vitest.config.base.ts}",  "coverage-gutters.coverageBaseDir": "**/*coverage",
   "coverage-gutters.showLineCoverage": true,
   "sqltools.connections": [
     {

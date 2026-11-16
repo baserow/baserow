@@ -154,18 +154,17 @@ https://webpack.js.org/
 
 https://sass-lang.com/
 
-### JEST
+### Vitest
 
-Because of its simplicity and compatibility with Vue and Nuxt we have chosen to include
-JEST as the framework for the web frontend tests. Almost no code is covered yet so we
-can definitely improve on that. The code is also tested in the continuous integration
-pipeline. It can also be tested manually:
+We use Vitest, with `@nuxt/test-utils`, as the framework for the web frontend tests.
+The code is also tested in the continuous integration pipeline. It can also be tested
+manually:
 
 ```bash
 just f test
 ```
 
-https://jestjs.io/
+https://vitest.dev/
 
 ### Iconoir
 

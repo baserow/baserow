@@ -1,7 +1,8 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="true" type="JavaScriptTestRunnerJest">
+  <configuration default="true" type="JavaScriptTestRunnerVitest">
     <node-interpreter value="project" />
     <node-options value="" />
+    <vitest-package value="$PROJECT_DIR$/web-frontend/node_modules/vitest" />
     <working-dir value="$PROJECT_DIR$/web-frontend" />
     <envs />
     <scope-kind value="ALL" />
