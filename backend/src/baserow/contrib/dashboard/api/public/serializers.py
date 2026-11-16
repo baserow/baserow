@@ -83,19 +83,20 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
 
 
 def serialize_public_data_source(
-    data_source: DashboardDataSource, context_fields=None
+    data_source: DashboardDataSource, allowed_fields=None
 ) -> dict:
     """
     Serializes a data source with the public serializer of its service type.
 
     :param data_source: The data source to serialize. It must have a service.
+    :param allowed_fields: Service properties referenced by widget formulas.
     :return: The serialized data source.
     """
 
     return service_type_registry.get_serializer(
         data_source.service,
         PublicDashboardDataSourceSerializer,
-        context={"data_source": data_source, "allowed_fields": context_fields},
+        context={"data_source": data_source, "allowed_fields": allowed_fields},
         extra_params={"public": True},
     ).data
 
@@ -136,12 +137,19 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
         )
     )
     def get_data_sources(self, instance):
-        from baserow.contrib.dashboard.widgets.options import get_option_context_fields
+        from baserow.contrib.dashboard.formula_property_extractor import (
+            get_dashboard_used_property_names,
+        )
 
-        fields = get_option_context_fields(self.context["widgets"])
+        data_sources = list(self.context["data_sources"])
+        fields = get_dashboard_used_property_names(
+            self.context["widgets"], data_sources
+        )
         return [
-            serialize_public_data_source(data_source, fields.get(data_source.id))
-            for data_source in self.context["data_sources"]
+            serialize_public_data_source(
+                data_source, fields.get(data_source.service_id)
+            )
+            for data_source in data_sources
             if data_source.service_id
         ]
 

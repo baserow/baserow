@@ -104,47 +104,22 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
     def get_data_chunk(self, dispatch_context, path):
         raise NotImplementedError("Dashboard option formulas resolve in the frontend.")
 
-    def get_referenced_fields(self, formulas):
-        """Collect source/field references without evaluating or importing formulas."""
-        from baserow.core.formula import (
-            BaserowFormula,
-            BaserowFormulaException,
-            BaserowFormulaObject,
-            BaserowFormulaVisitor,
-            get_parse_tree_for_formula,
+    def extract_properties(self, path, **kwargs):
+        """Resolve a context reference to properties of its owning service."""
+        self.is_valid(path)
+        source_id, *rest = path
+        sources = kwargs.get("data_sources")
+        source = (
+            sources.get(int(source_id))
+            if sources is not None
+            else DashboardDataSource.objects.filter(id=int(source_id)).first()
         )
-        from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
-        from baserow.core.utils import to_path
-
-        fields = {}
-        provider = self
-
-        class ContextReferenceVisitor(BaserowFormulaVisitor):
-            def visitFunctionCall(self, ctx):
-                """Collect literal context paths, including nested function calls."""
-                arguments = ctx.expr()
-                if (
-                    ctx.func_name().getText().lower() == "get"
-                    and arguments
-                    and isinstance(arguments[0], BaserowFormula.StringLiteralContext)
-                ):
-                    name, *path = to_path(arguments[0].getText()[1:-1])
-                    if name == provider.type:
-                        provider.is_valid(path)
-                        fields.setdefault(int(path[0]), set()).add(path[1])
-                return self.visitChildren(ctx)
-
-        visitor = ContextReferenceVisitor()
-        for formula in formulas:
-            formula = BaserowFormulaObject.to_formula(formula)
-            if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
-                continue
-            try:
-                visitor.visit(get_parse_tree_for_formula(formula["formula"]))
-            except (BaserowFormulaException, RecursionError, ValueError):
-                # Invalid saved formulas cannot contribute usable context references.
-                continue
-        return fields
+        if source is None or not source.service_id:
+            return {}
+        service = source.service.specific
+        return {
+            service.id: service.get_type().extract_properties(service, rest, **kwargs)
+        }
 
     def import_path(self, path, id_mapping, **kwargs):
         """Remap the source and let its service remap metadata properties."""
@@ -162,5 +137,13 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
 
 dashboard_options_data_provider_registry = DataProviderTypeRegistry()
 dashboard_options_data_provider_registry.register(
+    DashboardDataSourceContextDataProviderType()
+)
+
+# Extraction handles references from both runtime and option formulas without
+# changing which providers those two formula contexts permit.
+dashboard_property_data_provider_registry = DataProviderTypeRegistry()
+dashboard_property_data_provider_registry.register(WidgetDataProviderType())
+dashboard_property_data_provider_registry.register(
     DashboardDataSourceContextDataProviderType()
 )

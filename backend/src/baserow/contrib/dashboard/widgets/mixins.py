@@ -266,6 +266,17 @@ class FilterWidgetTypeMixin:
             ],
         )
 
+    def formula_generator(self, instance):
+        """Include both branches of each target's contributed condition formulas."""
+        yield from super().formula_generator(instance)
+        for link in self.get_target_filters(instance):
+            for key in ("group", "alternative_group"):
+                for condition in (link.get(key) or {}).get("filters", []):
+                    new_formula = yield condition.get("value", "")
+                    if new_formula is not None:
+                        condition["value"] = new_formula
+                        yield instance
+
     def get_target_filters(self, widget):
         return widget.target_filters
 

@@ -206,6 +206,15 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         updated_models.add(widget)
         return updated_models
 
+    def formula_generator(self, instance):
+        """Include option formulas only while the widget uses dropdown choices."""
+        yield from super().formula_generator(instance)
+        if instance.mode == TextFilterWidget.Mode.DROPDOWN:
+            new_formula = yield instance.options
+            if new_formula is not None:
+                instance.options = new_formula
+                yield instance
+
     def validate_dispatch_data(self, widget, value):
         if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
             if not isinstance(value, list) or any(

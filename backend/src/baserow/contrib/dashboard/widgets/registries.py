@@ -10,6 +10,7 @@ from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
     Instance,
+    InstanceWithFormulaMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
     PublicCustomFieldsInstanceMixin,
@@ -23,6 +24,7 @@ DASHBOARD_WIDGETS = "dashboard_widgets"
 
 
 class WidgetType(
+    InstanceWithFormulaMixin,
     EasyImportExportMixin[Widget],
     PublicCustomFieldsInstanceMixin,
     ModelInstanceMixin[Widget],
@@ -46,6 +48,19 @@ class WidgetType(
         max_width=6,
         max_height=16,
     )
+
+    def extract_properties(self, instance, **kwargs):
+        """Extract properties from the formulas supplied by this widget type."""
+        from baserow.contrib.dashboard.data_providers import (
+            dashboard_property_data_provider_registry,
+        )
+        from baserow.core.formula.property_extractor import extract_formula_properties
+
+        return extract_formula_properties(
+            self.formula_generator(instance),
+            dashboard_property_data_provider_registry,
+            **kwargs,
+        )
 
     def get_grid_layout(self) -> WidgetGridLayout:
         return self.grid_layout

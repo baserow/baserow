@@ -1199,23 +1199,30 @@ def test_filter_status_tracks_source_conditions_and_empty_groups(
     assert handler.dispatch_data_source(source, context) == {"result": "70"}
 
 
-def test_context_provider_collects_nested_references_without_evaluating():
+@pytest.mark.django_db
+def test_context_provider_collects_nested_references_without_evaluating(
+    context_options, filter_dashboard
+):
     from baserow.contrib.dashboard.data_providers import (
-        DashboardDataSourceContextDataProviderType,
+        dashboard_property_data_provider_registry,
     )
+    from baserow.core.formula.property_extractor import extract_formula_properties
 
-    provider = DashboardDataSourceContextDataProviderType()
-    assert provider.get_referenced_fields(
+    _, _, _, source, _, _ = filter_dashboard
+    properties = extract_formula_properties(
         [
             BaserowFormulaObject.create(
-                "concat(get('data_source_context.13.field_886.*.value'), "
-                "get('data_source_context.13.field_887.*.value'))"
+                f"concat(get('data_source_context.{source.id}.field_886.*.value'), "
+                f"get('data_source_context.{source.id}.field_887.*.value'))"
             ),
             BaserowFormulaObject.create(
-                "get('data_source_context.14.field_888.*.value')", mode="raw"
+                f"get('data_source_context.{source.id}.field_888.*.value')", mode="raw"
             ),
-        ]
-    ) == {13: {"field_886", "field_887"}}
+        ],
+        dashboard_property_data_provider_registry,
+        data_sources={source.id: source},
+    )
+    assert set(properties[source.service_id]) == {"field_886", "field_887"}
 
 
 @pytest.mark.django_db
@@ -1267,3 +1274,49 @@ def test_internal_dispatch_validates_widget_values_in_provider(filter_dashboard,
     )
     with pytest.raises(ValidationError):
         DashboardDataSourceHandler().dispatch_data_source(source, context)
+
+
+@pytest.mark.django_db
+def test_public_context_uses_formulas_declared_by_other_widget_types(
+    api_client, filter_dashboard, context_options, data_fixture, monkeypatch
+):
+    """Public properties include formulas from each type, not a text-filter allowlist."""
+    from baserow.contrib.dashboard.widgets.widget_types import SummaryWidgetType
+
+    _, _, dashboard, source, _, _ = filter_dashboard
+    table = source.service.specific.table
+    referenced = data_fixture.create_single_select_field(table=table)
+    hidden = data_fixture.create_single_select_field(table=table)
+    data_fixture.create_select_option(field=referenced, value="Shared", color="blue")
+    data_fixture.create_select_option(field=hidden, value="Unused", color="red")
+    monkeypatch.setattr(SummaryWidgetType, "simple_formula_fields", ["description"])
+    for _ in range(2):
+        data_fixture.create_summary_widget(
+            dashboard=dashboard,
+            data_source=source,
+            description=f"get('data_source_context.{source.id}.{referenced.db_column}.*.value')",
+        )
+    response = api_client.get(
+        reverse("api:dashboard:public:info", kwargs={"slug": dashboard.slug})
+    )
+    assert response.status_code == 200
+    context = next(
+        item for item in response.json()["data_sources"] if item["id"] == source.id
+    )["context_data"]
+    assert set(context) == {context_options.db_column, referenced.db_column}
+    assert context[referenced.db_column][0]["value"] == "Shared"
+
+
+@pytest.mark.django_db
+def test_widget_formula_generator_includes_both_condition_branches(filter_dashboard):
+    """Widget-owned extraction sees normal and alternative condition formulas."""
+    from copy import deepcopy
+
+    _, _, _, _, widget, _ = filter_dashboard
+    group = widget.target_filters[0]["group"]
+    widget.target_filters[0]["alternative_group"] = deepcopy(group)
+    alternative = BaserowFormulaObject.create("get('widget_data.999')")
+    widget.target_filters[0]["alternative_group"]["filters"][0]["value"] = alternative
+    formulas = list(widget.get_type().formula_generator(widget))
+    assert group["filters"][0]["value"] in formulas
+    assert alternative in formulas
