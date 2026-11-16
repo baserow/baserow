@@ -1465,3 +1465,57 @@ def test_widget_values_validate_once_per_request(data_fixture, monkeypatch):
                 )
                 assert context[f"widget_data.{widget.id}"] == value.upper()
     assert values == ["first", "second"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("valid", [True, False])
+def test_dispatch_validates_every_registered_data_provider(filter_dashboard, valid):
+    """New providers can validate their payload without changes to the dispatch handler."""
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.dashboard.data_providers import (
+        dashboard_data_provider_type_registry,
+    )
+    from baserow.core.formula.registries import DataProviderType
+
+    calls = []
+
+    class ExtraProvider(DataProviderType):
+        type = "extra_data"
+
+        def validate_data(self, dispatch_context):
+            calls.append(dispatch_context.data[self.type])
+            if not dispatch_context.data[self.type]:
+                raise ValidationError("Invalid extra provider data.")
+
+        def get_data_chunk(self, dispatch_context, path):
+            return None
+
+    class DefaultValidationProvider(DataProviderType):
+        type = "default_validation"
+
+        def get_data_chunk(self, dispatch_context, path):
+            return None
+
+    _, _, dashboard, source, _, _ = filter_dashboard
+    registry = dashboard_data_provider_type_registry
+    registry.register(ExtraProvider())
+    registry.register(DefaultValidationProvider())
+    try:
+        context = DashboardDispatchContext(
+            HttpRequest(), dashboard=dashboard, data={"extra_data": valid}
+        )
+        if valid:
+            assert (
+                DashboardDataSourceHandler().dispatch_data_source(source, context)[
+                    "result"
+                ]
+                == "10"
+            )
+        else:
+            with pytest.raises(ValidationError, match="Invalid extra provider data"):
+                DashboardDataSourceHandler().dispatch_data_source(source, context)
+        assert calls == [valid]
+    finally:
+        registry.unregister(ExtraProvider.type)
+        registry.unregister(DefaultValidationProvider.type)
