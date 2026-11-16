@@ -823,10 +823,8 @@ def test_contribution_update_undo_redo(filter_dashboard, disable):
 
 
 @pytest.mark.django_db
-def test_filter_capabilities_control_dispatch_and_dependencies(
-    filter_dashboard, monkeypatch
-):
-    """A registered filter's capabilities, value resolver and groups drive execution."""
+def test_widget_type_hooks_control_dispatch(filter_dashboard, monkeypatch):
+    """Runtime behavior follows widget hooks regardless of display/filter flags."""
     from baserow.contrib.dashboard.api.data_sources.serializers import (
         DashboardDispatchSerializer,
     )
@@ -880,24 +878,30 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
     )
     assert serializer.is_valid(), serializer.errors
 
+    # Flags do not control whether runtime hooks are consulted.
     monkeypatch.setattr(future_type, "is_filter_widget", False)
-    with local_cache.context():
-        assert DashboardDataSourceHandler().dispatch_data_source(
-            source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-        ) == {"result": "70"}
-    serializer = DashboardDispatchSerializer(
-        data={"widget_data": {str(widget.id): "Alpha"}},
-        context={"dashboard": dashboard},
-    )
-    assert serializer.is_valid()
-
-    monkeypatch.setattr(future_type, "is_filter_widget", True)
     display_type = original_lookup(SummaryWidget)
     monkeypatch.setattr(display_type, "is_display_widget", False)
     with local_cache.context():
         assert DashboardDataSourceHandler().dispatch_data_source(
             source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+        ) == {"result": "20", "_is_filtered": True}
+
+    # A type opts out by returning no contribution from its hook.
+    monkeypatch.setattr(future_type, "get_runtime_filter", lambda *args: None)
+    with local_cache.context():
+        assert DashboardDataSourceHandler().dispatch_data_source(
+            source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
         ) == {"result": "70"}
+
+    monkeypatch.setattr(display_type, "get_data_source", lambda *args: None)
+    with local_cache.context():
+        assert (
+            DashboardDispatchContext(
+                HttpRequest(), dashboard=dashboard
+            ).get_runtime_filter(source.service.specific)
+            is None
+        )
 
 
 @pytest.mark.django_db

@@ -106,6 +106,14 @@ class WidgetType(
         """Restore related widget state after a source update; return whether it changed."""
         return False
 
+    def get_data_source(self, instance: Widget):
+        """Return the source used by this widget, when it has one."""
+        return None
+
+    def get_runtime_filter(self, instance: Widget, target: Widget, dispatch_context):
+        """Return conditions contributed to a target widget, or None."""
+        return None
+
     def get_dispatch_data(self, instance: Widget, values):
         """Resolve supplied runtime input, with no default unless the type defines one."""
         return values.get(str(instance.id))

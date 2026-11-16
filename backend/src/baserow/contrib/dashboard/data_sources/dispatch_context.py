@@ -67,8 +67,7 @@ class DashboardDispatchContext(DispatchContext):
             (
                 widget
                 for widget, widget_type in widgets
-                if widget_type.is_display_widget
-                and (source := widget_type.get_data_source(widget)) is not None
+                if (source := widget_type.get_data_source(widget)) is not None
                 and source.service_id == service.id
             ),
             None,
@@ -82,7 +81,6 @@ class DashboardDispatchContext(DispatchContext):
         groups = [
             group
             for widget, widget_type in widgets
-            if widget_type.is_filter_widget
             if (group := widget_type.get_runtime_filter(widget, target, self))
             is not None
         ]
