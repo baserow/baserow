@@ -16,6 +16,7 @@ from baserow.contrib.automation.tools.types import NodeUpdate
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.core.handler import CoreHandler
+from baserow.core.services.registries import service_type_registry
 from baserow.core.tools import ToolContext
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -786,3 +787,203 @@ def test_listing_nodes_reads_the_workflow_once(
 
         assert response.status_code == 200
         assert get_nodes.call_count == 1
+
+
+@broadcast_node_events
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("formula", ["get('')", "field('a')"])
+def test_formulas_that_cant_be_read_hide_the_node_instead_of_failing(
+    api_client,
+    django_capture_on_commit_callbacks,
+    enterprise_data_fixture,
+    workflow_on_a_secret_table,
+    nodes_after_a_secret_trigger,
+    formula,
+):
+    """
+    A formula that can't be read, like one imported broken, could read any node,
+    so it hides the node from a user who may not see a table of the workflow.
+    """
+
+    admin, workflow, _, admin_token, restricted_token, restricted = (
+        workflow_on_a_secret_table
+    )
+    _, _, unrelated = nodes_after_a_secret_trigger
+    service = unrelated.service.specific
+    service.body = _formula(formula)
+    service.save()
+    url = reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {restricted_token}")
+    assert response.status_code == 200
+    (node,) = [node for node in response.json() if node["id"] == unrelated.id]
+    assert node["service"]["sample_data"] is None
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {admin_token}")
+    assert response.status_code == 200
+
+    ctx = ToolContext(user=restricted, workspace=workflow.automation.workspace)
+    outputs = {
+        node["id"]: node["output_schema"]
+        for node in list_nodes(ctx, workflow.id)["nodes"]
+    }
+    assert outputs[unrelated.id]["reads_hidden_data"] is True
+
+    run = enterprise_data_fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow
+    )
+    node_history = enterprise_data_fixture.create_automation_node_history(
+        workflow_history=run, node=unrelated
+    )
+    enterprise_data_fixture.create_automation_node_result(
+        node_history=node_history, result={"body": "Weekly report"}
+    )
+    response = api_client.get(
+        reverse(
+            "api:automation:history:node_result",
+            kwargs={"node_history_id": node_history.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+    assert response.status_code == 200
+    assert response.json()["result"] is None
+
+    sent = _broadcast_node_events(
+        django_capture_on_commit_callbacks,
+        lambda: AutomationNodeService().update_node(admin, unrelated.id, label="New"),
+    )
+    assert sent[restricted.id][0]["node"]["service"]["sample_data"] is None
+
+
+@pytest.mark.django_db
+def test_run_results_stay_hidden_when_the_node_they_read_is_trashed(
+    api_client,
+    enterprise_data_fixture,
+    workflow_on_a_secret_table,
+    nodes_after_a_secret_trigger,
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    _, _, unrelated = nodes_after_a_secret_trigger
+    # A list of the secret rows, which a later email reads.
+    rows = AutomationNodeService().create_node(
+        admin,
+        automation_node_type_registry.get("local_baserow_list_rows"),
+        workflow,
+        reference_node_id=unrelated.id,
+        service={"table_id": trigger.service.specific.table_id},
+    )
+    email = _add_node(
+        admin,
+        workflow,
+        "smtp_email",
+        rows,
+        body=_formula(f"get('previous_node.{rows.id}.0.Salary')"),
+    )
+    run = enterprise_data_fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow
+    )
+    node_history = enterprise_data_fixture.create_automation_node_history(
+        workflow_history=run, node=email, message="Paid 250k is not an email"
+    )
+    enterprise_data_fixture.create_automation_node_result(
+        node_history=node_history, result={"body": "Paid 250k"}
+    )
+    # The node the email read is trashed after the run.
+    AutomationNodeService().delete_node(admin, rows.id)
+
+    result = api_client.get(
+        reverse(
+            "api:automation:history:node_result",
+            kwargs={"node_history_id": node_history.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+    histories = api_client.get(
+        reverse(
+            "api:automation:history:node_histories",
+            kwargs={"workflow_history_id": run.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+
+    assert result.status_code == histories.status_code == 200
+    assert result.json()["result"] is None
+    assert histories.json()[0]["message"] == ""
+    assert "Paid 250k" not in histories.content.decode()
+
+
+@pytest.mark.django_db
+def test_list_nodes_tool_counts_nodes_no_path_reaches(
+    enterprise_data_fixture, workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    """
+    A node can read a node that no path of the workflow reaches, which is still
+    in the workflow.
+    """
+
+    admin, workflow, trigger, _, _, restricted = workflow_on_a_secret_table
+    _, _, unrelated = nodes_after_a_secret_trigger
+    list_rows_type = automation_node_type_registry.get("local_baserow_list_rows")
+    unreachable = AutomationNodeHandler().create_node(
+        list_rows_type,
+        workflow=workflow,
+        service=enterprise_data_fixture.create_service(
+            service_type_registry.get(list_rows_type.service_type).model_class,
+            table=trigger.service.specific.table,
+            integration_args={"application": workflow.automation},
+        ),
+    )
+    service = unrelated.service.specific
+    service.body = _formula(f"get('previous_node.{unreachable.id}.0.Salary')")
+    service.save()
+    ctx = ToolContext(user=restricted, workspace=workflow.automation.workspace)
+
+    outputs = {
+        node["id"]: node["output_schema"]
+        for node in list_nodes(ctx, workflow.id)["nodes"]
+    }
+
+    assert unreachable.id not in outputs
+    assert outputs[unrelated.id]["reads_hidden_data"] is True
+
+
+@pytest.mark.django_db
+def test_listing_run_nodes_costs_the_same_queries_for_more_nodes(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+
+    def queries_for(node_count):
+        previous = trigger
+        nodes = [trigger]
+        for _ in range(node_count - 1):
+            previous = _add_node(
+                admin,
+                workflow,
+                "smtp_email",
+                previous,
+                body=_formula(f"get('previous_node.{trigger.id}.0.Salary')"),
+            )
+            nodes.append(previous)
+        run = enterprise_data_fixture.create_automation_workflow_history(
+            workflow=workflow, original_workflow=workflow
+        )
+        for node in nodes:
+            enterprise_data_fixture.create_automation_node_history(
+                workflow_history=run, node=node, message="Failed"
+            )
+        url = reverse(
+            "api:automation:history:node_histories",
+            kwargs={"workflow_history_id": run.id},
+        )
+        with CaptureQueriesContext(connection) as queries:
+            response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {restricted_token}")
+        assert response.status_code == 200
+        assert all(entry["message"] == "" for entry in response.json())
+        return [query["sql"] for query in queries.captured_queries]
+
+    few = queries_for(2)
+    many = queries_for(6)
+
+    # The nodes of the run are read once, whatever their number.
+    assert len(many) <= len(few)

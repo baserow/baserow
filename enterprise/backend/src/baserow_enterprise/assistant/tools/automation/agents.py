@@ -22,6 +22,7 @@ from baserow.contrib.automation.nodes.access import (
 )
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools.formulas import formula_error
 from baserow.contrib.automation.tools.types import (
@@ -255,10 +256,13 @@ class WorkflowExamples:
         if workflow.id not in self._workflows:
             previous_of = {}
             examples = {}
-            ordered = shared_nodes.nodes_in_order(self.user, workflow)
-            self.access.add_nodes(
-                (node for node, _, _ in ordered), all_of_workflow=True
+            # All the nodes, also those no path reaches, which nodes can still
+            # read.
+            workflow_nodes = list(
+                AutomationNodeService().get_nodes(self.user, workflow)
             )
+            ordered = shared_nodes.nodes_in_order(self.user, workflow, workflow_nodes)
+            self.access.add_nodes(workflow_nodes, all_of_workflow=True)
             for node, previous, _output in ordered:
                 previous_of[node.id] = previous.id if previous else None
                 service = node.service.specific

@@ -68,16 +68,17 @@ class AutomationNodeHistoriesView(APIView):
         node_histories = service.get_node_histories(request.user, workflow_history_id)
         edge_labels = service.get_edge_labels(request.user, node_histories)
         destinations = service.get_destination_labels(request.user, node_histories)
-        node_access = AutomationNodeAccess(request.user).add_nodes(
-            node_history.node for node_history in node_histories
-        )
+        node_histories = list(node_histories)
+        # The nodes of a run are those of the workflow it ran, trashed or not.
+        run_workflow = node_histories[0].node.workflow if node_histories else None
         serializer = AutomationNodeHistorySerializer(
             node_histories,
             many=True,
             context={
                 "edge_labels": edge_labels,
                 "destinations": destinations,
-                "node_access": node_access,
+                "node_access": AutomationNodeAccess(request.user, include_trashed=True),
+                "run_workflow": run_workflow,
             },
         )
         return Response(serializer.data)
@@ -182,7 +183,8 @@ class AutomationNodeResultView(APIView):
         )
         data = AutomationNodeResultSerializer(node_result).data
         node = node_result.node_history.node
-        if AutomationNodeAccess(request.user).node_hidden(node):
+        access = AutomationNodeAccess(request.user, include_trashed=True)
+        if access.node_hidden(node):
             # The result holds the data of a table the user may not see.
             data["result"] = None
         return Response(data)

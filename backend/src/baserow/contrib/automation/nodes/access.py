@@ -20,7 +20,6 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
 from baserow.core.formula import (
     BaserowFormula,
-    BaserowFormulaException,
     BaserowFormulaObject,
     get_parse_tree_for_formula,
 )
@@ -89,18 +88,21 @@ class NodeReferenceCollector(AutomationFormulaImporter):
 
 
 def formula_reads(formulas: Iterable[Any], reads: FormulaReads = None) -> FormulaReads:
-    """The nodes the given formulas read."""
+    """
+    The nodes the given formulas read. A formula that can't be read, like one
+    imported broken, is taken to read every node.
+    """
 
     reads = reads or FormulaReads()
     for formula in formulas:
-        formula = BaserowFormulaObject.to_formula(formula)
-        if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
-            continue
         try:
+            formula = BaserowFormulaObject.to_formula(formula)
+            if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
+                continue
             tree = get_parse_tree_for_formula(formula["formula"])
-        except (BaserowFormulaException, RecursionError, ValueError):
-            continue  # It can't run, so it reads nothing.
-        NodeReferenceCollector(reads).visit(tree)
+            NodeReferenceCollector(reads).visit(tree)
+        except Exception:  # noqa: BLE001 - whatever stops the read, fail closed
+            reads.any_node = True
     return reads
 
 
@@ -111,7 +113,10 @@ def node_reads(node: AutomationNode) -> FormulaReads:
     """
 
     service = node.service.specific
-    formulas = list(service.get_type().formula_generator(service))
+    try:
+        formulas = list(service.get_type().formula_generator(service))
+    except Exception:  # noqa: BLE001 - whatever stops the read, fail closed
+        return FormulaReads(any_node=True)
     formulas.append(node.retry_condition)
     return formula_reads(formulas)
 
@@ -124,11 +129,14 @@ class AutomationNodeAccess:
     one instance can be shared by every node of a request.
     """
 
-    def __init__(self, user: Optional[AbstractUser]):
+    def __init__(self, user: Optional[AbstractUser], include_trashed: bool = False):
         """
         :param user: The user, or None to hide the data of every table.
+        :param include_trashed: Whether the trashed nodes of a workflow can be read
+            too, as they can in the results of runs made before they were trashed.
         """
 
+        self.include_trashed = include_trashed
         self.tables = ServiceTableAccess(user)
         self._workflow_nodes: dict[int, dict[int, AutomationNode]] = {}
         self._node_of_service: dict[int, AutomationNode] = {}
@@ -160,13 +168,25 @@ class AutomationNodeAccess:
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         if workflow.id not in self._workflow_nodes:
+            base_queryset = (
+                AutomationNode.objects_and_trash.all() if self.include_trashed else None
+            )
             self._workflow_nodes[workflow.id] = {
                 other.id: other
                 for other in AutomationNodeHandler().get_nodes(
-                    workflow, with_cache=False
+                    workflow, base_queryset=base_queryset, with_cache=False
                 )
             }
         return self._workflow_nodes[workflow.id]
+
+    def node_id_hidden(self, workflow, node_id: int) -> bool:
+        """
+        Like `node_hidden`, for a node of the workflow known by its ID, read with
+        the other nodes of the workflow. A node that isn't found is hidden.
+        """
+
+        node = self._nodes_of_workflow(workflow).get(node_id)
+        return node is None or self.node_hidden(node)
 
     def _node_reads(self, node: AutomationNode) -> FormulaReads:
         if node.id not in self._reads:

@@ -260,11 +260,11 @@ def describe_workflow_nodes(
     """
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
-    ordered = nodes_in_order(ctx.user, workflow)
+    # All the nodes, also those no path reaches, which nodes can still read.
+    workflow_nodes = list(AutomationNodeService().get_nodes(ctx.user, workflow))
+    ordered = nodes_in_order(ctx.user, workflow, workflow_nodes)
     access = (
-        AutomationNodeAccess(ctx.user).add_nodes(
-            (node for node, _, _ in ordered), all_of_workflow=True
-        )
+        AutomationNodeAccess(ctx.user).add_nodes(workflow_nodes, all_of_workflow=True)
         if with_output_schema
         else None
     )
