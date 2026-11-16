@@ -488,7 +488,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowRowsCreatedLabel'
+    return this.serviceType.defaultNameTemplate
   }
 
   get serviceType() {
@@ -511,7 +511,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowRowsUpdatedLabel'
+    return this.serviceType.defaultNameTemplate
   }
 
   get serviceType() {
@@ -598,7 +598,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowRowsDeletedLabel'
+    return this.serviceType.defaultNameTemplate
   }
 
   get serviceType() {

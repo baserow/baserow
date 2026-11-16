@@ -100,7 +100,10 @@ class CreateAgentTriggerActionType(ActionType):
 
 
 class UpdateAgentTriggerActionType(ActionType):
-    """Changes a trigger's switch, message, overlap rule or service; not undoable."""
+    """
+    Changes a trigger's name, switch, message, overlap rule, type or service; not
+    undoable.
+    """
 
     type = "update_agent_trigger"
     description = ActionTypeDescription(
@@ -115,6 +118,7 @@ class UpdateAgentTriggerActionType(ActionType):
         trigger_id: int
         trigger_type: str
         changed_fields: list[str]
+        previous_trigger_type: str | None = None
 
     @classmethod
     @transaction.atomic
@@ -128,11 +132,12 @@ class UpdateAgentTriggerActionType(ActionType):
         service: dict | None = None,
         on_overlap: str | None = None,
         name: str | None = None,
+        service_type_name: str | None = None,
     ) -> AgentTrigger:
         """
-        Change a trigger and audit which of its parts changed, never their values:
-        the message and service values are configuration. An update that changes
-        nothing isn't audited.
+        Change a trigger and audit its changed parts and, on a type change, both
+        types. Message and service configuration values are not recorded. An
+        update that changes nothing isn't audited.
 
         :param user: The user updating the trigger.
         :param agent_id: The id of the Agent the trigger belongs to.
@@ -143,13 +148,15 @@ class UpdateAgentTriggerActionType(ActionType):
         :param on_overlap: The new overlap rule, or None to keep it.
         :param name: The new name, blank for the type's default, or None to keep
             it.
+        :param service_type_name: The service type the trigger should have, whose
+            service then starts from `service`, or None to keep its own.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
         :raises AgentTriggerDoesNotExist: When the Agent has no such trigger.
-        :raises AgentTriggerTypeNotAvailable: When it would switch on or reschedule
-            a trigger of a type the Agent doesn't offer.
+        :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
+            reschedule a type the Agent doesn't offer.
         :raises ServiceMisconfigured: When the service values are invalid.
         :return: The updated trigger.
         """
@@ -163,6 +170,7 @@ class UpdateAgentTriggerActionType(ActionType):
             service_values=service,
             on_overlap=on_overlap,
             name=name,
+            service_type_name=service_type_name,
         )
         trigger = updated.trigger
         if updated.changed_fields:
@@ -173,6 +181,7 @@ class UpdateAgentTriggerActionType(ActionType):
                     trigger.id,
                     trigger.service.get_type().type,
                     updated.changed_fields,
+                    updated.previous_type,
                 ),
                 cls.scope(trigger.agent_id),
                 trigger.agent.workspace,

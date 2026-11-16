@@ -41,6 +41,9 @@
         "useExpressionForValue": "Zastosuj wyrażenie dla tego filtra"
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Wiersze zostaną utworzone w tabeli {tableName}",
+        "localBaserowRowsUpdatedInTable": "Wiersze zostaną zaktualizowane w tabeli {tableName}",
+        "localBaserowRowsDeletedInTable": "Wiersze zostaną usunięte z tabeli {tableName}",
         "localBaserowGetRow": "Pobierz jeden wiersz",
         "localBaserowListRows": "Pobierz wiele wierszy",
         "localBaserowAggregateRows": "Podsumuj pole",

@@ -345,6 +345,7 @@
     "triggerDataValues": "{count} value | {count} values",
     "deleteTrigger": "Delete trigger",
     "renameTrigger": "Rename trigger",
+    "triggerChangeType": "Change trigger type: {type}",
     "triggerOnOverlap": "When a run is still going",
     "triggerOnOverlapDescription": "Choose what happens if this trigger fires again.",
     "triggerOnOverlapSkip": "Skip the new run",

@@ -130,9 +130,6 @@
     },
     "nodeType": {
         "triggerDeletionError": "I trigger non possono essere eliminati, ma solo sostituiti.",
-        "localBaserowRowsCreatedLabel": "Vengono create righe in {tableName}",
-        "localBaserowRowsUpdatedLabel": "Le righe vengono aggiornate in {tableName}",
-        "localBaserowRowsDeletedLabel": "Le righe vengono eliminate in {tableName}",
         "localBaserowFieldsUpdatedLabel": "{fieldName} viene aggiornato in {tableName}",
         "localBaserowFieldsUpdatedMultipleLabel": "I valori di {count} campi vengono aggiornati in {tableName}",
         "localBaserowFieldsUpdatedNoFieldLabel": "I valori di campi specifici vengono aggiornati in una tabella",

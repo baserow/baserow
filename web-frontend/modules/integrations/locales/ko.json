@@ -18,6 +18,9 @@
         "errorNoUser": "이 연동을 승인한 사용자나 에이전트가 없습니다."
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "{tableName}에 행이 생성됩니다",
+        "localBaserowRowsUpdatedInTable": "{tableName} 테이블의 행이 업데이트되었습니다",
+        "localBaserowRowsDeletedInTable": "{tableName} 테이블에서 행이 삭제되었습니다",
         "localBaserowGetRow": "단일 행 가져오기",
         "localBaserowListRows": "다중 행 목록",
         "localBaserowAggregateRows": "필드 요약",

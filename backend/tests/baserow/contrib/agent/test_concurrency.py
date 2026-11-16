@@ -136,7 +136,9 @@ def test_a_trigger_firing_and_builder_save_do_not_deadlock(
         try:
             firing_pid.append(start_session())
             firing_connected.set()
-            agent_trigger_dispatcher.start(trigger.id, "Check the inbox", None)
+            agent_trigger_dispatcher.start(
+                trigger.id, trigger.service_id, "Check the inbox", None
+            )
         finally:
             connections.close_all()
 
