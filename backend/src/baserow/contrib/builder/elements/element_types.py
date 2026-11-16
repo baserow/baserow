@@ -1514,6 +1514,9 @@ class RatingInputElementType(InputElementType):
     ]
     simple_formula_fields = ["value", "label"]
 
+    def get_event_names(self, instance: RatingInputElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
+
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
         required: bool
@@ -1785,6 +1788,9 @@ class CheckboxElementType(InputElementType):
     allowed_fields = ["label", "default_value", "required"]
     serializer_field_names = ["label", "default_value", "required"]
     simple_formula_fields = ["label", "default_value"]
+
+    def get_event_names(self, instance: CheckboxElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
