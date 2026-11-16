@@ -39,6 +39,10 @@ class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
 
 
+# The service attribute a value is stored under, where it differs from the name
+# the tools give it.
+SERVICE_ATTRIBUTES = {"prompt": "ai_prompt"}
+
 # Appended to the description of the values that take a formula.
 SUPPORTS_FORMULA = " A literal or a formula."
 
@@ -663,7 +667,7 @@ def _row_action_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, 
 def _ai_agent_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, Any]:
     return {
         "ai_choices": (n.choices or []) if n.output_type == "choice" else [],
-        "ai_prompt": values.value("prompt", n.prompt),
+        SERVICE_ATTRIBUTES["prompt"]: values.value("prompt", n.prompt),
         "ai_output_type": n.output_type,
     }
 
@@ -873,7 +877,7 @@ def _ai_agent_update_service(
 ) -> dict[str, Any]:
     d = {}
     if n.prompt is not None:
-        d["ai_prompt"] = values.value("prompt", n.prompt)
+        d[SERVICE_ATTRIBUTES["prompt"]] = values.value("prompt", n.prompt)
     if n.output_type is not None:
         d["ai_output_type"] = n.output_type
     if n.choices is not None:

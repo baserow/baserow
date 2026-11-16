@@ -20,7 +20,10 @@ from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExi
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools import nodes as shared_nodes
 from baserow.contrib.automation.tools.formulas import formula_error
-from baserow.contrib.automation.tools.types import matching_branches
+from baserow.contrib.automation.tools.types import (
+    SERVICE_ATTRIBUTES,
+    matching_branches,
+)
 from baserow.core.formula.literals import FORMULA_PREFIX
 from baserow.core.services.models import Service
 from baserow.core.tools import ToolContext
@@ -95,9 +98,6 @@ _DESCRIPTIONS = {
 }
 
 
-# The service attribute a formula error's field is stored in, where they differ.
-_SERVICE_ATTRIBUTES = {"prompt": "ai_prompt"}
-
 # Told for a value whose generated formula wasn't written because it changed
 # meanwhile. Kept apart from formula_errors, which the model retries.
 _KEPT_NOTE = (
@@ -146,7 +146,7 @@ def _current_values(service, errors: list[dict[str, Any]]) -> dict[Any, Any]:
             # No default: a field stored under another name must fail here, not
             # read as empty.
             field = error["field"]
-            value = getattr(service, _SERVICE_ATTRIBUTES.get(field, field))
+            value = getattr(service, SERVICE_ATTRIBUTES.get(field, field))
         values[_request_key(error)] = value
     return values
 
@@ -267,6 +267,18 @@ class WorkflowExamples:
                 examples[node.id] = (create_example_from_json_schema(schema), metadata)
             self._workflows[workflow.id] = (previous_of, examples)
         return self._workflows[workflow.id]
+
+    def refs_of(self, workflow) -> dict[str, int]:
+        """
+        The ID of each node of the workflow by the ref it was created under. Refs
+        repeat across workflows created in one call, so they are only read within
+        one workflow.
+        """
+
+        previous_of, _examples = self._read(workflow)
+        return {
+            ref: node_id for node_id, ref in self.refs.items() if node_id in previous_of
+        }
 
     def context_for(self, node: AutomationNode) -> "AssistantFormulaContext":
         """
@@ -492,7 +504,7 @@ def _repair_node(
             field_ids,
             as_formulas=True,
             # The generator sees each node's ref and may name it by it.
-            refs={ref: node_id for node_id, ref in examples.refs.items()},
+            refs=examples.refs_of(node.workflow),
         )
     for error in repaired:
         refusals = [message for message in values.errors if _refuses(message, error)]

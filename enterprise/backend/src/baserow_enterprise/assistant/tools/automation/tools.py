@@ -212,7 +212,9 @@ def create_workflows(
         },
     )
     formula_errors = repair.formula_errors
-    unsettled = {error["node_id"] for error in repair.formula_errors + repair.kept}
+    # A kept edit doesn't leave its workflow unsettled: it was created as asked,
+    # and asking again must not reapply the value the user changed.
+    unsettled = {error["node_id"] for error in repair.formula_errors}
     for workflow_spec, workflow, node_creation in creation.created:
         created_workflows.append(shared_workflows.describe_workflow(workflow))
         errors.extend(node_creation.errors)

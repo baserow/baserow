@@ -1192,32 +1192,33 @@ def test_create_workflows_keeps_a_later_workflow_value_edited_meanwhile(
         automation_agents, "get_generate_formulas_tool", lambda _profile: generate
     )
 
+    workflows = [
+        WorkflowCreate(
+            name=f"Workflow {index}",
+            trigger=TriggerNodeCreate(
+                ref="trigger",
+                label="Periodic Trigger",
+                type="periodic",
+                periodic_interval={"interval": "DAY"},
+            ),
+            nodes=[
+                ActionNodeCreate(
+                    ref="email",
+                    label=f"Email {index}",
+                    previous_node_ref="trigger",
+                    type="smtp_email",
+                    to_emails="test@example.com",
+                    subject="$formula: the trigger name",
+                    body="Hello",
+                )
+            ],
+        )
+        for index in (1, 2)
+    ]
     result = create_workflows(
         ctx,
         automation_id=automation.id,
-        workflows=[
-            WorkflowCreate(
-                name=f"Workflow {index}",
-                trigger=TriggerNodeCreate(
-                    ref="trigger",
-                    label="Periodic Trigger",
-                    type="periodic",
-                    periodic_interval={"interval": "DAY"},
-                ),
-                nodes=[
-                    ActionNodeCreate(
-                        ref="email",
-                        label=f"Email {index}",
-                        previous_node_ref="trigger",
-                        type="smtp_email",
-                        to_emails="test@example.com",
-                        subject="$formula: the trigger name",
-                        body="Hello",
-                    )
-                ],
-            )
-            for index in (1, 2)
-        ],
+        workflows=workflows,
         thought="create two workflows",
     )
 
@@ -1228,3 +1229,78 @@ def test_create_workflows_keeps_a_later_workflow_value_edited_meanwhile(
     assert subjects == {"Email 1": "'Generated'", "Email 2": "'Edited'"}
     assert [kept["node_label"] for kept in result["kept_user_edits"]] == ["Email 2"]
     assert "formula_errors" not in result
+
+    # Asking again is answered: nothing tells Kuma to reapply the kept value.
+    repeated = create_workflows(
+        ctx, automation_id=automation.id, workflows=workflows, thought="again"
+    )
+    assert repeated["created_workflows"] == []
+    assert "update_nodes" not in repeated.get("next_steps", "")
+    assert (
+        AutomationNode.objects.get(label="Email 2").service.specific.subject["formula"]
+        == "'Edited'"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_workflows_reads_refs_within_each_workflow(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    from baserow.contrib.automation.nodes.models import AutomationNode
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    name = data_fixture.create_text_field(table=table, name="Name")
+    ctx = make_test_ctx(user, workspace)
+    # The generator names the trigger by the ref both workflows use.
+    monkeypatch.setattr(
+        automation_agents,
+        "get_generate_formulas_tool",
+        lambda _profile: (
+            lambda formulas, context: {
+                "subject": f"get('previous_node.trigger.0.field_{name.id}')"
+            }
+        ),
+    )
+
+    result = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name=f"Workflow {index}",
+                trigger=TriggerNodeCreate(
+                    ref="trigger",
+                    label=f"Trigger {index}",
+                    type="rows_created",
+                    rows_triggers_settings={"table_id": table.id},
+                ),
+                nodes=[
+                    ActionNodeCreate(
+                        ref="email",
+                        label=f"Email {index}",
+                        previous_node_ref="trigger",
+                        type="smtp_email",
+                        to_emails="test@example.com",
+                        subject="$formula: the row name",
+                        body="Hello",
+                    )
+                ],
+            )
+            for index in (1, 2)
+        ],
+        thought="create two workflows",
+    )
+
+    assert "formula_errors" not in result
+    for index in (1, 2):
+        trigger = AutomationNode.objects.get(label=f"Trigger {index}")
+        email = AutomationNode.objects.get(label=f"Email {index}")
+        assert email.service.specific.subject["formula"] == (
+            f"get('previous_node.{trigger.id}.0.field_{name.id}')"
+        )
