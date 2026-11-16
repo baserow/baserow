@@ -1,5 +1,15 @@
 from contextlib import ExitStack, contextmanager
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+)
 
 from django.db import IntegrityError
 from django.db.models import Q
@@ -230,20 +240,24 @@ class CollectionElementTypeMixin:
     def enhance_queryset(self, queryset):
         return super().enhance_queryset(queryset).prefetch_related("property_options")
 
-    def export_prepared_values(self, instance: CollectionElementSubClass):
+    def export_prepared_values(
+        self,
+        instance: CollectionElementSubClass,
+        field_names: Optional[Iterable[str]] = None,
+    ):
         """
         Adds the property options, which are saved by `after_update`, so that undo
         and redo can restore them.
         """
 
-        return {
-            **super().export_prepared_values(instance),
-            "property_options": list(
+        values = super().export_prepared_values(instance, field_names)
+        if self.exports("property_options", field_names):
+            values["property_options"] = list(
                 instance.property_options.order_by("id").values(
                     "schema_property", "searchable", "filterable", "sortable"
                 )
-            ),
-        }
+            )
+        return values
 
     def after_update(
         self, instance: CollectionElementSubClass, values, changes: Dict[str, Tuple]
@@ -721,15 +735,19 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     class SerializedDict(CollectionElementTypeMixin.SerializedDict):
         fields: List[Dict]
 
-    def export_prepared_values(self, instance: CollectionElementSubClass):
+    def export_prepared_values(
+        self,
+        instance: CollectionElementSubClass,
+        field_names: Optional[Iterable[str]] = None,
+    ):
         """
         Adds the fields, which are saved by `after_update`, so that undo and redo
-        can restore them.
+        can restore them. The Kuma tools change columns in this shape too.
         """
 
-        return {
-            **super().export_prepared_values(instance),
-            "fields": [
+        values = super().export_prepared_values(instance, field_names)
+        if self.exports("fields", field_names):
+            values["fields"] = [
                 {
                     "uid": str(field.uid),
                     "name": field.name,
@@ -738,8 +756,8 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
                     "styles": field.styles,
                 }
                 for field in instance.fields.order_by("order", "id")
-            ],
-        }
+            ]
+        return values
 
     def get_event_names(self, instance: CollectionElementSubClass) -> List[str]:
         """

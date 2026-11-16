@@ -245,19 +245,11 @@ class ElementService:
 
         # Snapshot only the fields actually being changed so undo/redo never tries to
         # re-apply unrelated relation fields (which don't round-trip from an id).
-        original_values = {
-            key: value
-            for key, value in element_type.export_prepared_values(element).items()
-            if key in kwargs
-        }
+        original_values = element_type.export_prepared_values(element, kwargs)
 
         element = self.handler.update_element(element, **kwargs)
 
-        new_values = {
-            key: value
-            for key, value in element_type.export_prepared_values(element).items()
-            if key in kwargs
-        }
+        new_values = element_type.export_prepared_values(element, kwargs)
 
         element_updated.send(self, element=element, user=user)
 

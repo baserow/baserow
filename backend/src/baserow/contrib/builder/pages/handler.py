@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
@@ -527,6 +528,44 @@ class PageHandler:
                 f"The page with id {min(missing)} doesn't exist.",
                 code="invalid_page_id",
             )
+
+    def without_links_to_deleted_pages(self, builder: Builder, values: Any) -> Any:
+        """
+        Clear every `navigate_to_page_id`, nested ones included, that names a page
+        that no longer exists, like a link whose page was deleted. Used to replay
+        values saved before the page was deleted, such as an undo snapshot.
+
+        :param builder: The builder the values belong to.
+        :param values: The values to replay.
+        :return: A copy of the values without the dangling page ids.
+        """
+
+        values = deepcopy(values)
+        links = []
+
+        def collect(value: Any) -> None:
+            if isinstance(value, dict):
+                if value.get("navigate_to_page_id") not in (None, ""):
+                    links.append(value)
+                for item in value.values():
+                    collect(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    collect(item)
+
+        collect(values)
+        if not links:
+            return values
+        found = set(
+            Page.objects_and_trash.filter(
+                builder=builder,
+                id__in=[link["navigate_to_page_id"] for link in links],
+            ).values_list("id", flat=True)
+        )
+        for link in links:
+            if link["navigate_to_page_id"] not in found:
+                link["navigate_to_page_id"] = None
+        return values
 
     def get_path_param_names(self, path: str) -> List[str]:
         """

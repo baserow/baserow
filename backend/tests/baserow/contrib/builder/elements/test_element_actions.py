@@ -1,5 +1,8 @@
 import uuid
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.builder.action_scopes import (
@@ -460,3 +463,121 @@ def test_update_choice_element_options_action_undo_redo(data_fixture):
 
     _redo(user, page, session_id)
     assert options() == [("b", "B"), (None, "C")]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create,values,related_tables",
+    [
+        (
+            "create_builder_table_element",
+            {"items_per_page": 5},
+            ["builder_collectionfield", "builder_collectionelementpropertyoptions"],
+        ),
+        (
+            "create_builder_menu_element",
+            {"alignment": "right"},
+            ["builder_menuitemelement"],
+        ),
+        (
+            "create_builder_choice_element",
+            {"label": "'L'"},
+            ["builder_choiceelementoption"],
+        ),
+    ],
+)
+def test_update_element_action_only_snapshots_the_updated_values(
+    data_fixture, create, values, related_tables
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = getattr(data_fixture, create)(page=page)
+
+    with CaptureQueriesContext(connection) as queries:
+        UpdateElementActionType.do(user, element, values)
+
+    related_queries = [
+        query["sql"]
+        for query in queries.captured_queries
+        if any(f'"{table}' in query["sql"] for table in related_tables)
+    ]
+    assert related_queries == []
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_of_menu_items_drops_a_link_to_a_deleted_page(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    other_page = data_fixture.create_builder_page(builder=page.builder)
+    menu = data_fixture.create_builder_menu_element(page=page)
+    uid = str(uuid.uuid4())
+
+    def link(name, **kwargs):
+        return {"uid": uid, "type": "link", "variant": "link", "name": name, **kwargs}
+
+    UpdateElementActionType.do(
+        user,
+        menu,
+        {
+            "menu_items": [
+                link(
+                    "Other",
+                    navigation_type="page",
+                    navigate_to_page_id=other_page.id,
+                )
+            ]
+        },
+    )
+    UpdateElementActionType.do(user, menu, {"menu_items": [link("Renamed")]})
+    other_page.delete()
+
+    _undo(user, page, session_id)
+
+    item = menu.menu_items.get()
+    assert (item.name, item.navigate_to_page_id) == ("Other", None)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_of_table_fields_drops_a_link_to_a_deleted_page(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    other_page = data_fixture.create_builder_page(builder=page.builder)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        fields=[
+            {
+                "name": "Open",
+                "type": "link",
+                "config": {
+                    "navigation_type": "page",
+                    "navigate_to_page_id": other_page.id,
+                },
+            }
+        ],
+    )
+    column = table.fields.get()
+    UpdateElementActionType.do(
+        user,
+        table,
+        {
+            "fields": [
+                {
+                    "uid": str(column.uid),
+                    "name": "Renamed",
+                    "type": "link",
+                    "config": column.config,
+                }
+            ]
+        },
+    )
+    other_page.delete()
+
+    _undo(user, page, session_id)
+
+    column = table.fields.get()
+    assert column.name == "Open"
+    assert column.config["navigate_to_page_id"] is None

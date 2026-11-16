@@ -6,6 +6,7 @@ from typing import Any, NamedTuple
 
 from django.db.models import Count
 
+from baserow.contrib.builder.elements.element_types import MenuElementType
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
@@ -237,18 +238,7 @@ def _check_anchors_stay(
 
 
 def _saved_values(item: MenuItemElement) -> MenuItemValues:
-    return {
-        "uid": str(item.uid),
-        "type": item.type,
-        "variant": item.variant,
-        "name": item.name,
-        "navigation_type": item.navigation_type,
-        "navigate_to_page_id": item.navigate_to_page_id,
-        "navigate_to_url": item.navigate_to_url,
-        "page_parameters": item.page_parameters,
-        "query_parameters": item.query_parameters,
-        "target": item.target,
-    }
+    return MenuElementType.export_menu_item(item)
 
 
 def _saved_tree(

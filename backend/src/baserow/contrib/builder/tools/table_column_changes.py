@@ -158,16 +158,7 @@ def merge_table_columns(
 
 
 def _stored_columns(element: TableElement) -> list[Column]:
-    return [
-        {
-            "uid": str(column.uid),
-            "name": column.name,
-            "type": column.type,
-            "config": column.config,
-            "styles": column.styles,
-        }
-        for column in element.fields.all()
-    ]
+    return element.get_type().export_prepared_values(element, ["fields"])["fields"]
 
 
 def _listing(columns: list[Column]) -> str:

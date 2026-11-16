@@ -146,13 +146,20 @@ class UpdateElementActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
-        element = ElementHandler().get_element_for_update(params.element_id)
-        ElementService().update_element(user, element, **params.element_original_params)
+        cls._replay(user, params.element_id, params.element_original_params)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
-        element = ElementHandler().get_element_for_update(params.element_id)
-        ElementService().update_element(user, element, **params.element_new_params)
+        cls._replay(user, params.element_id, params.element_new_params)
+
+    @classmethod
+    def _replay(cls, user: AbstractUser, element_id: int, values: Dict[str, Any]):
+        element = ElementHandler().get_element_for_update(element_id)
+        # A page linked to when the values were saved can be deleted since.
+        values = PageHandler().without_links_to_deleted_pages(
+            element.page.builder, values
+        )
+        ElementService().update_element(user, element, **values)
 
 
 class DeleteElementActionType(UndoableActionType):

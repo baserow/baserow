@@ -8,6 +8,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    Iterable,
     List,
     Optional,
     Set,
@@ -1982,18 +1983,20 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             "options": ChoiceOptionSerializer(many=True, required=False),
         }
 
-    def export_prepared_values(self, instance: ChoiceElement) -> Dict[str, Any]:
+    def export_prepared_values(
+        self, instance: ChoiceElement, field_names: Optional[Iterable[str]] = None
+    ) -> Dict[str, Any]:
         """
         Adds the options, which are saved by `after_update`, so that undo and redo
         can restore them.
         """
 
-        return {
-            **super().export_prepared_values(instance),
-            "options": list(
+        values = super().export_prepared_values(instance, field_names)
+        if self.exports("options", field_names):
+            values["options"] = list(
                 instance.choiceelementoption_set.order_by("id").values("value", "name")
-            ),
-        }
+            )
+        return values
 
     def serialize_property(
         self,
@@ -2504,41 +2507,51 @@ class MenuElementType(ElementType):
     ) -> QuerySet[MenuItemElement]:
         return queryset.prefetch_related("menu_items")
 
-    def export_prepared_values(self, instance: MenuElement) -> Dict[str, Any]:
+    @staticmethod
+    def export_menu_item(item: MenuItemElement) -> Dict[str, Any]:
+        """
+        :return: The values of one menu item, without its sub-links, as
+            `after_update` saves them.
+        """
+
+        return {
+            "uid": str(item.uid),
+            "type": item.type,
+            "variant": item.variant,
+            "name": item.name,
+            "navigation_type": item.navigation_type,
+            "navigate_to_page_id": item.navigate_to_page_id,
+            "navigate_to_url": item.navigate_to_url,
+            "page_parameters": item.page_parameters,
+            "query_parameters": item.query_parameters,
+            "target": item.target,
+        }
+
+    def export_prepared_values(
+        self, instance: MenuElement, field_names: Optional[Iterable[str]] = None
+    ) -> Dict[str, Any]:
         """
         Adds the menu items, which are saved by `after_update`, so that undo and
         redo can restore them. Sub-links are nested as the `children` of their
         parent item, the shape `after_update` expects.
         """
 
-        def item_values(item: MenuItemElement) -> Dict[str, Any]:
-            return {
-                "uid": str(item.uid),
-                "type": item.type,
-                "variant": item.variant,
-                "name": item.name,
-                "navigation_type": item.navigation_type,
-                "navigate_to_page_id": item.navigate_to_page_id,
-                "navigate_to_url": item.navigate_to_url,
-                "page_parameters": item.page_parameters,
-                "query_parameters": item.query_parameters,
-                "target": item.target,
-            }
+        values = super().export_prepared_values(instance, field_names)
+        if not self.exports("menu_items", field_names):
+            return values
 
         items = list(instance.menu_items.order_by("menu_item_order", "id"))
         children: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
         for item in items:
             if item.parent_menu_item_id is not None:
-                children[item.parent_menu_item_id].append(item_values(item))
+                children[item.parent_menu_item_id].append(self.export_menu_item(item))
 
-        return {
-            **super().export_prepared_values(instance),
-            "menu_items": [
-                {**item_values(item), "children": children[item.id]}
-                for item in items
-                if item.parent_menu_item_id is None
-            ],
-        }
+        values["menu_items"] = [
+            {**self.export_menu_item(item), "children": children[item.id]}
+            for item in items
+            if item.parent_menu_item_id is None
+        ]
+        return values
 
     def before_delete(self, instance: MenuElement) -> None:
         """

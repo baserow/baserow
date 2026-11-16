@@ -6,6 +6,7 @@ from typing import (
     Callable,
     Dict,
     Generator,
+    Iterable,
     List,
     Optional,
     Tuple,
@@ -117,7 +118,9 @@ class ElementType(
 
         return values
 
-    def export_prepared_values(self, instance: Element) -> Dict[str, Any]:
+    def export_prepared_values(
+        self, instance: Element, field_names: Optional[Iterable[str]] = None
+    ) -> Dict[str, Any]:
         """
         Returns a JSON-serializable dict of the element's `allowed_fields`, used by
         the undo/redo `ActionHandler` to snapshot values so they can be restored
@@ -133,6 +136,8 @@ class ElementType(
         here in the shape `update_element` accepts.
 
         :param instance: The element instance to export values for.
+        :param field_names: Only export these, e.g. the values of an update. All
+            of them when omitted.
         :return: A dict of prepared values keyed by field name.
         """
 
@@ -140,6 +145,8 @@ class ElementType(
 
         values: Dict[str, Any] = {}
         for field_name in self.allowed_fields:
+            if not self.exports(field_name, field_names):
+                continue
             try:
                 model_field = instance._meta.get_field(field_name)
             except FieldDoesNotExist:
@@ -155,6 +162,15 @@ class ElementType(
                 values[field_name] = getattr(instance, field_name)
 
         return values
+
+    @staticmethod
+    def exports(field_name: str, field_names: Optional[Iterable[str]]) -> bool:
+        """
+        :return: Whether `export_prepared_values` called with `field_names` exports
+            `field_name`.
+        """
+
+        return field_names is None or field_name in field_names
 
     def validate_position_as_child(
         self, place_in_container: str, instance: ElementSubClass
