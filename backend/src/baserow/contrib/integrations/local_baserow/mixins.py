@@ -112,14 +112,15 @@ class LocalBaserowTableServiceFilterableMixin:
         filter_groups: List[Dict]
 
     def is_filtered(self, service, dispatch_context):
-        """Use runtime conditions when supplied, otherwise the stored conditions."""
-        runtime_filter = dispatch_context.get_runtime_filter(service)
-        has_conditions = (
-            bool(runtime_filter["filters"])
-            if runtime_filter is not None
-            else bool(service.service_filters_with_untrashed_fields)
+        """Include both stored conditions and additional runtime groups."""
+        return (
+            bool(service.service_filters_with_untrashed_fields)
+            or any(
+                group.get("filters")
+                for group in dispatch_context.get_runtime_filters(service)
+            )
+            or super().is_filtered(service, dispatch_context)
         )
-        return has_conditions or super().is_filtered(service, dispatch_context)
 
     def enhance_queryset(self, queryset):
         return (
@@ -398,6 +399,9 @@ class LocalBaserowTableServiceFilterableMixin:
         If we also have a `view`, then we will query for, and apply, any `ViewFilter`
         found for this view.
 
+        Additional runtime groups are applied separately with AND, preserving the
+        operators inside both the stored filters and each contributed group.
+
         :param service: The `LocalBaserow` service we're dispatching.
         :param queryset: The queryset we want to filter upon.
         :param model: The `service.table`'s `GeneratedTableModel`.
@@ -417,18 +421,18 @@ class LocalBaserowTableServiceFilterableMixin:
                 "One or more filtered properties no longer exist.",
             )
 
-        runtime_filter = dispatch_context.get_runtime_filter(service)
-        adapter = (
+        adapters = [
             LocalBaserowServiceGroupedFiltersAdapter(service, model, dispatch_context)
-            if runtime_filter is None
-            else RuntimeFilterGroupAdapter(
-                runtime_filter, service, model, dispatch_context
-            )
+        ]
+        adapters.extend(
+            RuntimeFilterGroupAdapter(group, service, model, dispatch_context)
+            for group in dispatch_context.get_runtime_filters(service)
+            if group.get("filters")
         )
-        service_filter_builder = AdvancedFilterBuilder(
-            adapter
-        ).construct_filter_builder()
-        return service_filter_builder.apply_to_queryset(queryset)
+        for adapter in adapters:
+            filter_builder = AdvancedFilterBuilder(adapter).construct_filter_builder()
+            queryset = filter_builder.apply_to_queryset(queryset)
+        return queryset
 
     def formula_generator(
         self, service: "LocalBaserowTableServiceFilterableMixin"

@@ -477,11 +477,9 @@ def test_empty_policy_and_constant_dependencies(filter_dashboard, behavior, expe
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("operator,expected", [("AND", None), ("OR", "30")])
-def test_permanent_and_contributed_groups(
-    data_fixture, filter_dashboard, operator, expected
-):
-    """The source operator combines permanent and contributed groups."""
+@pytest.mark.parametrize("operator", ["AND", "OR"])
+def test_permanent_and_contributed_groups(data_fixture, filter_dashboard, operator):
+    """Contributed groups always narrow permanent filters, including OR sources."""
 
     _, _, dashboard, source, widget, condition = filter_dashboard
     service = source.service.specific
@@ -496,7 +494,7 @@ def test_permanent_and_contributed_groups(
     )
     assert DashboardDataSourceHandler().dispatch_data_source(
         source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    ) == {"result": expected, "_is_filtered": True}
+    ) == {"result": None, "_is_filtered": True}
 
 
 @pytest.mark.django_db
@@ -899,8 +897,8 @@ def test_widget_type_hooks_control_dispatch(filter_dashboard, monkeypatch):
         assert (
             DashboardDispatchContext(
                 HttpRequest(), dashboard=dashboard
-            ).get_runtime_filter(source.service.specific)
-            is None
+            ).get_runtime_filters(source.service.specific)
+            == []
         )
 
 
@@ -962,9 +960,9 @@ def test_multiple_filters_own_independent_group_operators(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("operator,both", [("AND", None), ("OR", "30")])
-def test_source_operator_combines_multiple_inputs(filter_dashboard, operator, both):
-    """Use the source operator across owners, omitting inactive groups entirely."""
+@pytest.mark.parametrize("operator", ["AND", "OR"])
+def test_widget_inputs_are_combined_with_and(filter_dashboard, operator):
+    """Each active widget narrows results regardless of the stored source operator."""
     _, _, dashboard, source, first, condition = filter_dashboard
     service = source.service.specific
     service.filter_type = operator
@@ -992,7 +990,7 @@ def test_source_operator_combines_multiple_inputs(filter_dashboard, operator, bo
     ]
     second.save()
     for a, b, expected in [
-        ("Alpha", "Beta", both),
+        ("Alpha", "Beta", None),
         ("Alpha", "", "10"),
         ("", "Beta", "20"),
         ("", "", "70"),
@@ -1053,11 +1051,11 @@ def test_import_finalizes_shared_widget_source_once(filter_dashboard, monkeypatc
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("operator,expected", [("AND", None), ("OR", "30")])
-def test_runtime_filter_is_complete_and_namespaces_nested_group_ids(
-    data_fixture, filter_dashboard, operator, expected
+@pytest.mark.parametrize("operator", ["AND", "OR"])
+def test_runtime_filters_preserve_independent_nested_groups(
+    data_fixture, filter_dashboard, operator
 ):
-    """Default and input groups form one tree even when their local IDs collide."""
+    """Independent permanent and runtime groups may reuse IDs without renaming."""
     _, _, dashboard, source, owner, condition = filter_dashboard
     service = source.service.specific
     service.filter_type = operator
@@ -1080,19 +1078,11 @@ def test_runtime_filter_is_complete_and_namespaces_nested_group_ids(
     condition["group"] = "child"
     owner.save()
     context = DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
-    runtime_filter = context.get_runtime_filter(service)
-    assert runtime_filter["filter_type"] == operator
-    assert len(runtime_filter["filters"]) == 2
-    groups = runtime_filter["filter_groups"]
-    assert len({group["id"] for group in groups}) == len(groups) == 5
-    known = {group["id"] for group in groups}
-    assert all(
-        group["parent_group"] is None or group["parent_group"] in known
-        for group in groups
-    )
-    assert len({condition["group"] for condition in runtime_filter["filters"]}) == 2
+    runtime_groups = context.get_runtime_filters(service)
+    assert runtime_groups == [group]
+    assert runtime_groups[0]["filter_groups"][0]["id"] == str(permanent.id)
     assert DashboardDataSourceHandler().dispatch_data_source(source, context) == {
-        "result": expected,
+        "result": None,
         "_is_filtered": True,
     }
 
@@ -1578,3 +1568,35 @@ def test_option_formula_validation_checks_dashboard_ownership(
         assert response.status_code == expected_status, response.json()
         if expected_status == 400:
             assert "options" in response.json()
+
+
+@pytest.mark.django_db
+def test_permanent_and_widget_groups_keep_their_internal_or(
+    filter_dashboard, data_fixture
+):
+    """Intersect independently evaluated OR groups instead of flattening their conditions."""
+    _, _, dashboard, source, widget, condition = filter_dashboard
+    service = source.service.specific
+    service.filter_type = "OR"
+    service.save()
+    for name in ("Alpha", "Beta"):
+        data_fixture.create_local_baserow_table_service_filter(
+            service=service,
+            field_id=condition["field"],
+            type="equal",
+            value=BaserowFormulaObject.create(name, mode="raw"),
+        )
+    group = widget.target_filters[0]["group"]
+    group["filter_type"] = "OR"
+    group["filters"] = [
+        {**condition, "value": BaserowFormulaObject.create("Alpha", mode="raw")},
+        {
+            "field": service.field_id,
+            "type": "higher_than",
+            "value": BaserowFormulaObject.create("15", mode="raw"),
+        },
+    ]
+    widget.save()
+    assert DashboardDataSourceHandler().dispatch_data_source(
+        source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
+    ) == {"result": "30", "_is_filtered": True}

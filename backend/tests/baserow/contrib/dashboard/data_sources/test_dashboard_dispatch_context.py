@@ -48,18 +48,18 @@ def test_dispatch_context_is_not_publicly_refinable(data_fixture):
 
 @pytest.mark.django_db
 def test_runtime_filters_share_request_cache(data_fixture, django_assert_num_queries):
-    """Equivalent contexts reuse a service's filter tree until the request ends."""
+    """Equivalent contexts reuse a service's filter groups until the request ends."""
     from baserow.core.cache import local_cache
 
     widget = data_fixture.create_summary_widget()
     service = widget.data_source.service.specific
     with local_cache.context():
         first = DashboardDispatchContext(HttpRequest(), widget)
-        filters = first.get_runtime_filter(service)
+        filters = first.get_runtime_filters(service)
         second = DashboardDispatchContext(HttpRequest(), widget)
         with django_assert_num_queries(0):
-            assert first.get_runtime_filter(service) == filters
-            assert second.get_runtime_filter(service) == filters
+            assert first.get_runtime_filters(service) == filters
+            assert second.get_runtime_filters(service) == filters
     with local_cache.context():
         fresh = DashboardDispatchContext(HttpRequest(), widget)
-        assert fresh.get_runtime_filter(service) == filters
+        assert fresh.get_runtime_filters(service) == filters

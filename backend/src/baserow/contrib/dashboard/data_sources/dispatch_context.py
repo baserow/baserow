@@ -48,15 +48,15 @@ class DashboardDispatchContext(DispatchContext):
 
         super().__init__(workspace)
 
-    def get_runtime_filter(self, service):
-        """Return the complete configured filter for this display widget."""
+    def get_runtime_filters(self, service):
+        """Return additional widget filter groups for this service in the request."""
         return local_cache.get(
-            f"dashboard_runtime_filter_{service.id}",
-            lambda: self._get_runtime_filter(service),
+            f"dashboard_runtime_filters_{service.id}",
+            lambda: self._get_runtime_filters(service),
         )
 
-    def _get_runtime_filter(self, service):
-        """Build the filter tree for this context's selected widget values."""
+    def _get_runtime_filters(self, service):
+        """Collect active groups; the service applies each as an additional restriction."""
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 
         widgets = [
@@ -73,16 +73,10 @@ class DashboardDispatchContext(DispatchContext):
             None,
         )
         if target is None:
-            return None
-        from baserow.contrib.integrations.local_baserow.service_filter_groups import (
-            build_runtime_filter,
-        )
-
-        groups = [
+            return []
+        return [
             group
             for widget, widget_type in widgets
             if (group := widget_type.get_runtime_filter(widget, target, self))
             is not None
         ]
-        runtime_filter = build_runtime_filter(service, groups)
-        return runtime_filter

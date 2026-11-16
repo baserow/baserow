@@ -143,52 +143,6 @@ def validate_runtime_filter_group(group, service):
     return filters.validated_data, ordered
 
 
-def build_runtime_filter(service, contributed_groups):
-    """Combine stored and contributed groups into one independent service payload."""
-    from baserow.contrib.integrations.local_baserow.api.serializers import (
-        LocalBaserowTableServiceFilterGroupSerializer,
-        LocalBaserowTableServiceFilterSerializer,
-    )
-
-    permanent = {
-        "filter_type": service.filter_type,
-        "filters": LocalBaserowTableServiceFilterSerializer(
-            service.service_filters.all(), many=True
-        ).data,
-        "filter_groups": LocalBaserowTableServiceFilterGroupSerializer(
-            service.service_filter_groups.all(), many=True
-        ).data,
-    }
-    result = {"filter_type": service.filter_type, "filters": [], "filter_groups": []}
-    for index, group in enumerate([permanent, *contributed_groups]):
-        if not group.get("filters"):
-            continue
-        root_id = f"runtime-{index}"
-        result["filter_groups"].append(
-            {"id": root_id, "parent_group": None, "filter_type": group["filter_type"]}
-        )
-        for child in group.get("filter_groups", []):
-            parent = child.get("parent_group")
-            result["filter_groups"].append(
-                {
-                    **child,
-                    "id": f"{root_id}:{child['id']}",
-                    "parent_group": root_id
-                    if parent is None
-                    else f"{root_id}:{parent}",
-                }
-            )
-        for condition in group["filters"]:
-            parent = condition.get("group")
-            result["filters"].append(
-                {
-                    **condition,
-                    "group": root_id if parent is None else f"{root_id}:{parent}",
-                }
-            )
-    return result
-
-
 class RuntimeFilterGroupAdapter(LocalBaserowServiceGroupedFiltersAdapter):
     """Adapt validated transient groups to the standard nested filter builder."""
 

@@ -102,9 +102,9 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.resolved_values = resolved_values
         super().__init__()
 
-    def get_runtime_filter(self, service: Service) -> dict | None:
-        """Return a complete filter tree, or None to use the stored service filter."""
-        return None
+    def get_runtime_filters(self, service: Service) -> list[dict]:
+        """Return additional groups applied with AND after the stored service filters."""
+        return []
 
     def range(self, service: Service) -> tuple[int, int | None]:
         """
