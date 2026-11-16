@@ -96,18 +96,18 @@ def test_a_stored_formula_with_an_invalid_argument_only_marks_its_field(
 
 
 @pytest.mark.django_db
-def test_preview_is_bounded_but_delivery_retains_full_payload(
+def test_a_preview_shows_all_of_a_large_request_that_is_delivered(
     configured_email, mailoutbox
 ):
     action = configured_email
-    body = "message " * 1000
+    body = "message " * 10000
     adapter = SMTPEmailAgentActionType()
     resolved_values = adapter.prepare(
         action, {"to_email": "alice@example.com", "subject": "Hello", "body": body}
     )
     preview = adapter.get_preview(action, resolved_values)
-    assert preview["truncated"] is True
-    assert len(preview["values"]["body"]) == 1000
+    assert "truncated" not in preview
+    assert preview["values"]["body"] == body
     with patch(
         "baserow.contrib.integrations.core.service_types.get_connection",
         return_value=EmailBackend(),

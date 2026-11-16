@@ -109,9 +109,9 @@ readable fields; integration credentials never enter the preview. Service export
 redaction is a separate policy: an email body is sensitive in an external export
 but must be visible to the person approving its delivery.
 
-The preview is bounded as above; the sent payload is not. The values are stored
-as JSON, which doesn't keep their order, so the action's presenter orders and
-labels them. See [One call](./agent-actions.md#one-call) for how the shown values
+Unlike the previews above, an action's is not shortened: whoever approves a call
+reads everything it sends. The values are stored as JSON, which doesn't keep
+their order, so the action's presenter orders and labels them. See [One call](./agent-actions.md#one-call) for how the shown values
 are the ones sent.
 
 ## Web search

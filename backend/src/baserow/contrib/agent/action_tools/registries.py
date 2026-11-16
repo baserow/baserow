@@ -4,7 +4,6 @@ from typing import Any, TypedDict
 from pydantic_core import to_jsonable_python
 
 from baserow.contrib.agent.models import AgentAction
-from baserow.contrib.agent.previews import StepPreview, cut
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 from baserow.core.services.handler import ServiceHandler
@@ -122,13 +121,13 @@ class AgentActionType(Instance, ABC):
         """
         :param action: The action called.
         :param resolved_values: What ``prepare`` returned for the call.
-        :return: The step input: the bounded ``values`` of the readable request,
-            and ``truncated`` when part of it was left out.
+        :return: The step input: every value of the readable request, never
+            shortened, as whoever approves the call reads all that it sends.
         """
 
-        values = self.get_preview_values(action.service.specific, resolved_values)
-        bounded = cut(values)
-        return StepPreview(names=bounded, truncated=bounded != values).to_input()
+        return {
+            "values": self.get_preview_values(action.service.specific, resolved_values)
+        }
 
     def dispatch(
         self, action: AgentAction, resolved_values: dict[str, Any]

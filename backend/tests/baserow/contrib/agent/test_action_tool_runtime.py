@@ -182,6 +182,34 @@ def test_a_call_sends_the_values_its_step_shows(
 
 
 @pytest.mark.django_db
+def test_an_approval_shows_every_recipient_and_the_whole_body(
+    email_action, mocker, mailoutbox
+):
+    user, agent, action, _, _ = email_action
+    recipients = [f"person{number}@example.com" for number in range(15)]
+    AgentActionService().update_action(
+        user,
+        agent.id,
+        action.id,
+        ask_first=True,
+        service_values={
+            "to_emails": {"formula": f"'{','.join(recipients)}'", "mode": "advanced"}
+        },
+    )
+    body = "A long line of the report. " * 60
+    respond(mocker, ({0: email_call(action.name, body=body)},))
+
+    reply = pause(user, agent)
+
+    step_input = reply.steps[0]["input"]
+    assert "truncated" not in step_input
+    assert step_input["values"]["to_emails"] == recipients
+    assert step_input["values"]["body"] == body
+    run_reply(decide(user, reply, approved=True))
+    assert [(email.to, email.body) for email in mailoutbox] == [(recipients, body)]
+
+
+@pytest.mark.django_db
 def test_an_approved_call_without_its_approved_values_does_not_send(
     email_action, mocker, mailoutbox
 ):

@@ -59,7 +59,9 @@ A broken action is left out; it never fails the reply.
    for approval.
 2. `prepare` resolves the service's formulas **once**. The result is the call's
    resolved values.
-3. The readable request, built from those values, is shown on the step.
+3. The readable request, built from those values, is shown on the step in
+   full: every recipient, the whole body. It is never shortened, as whoever
+   approves a call reads all that it sends. A call's size has no limit yet.
 4. With Ask first, the call is held. The resolved values are kept in the paused
    run (`ApprovalRequired(metadata=...)`) with the action's approval key.
 5. `dispatch` sends the resolved values through `ServiceHandler.dispatch_service`.
