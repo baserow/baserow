@@ -113,7 +113,7 @@ def add_nodes(
     tool_context = ctx.deps.tool_context()
     result = _shared_call(shared_nodes.add_nodes, tool_context, workflow_id, nodes)
     # The nodes are committed now, so the formula generator runs outside them.
-    formula_errors = agents.repair_formula_errors(
+    repair = agents.repair_formula_errors(
         tool_context,
         ctx.deps.tool_helpers,
         result.pop("formula_errors", []),
@@ -123,8 +123,10 @@ def add_nodes(
         {key: node[key] for key in ("id", "label", "type")}
         for node in result["created_nodes"]
     ]
-    if formula_errors:
-        result["formula_errors"] = formula_errors
+    if repair.formula_errors:
+        result["formula_errors"] = repair.formula_errors
+    if repair.kept:
+        result["kept_user_edits"] = agents.kept_report(repair.kept)
     return result
 
 
@@ -191,20 +193,33 @@ def create_workflows(
         reconciliation.RUN_CREATED_WORKFLOWS, {}
     )
     created_workflows = []
-    formula_errors = []
     errors = list(creation.failed)
+    # The workflows are committed now, so the formula generator runs outside them.
+    # One repair for all of them, so every value is read before any formula is
+    # generated.
+    repair = agents.repair_formula_errors(
+        tool_context,
+        tool_helpers,
+        [
+            error
+            for _spec, _workflow, node_creation in creation.created
+            for error in node_creation.formula_errors
+        ],
+        {
+            node.id: ref
+            for _spec, _workflow, node_creation in creation.created
+            for ref, node in node_creation.nodes
+        },
+    )
+    formula_errors = repair.formula_errors
+    # A kept edit doesn't leave its workflow unsettled: it was created as asked,
+    # and asking again must not reapply the value the user changed.
+    unsettled = {error["node_id"] for error in repair.formula_errors}
     for workflow_spec, workflow, node_creation in creation.created:
         created_workflows.append(shared_workflows.describe_workflow(workflow))
         errors.extend(node_creation.errors)
-        # The workflow is committed now, so the formula generator runs outside it.
-        workflow_errors = agents.repair_formula_errors(
-            tool_context,
-            tool_helpers,
-            node_creation.formula_errors,
-            {node.id: ref for ref, node in node_creation.nodes},
-        )
-        formula_errors.extend(workflow_errors)
-        if not workflow_errors and not node_creation.errors:
+        node_ids = {node.id for _ref, node in node_creation.nodes}
+        if not node_ids & unsettled and not node_creation.errors:
             run_created[workflow.id] = reconciliation.VerifiedWorkflowCreation(
                 request=workflow_spec.model_dump(),
                 configuration=reconciliation.workflow_configuration_fingerprint(
@@ -247,6 +262,8 @@ def create_workflows(
         result["errors"] = errors
     if formula_errors:
         result["formula_errors"] = formula_errors
+    if repair.kept:
+        result["kept_user_edits"] = agents.kept_report(repair.kept)
     return result
 
 
@@ -282,17 +299,21 @@ def update_nodes(
     result = _shared_call(shared_nodes.update_nodes, tool_context, workflow_id, nodes)
     # The updates are committed now, so the formula generator runs outside them.
     to_repair = result.pop("formula_errors", [])
-    formula_errors = agents.repair_formula_errors(
+    repair = agents.repair_formula_errors(
         tool_context, ctx.deps.tool_helpers, to_repair
     )
     updated_ids = {node["node_id"] for node in result["updated_nodes"]}
     result["updated_nodes"] += [
         node
-        for node in agents.repaired_nodes(to_repair, formula_errors)
+        for node in agents.repaired_nodes(
+            to_repair, repair.formula_errors + repair.kept
+        )
         if node["node_id"] not in updated_ids
     ]
-    if formula_errors:
-        result["formula_errors"] = formula_errors
+    if repair.formula_errors:
+        result["formula_errors"] = repair.formula_errors
+    if repair.kept:
+        result["kept_user_edits"] = agents.kept_report(repair.kept)
     return result
 
 

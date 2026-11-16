@@ -92,6 +92,7 @@ def test_automation_formula_repair_forwards_request_model_profile():
     with (
         patch.object(automation_agents.shared_nodes, "get_node_in_workspace"),
         patch.object(automation_agents, "WorkflowExamples"),
+        patch.object(automation_agents, "_stored_values", return_value={}),
         patch.object(automation_agents, "get_generate_formulas_tool") as factory,
     ):
         factory.return_value.return_value = {}
@@ -100,4 +101,4 @@ def test_automation_formula_repair_forwards_request_model_profile():
         )
 
     factory.assert_called_once_with(model_profile)
-    assert remaining == [error]
+    assert remaining == automation_agents.RepairResult([error], [])

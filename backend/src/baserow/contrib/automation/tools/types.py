@@ -39,6 +39,10 @@ class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(extra="forbid", coerce_numbers_to_str=True)
 
 
+# The service attribute a value is stored under, where it differs from the name
+# the tools give it.
+SERVICE_ATTRIBUTES = {"prompt": "ai_prompt"}
+
 # Appended to the description of the values that take a formula.
 SUPPORTS_FORMULA = " A literal or a formula."
 
@@ -155,6 +159,18 @@ class ServiceValues:
 # ---------------------------------------------------------------------------
 # Sub-models
 # ---------------------------------------------------------------------------
+
+
+def matching_branches(labels: list[str], label: str) -> list[int]:
+    """
+    The indexes of the router branches a label names: those with that exact
+    label, or else those whose label differs only in case.
+    """
+
+    exact = [index for index, other in enumerate(labels) if other == label]
+    return exact or [
+        index for index, other in enumerate(labels) if other.lower() == label.lower()
+    ]
 
 
 def _is_blank(value: Any) -> bool:
@@ -651,7 +667,7 @@ def _row_action_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, 
 def _ai_agent_to_orm(n: ActionNodeCreate, values: ServiceValues) -> dict[str, Any]:
     return {
         "ai_choices": (n.choices or []) if n.output_type == "choice" else [],
-        "ai_prompt": values.value("prompt", n.prompt),
+        SERVICE_ATTRIBUTES["prompt"]: values.value("prompt", n.prompt),
         "ai_output_type": n.output_type,
     }
 
@@ -829,8 +845,11 @@ def _router_update_service(
         if update.condition is None:
             # A branch listed without a condition keeps it.
             continue
-        matches = [edge for edge in edges if edge["label"] == update.label] or [
-            edge for edge in edges if edge["label"].lower() == update.label.lower()
+        matches = [
+            edges[index]
+            for index in matching_branches(
+                [edge["label"] for edge in edges], update.label
+            )
         ]
         if len(matches) != 1:
             labels = ", ".join(f"'{edge['label']}'" for edge in edges) or "none"
@@ -858,7 +877,7 @@ def _ai_agent_update_service(
 ) -> dict[str, Any]:
     d = {}
     if n.prompt is not None:
-        d["ai_prompt"] = values.value("prompt", n.prompt)
+        d[SERVICE_ATTRIBUTES["prompt"]] = values.value("prompt", n.prompt)
     if n.output_type is not None:
         d["ai_output_type"] = n.output_type
     if n.choices is not None:
