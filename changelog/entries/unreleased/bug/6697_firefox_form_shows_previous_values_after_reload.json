@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Don't fill forms again with previously submitted values after a reload in Firefox",
+    "message": "Don't keep form values Firefox restores after a page reload",
     "issue_origin": "github",
     "issue_number": 6697,
     "domain": "core",

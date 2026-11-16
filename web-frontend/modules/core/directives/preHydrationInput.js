@@ -5,8 +5,8 @@ const USED_BEFORE_HYDRATION = '__baserowUsedBeforeHydration'
 /**
  * Inline script for the document head. It records the inputs the user uses before
  * the page is hydrated, and once the HTML is parsed, resets the other inputs to their
- * server value. Firefox restores the previous values on reload, which would
- * otherwise be shown until the hydration.
+ * server value. Firefox restores the previous values on reload and on Back/Forward,
+ * which would otherwise be shown until the hydration.
  */
 export const usedBeforeHydrationScript = `(function () {
   var used = (window.${USED_BEFORE_HYDRATION} = new WeakSet());
@@ -73,7 +73,11 @@ const replayCheck = (el, checked) => {
  * replaced by the state value, and the component never sees the events. This
  * directive records what the user did before hydration and replays the matching
  * events once the element is hydrated, so the component state matches what the
- * user sees. A value the browser restored on reload (Firefox does) is reset instead.
+ * user sees. A value the browser restored is reset instead: Firefox restores on
+ * reload and on Back/Forward while parsing (the head script resets those first),
+ * Chromium on Back/Forward after `load`, which the head script can't catch.
+ * Without the head script typed and restored values can't be told apart, so both are
+ * kept.
  */
 export default {
   created(el) {
@@ -86,7 +90,8 @@ export default {
     const changed = checkable
       ? el.checked !== el.defaultChecked
       : el.value !== el.defaultValue
-    if (changed && window[USED_BEFORE_HYDRATION]?.has(el)) {
+    const used = window[USED_BEFORE_HYDRATION]
+    if (changed && (!used || used.has(el))) {
       pending.value = checkable ? el.checked : el.value
     } else if (changed && checkable) {
       el.checked = el.defaultChecked

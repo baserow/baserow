@@ -55,7 +55,10 @@ describe('preHydrationInput', () => {
     return { input, ...client }
   }
 
-  afterEach(() => container?.remove())
+  afterEach(() => {
+    container?.remove()
+    vi.unstubAllGlobals()
+  })
 
   test('keeps a value typed and left before hydration', async () => {
     const { input, value, events } = await hydrate((input) =>
@@ -109,15 +112,24 @@ describe('preHydrationInput', () => {
     }
   )
 
+  test('keeps a value typed before hydration when the head script did not run', async () => {
+    vi.stubGlobal('__baserowUsedBeforeHydration', undefined)
+    const { input, value } = await hydrate((input) => type(input, 'Jane Doe'))
+
+    expect(input.value).toBe('Jane Doe')
+    expect(value.value).toBe('Jane Doe')
+  })
+
   test('resets the values the browser restored once the page is parsed', () => {
     container = document.createElement('div')
     container.innerHTML =
-      '<input value="" /><input type="checkbox" /><input value="" />'
+      '<input value="" /><input type="checkbox" /><textarea></textarea><input value="" />'
     document.body.appendChild(container)
-    const [restored, restoredCheckbox, typed] =
-      container.querySelectorAll('input')
+    const [restored, restoredCheckbox, restoredTextarea, typed] =
+      container.querySelectorAll('input, textarea')
     restored.value = 'Jane Doe'
     restoredCheckbox.checked = true
+    restoredTextarea.value = 'Notes'
     type(typed, 'John')
 
     vi.spyOn(document, 'readyState', 'get').mockReturnValue('interactive')
@@ -126,6 +138,7 @@ describe('preHydrationInput', () => {
 
     expect(restored.value).toBe('')
     expect(restoredCheckbox.checked).toBe(false)
+    expect(restoredTextarea.value).toBe('')
     expect(typed.value).toBe('John')
   })
 
