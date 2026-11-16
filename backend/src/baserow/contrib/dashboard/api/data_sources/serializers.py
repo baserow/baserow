@@ -103,27 +103,3 @@ class UpdateDashboardDataSourceSerializer(UpdateServiceSerializer):
 
 class DashboardDispatchSerializer(serializers.Serializer):
     widget_data = serializers.DictField(required=False, default=dict)
-
-    def validate_widget_data(self, values):
-        """Reject malformed values and references outside the current dashboard."""
-        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
-
-        if any(
-            not key.isascii()
-            or not key.isdigit()
-            or len(key) > 19
-            or key.startswith("0")
-            for key in values
-        ):
-            raise serializers.ValidationError("Expected dashboard widget IDs.")
-        widgets = {
-            str(widget.id): widget
-            for widget in WidgetHandler().get_widgets(self.context["dashboard"])
-            if widget.get_type().is_filter_widget
-        }
-        if values.keys() - widgets.keys():
-            raise serializers.ValidationError("Unknown dashboard filter widget.")
-        return {
-            key: widgets[key].get_type().validate_filter_value(widgets[key], value)
-            for key, value in values.items()
-        }

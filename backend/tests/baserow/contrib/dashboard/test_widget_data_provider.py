@@ -386,7 +386,7 @@ def test_invalid_widget_payload(api_client, filter_dashboard, value):
 
 
 @pytest.mark.django_db
-def test_provider_rejects_foreign_deleted_and_unsupported_widgets(
+def test_provider_resolves_all_types_and_rejects_foreign_deleted_widgets(
     data_fixture, filter_dashboard
 ):
     _, _, dashboard, _, widget, _ = filter_dashboard
@@ -396,7 +396,13 @@ def test_provider_rejects_foreign_deleted_and_unsupported_widgets(
         dashboard=data_fixture.create_dashboard_application()
     )
     unsupported = data_fixture.create_summary_widget(dashboard=dashboard)
-    for widget_id in [foreign.id, unsupported.id, 999999]:
+    assert (
+        DashboardDispatchContext(HttpRequest(), dashboard=dashboard)[
+            f"widget_data.{unsupported.id}"
+        ]
+        is None
+    )
+    for widget_id in [foreign.id, 999999]:
         with pytest.raises(InvalidFormulaContext):
             context[f"widget_data.{widget_id}"]
     TrashHandler.trash(None, dashboard.workspace, dashboard, widget)
@@ -833,10 +839,10 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
         type = "future_filter"
         model_class = TextFilterWidget
 
-        def get_filter_value(self, instance, values):
+        def get_dispatch_data(self, instance, values):
             return values.get(str(instance.id), "Beta")
 
-        def validate_filter_value(self, instance, value):
+        def validate_dispatch_data(self, instance, value):
             return value
 
         def get_target_filters(self, instance):
@@ -877,7 +883,7 @@ def test_filter_capabilities_control_dispatch_and_dependencies(
         data={"widget_data": {str(widget.id): "Alpha"}},
         context={"dashboard": dashboard},
     )
-    assert not serializer.is_valid()
+    assert serializer.is_valid()
 
     monkeypatch.setattr(future_type, "is_filter_widget", True)
     display_type = original_lookup(SummaryWidget)
@@ -1210,3 +1216,54 @@ def test_context_provider_collects_nested_references_without_evaluating():
             ),
         ]
     ) == {13: {"field_886", "field_887"}}
+
+
+@pytest.mark.django_db
+def test_dispatch_validation_uses_non_filter_widget_type_hook(
+    data_fixture, monkeypatch
+):
+    """Runtime input goes through the type hook even for display widgets."""
+    from baserow.contrib.dashboard.api.data_sources.serializers import (
+        DashboardDispatchSerializer,
+    )
+    from baserow.contrib.dashboard.widgets.widget_types import SummaryWidgetType
+
+    widget = data_fixture.create_summary_widget()
+
+    def validate_dispatch_data(self, instance, value):
+        return {"widget_id": instance.id, "normalized": value.upper()}
+
+    monkeypatch.setattr(
+        SummaryWidgetType, "validate_dispatch_data", validate_dispatch_data
+    )
+    serializer = DashboardDispatchSerializer(
+        data={"widget_data": {str(widget.id): "input"}},
+        context={"dashboard": widget.dashboard},
+    )
+    serializer.is_valid(raise_exception=True)
+    context = DashboardDispatchContext(
+        HttpRequest(), dashboard=widget.dashboard, data=serializer.validated_data
+    )
+    assert context[f"widget_data.{widget.id}"] == {
+        "widget_id": widget.id,
+        "normalized": "INPUT",
+    }
+    assert WidgetDataProviderType().validate_data(context) == {
+        str(widget.id): {"widget_id": widget.id, "normalized": "INPUT"}
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("value", [123, None, ["Alpha"]])
+def test_internal_dispatch_validates_widget_values_in_provider(filter_dashboard, value):
+    """Internal callers cannot bypass type validation by skipping the API serializer."""
+    from rest_framework.exceptions import ValidationError
+
+    _, _, dashboard, source, widget, _ = filter_dashboard
+    context = DashboardDispatchContext(
+        HttpRequest(),
+        dashboard=dashboard,
+        data={"widget_data": {str(widget.id): value}},
+    )
+    with pytest.raises(ValidationError):
+        DashboardDataSourceHandler().dispatch_data_source(source, context)

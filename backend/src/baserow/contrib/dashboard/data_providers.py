@@ -29,27 +29,59 @@ class WidgetDataProviderType(DataProviderType):
             raise BaserowFormulaSyntaxError("Expected a dashboard widget ID.")
         return True
 
-    def get_data_chunk(self, dispatch_context, path):
-        """Resolve only supported, untrashed widgets belonging to this dashboard."""
-        self.is_valid(path)
+    def get_widgets(self, dispatch_context):
+        """Load only active widgets belonging to the dispatched dashboard."""
         if dispatch_context.dashboard is None:
             raise InvalidFormulaContext("Invalid dashboard widget reference.")
-        if "dashboard_filter_widgets" not in dispatch_context.cache:
-            dispatch_context.cache["dashboard_filter_widgets"] = {
-                str(w.id): w
-                for w in WidgetHandler().get_widgets(dispatch_context.dashboard)
-                if w.get_type().is_filter_widget
+        if "dashboard_widgets" not in dispatch_context.cache:
+            dispatch_context.cache["dashboard_widgets"] = {
+                str(widget.id): widget
+                for widget in WidgetHandler().get_widgets(dispatch_context.dashboard)
             }
-        widgets = dispatch_context.cache["dashboard_filter_widgets"]
-        widget = widgets.get(path[0])
+        return dispatch_context.cache["dashboard_widgets"]
+
+    def validate_data_chunk(self, widget_id, value, dispatch_context):
+        """Delegate each widget value to its type's runtime validation hook."""
+        widget = self.get_widgets(dispatch_context).get(str(widget_id))
         if widget is None:
-            raise InvalidFormulaContext("The dashboard filter widget does not exist.")
-        return get_value_at_path(
-            widget.get_type().get_filter_value(
-                widget, dispatch_context.data.get(self.type, {})
-            ),
-            path[1:],
-        )
+            raise InvalidFormulaContext("The dashboard widget does not exist.")
+        return widget.get_type().validate_dispatch_data(widget, value)
+
+    def validate_data(self, dispatch_context):
+        """Validate supplied widget values for API and internal dispatch callers."""
+        from rest_framework.exceptions import ValidationError
+
+        if "validated_widget_data" not in dispatch_context.cache:
+            values = dispatch_context.data.get(self.type, {})
+            if not isinstance(values, dict):
+                raise ValidationError("Expected widget data keyed by widget IDs.")
+            validated = {}
+            for key, value in values.items():
+                try:
+                    if not isinstance(key, str):
+                        raise BaserowFormulaSyntaxError(
+                            "Expected a dashboard widget ID."
+                        )
+                    self.is_valid([key])
+                    validated[key] = self.validate_data_chunk(
+                        key, value, dispatch_context
+                    )
+                except (BaserowFormulaSyntaxError, InvalidFormulaContext) as exc:
+                    raise ValidationError(str(exc)) from exc
+            dispatch_context.cache["validated_widget_data"] = validated
+        return dispatch_context.cache["validated_widget_data"]
+
+    def get_data_chunk(self, dispatch_context, path):
+        """Resolve validated widget input, falling back to its type's default."""
+        self.is_valid(path)
+        values = self.validate_data(dispatch_context)
+        widget = self.get_widgets(dispatch_context).get(path[0])
+        if widget is None:
+            raise InvalidFormulaContext("The dashboard widget does not exist.")
+        value = widget.get_type().get_dispatch_data(widget, values)
+        if path[0] not in values:
+            value = self.validate_data_chunk(widget.id, value, dispatch_context)
+        return get_value_at_path(value, path[1:])
 
     def import_path(self, path, id_mapping, **kwargs):
         self.is_valid(path)

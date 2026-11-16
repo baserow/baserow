@@ -183,7 +183,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
             return defaults
         return defaults[0] if defaults else ""
 
-    def get_filter_value(self, widget, values):
+    def get_dispatch_data(self, widget, values):
         return values.get(
             str(widget.id),
             self.normalize_default_value(
@@ -206,7 +206,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         updated_models.add(widget)
         return updated_models
 
-    def validate_filter_value(self, widget, value):
+    def validate_dispatch_data(self, widget, value):
         if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
             if not isinstance(value, list) or any(
                 not isinstance(item, str) for item in value

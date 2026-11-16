@@ -273,14 +273,6 @@ class FilterWidgetTypeMixin:
         widget.target_filters = links
         widget.save(update_fields=["target_filters"])
 
-    def get_filter_value(self, widget, values):
-        """Resolve a viewer value, falling back to this filter type's default."""
-        raise NotImplementedError()
-
-    def validate_filter_value(self, widget, value):
-        """Validate viewer data according to this filter type's value contract."""
-        raise NotImplementedError()
-
     def get_runtime_filter(self, widget, target, dispatch_context):
         """Select a group using the owning filter's value and empty-input policy."""
         for link in self.get_target_filters(widget):

@@ -326,6 +326,9 @@ class DashboardDataSourceHandler:
 
         if dispatch_context.dashboard is None:
             dispatch_context.dashboard = data_source.dashboard
+        dispatch_context.data_provider_registry.get("widget_data").validate_data(
+            dispatch_context
+        )
         specific_service = ServiceHandler().get_service(data_source.service.id)
         service_dispatch = self.service_handler.dispatch_service(
             specific_service, dispatch_context

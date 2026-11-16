@@ -279,8 +279,8 @@ def test_multiple_default_values_api_and_dispatch(api_client, data_fixture):
     widget = TextFilterWidget.objects.get(id=response.json()["id"])
     assert widget.default_value == defaults
     assert response.json()["default_value"] == defaults
-    assert widget.get_type().get_filter_value(widget, {}) == defaults
-    assert widget.get_type().get_filter_value(widget, {str(widget.id): []}) == []
+    assert widget.get_type().get_dispatch_data(widget, {}) == defaults
+    assert widget.get_type().get_dispatch_data(widget, {str(widget.id): []}) == []
     public = PublicDashboardInfoSerializer(
         dashboard, context={"widgets": [widget], "data_sources": []}
     ).data
@@ -294,14 +294,14 @@ def test_multiple_default_values_api_and_dispatch(api_client, data_fixture):
     response = api_client.patch(url, {"multiple": False}, format="json", **headers)
     assert response.status_code == 200
     widget.refresh_from_db()
-    assert widget.get_type().get_filter_value(widget, {}) == "France"
+    assert widget.get_type().get_dispatch_data(widget, {}) == "France"
     response = api_client.patch(
         url, {"multiple": True, "default_value": []}, format="json", **headers
     )
     assert response.status_code == 200
     widget.refresh_from_db()
     assert widget.default_value == []
-    assert widget.get_type().get_filter_value(widget, {}) == []
+    assert widget.get_type().get_dispatch_data(widget, {}) == []
 
 
 @pytest.mark.django_db
@@ -340,7 +340,7 @@ def test_mode_only_api_updates_persist_default_cardinality(
     retained = [single] if single else []
     assert response.json()["default_value"] == retained
     assert widget.default_value == retained
-    assert widget.get_type().get_filter_value(widget, {}) == retained
+    assert widget.get_type().get_dispatch_data(widget, {}) == retained
 
 
 @pytest.mark.django_db

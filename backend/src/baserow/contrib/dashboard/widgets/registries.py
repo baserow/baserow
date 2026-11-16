@@ -89,6 +89,14 @@ class WidgetType(
         """Restore widget-specific links saved before a data source update."""
         pass
 
+    def get_dispatch_data(self, instance: Widget, values):
+        """Resolve supplied runtime input, with no default unless the type defines one."""
+        return values.get(str(instance.id))
+
+    def validate_dispatch_data(self, instance: Widget, value):
+        """Validate and normalize runtime input supplied for this widget type."""
+        return value
+
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         """
         This function allows you to hook into the moment a widget is created or
