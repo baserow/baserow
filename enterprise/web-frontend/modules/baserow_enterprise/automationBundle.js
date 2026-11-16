@@ -8,7 +8,10 @@ import {
 export default async function register(nuxtApp) {
   const { $config, $registry } = nuxtApp
   const context = { app: nuxtApp }
-  $registry.register('node', new LocalBaserowSemanticSearchActionNodeType(context))
+  $registry.register(
+    'node',
+    new LocalBaserowSemanticSearchActionNodeType(context)
+  )
   if ($config.public.baserowEnterpriseCodeRunnerDefaultType) {
     $registry.register('node', new CoreCodeActionNodeType(context))
   }

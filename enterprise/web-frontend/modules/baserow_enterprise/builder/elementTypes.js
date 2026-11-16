@@ -45,7 +45,9 @@ const FileInputElementForm = lazyComponent(() =>
   )
 )
 const HTMLElementForm = lazyComponent(() =>
-  import('@baserow_enterprise/builder/components/elementEditorBundle').then(bundle => bundle.elementTypesHTMLElementForm)
+  import('@baserow_enterprise/builder/components/elementEditorBundle').then(
+    (bundle) => bundle.elementTypesHTMLElementForm
+  )
 )
 const GraphElementForm = lazyComponent(() =>
   import('@baserow_enterprise/builder/components/elementEditorBundle').then(
@@ -467,4 +469,3 @@ export class HTMLElementType extends ElementType {
     return null
   }
 }
-

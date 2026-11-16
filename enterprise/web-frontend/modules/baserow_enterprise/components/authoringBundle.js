@@ -11,3 +11,5 @@ export { default as authProviderTypesOpenIdConnectSettingsForm } from '@baserow_
 export { default as serviceTypesPaidFeaturesModal } from '@baserow_premium/components/PaidFeaturesModal'
 export { default as serviceTypesCoreCodeServiceForm } from '@baserow_enterprise/integrations/core/components/services/CoreCodeServiceForm.vue'
 export { default as serviceTypesCoreXLSFileReaderServiceForm } from '@baserow_enterprise/integrations/core/components/services/CoreXLSFileReaderServiceForm.vue'
+
+export { default as serviceTypesLocalBaserowSemanticSearchServiceForm } from '@baserow_enterprise/integrations/localBaserow/components/services/LocalBaserowSemanticSearchServiceForm'
