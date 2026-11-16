@@ -39,3 +39,43 @@ export const getSamplePreview = (
     text: text.length > maxLength ? `${text.slice(0, maxLength)}…` : text,
   }
 }
+
+// The values the backend `sanitize_sample_data` puts in place of the real
+// ones when sample data is exported without sensitive data.
+const PLACEHOLDER_STRING = 'Example'
+const PLACEHOLDER_NUMBER = 0
+const PLACEHOLDER_BOOLEAN = false
+
+/**
+ * Whether the given data of a sample holds placeholders only, which is what
+ * is left of the sample data of an imported workspace or template: it keeps
+ * the shape of the result, but none of its values. Such a sample has nothing
+ * worth showing as an example.
+ *
+ * Data without any value at all (empty or `null`s only) doesn't count: there
+ * is no placeholder in it to recognise.
+ *
+ * @param {any} data the `data` of a service's sample data.
+ * @returns {Boolean} true when every value is a placeholder.
+ */
+export const isPlaceholderSampleData = (data) => {
+  let placeholders = 0
+  const onlyPlaceholders = (value) => {
+    if (value === null || value === undefined) {
+      return true
+    }
+    if (Array.isArray(value)) {
+      return value.every(onlyPlaceholders)
+    }
+    if (typeof value === 'object') {
+      return Object.values(value).every(onlyPlaceholders)
+    }
+    placeholders += 1
+    return (
+      value === PLACEHOLDER_STRING ||
+      value === PLACEHOLDER_NUMBER ||
+      value === PLACEHOLDER_BOOLEAN
+    )
+  }
+  return onlyPlaceholders(data) && placeholders > 0
+}

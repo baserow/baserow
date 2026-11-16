@@ -130,6 +130,33 @@ describe('Automation data providers sample values', () => {
       expect(chunk(['3', 'status_code'])).toBeUndefined()
     })
 
+    test('has no value for a sample holding placeholders only', () => {
+      // What is left of the sample data of an imported workspace or template.
+      const imported = objectNode({
+        sample_data: {
+          data: { status_code: 0, body: { user: { name: 'Example' } } },
+          status: 200,
+        },
+      })
+      const workflow = workflowWith(imported)
+      const dataProvider = provider('previous_node')
+
+      expect(
+        dataProvider.getSampleValue({ workflow }, ['1', 'status_code'])
+      ).toBeUndefined()
+      expect(
+        dataProvider.getSampleValue({ workflow }, ['1', 'body', 'user', 'name'])
+      ).toBeUndefined()
+
+      vi.spyOn(dataProvider, 'getDataSchema').mockReturnValue({
+        type: 'object',
+        properties: { 1: { ...imported.service.schema, title: 'Fetch' } },
+      })
+      expect(dataProvider.getNodes({ workflow }).nodes[0].hint).toBe(
+        'dataProviderType.testToSeeValues'
+      )
+    })
+
     test('adds a hint to the nodes without values only', () => {
       const tested = objectNode()
       const untested = { ...objectNode({ sample_data: null }), id: 3 }
@@ -196,6 +223,19 @@ describe('Automation data providers sample values', () => {
         undefined
       )
       expect(chunk({}, ['status_code'])).toBeUndefined()
+    })
+
+    test('adds a hint when the edited node has no values', () => {
+      const hintOf = (node) =>
+        provider('current_node').getNodes({ automation: {}, node }).hint
+
+      expect(hintOf(objectNode())).toBeUndefined()
+      expect(hintOf(objectNode({ sample_data: null }))).toBe(
+        'dataProviderType.testToSeeValues'
+      )
+      expect(hintOf(objectNode({ sample_data: { _error: 'Boom' } }))).toBe(
+        'dataProviderType.testToSeeValues'
+      )
     })
   })
 })

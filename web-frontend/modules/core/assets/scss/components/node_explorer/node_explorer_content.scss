@@ -29,7 +29,6 @@
 }
 
 .node-explorer-content__value--muted {
-  color: $palette-neutral-500;
   font-style: italic;
 }
 
@@ -38,6 +37,10 @@
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-500;
+}
+
+.node-explorer-content--level-0 > .node-explorer-content__hint {
+  margin-left: 15px;
 }
 
 .node-explorer-content__content {

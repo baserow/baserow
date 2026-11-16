@@ -1,4 +1,7 @@
-import { getSamplePreview } from '@baserow/modules/core/utils/samplePreview'
+import {
+  getSamplePreview,
+  isPlaceholderSampleData,
+} from '@baserow/modules/core/utils/samplePreview'
 
 describe('getSamplePreview', () => {
   test('has nothing to show when no value is known', () => {
@@ -40,5 +43,45 @@ describe('getSamplePreview', () => {
       kind: 'text',
       text: 'abc…',
     })
+  })
+})
+
+describe('isPlaceholderSampleData', () => {
+  test('recognises data holding placeholders only', () => {
+    expect(
+      isPlaceholderSampleData({
+        results: [
+          {
+            id: 0,
+            order: 'Example',
+            Name: 'Example',
+            Paid: false,
+            Notes: null,
+          },
+        ],
+        has_next_page: false,
+      })
+    ).toBe(true)
+    expect(isPlaceholderSampleData({ id: 0, Amount: 0.0, tags: [] })).toBe(true)
+    expect(isPlaceholderSampleData('Example')).toBe(true)
+  })
+
+  test('does not take real values for placeholders', () => {
+    expect(
+      isPlaceholderSampleData({ id: 0, Name: 'Example', Paid: true })
+    ).toBe(false)
+    expect(isPlaceholderSampleData({ id: 7, Name: 'Example' })).toBe(false)
+    expect(
+      isPlaceholderSampleData({ results: [{ id: 0, Name: 'Acme' }] })
+    ).toBe(false)
+  })
+
+  test('does not count data without any value', () => {
+    expect(isPlaceholderSampleData(null)).toBe(false)
+    expect(isPlaceholderSampleData(undefined)).toBe(false)
+    expect(isPlaceholderSampleData({})).toBe(false)
+    expect(isPlaceholderSampleData({ results: [], deleted_at: null })).toBe(
+      false
+    )
   })
 })

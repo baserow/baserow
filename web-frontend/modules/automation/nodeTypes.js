@@ -383,8 +383,10 @@ export class NodeType extends Registerable {
    * and its last test didn't fail.
    */
   hasSampleValues({ service }) {
-    const sample = this.getSampleData({ service })
-    return Boolean(sample) && sample._error === undefined
+    if (!service) {
+      return false
+    }
+    return this.serviceType.hasSampleValues(service)
   }
 
   /**

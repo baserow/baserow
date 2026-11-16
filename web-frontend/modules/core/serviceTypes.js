@@ -1,6 +1,7 @@
 import { Registerable } from '@baserow/modules/core/registry'
 import { ensureInteger } from '@baserow/modules/core/utils/validator'
 import { getValueAtPath } from '@baserow/modules/core/utils/object'
+import { isPlaceholderSampleData } from '@baserow/modules/core/utils/samplePreview'
 
 // Tells a path a result doesn't hold apart from one holding `null`.
 const NO_RESULT_VALUE = Symbol('noResultValue')
@@ -210,11 +211,25 @@ export class ServiceType extends Registerable {
    *  data or the sample holds nothing at that path.
    */
   getSampleValue(service, path) {
-    const sample = this.getSampleData(service)
-    if (!sample || sample._error !== undefined) {
+    if (!this.hasSampleValues(service)) {
       return undefined
     }
-    return this.getResultValue(service, sample.data, path)
+    return this.getResultValue(service, this.getSampleData(service).data, path)
+  }
+
+  /**
+   * Whether the service has sample data whose values can be shown: it was
+   * tested, its last test didn't fail, and the values are the ones the test
+   * returned. The sample data of an imported workspace or template only holds
+   * placeholders, which would be shown as if they were real.
+   */
+  hasSampleValues(service) {
+    const sample = this.getSampleData(service)
+    return (
+      Boolean(sample) &&
+      sample._error === undefined &&
+      !isPlaceholderSampleData(sample.data)
+    )
   }
 
   /**

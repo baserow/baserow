@@ -277,6 +277,26 @@ export class CurrentNodeDataProviderType extends DataProviderType {
   }
 
   /**
+   * Adds a hint when the edited node has no values to show, because it hasn't
+   * been tested yet or its last test failed.
+   */
+  getNodes(applicationContext) {
+    const providerNode = super.getNodes(applicationContext)
+    const { node } = applicationContext
+    if (!providerNode.nodes || !node?.type) {
+      return providerNode
+    }
+    const nodeType = this.app.$registry.get('node', node.type)
+    if (nodeType.hasSampleValues(node)) {
+      return providerNode
+    }
+    return {
+      ...providerNode,
+      hint: this.app.$i18n.t('dataProviderType.testToSeeValues'),
+    }
+  }
+
+  /**
    * The value the edited node returned the last time it was tested.
    */
   getSampleValue(applicationContext, path) {
