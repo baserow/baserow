@@ -158,6 +158,17 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         target_filters: list
 
     def prepare_value_for_db(self, values, instance=None):
+        """Validate option paths in their dashboard and normalize saved defaults."""
+        if "options" in values:
+            dashboard_id = instance.dashboard_id if instance else values["dashboard"].id
+            field = FormulaSerializerField(
+                data_provider_type_registry=dashboard_options_data_provider_registry,
+                validation_context={"dashboard_id": dashboard_id},
+            )
+            try:
+                values["options"] = field.run_validation(values["options"])
+            except serializers.ValidationError as exc:
+                raise serializers.ValidationError({"options": exc.detail}) from exc
         if instance is None or {"default_value", "mode", "multiple"}.intersection(
             values
         ):

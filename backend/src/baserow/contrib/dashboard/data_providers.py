@@ -106,6 +106,13 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
             raise BaserowFormulaSyntaxError(
                 "Choose dashboard data source context data."
             )
+        dashboard_id = (validation_context or {}).get("dashboard_id")
+        if dashboard_id is not None:
+            source = self._get_data_source(path[0])
+            if source is None or source.dashboard_id != dashboard_id:
+                raise BaserowFormulaSyntaxError(
+                    "Choose a data source belonging to this dashboard."
+                )
         return True
 
     def get_data_chunk(self, dispatch_context, path):
@@ -124,9 +131,6 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
         source_id, *rest = path
         source = self._get_data_source(source_id)
         if source is None or not source.service_id:
-            return {}
-        dashboard_id = kwargs.get("dashboard_id")
-        if dashboard_id is not None and source.dashboard_id != dashboard_id:
             return {}
         service = source.service.specific
         return {

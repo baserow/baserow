@@ -1238,7 +1238,6 @@ def test_context_provider_collects_nested_references_without_evaluating(
             ),
         ],
         dashboard_property_data_provider_registry,
-        dashboard_id=source.dashboard_id,
     )
     assert set(properties[source.service_id]) == {"field_886", "field_887"}
 
@@ -1522,10 +1521,10 @@ def test_dispatch_validates_every_registered_data_provider(filter_dashboard, val
 
 
 @pytest.mark.django_db
-def test_context_property_extraction_uses_handler_and_dashboard_scope(
+def test_context_property_extraction_uses_handler(
     filter_dashboard, context_options, monkeypatch
 ):
-    """Handler lookups retain deleted-source handling and widget dashboard isolation."""
+    """Extraction resolves properties via the handler and tolerates deleted sources."""
     from baserow.contrib.dashboard.data_providers import (
         DashboardDataSourceContextDataProviderType,
     )
@@ -1541,14 +1540,41 @@ def test_context_property_extraction_uses_handler_and_dashboard_scope(
 
     monkeypatch.setattr(DashboardDataSourceHandler, "get_data_source", get_data_source)
     path = [str(source.id), context_options.db_column, "*", "value"]
-    assert provider.extract_properties(path, dashboard_id=dashboard.id) == {
+    assert provider.extract_properties(path) == {
         source.service_id: [context_options.db_column]
     }
     assert lookups == [source.id]
-    assert provider.extract_properties(path, dashboard_id=dashboard.id + 1) == {}
-    assert (
-        provider.extract_properties(
-            ["999999999", context_options.db_column], dashboard_id=dashboard.id
-        )
-        == {}
+    assert provider.extract_properties(["999999999", context_options.db_column]) == {}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("create", [False, True])
+def test_option_formula_validation_checks_dashboard_ownership(
+    api_client, data_fixture, filter_dashboard, context_options, create
+):
+    """Ownership is checked when saving formulas, rather than during extraction."""
+    _, token, dashboard, source, widget, _ = filter_dashboard
+    foreign = data_fixture.create_dashboard_local_baserow_list_rows_data_source()
+    url = reverse(
+        "api:dashboard:widgets:list" if create else "api:dashboard:widgets:item",
+        kwargs={"dashboard_id": dashboard.id} if create else {"widget_id": widget.id},
     )
+    request = api_client.post if create else api_client.patch
+    for source_id, expected_status in [
+        (foreign.id, 400),
+        (999999999, 400),
+        (source.id, 200),
+    ]:
+        payload = {
+            "options": BaserowFormulaObject.create(
+                f"get('data_source_context.{source_id}.{context_options.db_column}.*.value')"
+            )
+        }
+        if create:
+            payload.update(type="text_filter", title="Scoped options", mode="dropdown")
+        response = request(
+            url, payload, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        assert response.status_code == expected_status, response.json()
+        if expected_status == 400:
+            assert "options" in response.json()
