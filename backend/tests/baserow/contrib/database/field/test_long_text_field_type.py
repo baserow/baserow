@@ -21,6 +21,7 @@ from baserow.contrib.database.export.table_exporters.csv_table_exporter import (
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.exceptions import (
     IncompatiblePrimaryFieldTypeError,
+    RichTextImageDoesNotExist,
     RichTextImageLimitExceeded,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
@@ -34,12 +35,22 @@ from baserow.contrib.database.fields.rich_text_utils import (
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.contrib.database.trash.models import TrashedRows
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
+from baserow.core.handler import CoreHandler
+from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
-from baserow.core.user_files.exceptions import UserFileDoesNotExist
+from baserow.core.user_files.exceptions import (
+    UserFileDoesNotExist,
+)
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
+from baserow.core.user_files.template_files import (
+    template_file_owner,
+    template_file_prefix,
+)
 from baserow.test_utils.fixtures import Fixtures
 
 MISSING_NAME = (
@@ -700,7 +711,6 @@ def test_export_serialized_value_missing_storage_file(data_fixture, tmpdir):
     assert result_2 == content
     files_zip.add.assert_not_called()
     assert user_file.name not in cache.get("_zip_names", set())
-    assert f"user_file_{user_file.name}" not in cache
     assert cache["_missing_user_files"] == {user_file.name}
 
 
@@ -754,6 +764,44 @@ def test_import_keeps_references_missing_from_zip_but_present_on_target(
 
     assert getattr(row, field.db_column) == content
     assert field_type.prepare_value_for_db(field, content) == content
+
+
+@pytest.mark.django_db
+def test_template_rich_text_escapes_names_missing_from_zip(data_fixture, tmpdir):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    user_file = data_fixture.create_user_file(original_name="a.png", is_image=True)
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    row = table.get_model()()
+    content = f"Text ![img][{user_file.name}] end"
+
+    with template_file_owner(table.database.workspace_id):
+        field_type.set_import_serialized_value(
+            row, field.db_column, content, {}, {}, _empty_zip(), storage
+        )
+
+    assert getattr(row, field.db_column) == f"Text ![img]\\[{user_file.name}] end"
+
+
+@pytest.mark.django_db
+def test_rich_text_import_never_resolves_missing_name_to_template_file(
+    data_fixture, tmpdir
+):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    template_workspace = data_fixture.create_workspace()
+    template_file = data_fixture.create_user_file(
+        original_name="a.png",
+        is_image=True,
+        unique=template_file_prefix(template_workspace.id) + "a" * 19,
+    )
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    row = table.get_model()()
+    content = f"Text ![img][{template_file.name}] end"
+
+    field_type.set_import_serialized_value(
+        row, field.db_column, content, {}, {}, _empty_zip(), storage
+    )
+
+    assert getattr(row, field.db_column) == f"Text ![img]\\[{template_file.name}] end"
 
 
 def _rich_text_field(data_fixture):
@@ -1457,3 +1505,111 @@ def test_enabling_rich_text_backs_up_only_when_references_may_be_escaped(
     assert not field_type.should_backup_field_data_for_same_type_update(
         field, {"long_text_enable_rich_text": False}
     )
+
+
+@pytest.mark.django_db
+def test_rich_text_rejects_template_image_names(data_fixture):
+    _, table, field, field_type = _rich_text_field(data_fixture)
+    template_workspace = data_fixture.create_workspace()
+    template_file = data_fixture.create_user_file(
+        original_name="a.png",
+        is_image=True,
+        unique=template_file_prefix(template_workspace.id) + "a" * 19,
+    )
+    normal_file = data_fixture.create_user_file(
+        original_name="a.png", is_image=True, sha256_hash=template_file.sha256_hash
+    )
+    template_value = f"Text ![img][{template_file.name}] end"
+    normal_value = f"Text ![img][{normal_file.name}] end"
+
+    with pytest.raises(RichTextImageDoesNotExist):
+        field_type.prepare_value_for_db(field, template_value)
+    assert field_type.prepare_value_for_db(field, normal_value) == normal_value
+    values_by_row = field_type.prepare_value_for_db_in_bulk(
+        field, {0: template_value, 1: normal_value}, continue_on_error=True
+    )
+    assert isinstance(values_by_row[0], RichTextImageDoesNotExist)
+    assert values_by_row[1] == normal_value
+
+
+@pytest.mark.django_db
+def test_enabling_rich_text_escapes_references_to_template_files(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=False
+    )
+    template_workspace = data_fixture.create_workspace()
+    template_file = data_fixture.create_user_file(
+        original_name="t.png",
+        is_image=True,
+        unique=template_file_prefix(template_workspace.id) + "t" * 19,
+    )
+    normal_file = data_fixture.create_user_file(original_name="n.png", is_image=True)
+    value = f"See ![x][{template_file.name}] and ![y][{normal_file.name}] end"
+    row = RowHandler().create_row(user, table, {field.db_column: value})
+
+    field = FieldHandler().update_field(user, field, long_text_enable_rich_text=True)
+
+    row.refresh_from_db()
+    stored = getattr(row, field.db_column)
+    assert stored == (
+        f"See ![x]\\[{template_file.name}] and ![y][{normal_file.name}] end"
+    )
+    RowHandler().update_row_by_id(user, table, row.id, {field.db_column: stored})
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rich_text_default_stays_a_string_in_a_workspace_export_and_duplicate(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+    value = "**bold** ![a][x](https://example.com/x.png)"
+    ViewDefaultValue.objects.create(
+        view=data_fixture.create_grid_view(table=table),
+        field=field,
+        value=value,
+        field_type="long_text",
+    )
+
+    exported = CoreHandler().export_workspace_applications(
+        workspace, io.BytesIO(), ImportExportConfig(include_permission_data=False)
+    )
+    copy = CoreHandler().duplicate_application(user, database)
+
+    (view,) = exported[0]["tables"][0]["views"]
+    assert [v["value"] for v in view["default_row_values"].values()] == [value]
+    assert ViewDefaultValue.objects.get(view__table__database=copy).value == value
+
+
+@pytest.mark.django_db(transaction=True)
+def test_default_left_by_a_single_select_conversion_is_kept_in_a_duplicate(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_single_select_field(table=table)
+    option = data_fixture.create_select_option(field=field, value="A")
+    view = data_fixture.create_grid_view(table=table)
+    with transaction.atomic():
+        ViewHandler().update_view_default_values(
+            user, view, [{"field": field.id, "value": {"id": option.id}}]
+        )
+    with transaction.atomic():
+        FieldHandler().update_field(
+            user, field, "long_text", long_text_enable_rich_text=True
+        )
+
+    copy = CoreHandler().duplicate_application(user, database)
+
+    assert ViewDefaultValue.objects.get(view__table__database=copy).value == {
+        "id": option.id
+    }

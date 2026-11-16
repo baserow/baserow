@@ -290,9 +290,7 @@ class BuilderApplicationType(ApplicationType):
         )
 
         serialized_favicon_file = UserFileHandler().export_user_file(
-            builder.favicon_file,
-            files_zip,
-            storage,
+            builder.favicon_file, files_zip, storage, cache=cache
         )
 
         serialized_builder = super().export_serialized(

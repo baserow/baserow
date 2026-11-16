@@ -32,7 +32,13 @@ from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import Job
 from baserow.core.jobs.tasks import run_async_job
-from baserow.core.models import Template, TemplateCategory, Workspace, WorkspaceUser
+from baserow.core.models import (
+    Template,
+    TemplateCategory,
+    UserFile,
+    Workspace,
+    WorkspaceUser,
+)
 from baserow.core.storage import get_default_storage
 from baserow.core.user_templates.actions import (
     DeleteUserTemplateActionType,
@@ -53,6 +59,7 @@ from tests.baserow.core.user_templates.utils import (
     CLEARED_KEYS,
     ICON,
     OTHER_ICON,
+    add_files_to_source,
     add_password_data,
     assert_password_data_left_out,
     copied_applications,
@@ -70,6 +77,7 @@ from tests.baserow.core.user_templates.utils import (
     store_archive,
     update_content,
     update_details,
+    user_files_referenced_in,
 )
 
 
@@ -271,9 +279,9 @@ def test_update_user_template_content_rules(data_fixture, use_tmp_media_root):
     for service in services:
         assert service.table_id is None
         assert service.view_id is None
-    content = serialized_content(revision)
-    assert content
-    for key, value in find_values(content, CLEARED_KEYS):
+    cleared = list(find_values(serialized_content(revision).applications, CLEARED_KEYS))
+    assert cleared
+    for key, value in cleared:
         assert value in (None, ""), f"{key} = {value}"
 
 
@@ -296,6 +304,35 @@ def test_update_user_template_content_empties_password_fields(
     assert_password_data_left_out(
         copied_applications(revision)["database"].table_set.get()
     )
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_update_user_template_content_copies_the_files_again(
+    data_fixture, use_tmp_media_root
+):
+    source = create_source(data_fixture)
+    user, workspace = source["user"], source["workspace"]
+    author_files = set(add_files_to_source(data_fixture, source).values())
+    applications = [source["database"], source["builder"]]
+    root = start_job(user, workspace, applications).template
+    root_files = user_files_referenced_in(root.workspace)
+
+    job = update_content(user, root, workspace, applications)
+
+    assert job.state == JOB_FINISHED, job.error
+    revision = Template.objects.get(root=root)
+    revision_files = user_files_referenced_in(revision.workspace)
+    assert len(revision_files) == len(author_files)
+    assert revision_files == set(UserFile.objects.template_files(revision.workspace_id))
+    assert not revision_files & (root_files | author_files)
+    assert user_files_referenced_in(root.workspace) == root_files
+
+    file_count = UserFile.objects.count()
+    job = update_details(user, root)
+
+    assert job.state == JOB_FINISHED, job.error
+    assert UserFile.objects.count() == file_count
 
 
 @pytest.mark.import_export_workspace
