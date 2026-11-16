@@ -628,10 +628,28 @@ def _resolves_to_created_row(row_id_formula, trigger, create_node) -> bool:
     return value in (555, "555")
 
 
+def _updates_created_row(update, create, trigger, source_field) -> bool:
+    """
+    Whether an update_row node runs right after the create_row node, reads the
+    row it created, and sets Source to 'automation'.
+    """
+
+    service = update.service.specific
+    mapping = service.field_mappings.filter(field=source_field, enabled=True).first()
+    return (
+        trigger is not None
+        and _follows(update, create)
+        and _resolves_to_created_row(service.row_id, trigger, create)
+        and mapping is not None
+        and _resolve_saved_formula(mapping.value) == "automation"
+    )
+
+
 def _check_updates_created_row(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     log_table = scenario.refs["log_table"]
+    source = log_table.field_set.get(name="Source")
 
     def check(trigger, actions):
         creates = [
@@ -641,7 +659,7 @@ def _check_updates_created_row(
             and node.service.specific.table_id == log_table.id
         ]
         updates = [
-            node.service.specific
+            node
             for node in actions
             if node.get_type().type == "local_baserow_update_row"
             and node.service.specific.table_id == log_table.id
@@ -650,10 +668,9 @@ def _check_updates_created_row(
             CheckResult("create_row on Log in DB", bool(creates)),
             CheckResult("update_row on Log in DB", bool(updates)),
             CheckResult(
-                "update_row targets the created row, not the trigger row",
-                trigger is not None
-                and any(
-                    _resolves_to_created_row(update.row_id, trigger, create)
+                "update_row after the create_row sets Source on the created row",
+                any(
+                    _updates_created_row(update, create, trigger, source)
                     for update in updates
                     for create in creates
                 ),
@@ -1092,21 +1109,22 @@ def _check_adds_update_of_created_row(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
     refs = scenario.refs
+    source = refs["log_table"].field_set.get(name="Source")
     updates = [
-        node.service.specific
+        node
         for node in AutomationNode.objects.filter(workflow=refs["workflow"])
         if node.get_type().type == "local_baserow_update_row"
         and node.service.specific.table_id == refs["log_table"].id
     ]
-    row_ids = [update.row_id for update in updates]
+    row_ids = [update.service.specific.row_id for update in updates]
 
     return [
         CheckResult("update_row on Log in DB", bool(updates)),
         CheckResult(
-            "update_row targets the created row, not the trigger row",
+            "update_row after the create_row sets Source on the created row",
             any(
-                _resolves_to_created_row(row_id, refs["trigger"], refs["create"])
-                for row_id in row_ids
+                _updates_created_row(update, refs["create"], refs["trigger"], source)
+                for update in updates
             ),
             hint=f"saved row_id formulas: {row_ids}",
         ),

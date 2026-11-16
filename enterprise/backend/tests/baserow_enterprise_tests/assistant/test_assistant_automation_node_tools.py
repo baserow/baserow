@@ -1851,8 +1851,28 @@ def test_add_nodes_tells_the_generator_which_node_wrote_the_previous_row(
 
     assert "formula_errors" not in result
     [(formulas, metadata)] = generator_calls
-    # "The previous step" is the create_row node, not the trigger: the generator
-    # used to read it as the trigger and update the trigger's row instead.
-    assert f"node {create['id']} ('Add log entry')" in formulas["row_id"]
-    assert metadata[str(create["id"])]["node_type"] == "local_baserow_create_row"
-    assert metadata[str(trigger["id"])]["node_type"] == "local_baserow_rows_created"
+    # "The previous step" names the create_row node, and each node says how its
+    # data is read: the trigger's rows by index, the created row without one.
+    assert f"follows node {create['id']} ('Add log entry')" in formulas["row_id"]
+    created, fired = metadata[str(create["id"])], metadata[str(trigger["id"])]
+    assert created["node_type"] == "local_baserow_create_row"
+    assert created["formula_path"] == f"previous_node.{create['id']}"
+    assert fired["node_type"] == "local_baserow_rows_created"
+    assert fired["formula_path"] == f"previous_node.{trigger['id']}.0"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("label", ["Add log entry", ""])
+def test_formula_requests_name_the_node_this_one_follows(data_fixture, label):
+    node = data_fixture.create_local_baserow_update_row_action_node()
+    previous = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=node.workflow, label=label
+    )
+    error = {"field": "row_id", "formula": "$formula: the created row"}
+
+    [request] = automation_agents.formula_requests(node, [error], previous).values()
+    [without] = automation_agents.formula_requests(node, [error]).values()
+
+    named = f"node {previous.id} ('{label}')" if label else f"node {previous.id}:"
+    assert f"This node follows {named}" in request
+    assert "follows" not in without

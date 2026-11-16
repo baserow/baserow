@@ -156,6 +156,17 @@ def _compact_properties(schema: dict[str, Any]) -> dict[str, Any]:
     return properties
 
 
+def formula_path(node: AutomationNode) -> str:
+    """
+    The formula path to a node's data: ``previous_node.<id>.0`` for a node that
+    outputs a list of rows, else ``previous_node.<id>``.
+    """
+
+    service = node.service.specific
+    path = f"previous_node.{node.id}"
+    return path + ".0" if service.get_type().returns_list(service) else path
+
+
 def output_schema(node: AutomationNode) -> dict[str, Any]:
     """
     What a node outputs, for the formulas of the nodes after it: the formula path
@@ -167,10 +178,10 @@ def output_schema(node: AutomationNode) -> dict[str, Any]:
     schema = service_type.generate_schema(service) or {}
     if schema.get("type") == "array":
         schema = schema.get("items") or {}
-    path = f"previous_node.{node.id}"
-    if service_type.returns_list(service):
-        path += ".0"
-    return {"formula_path": path, "properties": _compact_properties(schema)}
+    return {
+        "formula_path": formula_path(node),
+        "properties": _compact_properties(schema),
+    }
 
 
 def node_outputs(
