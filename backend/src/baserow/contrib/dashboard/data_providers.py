@@ -1,6 +1,9 @@
 import re
 
-from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
+from baserow.contrib.dashboard.data_sources.exceptions import (
+    DashboardDataSourceDoesNotExist,
+)
+from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHandler
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.core.cache import local_cache
 from baserow.core.formula.exceptions import InvalidFormulaContext
@@ -108,6 +111,13 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
     def get_data_chunk(self, dispatch_context, path):
         raise NotImplementedError("Dashboard option formulas resolve in the frontend.")
 
+    def _get_data_source(self, source_id):
+        """Resolve through the handler, tolerating references to deleted sources."""
+        try:
+            return DashboardDataSourceHandler().get_data_source(int(source_id))
+        except DashboardDataSourceDoesNotExist:
+            return None
+
     def extract_properties(self, path, **kwargs):
         """Resolve a context reference to properties of its owning service."""
         self.is_valid(path)
@@ -116,7 +126,7 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
         source = (
             sources.get(int(source_id))
             if sources is not None
-            else DashboardDataSource.objects.filter(id=int(source_id)).first()
+            else self._get_data_source(source_id)
         )
         if source is None or not source.service_id:
             return {}
@@ -132,7 +142,7 @@ class DashboardDataSourceContextDataProviderType(DataProviderType):
         mapped_id = id_mapping.get("dashboard_data_sources", {}).get(int(source_id))
         if mapped_id is not None:
             source_id = mapped_id
-            source = DashboardDataSource.objects.filter(id=source_id).first()
+            source = self._get_data_source(source_id)
             if source and source.service_id:
                 service = source.service.specific
                 rest = service.get_type().import_context_path(rest, id_mapping)
