@@ -9,6 +9,7 @@ from baserow.contrib.dashboard.widgets.registries import (
     WidgetType,
     widget_type_registry,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
@@ -80,16 +81,24 @@ class WidgetHandler:
         dashboard: Dashboard,
         base_queryset: QuerySet | None = None,
         specific: bool = True,
+        with_cache: bool = False,
     ) -> QuerySet[Widget] | Iterable[Widget]:
         """
-        Gets all the specific widgets of a given page.
+        Gets all the specific widgets of a dashboard.
 
         :param dashboard: The dashboard that holds the widgets.
         :param base_queryset: The base queryset to use to build the query.
         :param specific: Whether to return the generic widgets or the specific
             instances.
+        :param with_cache: Reuse request-local results for the default queryset.
         :return: The widgets of the dashboard.
         """
+
+        if with_cache and base_queryset is None:
+            return local_cache.get(
+                f"dashboard_widgets_{dashboard.id}_{specific}",
+                lambda: list(self.get_widgets(dashboard, specific=specific)),
+            )
 
         queryset = base_queryset if base_queryset is not None else Widget.objects.all()
         queryset = queryset.select_related("dashboard", "dashboard__workspace").filter(
@@ -110,6 +119,13 @@ class WidgetHandler:
             widgets = queryset
 
         return widgets
+
+    @staticmethod
+    def invalidate_widgets_cache(dashboard_id):
+        """Discard request-local widget lookups and their validated input after edits."""
+        for specific in (True, False):
+            local_cache.delete(f"dashboard_widgets_{dashboard_id}_{specific}")
+        local_cache.delete(f"dashboard_validated_widget_data_{dashboard_id}")
 
     def get_widgets_for_update(
         self, dashboard: Dashboard, base_queryset: QuerySet | None = None

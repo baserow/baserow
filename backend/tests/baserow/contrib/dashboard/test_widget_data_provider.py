@@ -1438,3 +1438,30 @@ def test_public_property_cache_reuses_widgets_and_invalidates_changes(
     )
     assert set(public_source["context_data"]) == {field.db_column}
     assert parsed_widgets == [widget.id, widget.id, widget.id]
+
+
+@pytest.mark.django_db
+def test_widget_values_validate_once_per_request(data_fixture, monkeypatch):
+    """Equivalent dispatch contexts share validation, while another request starts fresh."""
+    from baserow.contrib.dashboard.widgets.widget_types import SummaryWidgetType
+
+    widget = data_fixture.create_summary_widget()
+    values = []
+
+    def validate_dispatch_data(self, instance, value):
+        values.append(value)
+        return value.upper()
+
+    monkeypatch.setattr(
+        SummaryWidgetType, "validate_dispatch_data", validate_dispatch_data
+    )
+    for value in ("first", "second"):
+        with local_cache.context():
+            for _ in range(2):
+                context = DashboardDispatchContext(
+                    HttpRequest(),
+                    dashboard=widget.dashboard,
+                    data={"widget_data": {str(widget.id): value}},
+                )
+                assert context[f"widget_data.{widget.id}"] == value.upper()
+    assert values == ["first", "second"]

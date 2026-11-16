@@ -27,6 +27,9 @@ def invalidate_changed_widget_properties(sender, instance, **kwargs):
 
     if not isinstance(instance, Widget):
         return
+    from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+
+    WidgetHandler.invalidate_widgets_cache(instance.dashboard_id)
     widget_id = instance.id
     invalidate_widget_properties(widget_id)
     # A concurrent reader can still see the old database state before commit.
@@ -45,6 +48,9 @@ def invalidate_source_widget_properties(sender, instance, **kwargs):
 
     if not isinstance(instance, DashboardDataSource):
         return
+    from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+
+    WidgetHandler.invalidate_widgets_cache(instance.dashboard_id)
     widget_ids = list(
         Widget.objects_and_trash.filter(dashboard_id=instance.dashboard_id).values_list(
             "id", flat=True

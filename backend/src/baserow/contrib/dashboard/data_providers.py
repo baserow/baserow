@@ -2,6 +2,7 @@ import re
 
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+from baserow.core.cache import local_cache
 from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import DataProviderType, DataProviderTypeRegistry
@@ -33,12 +34,12 @@ class WidgetDataProviderType(DataProviderType):
         """Load only active widgets belonging to the dispatched dashboard."""
         if dispatch_context.dashboard is None:
             raise InvalidFormulaContext("Invalid dashboard widget reference.")
-        if "dashboard_widgets" not in dispatch_context.cache:
-            dispatch_context.cache["dashboard_widgets"] = {
-                str(widget.id): widget
-                for widget in WidgetHandler().get_widgets(dispatch_context.dashboard)
-            }
-        return dispatch_context.cache["dashboard_widgets"]
+        return {
+            str(widget.id): widget
+            for widget in WidgetHandler().get_widgets(
+                dispatch_context.dashboard, with_cache=True
+            )
+        }
 
     def validate_data_chunk(self, widget_id, value, dispatch_context):
         """Delegate each widget value to its type's runtime validation hook."""
@@ -48,28 +49,31 @@ class WidgetDataProviderType(DataProviderType):
         return widget.get_type().validate_dispatch_data(widget, value)
 
     def validate_data(self, dispatch_context):
-        """Validate supplied widget values for API and internal dispatch callers."""
+        """Share validated widget values within the request's dashboard payload."""
+        if dispatch_context.dashboard is None:
+            raise InvalidFormulaContext("Invalid dashboard widget reference.")
+        return local_cache.get(
+            f"dashboard_validated_widget_data_{dispatch_context.dashboard.id}",
+            lambda: self._validate_data(dispatch_context),
+        )
+
+    def _validate_data(self, dispatch_context):
+        """Validate the request payload through each referenced widget type."""
         from rest_framework.exceptions import ValidationError
 
-        if "validated_widget_data" not in dispatch_context.cache:
-            values = dispatch_context.data.get(self.type, {})
-            if not isinstance(values, dict):
-                raise ValidationError("Expected widget data keyed by widget IDs.")
-            validated = {}
-            for key, value in values.items():
-                try:
-                    if not isinstance(key, str):
-                        raise BaserowFormulaSyntaxError(
-                            "Expected a dashboard widget ID."
-                        )
-                    self.is_valid([key])
-                    validated[key] = self.validate_data_chunk(
-                        key, value, dispatch_context
-                    )
-                except (BaserowFormulaSyntaxError, InvalidFormulaContext) as exc:
-                    raise ValidationError(str(exc)) from exc
-            dispatch_context.cache["validated_widget_data"] = validated
-        return dispatch_context.cache["validated_widget_data"]
+        values = dispatch_context.data.get(self.type, {})
+        if not isinstance(values, dict):
+            raise ValidationError("Expected widget data keyed by widget IDs.")
+        validated = {}
+        for key, value in values.items():
+            try:
+                if not isinstance(key, str):
+                    raise BaserowFormulaSyntaxError("Expected a dashboard widget ID.")
+                self.is_valid([key])
+                validated[key] = self.validate_data_chunk(key, value, dispatch_context)
+            except (BaserowFormulaSyntaxError, InvalidFormulaContext) as exc:
+                raise ValidationError(str(exc)) from exc
+        return validated
 
     def get_data_chunk(self, dispatch_context, path):
         """Resolve validated widget input, falling back to its type's default."""

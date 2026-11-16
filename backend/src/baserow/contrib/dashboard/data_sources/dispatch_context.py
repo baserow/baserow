@@ -61,7 +61,7 @@ class DashboardDispatchContext(DispatchContext):
 
         widgets = [
             (widget, widget.get_type())
-            for widget in WidgetHandler().get_widgets(self.dashboard)
+            for widget in WidgetHandler().get_widgets(self.dashboard, with_cache=True)
         ]
         target = next(
             (
