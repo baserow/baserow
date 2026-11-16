@@ -10,7 +10,11 @@ from baserow.core.operations import (
 )
 from baserow.core.permission_manager import WorkspaceMemberOnlyPermissionManagerType
 from baserow.core.registries import subject_type_registry
-from baserow.core.subjects import UserSubjectType
+from baserow.core.subjects import (
+    HumanSubjectType,
+    IdentitySubjectType,
+    UserSubjectType,
+)
 from baserow.core.types import PermissionCheck
 
 
@@ -28,13 +32,54 @@ def test_workspace_role_availability_only_queries_identity_roles(
 
 
 @pytest.mark.django_db
+def test_registry_gives_each_user_type_its_own_subject_type(data_fixture):
+    workspace = data_fixture.create_workspace()
+    human = data_fixture.create_user(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace)
+    unknown = data_fixture.create_user(workspace=workspace)
+    unknown.profile.user_type = "unknown"
+
+    human_type = subject_type_registry.get_specific_type(human)
+    identity_type = subject_type_registry.get_specific_type(identity)
+
+    assert type(human_type) is HumanSubjectType
+    assert type(identity_type) is IdentitySubjectType
+    assert type(subject_type_registry.get_specific_type(unknown)) is HumanSubjectType
+    assert type(subject_type_registry.get_by_model(identity)) is UserSubjectType
+    assert human_type.type == identity_type.type == UserSubjectType.type
+    assert human_type.is_interactive_user
+    assert not identity_type.is_interactive_user
+
+
+@pytest.mark.django_db
+def test_stored_user_subject_type_answers_for_humans_and_identities_together(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    human = data_fixture.create_user(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace)
+    outsider = data_fixture.create_identity()
+    stored_type = subject_type_registry.get(UserSubjectType.type)
+
+    assert stored_type.are_in_workspace([identity, human, outsider], workspace) == [
+        True,
+        True,
+        False,
+    ]
+    assert stored_type.get_label(human) == human.email
+    assert stored_type.get_label(identity) == identity.first_name
+    assert stored_type.get_users_included_in_subject(human) == [human]
+    assert stored_type.get_users_included_in_subject(identity) == []
+
+
+@pytest.mark.django_db
 def test_identity_uses_user_subject_and_workspace_membership(data_fixture):
     workspace = data_fixture.create_workspace()
     identity = data_fixture.create_identity(workspace=workspace)
     subject = subject_type_registry.get_by_model(identity)
 
     assert isinstance(subject, UserSubjectType)
-    assert not subject.is_interactive_user(identity)
+    assert not subject_type_registry.get_specific_type(identity).is_interactive_user
     assert subject.get_users_included_in_subject(identity) == []
     assert subject.is_in_workspace(identity, workspace)
     assert not subject.is_in_workspace(identity, data_fixture.create_workspace())

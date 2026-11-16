@@ -1524,8 +1524,7 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     """
 
     # Interactive users can persist undoable actions and emit product analytics.
-    def is_interactive_user(self, subject: Subject) -> bool:
-        return False
+    is_interactive_user: bool = False
 
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
@@ -1545,6 +1544,17 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
         """Record usage when a subject dispatches a service through an integration."""
 
         pass
+
+    def get_specific_type(self, subject: Subject) -> "SubjectType":
+        """
+        Returns the subject type that holds the behaviour of the given subject. Only
+        subject types whose stored subjects differ in behaviour override this.
+
+        :param subject: A subject stored under this subject type.
+        :return: The subject type to ask about the subject.
+        """
+
+        return self
 
     def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
         """Return the subjects whose direct roles belong to a workspace.
@@ -1734,6 +1744,18 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
 
     name = "subject"
     does_not_exist_exception_class = SubjectTypeNotExist
+
+    def get_specific_type(self, subject: Subject) -> SubjectType:
+        """
+        Returns the subject type that holds the behaviour of the given subject, for
+        code that needs what differs between the subjects stored under one type.
+
+        :param subject: The subject.
+        :raises SubjectTypeNotExist: When no subject type is registered for it.
+        :return: The specific subject type.
+        """
+
+        return self.get_by_model(subject).get_specific_type(subject)
 
     def get_serializer(self, model_instance, **kwargs) -> Serializer:
         """

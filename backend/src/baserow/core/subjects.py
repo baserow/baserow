@@ -1,3 +1,5 @@
+from collections import defaultdict
+from collections.abc import Callable
 from copy import copy
 from typing import List
 
@@ -16,11 +18,17 @@ from django.db.models import (
 )
 from django.db.models.functions import Cast
 
+from baserow.core.identities.registries import identity_extension_type_registry
+from baserow.core.identities.signals import identity_updated
 from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
 from baserow.core.registries import SubjectType
 from baserow.core.types import Subject
-from baserow.core.user.identity import is_human, is_identity, load_user_types
+from baserow.core.user.identity import (
+    active_identity_q,
+    is_identity,
+    load_user_types,
+)
 
 
 def _memberships(include_trash: bool) -> QuerySet[WorkspaceUser]:
@@ -57,23 +65,53 @@ def without_prefetched_memberships(workspace: Workspace) -> Workspace:
 
 
 class UserSubjectType(SubjectType):
+    """
+    The type that people and identities are stored under. What differs between them
+    lives in `HumanSubjectType` and `IdentitySubjectType`, which override every method
+    this class forwards. `get_specific_type` is the only place that tells them apart.
+    """
+
     type = "auth.User"
     model_class = User
-
-    def is_interactive_user(self, subject):
-        return is_human(subject)
-
-    def track_usage(self, subject):
-        if is_identity(subject):
-            from baserow.core.identities.handler import IdentityHandler
-
-            IdentityHandler().update_last_active(subject)
-
     display_name_field = "first_name"
     lookup_fields = (*SubjectType.lookup_fields, "email")
     options_list_operation_type = ListWorkspaceUsersWorkspaceOperationType.type
 
     has_direct_workspace_roles = True
+
+    def get_specific_type(self, subject: AbstractUser) -> "UserSubjectType":
+        return identity_subject_type if is_identity(subject) else human_subject_type
+
+    def _ask_specific_types(
+        self,
+        subjects: List[AbstractUser],
+        ask: Callable[["UserSubjectType", List[AbstractUser]], List[bool]],
+    ) -> List[bool]:
+        """
+        Asks each specific type about its own subjects.
+
+        :param subjects: The people and identities to ask about.
+        :param ask: Returns the answers of one specific type for its subjects.
+        :return: One answer per subject, in the order of the given subjects.
+        """
+
+        load_user_types(subjects)
+        subjects_per_type = defaultdict(list)
+        for subject in subjects:
+            subjects_per_type[self.get_specific_type(subject)].append(subject)
+        answers = {}
+        for specific_type, type_subjects in subjects_per_type.items():
+            answers.update(
+                zip(
+                    (subject.id for subject in type_subjects),
+                    ask(specific_type, type_subjects),
+                    strict=True,
+                )
+            )
+        return [answers[subject.id] for subject in subjects]
+
+    def track_usage(self, subject: AbstractUser) -> None:
+        self.get_specific_type(subject).track_usage(subject)
 
     def get_workspace_subjects(self, workspace: Workspace, include_trash=False):
         return [
@@ -92,20 +130,23 @@ class UserSubjectType(SubjectType):
         send_signals: bool = True,
     ):
         """Store workspace roles on membership records, retaining basic role names."""
+
+        self.get_specific_type(subject).set_workspace_role_uid(
+            subject, workspace, role_uid, send_signals=send_signals
+        )
+
+    def _store_workspace_role_uid(
+        self, subject: AbstractUser, workspace: Workspace, role_uid: str
+    ) -> None:
         from baserow.core.handler import CoreHandler
 
-        # Keep roles on WorkspaceUser.permissions so switching permission managers
-        # does not lose or duplicate information. Basic permissions call BUILDER MEMBER.
+        # Roles stay on the membership so switching permission managers keeps them.
         workspace_user = workspace.get_workspace_user(subject)
         permissions = "MEMBER" if role_uid == "BUILDER" else role_uid
         CoreHandler().force_update_workspace_user(
             None, workspace_user, permissions=permissions
         )
         getattr(subject, "_prefetched_objects_cache", {}).pop("workspaceuser_set", None)
-        if is_identity(subject) and send_signals:
-            from baserow.core.identities.signals import identity_updated
-
-            identity_updated.send(self, user=None, identity=subject)
 
     def get_type_display_name(self):
         return "User"
@@ -123,7 +164,7 @@ class UserSubjectType(SubjectType):
         return User.objects_and_identities.filter(profile__trashed=True)
 
     def get_label(self, subject: AbstractUser) -> str:
-        return subject.first_name if is_identity(subject) else subject.email
+        return self.get_specific_type(subject).get_label(subject)
 
     def get_options_queryset(
         self,
@@ -221,22 +262,15 @@ class UserSubjectType(SubjectType):
             settings, "NO_ROLE_LOW_PRIORITY_UID", "NO_ROLE_LOW_PRIORITY"
         )
 
-    def are_workspace_roles_available(self, subjects, workspace):
-        from baserow.core.identities.registries import identity_extension_type_registry
-
-        load_user_types(subjects)
-        identities = [subject for subject in subjects if is_identity(subject)]
-        if not identities:
-            return [True] * len(subjects)
-        roles = self.get_workspace_role_uids(identities, workspace, include_trash=True)
-        available = {
-            uid: identity_extension_type_registry.role_uid_exists(uid, workspace)
-            for uid in set(roles.values())
-        }
-        return [
-            not is_identity(subject) or available.get(roles.get(subject.id), False)
-            for subject in subjects
-        ]
+    def are_workspace_roles_available(
+        self, subjects: List[AbstractUser], workspace: Workspace
+    ) -> List[bool]:
+        return self._ask_specific_types(
+            subjects,
+            lambda specific_type, type_subjects: (
+                specific_type.are_workspace_roles_available(type_subjects, workspace)
+            ),
+        )
 
     def are_in_workspace(
         self,
@@ -244,14 +278,60 @@ class UserSubjectType(SubjectType):
         workspace: Workspace,
         include_trash: bool = False,
     ) -> List[bool]:
-        load_user_types(subjects)
+        return self._ask_specific_types(
+            subjects,
+            lambda specific_type, type_subjects: specific_type.are_in_workspace(
+                type_subjects, workspace, include_trash=include_trash
+            ),
+        )
+
+    def get_serializer(self, model_instance, **kwargs):
+        from baserow.api.user.serializers import SubjectUserSerializer
+
+        return SubjectUserSerializer(model_instance, **kwargs)
+
+    def get_users_included_in_subject(
+        self, subject: AbstractUser
+    ) -> List[AbstractUser]:
+        return self.get_specific_type(subject).get_users_included_in_subject(subject)
+
+
+class HumanSubjectType(UserSubjectType):
+    """Holds what is specific to a person."""
+
+    is_interactive_user = True
+
+    def get_specific_type(self, subject: AbstractUser) -> "HumanSubjectType":
+        return self
+
+    def track_usage(self, subject: AbstractUser) -> None:
+        pass
+
+    def set_workspace_role_uid(
+        self,
+        subject: AbstractUser,
+        workspace: Workspace,
+        role_uid: str,
+        send_signals: bool = True,
+    ) -> None:
+        self._store_workspace_role_uid(subject, workspace, role_uid)
+
+    def get_label(self, subject: AbstractUser) -> str:
+        return subject.email
+
+    def are_workspace_roles_available(
+        self, subjects: List[AbstractUser], workspace: Workspace
+    ) -> List[bool]:
+        return [True] * len(subjects)
+
+    def are_in_workspace(
+        self,
+        subjects: List[Subject],
+        workspace: Workspace,
+        include_trash: bool = False,
+    ) -> List[bool]:
         prefetched = getattr(workspace, "_prefetched_objects_cache", {})
-        if (
-            not include_trash
-            and "workspaceuser_set" in prefetched
-            and all(is_human(subject) for subject in subjects)
-        ):
-            # The prefetch only holds humans, so it can't answer for an identity.
+        if not include_trash and "workspaceuser_set" in prefetched:
             user_ids = {
                 membership.user_id for membership in workspace.workspaceuser_set.all()
             }
@@ -269,58 +349,94 @@ class UserSubjectType(SubjectType):
                 for subject in subjects
             ]
 
+        memberships = (
+            WorkspaceUser.objects_and_trash if include_trash else WorkspaceUser.objects
+        )
         # Reused tool contexts can hold stale users, so eligibility is re-read.
-        current_user_types = dict(
-            _memberships(include_trash)
-            .filter(
-                Q(user__profile__user_type=UserProfile.UserType.HUMAN)
-                | Q(
-                    user__profile__user_type=UserProfile.UserType.IDENTITY,
-                    user__profile__trashed=False,
-                    workspace__trashed=False,
-                ),
+        user_ids = set(
+            memberships.filter(
                 workspace=workspace,
                 user_id__in=[subject.id for subject in subjects],
                 user__is_active=True,
                 user__profile__to_be_deleted=False,
-            )
-            .values_list("user_id", "user__profile__user_type")
+            ).values_list("user_id", flat=True)
         )
-
-        identity_ids = [subject.id for subject in subjects if is_identity(subject)]
-        # Include trashed memberships: extra memberships must not expand identity scope.
-        identity_memberships = (
-            dict(
-                WorkspaceUser.objects_and_identities.filter(user_id__in=identity_ids)
-                .values("user_id")
-                .annotate(count=Count("id"))
-                .values_list("user_id", "count")
-            )
-            if identity_ids
-            else {}
-        )
-        return [
-            (
-                is_human(subject)
-                and current_user_types.get(subject.id) == UserProfile.UserType.HUMAN
-            )
-            or (
-                is_identity(subject)
-                and current_user_types.get(subject.id) == UserProfile.UserType.IDENTITY
-                and identity_memberships.get(subject.id) == 1
-            )
-            for subject in subjects
-        ]
-
-    def get_serializer(self, model_instance, **kwargs):
-        from baserow.api.user.serializers import SubjectUserSerializer
-
-        return SubjectUserSerializer(model_instance, **kwargs)
+        return [subject.id in user_ids for subject in subjects]
 
     def get_users_included_in_subject(
         self, subject: AbstractUser
     ) -> List[AbstractUser]:
-        return [subject] if is_human(subject) else []
+        return [subject]
+
+
+class IdentitySubjectType(UserSubjectType):
+    """Holds what is specific to an identity."""
+
+    def get_specific_type(self, subject: AbstractUser) -> "IdentitySubjectType":
+        return self
+
+    def track_usage(self, subject: AbstractUser) -> None:
+        from baserow.core.identities.handler import IdentityHandler
+
+        IdentityHandler().update_last_active(subject)
+
+    def set_workspace_role_uid(
+        self,
+        subject: AbstractUser,
+        workspace: Workspace,
+        role_uid: str,
+        send_signals: bool = True,
+    ) -> None:
+        self._store_workspace_role_uid(subject, workspace, role_uid)
+        if send_signals:
+            identity_updated.send(self, user=None, identity=subject)
+
+    def get_label(self, subject: AbstractUser) -> str:
+        return subject.first_name
+
+    def are_workspace_roles_available(
+        self, subjects: List[AbstractUser], workspace: Workspace
+    ) -> List[bool]:
+        roles = self.get_workspace_role_uids(subjects, workspace, include_trash=True)
+        available = {
+            uid: identity_extension_type_registry.role_uid_exists(uid, workspace)
+            for uid in set(roles.values())
+        }
+        return [available.get(roles.get(subject.id), False) for subject in subjects]
+
+    def are_in_workspace(
+        self,
+        subjects: List[Subject],
+        workspace: Workspace,
+        include_trash: bool = False,
+    ) -> List[bool]:
+        # A trashed workspace never authorizes an identity, even with include_trash.
+        active_here = Q(workspace=workspace, workspace__trashed=False)
+        # Memberships in trashed workspaces count: a second one must not add scope.
+        identity_ids = set(
+            WorkspaceUser.objects_and_identities.filter(
+                user_id__in=[subject.id for subject in subjects]
+            )
+            .values("user_id")
+            .annotate(
+                memberships=Count("id"),
+                active_memberships=Count(
+                    "id", filter=active_here & active_identity_q("user__")
+                ),
+            )
+            .filter(memberships=1, active_memberships=1)
+            .values_list("user_id", flat=True)
+        )
+        return [subject.id in identity_ids for subject in subjects]
+
+    def get_users_included_in_subject(
+        self, subject: AbstractUser
+    ) -> List[AbstractUser]:
+        return []
+
+
+human_subject_type = HumanSubjectType()
+identity_subject_type = IdentitySubjectType()
 
 
 class AnonymousUserSubjectType(SubjectType):
