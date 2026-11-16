@@ -185,11 +185,16 @@ def _describe(error: dict[str, Any], base: str) -> str:
 
 
 def formula_requests(
-    node: AutomationNode, errors: list[dict[str, Any]]
+    node: AutomationNode,
+    errors: list[dict[str, Any]],
+    previous: AutomationNode | None = None,
 ) -> dict[Any, Any]:
     """
     What to ask the generator for a node's formula errors, keyed as
     ``_request_key``. A row value is described with its field.
+
+    :param previous: The node that runs right before ``node``, so "the previous
+        step" in a value's description is read as that node, not the trigger.
     """
 
     fields = {}
@@ -207,9 +212,18 @@ def formula_requests(
         key = _request_key(error)
         if "field_id" in error:
             field = fields.get(error["field_id"], {"desc": ""})
-            requests[key] = {**field, "desc": _describe(error, field["desc"])}
+            description = _describe(error, field["desc"])
         else:
-            requests[key] = _describe(error, _DESCRIPTIONS.get(error["field"], ""))
+            description = _describe(error, _DESCRIPTIONS.get(error["field"], ""))
+        if previous is not None:
+            description += (
+                f" The previous node or step is node {previous.id} "
+                f"('{previous.label}'), which runs right before this one."
+            )
+        if "field_id" in error:
+            requests[key] = {**field, "desc": description}
+        else:
+            requests[key] = description
     return requests
 
 
@@ -244,6 +258,7 @@ class WorkflowExamples:
         self.user = user
         self.refs = refs or {}
         self._workflows: dict[int, tuple[dict, dict]] = {}
+        self._previous: dict[int, AutomationNode | None] = {}
 
     def _read(self, workflow) -> tuple[dict, dict]:
         if workflow.id not in self._workflows:
@@ -253,6 +268,7 @@ class WorkflowExamples:
                 self.user, workflow
             ):
                 previous_of[node.id] = previous.id if previous else None
+                self._previous[node.id] = previous
                 service = node.service.specific
                 schema = service.get_type().generate_schema(service)
                 if not schema:
@@ -260,6 +276,7 @@ class WorkflowExamples:
                 metadata = minimize_json_schema(schema)
                 metadata["node_id"] = node.id
                 metadata["label"] = node.label
+                metadata["node_type"] = node.get_type().type
                 if node.id in self.refs:
                     metadata["node_ref"] = self.refs[node.id]
                 if previous is not None:
@@ -279,6 +296,12 @@ class WorkflowExamples:
         return {
             ref: node_id for node_id, ref in self.refs.items() if node_id in previous_of
         }
+
+    def previous(self, node: AutomationNode) -> AutomationNode | None:
+        """The node that runs right before ``node``, if any."""
+
+        self._read(node.workflow)
+        return self._previous.get(node.id)
 
     def context_for(self, node: AutomationNode) -> "AssistantFormulaContext":
         """
@@ -471,7 +494,8 @@ def _repair_node(
         _("Generating formulas for node '%(label)s'...") % {"label": node.label}
     )
     context = examples.context_for(node)
-    generated = generate_formula(formula_requests(node, node_errors), context) or {}
+    requests = formula_requests(node, node_errors, examples.previous(node))
+    generated = generate_formula(requests, context) or {}
     # The user may cancel while the model runs; nothing is written then.
     raise_if_cancelled()
 

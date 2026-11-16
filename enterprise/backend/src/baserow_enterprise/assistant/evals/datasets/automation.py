@@ -78,6 +78,20 @@ PROMPT_CREATES_UPDATE_ROW_WORKFLOW = (
     "Notes to 'Automatically reviewed by automation'."
 )
 
+PROMPT_UPDATES_CREATED_ROW = (
+    "In automation '{automation_name}', create a workflow that "
+    "triggers when a row is created in '{source_table_name}'. "
+    "Then create a row in '{log_table_name}' with Entry set to the new "
+    "contact's Name. After that, update the row that was just created in "
+    "'{log_table_name}': set Source to 'automation'."
+)
+
+PROMPT_ADDS_UPDATE_OF_CREATED_ROW = (
+    "In automation '{automation_name}', workflow '{workflow_name}': after the "
+    "'{create_label}' step, add a step that updates the row that step created "
+    "in the '{log_table_name}' table: set its Source field to 'automation'."
+)
+
 PROMPT_CREATES_EMAIL_NOTIFICATION_WORKFLOW = (
     "In automation '{automation_name}', create a workflow that "
     "triggers when a row is created in '{table_name}'. "
@@ -594,6 +608,77 @@ register_case(
 )
 
 # ---------------------------------------------------------------------------
+# Update the row an earlier create_row step created, not the trigger row
+# ---------------------------------------------------------------------------
+
+
+def _resolves_to_created_row(row_id_formula, trigger, create_node) -> bool:
+    """Whether a row_id formula reads the created row's id, given a trigger row
+    and a created row with different ids."""
+
+    context = AssistantFormulaContext()
+    context.add_node_context(trigger.id, [{"id": 101}])
+    context.add_node_context(create_node.id, {"id": 555})
+    try:
+        value = resolve_formula(
+            row_id_formula, formula_runtime_function_registry, context
+        )
+    except Exception:
+        return False
+    return value in (555, "555")
+
+
+def _check_updates_created_row(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    log_table = scenario.refs["log_table"]
+
+    def check(trigger, actions):
+        creates = [
+            node
+            for node in actions
+            if node.get_type().type == "local_baserow_create_row"
+            and node.service.specific.table_id == log_table.id
+        ]
+        updates = [
+            node.service.specific
+            for node in actions
+            if node.get_type().type == "local_baserow_update_row"
+            and node.service.specific.table_id == log_table.id
+        ]
+        return [
+            CheckResult("create_row on Log in DB", bool(creates)),
+            CheckResult("update_row on Log in DB", bool(updates)),
+            CheckResult(
+                "update_row targets the created row, not the trigger row",
+                trigger is not None
+                and any(
+                    _resolves_to_created_row(update.row_id, trigger, create)
+                    for update in updates
+                    for create in creates
+                ),
+            ),
+        ]
+
+    return _check_saved_workflows(scenario.refs["automation"], output, check)
+
+
+register_case(
+    EvalCase(
+        id="automation/updates-created-row",
+        dataset="kuma-automation",
+        prompt=PROMPT_UPDATES_CREATED_ROW.format(
+            automation_name="Contact Logger",
+            source_table_name="Contacts",
+            log_table_name="Log",
+        ),
+        scenario="automation-creates-row-with-field-values",
+        checks=_check_updates_created_row,
+        max_iters=20,
+    )
+)
+
+# ---------------------------------------------------------------------------
 # Update-row workflow (rows_updated trigger, references trigger row)
 # ---------------------------------------------------------------------------
 
@@ -948,6 +1033,98 @@ register_case(
         ),
         scenario="automation-edits-email-subject",
         checks=_check_edits_email_subject,
+        max_iters=20,
+    )
+)
+
+# ---------------------------------------------------------------------------
+# Adds an update of the row an existing create_row step created
+# ---------------------------------------------------------------------------
+
+
+@register_scenario("automation-adds-update-of-created-row")
+def _adds_update_of_created_row_scenario(fx: Fixtures) -> EvalScenario:
+    user = fx.create_user()
+    workspace = fx.create_workspace(user=user)
+    database = fx.create_database_application(workspace=workspace)
+    table = fx.create_database_table(database=database, name="Contacts")
+    fx.create_text_field(table=table, name="Name", primary=True)
+    log_table = fx.create_database_table(database=database, name="Log")
+    fx.create_text_field(table=log_table, name="Entry", primary=True)
+    fx.create_text_field(table=log_table, name="Source")
+    automation = fx.create_automation_application(
+        workspace=workspace, name="Contact Logger"
+    )
+    workflow = AutomationWorkflowService().create_workflow(
+        user, automation.id, "Log contacts"
+    )
+    trigger = _create_node(
+        user,
+        workflow,
+        "local_baserow_rows_created",
+        label="Contact created",
+        service={"table_id": table.id},
+    )
+    create = _create_node(
+        user,
+        workflow,
+        "local_baserow_create_row",
+        label="Add log entry",
+        reference_node_id=trigger.id,
+        service={"table_id": log_table.id},
+    )
+    return _scenario(
+        {
+            "user": user,
+            "workspace": workspace,
+            "database": database,
+            "table": table,
+            "log_table": log_table,
+            "automation": automation,
+            "workflow": workflow,
+            "trigger": trigger,
+            "create": create,
+        }
+    )
+
+
+def _check_adds_update_of_created_row(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    refs = scenario.refs
+    updates = [
+        node.service.specific
+        for node in AutomationNode.objects.filter(workflow=refs["workflow"])
+        if node.get_type().type == "local_baserow_update_row"
+        and node.service.specific.table_id == refs["log_table"].id
+    ]
+    row_ids = [update.row_id for update in updates]
+
+    return [
+        CheckResult("update_row on Log in DB", bool(updates)),
+        CheckResult(
+            "update_row targets the created row, not the trigger row",
+            any(
+                _resolves_to_created_row(row_id, refs["trigger"], refs["create"])
+                for row_id in row_ids
+            ),
+            hint=f"saved row_id formulas: {row_ids}",
+        ),
+    ]
+
+
+register_case(
+    EvalCase(
+        id="automation/adds-update-of-created-row",
+        dataset="kuma-automation",
+        prompt=PROMPT_ADDS_UPDATE_OF_CREATED_ROW.format(
+            automation_name="Contact Logger",
+            workflow_name="Log contacts",
+            create_label="Add log entry",
+            log_table_name="Log",
+        ),
+        scenario="automation-adds-update-of-created-row",
+        checks=_check_adds_update_of_created_row,
         max_iters=20,
     )
 )

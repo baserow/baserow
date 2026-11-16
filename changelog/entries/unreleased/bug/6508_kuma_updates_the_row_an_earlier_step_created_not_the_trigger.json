@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Kuma now updates the row an earlier automation step created instead of the row that triggered the workflow",
+    "issue_origin": "github",
+    "issue_number": 6508,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-16"
+}

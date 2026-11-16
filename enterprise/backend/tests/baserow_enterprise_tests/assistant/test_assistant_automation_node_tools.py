@@ -1775,3 +1775,84 @@ def test_a_failed_read_before_generation_leaves_the_formula_error(
     assert calls == []
     [error] = result["formula_errors"]
     assert error["error"] == "read failed"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_nodes_tells_the_generator_which_node_wrote_the_previous_row(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    contacts = data_fixture.create_database_table(database=database)
+    log = data_fixture.create_database_table(database=database)
+    source = data_fixture.create_text_field(table=log, name="Source")
+    ctx = make_test_ctx(user, workspace)
+
+    created = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Log contacts",
+                trigger=TriggerNodeCreate(
+                    ref="trigger",
+                    label="Contact created",
+                    type="rows_created",
+                    rows_triggers_settings={"table_id": contacts.id},
+                ),
+                nodes=[
+                    ActionNodeCreate(
+                        ref="log",
+                        label="Add log entry",
+                        previous_node_ref="trigger",
+                        type="create_row",
+                        table_id=log.id,
+                        values=[AutomationFieldValue(field_id=source.id, value="new")],
+                    )
+                ],
+            )
+        ],
+        thought="create workflow",
+    )
+    workflow_id = created["created_workflows"][0]["id"]
+    trigger, create = list_nodes(ctx, workflow_id=workflow_id, thought="inspect")[
+        "nodes"
+    ]
+    generator_calls = []
+
+    def generate(formulas, context):
+        generator_calls.append((formulas, context.get_context_metadata()))
+        return {"row_id": f"get('previous_node.{create['id']}.id')"}
+
+    monkeypatch.setattr(
+        automation_agents, "get_generate_formulas_tool", lambda _profile: generate
+    )
+
+    result = add_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            ActionNodeCreate(
+                ref="update",
+                label="Set source",
+                previous_node_ref=str(create["id"]),
+                type="update_row",
+                table_id=log.id,
+                row_id="$formula: ID of the row created by the previous step",
+                values=[AutomationFieldValue(field_id=source.id, value="automation")],
+            )
+        ],
+        thought="update the created row",
+    )
+
+    assert "formula_errors" not in result
+    [(formulas, metadata)] = generator_calls
+    # "The previous step" is the create_row node, not the trigger: the generator
+    # used to read it as the trigger and update the trigger's row instead.
+    assert f"node {create['id']} ('Add log entry')" in formulas["row_id"]
+    assert metadata[str(create["id"])]["node_type"] == "local_baserow_create_row"
+    assert metadata[str(trigger["id"])]["node_type"] == "local_baserow_rows_created"

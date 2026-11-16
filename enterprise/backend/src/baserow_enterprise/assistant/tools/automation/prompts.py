@@ -6,8 +6,8 @@ GENERATE_FORMULA_PROMPT = (
 ## Context: Automation Workflows
 
 In automation formulas, data is accessed through the previous_node structure:
-- Path format: get('previous_node.<node_id>.0.<field_name>')
-- Each node ID maps to an array of rows; use index 0 for the first (and usually only) row.
+- A trigger's node ID maps to an array of rows; use index 0 for the first (and usually only) row: get('previous_node.<node_id>.0.<field_name>')
+- A node that creates or updates a row (node_type local_baserow_create_row or local_baserow_update_row) maps its node ID to that one row, read without an index: get('previous_node.<node_id>.<field_name>'). Its `id` is the ID of the row it created or updated, so "the row created by <node>" is get('previous_node.<node_id>.id'), never the trigger's row.
 
 **Example 1 - String Fields:**
 Input:
