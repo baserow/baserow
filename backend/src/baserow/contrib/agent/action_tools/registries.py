@@ -121,8 +121,8 @@ class AgentActionType(Instance, ABC):
         """
         :param action: The action called.
         :param resolved_values: What ``prepare`` returned for the call.
-        :return: The step input: every value of the readable request, never
-            shortened, as whoever approves the call reads all that it sends.
+        :return: The step input: the readable request as the type selected it.
+            Limiting what a call sends and what its preview shows is up to the type.
         """
 
         return {

@@ -59,9 +59,9 @@ A broken action is left out; it never fails the reply.
    for approval.
 2. `prepare` resolves the service's formulas **once**. The result is the call's
    resolved values.
-3. The readable request, built from those values, is shown on the step in
-   full: every recipient, the whole body. It is never shortened, as whoever
-   approves a call reads all that it sends. A call's size has no limit yet.
+3. The readable request, built from those values, is shown on the step. Each
+   action type decides how to limit what a call may send and what its preview
+   shows. Send email limits neither yet.
 4. With Ask first, the call is held. The resolved values are kept in the paused
    run (`ApprovalRequired(metadata=...)`) with the action's approval key.
 5. `dispatch` sends the resolved values through `ServiceHandler.dispatch_service`.
@@ -102,6 +102,9 @@ duplicated agent keeps the actions it had.
    - `get_defaults()`: the starter name, instructions, inputs and service values.
    - `get_preview_values(service, resolved_values)`: an explicit allowlist of what
      people read, fixed settings included. Never credentials.
+
+   Decide there how to limit what a call may send and what its preview shows:
+   nothing shared limits either.
 2. Make sure the service's resolved values survive JSON, as they wait in the paused
    run. Convert them in the type if they don't.
 3. Register an `ActionToolPresentationType` under the same type name, with the
@@ -112,7 +115,7 @@ duplicated agent keeps the actions it had.
    order changes the approval key between two reads.
 
 The CRUD API, permissions, audit, realtime events, typed input editor, argument
-validation, approvals and limits are shared and need nothing.
+validation, approvals and the cap on an agent's actions are shared and need nothing.
 
 ## Planned order
 
