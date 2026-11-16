@@ -1,12 +1,6 @@
 <template>
   <form
     class="widget-settings-base-form"
-    :class="{
-      'widget-settings-base-form--filter': $registry.get(
-        'dashboardWidget',
-        widget.type
-      ).isFilterWidget,
-    }"
     @submit.prevent
     @keydown.enter.prevent
   >

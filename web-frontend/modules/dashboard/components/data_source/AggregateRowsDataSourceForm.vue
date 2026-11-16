@@ -1,5 +1,6 @@
 <template>
   <form @submit.prevent>
+    <div class="separator"></div>
     <FormSection
       :title="$t('aggregateRowsDataSourceForm.data')"
       class="margin-bottom-2"

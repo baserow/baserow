@@ -45,6 +45,7 @@ exports[`summary sources expose the shared filter control and save permanent con
     </div>
   </form>
   <form>
+    <div class="separator"></div>
     <div class="form-section margin-bottom-2">
       <div class="form-section__title-container">
         <h3 class="form-section__title">aggregateRowsDataSourceForm.data</h3>
