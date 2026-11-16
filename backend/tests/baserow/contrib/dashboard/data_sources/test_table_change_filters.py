@@ -156,10 +156,10 @@ def test_failed_table_change_leaves_conditions_untouched(api_client, table_chang
 
 
 @pytest.mark.django_db
-def test_reset_failure_rolls_back_table_and_conditions(monkeypatch, table_change):
+def test_request_rolls_back_failed_table_change(api_client, monkeypatch, table_change):
     from baserow.contrib.dashboard.widgets.mixins import DisplayWidgetTypeMixin
 
-    user, _, _, source, owner, table, field = table_change
+    _, token, _, source, owner, table, field = table_change
     before = deepcopy(owner.target_filters)
     original_table_id = source.service.specific.table_id
     reset = DisplayWidgetTypeMixin.after_update
@@ -170,12 +170,13 @@ def test_reset_failure_rolls_back_table_and_conditions(monkeypatch, table_change
 
     monkeypatch.setattr(DisplayWidgetTypeMixin, "after_update", fail_after_reset)
     with pytest.raises(RuntimeError, match="Reset failed"):
-        DashboardDataSourceService().update_data_source(
-            user,
-            source.id,
-            source.service.get_type(),
-            table_id=table.id,
-            field_id=field.id,
+        api_client.patch(
+            reverse(
+                "api:dashboard:data_sources:item", kwargs={"data_source_id": source.id}
+            ),
+            {"table_id": table.id, "field_id": field.id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
         )
     source.refresh_from_db()
     owner.refresh_from_db()

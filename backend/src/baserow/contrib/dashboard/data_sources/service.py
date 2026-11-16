@@ -1,7 +1,6 @@
 from typing import Any, Iterable
 
 from django.contrib.auth.models import AbstractUser
-from django.db import transaction
 from django.utils import translation
 from django.utils.translation import gettext as _
 
@@ -161,7 +160,6 @@ class DashboardDataSourceService:
 
         return new_data_source
 
-    @transaction.atomic
     def update_data_source(
         self,
         user: AbstractUser,
@@ -227,7 +225,6 @@ class DashboardDataSourceService:
 
         return updated_data_source
 
-    @transaction.atomic
     def restore_data_source(
         self, user, data_source_id, service_type, values, filter_links=None
     ):
