@@ -548,7 +548,9 @@
     "loginToastMessage": "You have been successfully signed in.",
     "loginErrorToastTitle": "Authentication Failed",
     "authorizedToastTitle": "Authentication Required",
-    "authorizedToastMessage": "You must be signed in to access this page. Please log in to continue."
+    "authorizedToastMessage": "You must be signed in to access this page. Please log in to continue.",
+    "siteUpdatedToastTitle": "Site updated",
+    "siteUpdatedToastMessage": "This site was updated while you were using it, so the page was reloaded. Please try again."
   },
   "integrationSettings": {
     "title": "Integrations",

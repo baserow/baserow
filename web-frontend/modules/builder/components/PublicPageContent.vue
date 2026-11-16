@@ -28,6 +28,7 @@ import { prefixInternalResolvedUrl } from '@baserow/modules/builder/utils/urlRes
 import { userCanViewPage } from '@baserow/modules/builder/utils/visibility'
 import { getCustomFaviconLinks } from '@baserow/modules/builder/utils/favicon'
 import { consumeLoginError } from '@baserow/modules/builder/utils/auth'
+import { consumeStaleSiteReloadNotice } from '@baserow/modules/builder/utils/error'
 import { resolveSafeNextPath } from '@baserow/modules/builder/utils/routing'
 
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
@@ -306,6 +307,7 @@ watch(
 
 onMounted(async () => {
   checkProviderLoginError()
+  checkStaleSiteReloadNotice()
   await maybeRedirectUserToLoginPage()
 })
 
@@ -354,6 +356,20 @@ const maybeRedirectToNextPage = async () => {
   const nextPath = resolveSafeNextPath(route.query.next)
   if (nextPath) {
     await router.push(nextPath)
+  }
+}
+
+/**
+ * The page has been reloaded because the site was published again while the
+ * visitor was doing something, like submitting a form, logging in or loading more
+ * content. That action didn't happen, so we tell them to try again.
+ */
+const checkStaleSiteReloadNotice = () => {
+  if (consumeStaleSiteReloadNotice()) {
+    store.dispatch('builderToast/info', {
+      title: $i18n.t('publicPage.siteUpdatedToastTitle'),
+      message: $i18n.t('publicPage.siteUpdatedToastMessage'),
+    })
   }
 }
 
