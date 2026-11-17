@@ -29,6 +29,8 @@ EXPECTED = {
     "update_nodes": (False, True),
     "delete_nodes": (False, True),
     "search_workspace": (True, False),
+    "undo": (False, True),
+    "redo": (False, True),
     "list_row_comments": (True, False),
     "create_row_comments": (False, False),
     "set_view_sorts": (False, True),

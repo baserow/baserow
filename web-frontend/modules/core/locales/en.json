@@ -62,6 +62,7 @@
     "overwrites": "Overwrites",
     "areaWorkspace": "Workspace",
     "workspaceRead": "Search the workspace",
+    "workspaceUndo": "Undo and redo changes",
     "areaDatabase": "Databases",
     "databaseRead": "Read tables and rows",
     "databaseEdit": "Create and change",

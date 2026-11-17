@@ -70,3 +70,13 @@ class MCPEndpoint(
 
     def get_parent(self):
         return self.workspace
+
+    @property
+    def undo_session_id(self) -> str:
+        """
+        The undo session of the changes made through this endpoint. It's the same
+        for every request, because Streamable HTTP is stateless and has no
+        connection to tie a session to.
+        """
+
+        return f"mcp-{self.id}"
