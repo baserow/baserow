@@ -20,14 +20,19 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.core.exceptions import TemplateDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.jobs.constants import JOB_CANCELLED, JOB_PENDING, JOB_STARTED
+from baserow.core.jobs.constants import (
+    JOB_CANCELLED,
+    JOB_PENDING,
+    JOB_STARTED,
+)
 from baserow.core.jobs.exceptions import JobNotCancellable
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JOB_STATES_ENDED
-from baserow.core.models import Template, UserTemplateState, Workspace
+from baserow.core.models import Template, UserFile, UserTemplateState, Workspace
 from baserow.core.subjects import UserSubjectType
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.template_files import is_template_file_unique
 from baserow.core.user_templates.constants import USER_TEMPLATE_ICON_MAX_LENGTH
 from baserow.core.user_templates.exceptions import (
     InvalidTemplateCategory,
@@ -40,7 +45,12 @@ from baserow.core.user_templates.handler import (
     generate_template_slug,
 )
 from baserow.core.user_templates.models import CreateUserTemplateJob
-from tests.baserow.core.user_templates.utils import create_source, start_job
+from tests.baserow.core.user_templates.utils import (
+    add_files_to_source,
+    create_source,
+    start_job,
+    user_files_referenced_in,
+)
 
 TEST_TEMPLATES_DIR = os.path.join(settings.BASE_DIR, "../../../tests/templates")
 SLUG_SUFFIX_PATH = "baserow.core.user_templates.handler.generate_slug_suffix"
@@ -810,7 +820,52 @@ def test_install_template_content_applies_the_content_rules(
     ]
     assert len(files) == 1
     installed_name = files[0][0]["name"]
-    assert not installed_name.startswith("tpl")
+    assert not is_template_file_unique(
+        UserFile.deconstruct_name(installed_name)["unique"]
+    )
     assert files[0][0]["visible_name"] == "notes.txt"
     # The file of the copy is stored and served like any other one.
     assert UserFileHandler().get_user_file_by_name(installed_name)
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_install_template_content_gives_the_copy_normal_files(
+    data_fixture, use_tmp_media_root
+):
+    source = create_source(data_fixture)
+    owner = source["user"]
+    author_files = add_files_to_source(data_fixture, source)
+    job = start_job(owner, source["workspace"], [source["database"], source["builder"]])
+    revision = Template.objects.get(id=job.template_id)
+    template_rows = list(
+        UserFile.objects.template_files(revision.workspace_id).order_by("id").values()
+    )
+    template_files = user_files_referenced_in(revision.workspace)
+    UserFile.objects.filter(
+        id__in=[user_file.id for user_file in author_files.values()]
+    ).update(deleted_at=timezone.now())
+    owner.is_active = False
+    owner.save(update_fields=["is_active"])
+    installer = data_fixture.create_user()
+    target = data_fixture.create_workspace(user=installer)
+
+    handler = UserTemplateHandler()
+    content = handler.serialize_template_content(revision)
+    with transaction.atomic():
+        handler.install_template_content(installer, target, revision, content)
+
+    installed_files = user_files_referenced_in(target)
+    assert len(installed_files) == len(author_files)
+    assert not installed_files & template_files
+    for user_file in installed_files:
+        assert not is_template_file_unique(user_file.unique)
+        assert user_file.deleted_at is None
+    assert (
+        list(
+            UserFile.objects.template_files(revision.workspace_id)
+            .order_by("id")
+            .values()
+        )
+        == template_rows
+    )

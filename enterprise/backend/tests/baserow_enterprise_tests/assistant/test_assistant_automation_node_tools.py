@@ -7,6 +7,7 @@ from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
+from baserow.contrib.automation.nodes.access import ALLOW_ALL
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.operations import (
     DeleteAutomationNodeOperationType,
@@ -1838,3 +1839,106 @@ def test_formula_requests_leave_out_fields_the_user_cannot_see(
 
     assert requests_for(admin)[field.id]["name"] == "Salary"
     assert "Salary" not in str(requests_for(restricted))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_add_nodes_tells_the_generator_which_node_wrote_the_previous_row(
+    data_fixture, monkeypatch, real_formula_pass
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=workspace
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    contacts = data_fixture.create_database_table(database=database)
+    log = data_fixture.create_database_table(database=database)
+    source = data_fixture.create_text_field(table=log, name="Source")
+    ctx = make_test_ctx(user, workspace)
+
+    created = create_workflows(
+        ctx,
+        automation_id=automation.id,
+        workflows=[
+            WorkflowCreate(
+                name="Log contacts",
+                trigger=TriggerNodeCreate(
+                    ref="trigger",
+                    label="Contact created",
+                    type="rows_created",
+                    rows_triggers_settings={"table_id": contacts.id},
+                ),
+                nodes=[
+                    ActionNodeCreate(
+                        ref="log",
+                        label="Add log entry",
+                        previous_node_ref="trigger",
+                        type="create_row",
+                        table_id=log.id,
+                        values=[AutomationFieldValue(field_id=source.id, value="new")],
+                    )
+                ],
+            )
+        ],
+        thought="create workflow",
+    )
+    workflow_id = created["created_workflows"][0]["id"]
+    trigger, create = list_nodes(ctx, workflow_id=workflow_id, thought="inspect")[
+        "nodes"
+    ]
+    generator_calls = []
+
+    def generate(formulas, context):
+        generator_calls.append((formulas, context.get_context_metadata()))
+        return {"row_id": f"get('previous_node.{create['id']}.id')"}
+
+    monkeypatch.setattr(
+        automation_agents, "get_generate_formulas_tool", lambda _profile: generate
+    )
+
+    result = add_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            ActionNodeCreate(
+                ref="update",
+                label="Set source",
+                previous_node_ref=str(create["id"]),
+                type="update_row",
+                table_id=log.id,
+                row_id="$formula: ID of the row created by the previous step",
+                values=[AutomationFieldValue(field_id=source.id, value="automation")],
+            )
+        ],
+        thought="update the created row",
+    )
+
+    assert "formula_errors" not in result
+    [(formulas, metadata)] = generator_calls
+    # "The previous step" names the create_row node, and each node says how its
+    # data is read: the trigger's rows by index, the created row without one.
+    assert f"follows node {create['id']} ('Add log entry')" in formulas["row_id"]
+    created, fired = metadata[str(create["id"])], metadata[str(trigger["id"])]
+    assert created["node_type"] == "local_baserow_create_row"
+    assert created["formula_path"] == f"previous_node.{create['id']}"
+    assert fired["node_type"] == "local_baserow_rows_created"
+    assert fired["formula_path"] == f"previous_node.{trigger['id']}.0"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("label", ["Add log entry", ""])
+def test_formula_requests_name_the_node_this_one_follows(data_fixture, label):
+    node = data_fixture.create_local_baserow_update_row_action_node()
+    previous = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=node.workflow, label=label
+    )
+    error = {"field": "row_id", "formula": "$formula: the created row"}
+
+    [request] = automation_agents.formula_requests(
+        node, [error], ALLOW_ALL, previous
+    ).values()
+    [without] = automation_agents.formula_requests(node, [error], ALLOW_ALL).values()
+
+    named = f"node {previous.id} ('{label}')" if label else f"node {previous.id}:"
+    assert f"This node follows {named}" in request
+    assert "follows" not in without

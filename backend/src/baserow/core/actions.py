@@ -39,7 +39,7 @@ from baserow.core.registries import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
-from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.handler import TemplateContent, UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -775,7 +775,7 @@ class InstallTemplateActionType(UndoableActionType):
         template: Template,
         progress_builder: Optional[ChildProgressBuilder] = None,
         *,
-        content: Optional[List[Dict[str, Any]]] = None,
+        content: Optional[TemplateContent] = None,
     ) -> List[Application]:
         """
         Install a template into the provided workspace. See
@@ -789,8 +789,8 @@ class InstallTemplateActionType(UndoableActionType):
         :param template: The template to install, a revision for a user template.
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the installation.
-        :param content: The serialized content of a user template, see
-            UserTemplateHandler.serialize_template_content.
+        :param content: The serialized content of a user template and the transfer of
+            its files.
         :return: The list of installed applications.
         """
 

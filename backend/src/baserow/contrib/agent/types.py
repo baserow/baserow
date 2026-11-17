@@ -110,10 +110,11 @@ class AgentConversationCursor(KeysetCursor):
 
 @dataclass
 class AgentTriggerUpdated:
-    """An updated trigger and the parts of it that the update changed."""
+    """An updated trigger, its changed parts and its previous type when replaced."""
 
     trigger: AgentTrigger
     changed_fields: list[str]
+    previous_type: str | None = None
 
 
 @dataclass(frozen=True)

@@ -28,11 +28,11 @@ describe('ChoiceElement', () => {
   }
 
   const mountComponentForElement = async (element) => {
-    const page = { id: 1, elements: [] }
+    const page = { id: 1, elements: [], workflowActions: [] }
     const builder = { id: 1, theme: { primary_color: '#ccc' }, pages: [page] }
     const workspace = {}
     const mode = 'public'
-    const applicationContext = { builder, page, mode }
+    const applicationContext = { builder, page, mode, element }
 
     store.dispatch('element/forceCreate', { page, element })
 
@@ -61,7 +61,7 @@ describe('ChoiceElement', () => {
         currentPage: page,
         elementPage: page,
         mode,
-        applicationContext: { builder, page, mode },
+        applicationContext: { builder, page, mode, element },
         element,
         workspace,
       },

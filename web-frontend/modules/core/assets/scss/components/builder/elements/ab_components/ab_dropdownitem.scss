@@ -157,8 +157,13 @@
   min-width: 0;
   max-width: 100%;
 
+  // The checkbox is purely presentational; selection is handled by clicking the
+  // item link. Without this, clicking the checkbox's `<label>` would dispatch a
+  // second (forwarded) click on its `<input>`, both bubbling to the link and
+  // toggling the selection twice.
   .ab-dropdownitem__item-name-checkbox {
     flex-shrink: 0;
+    pointer-events: none;
   }
 
   .ab-dropdownitem__item-link:active & {

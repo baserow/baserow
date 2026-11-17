@@ -5,6 +5,9 @@ import {
   LocalBaserowCreateRowServiceType,
   LocalBaserowDeleteRowServiceType,
   LocalBaserowFieldsUpdatedTriggerServiceType,
+  LocalBaserowRowsCreatedTriggerServiceType,
+  LocalBaserowRowsUpdatedTriggerServiceType,
+  LocalBaserowRowsDeletedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import { readFileSync } from 'fs'
@@ -470,5 +473,34 @@ describe('Local baserow service types', () => {
     expect(
       createRows.getErrorMessage({ service: { table_id: 1, rows: emptyRows } })
     ).toBe('serviceType.errorNoRowsSelected')
+  })
+
+  test('row trigger types are named after the table they watch', () => {
+    const t = (key, values = {}) =>
+      key
+        .split('.')
+        .reduce((messages, part) => messages[part], en)
+        .replace(/\{(\w+)\}/g, (placeholder, name) => values[name])
+    const app = { $i18n: { t } }
+    const types = [
+      LocalBaserowRowsCreatedTriggerServiceType,
+      LocalBaserowRowsUpdatedTriggerServiceType,
+      LocalBaserowRowsDeletedTriggerServiceType,
+    ].map((ServiceType) => new ServiceType({ app }))
+    const databases = [{ tables: [{ id: 31, name: 'Orders' }] }]
+
+    expect(
+      types.map((type) => type.getDefaultName({ table_id: 31 }, { databases }))
+    ).toEqual([
+      'Rows are created in Orders',
+      'Rows are updated in Orders',
+      'Rows are deleted in Orders',
+    ])
+    expect(types[0].getDefaultName({ table_id: 99 }, { databases })).toBe(
+      'Rows are created'
+    )
+    expect(types[0].getDefaultName({ table_id: 31 }, {})).toBe(
+      'Rows are created'
+    )
   })
 })

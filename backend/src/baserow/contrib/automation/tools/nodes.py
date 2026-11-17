@@ -160,6 +160,17 @@ def _compact_properties(schema: dict[str, Any]) -> dict[str, Any]:
     return properties
 
 
+def formula_path(node: AutomationNode) -> str:
+    """
+    The formula path to a node's data: ``previous_node.<id>.0`` for a node that
+    outputs a list of rows, else ``previous_node.<id>``.
+    """
+
+    service = node.service.specific
+    path = f"previous_node.{node.id}"
+    return path + ".0" if service.get_type().returns_list(service) else path
+
+
 def output_schema(node: AutomationNode, access: AutomationNodeAccess) -> dict[str, Any]:
     """
     What a node outputs, for the formulas of the nodes after it: the formula path
@@ -172,10 +183,7 @@ def output_schema(node: AutomationNode, access: AutomationNodeAccess) -> dict[st
     """
 
     service = node.service.specific
-    service_type = service.get_type()
-    path = f"previous_node.{node.id}"
-    if service_type.returns_list(service):
-        path += ".0"
+    path = formula_path(node)
     if not access.table_allows(service):
         return {"formula_path": path, "properties": {}, "table_accessible": False}
     schema = visible_schema(service, access) or {}

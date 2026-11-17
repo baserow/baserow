@@ -28,6 +28,9 @@
         "slackBotWarning": "Jeder, der in dieser Anwendung bauen kann, kann über diesen Bot Nachrichten senden und dessen Token ersetzen. Verwenden Sie einen Bot, dessen Zugriff Sie bedenkenlos teilen können."
     },
     "serviceType": {
+        "localBaserowRowsCreatedInTable": "Zeilen werden in {tableName} erstellt",
+        "localBaserowRowsUpdatedInTable": "Zeilen werden in {tableName} aktualisiert",
+        "localBaserowRowsDeletedInTable": "Zeilen werden in {tableName} gelöscht",
         "localBaserowGetRow": "Einzelne Zeile abfragen",
         "localBaserowGetRowDescription": "Eine einzelne Zeile aus einer Baserow-Tabelle lesen.",
         "localBaserowListRows": "Mehrere Zeilen auflisten",

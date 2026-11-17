@@ -672,6 +672,30 @@ export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceType
     }
     return super.getErrorMessage({ service })
   }
+
+  /**
+   * The message naming a service of this type after its table, with a
+   * `{tableName}` placeholder, or null when the type has none.
+   */
+  get defaultNameTemplate() {
+    return null
+  }
+
+  /**
+   * @param {object|null} service The trigger service.
+   * @param {object} formChoices What its form chooses from: the `databases`
+   *   with the tables it may watch.
+   * @returns {string} The name with the service's table, or the type's name
+   *   while the table is unknown.
+   */
+  getDefaultName(service, { databases = [] } = {}) {
+    const table = databases
+      .flatMap((database) => database.tables)
+      .find(({ id }) => id === service?.table_id)
+    return table && this.defaultNameTemplate
+      ? this.app.$i18n.t(this.defaultNameTemplate, { tableName: table.name })
+      : this.name
+  }
 }
 
 export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
@@ -693,6 +717,10 @@ export class LocalBaserowRowsCreatedTriggerServiceType extends LocalBaserowRowsS
 
   get formComponent() {
     return LocalBaserowSignalTriggerServiceForm
+  }
+
+  get defaultNameTemplate() {
+    return 'serviceType.localBaserowRowsCreatedInTable'
   }
 }
 
@@ -716,6 +744,10 @@ export class LocalBaserowRowsUpdatedTriggerServiceType extends LocalBaserowRowsS
   get formComponent() {
     return LocalBaserowSignalTriggerServiceForm
   }
+
+  get defaultNameTemplate() {
+    return 'serviceType.localBaserowRowsUpdatedInTable'
+  }
 }
 
 export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowRowsSignalTriggerServiceType {
@@ -737,6 +769,10 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowRowsS
 
   get formComponent() {
     return LocalBaserowSignalTriggerServiceForm
+  }
+
+  get defaultNameTemplate() {
+    return 'serviceType.localBaserowRowsDeletedInTable'
   }
 }
 

@@ -20,6 +20,8 @@ from baserow.contrib.database.fields.models import (
     Field,
 )
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.db import specific_iterator
 from baserow.core.utils import split_comma_separated_string
 
@@ -223,6 +225,31 @@ class LinkRowJoin:
     target_fields: list[LinkedTargetField] = dataclass_field(default_factory=list)
 
 
+def check_can_list_rows_of_tables(request, table_ids: set[int]):
+    """
+    Checks that the requesting user, and the database token if one is used, can read
+    the rows of the provided tables. The queries don't depend on the number of tables.
+
+    :param request: The request to take the user and token from.
+    :param table_ids: The ids of the tables to check the permissions for.
+    :raises NoPermissionToLinkedTable: If the token can't read a table.
+    :raises CannotReadLinkedTable: If the user can't list the rows of a table.
+    """
+
+    if not table_ids:
+        return
+
+    from baserow.contrib.database.rows.handler import RowHandler
+
+    tables = list(
+        Table.objects.filter(id__in=table_ids).select_related("database__workspace")
+    )
+    RowHandler().check_can_list_rows_of_tables(request.user, tables)
+    token = TokenHandler().get_token_from_request(request)
+    if token is not None:
+        TokenHandler().check_can_read_linked_tables(token, tables)
+
+
 def extract_link_row_joins_from_request(
     request, link_row_fields: QuerySet["Field"], user_field_names: bool = False
 ) -> list[LinkRowJoin]:
@@ -237,6 +264,8 @@ def extract_link_row_joins_from_request(
         the URL parameter and the output.
     :return: A list of valid link row joins with link row fields and their
         lookups.
+    :raises NoPermissionToTable: If the token can't read a linked table.
+    :raises PermissionDenied: If the user can't list the rows of a linked table.
     """
 
     requested_link_row_field_refs = [
@@ -255,6 +284,13 @@ def extract_link_row_joins_from_request(
     )
     if not all_link_row_field_exists:
         raise FieldDoesNotExist()
+
+    linked_table_ids = set()
+    for link_row_field_ref in requested_link_row_field_refs:
+        field = existing_link_row_fields_by_ref[link_row_field_ref]
+        if field.specific.link_row_table_id != field.table_id:
+            linked_table_ids.add(field.specific.link_row_table_id)
+    check_can_list_rows_of_tables(request, linked_table_ids)
 
     link_row_joins: dict[int, LinkRowJoin] = {}
 

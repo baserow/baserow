@@ -1,10 +1,13 @@
 import os
 from importlib import import_module
+from unittest.mock import patch
 
 from django.db import connection
 
 import pytest
+from fakeredis import FakeAsyncRedis, FakeRedis, FakeServer
 
+from baserow.ws.channel_layer import RetryingRedisChannelLayer
 from baserow.ws.registries import PageType, page_registry
 
 os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
@@ -15,6 +18,17 @@ def _inject_fake_async_redis(fake_async_redis):
     """Use the shared fake Redis clients throughout WebSocket tests."""
 
     pass
+
+
+@pytest.fixture
+def channel_layer_redis():
+    server = FakeServer()
+    with patch.object(
+        RetryingRedisChannelLayer,
+        "connection",
+        lambda self, index: FakeAsyncRedis(server=server),
+    ):
+        yield FakeRedis(server=server)
 
 
 @pytest.fixture(scope="session")

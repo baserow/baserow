@@ -982,6 +982,19 @@ class FieldType(
         :type to_field_kwargs: dict
         """
 
+    def should_delete_view_default_values(self, old_field, new_field) -> bool:
+        """
+        Returns whether the default values that views have for the field must be
+        deleted because they can't be used with the updated field. It's called on the
+        field type of the updated field.
+
+        :param old_field: The field instance before the update.
+        :param new_field: The updated field instance.
+        :return: Whether the view default values of the field must be deleted.
+        """
+
+        return self.write_only and type(old_field) is not type(new_field)
+
     def after_update(
         self,
         from_field,
@@ -1527,6 +1540,9 @@ class FieldType(
         field: "Field",
         workspace_id: int,
         cache: Dict,
+        *,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
     ) -> Any:
         """
         Hook that is called when exporting a ViewDefaultValue.value during a
@@ -1538,6 +1554,9 @@ class FieldType(
         :param workspace_id: The ID of the workspace being exported.
         :param cache: A cache dict shared across the export to avoid repeated
             queries.
+        :param files_zip: The files of the export, if any, to add the files the
+            value references to.
+        :param storage: The storage to read those files from.
         :return: The portable representation of the value.
         """
 
@@ -1549,6 +1568,9 @@ class FieldType(
         id_mapping: Dict[str, Any],
         workspace_id: int,
         cache: Dict,
+        *,
+        files_zip: Optional[ZipFile] = None,
+        storage: Optional[Storage] = None,
     ) -> Any:
         """
         Hook that is called just before the ViewDefaultValue.value is set when doing a
@@ -1560,6 +1582,9 @@ class FieldType(
         :param workspace_id: The ID of the workspace being imported into.
         :param cache: A cache dict shared across the import to avoid repeated
             queries.
+        :param files_zip: The files of the import, if any, holding the files the
+            value references.
+        :param storage: The storage to upload those files to.
         :return: The value with remapped IDs.
         """
 

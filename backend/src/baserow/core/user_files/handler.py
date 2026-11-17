@@ -4,9 +4,11 @@ import os
 import pathlib
 import re
 import secrets
+from contextlib import contextmanager
+from contextvars import ContextVar
 from io import BytesIO
 from os.path import join
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -39,9 +41,18 @@ from .exceptions import (
     MaximumUniqueTriesError,
 )
 from .models import deconstruct_user_file_regex
+from .template_files import (
+    TEMPLATE_FILE_PREFIX,
+    get_template_file_owner,
+    template_file_prefix,
+)
 
 if TYPE_CHECKING:
     from PIL import Image
+
+_new_stored_files: ContextVar[Optional[List[Tuple[str, Storage]]]] = ContextVar(
+    "new_stored_files", default=None
+)
 
 MIME_TYPE_UNKNOWN = "application/octet-stream"
 ACTIVE_CONTENT_EXTENSIONS = {"html", "htm", "xhtml", "xml", "svg", "svgz"}
@@ -188,7 +199,9 @@ class UserFileHandler:
 
         return join(settings.USER_THUMBNAILS_DIRECTORY, thumbnail_name, user_file_name)
 
-    def generate_unique(self, sha256_hash, extension, length=32, max_tries=1000):
+    def generate_unique(
+        self, sha256_hash, extension, length=32, max_tries=1000, prefix=""
+    ):
         """
         Generates a unique nonexistent string for a new user file.
 
@@ -203,6 +216,8 @@ class UserFileHandler:
         :param max_tries: The maximum amount of tries to check if a unique already
             exists.
         :type max_tries: int
+        :param prefix: The fixed start of the unique, counted in `length`.
+        :type prefix: str
         :raises MaximumUniqueTriesError: When the maximum amount of tries has
             been exceeded.
         :return: The generated unique string
@@ -218,7 +233,10 @@ class UserFileHandler:
                 )
 
             i += 1
-            unique = random_string(length)
+            unique = prefix + random_string(length - len(prefix))
+
+            if not prefix and unique.startswith(TEMPLATE_FILE_PREFIX):
+                continue
 
             if not UserFile.objects.filter(
                 sha256_hash=sha256_hash, original_extension=extension, unique=unique
@@ -334,11 +352,21 @@ class UserFileHandler:
                 "The provided file type is not allowed."
             )
 
-        existing_user_file = UserFile.objects.filter(
+        template_workspace_id = get_template_file_owner()
+        existing_user_files = UserFile.objects.filter(
             original_name=file_name,
             sha256_hash=stream_hash,
             deleted_at__isnull=True,
-        ).first()
+        )
+        if template_workspace_id is None:
+            existing_user_files = existing_user_files.exclude_template_files()
+            unique_prefix = ""
+        else:
+            existing_user_files = existing_user_files.template_files(
+                template_workspace_id
+            )
+            unique_prefix = template_file_prefix(template_workspace_id)
+        existing_user_file = next(iter(existing_user_files.order_by()[:1]), None)
 
         if existing_user_file:
             if is_active_content:
@@ -353,7 +381,7 @@ class UserFileHandler:
                 )
             return existing_user_file
 
-        unique = self.generate_unique(stream_hash, extension)
+        unique = self.generate_unique(stream_hash, extension, prefix=unique_prefix)
         user_file = UserFile(
             original_name=file_name,
             original_extension=extension,
@@ -363,6 +391,9 @@ class UserFileHandler:
             uploaded_by=user,
             sha256_hash=stream_hash,
         )
+        new_stored_files = _new_stored_files.get()
+        if new_stored_files is not None:
+            new_stored_files.append((user_file.name, storage))
 
         if is_active_content:
             self._neutralize_active_content(user_file)
@@ -488,6 +519,74 @@ class UserFileHandler:
         file = SimpleUploadedFile(file_name, content, content_type=content_type)
         return self.upload_user_file(user, file_name, file, storage)
 
+    def add_user_file_to_export(
+        self,
+        name: str,
+        files_zip: ExportZipFile,
+        storage: Storage,
+        cache: Dict[str, Any],
+        zip_name: Optional[str] = None,
+        skip_missing: bool = False,
+    ) -> bool:
+        """
+        Adds the stored user file to the export zip, unless the zip already holds a
+        member with that name. The names in the zip are tracked in the export cache,
+        so every exporter sharing the cache adds each file at most once.
+
+        :param name: The name of the user file to add.
+        :param files_zip: The zip the export is written to.
+        :param storage: The storage the user file is read from.
+        :param cache: The export cache shared by the exporters of the export.
+        :param zip_name: The member name in the zip, `name` by default.
+        :param skip_missing: Leave out a file missing from the storage instead of
+            failing the export when the zip is streamed.
+        :return: Whether the zip holds the file.
+        """
+
+        zip_names = cache.get("_zip_names")
+        if zip_names is None:
+            zip_names = {item["name"] for item in files_zip.info_list()}
+            cache["_zip_names"] = zip_names
+
+        zip_name = zip_name or name
+        if zip_name in zip_names:
+            return True
+
+        file_path = self.user_file_path(name)
+        if skip_missing:
+            missing_files = cache.setdefault("_missing_user_files", set())
+            if name in missing_files:
+                return False
+            if not storage.exists(file_path):
+                missing_files.add(name)
+                return False
+
+        files_zip.add(file_chunk_generator(storage, file_path), zip_name)
+        zip_names.add(zip_name)
+        return True
+
+    def delete_user_file_from_storage(
+        self, user_file_name: str | UserFile, storage: Storage
+    ) -> List[str]:
+        """
+        Deletes the stored file of a user file and its thumbnails.
+
+        :param user_file_name: The user file or its name.
+        :param storage: The storage holding the file.
+        :return: The paths that existed and were deleted.
+        """
+
+        paths = [self.user_file_path(user_file_name)] + [
+            self.user_file_thumbnail_path(user_file_name, thumbnail_name)
+            for thumbnail_name in settings.USER_THUMBNAILS
+        ]
+        deleted_paths = []
+        for path in paths:
+            if storage.exists(path):
+                storage.delete(path)
+                deleted_paths.append(path)
+        return deleted_paths
+
     def export_user_file(
         self,
         user_file: Optional[UserFile],
@@ -500,38 +599,18 @@ class UserFileHandler:
         and subsequently imported later.
         """
 
-        if cache is None:
-            cache = {}
-
-        storage = storage or get_default_storage()
-
         if not user_file:
             return None
 
-        name = user_file.name
-
-        # Check if the user file object is already in the cache and if not,
-        # it must be fetched and added to it.
-        cache_entry = f"user_file_{name}"
-        if cache_entry not in cache:
-            namelist = (
-                [item["name"] for item in files_zip.info_list()]
-                if files_zip is not None
-                else []
+        if files_zip is not None:
+            self.add_user_file_to_export(
+                user_file.name,
+                files_zip,
+                storage or get_default_storage(),
+                {} if cache is None else cache,
             )
-            if files_zip is not None and name not in namelist:
-                # Load the user file from the content and write it to the zip file
-                # because it might not exist in the environment that it is going
-                # to be imported in.
-                file_path = self.user_file_path(name)
 
-                chunk_generator = file_chunk_generator(storage, file_path)
-                files_zip.add(chunk_generator, name)
-
-            # Avoid writing the same file twice
-            cache[cache_entry] = True
-
-        return {"name": name, "original_name": user_file.original_name}
+        return {"name": user_file.name, "original_name": user_file.original_name}
 
     def import_user_file(
         self,
@@ -540,10 +619,8 @@ class UserFileHandler:
         storage: Optional[Storage] = None,
     ) -> Optional[UserFile]:
         """
-        Given a valid file name and files_zip, re-create the file and return
-        the resulting UserFile object.
-
-        Otherwise, return the existing file from the db.
+        Re-creates the file from files_zip and returns the resulting UserFile, or None
+        when the zip lacks it. Without a files zip, returns the existing file by name.
         """
 
         if not serialized_user_file:
@@ -557,9 +634,52 @@ class UserFileHandler:
             if not name or not original_name:
                 return None
 
-            with files_zip.open(name) as stream:
+            try:
+                stream = files_zip.open(name)
+            except KeyError:
+                return None
+            with stream as file:
                 user_file = self.upload_user_file(
-                    None, original_name, stream, storage=storage
+                    None, original_name, file, storage=storage
                 )
 
         return user_file
+
+
+@contextmanager
+def delete_new_files_on_error():
+    """
+    Records the user files `upload_user_file` newly stores inside the block. When
+    the block raises, deletes those of them no `UserFile` row references, with
+    their thumbnails, and re-raises. Open it outside the transaction the uploads
+    run in, so the rows are rolled back before the check.
+    """
+
+    new_stored_files = []
+    token = _new_stored_files.set(new_stored_files)
+    try:
+        yield
+    except BaseException:
+        try:
+            _delete_unreferenced_files(new_stored_files)
+        except Exception:
+            logger.exception("Could not delete the new files of a failed operation.")
+        raise
+    finally:
+        _new_stored_files.reset(token)
+
+
+def _delete_unreferenced_files(stored_files: List[Tuple[str, Storage]]):
+    if not stored_files:
+        return
+
+    referenced = {
+        user_file.name
+        for user_file in UserFile.objects.all().name(
+            *{name for name, _ in stored_files}
+        )
+    }
+    handler = UserFileHandler()
+    for name, storage in stored_files:
+        if name not in referenced:
+            handler.delete_user_file_from_storage(name, storage)

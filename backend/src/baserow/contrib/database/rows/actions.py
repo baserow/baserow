@@ -975,6 +975,7 @@ class UpdateRowActionType(UndoableActionType):
             row_id=params.row_id,
             values=params.original_row_values,
             view=view,
+            check_linked_tables=False,
         )
 
     @classmethod
@@ -987,6 +988,7 @@ class UpdateRowActionType(UndoableActionType):
             row_id=params.row_id,
             values=params.row_values,
             view=view,
+            check_linked_tables=False,
         )
 
 
@@ -1109,10 +1111,14 @@ class UpdateRowsActionType(UndoableActionType):
         table = TableHandler().get_table(params.table_id)
         view = ViewHandler().get_view_or_none(params.view_id)
         original_rows_values = list(params.original_rows_values_by_id.values())
-        RowHandler().update_rows(user, table, original_rows_values, view=view)
+        RowHandler().update_rows(
+            user, table, original_rows_values, view=view, check_linked_tables=False
+        )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
         view = ViewHandler().get_view_or_none(params.view_id)
-        RowHandler().update_rows(user, table, params.row_values, view=view)
+        RowHandler().update_rows(
+            user, table, params.row_values, view=view, check_linked_tables=False
+        )

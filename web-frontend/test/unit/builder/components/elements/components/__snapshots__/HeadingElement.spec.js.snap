@@ -8,7 +8,9 @@ exports[`HeadingElement > Default HeadingElement component 1`] = `
     class="ab-heading ab-heading--h2"
   >
     
-     
+    <span>
+       
+    </span>
     
   </h2>
 </div>
@@ -22,7 +24,9 @@ exports[`HeadingElement > Default HeadingElement component v2 1`] = `
     class="ab-heading ab-heading--h3"
   >
     
-    hello
+    <span>
+      hello
+    </span>
     
   </h3>
 </div>

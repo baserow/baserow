@@ -368,6 +368,28 @@ export class NodeType extends Registerable {
   }
 
   /**
+   * Returns the value found at `path` in this node's sample data, or
+   * `undefined` when the node has not been tested or has nothing there.
+   */
+  getSampleValue({ service }, path) {
+    if (!service) {
+      return undefined
+    }
+    return this.serviceType.getSampleValue(service, path)
+  }
+
+  /**
+   * Whether this node has sample data that can be shown, i.e. it was tested
+   * and its last test didn't fail.
+   */
+  hasSampleValues({ service }) {
+    if (!service) {
+      return false
+    }
+    return this.serviceType.hasSampleValues(service)
+  }
+
+  /**
    * The content type of this node's sample data. Nodes returning 'html' get
    * an extra HTML preview tab in the sample data modal.
    */
@@ -488,7 +510,7 @@ export class LocalBaserowRowsCreatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowRowsCreatedLabel'
+    return this.serviceType.defaultNameTemplate
   }
 
   get serviceType() {
@@ -511,7 +533,7 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowRowsUpdatedLabel'
+    return this.serviceType.defaultNameTemplate
   }
 
   get serviceType() {
@@ -598,7 +620,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowRowsDeletedLabel'
+    return this.serviceType.defaultNameTemplate
   }
 
   get serviceType() {

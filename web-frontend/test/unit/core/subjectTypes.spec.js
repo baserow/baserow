@@ -47,6 +47,14 @@ describe('SubjectType', () => {
   )
 
   test.each([
+    [new UserSubjectType(context), true],
+    [new AgentSubjectType(context), true],
+    [new AnonymousUserSubjectType(context), false],
+  ])('says whether it can join a team', (subjectType, expected) => {
+    expect(subjectType.canJoinTeam).toBe(expected)
+  })
+
+  test.each([
     [new UserSubjectType(context), { id: 1, user_id: 2 }, 2],
     [new UserSubjectType(context), { id: 1 }, 1],
     [new AnonymousUserSubjectType(context), { id: 1 }, 1],

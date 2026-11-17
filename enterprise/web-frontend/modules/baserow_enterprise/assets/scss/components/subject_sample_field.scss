@@ -1,9 +1,26 @@
+.subject-sample-field {
+  display: flex;
+  align-items: center;
+}
+
 .subject-sample-field-list__avatar {
   border: 2px solid $white;
-  float: left;
-  margin-left: -10px;
 
-  &.extras {
-    background-color: $color-neutral-200;
+  & + & {
+    margin-left: -10px;
+  }
+}
+
+.subject-sample-field__extras {
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.subject-sample-field--clickable {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
   }
 }

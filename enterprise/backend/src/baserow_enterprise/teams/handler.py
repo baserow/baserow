@@ -266,67 +266,70 @@ class TeamHandler:
         default_role: Optional[Role] = None,
     ) -> Team:
         """
-        Updates an existing team instance.
+        Updates an existing team instance. The members of the team are replaced by
+        `subjects`, unless it is `None`, which leaves them as they are.
         """
 
         LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, team.workspace)
 
-        if subjects is None:
-            subjects = []
-
         # In a transaction...
-        # 1. Fetch the existing subjects and workspace them by their type.
-        # 2. Update the name field.
+        # 1. Update the name field.
+        # 2. Fetch the existing subjects and workspace them by their type.
         # 3. Create any new subjects we've been given.
         # 4. Remove any existing subjects we don't want anymore.
         with atomic_if_not_already():
-            # Build a default dict of existing subjects in the team. The key is the
-            # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
-            # every membership ID so removing a subject also removes duplicates.
-            existing_subjects = defaultdict(lambda: defaultdict(list))
-            # Trashed subjects are absent from the edit form. Preserve their
-            # memberships so saving visible members does not break restoration.
-            existing_subject_qs = self.list_subjects_in_team(team.id)
-            for existing_subject in existing_subject_qs:
-                existing_subjects[existing_subject.subject_type_natural_key][
-                    existing_subject.subject_id
-                ].append(existing_subject.id)
-
             try:
                 team.name = name
                 team.save(update_fields=["name"])
             except DatabaseError:
                 raise TeamNameNotUnique(name=name)
 
-            # Loop over the subjects we've been given. If the `subject_id`
-            # isn't present in our `existing_subjects` dict, keyed by the
-            # `subject_type`, then it's a new subject.
-            for subject in subjects:
-                subject_id = subject["subject_id"]
-                subject_type = subject["subject_type"]
-                if subject_id not in existing_subjects[subject_type]:
-                    self.create_subject(user, {"id": subject_id}, subject_type, team)
+            if subjects is not None:
+                # Build a default dict of existing subjects in the team. The key is the
+                # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
+                # every membership ID so removing a subject also removes duplicates.
+                existing_subjects = defaultdict(lambda: defaultdict(list))
+                # Trashed subjects are absent from the edit form. Preserve their
+                # memberships so saving visible members does not break restoration.
+                existing_subject_qs = self.list_subjects_in_team(team.id)
+                for existing_subject in existing_subject_qs:
+                    existing_subjects[existing_subject.subject_type_natural_key][
+                        existing_subject.subject_id
+                    ].append(existing_subject.id)
 
-            # Determine if any existing subjects need to be removed.
-            for existing_type, existing_subject_ids in existing_subjects.items():
-                # Find all the subjects in `subjects` which
-                # have the `subject_type` we're looping over.
-                payload_subjects_for_type = filter(
-                    lambda payload_sub: payload_sub["subject_type"] == existing_type,
-                    subjects,
-                )
-                # Pluck out the subject IDs of this `subject_type`.
-                payload_subject_ids_for_type = [
-                    payload["subject_id"] for payload in payload_subjects_for_type
-                ]
-                # Find the difference between `existing_type_ids`
-                # and `payload_subject_ids_for_type`
-                removed_subjects = list(
-                    set(existing_subject_ids) - set(payload_subject_ids_for_type)
-                )
-                for removed_subject_id in removed_subjects:
-                    for membership_id in existing_subject_ids[removed_subject_id]:
-                        self.delete_subject_by_id(user, membership_id, team)
+                # Loop over the subjects we've been given. If the `subject_id`
+                # isn't present in our `existing_subjects` dict, keyed by the
+                # `subject_type`, then it's a new subject.
+                for subject in subjects:
+                    subject_id = subject["subject_id"]
+                    subject_type = subject["subject_type"]
+                    if subject_id not in existing_subjects[subject_type]:
+                        self.create_subject(
+                            user, {"id": subject_id}, subject_type, team
+                        )
+
+                # Determine if any existing subjects need to be removed.
+                for existing_type, existing_subject_ids in existing_subjects.items():
+                    # Find all the subjects in `subjects` which
+                    # have the `subject_type` we're looping over.
+                    payload_subjects_for_type = filter(
+                        lambda payload_sub: (
+                            payload_sub["subject_type"] == existing_type
+                        ),
+                        subjects,
+                    )
+                    # Pluck out the subject IDs of this `subject_type`.
+                    payload_subject_ids_for_type = [
+                        payload["subject_id"] for payload in payload_subjects_for_type
+                    ]
+                    # Find the difference between `existing_type_ids`
+                    # and `payload_subject_ids_for_type`
+                    removed_subjects = list(
+                        set(existing_subject_ids) - set(payload_subject_ids_for_type)
+                    )
+                    for removed_subject_id in removed_subjects:
+                        for membership_id in existing_subject_ids[removed_subject_id]:
+                            self.delete_subject_by_id(user, membership_id, team)
 
             # If we've been given a `default_role`, assign it to the team.
             RoleAssignmentHandler().assign_role(team, team.workspace, default_role)

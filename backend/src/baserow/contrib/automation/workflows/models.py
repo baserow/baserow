@@ -1,9 +1,13 @@
 from typing import TYPE_CHECKING
 
 from django.conf import settings
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
-from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
+from baserow.contrib.automation.constants import (
+    WORKFLOW_DESCRIPTION_MAX_LEN,
+    WORKFLOW_NAME_MAX_LEN,
+)
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.core.cache import local_cache
 from baserow.core.graph.models import GraphModelMixin
@@ -82,6 +86,13 @@ class AutomationWorkflow(
     )
 
     name = models.CharField(max_length=WORKFLOW_NAME_MAX_LEN)
+    description = models.TextField(
+        blank=True,
+        default="",
+        db_default="",
+        validators=[MaxLengthValidator(WORKFLOW_DESCRIPTION_MAX_LEN)],
+        help_text="Markdown text explaining what this workflow is for.",
+    )
     state = models.CharField(
         choices=WorkflowState.choices,
         default=WorkflowState.DRAFT,

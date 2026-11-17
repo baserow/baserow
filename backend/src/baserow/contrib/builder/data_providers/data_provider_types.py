@@ -36,6 +36,7 @@ from baserow.contrib.builder.elements.permission_manager import (
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
 )
+from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.exceptions import (
     InvalidFormulaContext,
@@ -569,7 +570,12 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
 
         element = dispatch_context.workflow_action.element
         ancestors = ElementHandler().get_ancestors(element, element.page)
-        collections = [element, *ancestors]
+        # A form change reads the enclosing row, not the selector's option rows.
+        collections = (
+            ancestors
+            if dispatch_context.workflow_action.event == EventTypes.CHANGE
+            else [element, *ancestors]
+        )
         collections = [
             ancestor.specific
             for ancestor in collections

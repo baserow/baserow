@@ -7,6 +7,7 @@
       [icon]: true,
     }"
     :title="title"
+    :data-builder-interactive="isButton || undefined"
     @click="$emit('click', $event)"
   />
 </template>

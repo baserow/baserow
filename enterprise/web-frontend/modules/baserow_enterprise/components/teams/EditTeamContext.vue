@@ -5,6 +5,24 @@
         <li
           v-if="
             $hasPermission(
+              'enterprise.teams.list_subjects',
+              workspace,
+              workspace.id
+            )
+          "
+          class="context__menu-item"
+        >
+          <a
+            class="context__menu-item-link"
+            @click="handleManageMembersClick(team)"
+          >
+            <i class="context__menu-item-icon iconoir-community"></i>
+            {{ $t('editTeamContext.manageMembers') }}
+          </a>
+        </li>
+        <li
+          v-if="
+            $hasPermission(
               'enterprise.teams.team.update',
               workspace,
               workspace.id
@@ -50,7 +68,7 @@ import TeamService from '@baserow_enterprise/services/team'
 
 export default {
   name: 'EditTeamContext',
-  emits: ['deleted', 'edit'],
+  emits: ['deleted', 'edit', 'manage-members'],
   mixins: [context],
   props: {
     workspace: {
@@ -70,6 +88,10 @@ export default {
   methods: {
     handleEditClick(team) {
       this.$emit('edit', team)
+      this.hide()
+    },
+    handleManageMembersClick(team) {
+      this.$emit('manage-members', team)
       this.hide()
     },
     async remove(team) {

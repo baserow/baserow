@@ -43,6 +43,13 @@ class BaseModel(PydanticBaseModel):
 # the tools give it.
 SERVICE_ATTRIBUTES = {"prompt": "ai_prompt"}
 
+# Where a row_id formula reads its row from.
+ROW_ID_PATHS = (
+    " The row that fired a row trigger is "
+    "get('previous_node.<trigger node id>.0.id'); the row an earlier create_row "
+    "or update_row node wrote is get('previous_node.<that node id>.id')."
+)
+
 # Appended to the description of the values that take a formula.
 SUPPORTS_FORMULA = " A literal or a formula."
 
@@ -541,9 +548,7 @@ class ActionNodeCreate(BaseModel):
     row_id: str | None = Field(
         default=None,
         description=(
-            "(update/delete_row) Required: which row to act on. After a row "
-            "trigger this is usually the triggering row: "
-            "get('previous_node.<trigger node id>.0.id')."
+            f"(update/delete_row) Required: which row to act on.{ROW_ID_PATHS}"
             f"{SUPPORTS_FORMULA}"
         ),
     )
@@ -728,7 +733,8 @@ class NodeUpdate(BaseModel):
     # -- create_row / update_row / delete_row --
     table_id: int | None = None
     row_id: str | None = Field(
-        default=None, description=f"(update/delete_row) Row ID.{SUPPORTS_FORMULA}"
+        default=None,
+        description=f"(update/delete_row) Row ID.{ROW_ID_PATHS}{SUPPORTS_FORMULA}",
     )
     values: list[AutomationFieldValue] | None = Field(
         default=None,

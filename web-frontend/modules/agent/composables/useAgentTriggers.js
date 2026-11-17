@@ -7,12 +7,16 @@ import isEqual from 'lodash/isEqual'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
-import { defaultTriggerMessage } from '@baserow/modules/agent/utils/triggers'
+import {
+  defaultTriggerMessage,
+  serviceTypeOf,
+} from '@baserow/modules/agent/utils/triggers'
 
 const TYPED_SAVE_DELAY = 500
-const TRIGGER_FIELDS = ['name', 'enabled', 'message', 'on_overlap']
-const PICKED_FIELDS = ['name', 'enabled', 'on_overlap']
+const TRIGGER_FIELDS = ['type', 'name', 'enabled', 'message', 'on_overlap']
+const PICKED_FIELDS = ['type', 'name', 'enabled', 'on_overlap']
 const SAVED_FIELDS = [...TRIGGER_FIELDS, 'service']
+const TYPE_CHANGE_FIELDS = ['type', 'service', 'message']
 
 /**
  * @param {object} trigger A trigger as the server returned it.
@@ -157,7 +161,7 @@ export function useAgentTriggers(agent) {
   /**
    * @param {object} trigger A tracked trigger, as its card shows it.
    * @returns {object} What the card shows that the server doesn't hold, with
-   *   service values compared field by field.
+   *   service values compared field by field, or all of them for a new type.
    */
   function unsavedValues(trigger) {
     const { values } = saved.get(trigger.id)
@@ -166,20 +170,22 @@ export function useAgentTriggers(agent) {
         (field) => !isEqual(trigger[field], values[field])
       ).map((field) => [field, trigger[field]])
     )
+    const savedService = 'type' in unsaved ? {} : values.service
     const serviceValues = Object.fromEntries(
       Object.entries(trigger.service).filter(
-        ([field, value]) => !isEqual(value, values.service[field])
+        ([field, value]) => !isEqual(value, savedService[field])
       )
     )
-    if (Object.keys(serviceValues).length) {
+    if ('type' in unsaved || Object.keys(serviceValues).length) {
       unsaved.service = { type: trigger.service.type, ...serviceValues }
     }
     return unsaved
   }
 
   /**
-   * Sends a trigger's due fields that the server doesn't hold, each alone, unless
-   * a save of it is already in flight: that one sends them once it ends.
+   * Sends a trigger's due fields that the server doesn't hold, each alone but a
+   * new type with its service and message, unless a save of it is already in
+   * flight: that one sends them once it ends.
    *
    * @param {object} trigger The trigger to save.
    */
@@ -193,8 +199,13 @@ export function useAgentTriggers(agent) {
         const field = takeDueField(trigger.id)
         if (!field) break
         const unsaved = unsavedValues(trigger)
-        if (field in unsaved) {
-          await sendValues(trigger, { [field]: unsaved[field] }, currentScope)
+        const sent = Object.fromEntries(
+          (field === 'type' ? TYPE_CHANGE_FIELDS : [field])
+            .filter((name) => name in unsaved)
+            .map((name) => [name, unsaved[name]])
+        )
+        if (Object.keys(sent).length) {
+          await sendValues(trigger, sent, currentScope)
         }
       }
     } finally {
@@ -216,7 +227,9 @@ export function useAgentTriggers(agent) {
         sent
       )
       if (!scopeIsCurrent(currentScope)) return
-      if (sent.service) delete serviceErrors[trigger.id]
+      if (sent.service && trigger.type === data.type) {
+        delete serviceErrors[trigger.id]
+      }
       adoptSaved(trigger, sent, data)
     } catch (error) {
       if (scopeIsCurrent(currentScope)) handleSaveError(trigger, sent, error)
@@ -225,7 +238,9 @@ export function useAgentTriggers(agent) {
 
   /**
    * Takes the server's reply as saved, and shows its values where the card still
-   * shows what was sent: a field edited meanwhile keeps the newer edit.
+   * shows what was sent: a field edited meanwhile keeps the newer edit. Service
+   * values only merge while the card still shows the response's type. Adopting a
+   * different type replaces its service rather than mixing the types' settings.
    *
    * @param {object} trigger The saved trigger.
    * @param {object} sent The values that were sent.
@@ -243,25 +258,37 @@ export function useAgentTriggers(agent) {
         trigger[field] = latest[field]
       }
     }
-    const sentService = sent.service || {}
-    trigger.service = Object.fromEntries(
-      Object.entries({ ...trigger.service, ...latest.service }).map(
-        ([field, value]) => {
-          const showsSaved = isEqual(
-            trigger.service[field],
-            field in sentService ? sentService[field] : previous.service[field]
-          )
-          return [field, showsSaved ? value : trigger.service[field]]
-        }
+    if (trigger.type === latest.type && trigger.service.type !== latest.type) {
+      trigger.service = cloneDeep(latest.service)
+      delete serviceErrors[trigger.id]
+    } else if (trigger.type === latest.type) {
+      const sentService = sent.service || {}
+      const previousService = 'type' in sent ? {} : previous.service
+      trigger.service = Object.fromEntries(
+        Object.entries({ ...trigger.service, ...latest.service }).map(
+          ([field, value]) => {
+            const showsSaved =
+              !(field in trigger.service) ||
+              isEqual(
+                trigger.service[field],
+                field in sentService
+                  ? sentService[field]
+                  : previousService[field]
+              )
+            return [field, showsSaved ? value : trigger.service[field]]
+          }
+        )
       )
-    )
+    }
+    trigger.last_skipped_on = data.last_skipped_on
+    trigger.last_skipped_reason = data.last_skipped_reason
     entry.values = latest
   }
 
   /**
-   * Keeps rejected service values shown with their error, to be sent again with
-   * the next service edit; otherwise shows the server's values again for what
-   * failed, remounting the service form so it shows them too.
+   * Keeps rejected same-type service edits shown with their error. A failed type
+   * change restores the saved type and service together, unless another type
+   * was picked meanwhile. Other failures revert only the values still shown.
    *
    * @param {object} trigger The trigger whose save failed.
    * @param {object} sent The values that were sent.
@@ -270,24 +297,29 @@ export function useAgentTriggers(agent) {
   function handleSaveError(trigger, sent, error) {
     const code = errorCode(error)
     const { values } = saved.get(trigger.id) || {}
+    const showsSentService = sent.service?.type === trigger.type
     if (code === API_ERROR_CODE.TRIGGER_SERVICE_MISCONFIGURED) {
+      if (!showsSentService) return
       const detail = error.response.data.detail
       serviceErrors[trigger.id] =
         typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
-      return
-    }
-    if (code === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
+      if (!('type' in sent)) return
+    } else if (code === API_ERROR_CODE.AGENT_TRIGGER_DOES_NOT_EXIST) {
       removeTrigger(trigger)
       return
+    } else {
+      notifyIf(error, 'trigger')
     }
-    notifyIf(error, 'trigger')
     if (!values) return
     for (const field of TRIGGER_FIELDS) {
       if (field in sent && isEqual(trigger[field], sent[field])) {
         trigger[field] = values[field]
       }
     }
-    if (sent.service) {
+    if (!showsSentService) return
+    if ('type' in sent) {
+      trigger.service = cloneDeep(values.service)
+    } else {
       const reverted = { ...trigger.service }
       for (const [field, value] of Object.entries(sent.service)) {
         if (isEqual(trigger.service[field], value)) {
@@ -295,8 +327,8 @@ export function useAgentTriggers(agent) {
         }
       }
       trigger.service = reverted
-      serviceReverts[trigger.id] = (serviceReverts[trigger.id] || 0) + 1
     }
+    serviceReverts[trigger.id] = (serviceReverts[trigger.id] || 0) + 1
   }
 
   function scheduleSave(trigger, fields) {
@@ -316,11 +348,13 @@ export function useAgentTriggers(agent) {
 
   /**
    * Shows a card's edit at once and saves each edited field: a name, a switch or
-   * an overlap rule right away, a message or service values once typing pauses.
+   * an overlap rule right away, a new type right away with its service and
+   * message, a message or service values once typing pauses.
    *
    * @param {object} trigger The trigger the card shows.
-   * @param {object} values The edited `name`, `enabled`, `on_overlap`,
-   *   `message` or service values.
+   * @param {object} values The edited `type`, `name`, `enabled`, `on_overlap`,
+   *   `message` or service values; a new type comes with all the values of its
+   *   service.
    */
   function updateTrigger(trigger, values) {
     if (!saved.has(trigger.id)) return
@@ -328,9 +362,15 @@ export function useAgentTriggers(agent) {
       if (field in values) trigger[field] = values[field]
     }
     if (values.service) {
-      trigger.service = { ...trigger.service, ...values.service }
+      trigger.service =
+        'type' in values
+          ? values.service
+          : { ...trigger.service, ...values.service }
     }
-    const edited = SAVED_FIELDS.filter((field) => field in values)
+    const edited =
+      'type' in values
+        ? ['type']
+        : SAVED_FIELDS.filter((field) => field in values)
     const picked = edited.filter((field) => PICKED_FIELDS.includes(field))
     const typed = edited.filter((field) => !PICKED_FIELDS.includes(field))
     if (typed.length) scheduleSave(trigger, typed)
@@ -338,6 +378,32 @@ export function useAgentTriggers(agent) {
       addFields(dueFields, trigger.id, picked)
       saveDueFields(trigger)
     }
+  }
+
+  /**
+   * Gives a trigger another type, with that type's default service values. Its
+   * message becomes the new type's default only while it is the old type's
+   * default, so a message of its own is kept.
+   *
+   * @param {object} trigger The trigger the card shows.
+   * @param {string} type The service type the trigger gets.
+   */
+  function changeTriggerType(trigger, type) {
+    if (type === trigger.type) return
+    const serviceType = $registry.get('service', type)
+    const values = {
+      type,
+      service: { type, ...serviceType.getDefaultValues(null, {}) },
+    }
+    const previousType = serviceTypeOf($registry, trigger.type)
+    if (
+      previousType &&
+      trigger.message?.formula ===
+        defaultTriggerMessage(t, previousType).formula
+    ) {
+      values.message = defaultTriggerMessage(t, serviceType)
+    }
+    updateTrigger(trigger, values)
   }
 
   /**
@@ -403,6 +469,7 @@ export function useAgentTriggers(agent) {
     fetchTriggers,
     createTrigger,
     updateTrigger,
+    changeTriggerType,
     deleteTrigger,
   }
 }

@@ -163,6 +163,14 @@
     "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer.",
     "noHtmlContent": "This email has no HTML body."
   },
+  "noteField": {
+    "label": "Note",
+    "help": "Shown to everyone who can open this and included in exports. Markdown is supported."
+  },
+  "noteIndicator": {
+    "title": "Note",
+    "show": "Show note"
+  },
   "action": {
     "cancel": "Cancel",
     "submit": "Submit"
@@ -507,6 +515,9 @@
     "title": "Invite as admin through a link?",
     "message": "Anyone with this link can join the workspace as an admin, and admins can manage everything in it, including its members and invite links. Only share it with people you trust.",
     "confirm": "Invite as admin"
+  },
+  "scopeAccessList": {
+    "remove": "Remove"
   },
   "inviteInput": {
     "batchLimitExceeded": "You can invite up to {limit} email addresses at once. Remove extra addresses to continue.",
@@ -1381,7 +1392,10 @@
   },
   "dataExplorerNode": {
     "showMore": "Show more repetitions",
-    "selectNode": "Select"
+    "selectNode": "Select",
+    "emptyValue": "empty",
+    "itemCount": "{count} item | {count} items",
+    "fieldCount": "{count} field | {count} fields"
   },
   "richTextEditor": {
     "errorUnsupportedImageTitle": "Image can't be embedded",

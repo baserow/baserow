@@ -67,7 +67,12 @@
   }
 }
 
+.workflow-node-content__note {
+  order: 1;
+}
+
 .workflow-node-content__more--wrapper {
+  order: 2;
   display: flex;
   margin-left: auto;
   flex-direction: column;

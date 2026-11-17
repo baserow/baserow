@@ -15,7 +15,13 @@ def sanitize_sample_data(value):
 
 
 def _sanitize_sample_value(value):
-    """Replace JSON values with placeholders, preserving keys, types and shape."""
+    """
+    Replace JSON values with placeholders, preserving keys, types and shape.
+
+    The frontend recognises sample data made of these placeholders only, so that
+    it doesn't show them as values (`isPlaceholderSampleData`). Keep both in
+    sync.
+    """
 
     if isinstance(value, dict):
         return {key: _sanitize_sample_value(item) for key, item in value.items()}

@@ -138,9 +138,25 @@ a run but not stop it. `can_follow_chat` checks websocket subscriptions; HTTP
 output followers use `can_read`.
 
 Each run type limits only its own active runs. By default a user can have two
-at once; override `get_max_active_runs_per_user` (None for no limit) or
-`get_max_active_runs_per_workspace` to change that. At a limit, `create_run`
+at once; override `get_max_active_runs_per_user(user)` (None for no limit) or
+`get_max_active_runs_per_workspace(workspace)` to change that. At a limit, `create_run`
 raises `ChatRunLimitReached`, which the product turns into its own error.
+
+Agent replies default to unlimited at both levels, so an install has no cap
+until an operator sets one. Configure `BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER` and
+`BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE` to bound queued or running replies;
+unset, empty, `0` or a negative value means unlimited. The user cap counts across
+workspaces, and both caps are enforced in the database across backend processes.
+Opening another tab or disconnecting does not change the active-run count. At
+either limit, a new Agent send returns HTTP 429 `ERROR_AGENT_BUSY` without saving
+its messages.
+
+A plugin can replace the registered `AgentChatRunType` and override
+`get_max_active_runs_per_workspace(workspace)` to select a workspace's cap from its
+plan, or `get_max_active_runs_per_user(user)` to set one user's cap across
+workspaces, for example from a per-user setting it stores. Both methods run
+synchronously when a new run is created. Return `None` for unlimited or `0` to
+refuse new runs; lowering a limit does not stop runs already going.
 
 Core serves `GET /api/chat-runs/<run_id>/stream/?cursor=` for every run type. Its
 URL name is registered with the stream router through `register_async_stream_path`

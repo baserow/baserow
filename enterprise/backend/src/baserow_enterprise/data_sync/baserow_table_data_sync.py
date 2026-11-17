@@ -47,6 +47,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator, specific_queryset
 from baserow.core.handler import CoreHandler
+from baserow.core.models import Template
 from baserow.core.utils import ChildProgressBuilder
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.fields.field_types import AIFieldType
@@ -262,6 +263,9 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             raise_permission_exceptions=False,
         ):
             raise SyncError("The authorized user doesn't have access to the table.")
+
+        if Template.Type.USER in table.database.workspace.get_template_types():
+            raise SyncError("A table of a user template can't be synced.")
 
         view = None
         view_id = instance.source_table_view_id

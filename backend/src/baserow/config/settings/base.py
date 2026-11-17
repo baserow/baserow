@@ -273,6 +273,10 @@ CELERY_RESULT_EXPIRES = int(
 # channels-redis blocks for five seconds while waiting for messages. Leave headroom
 # above that wait so redis-py's socket deadline does not close idle WebSockets.
 CHANNELS_REDIS_SOCKET_TIMEOUT = 10
+# Short, because the connections of a killed or restarted process keep receiving a
+# copy of every group message until this passes. The channel layer renews the
+# memberships of live connections, so those are not affected.
+CHANNELS_REDIS_GROUP_EXPIRY = 15 * 60
 # Whether large realtime messages are compressed before they are written to Redis.
 # Only turn this on once every backend process runs a version that can read them.
 REALTIME_COMPRESSION_ENABLED = str_to_bool(
@@ -291,6 +295,7 @@ CHANNEL_LAYERS = {
                 }
             ],
             "serializer_format": "compressed_msgpack",
+            "group_expiry": CHANNELS_REDIS_GROUP_EXPIRY,
         },
     },
 }
@@ -2131,9 +2136,12 @@ AGENT_TRIGGER_MAX_PARALLEL_RUNS = int(
     os.getenv("BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS") or 5
 )
 
-# 0 or less is no limit for both.
+# 0 or less is no limit for all three.
 BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE = (
     max(int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE") or 0), 0) or None
+)
+BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER = (
+    max(int(os.getenv("BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER") or 0), 0) or None
 )
 BASEROW_AGENT_MAX_ACTIONS_PER_AGENT = (
     max(int(os.getenv("BASEROW_AGENT_MAX_ACTIONS_PER_AGENT") or 0), 0) or None

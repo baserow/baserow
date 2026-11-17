@@ -15,6 +15,21 @@
 
     <FormGroup
       small-label
+      :label="$t('workflowGeneralSettings.descriptionLabel')"
+      class="padding-top-2"
+      :helper-text="$t('workflowGeneralSettings.descriptionHelp')"
+      :error-message="getFirstErrorMessage('description')"
+    >
+      <FormTextarea
+        v-model="v$.values.description.$model"
+        :rows="5"
+        :placeholder="$t('workflowGeneralSettings.descriptionPlaceholder')"
+        :error="v$.values.description.$error"
+      ></FormTextarea>
+    </FormGroup>
+
+    <FormGroup
+      small-label
       :label="$t('workflowGeneralSettings.workflowDisabledRecipientsLabel')"
       class="padding-top-2"
       :helper-text="
@@ -123,11 +138,14 @@ const root = ref(null)
 const workflowDisabledRecipientsModal = ref(null)
 const workspaceMembers = ref([])
 const membersLoading = ref(false)
+const DESCRIPTION_MAX_LENGTH = 2000
+
 const values = reactive({
   name: '',
+  description: '',
   notification_recipient_ids: [],
 })
-const allowedValues = ['name', 'notification_recipient_ids']
+const allowedValues = ['name', 'description', 'notification_recipient_ids']
 
 const trustContent = () =>
   store.dispatch('automationWorkflow/update', {
@@ -143,6 +161,12 @@ const rules = computed(() => ({
       maxLength: helpers.withMessage(
         t('error.maxLength', { max: 255 }),
         maxLength(255)
+      ),
+    },
+    description: {
+      maxLength: helpers.withMessage(
+        t('error.maxLength', { max: DESCRIPTION_MAX_LENGTH }),
+        maxLength(DESCRIPTION_MAX_LENGTH)
       ),
     },
   },

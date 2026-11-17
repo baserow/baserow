@@ -2,6 +2,7 @@ import RuntimeFormulaContext from '@baserow/modules/core/runtimeFormulaContext'
 import { resolveFormula } from '@baserow/modules/core/formula'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { handleDispatchError } from '@baserow/modules/builder/utils/error'
+import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 
 /**
  * This might look like something that belongs in a registry, but it does not.
@@ -139,6 +140,21 @@ export class ClickEvent extends Event {
       label: labelSuffix
         ? `${app.$i18n.t('eventTypes.clickLabel')} ${labelSuffix}`
         : app.$i18n.t('eventTypes.clickLabel'),
+    })
+  }
+}
+
+export class ChangeEvent extends Event {
+  constructor({ app }) {
+    super({
+      app,
+      name: 'change',
+      label: app.$i18n.t('eventTypes.changeLabel'),
+      applicationContextAdditions: {
+        // Expose the changed field without replacing an enclosing Repeat's record
+        // with the Record selector's own options data source.
+        dataScope: DATA_SCOPES.INCLUDE_TARGET_FORM_DATA,
+      },
     })
   }
 }

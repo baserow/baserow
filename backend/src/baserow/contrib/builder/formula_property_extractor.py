@@ -7,6 +7,7 @@ from baserow.contrib.builder.data_providers.registries import (
 )
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.formula_importer import BaserowFormulaImporter
+from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.core.formula import BaserowFormula
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -137,7 +138,9 @@ def get_workflow_action_property_names(
 
     for workflow_action in workflow_actions:
         formula_context = ElementHandler().get_import_context_addition(
-            workflow_action.element_id, element_map
+            workflow_action.element_id,
+            element_map,
+            include_target=workflow_action.event != EventTypes.CHANGE,
         )
 
         found_properties = workflow_action.get_type().extract_properties(

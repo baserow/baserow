@@ -1,5 +1,9 @@
 <template>
-  <div ref="wrapper" class="ab-datetime-picker__wrapper">
+  <div
+    ref="wrapper"
+    class="ab-datetime-picker__wrapper"
+    data-builder-interactive
+  >
     <ABIcon
       class="ab-datetime-picker__icon"
       icon="iconoir-calendar"

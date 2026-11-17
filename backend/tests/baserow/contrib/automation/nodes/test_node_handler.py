@@ -7,6 +7,7 @@ from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTrigg
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.cache import local_cache
+from baserow.core.constants import NOTE_MAX_LEN
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict
@@ -116,6 +117,7 @@ def test_export_prepared_values(data_fixture):
 
     assert values == {
         "label": "My node",
+        "note": "",
         "on_failure": "stop",
         "max_retries": 2,
         "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
@@ -147,6 +149,7 @@ def test_export_node(data_fixture):
     assert result == {
         "id": node.id,
         "label": node.label,
+        "note": "",
         "on_failure": "stop",
         "max_retries": 2,
         "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
@@ -403,3 +406,86 @@ def test_duplicate_node_keeps_the_error_policy(data_fixture):
     assert duplicated_node.on_failure == "retry"
     assert duplicated_node.max_retries == 3
     assert "current_node.id" in duplicated_node.retry_condition["formula"]
+
+
+@pytest.mark.django_db
+def test_update_node_note(data_fixture):
+    node = data_fixture.create_automation_node()
+
+    assert node.note == ""
+
+    updated_node = AutomationNodeHandler().update_node(node, note="Why **this** step")
+
+    updated_node.refresh_from_db()
+    assert updated_node.note == "Why **this** step"
+
+
+@pytest.mark.django_db
+def test_export_and_import_node_keeps_the_note(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, note="Creates the invoice row"
+    )
+
+    exported = AutomationNodeHandler().export_node(node)
+    assert exported["note"] == "Creates the invoice row"
+
+    target_workflow = data_fixture.create_automation_workflow(
+        automation=workflow.automation
+    )
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported = AutomationNodeHandler().import_node(
+        target_workflow, exported, id_mapping
+    )
+
+    assert imported.note == "Creates the invoice row"
+
+
+@pytest.mark.django_db
+def test_import_node_without_a_note(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+
+    exported = AutomationNodeHandler().export_node(node)
+    del exported["note"]
+
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported = AutomationNodeHandler().import_node(workflow, exported, id_mapping)
+
+    assert imported.note == ""
+
+
+@pytest.mark.django_db
+def test_duplicate_node_keeps_the_note(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, note="Creates the invoice row"
+    )
+
+    duplicated_node = AutomationNodeHandler().duplicate_node(action)
+
+    assert duplicated_node.id != action.id
+    assert duplicated_node.note == "Creates the invoice row"
+
+
+@pytest.mark.django_db
+def test_import_node_cuts_a_note_that_is_too_long(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+
+    exported = AutomationNodeHandler().export_node(node)
+    exported["note"] = "a" * (NOTE_MAX_LEN + 50)
+
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported = AutomationNodeHandler().import_node(workflow, exported, id_mapping)
+
+    assert imported.note == "a" * NOTE_MAX_LEN

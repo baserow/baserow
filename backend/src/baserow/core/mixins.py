@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Callable, Generic, List, Optional, TypeVar
 
 from django.contrib.contenttypes.models import ContentType
+from django.core.validators import MaxLengthValidator
 from django.db import models
 from django.db.models import Case, QuerySet, Value, When
 from django.db.models.fields import NOT_PROVIDED
@@ -11,6 +12,7 @@ from django.utils.functional import cached_property
 
 from django_cte import CTEManager
 
+from baserow.core.constants import NOTE_MAX_LEN
 from baserow.core.db import (
     get_highest_order_of_queryset,
     get_unique_orders_before_item,
@@ -385,6 +387,40 @@ class CreatedAndUpdatedOnMixin(models.Model):
 
     class Meta:
         abstract = True
+
+
+class NoteMixin(models.Model):
+    """
+    Gives a model a free Markdown note that its editors write to explain what
+    the object is for, e.g. an automation node. The note is documentation only:
+    nothing reads it at runtime.
+
+    To accept and return the note through the API, list `note` in the model's
+    serializers and in the allowed fields of its handler or type.
+    """
+
+    note = models.TextField(
+        blank=True,
+        default="",
+        db_default="",
+        validators=[MaxLengthValidator(NOTE_MAX_LEN)],
+        help_text="A Markdown note explaining what this object is for.",
+    )
+
+    class Meta:
+        abstract = True
+
+    @staticmethod
+    def clean_imported_note(value: Optional[str]) -> str:
+        """
+        Prepares a note read from an import file. The serializers refuse a note
+        that is too long; an imported one is cut to the limit instead.
+
+        :param value: The note found in the import file, if any.
+        :return: The note to store.
+        """
+
+        return (value or "")[:NOTE_MAX_LEN]
 
 
 class AbstractModelMeta(abc.ABCMeta, type(models.Model)):

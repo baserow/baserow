@@ -22,6 +22,7 @@
         v-else
         ref="menuSubLinkContainer"
         class="menu-element__menu-item-with-children"
+        data-builder-interactive
         @click="toggleSubMenu()"
       >
         <div>

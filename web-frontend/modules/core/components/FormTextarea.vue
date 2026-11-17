@@ -185,7 +185,7 @@ export default {
       this.$refs.textarea.blur()
     },
     input(event) {
-      const value = toValue(event.target.value)
+      const value = this.toValue(event.target.value)
       // emitting the updated value Vue 3 style.
       this.$emit('update:modelValue', value)
       // emitting the updated value Vue 2 style.

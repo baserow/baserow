@@ -97,6 +97,7 @@ tracer = trace.get_tracer(__name__)
 class AutomationNodeHandler:
     allowed_fields = [
         "label",
+        "note",
         "service",
     ]
 

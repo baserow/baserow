@@ -16,14 +16,21 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FileField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
+from baserow.core.storage import get_default_storage
 from baserow.core.user_files.exceptions import (
     InvalidUserFileNameError,
     UserFileDoesNotExist,
 )
 from baserow.core.user_files.handler import UserFileHandler
 from baserow.core.user_files.models import UserFile
+from baserow.core.user_files.template_files import (
+    is_template_file_unique,
+    template_file_prefix,
+)
+from baserow.core.user_templates.handler import user_template_copy_config
 from baserow.test_utils.helpers import AnyStr
 
 
@@ -387,6 +394,166 @@ def test_get_set_export_serialized_value_file_field(
     assert getattr(row_2, f"field_{file_field.id}")[0]["mime_type"] == "text/plain"
 
 
+def _empty_zip():
+    buffer = BytesIO()
+    with ZipFile(buffer, "w"):
+        pass
+    buffer.seek(0)
+    return ZipFile(buffer)
+
+
+def _create_template_user_file(data_fixture, **kwargs):
+    template_workspace = data_fixture.create_workspace()
+    return data_fixture.create_user_file(
+        unique=template_file_prefix(template_workspace.id) + "a" * 19, **kwargs
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_file
+def test_file_default_value_export_import_with_files_source(
+    data_fixture, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    imported_workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_file_field(table=table, name="File")
+    grid_view = data_fixture.create_grid_view(table=table)
+    storage = get_default_storage()
+    handler = UserFileHandler()
+    full_file = handler.upload_user_file(
+        user, "full.txt", ContentFile(b"Full"), storage=storage
+    )
+    plain_file = handler.upload_user_file(
+        user, "plain.txt", ContentFile(b"Plain"), storage=storage
+    )
+    old_file = handler.upload_user_file(
+        user, "old.txt", ContentFile(b"Old"), storage=storage
+    )
+    lost_file = data_fixture.create_user_file(original_name="lost.txt")
+    template_file = _create_template_user_file(data_fixture, original_name="tpl.txt")
+    unknown_name = f"{'u' * 32}_{'h' * 64}.txt"
+    value = [
+        {
+            "name": full_file.name,
+            "visible_name": "Full.txt",
+            "url": handler.get_user_file_url(full_file),
+            "thumbnails": None,
+            "size": full_file.size,
+        },
+        {"name": plain_file.name},
+        {"name": old_file.name, "visible_name": "Old.txt"},
+        {"name": lost_file.name, "visible_name": "Lost.txt"},
+        {"name": template_file.name},
+        {"name": unknown_name},
+        {"name": "../not_a_user_file.txt"},
+    ]
+    ViewDefaultValue.objects.create(
+        view=grid_view, field=field, value=value, field_type="file"
+    )
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+
+    def export(export_config):
+        files_buffer = BytesIO()
+        applications = core_handler.export_workspace_applications(
+            database.workspace,
+            files_buffer=files_buffer,
+            storage=storage,
+            import_export_config=export_config,
+        )
+        with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
+            names = set(zip_file.namelist())
+        [serialized_view] = [
+            view
+            for view in applications[0]["tables"][0]["views"]
+            if view["id"] == grid_view.id
+        ]
+        return (
+            applications,
+            files_buffer,
+            names,
+            serialized_view["default_row_values"][str(field.id)]["value"],
+        )
+
+    _, _, zip_names, exported_value = export(config)
+    assert zip_names == set()
+    assert exported_value == value
+
+    exported_applications, files_buffer, zip_names, exported_value = export(
+        user_template_copy_config()
+    )
+
+    assert zip_names == {full_file.name, plain_file.name, old_file.name}
+    assert exported_value[0] == {
+        "name": full_file.name,
+        "visible_name": "Full.txt",
+        "original_name": full_file.name,
+    }
+    assert exported_value[1]["visible_name"] is None
+    del exported_value[2]["original_name"]
+
+    imported_applications, _ = core_handler.import_applications_to_workspace(
+        imported_workspace, exported_applications, files_buffer, config, storage
+    )
+
+    imported_value = ViewDefaultValue.objects.get(
+        view__table__database=imported_applications[0]
+    ).value
+    full_entry, plain_entry, *kept_entries = imported_value
+    for entry, source_file, visible_name, content in [
+        (full_entry, full_file, "Full.txt", b"Full"),
+        (plain_entry, plain_file, None, b"Plain"),
+    ]:
+        user_file = UserFile.objects.all().name(entry["name"]).get()
+        assert user_file.id != source_file.id
+        assert not is_template_file_unique(user_file.unique)
+        assert user_file.sha256_hash == source_file.sha256_hash
+        assert entry["visible_name"] == (visible_name or user_file.original_name)
+        assert entry["url"] == handler.get_user_file_url(user_file)
+        assert "thumbnails" in entry
+        with storage.open(handler.user_file_path(user_file.name)) as stored:
+            assert stored.read() == content
+    assert kept_entries == [
+        {"name": old_file.name, "visible_name": "Old.txt"},
+        {"name": lost_file.name, "visible_name": "Lost.txt"},
+        {"name": unknown_name, "visible_name": None},
+        {"name": "../not_a_user_file.txt", "visible_name": None},
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.field_file
+def test_file_field_rejects_template_file_names(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_file_field(table=table)
+    template_file = _create_template_user_file(data_fixture, original_name="a.txt")
+    normal_file = data_fixture.create_user_file(
+        original_name="a.txt", sha256_hash=template_file.sha256_hash
+    )
+    field_type = field_type_registry.get_by_model(field)
+    row_handler = RowHandler()
+
+    with pytest.raises(UserFileDoesNotExist):
+        row_handler.create_row(
+            user, table, values={field.db_column: [{"name": template_file.name}]}
+        )
+    row = row_handler.create_row(
+        user, table, values={field.db_column: [{"name": normal_file.name}]}
+    )
+    assert getattr(row, field.db_column)[0]["name"] == normal_file.name
+
+    values_by_row = field_type.prepare_value_for_db_in_bulk(
+        field,
+        {0: [{"name": template_file.name}], 1: [{"name": normal_file.name}]},
+        continue_on_error=True,
+    )
+    assert isinstance(values_by_row[0], UserFileDoesNotExist)
+    assert values_by_row[1][0]["name"] == normal_file.name
+
+
 @pytest.mark.django_db
 @pytest.mark.field_file
 @pytest.mark.row_history
@@ -721,3 +888,37 @@ def test_filtering_file_formula_field_type(
         response_json["results"][0][formula_field.db_column][0]["visible_name"]
         == user_file_1.original_name
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_file
+def test_file_default_value_export_never_reads_files_without_a_user_file(
+    data_fixture, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_file_field(table=table, name="File")
+    grid_view = data_fixture.create_grid_view(table=table)
+    storage = get_default_storage()
+    handler = UserFileHandler()
+    unknown_name = f"{'u' * 32}_{'h' * 64}.txt"
+    storage.save(handler.user_file_path(unknown_name), ContentFile(b"Not a file"))
+    storage.save("secret.txt", ContentFile(b"Secret"))
+    ViewDefaultValue.objects.create(
+        view=grid_view,
+        field=field,
+        value=[{"name": unknown_name}, {"name": "../secret.txt"}],
+        field_type="file",
+    )
+    files_buffer = BytesIO()
+
+    CoreHandler().export_workspace_applications(
+        database.workspace,
+        files_buffer=files_buffer,
+        storage=storage,
+        import_export_config=user_template_copy_config(),
+    )
+
+    with ZipFile(files_buffer, "r", ZIP_DEFLATED, False) as zip_file:
+        assert zip_file.namelist() == []
