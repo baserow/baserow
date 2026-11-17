@@ -613,19 +613,24 @@ register_case(
 
 
 def _resolves_to_created_row(row_id_formula, trigger, create_node) -> bool:
-    """Whether a row_id formula reads the created row's id, given a trigger row
-    and a created row with different ids."""
+    """
+    Whether a row_id formula reads the created row's id. Two runs with different
+    trigger and created row ids rule out a constant or the trigger row's id.
+    """
 
-    context = AssistantFormulaContext()
-    context.add_node_context(trigger.id, [{"id": 101}])
-    context.add_node_context(create_node.id, {"id": 555})
-    try:
-        value = resolve_formula(
-            row_id_formula, formula_runtime_function_registry, context
-        )
-    except Exception:
-        return False
-    return value in (555, "555")
+    for trigger_id, created_id in ((101, 555), (202, 777)):
+        context = AssistantFormulaContext()
+        context.add_node_context(trigger.id, [{"id": trigger_id}])
+        context.add_node_context(create_node.id, {"id": created_id})
+        try:
+            value = resolve_formula(
+                row_id_formula, formula_runtime_function_registry, context
+            )
+        except Exception:
+            return False
+        if value not in (created_id, str(created_id)):
+            return False
+    return True
 
 
 def _updates_created_row(update, create, trigger, source_field) -> bool:
@@ -648,10 +653,18 @@ def _updates_created_row(update, create, trigger, source_field) -> bool:
 def _check_updates_created_row(
     case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
 ) -> list[CheckResult]:
+    source_table = scenario.refs["source_table"]
     log_table = scenario.refs["log_table"]
+    name_field = source_table.field_set.get(name="Name")
+    entry = log_table.field_set.get(name="Entry")
     source = log_table.field_set.get(name="Source")
+    samples = [
+        ({"id": row_id, name_field.db_column: name}, {entry.id: name})
+        for row_id, name in ((101, "Ada Lovelace"), (202, "Grace Hopper"))
+    ]
 
     def check(trigger, actions):
+        service = trigger.service.specific if trigger else None
         creates = [
             node
             for node in actions
@@ -665,7 +678,22 @@ def _check_updates_created_row(
             and node.service.specific.table_id == log_table.id
         ]
         return [
+            CheckResult(
+                "trigger is rows_created on Contacts",
+                service is not None
+                and service.get_type().type == "local_baserow_rows_created"
+                and getattr(service, "table_id", None) == source_table.id,
+            ),
             CheckResult("create_row on Log in DB", bool(creates)),
+            CheckResult(
+                "created row's Entry follows the trigger's Name",
+                any(
+                    _row_values_match(
+                        create.service.specific, trigger, samples, update=False
+                    )
+                    for create in creates
+                ),
+            ),
             CheckResult("update_row on Log in DB", bool(updates)),
             CheckResult(
                 "update_row after the create_row sets Source on the created row",
