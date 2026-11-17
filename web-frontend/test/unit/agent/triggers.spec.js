@@ -1311,11 +1311,12 @@ describe('Agent triggers', () => {
     expect(
       card.findAll('.dropdown__selected-text').map((item) => item.text())
     ).toEqual(['Sales', 'Orders'])
-    expect(card.find('.alert').exists()).toBe(false)
+    expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
+    expect(card.find('.control__messages--error').exists()).toBe(false)
     expect(patches(testApp)).toEqual([])
   })
 
-  test('asks for workspace access, and reloads the choices once the agent has it', async () => {
+  test('marks a trigger that reads the workspace as one that won’t run until the agent has access', async () => {
     testApp.mock.onGet('/agent/10/trigger-types/').replyOnce(200, [
       triggerTypeOf('periodic'),
       {
@@ -1330,15 +1331,23 @@ describe('Agent triggers', () => {
       types
     )
     const rowsCard = () => wrapper.findAll('.agent-trigger-card')[1]
-    const notes = () =>
-      wrapper.findAll('.agent-trigger-card .alert').map((note) => note.text())
+    const statuses = () =>
+      wrapper
+        .findAll('.agent-trigger-card__status')
+        .map((icon) => icon.attributes('aria-label'))
+    const fieldErrors = () =>
+      rowsCard()
+        .findAll('.control__messages--error')
+        .map((error) => error.text())
     const selected = () =>
       rowsCard()
         .findAll('.dropdown__selected-text')
         .map((item) => item.text())
 
-    expect(notes()).toEqual(['agent.triggerNeedsWorkspaceAccess'])
-    expect(rowsCard().find('.alert').exists()).toBe(true)
+    expect(statuses()).toEqual(['agent.triggerNeedsWorkspaceAccess'])
+    expect(fieldErrors()).toEqual(['agent.triggerSetWorkspaceAccess'])
+    expect(rowsCard().findAll('.dropdown--error')).toHaveLength(1)
+    expect(wrapper.find('.agent-trigger-card .alert').exists()).toBe(false)
     expect(selected()).not.toContain('Orders')
 
     await wrapper.setProps({
@@ -1350,7 +1359,8 @@ describe('Agent triggers', () => {
     })
     await flushPromises()
 
-    expect(notes()).toEqual([])
+    expect(statuses()).toEqual([])
+    expect(fieldErrors()).toEqual([])
     expect(selected()).toEqual(['Sales', 'Orders'])
   })
 

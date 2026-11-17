@@ -95,13 +95,6 @@
     </header>
     <div v-if="serviceType" v-show="expanded" class="agent-trigger-card__body">
       <div class="agent-trigger-card__section">
-        <Alert
-          v-if="needsWorkspaceAccess"
-          type="info-primary"
-          class="margin-top-0 margin-bottom-2"
-        >
-          {{ $t('agent.triggerNeedsWorkspaceAccess') }}
-        </Alert>
         <component
           :is="serviceType.formComponent"
           v-if="typeOptions"
@@ -360,7 +353,11 @@ provide(
   })
 )
 const formChoices = computed(() => props.typeOptions?.form_choices ?? null)
-// Passed only when set, so a form that takes no hidden fields gets no attribute.
+/** A form that reads workspace data has nothing to offer without an identity. */
+const needsWorkspaceAccess = computed(
+  () => formChoices.value !== null && !props.runAsActive
+)
+// Passed only when set, so a form that doesn't take a prop gets no attribute.
 const hostedFormProps = computed(() => {
   const hiddenFormFields = agentTriggerTypeOf(
     $registry,
@@ -369,6 +366,9 @@ const hostedFormProps = computed(() => {
   return {
     ...formChoices.value,
     ...(hiddenFormFields?.length ? { hiddenFormFields } : {}),
+    ...(needsWorkspaceAccess.value
+      ? { formChoicesError: t('agent.triggerSetWorkspaceAccess') }
+      : {}),
   }
 })
 const typeName = computed(() => serviceType.value?.name || props.trigger.type)
@@ -383,16 +383,14 @@ const shownName = computed(() => props.trigger.name || defaultName.value)
 const defaultOnOverlap = computed(
   () => props.typeOptions?.default_on_overlap ?? null
 )
-/** A form that reads workspace data has nothing to offer without an identity. */
-const needsWorkspaceAccess = computed(
-  () => formChoices.value !== null && !props.runAsActive
-)
-const configurationError = computed(
-  () =>
-    serviceType.value?.getErrorMessage({
-      service: props.trigger.service,
-      workspace: props.workspace,
-    }) || ''
+/** Why the trigger can't run as it is set up, or ''. */
+const configurationError = computed(() =>
+  needsWorkspaceAccess.value
+    ? t('agent.triggerNeedsWorkspaceAccess')
+    : serviceType.value?.getErrorMessage({
+        service: props.trigger.service,
+        workspace: props.workspace,
+      }) || ''
 )
 const isUnlimited = (cap) => cap !== null && cap <= 0
 /** The hint of an overlap option, worded by the caps it counts; 0 is no limit. */
