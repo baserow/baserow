@@ -88,10 +88,7 @@ class AgentApplicationType(ApplicationType):
             return None, None
         if workspace is None:
             return run_as
-        binder = import_export_config.copied_by or import_export_config.restored_by
-        if binder is None or not IdentityService().check_can_bind(
-            binder, workspace, raise_permission_exceptions=False
-        ):
+        if not IdentityService().can_copy_binding(workspace, import_export_config):
             return None, None
         resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)
         if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:

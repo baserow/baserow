@@ -196,6 +196,41 @@ class LocalBaserowIntegrationType(IntegrationType):
             ]
         )
 
+    @staticmethod
+    def _copy_loses_identity(
+        workspace: Optional[Workspace],
+        serialized_values: Dict[str, Any],
+        import_export_config: Optional[ImportExportConfig],
+    ) -> bool:
+        """
+        Says whether a copy may not keep the identity its original acts as. A
+        duplicate or a restored snapshot is a new binding, so it keeps the identity
+        only when the person who makes it may bind identities.
+
+        :param workspace: The workspace of the copy, or None for a snapshot or a
+            published application, which keep their subject.
+        :param serialized_values: The exported integration.
+        :param import_export_config: How the integration is imported.
+        :return: Whether the copy must be authorized as someone else.
+        """
+
+        subject_type = serialized_values.get("authorized_subject_type")
+        subject_id = serialized_values.get("authorized_subject_id")
+        if (
+            workspace is None
+            or import_export_config is None
+            or not import_export_config.is_duplicate
+            or not subject_type
+            or not subject_id
+        ):
+            return False
+        subject = subject_type_registry.get_subject(
+            subject_type, subject_id, include_trash=True
+        )
+        return is_identity(subject) and not IdentityService().can_copy_binding(
+            workspace, import_export_config
+        )
+
     def import_serialized(
         self,
         application: Application,
@@ -238,6 +273,15 @@ class LocalBaserowIntegrationType(IntegrationType):
             if legacy_authorized_user:
                 serialized_values["authorized_subject_type"] = "auth.User"
                 serialized_values["authorized_subject_id"] = legacy_authorized_user.id
+
+        if self._copy_loses_identity(
+            application.workspace, serialized_values, import_export_config
+        ):
+            person = import_export_config.copied_by or import_export_config.restored_by
+            serialized_values["authorized_subject_type"] = (
+                subject_type_registry.get_by_model(person).type if person else None
+            )
+            serialized_values["authorized_subject_id"] = person.id if person else None
 
         integration = super().import_serialized(
             application,

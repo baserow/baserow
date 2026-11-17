@@ -17,6 +17,7 @@ from baserow.core.identities.signals import (
     identity_updated,
 )
 from baserow.core.models import User, Workspace
+from baserow.core.registries import ImportExportConfig
 
 
 class IdentityService:
@@ -181,4 +182,22 @@ class IdentityService:
             workspace=workspace,
             context=workspace,
             raise_permission_exceptions=raise_permission_exceptions,
+        )
+
+    def can_copy_binding(
+        self, workspace: Workspace, import_export_config: ImportExportConfig
+    ) -> bool:
+        """
+        Checks whether a duplicate or a restored snapshot keeps the identity its
+        original acts as. The copy is a new binding, also when the original lost
+        its own since, so the person who makes it must be allowed to bind.
+
+        :param workspace: The workspace the copy is made in.
+        :param import_export_config: Says who duplicates or restores.
+        :return: Whether the copy keeps acting as the identity.
+        """
+
+        binder = import_export_config.copied_by or import_export_config.restored_by
+        return binder is not None and self.check_can_bind(
+            binder, workspace, raise_permission_exceptions=False
         )

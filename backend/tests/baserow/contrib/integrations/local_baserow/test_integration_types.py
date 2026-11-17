@@ -12,9 +12,12 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
 )
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 
 
 @pytest.mark.django_db
@@ -130,6 +133,79 @@ def test_only_identity_managers_bind_an_integration_to_an_identity(data_fixture)
     )
 
     assert kept.integration.authorized_subject == identity
+
+
+def _application_acting_as(data_fixture, authorized_by: str):
+    """
+    Creates an application whose integration acts as an identity or as the admin.
+
+    :param authorized_by: Either `identity` or `admin`.
+    :return: The application and the admin, member and identity of its workspace.
+    """
+
+    people = {"admin": data_fixture.create_user(), "member": data_fixture.create_user()}
+    workspace = data_fixture.create_workspace(
+        user=people["admin"], custom_permissions=[(people["member"], "MEMBER")]
+    )
+    people["identity"] = data_fixture.create_identity(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    subject = (
+        "authorized_identity" if authorized_by == "identity" else "authorized_user"
+    )
+    data_fixture.create_local_baserow_integration(
+        application=application, **{subject: people[authorized_by]}
+    )
+    return application, people
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "authorized_by,copied_by,acts_as",
+    [
+        ("identity", "admin", "identity"),
+        ("identity", "member", "member"),
+        ("admin", "member", "admin"),
+    ],
+)
+def test_a_copy_keeps_the_identity_only_for_identity_managers(
+    data_fixture, authorized_by, copied_by, acts_as
+):
+    application, people = _application_acting_as(data_fixture, authorized_by)
+
+    copy = CoreHandler().duplicate_application(people[copied_by], application)
+
+    integration = copy.integrations.get().specific
+    assert integration.authorized_subject_id == people[acts_as].id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "authorized_by,restored_by,acts_as",
+    [
+        ("identity", "admin", "identity"),
+        ("identity", "member", "member"),
+        ("admin", "member", "admin"),
+    ],
+)
+def test_a_restored_snapshot_keeps_the_identity_only_for_identity_managers(
+    data_fixture, authorized_by, restored_by, acts_as
+):
+    application, people = _application_acting_as(data_fixture, authorized_by)
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=application,
+        name="Before",
+        created_by=people["admin"],
+    )
+    snapshots = SnapshotHandler()
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=people[restored_by]
+    )
+
+    integration = restored.integrations.get().specific
+    assert integration.authorized_subject_id == people[acts_as].id
 
 
 @pytest.mark.django_db

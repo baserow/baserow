@@ -158,9 +158,10 @@ Binding an Agent application or a Local Baserow integration to an identity takes
 `identity.update`, held by workspace admins, because everyone who can edit the bound
 application acts with the identity's access. Keeping or clearing a binding needs no
 extra permission, and run-as choices list no identities for someone who cannot bind
-them. A duplicated or restored Agent application keeps its binding only when the
-person doing it may bind identities; a copied Local Baserow integration keeps its
-authorized subject, as integrations always have.
+them. A duplicate or a restored snapshot is a new binding, also when the original
+lost its own since, so it keeps the identity only when the person who makes it may
+bind identities. Otherwise an Agent application loses its run-as and a Local Baserow
+integration is authorized as that person, as an import from another workspace is.
 
 Every shared tool entry point starts a new permission lifetime per call, so a revoked
 or trashed identity stops acting on the next call even when the caller reuses its
