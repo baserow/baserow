@@ -5,8 +5,7 @@ const CHAT_UUID_KEY = 'baserow.assistant.chatUuid'
 const PANEL_OPEN_KEY = 'baserow.assistant.panelOpen'
 const ONBOARDING_RUN_ID_KEY = 'baserow.assistant.onboardingRunId'
 
-// Keeps the tab's id stable when sessionStorage is blocked.
-let fallbackTabId = null
+let tabId = null
 
 function read(key) {
   try {
@@ -26,17 +25,28 @@ function write(key, value) {
   } catch {}
 }
 
+function leaveTabIdForNextPage() {
+  write(TAB_ID_KEY, tabId)
+}
+
+function takeTabIdFromPreviousPage() {
+  tabId = read(TAB_ID_KEY) || tabId
+  write(TAB_ID_KEY, null)
+}
+
+// Duplicated tabs copy sessionStorage, so the id is stored only between pages.
+if (import.meta.client) {
+  takeTabIdFromPreviousPage()
+  window.addEventListener('pagehide', leaveTabIdForNextPage)
+  window.addEventListener('pageshow', takeTabIdFromPreviousPage)
+}
+
 /**
  * @returns {string} This tab's id, kept across reloads, so Kuma's navigation
  *   follows only the tab that sent the message.
  */
 export function getTabId() {
-  let tabId = read(TAB_ID_KEY) || fallbackTabId
-  if (!tabId) {
-    tabId = uuid()
-    write(TAB_ID_KEY, tabId)
-  }
-  fallbackTabId = tabId
+  tabId ??= uuid()
   return tabId
 }
 

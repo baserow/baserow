@@ -21,6 +21,19 @@ export class KumaPanel {
     return kuma;
   }
 
+  /** A copy of `page` with its sessionStorage, as the browser's "Duplicate tab" makes one. */
+  static async inDuplicateOf(page: Page): Promise<KumaPanel> {
+    const [duplicate] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.evaluate(() => {
+        window.open(window.location.href);
+      }),
+    ]);
+    const kuma = new KumaPanel(duplicate);
+    await expect(kuma.panel).toBeVisible();
+    return kuma;
+  }
+
   /** Opens the panel of a page that starts with it closed, as the configured storage state leaves it. */
   async open(): Promise<void> {
     await expect(this.panel).toBeHidden();

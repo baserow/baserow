@@ -150,8 +150,7 @@ test("a run keeps going when its tab closes, and a new tab shows the whole answe
   await expect(reopened.answers()).toHaveText([answerOf(WORDS)]);
 });
 
-test("with two tabs on a chat, only the tab that sent the message follows Kuma to its new table", async ({
-  context,
+test("with a tab and its duplicate on a chat, only the tab that sent the message follows Kuma to its new table", async ({
   page,
   workspacePage,
 }) => {
@@ -162,7 +161,7 @@ test("with two tabs on a chat, only the tab that sent the message follows Kuma t
   });
   await sender.expectIdle();
 
-  const watcher = await KumaPanel.inNewTab(context, workspacePage.getFullUrl());
+  const watcher = await KumaPanel.inDuplicateOf(page);
   await watcher.openLatestChat();
   await expect(watcher.answers()).toHaveText([UNSCRIPTED_ANSWER]);
   const watcherUrl = watcher.page.url();
