@@ -5,7 +5,11 @@
     :class="wrapperClasses"
     :style="elementStyles"
   >
-    <div class="element__inner-wrapper">
+    <component
+      :is="usesClickableWrapper ? 'ClickableElementWrapper' : 'div'"
+      v-bind="usesClickableWrapper ? { element } : {}"
+      class="element__inner-wrapper"
+    >
       <span v-if="showElementId" class="element--element-id">{{
         element.id
       }}</span>
@@ -19,7 +23,7 @@
         :class="elementClasses"
         @move="$emit('move', $event)"
       />
-    </div>
+    </component>
   </div>
 </template>
 
@@ -34,11 +38,13 @@ import {
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
+import ClickableElementWrapper from '@baserow/modules/builder/components/elements/ClickableElementWrapper'
 
 import { mapGetters } from 'vuex'
 
 export default {
   name: 'PageElement',
+  components: { ClickableElementWrapper },
   mixins: [applicationContextMixin],
   inject: ['workspace', 'builder', 'mode', 'currentPage'],
   provide() {
@@ -102,6 +108,13 @@ export default {
     },
     elementType() {
       return this.$registry.get('element', this.element.type)
+    },
+    usesClickableWrapper() {
+      // Layout padding belongs to this wrapper, not the element component.
+      return (
+        this.elementType.isContainerElement &&
+        !!this.elementType.getEventByName(this.element, 'click')
+      )
     },
     elementClasses() {
       return this.element.css_classes.replaceAll('"', '')

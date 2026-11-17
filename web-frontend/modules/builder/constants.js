@@ -24,6 +24,10 @@ const DEFAULT_DATA_SCOPE = {
 
 export const DATA_SCOPES = {
   EXCLUDE_TARGET_SUBTREE: { ...DEFAULT_DATA_SCOPE },
+  INCLUDE_TARGET_FORM_DATA: {
+    ...DEFAULT_DATA_SCOPE,
+    includeTargetDescendants: true,
+  },
   INCLUDE_TARGET_ELEMENT: {
     ...DEFAULT_DATA_SCOPE,
     includeTargetElement: true,

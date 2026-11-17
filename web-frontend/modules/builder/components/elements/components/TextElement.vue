@@ -1,10 +1,15 @@
 <template>
   <div
+    v-bind="clickableElementAttributes"
     class="text-element"
     :class="{
       'element--no-value': !resolvedValue,
+      'element--clickable': isClickable,
     }"
     :style="getStyleOverride('typography')"
+    @click="onElementClick"
+    @keydown="onElementKeydown"
+    @keyup="onElementKeyup"
   >
     <template v-if="element.format === TEXT_FORMAT_TYPES.MARKDOWN">
       <MarkdownIt
@@ -33,7 +38,7 @@
 </template>
 
 <script>
-import element from '@baserow/modules/builder/mixins/element'
+import clickableElement from '@baserow/modules/builder/mixins/clickableElement'
 import { generateHash } from '@baserow/modules/core/utils/hashing'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { TEXT_FORMAT_TYPES } from '@baserow/modules/builder/enums'
@@ -47,7 +52,7 @@ import { createApplicationBuilderMarkdownRules } from '@baserow/modules/builder/
 
 export default {
   name: 'TextElement',
-  mixins: [element],
+  mixins: [clickableElement],
   props: {
     /**
      * @type {Object}

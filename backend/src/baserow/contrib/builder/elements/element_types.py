@@ -153,6 +153,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         column_weights: list
         column_stacking: Dict[str, str]
 
+    def get_event_names(self, instance: ColumnElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     @property
     def serializer_field_names(self):
         return super().serializer_field_names + [
@@ -432,6 +435,9 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         pass
 
+    def get_event_names(self, instance: SimpleContainerElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
 
@@ -591,6 +597,9 @@ class RecordSelectorElementType(
         placeholder: BaserowFormulaObject
         multiple: bool
         option_name_suffix: BaserowFormulaObject
+
+    def get_event_names(self, instance: RecordSelectorElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     @property
     def serializer_field_overrides(self):
@@ -842,6 +851,9 @@ class HeadingElementType(ElementType):
         value: BaserowFormulaObject
         level: int
 
+    def get_event_names(self, instance: HeadingElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     def get_graph_point_label(self, instance: HeadingElement) -> str:
         value = instance.value
         if isinstance(value, dict):
@@ -908,6 +920,9 @@ class TextElementType(ElementType):
     class SerializedDict(ElementDict):
         value: BaserowFormulaObject
         format: str
+
+    def get_event_names(self, instance: TextElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
@@ -1286,6 +1301,9 @@ class ImageElementType(ElementType):
         image_file_id: int
         image_url: BaserowFormulaObject
         alt_text: BaserowFormulaObject
+
+    def get_event_names(self, instance: ImageElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
@@ -1900,6 +1918,9 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         option_type: str
         formula_value: BaserowFormulaObject
         formula_name: BaserowFormulaObject
+
+    def get_event_names(self, instance: ChoiceElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     @property
     def serializer_field_overrides(self):

@@ -6,23 +6,26 @@
     }"
   >
     <ABHeading :level="element.level" :style="getStyleOverride('typography')">
-      {{
-        element.value
-          ? resolvedValue ||
-            (mode === 'editing' ? $t('headingElement.emptyValue') : '&nbsp;')
-          : $t('headingElement.missingValue')
-      }}
+      <!-- The button sits inside the heading so the heading keeps its role. -->
+      <span
+        v-bind="clickableElementAttributes"
+        :class="isClickable ? 'element--clickable' : undefined"
+        @click="onElementClick"
+        @keydown="onElementKeydown"
+        @keyup="onElementKeyup"
+        >{{ headingText }}</span
+      >
     </ABHeading>
   </div>
 </template>
 
 <script>
-import element from '@baserow/modules/builder/mixins/element'
+import clickableElement from '@baserow/modules/builder/mixins/clickableElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'HeadingElement',
-  mixins: [element],
+  mixins: [clickableElement],
   props: {
     /**
      * @type {Object}
@@ -37,6 +40,19 @@ export default {
   computed: {
     resolvedValue() {
       return ensureString(this.resolveFormula(this.element.value))
+    },
+    headingText() {
+      if (!this.element.value) {
+        return this.$t('headingElement.missingValue')
+      }
+      return (
+        this.resolvedValue ||
+        (this.mode === 'editing' ? this.$t('headingElement.emptyValue') : ' ')
+      )
+    },
+    canContainInteractiveContent() {
+      // The click target only holds the heading text.
+      return false
     },
   },
 }

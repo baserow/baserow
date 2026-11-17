@@ -775,6 +775,7 @@
   },
   "eventTypes": {
     "clickLabel": "On click",
+    "changeLabel": "On change",
     "submitLabel": "On submit",
     "afterLoginLabel": "After login"
   },
