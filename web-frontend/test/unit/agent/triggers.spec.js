@@ -33,7 +33,7 @@ const httpTrigger = () =>
       uid: 'http-service',
       schema: null,
       exclude_get: false,
-      is_public: false,
+      is_public: true,
       wait_for_response: false,
       response_timeout_seconds: 10,
     },
@@ -118,6 +118,40 @@ describe('Agent triggers', () => {
       [
         '/agent/10/triggers/1/',
         { service: { type: 'periodic', interval: 'DAY' } },
+      ],
+    ])
+  })
+
+  test('hosts HTTP with one live URL and saves its method option without workflow response settings', async () => {
+    useFakeTimers()
+    const trigger = httpTrigger()
+    Object.assign(trigger.service, {
+      wait_for_response: true,
+      response_timeout_seconds: 0,
+    })
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, trigger)
+    const wrapper = await mountSection([trigger], ['periodic', 'http_trigger'])
+    const card = wrapper.get('.agent-trigger-card')
+    const form = card.findComponent({ name: 'CoreHTTPTriggerServiceForm' })
+
+    expect(form.get('.webhook-service-form__webhook-url').text()).toMatch(
+      /\/api\/webhooks\/http-service\/$/
+    )
+    expect(form.find('.radio-group').exists()).toBe(false)
+    expect(form.find('.checkbox').exists()).toBe(false)
+    expect(form.find('input[type="number"]').exists()).toBe(false)
+
+    await choose(
+      form.get('.dropdown'),
+      'coreHTTPTriggerServiceForm.methodsOptionExcludeGet'
+    )
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        { service: { type: 'http_trigger', exclude_get: true } },
       ],
     ])
   })
@@ -411,9 +445,15 @@ describe('Agent triggers', () => {
       .reply(200, periodicTrigger({ enabled: false }))
     testApp.mock.onDelete('/agent/10/triggers/1/').reply(204)
     const wrapper = await mountSection([periodicTrigger()])
+    const switchTooltip = async () => {
+      await wrapper.get('.agent-trigger-card__switch').trigger('mouseenter')
+      return document.querySelector('.tooltip').textContent
+    }
 
+    expect(await switchTooltip()).toBe('agent.triggerEnabledTooltip')
     await wrapper.get('.agent-trigger-card__switch').trigger('click')
     await flushPromises()
+    expect(await switchTooltip()).toBe('agent.triggerDisabledTooltip')
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { enabled: false }],
     ])
@@ -428,6 +468,42 @@ describe('Agent triggers', () => {
     ])
     expect(wrapper.find('.agent-trigger-card').exists()).toBe(false)
     expect(wrapper.text()).toContain('agent.noTriggers')
+  })
+
+  test('trigger cards collapse and expand one by one and all together, keeping their switch', async () => {
+    const wrapper = await mountSection([
+      periodicTrigger(),
+      periodicTrigger({ id: 2 }),
+    ])
+    const bodies = () =>
+      wrapper
+        .findAll('.agent-trigger-card__body')
+        .map((body) => body.isVisible())
+    const toggles = wrapper.findAll('.agent-trigger-card__toggle')
+    const all = wrapper.get('.agent-card-list-header__toggle-all')
+
+    expect(bodies()).toEqual([false, false])
+    expect(toggles[0].attributes('aria-expanded')).toBe('false')
+    expect(all.text()).toBe('agent.expandAll')
+    expect(wrapper.get('.agent-card-list-header__label').text()).toBe(
+      'agent.enabled'
+    )
+
+    await toggles[0].trigger('click')
+    expect(bodies()).toEqual([true, false])
+    expect(toggles[0].attributes('aria-expanded')).toBe('true')
+
+    await all.trigger('click')
+    expect(bodies()).toEqual([true, true])
+    expect(all.text()).toBe('agent.collapseAll')
+
+    await all.trigger('click')
+    expect(bodies()).toEqual([false, false])
+    expect(
+      wrapper
+        .findAll('.agent-trigger-card__switch')
+        .every((control) => control.isVisible())
+    ).toBe(true)
   })
 
   test('offers to add a trigger only once the list has loaded', async () => {
@@ -493,6 +569,7 @@ describe('Agent triggers', () => {
     ])
     const card = wrapper.get('.agent-trigger-card')
     expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
+    expect(card.get('.agent-trigger-card__body').isVisible()).toBe(true)
   })
 
   test('opens a new trigger with the translated name and the time it fired', async () => {
@@ -709,6 +786,40 @@ describe('Agent triggers', () => {
     ])
   })
 
+  test('a trigger still on its default message gets the HTTP one with the request body', async () => {
+    const httpType = testApp.getRegistry().get('service', 'http_trigger')
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, httpTrigger())
+    const message = (text, path) => ({
+      formula: `concat('${text} ', get('trigger.${path}'))`,
+      mode: 'simple',
+      version: '0.1',
+    })
+    const wrapper = await mountSection(
+      [
+        periodicTrigger({
+          message: message('agent.triggerDefaultMessage', 'fired_at'),
+        }),
+      ],
+      ['periodic', 'http_trigger']
+    )
+
+    await chooseTriggerType(wrapper.get('.agent-trigger-card'), 'http_trigger')
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        {
+          type: 'http_trigger',
+          service: {
+            type: 'http_trigger',
+            ...httpType.getDefaultValues(null, {}),
+          },
+          message: message('agent.httpTriggerDefaultMessage', 'raw_body'),
+        },
+      ],
+    ])
+  })
+
   test('a previous type response does not mix its settings into the new type', async () => {
     useFakeTimers()
     const first = deferredReply()
@@ -834,7 +945,7 @@ describe('Agent triggers', () => {
       .onPatch('/agent/10/triggers/1/')
       .reply(200, {
         ...response,
-        service: { ...response.service, wait_for_response: true },
+        service: { ...response.service, exclude_get: true },
       })
     const wrapper = await mountSection(
       [periodicTrigger()],
@@ -856,7 +967,10 @@ describe('Agent triggers', () => {
       'http-service'
     )
     const form = card.findComponent({ name: 'CoreHTTPTriggerServiceForm' })
-    await form.get('.checkbox').trigger('click')
+    await choose(
+      form.get('.dropdown'),
+      'coreHTTPTriggerServiceForm.methodsOptionExcludeGet'
+    )
     await vi.advanceTimersByTimeAsync(500)
     await flushPromises()
 
@@ -864,7 +978,7 @@ describe('Agent triggers', () => {
       ['/agent/10/triggers/1/', { name: 'Renamed trigger' }],
       [
         '/agent/10/triggers/1/',
-        { service: { type: 'http_trigger', wait_for_response: true } },
+        { service: { type: 'http_trigger', exclude_get: true } },
       ],
     ])
   })

@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 from typing import Any
 from zipfile import ZipFile
@@ -42,6 +41,7 @@ from baserow.core.trash.handler import TrashHandler
 from .data_providers import AgentTriggerDispatchContext
 from .exceptions import AgentTriggerDoesNotExist, AgentTriggerTypeNotAvailable
 from .overlap import get_overlap_limits
+from .registries import agent_trigger_type_registry
 
 
 class AgentTriggerHandler:
@@ -119,6 +119,38 @@ class AgentTriggerHandler:
 
         if type_name not in self.available_trigger_types(agent):
             raise AgentTriggerTypeNotAvailable(type_name)
+
+    def prepare_service_values(
+        self,
+        service_type: TriggerServiceTypeMixin,
+        service_values: dict[str, Any],
+        user: AbstractUser,
+        service: Service | None = None,
+    ) -> dict[str, Any]:
+        """
+        Prepare the values a trigger's service is created or updated with, as an
+        Agent hosts its type: a new service starts with the Agent's defaults for
+        the type, and the fields an Agent doesn't use are left out.
+
+        :param service_type: The trigger service type the service has.
+        :param service_values: The values to set, by field name.
+        :param user: The user setting the values.
+        :param service: The specific service to update, or None for a new one.
+        :raises ServiceMisconfigured: When the service values are invalid.
+        :return: The values, passed through ``service_type.prepare_values``.
+        """
+
+        trigger_type = agent_trigger_type_registry.get_for_service_type(
+            service_type.type
+        )
+        values = {
+            name: value
+            for name, value in service_values.items()
+            if name not in trigger_type.unused_service_fields
+        }
+        if service is None:
+            values = {**trigger_type.default_service_values, **values}
+        return service_type.prepare_values(values, user, service)
 
     def create_trigger(
         self,
@@ -311,15 +343,35 @@ class AgentTriggerHandler:
         self.check_type_available(trigger.agent, service_type.type)
         service_type.arm(service)
 
-    def payload_as_message(self, event_payload: dict[str, Any]) -> str:
+    def message_without_text(
+        self,
+        trigger: AgentTrigger,
+        event_payload: dict[str, Any],
+        fired_at: datetime,
+    ) -> str:
         """
-        :param event_payload: The payload the trigger's service produced.
-        :return: The payload as a fenced JSON block, which opens the conversation
-            when the trigger's message has no text of its own.
+        The message that opens a conversation when the trigger's own has no text:
+        the trigger and when it fired. A trigger without a message formula also
+        gets what its type says about the event. One whose formula resolved blank
+        or failed doesn't, as its builder chose what the Agent reads.
+
+        :param trigger: The trigger that fired, with its agent and service.
+        :param event_payload: The payload its service produced for this event.
+        :param fired_at: When the dispatcher handled the event.
+        :return: The message, cut to the length the API accepts for a message.
         """
 
-        payload = json.dumps(event_payload, default=str, indent=2)
-        return f"Trigger data:\n```json\n{payload}\n```"[:AGENT_TEXT_MAX_LENGTH]
+        context = AgentTriggerDispatchContext(trigger, event_payload, fired_at)
+        name = trigger.name or "Trigger"
+        message = f"{name} fired at {context.get_fired_at_display()}"
+        if not BaserowFormulaObject.to_formula(trigger.message)["formula"].strip():
+            service = context.service
+            event_text = agent_trigger_type_registry.get_for_service_type(
+                service.get_type().type
+            ).get_event_text(service, event_payload)
+            if event_text:
+                message = f"{message}\n\n{event_text}"
+        return message[:AGENT_TEXT_MAX_LENGTH]
 
     def resolve_message(
         self,
@@ -329,8 +381,8 @@ class AgentTriggerHandler:
     ) -> str:
         """
         Resolve the trigger's message formula against the event payload. A blank
-        result opens the conversation with the payload itself, so a trigger with
-        no message still tells the agent what happened.
+        result opens the conversation with ``message_without_text``, so a trigger
+        with no message still tells the agent what happened.
 
         :param trigger: The trigger that fired, with its agent and service.
         :param event_payload: The payload its service produced for this event.
@@ -347,7 +399,7 @@ class AgentTriggerHandler:
             )
         )
         if not content.strip():
-            return self.payload_as_message(event_payload)
+            return self.message_without_text(trigger, event_payload, fired_at)
         return content[:AGENT_TEXT_MAX_LENGTH]
 
     def get_startable_triggers(self) -> QuerySet[AgentTrigger]:

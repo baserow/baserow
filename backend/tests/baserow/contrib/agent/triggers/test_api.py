@@ -54,12 +54,6 @@ def test_configuration_lists_the_available_trigger_types(
     agent = data_fixture.create_agent_application(user=api_user)
     url = agent_url(agent, "configuration")
 
-    assert api_client.get(url).json()["available_trigger_types"] == ["periodic"]
-
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
     assert set(api_client.get(url).json()["available_trigger_types"]) == {
         "periodic",
         "http_trigger",
@@ -314,7 +308,7 @@ def test_create_rejects_invalid_service_values(
     "type_name,error",
     [
         ("manual", "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
-        ("http_trigger", "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
+        ("email_trigger", "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
         ("upsert_row", "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
         ("unknown", "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),
         (5, "ERROR_REQUEST_BODY_VALIDATION"),
@@ -339,8 +333,12 @@ def test_create_rejects_a_type_the_agent_can_not_use(
 
 @pytest.mark.django_db
 def test_update_refuses_to_switch_on_a_trigger_of_a_type_the_agent_can_not_use(
-    data_fixture, api_client, api_user
+    data_fixture, api_client, api_user, mocker
 ):
+    mocker.patch(
+        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
+        ("periodic",),
+    )
     agent = data_fixture.create_agent_application(user=api_user)
     trigger = data_fixture.create_agent_trigger(
         agent=agent,
@@ -633,19 +631,9 @@ def test_a_trigger_saves_its_overlap_rule_and_shows_its_last_firing(
     assert rejected.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
 
 
-@pytest.fixture
-def http_trigger_available(mocker):
-    """Offer the HTTP trigger beside the periodic one, so a type can change."""
-
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
-
-
 @pytest.mark.django_db
 def test_changing_the_type_replaces_the_service_and_keeps_the_trigger(
-    data_fixture, periodic_trigger, api_client, api_user, mocker, http_trigger_available
+    data_fixture, periodic_trigger, api_client, api_user, mocker
 ):
     agent = data_fixture.create_agent_application(user=api_user)
     trigger = periodic_trigger(agent, interval="DAY", hour=9, minute=0, timezone="UTC")
@@ -700,7 +688,6 @@ def test_service_validation_holds_the_type_until_the_update_finishes(
     api_client,
     api_user,
     mocker,
-    http_trigger_available,
     include_type,
 ):
     agent = data_fixture.create_agent_application(user=api_user)
@@ -745,7 +732,7 @@ def test_service_validation_holds_the_type_until_the_update_finishes(
 
 @pytest.mark.django_db
 def test_changing_only_the_type_starts_from_the_new_types_defaults(
-    data_fixture, api_client, api_user, http_trigger_available
+    data_fixture, api_client, api_user
 ):
     agent = data_fixture.create_agent_application(user=api_user)
     trigger = data_fixture.create_agent_trigger(
@@ -766,7 +753,7 @@ def test_changing_only_the_type_starts_from_the_new_types_defaults(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("type_name", ["http_trigger", "unknown"])
+@pytest.mark.parametrize("type_name", ["email_trigger", "unknown"])
 def test_changing_to_a_type_the_agent_can_not_use_is_refused(
     data_fixture, periodic_trigger, api_client, api_user, type_name
 ):

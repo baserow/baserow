@@ -82,7 +82,9 @@ class AgentConfig(AppConfig):
         )
         from .triggers.data_providers import TriggerDataProviderType
         from .triggers.dispatcher import agent_trigger_dispatcher
+        from .triggers.registries import agent_trigger_type_registry
         from .triggers.trash_types import AgentTriggerTrashableItemType
+        from .triggers.trigger_types import HTTPAgentTriggerType
 
         application_type_registry.register(AgentApplicationType())
         workspace_search_registry.register(AgentSearchType())
@@ -117,6 +119,7 @@ class AgentConfig(AppConfig):
         trash_item_type_registry.register(AgentActionTrashableItemType())
         agent_action_type_registry.register(SMTPEmailAgentActionType())
         agent_action_type_registry.register(HTTPRequestAgentActionType())
+        agent_trigger_type_registry.register(HTTPAgentTriggerType())
         agent_action_data_provider_type_registry.register(ToolInputDataProviderType())
         chat_run_type_registry.register(AgentChatRunType())
         agent_data_provider_type_registry.register(TriggerDataProviderType())

@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 
 import pytest
@@ -130,11 +129,21 @@ def test_resolve_message_resolves_the_default_message_in_the_service_timezone(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("message", ["", "' '"])
-def test_resolve_message_falls_back_to_the_payload(periodic_trigger, message):
-    trigger = periodic_trigger(message)
-    expected = "Trigger data:\n```json\n" + json.dumps(PAYLOAD, indent=2) + "\n```"
+def test_resolve_message_without_text_says_when_the_trigger_fired(
+    data_fixture, message
+):
+    unnamed = data_fixture.create_agent_trigger(message=message)
+    named = data_fixture.create_agent_trigger(message=message, name="Daily digest")
+    handler = AgentTriggerHandler()
 
-    assert AgentTriggerHandler().resolve_message(trigger, PAYLOAD, FIRED_AT) == expected
+    assert (
+        handler.resolve_message(unnamed, PAYLOAD, FIRED_AT)
+        == "Trigger fired at 2026-11-10 09:07 (UTC)"
+    )
+    assert (
+        handler.resolve_message(named, PAYLOAD, FIRED_AT)
+        == "Daily digest fired at 2026-11-10 09:07 (UTC)"
+    )
 
 
 @pytest.mark.django_db

@@ -208,7 +208,7 @@ def test_a_trigger_starts_its_conversation_only_after_the_event_commits(
         "get('trigger.triggered_at') / 2",
     ],
 )
-def test_a_message_failing_at_run_time_opens_with_the_payload_and_fails_its_reply(
+def test_a_message_failing_at_run_time_opens_with_when_it_fired_and_fails_its_reply(
     data_fixture, configured_agent, mocker, logs, message
 ):
     trigger = periodic_trigger(data_fixture, configured_agent(), message=message)
@@ -220,7 +220,7 @@ def test_a_message_failing_at_run_time_opens_with_the_payload_and_fails_its_repl
 
     opening = AgentMessage.objects.get(role="trigger")
     reply = AgentMessage.objects.get(role="assistant")
-    assert opening.content.startswith("Trigger data:")
+    assert opening.content == "Trigger fired at 2026-11-09 10:00 (UTC)"
     assert (reply.status, reply.error_code) == ("failed", "trigger_message_failed")
     assert not ChatRun.objects.exists()
     captured.assert_not_called()
@@ -418,7 +418,7 @@ def test_a_failing_trigger_is_rolled_back_and_logged_while_the_others_start(
 
 
 @pytest.mark.django_db
-def test_an_event_without_a_message_formula_opens_with_its_payload(
+def test_an_event_without_a_message_formula_opens_with_when_it_fired(
     data_fixture, configured_agent
 ):
     user = data_fixture.create_user()
@@ -430,8 +430,8 @@ def test_an_event_without_a_message_formula_opens_with_its_payload(
 
     message = AgentMessage.objects.get(role="trigger")
     assert histories == []
-    assert message.content.startswith("Trigger data:")
-    assert '"triggered_at": "2026-11-09T10:00:00+00:00"' in message.content
+    assert message.content.startswith("Trigger fired at ")
+    assert "triggered_at" not in message.content
     assert (
         AgentConversation.objects.get().title == " ".join(message.content.split())[:250]
     )
@@ -889,12 +889,8 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
 
 @pytest.mark.django_db
 def test_a_firing_queued_before_a_type_change_starts_nothing(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent
 ):
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
     agent = configured_agent(user=data_fixture.create_user())
     trigger = periodic_trigger(data_fixture, agent)
 
@@ -912,12 +908,8 @@ def test_a_firing_queued_before_a_type_change_starts_nothing(
 
 @pytest.mark.django_db
 def test_an_accepted_queued_reply_keeps_its_message_after_a_type_change(
-    data_fixture, configured_agent, mocker
+    data_fixture, configured_agent
 ):
-    mocker.patch(
-        "baserow.contrib.agent.triggers.handler.AGENT_TRIGGER_TYPES_ENABLED",
-        ("periodic", "http_trigger"),
-    )
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
     trigger = periodic_trigger(data_fixture, agent, on_overlap="wait")

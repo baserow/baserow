@@ -3283,6 +3283,8 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         "wait_for_response",
         "response_timeout_seconds",
     ]
+    # Anyone who knows the uid can call the webhook of the exported trigger.
+    sensitive_fields = ["uid"]
 
     class SerializedDict(ServiceDict):
         uid: str

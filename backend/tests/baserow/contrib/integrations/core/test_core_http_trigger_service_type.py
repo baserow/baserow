@@ -230,6 +230,21 @@ def test_import_serialized_regenerates_uid_unless_publishing(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("exclude_sensitive_data", [True, False])
+def test_export_serialized_keeps_the_uid_only_with_sensitive_data(
+    data_fixture, exclude_sensitive_data
+):
+    service = data_fixture.create_core_http_trigger_node().service
+    config = ImportExportConfig(
+        include_permission_data=False, exclude_sensitive_data=exclude_sensitive_data
+    )
+
+    serialized = CoreHTTPTriggerServiceType().export_serialized(service, config)
+
+    assert serialized["uid"] == (None if exclude_sensitive_data else str(service.uid))
+
+
+@pytest.mark.django_db
 def test_imported_application_trigger_has_its_own_url(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

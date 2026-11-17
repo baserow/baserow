@@ -8,6 +8,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import AgentTriggerService from '@baserow/modules/agent/services/agentTriggers'
 import { API_ERROR_CODE } from '@baserow/modules/agent/constants'
 import {
+  agentTriggerTypeOf,
   defaultTriggerMessage,
   serviceTypeOf,
 } from '@baserow/modules/agent/utils/triggers'
@@ -60,6 +61,15 @@ export function useAgentTriggers(agent) {
   const inFlight = new Set()
   let scope = 0
   let listRequest = 0
+
+  /**
+   * @param {object} serviceType A trigger's service type.
+   * @returns {object} The opening message of a new trigger of that type: the
+   *   one an Agent words for it, else its name and the time it fired.
+   */
+  const defaultMessage = (serviceType) =>
+    agentTriggerTypeOf($registry, serviceType.type)?.getDefaultMessage() ??
+    defaultTriggerMessage(t, serviceType)
 
   const agentId = () => agent.value?.id
   const scopeIsCurrent = (currentScope) => scope === currentScope
@@ -144,7 +154,7 @@ export function useAgentTriggers(agent) {
     try {
       const { data } = await service.create(agentId(), {
         type,
-        message: defaultTriggerMessage(t, serviceType),
+        message: defaultMessage(serviceType),
         service: defaults,
       })
       if (scopeIsCurrent(currentScope)) {
@@ -398,10 +408,9 @@ export function useAgentTriggers(agent) {
     const previousType = serviceTypeOf($registry, trigger.type)
     if (
       previousType &&
-      trigger.message?.formula ===
-        defaultTriggerMessage(t, previousType).formula
+      trigger.message?.formula === defaultMessage(previousType).formula
     ) {
-      values.message = defaultTriggerMessage(t, serviceType)
+      values.message = defaultMessage(serviceType)
     }
     updateTrigger(trigger, values)
   }

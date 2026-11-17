@@ -15,6 +15,11 @@
         {{ $t('agent.addTrigger') }}
       </ButtonText>
     </div>
+    <AgentCardListHeader
+      v-if="!loading && !loadError && triggers.length"
+      :all-expanded="allExpanded"
+      @toggle-all="toggleAll"
+    />
     <div v-if="loading" class="skeleton" aria-hidden="true">
       <SkeletonBlock width="100%" height="120px" />
     </div>
@@ -37,6 +42,7 @@
       <AgentTriggerCard
         v-for="trigger in triggers"
         :key="trigger.id"
+        :expanded="expandedIds.has(trigger.id)"
         :trigger="trigger"
         :workspace="workspace"
         :editable="editable"
@@ -46,6 +52,7 @@
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
         :service-reverts="serviceReverts[trigger.id] || 0"
+        @toggle="toggle(trigger.id)"
         @update="updateTrigger(trigger, $event)"
         @change-type="changeTriggerType(trigger, $event)"
         @delete="deleteTrigger(trigger)"
@@ -55,15 +62,17 @@
       ref="picker"
       :available-types="availableTypes"
       :workspace="workspace"
-      @select="createTrigger"
+      @select="addTrigger"
     />
   </section>
 </template>
 
 <script setup>
-import { computed, inject, ref } from 'vue'
+import { computed, inject, ref, watch } from 'vue'
 import { useStore } from 'vuex'
+import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
 import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
@@ -97,6 +106,16 @@ const {
   changeTriggerType,
   deleteTrigger,
 } = useAgentTriggers(agent)
+const { expandedIds, allExpanded, toggle, toggleAll } =
+  useExpandedItems(triggers)
+watch(
+  () => agent.value?.id,
+  () => expandedIds.clear()
+)
+async function addTrigger(type) {
+  const item = await createTrigger(type)
+  if (item) expandedIds.add(item.id)
+}
 // A trigger added before the list loaded would be dropped by the list reply.
 const canAddTriggers = computed(
   () =>

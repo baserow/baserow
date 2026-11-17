@@ -1,6 +1,20 @@
 <template>
   <article class="agent-trigger-card" :aria-busy="saving">
     <header class="agent-trigger-card__header">
+      <button
+        type="button"
+        class="agent-trigger-card__toggle"
+        :aria-expanded="expanded"
+        :aria-label="$t('agent.triggerSettings', { name: shownName })"
+        @click="$emit('toggle')"
+      >
+        <Icon
+          :icon="
+            expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
+          "
+          aria-hidden="true"
+        />
+      </button>
       <div class="agent-trigger-card__title">
         <button
           v-tooltip="typeName"
@@ -55,13 +69,16 @@
           :aria-label="configurationError"
         />
       </div>
-      <span
-        v-if="saving"
-        class="agent-trigger-card__saving"
-        role="status"
-        :aria-label="$t('agent.saving')"
-      />
+      <span class="agent-trigger-card__saving-slot">
+        <span
+          v-if="saving"
+          class="agent-trigger-card__saving"
+          role="status"
+          :aria-label="$t('agent.saving')"
+        />
+      </span>
       <SwitchInput
+        v-tooltip="enabledTooltip"
         class="agent-trigger-card__switch"
         small
         role="switch"
@@ -76,23 +93,20 @@
         @keydown.space.prevent="toggleEnabled"
       />
     </header>
-    <div v-if="serviceType" class="agent-trigger-card__body">
-      <div
-        class="agent-trigger-card__section agent-trigger-card__configuration"
-      >
-        <div class="agent-trigger-card__service">
-          <component
-            :is="serviceType.formComponent"
-            ref="form"
-            :key="`${trigger.type}-${serviceReverts}`"
-            :application="agent"
-            :service="trigger.service"
-            :service-type="serviceType"
-            :default-values="trigger.service"
-            :loading="saving"
-            @values-changed="onServiceValuesChanged"
-          />
-        </div>
+    <div v-if="serviceType" v-show="expanded" class="agent-trigger-card__body">
+      <div class="agent-trigger-card__section">
+        <component
+          :is="serviceType.formComponent"
+          ref="form"
+          :key="`${trigger.type}-${serviceReverts}`"
+          :application="agent"
+          :service="trigger.service"
+          :service-type="serviceType"
+          :default-values="trigger.service"
+          :loading="saving"
+          v-bind="hostedFormProps"
+          @values-changed="onServiceValuesChanged"
+        />
         <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
           {{ serviceError }}
         </p>
@@ -115,12 +129,14 @@
           v-if="schemaProperties.length"
           class="agent-trigger-card__schema"
         >
-          <template #header="{ expanded, toggle }">
+          <template
+            #header="{ expanded: schemaExpanded, toggle: toggleSchema }"
+          >
             <button
               type="button"
               class="agent-trigger-card__schema-toggle"
-              :aria-expanded="expanded"
-              @click="toggle"
+              :aria-expanded="schemaExpanded"
+              @click="toggleSchema"
             >
               <span class="agent-trigger-card__schema-title">
                 {{ $t('agent.triggerDataProvides') }}
@@ -135,7 +151,7 @@
               <i
                 class="agent-trigger-card__schema-chevron"
                 :class="
-                  expanded
+                  schemaExpanded
                     ? 'iconoir-nav-arrow-down'
                     : 'iconoir-nav-arrow-right'
                 "
@@ -200,7 +216,11 @@
         </p>
       </div>
     </div>
-    <footer v-if="editable" class="agent-trigger-card__footer">
+    <footer
+      v-if="editable"
+      v-show="expanded"
+      class="agent-trigger-card__footer"
+    >
       <ButtonText
         type="secondary"
         size="small"
@@ -241,7 +261,10 @@ import Editable from '@baserow/modules/core/components/Editable'
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import AgentTriggerMessageInput from '@baserow/modules/agent/components/configuration/AgentTriggerMessageInput'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
-import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
+import {
+  agentTriggerTypeOf,
+  serviceTypeOf,
+} from '@baserow/modules/agent/utils/triggers'
 import moment from '@baserow/modules/core/moment'
 import {
   TRIGGER_NAME_MAX_LENGTH,
@@ -256,6 +279,8 @@ const props = defineProps({
   workspace: { type: Object, default: null },
   /** Whether the user may change the trigger. */
   editable: Boolean,
+  /** Whether the card shows its settings below its header. */
+  expanded: Boolean,
   /** Whether a save of the trigger is in flight. */
   saving: Boolean,
   /** How many runs of a waiting trigger the server queues, for its hint. */
@@ -269,7 +294,7 @@ const props = defineProps({
   /** The trigger types the Agent's configuration offers, to change to. */
   availableTypes: { type: Array, default: () => [] },
 })
-const emit = defineEmits(['update', 'change-type', 'delete'])
+const emit = defineEmits(['toggle', 'update', 'change-type', 'delete'])
 const { $registry } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
@@ -294,6 +319,14 @@ provide(
     },
   })
 )
+// Passed only when set, so a form that takes no hidden fields gets no attribute.
+const hostedFormProps = computed(() => {
+  const hiddenFormFields = agentTriggerTypeOf(
+    $registry,
+    props.trigger.type
+  )?.hiddenFormFields
+  return hiddenFormFields?.length ? { hiddenFormFields } : {}
+})
 const typeName = computed(() => serviceType.value?.name || props.trigger.type)
 const defaultName = computed(
   () =>
@@ -376,6 +409,15 @@ function rename({ value }) {
   // An unchanged shown name, like a cleared default, doesn't reset the edited text.
   nextTick(() => nameEditable.value?.set())
 }
+
+const enabledTooltip = computed(() => {
+  if (!props.editable) return null
+  return t(
+    props.trigger.enabled
+      ? 'agent.triggerEnabledTooltip'
+      : 'agent.triggerDisabledTooltip'
+  )
+})
 
 function toggleEnabled() {
   if (props.editable) emit('update', { enabled: !props.trigger.enabled })
