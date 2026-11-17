@@ -40,6 +40,7 @@ from baserow.contrib.database.fields.models import Field as DatabaseField
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.core.exceptions import PermissionException
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import item_error_message
@@ -69,13 +70,6 @@ def get_node_in_workspace(ctx: ToolContext, node_id: int) -> AutomationNode:
     return node
 
 
-def _child_ids(info: dict[str, Any]) -> list[int]:
-    children = info.get("children")
-    if isinstance(children, dict):
-        return [node_id for ids in children.values() for node_id in ids]
-    return list(children) if isinstance(children, list) else []
-
-
 # The output a container's child is listed under: it runs inside the container,
 # not after it.
 CHILD_OUTPUT = "child"
@@ -99,36 +93,23 @@ def nodes_in_order(
     if nodes is None:
         nodes = AutomationNodeService().get_nodes(user, workflow)
     nodes = {node.id: node for node in nodes}
-    graph = workflow.get_graph().graph
-    ordered: list[tuple[AutomationNode, AutomationNode | None, str]] = []
-    visited: set[int] = set()
-
-    def walk(node_id: int, previous: AutomationNode | None, output: str) -> None:
-        if node_id in visited or node_id not in nodes:
-            return
-        visited.add(node_id)
-        node = nodes[node_id]
-        ordered.append((node, previous, output))
-        info = graph.get(str(node_id), {})
-        for child_id in _child_ids(info):
-            walk(child_id, node, CHILD_OUTPUT)
-        # A router's branches in their order, the default one last, as the editor
-        # shows them.
-        branch_order = [edge["uid"] for edge in router_edges(node)] + [""]
-        next_outputs = sorted(
-            info.get("next", {}).items(),
-            key=lambda item: (
-                branch_order.index(item[0]) if item[0] in branch_order else 0
-            ),
+    return [
+        (
+            nodes[node_id],
+            None if previous_id is None else nodes[previous_id],
+            CHILD_OUTPUT if position == GraphPointPosition.CHILD else output,
         )
-        for next_output, next_ids in next_outputs:
-            for next_id in next_ids:
-                walk(next_id, node, next_output)
-
-    trigger_id = graph.get("0")
-    if trigger_id is not None:
-        walk(trigger_id, None, "")
-    return ordered
+        for node_id, previous_id, position, output in (
+            workflow.get_graph().get_positions_in_execution_order(
+                nodes,
+                # A router's branches in their order, the default one last, as
+                # the editor shows them.
+                lambda node_id: (
+                    [edge["uid"] for edge in router_edges(nodes[node_id])] + [""]
+                ),
+            )
+        )
+    ]
 
 
 def router_edges(node: AutomationNode) -> list[dict[str, str]]:
@@ -525,20 +506,6 @@ def update_node(
     return node, values, bool(data)
 
 
-def _lock_nodes(workflow: AutomationWorkflow, node_ids: list[int]) -> None:
-    """
-    Lock the requested nodes of the workflow before the first change, in id
-    order, so concurrent calls take the locks in one order.
-    """
-
-    list(
-        AutomationNode.objects.filter(id__in=node_ids, workflow=workflow)
-        .select_for_update(of=("self",))
-        .order_by("id")
-        .values_list("id", flat=True)
-    )
-
-
 def _reload_graph(workflow: AutomationWorkflow) -> None:
     """
     Read a workflow's graph again after a savepoint rolled back. The request's
@@ -591,7 +558,7 @@ def update_nodes(
     field_ids = table_field_ids()
 
     with transaction.atomic():
-        _lock_nodes(workflow, node_ids)
+        AutomationNodeHandler().lock_nodes(workflow, node_ids)
         for node_update in nodes:
             ctx.update_status(
                 _("Updating node %(node_id)s...") % {"node_id": node_update.node_id}

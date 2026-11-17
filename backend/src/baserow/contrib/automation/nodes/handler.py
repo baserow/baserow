@@ -206,6 +206,26 @@ class AutomationNodeHandler:
         except AutomationNode.DoesNotExist:
             raise AutomationNodeDoesNotExist(node_id)
 
+    def lock_nodes(
+        self, workflow: AutomationWorkflow, node_ids: List[int]
+    ) -> List[int]:
+        """
+        Lock nodes of a workflow for the rest of the transaction, in ID order, so
+        concurrent transactions that lock several nodes take the locks in one order.
+        Must be called inside a transaction.
+
+        :param workflow: The workflow the nodes are in. Other nodes are skipped.
+        :param node_ids: The IDs of the nodes to lock.
+        :return: The IDs of the locked nodes, in the order they were locked.
+        """
+
+        return list(
+            AutomationNode.objects.filter(id__in=node_ids, workflow=workflow)
+            .select_for_update(of=("self",))
+            .order_by("id")
+            .values_list("id", flat=True)
+        )
+
     def get_node_by_service_id(self, service_id: int) -> AutomationNode:
         """
         Return the AutomationNode that owns the given service. The node<->service

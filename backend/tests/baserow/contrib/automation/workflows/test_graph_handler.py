@@ -1023,3 +1023,74 @@ def test_graph_handler_migrate_with_unmapped_root():
     )
 
     assert graph_handler.graph == {"41": {}}
+
+
+def test_graph_handler_get_positions_in_execution_order():
+    workflow = MagicMock()
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        # A router: the default branch is stored first but followed last.
+        "2": {"next": {"": [5], "b": [4], "a": [3]}},
+        "3": {},
+        "4": {},
+        # A container, with a legacy children list.
+        "5": {"children": [6], "next": {"": [8]}},
+        "6": {"next": {"": [7]}},
+        "7": {},
+        "8": {"next": {"": [9]}},
+        # Not requested: neither it nor what only it reaches is listed.
+        "9": {"next": {"": [10]}},
+        "10": {},
+    }
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    positions = graph_handler.get_positions_in_execution_order(
+        {1, 2, 3, 4, 5, 6, 7, 8, 10},
+        lambda node_id: ["a", "b", ""] if node_id == 2 else [""],
+    )
+
+    assert positions == [
+        (1, None, "south", ""),
+        (2, 1, "south", ""),
+        (3, 2, "south", "a"),
+        (4, 2, "south", "b"),
+        (5, 2, "south", ""),
+        (6, 5, "child", ""),
+        (7, 6, "south", ""),
+        (8, 5, "south", ""),
+    ]
+
+
+def test_graph_handler_get_positions_in_execution_order_stops_on_a_cycle():
+    workflow = MagicMock()
+    workflow.graph = {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [1]}}}
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    assert graph_handler.get_positions_in_execution_order({1, 2}, lambda _: [""]) == [
+        (1, None, "south", ""),
+        (2, 1, "south", ""),
+    ]
+
+    long_chain = MagicMock()
+    long_chain.graph = {
+        "0": 1,
+        **{str(i): {"next": {"": [i + 1]}} for i in range(1, 5000)},
+    }
+    assert (
+        len(
+            AutomationWorkflowGraphHandler(long_chain).get_positions_in_execution_order(
+                set(range(1, 5001)), lambda _: [""]
+            )
+        )
+        == 5000
+    )
+
+    empty = MagicMock()
+    empty.graph = {}
+    assert (
+        AutomationWorkflowGraphHandler(empty).get_positions_in_execution_order(
+            {1}, lambda _: [""]
+        )
+        == []
+    )
