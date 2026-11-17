@@ -894,8 +894,8 @@ class AgentHandler:
         :param content: The content of the message.
         :param role: Who sent the message: a person or a trigger.
         :param uuid: The client's uuid of the message, or None for a new one.
-        :param raise_on_run_limit: Whether a workspace at its maximum of replies
-            running raises, or fails the reply with ``chat_run_limit_reached``.
+        :param raise_on_run_limit: Whether a reached reply limit raises, or fails
+            the reply with ``chat_run_limit_reached``.
         :param failure: The error code failing the reply instead of running or
             queueing it, or None.
         :param start_run: Whether the run starts now, or the reply stays queued
@@ -952,8 +952,7 @@ class AgentHandler:
 
         :param conversation: The conversation, with its agent and owner.
         :param reply: The empty reply the run writes.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run.
         """
 
@@ -972,8 +971,7 @@ class AgentHandler:
         conversation's latest activity.
 
         :param reply: The reply, with its conversation, agent and workspace.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run writing the reply.
         """
 
@@ -1195,8 +1193,7 @@ class AgentHandler:
         leaves the decisions pending.
 
         :param reply: The waiting reply, with its conversation, agent and owner.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run continuing the reply.
         """
 

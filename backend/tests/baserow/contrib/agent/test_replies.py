@@ -1250,7 +1250,7 @@ def test_a_send_names_its_run_even_when_the_reply_ended_before_the_response(
 
 
 @pytest.mark.django_db
-def test_workspaces_have_no_reply_limit_by_default(
+def test_users_and_workspaces_have_no_reply_limit_by_default(
     api_client, api_user, configured_agent
 ):
     agent = configured_agent(user=api_user)
@@ -2583,3 +2583,36 @@ def test_an_unattended_reply_stops_once_its_trigger_is_gone(
 
     reply = AgentMessage.objects.get(conversation=conversation, role="assistant")
     assert reply_state(reply.id) == ("failed", "trigger_off", "")
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER=1)
+def test_a_users_reply_limit_applies_across_conversations_and_workspaces(
+    api_client, api_user, configured_agent, data_fixture
+):
+    agent = configured_agent(user=api_user)
+    other_agent = configured_agent(user=api_user)
+    assert agent.workspace_id != other_agent.workspace_id
+    assert (
+        api_client.post(
+            agent_url(agent, "conversations"), new_conversation()
+        ).status_code
+        == 200
+    )
+
+    for target in (agent, other_agent):
+        refused = api_client.post(
+            agent_url(target, "conversations"), new_conversation()
+        )
+        assert (refused.status_code, refused.json()["error"]) == (
+            429,
+            "ERROR_AGENT_BUSY",
+        )
+    assert AgentConversation.objects.count() == ChatRun.objects.count() == 1
+    assert AgentMessage.objects.count() == 2
+
+    other_user, token = data_fixture.create_user_and_token(workspace=agent.workspace)
+    api_client.credentials(HTTP_AUTHORIZATION=f"JWT {token}")
+    accepted = api_client.post(agent_url(agent, "conversations"), new_conversation())
+    assert accepted.status_code == 200
+    assert ChatRun.objects.filter(created_by=other_user, status="queued").count() == 1
