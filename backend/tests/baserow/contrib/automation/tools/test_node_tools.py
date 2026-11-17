@@ -75,6 +75,91 @@ def test_add_nodes_after_an_existing_node_and_each_other(automation_ctx):
 
 
 @pytest.mark.django_db
+def test_add_nodes_before_an_existing_node_keeps_it_and_reports_it(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="slack",
+                label="Ping",
+                type="slack_write_message",
+                previous_node_ref=str(trigger.id),
+                channel="sales",
+                text="New lead",
+            ),
+            _email(ref="log", previous="slack", label="Log"),
+        ],
+    )
+
+    slack, log = result["created_nodes"]
+    assert result["shifted_nodes"] == [
+        {
+            "id": email["id"],
+            "label": email["label"],
+            "type": "smtp_email",
+            "previous_node_ref": str(log["id"]),
+        }
+    ]
+    assert [node["id"] for node in list_nodes(ctx, workflow.id)["nodes"]] == [
+        trigger.id,
+        slack["id"],
+        log["id"],
+        email["id"],
+    ]
+    service = AutomationNode.objects.get(id=email["id"]).service.specific
+    assert service.subject["formula"] == "'Hi'"
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_a_node_on_a_router_branch(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    big = str(uuid4())
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={"edges": [{"uid": big, "label": "Big"}]},
+    )
+    (email,) = add_nodes(
+        ctx, workflow.id, [_email(previous=str(router.id), router_edge_label="Big")]
+    )["created_nodes"]
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [_email(ref="log", previous=str(router.id), router_edge_label="Big")],
+    )
+
+    (log,) = result["created_nodes"]
+    graph = workflow.get_graph().graph
+    assert graph[str(router.id)]["next"][big] == [log["id"]]
+    assert graph[str(log["id"])]["next"][""] == [email["id"]]
+    (shifted,) = result["shifted_nodes"]
+    assert shifted["id"] == email["id"]
+    assert shifted["previous_node_ref"] == str(log["id"])
+    assert "router_edge_label" not in shifted
+
+
+@pytest.mark.django_db
+def test_add_nodes_after_the_last_node_shifts_nothing(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    result = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])
+
+    assert "shifted_nodes" not in result
+
+
+@pytest.mark.django_db
 def test_add_nodes_reports_values_a_row_node_type_takes_no(automation_ctx):
     ctx, automation, table, name = automation_ctx
     workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)

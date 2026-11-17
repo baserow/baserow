@@ -133,23 +133,20 @@ def test_list_nodes(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_add_node_after_existing(data_fixture):
-    """Add a router node between the trigger and existing email node."""
+    """
+    Add a router between the trigger and the existing email node. The email stays
+    connected after the router, with its settings, and is reported as shifted.
+    """
+
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
 
-    # Get existing nodes
     ctx = make_test_ctx(user, workspace)
     existing = list_nodes(ctx, workflow_id=workflow_id, thought="check")
     trigger_id = existing["nodes"][0]["id"]
     email_id = existing["nodes"][1]["id"]
 
-    # Delete the existing email node first (we'll re-add it after the router)
-    delete_nodes(
-        ctx, node_ids=[email_id], thought="remove email to re-add after router"
-    )
-
-    # Add a router after the trigger, then a new email after the router
     result = add_nodes(
         ctx,
         workflow_id=workflow_id,
@@ -163,31 +160,29 @@ def test_add_node_after_existing(data_fixture):
                     {"label": "always", "condition": "true"},
                 ],
             ),
-            ActionNodeCreate(
-                ref="slack1",
-                label="Send Slack After Router",
-                type="smtp_email",
-                previous_node_ref="router1",
-                router_edge_label="always",
-                to_emails="test@example.com",
-                subject="Hello",
-                body="Routed message",
-            ),
         ],
         thought="insert router between trigger and email",
     )
 
-    assert len(result["created_nodes"]) == 2
-    assert result["created_nodes"][0]["type"] == "router"
-    assert result["created_nodes"][0]["label"] == "My Router"
-    assert result["created_nodes"][1]["label"] == "Send Slack After Router"
+    (router,) = result["created_nodes"]
+    assert (router["type"], router["label"]) == ("router", "My Router")
+    assert result["shifted_nodes"] == [
+        {
+            "id": email_id,
+            "label": "Send Email",
+            "type": "smtp_email",
+            "previous_node_ref": str(router["id"]),
+        }
+    ]
 
-    # Verify final workflow order
     final = list_nodes(ctx, workflow_id=workflow_id, thought="verify")
-    assert len(final["nodes"]) == 3
-    assert final["nodes"][0]["type"] == "periodic"
-    assert final["nodes"][1]["type"] == "router"
-    assert final["nodes"][2]["type"] == "smtp_email"
+    assert [node["id"] for node in final["nodes"]] == [
+        trigger_id,
+        router["id"],
+        email_id,
+    ]
+    email = AutomationNode.objects.get(id=email_id).service.specific
+    assert email.subject["formula"] == "'Hello'"
 
 
 @pytest.mark.django_db(transaction=True)

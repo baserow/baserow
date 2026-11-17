@@ -312,11 +312,21 @@ def table_field_ids() -> Callable[[int], set[int]]:
     return field_ids
 
 
-def node_refs(user: AbstractUser, workflow: AutomationWorkflow) -> NodeRefs:
-    """The nodes of a workflow that a new node can follow, by their ID."""
+def node_refs(
+    user: AbstractUser,
+    workflow: AutomationWorkflow,
+    nodes: Iterable[AutomationNode] | None = None,
+) -> NodeRefs:
+    """
+    The nodes of a workflow that a new node can follow, by their ID.
 
+    :param nodes: The nodes of the workflow, when already read.
+    """
+
+    if nodes is None:
+        nodes = AutomationNodeService().get_nodes(user, workflow)
     refs = NodeRefs()
-    for node in AutomationNodeService().get_nodes(user, workflow):
+    for node in nodes:
         edges = router_edges(node)
         refs.add(
             str(node.id),
@@ -426,6 +436,39 @@ def node_table_ids(nodes: list[TriggerNodeCreate | ActionNodeCreate]) -> set[int
     return table_ids
 
 
+def node_positions(
+    ordered: list[tuple[AutomationNode, AutomationNode | None, str]],
+) -> dict[int, tuple[int | None, str]]:
+    """The node each node follows, and on which output, by node ID."""
+
+    return {
+        node.id: (previous.id if previous is not None else None, output)
+        for node, previous, output in ordered
+    }
+
+
+def shifted_nodes(
+    user: AbstractUser,
+    workflow: AutomationWorkflow,
+    existing: list[AutomationNode],
+    positions: dict[int, tuple[int | None, str]],
+    creation: NodeCreation,
+) -> list[dict[str, Any]]:
+    """
+    The existing nodes that follow another node since the call, because a new
+    node was inserted before them, as list_nodes describes them.
+    """
+
+    created = [node for _ref, node in creation.nodes]
+    ordered = nodes_in_order(user, workflow, existing + created)
+    now = node_positions(ordered)
+    return [
+        describe_node(node, previous, output)
+        for node, previous, output in ordered
+        if node.id in positions and positions[node.id] != now[node.id]
+    ]
+
+
 def add_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -443,15 +486,20 @@ def add_nodes(
     """
     Add action and router nodes to a workflow, after existing nodes or after each
     other. Use list_nodes to find the IDs of the nodes to attach to, and
-    router_edge_label to attach to a router branch. A value that takes a formula
-    is a formula when it looks like one (get(...), concat(...), ...), otherwise a
-    literal; to store text that looks like a formula, send it as a quoted string
-    such as 'Call now()'. A formula reads an earlier node with
+    router_edge_label to attach to a router branch. A new node is inserted right
+    after the node it follows: the node that followed it there now follows the
+    new node (on a new router's default branch), still connected and with its
+    settings, and is listed in shifted_nodes. To add a node before an existing
+    one, follow the node that one follows; never delete and recreate a node to
+    make room. To add several nodes in a row, chain them by ref. A value that
+    takes a formula is a formula when it looks like one (get(...), concat(...),
+    ...), otherwise a literal; to store text that looks like a formula, send it
+    as a quoted string such as 'Call now()'. A formula reads an earlier node with
     get('previous_node.<node id>...'), with a path list_nodes shows for that
     node, and a node defined earlier in the call can be named by its ref there.
     A valid formula is stored as written. An invalid one leaves that value empty
-    and is returned in formula_errors with the reason: fix it with update_nodes. Nothing is written when a
-    previous_node_ref or branch is unknown, or a ref is used twice.
+    and is returned in formula_errors with the reason: fix it with update_nodes.
+    Nothing is written when a previous_node_ref or branch is unknown, or a ref is used twice.
     """
 
     if not nodes:
@@ -459,16 +507,23 @@ def add_nodes(
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
     check_tables_in_workspace(ctx, node_table_ids(nodes))
-    refs = node_refs(ctx.user, workflow)
+    existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
+    refs = node_refs(ctx.user, workflow, existing)
     check_node_refs(refs.copy(), nodes)
+    positions = node_positions(nodes_in_order(ctx.user, workflow, existing))
 
     creation = NodeCreation()
     field_ids = table_field_ids()
     with transaction.atomic():
         for node in nodes:
             create_node(ctx, workflow, node, refs, creation, field_ids)
+        # In the transaction, so a failure here can't leave nodes the caller
+        # doesn't know were created.
+        shifted = shifted_nodes(ctx.user, workflow, existing, positions, creation)
 
     result: dict[str, Any] = {"created_nodes": creation.describe()}
+    if shifted:
+        result["shifted_nodes"] = shifted
     if creation.errors:
         result["errors"] = creation.errors
     if creation.formula_errors:

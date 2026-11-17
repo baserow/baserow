@@ -506,7 +506,8 @@ class ActionNodeCreate(BaseModel):
     previous_node_ref: str = Field(
         ...,
         description="The ref of the node this one follows: a node defined earlier "
-        "in the call, or the ID of a node already in the workflow.",
+        "in the call, or the ID of a node already in the workflow. The new node is "
+        "inserted there, and the node that followed it then follows the new one.",
     )
     router_edge_label: str = Field(
         default="",
