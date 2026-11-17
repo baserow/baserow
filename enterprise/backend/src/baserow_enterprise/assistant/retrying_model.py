@@ -356,8 +356,15 @@ def _make_google_vertex(name: str, creds: dict[str, str | None]) -> Model:
     )
 
 
+def _make_chatgpt_plan(name: str, creds: dict[str, str | None]) -> Model:
+    from .chatgpt_plan import make_chatgpt_plan_model
+
+    return make_chatgpt_plan_model(name)
+
+
 _PROVIDER_FACTORIES: dict[str, Callable[[str, dict[str, str | None]], Model]] = {
     "openai": _make_openai,
+    "chatgpt": _make_chatgpt_plan,
     "groq": _make_groq,
     "anthropic": _make_anthropic,
     "ollama": _make_ollama,
