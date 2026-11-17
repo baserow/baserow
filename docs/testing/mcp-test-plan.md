@@ -186,10 +186,10 @@ The following tools are currently enabled:
 
 The automation and audit log tools are off in the "Read only" preset. Turn them
 on at consent or with **Edit tools** next to the app under **My settings > MCP
-server**. The "Read only" preset
-includes reading dashboards and application builders, not changing them. The
-application builder tools need no licence, but `setup_user_source` is enterprise: a `BASEROW_OSS_ONLY` instance doesn't
-list it. `publish_workflow`, `pause_workflow`, `set_theme`, `update_database`,
+server**. The "Read only" preset includes reading dashboards and application
+builders, not changing them. The application builder tools need no licence, but
+`setup_user_source` is enterprise: a `BASEROW_OSS_ONLY` instance doesn't list
+it. `publish_workflow`, `pause_workflow`, `set_theme`, `update_database`,
 `update_automation`, `update_dashboard`, `update_builder`, `update_page`,
 `update_data_source`, `update_element`, `update_element_style`, `move_elements` and
 `update_element_action` are marked destructive, so clients ask before running them.
@@ -283,9 +283,10 @@ Expected: Claude calls `list_audit_log` and names you. As a workspace member who
 ### Automations
 
 Connect with the "Read only" preset, then turn on the automation tools with
-**Edit tools** under **My settings > MCP server**. Ask Claude: *"In my automation, create a
-workflow that runs when a row is created in [table name]. If the row's
-[number field] is above 100, email me with the row's Name in the subject."*
+**Edit tools** under **My settings > MCP server**. Ask Claude: *"In my
+automation, create a workflow that runs when a row is created in [table name].
+If the row's [number field] is above 100, email me with the row's Name in the
+subject."*
 
 Expected: Claude calls `list_workflows` to find the automation, then
 `create_workflows` with a "rows created" trigger, a router whose condition
@@ -310,9 +311,9 @@ Ask Claude: *"What dashboards do I have?"* Expected: `list_dashboards` lists
 them with their widget count.
 
 Turn on the dashboard editing tools with **Edit tools** under **My settings >
-MCP server**. Ask
-Claude: *"Create a dashboard called Sales with the total of [number field] in
-[table], and a line chart of [number field] by [single select field]."*
+MCP server**. Ask Claude: *"Create a dashboard called Sales with the total of
+[number field] in [table], and a line chart of [number field] by [single select
+field]."*
 Expected: `create_dashboard`, then `create_widgets` with a `summary` and a
 `chart` widget. Both appear on the new dashboard in Baserow, the chart drawn
 as lines.
@@ -351,8 +352,7 @@ goes to the trash.
 ### Create a new application website
 
 No licence is needed, and it works with `BASEROW_OSS_ONLY`. Connect with
-`builder_edit` ticked. Ask Claude:
-*"create a new application website"*
+`builder_edit` ticked. Ask Claude: *"create a new application website"*
 
 Expected: Claude calls `create_builder` and nothing else that creates an
 application. A new application builder shows in the UI sidebar of the
@@ -365,8 +365,7 @@ and pages do I have?"* Expected: `list_builders`, then `list_pages`. Asking it
 to add a page fails, because `create_pages` is not in the list.
 
 Turn on **Edit application builders** with **Edit tools** under **My settings >
-MCP server**, then
-ask Claude, one request at a time:
+MCP server**, then ask Claude, one request at a time:
 
 1. *"Create an application called Shop with two pages, Home and Products."*
    Expected: `create_builder`, then `create_pages`. Both pages show in the
@@ -419,10 +418,13 @@ Verify these do **not** appear in your client's tool list.
 ## 6. Verify tool selection (OAuth)
 
 Click **Edit tools** next to the app under **Connected apps** and leave only
-**List databases** and **List tables** ticked. Verify the client lists only
-`list_databases` and `list_tables` on its next request, without signing in
-again, and that asking it to create a row fails. Disconnect the app and sign in
-again from the client: the consent page shows the same choice for a new grant.
+**List databases** and **List tables** ticked. Without signing in again, verify
+that asking the client to create a row fails with "Tool 'create_rows' not
+found." Start a new session in the client (in MCP Inspector, click **List
+Tools** again) and verify it lists only `list_databases` and `list_tables`: the
+server reads the tools on every request but doesn't notify clients, so a client
+keeps its old list until it asks again. Disconnect the app and sign in again
+from the client: the consent page shows the same choice for a new grant.
 
 ## 7. Verify disconnect
 
