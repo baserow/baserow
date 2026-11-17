@@ -99,3 +99,15 @@
     padding: 0 16px;
   }
 }
+
+.templates-admin-private-link {
+  font-size: 18px;
+}
+
+.templates-admin-private-link--on {
+  color: $palette-green-600;
+}
+
+.templates-admin-private-link--off {
+  color: $palette-red-500;
+}

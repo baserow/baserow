@@ -188,11 +188,11 @@ class AdminUserTemplatesView(AdminListingView):
     @extend_schema(
         tags=["Admin"],
         operation_id="admin_list_user_templates",
-        description="Returns the user templates in review, public, rejected or "
-        "blocked, if the requesting user is staff: the revision under review of a "
-        "template in review or rejected, the public revision of a public one, "
-        "otherwise its latest revision. The templates can be searched by name and "
-        "by the name or email of the author.",
+        description="Returns the user templates in review, public, rejected, "
+        "blocked or private, if the requesting user is staff: the revision under "
+        "review of a template in review or rejected, the public revision of a public "
+        "one, otherwise its latest revision. The templates can be searched by name "
+        "and by the name or email of the author.",
         **AdminListingView.get_extend_schema_parameters(
             "templates",
             serializer_class,
@@ -235,7 +235,7 @@ class AdminUserTemplateCountsView(APIView):
         tags=["Admin"],
         operation_id="admin_count_user_templates",
         description="Returns how many user templates are in review, public, "
-        "rejected and blocked, if the requesting user is staff.",
+        "rejected, blocked and private, if the requesting user is staff.",
         responses={200: AdminUserTemplateCountsSerializer, 401: None},
     )
     def get(self, request: Request) -> Response:

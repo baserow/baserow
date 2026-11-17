@@ -39,8 +39,7 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         source="admin_state",
         choices=UserTemplateState.choices,
         read_only=True,
-        help_text="The tab of the admin page the template is on, or private once "
-        "an admin unblocked it.",
+        help_text="The tab of the admin page the template is on.",
     )
     reason = serializers.SerializerMethodField(
         help_text="Why an admin rejected or blocked the template, for a rejected "
@@ -49,6 +48,10 @@ class AdminUserTemplateSerializer(TemplateSerializer):
     listed = serializers.SerializerMethodField(
         help_text="Whether a revision of the template is listed for everybody, "
         "also while a later one is in review or rejected."
+    )
+    private_link = serializers.SerializerMethodField(
+        help_text="Whether the private link of the template is on. The link itself "
+        "is never shown."
     )
     can_approve = serializers.BooleanField(
         read_only=True,
@@ -110,6 +113,7 @@ class AdminUserTemplateSerializer(TemplateSerializer):
             "state",
             "reason",
             "listed",
+            "private_link",
             "can_approve",
             "edited_since_submitted",
             "updated_since_blocked",
@@ -132,6 +136,10 @@ class AdminUserTemplateSerializer(TemplateSerializer):
     @extend_schema_field(serializers.BooleanField())
     def get_listed(self, instance: Template) -> bool:
         return UserTemplateHandler().is_listed(instance)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_private_link(self, instance: Template) -> bool:
+        return instance.get_root().private_link_token is not None
 
     @extend_schema_field(serializers.BooleanField())
     def get_can_reject(self, instance: Template) -> bool:
@@ -197,3 +205,4 @@ class AdminUserTemplateCountsSerializer(serializers.Serializer):
     )
     rejected = serializers.IntegerField(help_text="The rejected templates.")
     blocked = serializers.IntegerField(help_text="The blocked templates.")
+    private = serializers.IntegerField(help_text="The private templates.")

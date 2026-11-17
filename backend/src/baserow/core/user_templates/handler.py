@@ -820,8 +820,7 @@ class UserTemplateHandler:
         Returns the annotated rows of a tab of the admin page. Only the rows of the
         blocked tab can be `updated_since_blocked`.
 
-        :param state: The tab, one of `USER_TEMPLATE_ADMIN_STATES`, or the state of
-            a template an admin unblocked.
+        :param state: The tab, one of `USER_TEMPLATE_ADMIN_STATES`.
         :return: The rows of the tab.
         """
 
