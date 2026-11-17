@@ -289,7 +289,7 @@ def test_admin_list_workspaces_as_options(api_client, data_fixture):
 
     # searching by name should return only the correct workspace
     response = api_client.get(
-        reverse("api:admin:workspaces:options") + "?search=1",
+        reverse("api:admin:workspaces:options") + "?search=workspace 1",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
@@ -300,6 +300,16 @@ def test_admin_list_workspaces_as_options(api_client, data_fixture):
         "previous": None,
         "results": [{"id": workspace_1.id, "value": workspace_1.name}],
     }
+
+    response = api_client.get(
+        reverse("api:admin:workspaces:options") + f"?search={workspace_2.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"] == [
+        {"id": workspace_2.id, "value": workspace_2.name}
+    ]
 
 
 @pytest.mark.django_db

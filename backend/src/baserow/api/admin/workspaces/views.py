@@ -71,7 +71,7 @@ class WorkspaceOptionsAdminView(APIListingView):
     permission_classes = (IsAdminUser,)
     serializer_class = AdminWorkspaceOptionsSerializer
     pagination_class = PageNumberPaginationWithApproximateCount
-    search_fields = ["name"]
+    search_fields = ["id", "name"]
     default_order_by = "name"
 
     def get_queryset(self, request):
