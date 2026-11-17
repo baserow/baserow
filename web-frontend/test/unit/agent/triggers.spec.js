@@ -124,11 +124,13 @@ describe('Agent triggers', () => {
 
   test('hosts HTTP with one live URL and saves its method option without workflow response settings', async () => {
     useFakeTimers()
-    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, httpTrigger())
-    const wrapper = await mountSection(
-      [httpTrigger()],
-      ['periodic', 'http_trigger']
-    )
+    const trigger = httpTrigger()
+    Object.assign(trigger.service, {
+      wait_for_response: true,
+      response_timeout_seconds: 0,
+    })
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, trigger)
+    const wrapper = await mountSection([trigger], ['periodic', 'http_trigger'])
     const card = wrapper.get('.agent-trigger-card')
     const form = card.findComponent({ name: 'CoreHTTPTriggerServiceForm' })
 
@@ -462,6 +464,39 @@ describe('Agent triggers', () => {
     expect(wrapper.text()).toContain('agent.noTriggers')
   })
 
+  test('trigger cards collapse and expand one by one and all together, keeping their switch', async () => {
+    const wrapper = await mountSection([
+      periodicTrigger(),
+      periodicTrigger({ id: 2 }),
+    ])
+    const bodies = () =>
+      wrapper
+        .findAll('.agent-trigger-card__body')
+        .map((body) => body.isVisible())
+    const toggles = wrapper.findAll('.agent-trigger-card__toggle')
+    const all = wrapper.get('.agent-triggers__toggle-all')
+
+    expect(bodies()).toEqual([false, false])
+    expect(toggles[0].attributes('aria-expanded')).toBe('false')
+    expect(all.text()).toBe('agent.expandAll')
+
+    await toggles[0].trigger('click')
+    expect(bodies()).toEqual([true, false])
+    expect(toggles[0].attributes('aria-expanded')).toBe('true')
+
+    await all.trigger('click')
+    expect(bodies()).toEqual([true, true])
+    expect(all.text()).toBe('agent.collapseAll')
+
+    await all.trigger('click')
+    expect(bodies()).toEqual([false, false])
+    expect(
+      wrapper
+        .findAll('.agent-trigger-card__switch')
+        .every((control) => control.isVisible())
+    ).toBe(true)
+  })
+
   test('offers to add a trigger only once the list has loaded', async () => {
     const list = deferredReply()
     testApp.mock.onGet('/agent/10/triggers/').replyOnce(list.reply)
@@ -525,6 +560,7 @@ describe('Agent triggers', () => {
     ])
     const card = wrapper.get('.agent-trigger-card')
     expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
+    expect(card.get('.agent-trigger-card__body').isVisible()).toBe(true)
   })
 
   test('opens a new trigger with the translated name and the time it fired', async () => {
@@ -736,6 +772,40 @@ describe('Agent triggers', () => {
             type: 'http_trigger',
             ...httpType.getDefaultValues(null, {}),
           },
+        },
+      ],
+    ])
+  })
+
+  test('a trigger still on its default message gets the HTTP one with the request body', async () => {
+    const httpType = testApp.getRegistry().get('service', 'http_trigger')
+    testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, httpTrigger())
+    const message = (text, path) => ({
+      formula: `concat('${text} ', get('trigger.${path}'))`,
+      mode: 'simple',
+      version: '0.1',
+    })
+    const wrapper = await mountSection(
+      [
+        periodicTrigger({
+          message: message('agent.triggerDefaultMessage', 'fired_at'),
+        }),
+      ],
+      ['periodic', 'http_trigger']
+    )
+
+    await chooseTriggerType(wrapper.get('.agent-trigger-card'), 'http_trigger')
+
+    expect(patches(testApp)).toEqual([
+      [
+        '/agent/10/triggers/1/',
+        {
+          type: 'http_trigger',
+          service: {
+            type: 'http_trigger',
+            ...httpType.getDefaultValues(null, {}),
+          },
+          message: message('agent.httpTriggerDefaultMessage', 'raw_body'),
         },
       ],
     ])

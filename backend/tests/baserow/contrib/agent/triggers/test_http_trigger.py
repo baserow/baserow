@@ -1,4 +1,5 @@
 import json
+import re
 
 from django.urls import reverse
 
@@ -14,6 +15,8 @@ from baserow.core.registries import ImportExportConfig
 
 from ..utils import agent_url
 
+FIRED_LINE = r"Trigger fired at \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(UTC\)"
+
 
 @pytest.fixture
 def http_trigger(api_client, api_user, configured_agent, mocker):
@@ -27,6 +30,7 @@ def http_trigger(api_client, api_user, configured_agent, mocker):
     assert response.status_code == 200, response.json()
     service = response.json()["service"]
     assert service["is_public"] is True
+    assert service["exclude_get"] is True
     assert {"raw_body", "headers"} <= service["schema"]["properties"].keys()
     return AgentTrigger.objects.get(id=response.json()["id"])
 
@@ -79,43 +83,72 @@ def test_an_http_request_starts_a_shared_agent_run_with_its_payload(
 
 
 @pytest.mark.django_db
-def test_an_empty_http_trigger_message_includes_the_request_body(
-    api_client, http_trigger, django_capture_on_commit_callbacks
-):
-    api_client.credentials()
-    with django_capture_on_commit_callbacks(execute=True):
-        response = api_client.post(webhook_url(http_trigger), {"ticket": "123"})
-
-    assert response.status_code == 204
-    message = AgentConversation.objects.get().messages.get(role="trigger")
-    payload = message.content.removeprefix("Trigger data:\n```json\n").removesuffix(
-        "\n```"
-    )
-    assert json.loads(payload)["body"] == {"ticket": "123"}
-
-
-@pytest.mark.django_db
-def test_http_trigger_method_settings_apply_to_agent_requests(
-    api_client, http_trigger, django_capture_on_commit_callbacks
+@pytest.mark.parametrize(
+    "message,expected",
+    [
+        ("", FIRED_LINE + r'\n\n\{"ticket":"123"\}'),
+        ("get('trigger.body.missing')", FIRED_LINE),
+    ],
+)
+def test_an_http_trigger_message_without_text_opens_with_the_body_only_when_unset(
+    api_client, http_trigger, message, expected, django_capture_on_commit_callbacks
 ):
     trigger = http_trigger
     response = api_client.patch(
         agent_url(trigger.agent, "triggers:item", trigger_id=trigger.id),
-        {"service": {"exclude_get": True}},
+        {"message": message},
     )
     assert response.status_code == 200, response.json()
-    assert response.json()["service"]["exclude_get"] is True
     api_client.credentials()
 
     with django_capture_on_commit_callbacks(execute=True):
-        rejected = api_client.get(webhook_url(trigger))
-    assert rejected.status_code == 405
-    assert not AgentConversation.objects.exists()
+        response = api_client.post(
+            webhook_url(trigger),
+            {"ticket": "123"},
+            format="json",
+            HTTP_X_API_KEY="sk-live-SECRET123",
+        )
+
+    assert response.status_code == 204
+    message = AgentConversation.objects.get().messages.get(role="trigger")
+    assert re.fullmatch(expected, message.content), message.content
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("allow_get,get_status", [(False, 405), (True, 204)])
+def test_an_agent_http_trigger_refuses_get_unless_its_builder_allows_it(
+    api_client, http_trigger, allow_get, get_status, django_capture_on_commit_callbacks
+):
+    trigger = http_trigger
+    if allow_get:
+        response = api_client.patch(
+            agent_url(trigger.agent, "triggers:item", trigger_id=trigger.id),
+            {"service": {"exclude_get": False}},
+        )
+        assert response.status_code == 200, response.json()
+        assert response.json()["service"]["exclude_get"] is False
+    api_client.credentials()
 
     with django_capture_on_commit_callbacks(execute=True):
-        accepted = api_client.post(webhook_url(trigger), {"ticket": "123"})
-    assert accepted.status_code == 204
-    assert AgentConversation.objects.count() == 1
+        response = api_client.get(webhook_url(trigger))
+
+    assert response.status_code == get_status
+    assert AgentConversation.objects.exists() is allow_get
+
+
+@pytest.mark.django_db
+def test_a_trigger_changed_to_http_refuses_get_too(
+    api_user, configured_agent, data_fixture
+):
+    agent = configured_agent(user=api_user)
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+
+    AgentTriggerService().update_trigger(
+        api_user, agent.id, trigger.id, service_type_name="http_trigger"
+    )
+
+    trigger.refresh_from_db()
+    assert trigger.service.specific.exclude_get is True
 
 
 @pytest.mark.django_db
@@ -186,15 +219,18 @@ def test_copied_http_triggers_have_independent_urls_and_stay_off_until_enabled(
 
 
 @pytest.mark.django_db
-def test_an_http_trigger_returns_immediately_even_with_workflow_response_settings(
+def test_an_agent_http_trigger_never_keeps_workflow_response_settings(
     api_client, http_trigger, django_capture_on_commit_callbacks
 ):
     trigger = http_trigger
     response = api_client.patch(
         agent_url(trigger.agent, "triggers:item", trigger_id=trigger.id),
-        {"service": {"wait_for_response": True}},
+        {"service": {"wait_for_response": True, "response_timeout_seconds": 15}},
     )
     assert response.status_code == 200, response.json()
+    service = response.json()["service"]
+    assert service["wait_for_response"] is False
+    assert service["response_timeout_seconds"] == 10
     api_client.credentials()
 
     with django_capture_on_commit_callbacks(execute=True):

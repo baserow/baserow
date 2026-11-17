@@ -5,7 +5,7 @@
     small-label
     required
   >
-    <FormGroup v-if="allowTestRun" class="margin-bottom-2">
+    <FormGroup v-if="!isFormFieldHidden('test_url')" class="margin-bottom-2">
       <RadioGroup v-model="isPublishedUrl" :options="urlVersions" type="button">
       </RadioGroup>
     </FormGroup>
@@ -46,7 +46,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="allowWorkflowResponse"
+      v-if="!isFormFieldHidden('wait_for_response')"
       class="margin-bottom-2"
       small-label
       :label="$t('coreHTTPTriggerServiceForm.responseOptionsLabel')"
@@ -58,7 +58,7 @@
     </FormGroup>
 
     <FormGroup
-      v-if="allowWorkflowResponse && values.wait_for_response"
+      v-if="values.wait_for_response"
       class="margin-bottom-2"
       small-label
       required
@@ -96,12 +96,6 @@ export default {
   name: 'CoreHTTPTriggerServiceForm',
   components: { Checkbox },
   mixins: [form],
-  props: {
-    // Consumers without draft runs expose only the live webhook URL.
-    allowTestRun: { type: Boolean, default: true },
-    // Only consumers that return a workflow response offer waiting for one.
-    allowWorkflowResponse: { type: Boolean, default: true },
-  },
   setup() {
     return { v$: useVuelidate() }
   },
@@ -109,9 +103,8 @@ export default {
     return {
       allowedValues: [
         'exclude_get',
-        ...(this.allowWorkflowResponse
-          ? ['wait_for_response', 'response_timeout_seconds']
-          : []),
+        'wait_for_response',
+        'response_timeout_seconds',
       ],
       values: {
         exclude_get: this.defaultValues.exclude_get,
@@ -135,7 +128,7 @@ export default {
     webhookUrl() {
       if (this.defaultValues.uid) {
         const url = `${this.$config.public.publicBackendUrl}/api/webhooks/${this.defaultValues.uid}/`
-        if (this.allowTestRun && !this.isPublishedUrl) {
+        if (!this.isFormFieldHidden('test_url') && !this.isPublishedUrl) {
           return `${url}?test=true`
         } else {
           return url
@@ -162,9 +155,8 @@ export default {
     },
   },
   validations() {
-    if (!this.allowWorkflowResponse) return {}
     return {
-      values: {
+      values: this.omitHiddenFormFields({
         response_timeout_seconds: {
           minValue: helpers.withMessage(
             this.$t('error.minValueField', { min: 1 }),
@@ -185,7 +177,7 @@ export default {
           ),
           integer: helpers.withMessage(this.$t('error.integerField'), integer),
         },
-      },
+      }),
     }
   },
 }

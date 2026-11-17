@@ -97,8 +97,12 @@ Viewers read conversations, and may trash and restore their own private ones, su
 one left from an older role. Renaming needs the editor role, the lowest role that may
 create a conversation.
 
-The opening message, with role `trigger`, holds the resolved trigger message (a runtime
-formula over the event payload, or the payload as JSON when it resolves to blank text).
+The opening message, with role `trigger`, holds the resolved trigger message, a runtime
+formula over the event payload. A message with no text opens with the trigger and when
+it fired. A trigger with no message formula also gets what its agent trigger type says
+about the event, such as the body of an HTTP request; one whose formula resolves blank
+doesn't, as its builder chose what the agent reads. The whole payload is never sent: it
+can hold a request's headers and the sender's address.
 It is the only record of what the model received; the title derives from it, and no raw
 payload column exists. Triggers that arrive through duplicate, snapshot restore or
 template install are always disabled.
@@ -123,8 +127,8 @@ conversation in a task once the event's transaction commits, in a transaction of
 own: the workspace run lock lasts until the outermost commit, which must not be the
 rest of a beat tick. The task checks again that the trigger is enabled, its type is
 available and its agent is ready, and logs instead of raising. A message whose formula
-fails at run time opens the conversation with the payload and fails the reply with
-`trigger_message_failed`, so the list shows why the agent didn't answer.
+fails at run time opens the conversation with when the trigger fired and fails the
+reply with `trigger_message_failed`, so the list shows why the agent didn't answer.
 
 ### 4. One overlap rule bounds a trigger's replies
 
@@ -158,6 +162,8 @@ core when another background feature needs it.
 | Store the raw payload next to the opening message | A second source of truth; the periodic payload is two timestamps. Revisit with row triggers.          |
 | Leave ask-first tools out of unattended runs      | Silently drops tools the builder allowed; the overlap rule already bounds the waiting replies.        |
 | Refuse to arm while any allowed tool asks first   | Blocks the common digest case and leaks approval semantics into arming.                               |
+| Agent hooks on the shared service type            | The type and its form serve Automation too; an opt-in agent trigger type holds what agents change.    |
+| Send the whole payload when there is no message   | It holds an HTTP request's headers and sender address; each new type would leak until curated.        |
 
 ## Consequences
 
@@ -181,7 +187,8 @@ core when another background feature needs it.
   agent-level pause switch, "Run once" and "Last run", email and row triggers in
   the picker, per trigger rate limits and auto-disable, the setup wizard's "Run
   automatically" step, the "Who can use it" role settings, a "Row comment is created"
-  trigger type, and the `manual` type (hidden until something can start an agent).
+  trigger type, the `manual` type (hidden until something can start an agent), an
+  optional shared secret for HTTP triggers, and sample data for their message picker.
 
 ## Adding another trigger
 
@@ -193,22 +200,34 @@ its real event entry point and the mounted Agent form before adding its identifi
 to `AGENT_TRIGGER_TYPES_ENABLED`. Verify copy/import, disabled and trashed agents,
 and the existing consumer's behavior as well.
 
-Forms can accept host capabilities where their consumer's behavior differs. The
-HTTP form defaults to Automation's test/published URLs and workflow response
-settings; the Agent card passes `allowTestRun=false` and
-`allowWorkflowResponse=false`. This exposes one live URL and the shared method
-option without coupling the HTTP form to an Agent application type.
+Where an agent needs something else than the service type gives, register an
+`AgentTriggerType` under the service type's name, on the backend, the frontend or
+both. It is opt-in: a type without one is hosted as it is. The backend one can say
+what an event tells an agent whose trigger has no message, give a new service other
+defaults, and name the service fields an agent doesn't use, which then keep their
+defaults. The frontend one can word the default message and name the form fields to
+hide. Nothing agent-specific goes on the shared service type or its form: any form
+built on the form mixin takes `hiddenFormFields` from its host, and a hidden field
+isn't shown, validated or sent.
 
-An Agent HTTP webhook acknowledges a valid request with `204` and starts a run in
-the background. This acknowledgement does not guarantee a run was accepted: the
-usual readiness, rate and overlap rules still apply. It never returns the agent's
-reply, even if workflow response settings were supplied through the API. The
-message can use the shared `trigger.raw_body`, `trigger.body`,
-`trigger.query_params` and `trigger.headers` values; a blank message includes the
-payload. Body and query field pickers depend on the service's sample schema, so
-without samples use Raw body or enter a formula path. Copies get a fresh URL and
-remain disabled until enabled. Anyone with the live URL can send input to the
-agent; its tools still use the configured run identity and approval policy.
+The HTTP trigger uses all of it. Agents hide the test URL and the workflow response
+settings: a firing starts a run in the background, and a valid request is always
+acknowledged with `204`, never with the agent's reply. That acknowledgement doesn't
+guarantee a run, as the usual readiness, rate and overlap rules still apply. New
+triggers exclude GET, so a link preview opening the URL starts nothing. The default
+message is the request's raw body, and a trigger with no message gets the raw body
+too; headers and the sender's address reach the agent only when the builder's
+message asks for them. Agents record no sample data, so the message picker offers
+Raw body and the standard headers only; other values need a typed path such as
+`get('trigger.body.ticket')`. Copies get a fresh URL and stay disabled until
+enabled, and an export without sensitive data leaves the URL's identifier out.
+
+Anyone with the live URL can send input to the agent; its tools still use the
+configured run identity and approval policy. The guard against an agent triggering
+itself reads who caused the event, and a webhook request has no one, so it never
+applies here: the rate limits bound an agent wired to its own webhook. The request
+throttle and the body size cap are the shared `BASEROW_AUTOMATION_HTTP_TRIGGER_*`
+settings, so raising them for Automation raises them for agents too.
 
 ## Revisit triggers
 

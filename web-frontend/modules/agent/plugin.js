@@ -7,6 +7,7 @@ import {
   TriggerDataProviderType,
   ActionInputDataProviderType,
 } from '@baserow/modules/agent/dataProviderTypes'
+import { HTTPAgentTriggerType } from '@baserow/modules/agent/agentTriggerTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import {
   ActionsAgentConfigurationSectionType,
@@ -31,6 +32,11 @@ export default defineNuxtPlugin({
     }
     nuxtApp.$registry.registerNamespace('agentConfigurationSection')
     nuxtApp.$registry.registerNamespace('agentDataProvider')
+    nuxtApp.$registry.registerNamespace('agentTriggerType')
+    nuxtApp.$registry.register(
+      'agentTriggerType',
+      new HTTPAgentTriggerType(context)
+    )
     nuxtApp.$registry.register(
       'agentDataProvider',
       new TriggerDataProviderType(context)

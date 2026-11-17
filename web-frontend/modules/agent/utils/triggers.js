@@ -2,24 +2,47 @@ import { toFormulaStringLiteral } from '@baserow/modules/core/formula'
 import { TRIGGER_FIRED_AT_PATH } from '@baserow/modules/agent/dataProviderTypes'
 
 /**
- * The opening message of a new trigger: its name and the time it fired, which
- * suits every trigger type. It is built the way the simple-mode editor emits
- * text followed by a data chip, so it opens as such.
+ * A message of text followed by a value of the trigger's data, built the way
+ * the simple-mode editor emits text followed by a data chip, so it opens as such.
+ *
+ * @param {string} text The text before the chip.
+ * @param {string} path The path of the value in the trigger's data.
+ * @returns {object} The message formula object.
+ */
+export function textThenTriggerData(text, path) {
+  const literal = toFormulaStringLiteral(`${text} `)
+  return {
+    formula: `concat(${literal}, get('trigger.${path}'))`,
+    mode: 'simple',
+    version: '0.1',
+  }
+}
+
+/**
+ * The opening message of a new trigger whose type words none of its own: its
+ * name and the time it fired, which suits every trigger type.
  *
  * @param {Function} t The translate function.
  * @param {object} serviceType The trigger's service type.
  * @returns {object} The message formula object.
  */
 export function defaultTriggerMessage(t, serviceType) {
-  const firedAt = t('agent.triggerDefaultMessage', {
-    trigger: serviceType.name,
-  })
-  const text = toFormulaStringLiteral(`${firedAt} `)
-  return {
-    formula: `concat(${text}, get('trigger.${TRIGGER_FIRED_AT_PATH}'))`,
-    mode: 'simple',
-    version: '0.1',
-  }
+  return textThenTriggerData(
+    t('agent.triggerDefaultMessage', { trigger: serviceType.name }),
+    TRIGGER_FIRED_AT_PATH
+  )
+}
+
+/**
+ * @param {object} registry The app registry.
+ * @param {string|null} type The service type of a trigger.
+ * @returns {object|null} What an Agent changes about the type, or null when it
+ *   hosts the type as it is.
+ */
+export function agentTriggerTypeOf(registry, type) {
+  return type && registry.exists('agentTriggerType', type)
+    ? registry.get('agentTriggerType', type)
+    : null
 }
 
 /**

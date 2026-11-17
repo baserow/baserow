@@ -144,8 +144,8 @@ class AgentTriggerService:
         )
         self.handler.check_type_available(agent, service_type_name)
         service_type = service_type_registry.get(service_type_name)
-        prepared_service_values = service_type.prepare_values(
-            service_values or {}, user
+        prepared_service_values = self.handler.prepare_service_values(
+            service_type, service_values or {}, user
         )
         return self.handler.create_trigger(
             agent,
@@ -210,12 +210,12 @@ class AgentTriggerService:
         if changes_type:
             self.handler.check_type_available(trigger.agent, service_type_name)
             service_type = service_type_registry.get(service_type_name)
-            prepared_service_values = service_type.prepare_values(
-                service_values or {}, user, None
+            prepared_service_values = self.handler.prepare_service_values(
+                service_type, service_values or {}, user
             )
         elif service_values is not None:
-            prepared_service_values = service_type.prepare_values(
-                service_values, user, trigger.service.specific
+            prepared_service_values = self.handler.prepare_service_values(
+                service_type, service_values, user, trigger.service.specific
             )
         return self.handler.update_trigger(
             trigger,

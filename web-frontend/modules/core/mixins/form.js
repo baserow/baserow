@@ -22,6 +22,12 @@ export default {
       required: false,
       default: false,
     },
+    // The names of the form fields the host of the form doesn't offer.
+    hiddenFormFields: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
   },
   provide() {
     return {
@@ -62,6 +68,9 @@ export default {
   created() {
     for (const [key, value] of Object.entries(this.getDefaultValues())) {
       this.values[key] = value
+    }
+    for (const name of this.hiddenFormFields) {
+      delete this.values[name]
     }
 
     if (
@@ -112,11 +121,29 @@ export default {
       return true
     },
     /**
-     * Returns all the provided default values filtered by the `isAllowedKey` method.
+     * Returns whether the host of the form doesn't offer the form field of the given
+     * name. A hidden form field isn't shown or validated, and it never is part of
+     * the values of the form.
+     */
+    isFormFieldHidden(name) {
+      return this.hiddenFormFields.includes(name)
+    },
+    /**
+     * Returns the given object, keyed by form field name, without the hidden form
+     * fields. Useful for the validation rules of a form.
+     */
+    omitHiddenFormFields(byName) {
+      return Object.fromEntries(
+        Object.entries(byName).filter(([name]) => !this.isFormFieldHidden(name))
+      )
+    },
+    /**
+     * Returns all the provided default values filtered by the `isAllowedKey` method,
+     * without the ones of the hidden form fields.
      */
     getDefaultValues() {
       return Object.keys(this.defaultValues).reduce((result, key) => {
-        if (this.isAllowedKey(key)) {
+        if (this.isAllowedKey(key) && !this.isFormFieldHidden(key)) {
           let value = this.defaultValues[key]
 
           // If the value is an array or object, it could be that it contains

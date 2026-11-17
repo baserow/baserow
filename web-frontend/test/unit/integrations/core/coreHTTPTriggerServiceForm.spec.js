@@ -40,3 +40,35 @@ test('keeps Automation test and published URLs and workflow response settings by
     response_timeout_seconds: 10,
   })
 })
+
+test('shows and emits nothing of the form fields its host hides', async () => {
+  const wrapper = await testApp.mount(CoreHTTPTriggerServiceForm, {
+    props: {
+      defaultValues: {
+        uid: 'agent-webhook',
+        exclude_get: false,
+        wait_for_response: true,
+        response_timeout_seconds: 0,
+      },
+      hiddenFormFields: [
+        'test_url',
+        'wait_for_response',
+        'response_timeout_seconds',
+      ],
+    },
+  })
+
+  expect(wrapper.get('.webhook-service-form__webhook-url').text()).toMatch(
+    /\/api\/webhooks\/agent-webhook\/$/
+  )
+  expect(wrapper.find('.radio-group').exists()).toBe(false)
+  expect(wrapper.find('.checkbox').exists()).toBe(false)
+  expect(wrapper.find('input[type="number"]').exists()).toBe(false)
+
+  await wrapper.get('.dropdown__selected').trigger('click')
+  await wrapper.findAll('.select__item-link')[1].trigger('click')
+
+  expect(wrapper.emitted('values-changed').at(-1)[0]).toEqual({
+    exclude_get: true,
+  })
+})

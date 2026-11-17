@@ -181,7 +181,8 @@ class AgentTriggerDispatcher:
         Resolve the trigger's message while its payload is at hand, and apply the
         trigger's rules in their own transaction after the event's one commits, so
         the workspace run lock isn't held for the rest of a beat tick. A message
-        that can't be resolved opens with the payload and fails its reply.
+        that can't be resolved opens with when the trigger fired and fails its
+        reply.
 
         :param trigger: The enabled trigger that fired.
         :param payload: The event payload the message formula reads.
@@ -198,7 +199,9 @@ class AgentTriggerDispatcher:
             logger.warning(
                 "Agent trigger {} message failed ({}).", trigger.id, type(e).__name__
             )
-            content = AgentTriggerHandler().payload_as_message(payload)
+            content = AgentTriggerHandler().message_without_text(
+                trigger, payload, fired_at
+            )
             failure = AGENT_TRIGGER_MESSAGE_FAILED
         service_id = trigger.service_id
         # A broker error for one trigger mustn't drop the starts queued after it.
