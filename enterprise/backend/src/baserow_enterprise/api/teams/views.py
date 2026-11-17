@@ -16,6 +16,10 @@ from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GRO
 from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.trash.errors import ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM
+from baserow.api.workspaces.invitation_links.errors import (
+    ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
+    ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED,
+)
 from baserow.api.workspaces.users.errors import ERROR_GROUP_USER_ALREADY_EXISTS
 from baserow.core.action.registries import action_type_registry
 from baserow.core.captcha.exceptions import CaptchaVerificationFailed
@@ -23,6 +27,8 @@ from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
+    WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkSignupsDisabled,
     WorkspaceUserAlreadyExists,
 )
 from baserow.core.handler import CoreHandler
@@ -40,14 +46,17 @@ from baserow_enterprise.api.errors import (
     ERROR_TEAM_NAME_NOT_UNIQUE,
 )
 from baserow_enterprise.api.teams.serializers import (
+    CreateTeamInvitationLinkSerializer,
     CreateTeamInvitationSerializer,
     GetTeamsViewParamsSerializer,
+    TeamInvitationLinkSerializer,
     TeamInvitationSerializer,
     TeamListResponseSerializer,
     TeamResponseSerializer,
     TeamSerializer,
     TeamSubjectResponseSerializer,
     TeamSubjectSerializer,
+    UpdateTeamInvitationLinkSerializer,
 )
 from baserow_enterprise.exceptions import RoleNotExist, RoleUnsupported
 from baserow_enterprise.role.constants import NO_ACCESS_ROLE_UID
@@ -55,11 +64,14 @@ from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.teams.actions import (
     CreateTeamActionType,
     CreateTeamInvitationActionType,
+    CreateTeamInvitationLinkActionType,
     CreateTeamSubjectActionType,
     DeleteTeamActionType,
     DeleteTeamInvitationActionType,
+    DeleteTeamInvitationLinkActionType,
     DeleteTeamSubjectActionType,
     UpdateTeamActionType,
+    UpdateTeamInvitationLinkActionType,
 )
 from baserow_enterprise.teams.exceptions import (
     TeamDoesNotExist,
@@ -700,5 +712,163 @@ class TeamInvitationView(APIView):
         team_invitation = TeamHandler().get_team_invitation(team_invitation_id, team)
         action_type_registry.get_by_type(DeleteTeamInvitationActionType).do(
             request.user, team_invitation
+        )
+        return Response(status=204)
+
+
+INVITATION_LINK_ID_PARAMETER = OpenApiParameter(
+    name="invitation_link_id",
+    location=OpenApiParameter.PATH,
+    type=OpenApiTypes.INT,
+    description="The invitation link of the team.",
+)
+
+TEAM_INVITATION_LINK_EXCEPTIONS = {
+    TeamDoesNotExist: ERROR_TEAM_DOES_NOT_EXIST,
+    UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+    WorkspaceInvitationLinkDoesNotExist: ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST,
+}
+
+
+class TeamInvitationLinksView(APIView):
+    """Lists and creates the permanent links that add people to a team."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[TEAM_ID_PARAMETER],
+        tags=["Teams"],
+        operation_id="list_team_invitation_links",
+        description=(
+            "Lists the permanent invitation links that anyone can use to join the team."
+        ),
+        responses={
+            200: TeamInvitationLinkSerializer(many=True),
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(["ERROR_TEAM_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(TEAM_INVITATION_LINK_EXCEPTIONS)
+    def get(self, request, team_id: int):
+        team = TeamHandler().get_team(request.user, team_id)
+        invitation_links = TeamHandler().list_team_invitation_links(request.user, team)
+        return Response(TeamInvitationLinkSerializer(invitation_links, many=True).data)
+
+    @extend_schema(
+        parameters=[TEAM_ID_PARAMETER, CLIENT_SESSION_ID_SCHEMA_PARAMETER],
+        tags=["Teams"],
+        operation_id="create_team_invitation_link",
+        description=(
+            "Creates a permanent link that anyone can use to join the team. People "
+            "who aren't a member of the workspace yet join it without a workspace "
+            "role, so that the role of the team applies, and members of the "
+            "workspace are added to the team. The link has no role of its own."
+        ),
+        request=CreateTeamInvitationLinkSerializer,
+        responses={
+            200: TeamInvitationLinkSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED",
+                ]
+            ),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(["ERROR_TEAM_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            **TEAM_INVITATION_LINK_EXCEPTIONS,
+            WorkspaceInvitationLinkSignupsDisabled: (
+                ERROR_WORKSPACE_INVITATION_LINK_SIGNUPS_DISABLED
+            ),
+        }
+    )
+    @validate_body(CreateTeamInvitationLinkSerializer, return_validated=True)
+    def post(self, request, team_id: int, data):
+        team = TeamHandler().get_team(request.user, team_id)
+        invitation_link = action_type_registry.get_by_type(
+            CreateTeamInvitationLinkActionType
+        ).do(request.user, team, data.get("name", ""))
+        return Response(TeamInvitationLinkSerializer(invitation_link).data)
+
+
+class TeamInvitationLinkView(APIView):
+    """Renames and deletes one permanent link to a team."""
+
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            TEAM_ID_PARAMETER,
+            INVITATION_LINK_ID_PARAMETER,
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Teams"],
+        operation_id="update_team_invitation_link",
+        description="Changes the name of an invitation link to the team.",
+        request=UpdateTeamInvitationLinkSerializer,
+        responses={
+            200: TeamInvitationLinkSerializer,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+            ),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_TEAM_DOES_NOT_EXIST",
+                    "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(TEAM_INVITATION_LINK_EXCEPTIONS)
+    @validate_body(UpdateTeamInvitationLinkSerializer, return_validated=True)
+    def patch(self, request, team_id: int, invitation_link_id: int, data):
+        handler = TeamHandler()
+        team = handler.get_team(request.user, team_id)
+        invitation_link = handler.get_team_invitation_link(invitation_link_id, team)
+        invitation_link = action_type_registry.get_by_type(
+            UpdateTeamInvitationLinkActionType
+        ).do(request.user, team, invitation_link, data["name"])
+        return Response(TeamInvitationLinkSerializer(invitation_link).data)
+
+    @extend_schema(
+        parameters=[
+            TEAM_ID_PARAMETER,
+            INVITATION_LINK_ID_PARAMETER,
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Teams"],
+        operation_id="delete_team_invitation_link",
+        description=(
+            "Deletes an invitation link to the team, after which it can't be used "
+            "anymore. People who joined through it stay in the team."
+        ),
+        responses={
+            204: None,
+            400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
+            403: get_error_schema(["ERROR_FEATURE_DISABLED"]),
+            404: get_error_schema(
+                [
+                    "ERROR_TEAM_DOES_NOT_EXIST",
+                    "ERROR_WORKSPACE_INVITATION_LINK_DOES_NOT_EXIST",
+                ]
+            ),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(TEAM_INVITATION_LINK_EXCEPTIONS)
+    def delete(self, request, team_id: int, invitation_link_id: int):
+        handler = TeamHandler()
+        team = handler.get_team(request.user, team_id)
+        invitation_link = handler.get_team_invitation_link(invitation_link_id, team)
+        action_type_registry.get_by_type(DeleteTeamInvitationLinkActionType).do(
+            request.user, team, invitation_link
         )
         return Response(status=204)

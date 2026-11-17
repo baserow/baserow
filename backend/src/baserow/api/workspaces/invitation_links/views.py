@@ -317,7 +317,9 @@ class JoinWorkspaceInvitationLinkView(APIView):
             "Adds the authorized user to the workspace of the invitation link with "
             "the permissions of the link. Someone who is already a member gets the "
             "permissions of the link when they are higher than their own, and "
-            "otherwise keeps their current permissions."
+            "otherwise keeps their current permissions. A link that adds members "
+            "to an object, like a team, adds anyone who isn't in it yet, which can "
+            "change their access to what the object gives access to."
         ),
         request=None,
         responses={

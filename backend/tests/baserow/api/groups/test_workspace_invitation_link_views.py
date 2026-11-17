@@ -289,6 +289,7 @@ def test_get_public_workspace_invitation_link(api_client, data_fixture, settings
         "scope_id": None,
         "scope_name": None,
         "role_upgrade": None,
+        "adds_member": False,
     }
 
     TrashHandler.trash(admin, workspace, None, workspace)
