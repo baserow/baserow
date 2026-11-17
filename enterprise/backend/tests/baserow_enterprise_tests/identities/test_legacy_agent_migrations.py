@@ -4,10 +4,12 @@ import pytest
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0073_deletes_rows_whose_subject_is_a_legacy_agent(
+def test_0074_deletes_rows_whose_subject_is_a_legacy_agent(
     migrator, teardown_table_metadata
 ):
-    old_state = migrator.migrate([("baserow_enterprise", "0072_html_element")])
+    old_state = migrator.migrate(
+        [("baserow_enterprise", "0073_workspaceteaminvitation")]
+    )
     ContentType = old_state.apps.get_model("contenttypes", "ContentType")
     Workspace = old_state.apps.get_model("core", "Workspace")
     Role = old_state.apps.get_model("baserow_enterprise", "Role")
@@ -31,7 +33,7 @@ def test_0073_deletes_rows_whose_subject_is_a_legacy_agent(
         )
         TeamSubject.objects.create(subject_id=1, subject_type=subject_type, team=team)
 
-    migrator.migrate([("baserow_enterprise", "0073_delete_legacy_agent_subjects")])
+    migrator.migrate([("baserow_enterprise", "0074_delete_legacy_agent_subjects")])
 
     remaining = [
         list(model.objects.values_list("subject_type_id", flat=True))

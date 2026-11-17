@@ -630,9 +630,9 @@ def _core_migration_targets(name):
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0138_identity_upgrade_and_guarded_rollback(migrator, teardown_table_metadata):
-    previous = _core_migration_targets("0137_mcpendpoint_rename_create_dashboards")
-    current = _core_migration_targets("0138_user_identities")
+def test_0139_identity_upgrade_and_guarded_rollback(migrator, teardown_table_metadata):
+    previous = _core_migration_targets("0138_workspaceinvitationlink_password")
+    current = _core_migration_targets("0139_user_identities")
     old_state = migrator.migrate(previous)
     OldWorkspace = old_state.apps.get_model("core", "Workspace")
     OldAgent = old_state.apps.get_model("core", "Agent")
@@ -671,10 +671,10 @@ def test_0138_identity_upgrade_and_guarded_rollback(migrator, teardown_table_met
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0138_discards_legacy_agents_without_converting_references(
+def test_0139_discards_legacy_agents_without_converting_references(
     migrator, teardown_table_metadata
 ):
-    previous = _core_migration_targets("0137_mcpendpoint_rename_create_dashboards")
+    previous = _core_migration_targets("0138_workspaceinvitationlink_password")
     old_state = migrator.migrate(previous)
     Workspace = old_state.apps.get_model("core", "Workspace")
     Agent = old_state.apps.get_model("core", "Agent")
@@ -699,7 +699,7 @@ def test_0138_discards_legacy_agents_without_converting_references(
     )
     users_before = old_state.apps.get_model("auth", "User").objects.count()
 
-    new_state = migrator.migrate(_core_migration_targets("0138_user_identities"))
+    new_state = migrator.migrate(_core_migration_targets("0139_user_identities"))
 
     assert Agent.objects.count() == 0
     assert new_state.apps.get_model("auth", "User").objects.count() == users_before

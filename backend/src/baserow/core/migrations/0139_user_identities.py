@@ -22,7 +22,7 @@ def refuse_identity_rollback(apps, schema_editor):
 class Migration(LockTimeoutMigration):
     atomic = True
 
-    dependencies = [("core", "0137_mcpendpoint_rename_create_dashboards")]
+    dependencies = [("core", "0138_workspaceinvitationlink_password")]
 
     operations = [
         migrations.AddField(

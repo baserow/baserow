@@ -14,8 +14,8 @@ def clear_legacy_agent_run_as(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("agent", "0017_agent_actions"),
-        ("core", "0138_user_identities"),
+        ("agent", "0018_agent_trigger_batch_size"),
+        ("core", "0139_user_identities"),
     ]
 
     operations = [

@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0072_html_element"),
+        ("baserow_enterprise", "0073_workspaceteaminvitation"),
     ]
 
     operations = [

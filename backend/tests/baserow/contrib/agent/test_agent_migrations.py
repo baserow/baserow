@@ -4,11 +4,11 @@ import pytest
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0018_clears_run_as_bindings_to_legacy_agents(
+def test_0019_clears_run_as_bindings_to_legacy_agents(
     migrator, teardown_table_metadata
 ):
     old_state = migrator.migrate(
-        [("agent", "0017_agent_actions"), ("core", "0138_user_identities")]
+        [("agent", "0018_agent_trigger_batch_size"), ("core", "0139_user_identities")]
     )
     ContentType = old_state.apps.get_model("contenttypes", "ContentType")
     Workspace = old_state.apps.get_model("core", "Workspace")
@@ -27,7 +27,7 @@ def test_0018_clears_run_as_bindings_to_legacy_agents(
             run_as_subject_id=1,
         )
 
-    migrator.migrate([("agent", "0018_clear_legacy_agent_run_as")])
+    migrator.migrate([("agent", "0019_clear_legacy_agent_run_as")])
 
     bindings = list(
         AgentApplication.objects.order_by("id").values_list(

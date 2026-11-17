@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("core", "0138_user_identities"),
+        ("core", "0139_user_identities"),
     ]
 
     operations = [

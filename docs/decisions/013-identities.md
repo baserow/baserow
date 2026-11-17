@@ -195,7 +195,7 @@ or setting can let one react.
 ### Removal and migration
 
 Historical migration `0121_agent.py` stays. One new core migration,
-`0138_user_identities`, adds the profile fields with database defaults and removes
+`0139_user_identities`, adds the profile fields with database defaults and removes
 Agent. All runtime imports, `core.Agent` registrations, queries and client branches
 go.
 
@@ -217,7 +217,7 @@ Profiles cached by the previous release lack the new fields. The user cache, use
 HTTP and WebSocket authentication, and the database token cache treat such an entry
 as a miss and reload it, so a valid person is never locked out and missing metadata
 never authorizes an identity. A second, non-atomic migration,
-`0139_userprofile_trashed_idx`, builds the partial trash index with the shared
+`0140_userprofile_trashed_idx`, builds the partial trash index with the shared
 recoverable concurrent-index operation and gives a human profile to any user that
 lacks one.
 

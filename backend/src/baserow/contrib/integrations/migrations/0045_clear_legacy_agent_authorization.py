@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("integrations", "0043_mcp_server_encrypted_secrets"),
+        ("integrations", "0044_http_request_rows_ordering"),
     ]
 
     operations = [
