@@ -27,6 +27,8 @@ from baserow_enterprise.assistant.tools.database.agents import (
     _verdict_must_be_backed_by_validation,
     get_formula_type_tool,
 )
+from baserow_enterprise.role.handler import RoleAssignmentHandler
+from baserow_enterprise.role.models import Role
 
 from .utils import create_fake_tool_helpers
 
@@ -103,6 +105,46 @@ def test_table_outside_the_workspace_is_not_leaked(data_fixture):
 
     with pytest.raises(ModelRetry):
         validate(other_table.id, "Broken", "field('Customer')")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula", ["lookup('Link', 'Salary')", "lookup('Link', 'Nonexistent')"]
+)
+def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
+    enterprise_data_fixture, settings, formula
+):
+    # Enterprise licences only count in debug mode, so roles would be ignored.
+    settings.DEBUG = True
+    enterprise_data_fixture.enable_enterprise()
+    admin = enterprise_data_fixture.create_user()
+    member = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[member])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    hidden = enterprise_data_fixture.create_database_table(database=database)
+    enterprise_data_fixture.create_number_field(table=hidden, name="Salary")
+    enterprise_data_fixture.create_link_row_field(
+        table=table, name="Link", link_row_table=hidden
+    )
+    roles = RoleAssignmentHandler()
+    roles.assign_role(
+        member, workspace, role=Role.objects.get(uid="BUILDER"), scope=workspace
+    )
+    roles.assign_role(
+        member, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden
+    )
+
+    with pytest.raises(ModelRetry) as exc_info:
+        get_formula_type_tool(member, workspace)(table.id, "Check", formula)
+
+    assert "unknown field" in str(exc_info.value)
+    assert (
+        get_formula_type_tool(admin, workspace)(
+            table.id, "Check", "lookup('Link', 'Salary')"
+        )
+        == "array"
+    )
 
 
 @pytest.mark.django_db

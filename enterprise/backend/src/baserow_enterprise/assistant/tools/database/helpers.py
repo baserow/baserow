@@ -52,30 +52,12 @@ def get_table(user: AbstractUser, workspace: Workspace, table_id: int) -> Table:
         )
 
 
-def readable_tables(user: AbstractUser, workspace: Workspace, **filters) -> list[Table]:
-    """
-    The workspace's tables whose fields the user may list, so the formula agents only
-    see fields the user can.
-
-    :param user: The acting user.
-    :param workspace: The workspace the tables are in.
-    :param filters: Lookups that narrow the tables, such as ``id`` or
-        ``database_id``.
-    :returns: The tables, in sidebar order.
-    """
-
-    return permitted_tables(
-        ToolContext(user=user, workspace=workspace),
-        filter_tables(user, workspace).filter(**filters),
-        ListFieldsOperationType.type,
-    )
-
-
 def readable_database_tables(
     user: AbstractUser, workspace: Workspace, database_id: int
 ) -> list[Table]:
     """
-    The database's tables whose fields the user may list.
+    The database's tables whose fields the user may list, so the formula agents only
+    see fields the user can.
 
     :param user: The acting user.
     :param workspace: The workspace the database is in.
@@ -83,7 +65,11 @@ def readable_database_tables(
     :returns: The tables, in sidebar order.
     """
 
-    return readable_tables(user, workspace, database_id=database_id)
+    return permitted_tables(
+        ToolContext(user=user, workspace=workspace),
+        filter_tables(user, workspace).filter(database_id=database_id),
+        ListFieldsOperationType.type,
+    )
 
 
 FormulaFixer = Callable[[Table, str, str], str | None]

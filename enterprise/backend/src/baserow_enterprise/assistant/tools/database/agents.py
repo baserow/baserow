@@ -19,10 +19,23 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import UsageLimits
 
 from baserow.contrib.database.api.formula.serializers import TypeFormulaResultSerializer
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
+from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import FormulaField
+from baserow.contrib.database.fields.operations import (
+    ListFieldsOperationType,
+    ReadFieldOperationType,
+)
+from baserow.contrib.database.formula import FormulaHandler
+from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.tools.tables import get_table, permitted_tables
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.generative_ai.lifecycle import run_agent_sync_with_model
 from baserow.core.models import Workspace
+from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.toolset import AssistantFunctionToolset
 from baserow_premium.prompts import get_formula_docs
 
@@ -276,18 +289,34 @@ def get_formula_type_tool(
 
         nonlocal user, workspace
 
-        table = next(iter(helpers.readable_tables(user, workspace, id=table_id)), None)
-        if not table:
-            valid_ids = [t.id for t in helpers.readable_tables(user, workspace)]
+        # Only tables whose fields the user may list, as the fields endpoint checks.
+        ctx = ToolContext(user=user, workspace=workspace)
+        try:
+            table = get_table(ctx, table_id, ListFieldsOperationType.type)
+        except (Table.DoesNotExist, PermissionDenied):
+            readable = permitted_tables(
+                ctx,
+                helpers.filter_tables(user, workspace),
+                ListFieldsOperationType.type,
+            )
             raise ModelRetry(
                 f"Table with ID {table_id} not found in workspace. "
-                f"Valid table IDs: {valid_ids}"
+                f"Valid table IDs: {[t.id for t in readable]}"
             )
 
         # Only ModelRetry becomes a retry prompt; anything else aborts the turn.
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
         try:
             field.recalculate_internal_fields(raise_if_invalid=True)
+            # A field of another table the user may not read reads as unknown, as
+            # it does when the formula is saved.
+            FieldDependencyHandler.raise_if_user_doesnt_have_operation_on_dependencies_in_other_tables(
+                workspace,
+                user,
+                field,
+                FormulaHandler.get_field_dependencies(field, FieldCache()),
+                ReadFieldOperationType.type,
+            )
             result = TypeFormulaResultSerializer(field).data
             error = result["error"]
         except Exception as exc:
