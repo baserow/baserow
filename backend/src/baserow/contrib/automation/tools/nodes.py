@@ -312,19 +312,9 @@ def table_field_ids() -> Callable[[int], set[int]]:
     return field_ids
 
 
-def node_refs(
-    user: AbstractUser,
-    workflow: AutomationWorkflow,
-    nodes: Iterable[AutomationNode] | None = None,
-) -> NodeRefs:
-    """
-    The nodes of a workflow that a new node can follow, by their ID.
+def node_refs(nodes: Iterable[AutomationNode]) -> NodeRefs:
+    """The nodes of a workflow that a new node can follow, by their ID."""
 
-    :param nodes: The nodes of the workflow, when already read.
-    """
-
-    if nodes is None:
-        nodes = AutomationNodeService().get_nodes(user, workflow)
     refs = NodeRefs()
     for node in nodes:
         edges = router_edges(node)
@@ -453,19 +443,39 @@ def shifted_nodes(
     existing: list[AutomationNode],
     positions: dict[int, tuple[int | None, str]],
     creation: NodeCreation,
-) -> list[dict[str, Any]]:
+) -> list[tuple[AutomationNode, AutomationNode | None, str]]:
     """
     The existing nodes that follow another node since the call, because a new
-    node was inserted before them, as list_nodes describes them.
+    node was inserted before them, with the node they follow and on which output.
     """
 
     created = [node for _ref, node in creation.nodes]
     ordered = nodes_in_order(user, workflow, existing + created)
     now = node_positions(ordered)
     return [
-        describe_node(node, previous, output)
+        (node, previous, output)
         for node, previous, output in ordered
         if node.id in positions and positions[node.id] != now[node.id]
+    ]
+
+
+def default_branch_warnings(
+    shifted: list[tuple[AutomationNode, AutomationNode | None, str]],
+) -> list[str]:
+    """
+    A warning for each shifted node that now runs on a router's default branch,
+    so only when none of the router's branches match.
+    """
+
+    return [
+        f"Node {node.id} ({node.label}) is now on the default branch of router "
+        f"{previous.id} ({previous.label}), so it runs only when none of the "
+        "router's branches match. If it should run on a branch instead, tell the "
+        "user to drag it onto that branch in the editor."
+        for node, previous, output in shifted
+        if previous is not None
+        and output == ""
+        and previous.get_type().type == "router"
     ]
 
 
@@ -490,13 +500,16 @@ def add_nodes(
     after the node it follows: the node that followed it there now follows the
     new node (on a new router's default branch), still connected and with its
     settings, and is listed in shifted_nodes. To add a node before an existing
-    one, follow the node that one follows; never delete and recreate a node to
-    make room. To add several nodes in a row, chain them by ref. A value that
-    takes a formula is a formula when it looks like one (get(...), concat(...),
-    ...), otherwise a literal; to store text that looks like a formula, send it
-    as a quoted string such as 'Call now()'. A formula reads an earlier node with
-    get('previous_node.<node id>...'), with a path list_nodes shows for that
-    node, and a node defined earlier in the call can be named by its ref there.
+    one, use that node's previous_node_ref and router_edge_label from
+    list_nodes; never delete and recreate a node to make room. A default branch
+    runs only when no other branch matches, and warnings says when a shifted
+    node landed on one. To add several nodes in a row, chain them by ref. A
+    value that takes a formula is a formula when it looks like one (get(...),
+    concat(...), ...), otherwise a literal; to store text that looks like a
+    formula, send it as a quoted string such as 'Call now()'. A formula reads an
+    earlier node with get('previous_node.<node id>...'), with a path list_nodes
+    shows for that node, and a node defined earlier in the call can be named by
+    its ref there.
     A valid formula is stored as written. An invalid one leaves that value empty
     and is returned in formula_errors with the reason: fix it with update_nodes.
     Nothing is written when a previous_node_ref or branch is unknown, or a ref is used twice.
@@ -507,14 +520,17 @@ def add_nodes(
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
     check_tables_in_workspace(ctx, node_table_ids(nodes))
-    existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
-    refs = node_refs(ctx.user, workflow, existing)
-    check_node_refs(refs.copy(), nodes)
-    positions = node_positions(nodes_in_order(ctx.user, workflow, existing))
 
     creation = NodeCreation()
     field_ids = table_field_ids()
     with transaction.atomic():
+        # Read the nodes under the graph lock, so a concurrent change can't make
+        # shifted_nodes report a node this call didn't move.
+        workflow.get_graph().lock_for_update()
+        existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
+        refs = node_refs(existing)
+        check_node_refs(refs.copy(), nodes)
+        positions = node_positions(nodes_in_order(ctx.user, workflow, existing))
         for node in nodes:
             create_node(ctx, workflow, node, refs, creation, field_ids)
         # In the transaction, so a failure here can't leave nodes the caller
@@ -523,7 +539,10 @@ def add_nodes(
 
     result: dict[str, Any] = {"created_nodes": creation.describe()}
     if shifted:
-        result["shifted_nodes"] = shifted
+        result["shifted_nodes"] = [describe_node(*entry) for entry in shifted]
+        warnings = default_branch_warnings(shifted)
+        if warnings:
+            result["warnings"] = warnings
     if creation.errors:
         result["errors"] = creation.errors
     if creation.formula_errors:

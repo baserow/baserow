@@ -134,8 +134,9 @@ def test_list_nodes(data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_add_node_after_existing(data_fixture):
     """
-    Add a router between the trigger and the existing email node. The email stays
-    connected after the router, with its settings, and is reported as shifted.
+    Add a router between the trigger and the existing email node. The email moves
+    to the router's default branch, with its settings, and is reported as shifted
+    with a warning that it now runs only when no branch matches.
     """
 
     user = data_fixture.create_user()
@@ -157,7 +158,7 @@ def test_add_node_after_existing(data_fixture):
                 type="router",
                 previous_node_ref=str(trigger_id),
                 edges=[
-                    {"label": "always", "condition": "true"},
+                    {"label": "Skip", "condition": "false"},
                 ],
             ),
         ],
@@ -174,6 +175,8 @@ def test_add_node_after_existing(data_fixture):
             "previous_node_ref": str(router["id"]),
         }
     ]
+    (warning,) = result["warnings"]
+    assert f"Node {email_id} (Send Email) is now on the default branch" in warning
 
     final = list_nodes(ctx, workflow_id=workflow_id, thought="verify")
     assert [node["id"] for node in final["nodes"]] == [

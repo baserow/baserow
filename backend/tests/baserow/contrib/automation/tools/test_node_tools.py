@@ -147,6 +147,7 @@ def test_add_nodes_before_a_node_on_a_router_branch(automation_ctx):
     assert shifted["id"] == email["id"]
     assert shifted["previous_node_ref"] == str(log["id"])
     assert "router_edge_label" not in shifted
+    assert "warnings" not in result
 
 
 @pytest.mark.django_db
