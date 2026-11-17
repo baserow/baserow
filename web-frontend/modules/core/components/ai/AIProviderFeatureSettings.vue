@@ -214,8 +214,12 @@ export default {
         ? this.$t('aiProviderAdmin.kumaDisabled')
         : this.$t('aiProviderAdmin.kumaDisabledInWorkspace')
     },
+    usesLegacyModel(setting) {
+      const workspace = this.$store.getters['workspace/get'](this.workspaceId)
+      return workspace?.ai_features?.[setting.feature_type]?.state === 'legacy'
+    },
     invalidSelectionLabel(setting) {
-      if (this.workspaceId !== null) {
+      if (this.workspaceId !== null && !this.usesLegacyModel(setting)) {
         return this.$t('aiProviderAdmin.modelUnavailableInWorkspace')
       }
       return this.legacyModel(setting)

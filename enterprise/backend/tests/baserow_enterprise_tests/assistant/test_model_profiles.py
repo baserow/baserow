@@ -9,6 +9,8 @@ from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_MODE_MODEL,
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.models import AIProviderModel
+from baserow.core.ai_provider.registries import ai_provider_model_feature_type_registry
 from baserow.core.generative_ai.groq import GroqGPTOSSModel
 from baserow.core.generative_ai.model_profiles import (
     get_model_settings as get_shared_model_settings,
@@ -34,6 +36,12 @@ from baserow_enterprise.assistant.model_profiles import (
 
 class _ProfileResult(BaseModel):
     answer: str
+
+
+def _kuma_availability(workspace: Workspace) -> dict:
+    return ai_provider_model_feature_type_registry.get(
+        AI_PROVIDER_FEATURE_KUMA
+    ).get_workspace_availability(workspace)
 
 
 @pytest.mark.parametrize(
@@ -419,12 +427,37 @@ def test_excluded_kuma_provider_does_not_fall_back_to_environment(
         resolve_assistant_model(workspace=workspace)
 
     retrying_model.assert_not_called()
+    assert _kuma_availability(workspace) == {"is_enabled": False, "state": "invalid"}
     assert resolve_assistant_model().database_model.id == provider.models.get().id
 
     AIProviderHandler.update_provider(provider, excluded_workspaces=[])
     restored = resolve_assistant_model(workspace=workspace)
     assert restored.source == "database"
     assert restored.model_string == "openai:gpt-5.4"
+
+
+@pytest.mark.django_db
+def test_unusable_kuma_selection_falls_back_to_environment_unless_excluded(
+    data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "openai:legacy-model"
+    workspace = data_fixture.create_workspace()
+    provider = AIProviderHandler.create_provider(
+        "openai",
+        api_key="instance-key",
+        models_data=[
+            {"model_identifier": "gpt-5.4", "feature_types": [AI_PROVIDER_FEATURE_KUMA]}
+        ],
+    )
+    AIProviderHandler.update_feature_setting(
+        AI_PROVIDER_FEATURE_KUMA,
+        AI_PROVIDER_FEATURE_MODE_MODEL,
+        model=provider.models.get(),
+    )
+    AIProviderModel.objects.filter(provider_config=provider).update(is_enabled=False)
+
+    assert _kuma_availability(workspace) == {"is_enabled": True, "state": "legacy"}
+    assert resolve_assistant_model(workspace=workspace).source == "legacy"
 
 
 @pytest.mark.django_db

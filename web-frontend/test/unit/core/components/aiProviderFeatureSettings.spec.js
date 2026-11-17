@@ -331,20 +331,38 @@ describe('AIProviderFeatureSettings', () => {
     expect(invalidOption.classes()).toContain('disabled')
   })
 
-  test('does not promise an environment fallback for an unavailable workspace selection', async () => {
-    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
-    testApp.store.commit('aiProvider/SET_PROVIDERS', [])
-    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
-      { feature_type: 'kuma', mode: 'model', state: 'invalid', model: null },
-    ])
+  test.each([
+    {
+      state: 'invalid',
+      isEnabled: false,
+      label: 'Selected model unavailable in this workspace',
+    },
+    {
+      state: 'legacy',
+      isEnabled: true,
+      label:
+        'Selected model unavailable — using deprecated environment model: openai/gpt-5.6',
+    },
+  ])(
+    'labels an invalid workspace selection when Kuma availability is $state',
+    async ({ state, isEnabled, label }) => {
+      await testApp.store.dispatch('workspace/forceCreate', {
+        id: 42,
+        ai_features: { kuma: { is_enabled: isEnabled, state } },
+      })
+      testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+      testApp.store.commit('aiProvider/SET_PROVIDERS', [])
+      testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [
+        { feature_type: 'kuma', mode: 'model', state: 'invalid', model: null },
+      ])
 
-    const wrapper = await mountComponent('openai/gpt-5.6', { workspaceId: 42 })
+      const wrapper = await mountComponent('openai/gpt-5.6', {
+        workspaceId: 42,
+      })
 
-    expect(wrapper.find('.dropdown__selected-text').text()).toBe(
-      'Selected model unavailable in this workspace'
-    )
-    expect(wrapper.text()).not.toContain('using deprecated environment model')
-  })
+      expect(wrapper.find('.dropdown__selected-text').text()).toBe(label)
+    }
+  )
 
   test('shows that an invalid selection has no legacy environment model', async () => {
     testApp.store.commit('aiProvider/SET_WORKSPACE_ID', null)
