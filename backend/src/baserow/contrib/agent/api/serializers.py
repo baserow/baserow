@@ -161,7 +161,8 @@ class AgentConfigurationSerializer(serializers.Serializer):
     )
     available_action_types = serializers.ListField(
         child=serializers.CharField(),
-        help_text="The service types available as configured agent actions.",
+        help_text="The service types offered as agent actions on this instance, "
+        "including the ones the workspace's license locks.",
     )
     max_actions = serializers.IntegerField(
         allow_null=True,

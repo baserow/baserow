@@ -9,7 +9,7 @@ from baserow.core.formula.parser.formula_validation_visitor import (
 from baserow.core.formula.parser.generated.BaserowFormula import BaserowFormula
 from baserow.core.formula.parser.parser import get_parse_tree_for_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
-from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 from baserow.core.services.models import Service
 from baserow.core.utils import to_path
 
@@ -64,6 +64,31 @@ class ActionFormulaValidationVisitor(BaserowFormulaValidationVisitor):
         return result
 
 
+def reads_only_inputs(
+    value: BaserowFormulaObject, inputs: list[AgentActionInput]
+) -> bool:
+    """
+    Check a stored formula without resolving it.
+
+    :param value: The formula.
+    :param inputs: The inputs the formula may read.
+    :return: False when the formula doesn't parse, has an argument its function
+        refuses, reads something else than one of the inputs, or fails the check
+        in any other way.
+    """
+
+    if not value["formula"] or value.get("mode") == BASEROW_FORMULA_MODE_RAW:
+        return True
+    try:
+        ActionFormulaValidationVisitor(inputs).visit(
+            get_parse_tree_for_formula(value["formula"])
+        )
+    # A stored formula can make the parser or a function's check raise anything.
+    except Exception:
+        return False
+    return True
+
+
 def get_formula_errors(
     service: Service, inputs: list[AgentActionInput]
 ) -> dict[str, str]:
@@ -73,21 +98,11 @@ def get_formula_errors(
 
     :param service: The action's specific service.
     :param inputs: The action's declared inputs.
-    :return: ``invalid`` by service field, for each formula that doesn't parse,
-        has an argument its function refuses, reads something else than a
-        declared input, or fails the check in any other way.
+    :return: ``invalid`` by service field, for each formula that fails the check.
     """
 
-    errors = {}
-    for formula in service.get_type().formulas_to_resolve(service):
-        value = formula.formula
-        if not value["formula"] or value.get("mode") == BASEROW_FORMULA_MODE_RAW:
-            continue
-        try:
-            ActionFormulaValidationVisitor(inputs).visit(
-                get_parse_tree_for_formula(value["formula"])
-            )
-        # A stored formula can make the parser or a function's check raise anything.
-        except Exception:
-            errors[formula.key] = "invalid"
-    return errors
+    return {
+        formula.key: "invalid"
+        for formula in service.get_type().formulas_to_resolve(service)
+        if not reads_only_inputs(formula.formula, inputs)
+    }

@@ -96,26 +96,27 @@ class AgentActionHandler:
             queryset = queryset.filter(enabled=True)
         return self._load_services(list(queryset.select_related("agent__workspace")))
 
-    def available_action_types(self, agent: AgentApplication) -> list[str]:
+    def available_action_types(self) -> list[str]:
         """
-        :param agent: The Agent.
-        :return: The service types that can be added to it as actions.
+        :return: The service types offered as actions on this instance, including
+            the ones a workspace's license locks.
         """
 
         return [
-            action_type.type
-            for action_type in agent_action_type_registry.get_all()
-            if action_type.is_available(agent.workspace)
+            action_type.type for action_type in agent_action_type_registry.get_all()
         ]
 
-    def check_type_available(self, agent: AgentApplication, type_name: str) -> None:
+    def check_type_usable(self, agent: AgentApplication, type_name: str) -> None:
         """
         :param agent: The Agent.
         :param type_name: A service type name.
-        :raises AgentActionTypeNotAvailable: When it can't be added as an action.
+        :raises AgentActionTypeNotAvailable: When the type isn't offered as an
+            action or can't be used in the Agent's workspace.
         """
 
-        if type_name not in self.available_action_types(agent):
+        if type_name not in self.available_action_types() or not (
+            agent_action_type_registry.get(type_name).is_available(agent.workspace)
+        ):
             raise AgentActionTypeNotAvailable(type_name)
 
     def check_limit(self, agent: AgentApplication) -> None:
@@ -145,7 +146,7 @@ class AgentActionHandler:
             type and completely configured.
         """
 
-        available = set(self.available_action_types(agent))
+        available = set(self.available_action_types())
         return [
             action
             for action in self.list_actions(agent, only_enabled=True)

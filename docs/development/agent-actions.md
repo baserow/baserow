@@ -2,8 +2,9 @@
 
 An agent's **Actions** section holds tools its builder configures: a named tool,
 the inputs the model fills in, and an existing integration service whose fields use
-those inputs. Send email and HTTP request are the action types so far. This page
-is the contract the shared code keeps, and what the next action type has to add.
+those inputs. Send email, HTTP request and, in the enterprise edition, semantic
+search are the action types so far. This page is the contract the shared code
+keeps, and what the next action type has to add.
 
 ## What owns what
 
@@ -11,19 +12,30 @@ One `AgentAction` per configured action. It belongs to the agent and owns one
 `Service`. The action's type is its service's type, so there is no polymorphic
 action model, and readiness is derived, never stored.
 
-| Owner                               | Responsibility                                                                            |
-| ----------------------------------- | ----------------------------------------------------------------------------------------- |
-| `AgentAction`                       | Name the model calls, instructions, declared inputs, enabled and Ask first.               |
-| Service and integration             | Configuration, formulas, validation, credentials and delivery.                            |
-| `AgentActionType` (`action_tools/`) | Opts a service type in. Supplies the starter of a new action and the request people read. |
-| `BoundActionTool`                   | The tool of one reply: schema, argument validation, preview, approval and dispatch.       |
-| Presenter (`toolPresentationTypes`) | Labels and order of the service's fields, for the step card and the configuration errors. |
+| Owner                               | Responsibility                                                                                                          |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `AgentAction`                       | Name the model calls, instructions, declared inputs, enabled and Ask first.                                             |
+| Service and integration             | Configuration, formulas, validation, credentials and delivery.                                                          |
+| `AgentActionType` (`action_tools/`) | Opts a service type in. Supplies the starter of a new action, the request people read, and whether a call changes data. |
+| `BoundActionTool`                   | The tool of one reply: schema, argument validation, preview, approval and dispatch.                                     |
+| Presenter (`toolPresentationTypes`) | Labels and order of the service's fields, for the step card and the configuration errors.                               |
 
-Actions don't act as the agent's identity. They are offered with or without
-workspace access and act through their own service.
+Actions don't act as the agent's Run as identity. They are offered with or
+without workspace access and act through their own service. A Local Baserow
+service, like semantic search, reads as the subject its integration is authorized
+as: a person or an Agent identity. Everyone who chats with the agent reaches what
+that subject can read.
 
-A new action starts enabled, with Ask first on: it acts outside Baserow, on
-values the model chose. Tools that change data and MCP tools start the same way.
+A new action starts enabled. Ask first follows its type's `changes_data`: on for
+a type that acts, outside Baserow, on values the model chose, like Send email;
+off for a type that only reads, like semantic search. Tools that change data and
+MCP tools start with Ask first on too. `changes_data` also decides, like for
+built-in tools, whether a call waits behind an earlier held call.
+
+Every registered type is offered, also when the workspace's license or the
+instance can't run it. The model never gets such an action, and its builder may
+only rename it, switch it or delete it, so it's ready again once the type can be
+used. The editor shows the type's upgrade modal when a license would unlock it.
 
 ## Inputs and formulas
 
@@ -137,21 +149,30 @@ duplicated agent keeps the actions it had.
 
 ## Adding the next action type
 
-1. Subclass `AgentActionType` in `contrib/agent/action_tools/action_types.py`
-   with the service type's name as `type`, and register it in `apps.py`. Implement:
+1. Subclass `AgentActionType` with the service type's name as `type`, next to
+   the service type (core: `contrib/agent/action_tools/action_types.py`;
+   enterprise semantic search: `integrations/local_baserow/agent_action_types.py`),
+   and register it in `agent_action_type_registry` where the service type is
+   registered. Set `changes_data = False` when a call only reads. Implement:
     - `get_defaults()`: the starter name, instructions, inputs and service values.
     - `get_preview_values(service, resolved_values)`: an explicit allowlist of what
       people read, fixed settings included. Never credentials.
 
     Decide there how to limit what a call may send and what its preview shows:
-    nothing shared limits either.
+    nothing shared limits either. Override `get_configuration_errors` for what the
+    shared checks miss: a Local Baserow service needs an integration, as an Agent
+    has no user to read with, and its filters are resolved when the call is sent,
+    without the call's inputs, so semantic search only accepts fixed filter values.
 
 2. Make sure the service's resolved values survive JSON, as they wait in the paused
    run. Convert them in the type if they don't.
 3. Register an `ActionToolPresentationType` under the same type name, with the
    label of each field in reading order, and the activity texts.
-4. Reuse the service's form. Add a host capability to it only where the agent
-   editor needs one.
+4. Reuse the service's form. When it needs a host around it, return that
+   wrapper from the presenter's `getFormComponent(serviceType)`: semantic search
+   uses the automation node wrapper, which picks the Local Baserow integration
+   and hands the form its databases. Add a host capability to the form only
+   where the agent editor needs one.
 5. Check that the exported service is stable: a list of child rows without an
    order changes the approval key between two reads.
 
@@ -161,5 +182,5 @@ validation, approvals and the cap on an agent's actions are shared and need noth
 ## Planned order
 
 Send email, HTTP request, Slack message, configured Baserow create/update row,
-start workflow. Before the Baserow row action, decide whose authority a configured
-Local Baserow service acts with.
+start workflow. A Baserow row action acts with its integration's authority, like
+semantic search.

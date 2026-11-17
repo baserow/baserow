@@ -32,6 +32,9 @@ class AgentActionType(Instance, ABC):
     supplies the starter of a new action and the request people read.
     """
 
+    changes_data: bool = True
+    """Whether a call acts on anything; a type that only reads sets it to False."""
+
     @property
     def service_type(self) -> ServiceType:
         """

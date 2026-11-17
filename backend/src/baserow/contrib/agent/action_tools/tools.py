@@ -79,8 +79,6 @@ class BoundActionTool:
     action_type: AgentActionType
     approval_key: str
 
-    changes_data = True
-
     @classmethod
     def from_action(cls, action: AgentAction) -> "BoundActionTool":
         """
@@ -112,6 +110,14 @@ class BoundActionTool:
         """
 
         return self.action.ask_first
+
+    @property
+    def changes_data(self) -> bool:
+        """
+        :return: Whether a call acts on anything, as the action's type says.
+        """
+
+        return self.action_type.changes_data
 
     @property
     def presentation_type(self) -> str:

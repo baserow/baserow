@@ -78,6 +78,9 @@ def register_row_comment_trigger():
 
 def register_semantic_search_features():
     from baserow.api.settings.registries import settings_data_registry
+    from baserow.contrib.agent.action_tools.registries import (
+        agent_action_type_registry,
+    )
     from baserow.contrib.automation.nodes.registries import (
         automation_node_type_registry,
     )
@@ -89,6 +92,9 @@ def register_semantic_search_features():
     )
     from baserow_enterprise.automation.nodes.node_types import (
         LocalBaserowSemanticSearchActionNodeType,
+    )
+    from baserow_enterprise.integrations.local_baserow.agent_action_types import (
+        LocalBaserowSemanticSearchAgentActionType,
     )
     from baserow_enterprise.integrations.local_baserow.service_types import (
         LocalBaserowSemanticSearchServiceType,
@@ -129,6 +135,7 @@ def register_semantic_search_features():
     settings_data_registry.register(SemanticSearchSettingsDataType())
     service_type_registry.register(LocalBaserowSemanticSearchServiceType())
     automation_node_type_registry.register(LocalBaserowSemanticSearchActionNodeType())
+    agent_action_type_registry.register(LocalBaserowSemanticSearchAgentActionType())
 
     import baserow_enterprise.semantic_search.receivers  # noqa: F401
 

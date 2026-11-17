@@ -125,6 +125,12 @@
     "minSimilarityTooltip": "Rows of which the meaning is less similar to the search query are left out, even if they contain its words. It's compared with the Similarity value of each result.",
     "minSimilarityPlaceholder": "No minimum"
   },
+  "agentSemanticSearch": {
+    "tool": "Search rows by meaning",
+    "toolRunning": "Searching rows by meaning…",
+    "toolDone": "Rows searched by meaning",
+    "filters": "Filters"
+  },
   "createTeamModal": {
     "title": "Create team",
     "invalidNameTitle": "Please use a different name",
