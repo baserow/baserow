@@ -34,12 +34,12 @@
 
 // A note about the node, shown where its value would be. It's not one of its
 // values: it has its own colour and an icon so that it can't be taken for one.
+// It's short and always shown in full, so a long name is the one that's cut.
 .node-explorer-content__hint {
   display: flex;
-  flex: 1 1000 auto;
+  flex: 1 0 auto;
   align-items: center;
   gap: 4px;
-  min-width: 0;
   font-size: 12px;
   color: $palette-yellow-900;
   white-space: nowrap;
