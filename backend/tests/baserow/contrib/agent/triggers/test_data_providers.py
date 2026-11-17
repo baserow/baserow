@@ -221,6 +221,23 @@ def test_rows_over_the_message_room_are_left_out_whole_and_counted(data_fixture)
 
 
 @pytest.mark.django_db
+def test_a_first_row_over_the_message_room_is_cut_short_rather_than_left_out(
+    data_fixture,
+):
+    trigger, _ = orders_trigger(data_fixture, "get('trigger.rows')")
+
+    content = AgentTriggerHandler().resolve_message(
+        trigger, rows_payload("Horse", "Cow", notes="x" * 120_000), FIRED_AT
+    )
+
+    assert content.startswith('\n```json\n[\n{"id": 1, "Name": "Horse", "Notes": "x')
+    assert content.endswith(
+        "x…\n]\n```\n…the row is cut short\n…and 1 more rows not shown"
+    )
+    assert len(content) < AGENT_TEXT_MAX_LENGTH
+
+
+@pytest.mark.django_db
 def test_a_row_trigger_without_a_message_opens_with_its_event_values_and_rows(
     data_fixture,
 ):

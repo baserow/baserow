@@ -789,6 +789,27 @@ def test_a_trigger_batch_size_is_copied_and_invalid_values_get_the_default(
     assert copy.triggers.get().batch_size == imported
 
 
+@pytest.mark.django_db
+def test_a_copied_trigger_message_naming_no_imported_id_stays_as_written(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=data_fixture.create_database_table(database=database), integration=None
+    )
+    written = (
+        "concat(get('trigger.count'), ' rows were created in ', "
+        "get('trigger.table'), ': ', get('trigger.rows'))"
+    )
+    data_fixture.create_agent_trigger(agent=agent, service=service, message=written)
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    assert copied.triggers.get().message["formula"] == written
+
+
 @pytest.mark.django_db(transaction=True)
 def test_a_row_trigger_message_follows_its_fields_into_another_workspace(
     data_fixture,

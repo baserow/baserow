@@ -1,18 +1,31 @@
 from abc import ABC, abstractmethod
+from typing import Any
 
-from baserow.core.formula import BaserowFormula, BaserowFormulaVisitor
+from loguru import logger
+
+from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.formula import (
+    BaserowFormula,
+    BaserowFormulaException,
+    BaserowFormulaObject,
+    BaserowFormulaVisitor,
+    get_parse_tree_for_formula,
+)
 from baserow.core.formula.parser.exceptions import (
     BaserowFormulaSyntaxError,
     FieldByIdReferencesAreDeprecated,
 )
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.utils import to_path
 
 
 class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
     """
     This visitor do nothing with most of the context but update the path of the
-    `get()` function.
+    `get()` function. `remapped` tells whether any path changed.
     """
+
+    remapped = False
 
     @abstractmethod
     def get_data_provider_type_registry(self): ...
@@ -63,8 +76,9 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
             )
 
             unquoted_arg_list = data_provider_type.import_path(
-                path, self.id_mapping, **self.extra_context
+                list(path), self.id_mapping, **self.extra_context
             )
+            self.remapped = self.remapped or list(unquoted_arg_list) != path
 
             args = [f"'{'.'.join([data_provider_name, *unquoted_arg_list])}'"]
 
@@ -103,3 +117,46 @@ class BaserowFormulaImporter(BaserowFormulaVisitor, ABC):
         self, ctx: BaserowFormula.RightWhitespaceOrCommentsContext
     ):
         return ctx.expr().accept(self)
+
+
+def import_formula(
+    formula: str | BaserowFormulaObject,
+    id_mapping: dict[str, Any],
+    importer_class: type[BaserowFormulaImporter],
+    **kwargs: Any,
+) -> BaserowFormulaObject:
+    """
+    Remap the ids a formula references when what holds it is imported. A formula
+    none of whose paths is remapped is returned as written, since the importer
+    writes it back without its spacing. A formula that can't be parsed or names
+    an unknown provider was invalid before the import, so it is kept as it is
+    rather than stopping the import.
+
+    :param formula: The formula to import.
+    :param id_mapping: The export-to-import id map.
+    :param importer_class: The importer naming the module's data providers.
+    :param kwargs: Passed to each data provider's `import_path`.
+    :return: The imported formula.
+    """
+
+    formula = BaserowFormulaObject.to_formula(formula)
+    if formula["mode"] == BASEROW_FORMULA_MODE_RAW or not formula["formula"]:
+        return formula
+    importer = importer_class(id_mapping, **kwargs)
+    try:
+        imported = importer.visit(get_parse_tree_for_formula(formula["formula"]))
+    except (
+        BaserowFormulaException,
+        RecursionError,
+        InstanceTypeDoesNotExist,
+        ValueError,
+    ) as exc:
+        logger.warning(
+            "Skipping the import of an invalid formula {!r}: {}",
+            formula["formula"],
+            exc,
+        )
+        return formula
+    if not importer.remapped:
+        return formula
+    return {**formula, "formula": imported}

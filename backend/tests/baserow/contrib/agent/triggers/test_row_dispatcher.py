@@ -4,6 +4,7 @@ from typing import Any
 
 from django.db import connection
 from django.test import TestCase
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from freezegun import freeze_time
@@ -15,6 +16,7 @@ from baserow.contrib.agent.models import (
     AgentMessage,
     AgentTrigger,
 )
+from baserow.contrib.agent.triggers.dispatcher import agent_trigger_dispatcher
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
 from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItemType
@@ -29,6 +31,8 @@ from baserow.core.models import Agent as Identity
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.trash.handler import TrashHandler
+
+from ..utils import queued_reply
 
 
 @pytest.fixture(autouse=True)
@@ -140,20 +144,6 @@ def test_an_event_starts_at_most_the_capped_batches_and_shows_the_rest_was_left_
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "stored,rows,batches", [(0, 2, ["1", "1"]), (101, 101, ["100", "1"])]
-)
-def test_a_stored_batch_size_out_of_bounds_reads_as_the_nearest_bound(
-    data_fixture, orders, stored, rows, batches
-):
-    row_trigger(data_fixture, orders, on_overlap="wait", batch_size=stored)
-
-    create_orders(orders, rows)
-
-    assert opening_messages() == batches
-
-
-@pytest.mark.django_db
 def test_each_batch_counts_towards_the_rate_limits(data_fixture, orders, settings):
     settings.AGENT_TRIGGER_RATE_LIMITS = ((2, 60),)
     trigger = row_trigger(data_fixture, orders, on_overlap="wait", batch_size=1)
@@ -232,6 +222,29 @@ def test_a_trigger_whose_run_identity_cannot_read_the_table_starts_nothing(
 
 
 @pytest.mark.django_db
+def test_queued_replies_wait_while_the_run_identity_cannot_read_the_table(
+    data_fixture, orders
+):
+    trigger = row_trigger(data_fixture, orders, on_overlap="wait")
+    reply = queued_reply(trigger)
+    run_as = AgentApplication.objects.filter(id=orders.agent.id)
+    run_as.update(run_as_subject_type=None, run_as_subject_id=None)
+
+    agent_trigger_dispatcher.hand_off(trigger.id)
+
+    reply.refresh_from_db()
+    assert reply.status == "queued"
+
+    run_as.update(
+        run_as_subject_type="core.Agent", run_as_subject_id=orders.identity.id
+    )
+    agent_trigger_dispatcher.hand_off(trigger.id)
+
+    reply.refresh_from_db()
+    assert reply.status == "running"
+
+
+@pytest.mark.django_db
 def test_rows_of_a_table_the_identity_cannot_read_never_start_after_a_table_switch(
     data_fixture, orders, mocker
 ):
@@ -278,6 +291,28 @@ def test_a_trigger_restored_without_access_is_skipped_when_it_fires(
     trigger.refresh_from_db()
     assert not AgentConversation.objects.exists()
     assert trigger.last_skipped_reason == "no_access"
+
+
+@pytest.mark.django_db
+def test_the_events_table_is_read_once_however_many_triggers_watch_it(
+    data_fixture, orders, mocker
+):
+    mocker.patch(
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
+    )
+
+    def table_reads() -> int:
+        with CaptureQueriesContext(connection) as queries:
+            create_orders(orders, 1)
+        return sum('FROM "database_table"' in query["sql"] for query in queries)
+
+    row_trigger(data_fixture, orders)
+    create_orders(orders, 1)
+    one_trigger = table_reads()
+    row_trigger(data_fixture, orders)
+    row_trigger(data_fixture, orders)
+
+    assert table_reads() == one_trigger
 
 
 @pytest.mark.django_db

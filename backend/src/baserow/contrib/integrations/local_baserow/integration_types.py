@@ -323,7 +323,7 @@ class LocalBaserowIntegrationType(IntegrationType):
 
     @staticmethod
     def get_local_baserow_databases_for(
-        subject: Optional[Subject], workspace: Workspace
+        subject: Optional[Subject], workspace: Workspace, with_views: bool = True
     ) -> List[Database]:
         """
         This method returns the databases that the subject has access to in a query
@@ -335,34 +335,32 @@ class LocalBaserowIntegrationType(IntegrationType):
 
         :param subject: The subject the tables and views are listed for.
         :param workspace: The workspace the databases are in.
-        :return: The databases, each with its `tables` and `views` set.
+        :param with_views: Whether the views are listed; a caller offering only
+            tables saves reading every view of the workspace.
+        :return: The databases, each with its `tables` and `views` set, the
+            latter empty without views.
         """
 
         tables = TableHandler().list_workspace_tables(subject, workspace)
 
-        views = ViewHandler().list_workspace_views(subject, workspace, specific=False)
-
-        views = list(
-            views.only(
-                "id",
-                "name",
-                "table_id",
-                "order",
-                "content_type",
-                "ownership_type",
-            ),
-        )
-
         views_by_table = defaultdict(list)
-        for view in views:
-            # The integration is shared, so only views of an ownership type that
-            # integrations may use are offered.
-            if not view_ownership_type_registry.get(
-                view.ownership_type
-            ).can_be_used_by_integrations:
-                continue
-            if view.get_type().can_filter or view.get_type().can_sort:
-                views_by_table[view.table_id].append(view)
+        if with_views:
+            views = (
+                ViewHandler()
+                .list_workspace_views(subject, workspace, specific=False)
+                .only(
+                    "id", "name", "table_id", "order", "content_type", "ownership_type"
+                )
+            )
+            for view in views:
+                # The integration is shared, so only views of an ownership type
+                # that integrations may use are offered.
+                if not view_ownership_type_registry.get(
+                    view.ownership_type
+                ).can_be_used_by_integrations:
+                    continue
+                if view.get_type().can_filter or view.get_type().can_sort:
+                    views_by_table[view.table_id].append(view)
 
         database_map = {}
         for table in tables:

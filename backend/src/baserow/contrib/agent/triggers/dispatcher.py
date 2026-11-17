@@ -18,11 +18,7 @@ from baserow.core.services.registries import service_type_registry
 from baserow.core.types import Subject
 from baserow.core.utils import exception_capturer, rate_limit_window_exceeded
 
-from ..constants import (
-    AGENT_TRIGGER_MAX_BATCH_SIZE,
-    AGENT_TRIGGER_MESSAGE_FAILED,
-    AgentReadinessState,
-)
+from ..constants import AGENT_TRIGGER_MESSAGE_FAILED, AgentReadinessState
 from ..handler import AgentHandler
 from ..models import AgentApplication, AgentConversation, AgentMessage, AgentTrigger
 from ..signals import agent_conversation_activity
@@ -210,9 +206,9 @@ class AgentTriggerDispatcher:
         can_read = self._can_read(trigger)
         firings, dropped_batches = [], 0
         if can_read:
-            # The column takes any small integer; only the API and import bound it.
-            size = min(max(trigger.batch_size, 1), AGENT_TRIGGER_MAX_BATCH_SIZE)
-            batches = service.get_type().split_event_payload(service, payload, size)
+            batches = service.get_type().split_event_payload(
+                service, payload, trigger.batch_size
+            )
             kept = batches[: settings.AGENT_TRIGGER_MAX_BATCHES_PER_EVENT]
             firings = [self._resolve_firing(trigger, batch, fired_at) for batch in kept]
             dropped_batches = len(batches) - len(kept)
@@ -527,14 +523,15 @@ class AgentTriggerDispatcher:
         """
         Start the trigger's queued replies its overlap rule has room for, and tell
         their readers, when the trigger may run as a firing would: one that can't,
-        for example while its agent isn't ready, keeps its queue until it can.
-        Called when a trigger's reply ends, by the sweep and by a firing; it never
-        raises, so one trigger can't stop the others.
+        for example while its agent isn't ready or its run identity can't read
+        what it watches, keeps its queue until it can. Called when a trigger's
+        reply ends, by the sweep and by a firing; it never raises, so one trigger
+        can't stop the others.
 
         :param trigger: The trigger whose queue moves on, with its agent,
             workspace and service.
         :param checked_runnable: Whether the caller already checked, under the
-            trigger's lock, that it may run.
+            trigger's lock, that it may run and its run identity can read.
         :return: The replies now running, even when their readers couldn't be
             told; none when nothing is queued, the rule has no room, the trigger
             can't run or is locked by another caller, the workspace is at its run
@@ -543,7 +540,9 @@ class AgentTriggerDispatcher:
 
         replies = []
         try:
-            if checked_runnable or self._is_runnable(trigger):
+            if checked_runnable or (
+                self._is_runnable(trigger) and self._can_read(trigger)
+            ):
                 replies = AgentHandler().start_queued_replies(trigger)
             for reply in replies:
                 runs = AgentHandler().get_active_reply_runs(reply.conversation)

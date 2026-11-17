@@ -352,9 +352,11 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
 
   /**
    * Keeps rejected same-type service edits shown with their error, and turns a
-   * switch-on the run identity can't back off, with its error. A failed type
-   * change restores the saved type and service together, unless another type
-   * was picked meanwhile. Other failures revert only the values still shown.
+   * switch-on the run identity can't back off, with its error. A rejection of
+   * service values whose type the card no longer shows leaves no error. A
+   * failed type change restores the saved type and service together, unless
+   * another type was picked meanwhile. Other failures revert only the values
+   * still shown.
    *
    * @param {object} trigger The trigger whose save failed.
    * @param {object} sent The values that were sent.
@@ -371,6 +373,7 @@ export function useAgentTriggers(agent, getRunAs = () => null) {
         typeof detail === 'string' ? detail : t('agent.triggerMisconfigured')
       if (!('type' in sent)) return
     } else if (code === API_ERROR_CODE.AGENT_TRIGGER_NO_ACCESS) {
+      if (sent.service && !showsSentService) return
       serviceErrors[trigger.id] = t('agent.triggerNoAccess')
       if (values && 'enabled' in sent && trigger.enabled === sent.enabled) {
         trigger.enabled = values.enabled

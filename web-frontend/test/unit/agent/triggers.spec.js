@@ -958,6 +958,32 @@ describe('Agent triggers', () => {
     }
   )
 
+  test('an access refusal for a type the card no longer shows stays hidden', async () => {
+    testApp.dontFailOnErrorResponses()
+    const refused = deferredReply()
+    const next = deferredReply()
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(refused.reply)
+      .onPatch('/agent/10/triggers/1/')
+      .replyOnce(next.reply)
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic', 'http_trigger']
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    await chooseTriggerType(card, 'http_trigger')
+    await chooseTriggerType(card, 'periodic')
+    refused.resolve(400, { error: 'ERROR_AGENT_TRIGGER_NO_ACCESS' })
+    await flushPromises()
+
+    expect(card.find('[role="alert"]').exists()).toBe(false)
+
+    next.resolve(200, periodicTrigger())
+    await flushPromises()
+  })
+
   test('a rejected type change restores the previous type and service together', async () => {
     useFakeTimers()
     testApp.mock.onPatch('/agent/10/triggers/1/').reply(400, {
@@ -1065,6 +1091,29 @@ describe('Agent triggers', () => {
     expect(
       card.findComponent({ name: 'CorePeriodicTriggerServiceForm' }).exists()
     ).toBe(false)
+  })
+
+  test('a type change shows the overlap rule the server gave the new type', async () => {
+    testApp.mock
+      .onPatch('/agent/10/triggers/1/')
+      .reply(200, rowsTrigger({ id: 1 }))
+    const wrapper = await mountSection(
+      [periodicTrigger()],
+      ['periodic', 'local_baserow_rows_created'],
+      true,
+      10,
+      activeRunAs
+    )
+    const card = wrapper.get('.agent-trigger-card')
+
+    await chooseTriggerType(card, 'local_baserow_rows_created')
+
+    expect(patches(testApp)[0][1]).not.toHaveProperty('on_overlap')
+    expect(
+      card
+        .findAll('.agent-trigger-card__overlap input[type="radio"]')
+        .map((radio) => radio.element.checked)
+    ).toEqual([false, true, false])
   })
 
   test('offers the overlap rule as radios in its own section and saves a choice at once', async () => {

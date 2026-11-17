@@ -14,7 +14,7 @@ from baserow.contrib.agent.constants import (
     AGENT_TRIGGER_NAME_MAX_LENGTH,
     AGENT_TRIGGER_TYPES_ENABLED,
 )
-from baserow.contrib.agent.formula_importer import import_formula
+from baserow.contrib.agent.formula_importer import AgentFormulaImporter
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
@@ -32,6 +32,7 @@ from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import ensure_string
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.formula_importer import import_formula
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import (
@@ -237,9 +238,11 @@ class AgentTriggerHandler:
         Switching it off cancels its queued replies. Another service type replaces
         the service with a new one of that type and clears the last skip, which
         the old type caused; the trigger keeps its id, so its conversations stay
-        linked, and its other settings. Accepted queued replies keep their stored
-        messages and can still run. Firings from the replaced service that have
-        not yet created a conversation are dropped by the dispatcher.
+        linked, and its other settings, except an overlap rule left at the old
+        type's default, which becomes the new type's default. Accepted queued
+        replies keep their stored messages and can still run. Firings from the
+        replaced service that have not yet created a conversation are dropped by
+        the dispatcher.
 
         :param trigger: The trigger to update.
         :param enabled: The new enabled state, or None to keep it.
@@ -261,13 +264,17 @@ class AgentTriggerHandler:
         """
 
         replaced_service = None
-        previous_type = trigger.service.get_type().type
-        if service_type is not None and service_type.type != previous_type:
+        previous_type = trigger.service.get_type()
+        if service_type is not None and service_type.type != previous_type.type:
             replaced_service = trigger.service.specific
             trigger.service = ServiceHandler().create_service(
                 service_type, **(prepared_service_values or {})
             )
             service_changed = True
+            if on_overlap is None and trigger.on_overlap == self.default_on_overlap(
+                previous_type
+            ):
+                on_overlap = self.default_on_overlap(service_type)
         else:
             service_changed = self._update_service(trigger, prepared_service_values)
         rearm = service_changed
@@ -308,7 +315,7 @@ class AgentTriggerHandler:
         return AgentTriggerUpdated(
             trigger,
             changed_fields,
-            previous_type if replaced_service is not None else None,
+            previous_type.type if replaced_service is not None else None,
         )
 
     def _update_service(
@@ -795,6 +802,7 @@ class AgentTriggerHandler:
                 message=import_formula(
                     serialized.get("message") or "",
                     id_mapping,
+                    AgentFormulaImporter,
                     service=service.specific,
                 ),
                 on_overlap=on_overlap,

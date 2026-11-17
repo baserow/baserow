@@ -51,6 +51,7 @@ AGENT_TRIGGER_NAME_MAX_LENGTH = 75
 # Room a trigger message keeps for its text around the rows block.
 TRIGGER_ROWS_TEXT_HEADROOM = 1000
 TRIGGER_ROWS_NOT_SHOWN = "…and {count} more rows not shown"
+TRIGGER_ROW_CUT_SHORT = "…the row is cut short"
 QUEUED_TRIGGER_REPLY_SWEEP_SECONDS = 60
 INTERRUPTED_REPLY_NOTE = "[This reply was interrupted and may be incomplete.]"
 INTERRUPTED_CHANGES_NOTE = (

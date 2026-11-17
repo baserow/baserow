@@ -5,6 +5,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from baserow.contrib.agent.constants import (
+    TRIGGER_ROW_CUT_SHORT,
     TRIGGER_ROWS_NOT_SHOWN,
     TRIGGER_ROWS_TEXT_HEADROOM,
 )
@@ -39,7 +40,9 @@ def rows_as_text(service: Service, event_payload: dict[str, Any]) -> str:
     """
     The rows of a list payload as a fenced JSON block with one row per line, for a
     message. Whole rows are left out from the end until the block fits the room a
-    message keeps for it, and a note after the block says how many.
+    message keeps for it, and a note after the block says how many. A first row
+    longer than the room is cut short instead, with a note, so the message always
+    shows a row and its id.
 
     :param service: The trigger's specific service, whose type reads the rows.
     :param event_payload: The list payload, or one batch of it.
@@ -48,14 +51,18 @@ def rows_as_text(service: Service, event_payload: dict[str, Any]) -> str:
 
     rows = service.get_type().get_result_value(service, event_payload, [])
     room = AGENT_TEXT_MAX_LENGTH - TRIGGER_ROWS_TEXT_HEADROOM
-    lines = []
+    lines, cut_short = [], False
     for row in rows:
         line = json.dumps(row, default=str, ensure_ascii=False)
-        room -= len(line) + 2
-        if room < 0:
+        if len(line) + 2 > room:
+            if not lines:
+                lines, cut_short = [line[: room - 3] + "…"], True
             break
+        room -= len(line) + 2
         lines.append(line)
     text = "\n```json\n[\n" + ",\n".join(lines) + "\n]\n```"
+    if cut_short:
+        text += "\n" + TRIGGER_ROW_CUT_SHORT
     hidden = len(rows) - len(lines)
     if hidden:
         text += "\n" + TRIGGER_ROWS_NOT_SHOWN.format(count=hidden)

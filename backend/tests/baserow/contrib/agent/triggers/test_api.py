@@ -985,6 +985,33 @@ def test_changing_only_the_type_starts_from_the_new_types_defaults(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
+    "saved,sent,expected",
+    [("skip", None, "wait"), ("parallel", None, "parallel"), ("skip", "skip", "skip")],
+    ids=["old default", "own rule", "sent rule"],
+)
+def test_changing_the_type_moves_an_overlap_rule_left_at_the_old_types_default(
+    data_fixture, api_client, api_user, mocker, saved, sent, expected
+):
+    agent, table = agent_reading_orders(data_fixture, api_user)
+    trigger = data_fixture.create_agent_trigger(agent=agent, on_overlap=saved)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    payload = {"type": ROWS_CREATED, "service": {"table_id": table.id}}
+    if sent is not None:
+        payload["on_overlap"] = sent
+
+    response = api_client.patch(
+        agent_url(agent, "triggers:item", trigger_id=trigger.id), payload
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["on_overlap"] == expected
+    assert AgentTrigger.objects.get(id=trigger.id).on_overlap == expected
+    changed_fields = registered.call_args.args[1]["changed_fields"]
+    assert ("on_overlap" in changed_fields) == (expected != saved)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
     "payload,error",
     [
         ({"type": "email_trigger"}, "ERROR_AGENT_TRIGGER_TYPE_NOT_AVAILABLE"),

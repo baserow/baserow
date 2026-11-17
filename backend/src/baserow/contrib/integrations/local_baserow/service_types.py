@@ -3309,7 +3309,7 @@ class LocalBaserowRowsSignalTriggerServiceType(
         """
 
         databases = LocalBaserowIntegrationType.get_local_baserow_databases_for(
-            subject, workspace
+            subject, workspace, with_views=False
         )
         checks = [
             PermissionCheck(subject, ListRowsDatabaseTableOperationType.type, table)
@@ -3320,7 +3320,7 @@ class LocalBaserowRowsSignalTriggerServiceType(
         readable_ids = {check.context.id for check in checks if allowed[check] is True}
         serialized = LocalBaserowDatabaseSerializer(databases, many=True).data
         return [
-            {**database, "tables": tables, "views": []}
+            {**database, "tables": tables}
             for database in serialized
             if (
                 tables := [
@@ -3389,6 +3389,9 @@ class LocalBaserowRowsSignalTriggerServiceType(
             ).select_related("integration__application")
             if self.is_table_in_integration_workspace(service, table)
         ]
+        for service in services:
+            # Listeners read the table per service; the event already holds it.
+            service.table = table
         self._process_event(
             services,
             get_data,

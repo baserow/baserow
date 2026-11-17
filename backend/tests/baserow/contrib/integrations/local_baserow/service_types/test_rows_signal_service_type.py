@@ -1,5 +1,8 @@
 from unittest.mock import Mock
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.database.table.models import Table
@@ -81,6 +84,7 @@ def test_local_baserow_rows_signal_service_type_skips_table_of_another_workspace
         same_workspace.id,
         without_integration.id,
     }
+    assert all(service.table is table for service in services)
 
 
 def identity_with_table(data_fixture) -> tuple[Identity, Table]:
@@ -170,8 +174,12 @@ def test_rows_triggers_offer_the_tables_whose_rows_the_subject_lists(data_fixtur
         LocalBaserowRowsCreatedTriggerServiceType.type
     )
 
-    [database] = service_type.get_form_choices(identity, workspace)["databases"]
+    data_fixture.create_grid_view(table=table)
 
+    with CaptureQueriesContext(connection) as queries:
+        [database] = service_type.get_form_choices(identity, workspace)["databases"]
+
+    assert not any('"database_view"' in query["sql"] for query in queries)
     assert (database["name"], database["views"]) == ("Sales", [])
     assert database["tables"] == [
         {
