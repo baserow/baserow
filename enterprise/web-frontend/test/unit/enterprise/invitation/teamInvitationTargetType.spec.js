@@ -47,8 +47,35 @@ describe('TeamInvitationTargetType', () => {
     ).toBe('teamInvitationTarget.subtitle:{"workspace":"Widelab"}')
   })
 
-  test('does not invite by email', () => {
-    expect(() => targetType.sendInvitation(workspace, {}, {})).toThrow()
+  test('invites by email to the team', async () => {
+    const app = {
+      ...createApp(),
+      $client: {
+        post: vi.fn().mockResolvedValue({
+          data: { id: 70, invitation_id: 5, email: 'a@x.com', team_id: 3 },
+        }),
+      },
+      $bus: { $emit: vi.fn() },
+    }
+    const sender = new TeamInvitationTargetType({ app })
+
+    const teamInvitation = await sender.sendInvitation(
+      workspace,
+      { type: 'team', team: { id: 3 } },
+      { email: 'a@x.com', permissions: null, captchaToken: 'token' }
+    )
+
+    expect(app.$client.post).toHaveBeenCalledWith('/teams/3/invitations/', {
+      email: 'a@x.com',
+      captcha_token: 'token',
+    })
+    expect(teamInvitation.id).toBe(70)
+    // The members page recounts its pending invitations.
+    expect(app.$bus.$emit).toHaveBeenCalledWith('invite-submitted', {
+      id: 5,
+      workspace: 12,
+      email: 'a@x.com',
+    })
   })
 })
 
