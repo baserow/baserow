@@ -1,7 +1,7 @@
 export default (client) => {
   return {
-    get() {
-      return client.get('/settings/')
+    get(config = {}) {
+      return client.get('/settings/', config)
     },
     getInstanceID() {
       return client.get('/settings/instance-id/')

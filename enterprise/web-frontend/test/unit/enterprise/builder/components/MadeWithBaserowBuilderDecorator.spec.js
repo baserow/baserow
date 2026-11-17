@@ -45,7 +45,7 @@ function decoratorOptions({
           template: '<div data-testid="paid-features-modal"></div>',
         },
         ReportAbuseModal: {
-          props: ['resourceType', 'identifier'],
+          props: ['resourceType', 'identifier', 'requestConfig'],
           data() {
             return { shown: false }
           },
@@ -60,6 +60,7 @@ function decoratorOptions({
               :data-shown="shown"
               :data-resource-type="resourceType"
               :data-identifier="identifier"
+              :data-skip-user-source-authorization="requestConfig.skipUserSourceAuthorization"
             ></div>
           `,
         },
@@ -87,6 +88,9 @@ describe('MadeWithBaserowBuilderDecorator', () => {
     expect(modal.attributes('data-shown')).toBe('true')
     expect(modal.attributes('data-resource-type')).toBe('builder')
     expect(modal.attributes('data-identifier')).toBe('phishing.example.com')
+    // A visitor logged in to the application must not send their user source
+    // token, which the abuse report endpoint rejects.
+    expect(modal.attributes('data-skip-user-source-authorization')).toBe('true')
   })
 
   test('hides the report abuse link when reporting is disabled', () => {
@@ -130,7 +134,9 @@ describe('MadeWithBaserowBuilderDecorator', () => {
   test('loads the settings in the browser when they are missing', async () => {
     const { wrapper, store } = mountDecorator({ settingsLoaded: false })
 
-    expect(store.dispatch).toHaveBeenCalledWith('settings/load')
+    expect(store.dispatch).toHaveBeenCalledWith('settings/load', {
+      requestConfig: { skipUserSourceAuthorization: true },
+    })
     await flushPromises()
     expect(wrapper.find('.made-with-baserow__report-abuse').exists()).toBe(true)
   })
@@ -140,7 +146,9 @@ describe('MadeWithBaserowBuilderDecorator', () => {
 
     const html = await renderToString(MadeWithBaserowBuilderDecorator, options)
 
-    expect(store.dispatch).toHaveBeenCalledWith('settings/load')
+    expect(store.dispatch).toHaveBeenCalledWith('settings/load', {
+      requestConfig: { skipUserSourceAuthorization: true },
+    })
     expect(html).toContain('madeWithBaserow.reportAbuse')
   })
 

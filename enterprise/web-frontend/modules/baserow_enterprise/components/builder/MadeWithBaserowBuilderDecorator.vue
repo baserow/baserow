@@ -30,6 +30,7 @@
       ref="reportAbuseModal"
       resource-type="builder"
       :identifier="publicDomain"
+      :request-config="coreRequestConfig"
     ></ReportAbuseModal>
     <PaidFeaturesModal
       ref="paidFeaturesModal"
@@ -43,6 +44,13 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import ReportAbuseModal from '@baserow/modules/core/components/abuseReport/ReportAbuseModal'
 import { BuilderBrandingPaidFeature } from '@baserow_enterprise/paidFeatures'
 
+/**
+ * A visitor logged in to the published application sends their user source
+ * token with every request, but the settings and abuse report endpoints only
+ * accept Baserow user tokens and would reject it.
+ */
+const coreRequestConfig = { skipUserSourceAuthorization: true }
+
 export default {
   components: {
     PaidFeaturesModal,
@@ -55,6 +63,9 @@ export default {
     },
   },
   computed: {
+    coreRequestConfig() {
+      return coreRequestConfig
+    },
     paidFeatureType() {
       return BuilderBrandingPaidFeature.getType()
     },
@@ -94,7 +105,9 @@ export default {
     async loadSettings() {
       if (this.publicDomain && !this.$store.getters['settings/isLoaded']) {
         try {
-          await this.$store.dispatch('settings/load')
+          await this.$store.dispatch('settings/load', {
+            requestConfig: coreRequestConfig,
+          })
         } catch {
           // Without the settings the badge simply doesn't show the report link.
         }
