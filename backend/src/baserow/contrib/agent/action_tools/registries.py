@@ -147,11 +147,15 @@ class AgentActionType(Instance, ABC):
         return held_values
 
     def get_preview(
-        self, action: AgentAction, resolved_values: dict[str, Any]
+        self,
+        action: AgentAction,
+        resolved_values: dict[str, Any],
+        arguments: dict[str, Any],
     ) -> dict[str, Any]:
         """
         :param action: The action called.
         :param resolved_values: What ``prepare`` returned for the call.
+        :param arguments: The call's arguments, by input name.
         :return: The step input: the readable request as the type selected it.
             Limiting what a call sends and what its preview shows is up to the type.
         """

@@ -31,6 +31,7 @@ from advocate.connection import UnacceptableAddressException
 from baserow.contrib.integrations.utils import (
     DEADLINE_WATCHDOG_THREAD_NAME,
     MAX_REDIRECTS,
+    _check_redirect_stays_on_host,
     _pending_deadlines,
     _read_body,
     _RequestDeadline,
@@ -446,6 +447,46 @@ def test_a_redirect_to_another_host_is_refused_when_redirects_stay_on_host(
             routes["/start"] = redirect(elsewhere, status=307)
             send_http_request("POST", base + "/start", deadline=time.monotonic() + 5)
     assert other_seen == [("POST", "/collect")]
+
+
+def test_a_redirect_to_another_port_of_the_host_is_refused(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/collect": answer()}) as (other, other_seen):
+        routes = {"/start": redirect(other + "/collect", status=307)}
+        with local_server(routes) as (base, _):
+            with pytest.raises(RedirectNotAllowedDispatchException):
+                send_http_request(
+                    "POST",
+                    base + "/start",
+                    deadline=time.monotonic() + 5,
+                    redirects_stay_on_host=True,
+                )
+    assert other_seen == []
+
+
+@pytest.mark.parametrize(
+    "url,location,allowed",
+    [
+        ("http://api.example.com/a", "https://api.example.com/a", True),
+        ("https://api.example.com/a", "https://api.example.com:443/b", True),
+        ("https://api.example.com/a", "https://api.example.com:8443/a", False),
+        ("http://api.example.com:8080/a", "https://api.example.com/a", False),
+        ("https://api.example.com/a", "http://api.example.com/a", False),
+    ],
+)
+def test_a_redirect_stays_on_host_when_only_its_path_or_its_https_changes(
+    url, location, allowed
+):
+    response = requests.Response()
+    response.url = url
+    response.headers["location"] = location
+    response.raw = Mock()
+
+    if allowed:
+        _check_redirect_stays_on_host(response)
+    else:
+        with pytest.raises(RedirectNotAllowedDispatchException):
+            _check_redirect_stays_on_host(response)
 
 
 def test_a_redirect_with_no_location_to_follow_keeps_its_body(settings):

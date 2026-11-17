@@ -187,7 +187,9 @@ class BoundActionTool:
             InvalidContextDispatchException,
         ) as exc:
             raise ToolInputError(str(exc)) from exc
-        show_input(self.action_type.get_preview(self.action, resolved_values))
+        show_input(
+            self.action_type.get_preview(self.action, resolved_values, arguments)
+        )
         return resolved_values
 
     @with_usable_db_connection
@@ -248,7 +250,9 @@ class BoundActionTool:
                         self.action, arguments, approved_values
                     )
                     show_input(
-                        self.action_type.get_preview(self.action, resolved_values)
+                        self.action_type.get_preview(
+                            self.action, resolved_values, arguments
+                        )
                     )
                 result = self.action_type.dispatch(self.action, resolved_values)
                 return ToolReturn(

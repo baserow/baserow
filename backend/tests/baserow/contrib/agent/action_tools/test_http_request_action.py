@@ -158,12 +158,15 @@ def test_the_approver_reads_only_what_the_model_chose_and_where_it_goes(
     )
     action_type = HTTPRequestAgentActionType()
 
-    resolved = action_type.prepare(action, {"body": '{"order": 7}', "trace": "t-1"})
-    values = action_type.get_preview(action, resolved)["values"]
+    arguments = {"body": '{"order": 7}', "trace": "t-1"}
+    resolved = action_type.prepare(action, arguments)
+    values = action_type.get_preview(action, resolved, arguments)["values"]
 
+    # Each input is read as a header or the body, so none is listed apart.
     assert values == {
         "http_method": "POST",
-        "url": f"https://{HIDDEN_VALUE}@api.example.com/orders?api_key={HIDDEN_VALUE}",
+        "url": f"https://{HIDDEN_VALUE}@api.example.com/{HIDDEN_VALUE}"
+        f"?api_key={HIDDEN_VALUE}",
         "headers": {
             "Authorization": HIDDEN_VALUE,
             "X-Trace": "t-1",
@@ -192,8 +195,9 @@ def test_a_body_that_mixes_fixed_text_with_an_input_is_hidden(http_action):
         "token": "BODYSECRET",
         "note": "hello",
     }
-    preview = action_type.get_preview(action, resolved)["values"]
+    preview = action_type.get_preview(action, resolved, {"body": "hello"})["values"]
     assert preview["body_content"] == HIDDEN_VALUE
+    assert preview["inputs"] == {"body": "hello"}
     assert "body_content" not in action_type.get_held_values(action, resolved)
 
 
@@ -203,11 +207,13 @@ def test_a_body_that_mixes_fixed_text_with_an_input_is_hidden(http_action):
     [
         ({"body": '{"order": '}, "not valid JSON"),
         ({"body": '{"total": NaN}'}, "not valid JSON"),
+        ({"body": '{"total": 1e999}'}, "too large"),
         (
             {"body": json.dumps({"note": "x" * HTTP_ACTION_MAX_REQUEST_BYTES})},
             "larger than 64 KB",
         ),
         ({"body": "{}", "trace": "a\r\nX-Injected: 1"}, "line break"),
+        ({"body": "{}", "trace": "a \u2192 b"}, "a header can't carry: \u2192"),
     ],
 )
 def test_a_request_that_cannot_be_sent_is_refused_when_prepared(
@@ -265,9 +271,50 @@ def test_a_request_carrying_hidden_values_only_goes_to_the_builders_host(
     if allowed:
         action_type.prepare(action, {"body": "{}", "trace": trace})
     else:
-        with pytest.raises(Exception, match="can't choose the server") as error:
+        with pytest.raises(Exception, match="can only be sent to") as error:
             action_type.prepare(action, {"body": "{}", "trace": trace})
         assert code_of(error.value) == ToolErrorCode.INVALID_INPUT
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "url,carries_key,errors",
+    [
+        (f"concat('https://api.example.com/orders/', {TRACE})", True, {}),
+        (f"concat('https://', {TRACE}, '/orders')", True, {"url": "fixed_host"}),
+        (TRACE, True, {"url": "fixed_host"}),
+        (TRACE, False, {}),
+    ],
+)
+def test_the_builder_is_told_when_a_request_with_hidden_values_has_no_fixed_host(
+    http_action, url, carries_key, errors
+):
+    headers = [{"key": "Authorization", "value": raw("Bearer KEY")}]
+    action = update(
+        http_action, url=formula(url), headers=headers if carries_key else []
+    )
+
+    assert HTTPRequestAgentActionType().get_configuration_errors(action) == errors
+
+
+@pytest.mark.django_db
+def test_the_approver_reads_the_inputs_a_fixed_url_mixes_in_but_not_its_path(
+    http_action,
+):
+    action = update(
+        http_action,
+        url=formula(f"concat('https://hooks.example.com/T000/SECRET/', {TRACE})"),
+        headers=[],
+    )
+    action_type = HTTPRequestAgentActionType()
+    arguments = {"body": "{}", "trace": "orders"}
+
+    values = action_type.get_preview(
+        action, action_type.prepare(action, arguments), arguments
+    )["values"]
+
+    assert values["url"] == f"https://hooks.example.com/{HIDDEN_VALUE}"
+    assert values["inputs"] == {"trace": "orders"}
 
 
 @pytest.mark.django_db
@@ -306,7 +353,8 @@ def test_an_approved_call_sends_what_was_shown_and_keeps_no_hidden_value(
     reply.refresh_from_db()
     kwargs = send.call_args.kwargs
     assert kwargs["method"] == "POST"
-    assert kwargs["url"] == shown["url"] == "https://api.example.com/orders"
+    assert kwargs["url"] == "https://api.example.com/orders"
+    assert shown["url"] == f"https://api.example.com/{HIDDEN_VALUE}"
     assert kwargs["json"] == {"order": 7}
     assert kwargs["headers"]["Authorization"] == "Bearer API_KEY_CANARY"
     assert kwargs["headers"]["X-Mixed"] == "MIXED_CANARY-t-9"
@@ -453,8 +501,9 @@ def test_a_form_body_previews_its_rows_like_the_headers(http_action):
     )
     action_type = HTTPRequestAgentActionType()
 
+    arguments = {"body": "", "trace": "t-2"}
     values = action_type.get_preview(
-        action, action_type.prepare(action, {"body": "", "trace": "t-2"})
+        action, action_type.prepare(action, arguments), arguments
     )["values"]
 
     assert values["form_data"] == {"token": HIDDEN_VALUE, "trace": "t-2"}

@@ -435,6 +435,7 @@ export class HTTPRequestToolPresentationType extends ActionToolPresentationType 
       body_content: 'coreHTTPRequestServiceForm.bodyContent',
       form_data: 'coreHTTPRequestServiceForm.formData',
       timeout: 'coreHTTPRequestServiceForm.timeout',
+      inputs: 'agent.actionInputs',
     }
   }
 

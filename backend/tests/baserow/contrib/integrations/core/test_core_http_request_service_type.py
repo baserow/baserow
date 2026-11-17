@@ -589,6 +589,33 @@ def test_core_http_request_with_form_data(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "body_type,resolved",
+    [
+        (BODY_TYPE.JSON, ["body_content", "url"]),
+        (BODY_TYPE.RAW, ["body_content", "url"]),
+        (BODY_TYPE.FORM, ["url", "form_data"]),
+        (BODY_TYPE.NONE, ["url"]),
+    ],
+)
+def test_core_http_request_resolves_only_the_body_its_body_type_sends(
+    data_fixture, body_type, resolved
+):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        body_type=body_type,
+        body_content="'left from another body type'",
+    )
+    form_data = service.form_data.create(key="left", value="'over'")
+
+    keys = [formula.key for formula in service.get_type().formulas_to_resolve(service)]
+
+    assert keys == [
+        f"form_data_{form_data.id}" if key == "form_data" else key for key in resolved
+    ]
+
+
+@pytest.mark.django_db
 def test_core_http_request_create(data_fixture):
     service = ServiceHandler().create_service(
         CoreHTTPRequestServiceType(),

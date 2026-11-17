@@ -29,13 +29,8 @@ def test_renamed_input_keeps_binding_and_deleted_input_marks_action_unconfigured
     adapter = SMTPEmailAgentActionType()
     assert adapter.get_configuration_errors(action) == {}
     action.inputs[0]["name"] = "recipient"
-    preview = adapter.get_preview(
-        action,
-        adapter.prepare(
-            action,
-            {"recipient": "alice@example.com", "subject": "Hello", "body": "Report"},
-        ),
-    )
+    arguments = {"recipient": "alice@example.com", "subject": "Hello", "body": "Report"}
+    preview = adapter.get_preview(action, adapter.prepare(action, arguments), arguments)
     assert preview["values"]["to_emails"] == ["alice@example.com"]
     action.inputs.pop(0)
     assert adapter.get_configuration_errors(action) == {"to_emails": "invalid"}
@@ -105,10 +100,9 @@ def test_a_preview_shows_all_of_a_large_request_that_is_delivered(
     action = configured_email
     body = "message " * 10000
     adapter = SMTPEmailAgentActionType()
-    resolved_values = adapter.prepare(
-        action, {"to_email": "alice@example.com", "subject": "Hello", "body": body}
-    )
-    preview = adapter.get_preview(action, resolved_values)
+    arguments = {"to_email": "alice@example.com", "subject": "Hello", "body": body}
+    resolved_values = adapter.prepare(action, arguments)
+    preview = adapter.get_preview(action, resolved_values, arguments)
     assert "truncated" not in preview
     assert preview["values"]["body"] == body
     with patch(

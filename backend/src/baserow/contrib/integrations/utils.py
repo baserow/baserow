@@ -8,7 +8,7 @@ import sys
 import threading
 import time
 from typing import Optional
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import SplitResult, urljoin, urlsplit
 
 from django.conf import settings
 
@@ -550,16 +550,28 @@ class _DeadlineAdvocateSession(_DeadlineMixin, advocate.Session):
     }
 
 
+def _effective_port(parts: SplitResult) -> int | None:
+    return parts.port or {"http": 80, "https": 443}.get(parts.scheme)
+
+
 def _check_redirect_stays_on_host(response: requests.Response) -> None:
     """
     :raises RedirectNotAllowedDispatchException: When the redirect points to
-        another host, or from https to http.
+        another host or port, or from https to http.
     """
 
     current = urlsplit(response.url)
     try:
         target = urlsplit(urljoin(response.url, response.headers["location"]))
-        same_host = target.hostname == current.hostname
+        same_host = target.hostname == current.hostname and (
+            _effective_port(target) == _effective_port(current)
+            # Moving from http to https on the default ports.
+            or (
+                (current.scheme, target.scheme) == ("http", "https")
+                and current.port is None
+                and target.port is None
+            )
+        )
     except ValueError:
         same_host = False
     if not same_host or (current.scheme == "https" and target.scheme != "https"):

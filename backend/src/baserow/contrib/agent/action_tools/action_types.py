@@ -1,7 +1,8 @@
 import json
+import math
 import re
 from typing import Any
-from urllib.parse import parse_qsl, quote_plus, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qsl, quote_plus, urlsplit, urlunsplit
 from uuid import uuid4
 
 from django.conf import settings
@@ -49,7 +50,7 @@ _HTTP_ROWS = (
 )
 """Each list of key and value rows, with the prefix of its resolved values."""
 
-_SINGLE_INPUT = re.compile(r"""^get\(\s*(['"])tool_input\.[^'"]+\1\s*\)$""")
+_SINGLE_INPUT = re.compile(r"""^get\(\s*(['"])tool_input\.([^'"]+)\1\s*\)$""")
 _LINE_BREAK = re.compile(r"[\r\n]")
 
 
@@ -136,8 +137,8 @@ class HTTPRequestAgentActionType(AgentActionType):
         return {
             "name": "call_api",
             "description": "Send a request to the API when the user asks to look "
-            "something up in it or to change something there. Describe what the "
-            "API answered.",
+            "something up in it or to change something there. Pass the whole JSON "
+            "body as one string in `body`. Describe what the API answered.",
             "inputs": [
                 {
                     "id": body_id,
@@ -168,10 +169,37 @@ class HTTPRequestAgentActionType(AgentActionType):
             for field, prefix in _HTTP_ROWS
             for row in getattr(service, field).all()
         }
-        return {
+        errors = {
             lists.get(key, key): error
             for key, error in super().get_configuration_errors(action).items()
         }
+        if (
+            "url" not in errors
+            and _reads_tool_input(service.url)
+            and self._sends_fixed_values(service)
+            and self._get_fixed_url(action, service) is None
+        ):
+            errors["url"] = "fixed_host"
+        return errors
+
+    def _sends_fixed_values(self, service: CoreHTTPRequestService) -> bool:
+        """
+        :return: Whether the request carries a value the approver doesn't read:
+            one the builder typed, at least in part.
+        """
+
+        keys = ["url"]
+        if service.body_type in (BODY_TYPE.JSON, BODY_TYPE.RAW):
+            keys.append("body_content")
+        for field, _ in _HTTP_ROWS:
+            if field != "form_data" or service.body_type == BODY_TYPE.FORM:
+                rows = getattr(service, field).all()
+                keys.extend(f"{field}.{position}" for position in range(len(rows)))
+        return any(
+            (self._get_formula(service, key).get("formula") or "").strip()
+            and not self._is_shown(service, key)
+            for key in keys
+        )
 
     def prepare(self, action: AgentAction, arguments: dict[str, Any]) -> dict[str, Any]:
         """
@@ -237,12 +265,28 @@ class HTTPRequestAgentActionType(AgentActionType):
                 " KB."
             )
         for position, row in enumerate(service.headers.all()):
-            if _LINE_BREAK.search(row.key + values[f"headers.{position}"]):
+            value = values[f"headers.{position}"]
+            if _LINE_BREAK.search(row.key + value):
                 raise ToolInputError(f'The header "{row.key}" contains a line break.')
+            try:
+                # What HTTP sends a header name and value as.
+                row.key.encode("ascii")
+                value.encode("latin-1")
+            except UnicodeEncodeError as exc:
+                raise ToolInputError(
+                    f'The header "{row.key}" contains a character a header can\'t '
+                    f"carry: {exc.object[exc.start]}.",
+                    hint="Use plain ASCII text in headers.",
+                ) from exc
         body = values.get("body_content")
         if service.body_type == BODY_TYPE.JSON and body:
             try:
-                json.loads(body, strict=False, parse_constant=_refuse_constant)
+                json.loads(
+                    body,
+                    strict=False,
+                    parse_constant=_refuse_constant,
+                    parse_float=_parse_finite_float,
+                )
             except (json.JSONDecodeError, ValueError) as exc:
                 raise ToolInputError(
                     f"The request body is not valid JSON: {exc}.",
@@ -266,6 +310,29 @@ class HTTPRequestAgentActionType(AgentActionType):
 
         if not _reads_tool_input(service.url):
             return
+        fixed = self._get_fixed_url(action, service)
+        try:
+            same = fixed is not None and (
+                fixed.scheme,
+                fixed.hostname,
+                fixed.port,
+            ) == (parts.scheme, parts.hostname, parts.port)
+        except ValueError:
+            same = False
+        if not same:
+            # The builder is told when no fixed host can be read at all, so
+            # here the model changed it.
+            raise ToolInputError(
+                "This request can only be sent to "
+                f"{fixed.hostname if fixed else 'the server the action names'}.",
+                hint="Change only the part of the address the inputs describe.",
+            )
+
+    def _get_fixed_url(self, action, service) -> SplitResult | None:
+        """
+        :return: The URL resolved with every input empty, when it names a host.
+        """
+
         try:
             fixed = urlsplit(
                 ensure_string(
@@ -279,20 +346,10 @@ class HTTPRequestAgentActionType(AgentActionType):
                     )
                 )
             )
-            same = bool(fixed.hostname) and (
-                fixed.scheme,
-                fixed.hostname,
-                fixed.port,
-            ) == (parts.scheme, parts.hostname, parts.port)
+            return fixed if fixed.hostname else None
         # The empty-input URL may not resolve, or not parse.
         except Exception:
-            same = False
-        if not same:
-            raise ToolInputError(
-                "This request sends fixed headers or values, so the agent can't "
-                "choose the server it goes to. Start the URL with a fixed address, "
-                "up to the host."
-            )
+            return None
 
     def get_held_values(
         self, action: AgentAction, resolved_values: dict[str, Any]
@@ -338,21 +395,62 @@ class HTTPRequestAgentActionType(AgentActionType):
         # A request without any of a kind of row reads better without its name.
         return {key: value for key, value in values.items() if value != {}}
 
+    def get_preview(
+        self,
+        action: AgentAction,
+        resolved_values: dict[str, Any],
+        arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Adds the inputs that no shown value is exactly, such as one the URL or a
+        body mixes with fixed text, so that the approver reads every choice of
+        the model.
+        """
+
+        preview = super().get_preview(action, resolved_values, arguments)
+        service = action.service.specific
+        shown = {self._shown_input(service, key) for key in resolved_values}
+        inputs = {
+            item["name"]: arguments[item["name"]]
+            for item in action.inputs
+            if item["id"] not in shown and item["name"] in arguments
+        }
+        if inputs:
+            preview["values"]["inputs"] = inputs
+        return preview
+
+    def _get_formula(self, service: CoreHTTPRequestService, key: str) -> dict:
+        """
+        :param key: A resolved value's key.
+        :return: The stored formula the value resolves.
+        """
+
+        if key in ("url", "body_content"):
+            return getattr(service, key)
+        field, position = key.split(".")
+        return list(getattr(service, field).all())[int(position)].value
+
+    def _shown_input(self, service: CoreHTTPRequestService, key: str) -> str | None:
+        """
+        :param key: A resolved value's key.
+        :return: The ID of the input the value is exactly, which the approver
+            then reads as the model chose it.
+        """
+
+        formula = self._get_formula(service, key)
+        if formula.get("mode") == BASEROW_FORMULA_MODE_RAW:
+            return None
+        match = _SINGLE_INPUT.match((formula.get("formula") or "").strip())
+        return match.group(2) if match else None
+
     def _is_shown(self, service: CoreHTTPRequestService, key: str) -> bool:
         """
         :param key: A resolved value's key.
         :return: Whether the approver reads the value: only when it is exactly
-            one input, as the model chose it.
+            one input.
         """
 
-        if key in ("url", "body_content"):
-            formula = getattr(service, key)
-        else:
-            field, position = key.split(".")
-            formula = list(getattr(service, field).all())[int(position)].value
-        return formula.get("mode") != BASEROW_FORMULA_MODE_RAW and bool(
-            _SINGLE_INPUT.match((formula.get("formula") or "").strip())
-        )
+        return self._shown_input(service, key) is not None
 
     def dispatch(
         self, action: AgentAction, resolved_values: dict[str, Any]
@@ -458,19 +556,31 @@ def _refuse_constant(name: str) -> None:
     raise ValueError(f"{name} is not allowed")
 
 
+def _parse_finite_float(text: str) -> float:
+    # A number too large for a float reads as infinity, which can't be sent.
+    value = float(text)
+    if not math.isfinite(value):
+        raise ValueError(f"{text} is too large")
+    return value
+
+
 def _hide_url_secrets(url: str) -> str:
     """
     :param url: A URL the builder fixed, at least in part.
-    :return: The URL with its user, password and query values hidden, which is
-        where a key sits in a URL. Where it goes stays readable.
+    :return: The URL with its user, password, path and query values hidden,
+        where a key or a webhook token sits. The server it goes to stays
+        readable, and the inputs the URL reads are listed apart.
     """
 
     parts = urlsplit(url)
     netloc = parts.netloc
     if "@" in netloc:
         netloc = f"{HIDDEN_VALUE}@{netloc.rsplit('@', 1)[1]}"
+    path = parts.path if parts.path in ("", "/") else f"/{HIDDEN_VALUE}"
     query = "&".join(
         f"{quote_plus(key)}={HIDDEN_VALUE}"
         for key, _ in parse_qsl(parts.query, keep_blank_values=True)
     )
-    return urlunsplit(parts._replace(netloc=netloc, query=query))
+    return urlunsplit(
+        parts._replace(netloc=netloc, path=path, query=query, fragment="")
+    )

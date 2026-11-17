@@ -140,6 +140,7 @@ describe('Agent tool presentations', () => {
 
   test('an HTTP request reads in the order of its form, with hidden values kept', () => {
     const values = {
+      inputs: { path: 'orders' },
       body_content: '{"order": 7}',
       headers: { Authorization: '••••••••', 'X-Trace': 't-1' },
       url: 'https://api.example.com/orders',
@@ -161,6 +162,7 @@ describe('Agent tool presentations', () => {
       ['Headers', { Authorization: '••••••••', 'X-Trace': 't-1' }],
       ['Body type', 'json'],
       ['Body content', '{"order": 7}'],
+      ['Input variables', { path: 'orders' }],
     ])
     expect(
       toolActivity(

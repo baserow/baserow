@@ -88,25 +88,29 @@ Not covered: the instance's own SMTP settings can change between hold and approv
 
 - A new action is a POST with a JSON body bound to one `body` input. Its URL is
   empty, which is a configuration error, so it isn't offered until it has one.
-  Only what the body type sends is resolved and checked.
+  Only what the body type sends is resolved and checked, for builder and
+  automation requests too.
 - `prepare` refuses, as an input error the model can fix: a URL that isn't a full
-  `http(s)` address or is over 8 KB, a request over 64 KB in all, keys included, a header with a
-  line break, and a JSON body that isn't valid JSON (`NaN` included). Nothing
+  `http(s)` address or is over 8 KB, a request over 64 KB in all, keys included,
+  a header with a line break or a character outside Latin-1, and a JSON body that
+  isn't valid JSON (`NaN` and numbers too large for a float included). Nothing
   waits for approval or goes out.
 - The approver reads a value only when its formula is exactly one input, as the
   model chose it. A value the builder fixed, or one that mixes fixed text with an
   input, is where a key sits: it shows as `••••••••`. The URL always shows where
-  it goes, with its user, password and query values hidden unless the model chose
-  the whole URL.
+  it goes, with its user, password, path and query values hidden unless the model
+  chose the whole URL. The inputs no shown value is exactly are listed apart
+  (`get_preview` adds them), so the approver reads every choice of the model.
 - Hidden values aren't kept with a held call (`get_held_values`). An approved
   call resolves them again from its arguments and sends the shown values as kept
   (`complete_held_values`). Values are keyed by row position, as saving rows
   recreates them with new IDs.
 - A request carrying a hidden value only goes to the host the builder set: the
   URL is resolved with every input empty and must have the same scheme, host and
-  port. Otherwise the model could send a key elsewhere.
-- A call only follows a redirect on the same host, and never from https to
-  http. Its headers and body would otherwise go where the approver never saw.
+  port. Otherwise the model could send a key elsewhere. When the URL has no
+  fixed host at all, the action has a `fixed_host` configuration error instead.
+- A call only follows a redirect on the same host and port, and never from https
+  to http. Moving from http to https on the default ports is followed. Its headers and body would otherwise go where the approver never saw.
   Builder and automation requests follow every redirect, as before
   (`DispatchContext.redirects_stay_on_host`).
 - The model reads the status, the content type and the body back. A body longer
