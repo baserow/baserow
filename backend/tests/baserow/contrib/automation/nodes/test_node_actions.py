@@ -9,6 +9,7 @@ from baserow.contrib.automation.nodes.actions import (
     DuplicateAutomationNodeActionType,
     MoveAutomationNodeActionType,
     ReplaceAutomationNodeActionType,
+    UpdateAutomationNodeActionType,
 )
 from baserow.contrib.automation.nodes.node_types import (
     LocalBaserowCreateRowActionNodeType,
@@ -790,3 +791,27 @@ def test_move_node_action_to_output(data_fixture):
             "fallback node": {},
         }
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_update_node_note_action(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_automation_node(workflow=workflow, note="Before")
+
+    UpdateAutomationNodeActionType.do(user, node.id, {"note": "After"})
+
+    node.refresh_from_db()
+    assert node.note == "After"
+
+    ActionHandler.undo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    node.refresh_from_db()
+    assert node.note == "Before"
+
+    ActionHandler.redo(user, [WorkflowActionScopeType.value(workflow.id)], session_id)
+
+    node.refresh_from_db()
+    assert node.note == "After"

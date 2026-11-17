@@ -85,3 +85,62 @@ test('trusts only the workflow shown in settings', async () => {
   wrapper.unmount()
   dispatch.mockRestore()
 })
+
+describe('WorkflowGeneralSettings description', () => {
+  const mountSettings = async () => {
+    WorkspaceService.mockReturnValue({
+      fetchAllUsers: vi.fn().mockResolvedValue({ data: [] }),
+    })
+    const automation = { id: 10, workspace: { id: 12 } }
+    const workflow = {
+      id: 20,
+      name: 'Orders',
+      description: 'Before',
+      notification_recipient_ids: [],
+    }
+    const { $store } = useNuxtApp()
+    const dispatch = vi.spyOn($store, 'dispatch').mockResolvedValue(undefined)
+    const wrapper = await mountSuspended(WorkflowGeneralSettings, {
+      props: { automation, workflow, defaultValues: workflow },
+      global: { stubs: { MemberAssignmentModal: true } },
+    })
+    await flushPromises()
+    return { wrapper, dispatch, automation, workflow }
+  }
+
+  const waitForDebounce = () =>
+    new Promise((resolve) => setTimeout(resolve, 400))
+
+  test('saves a changed description', async () => {
+    const { wrapper, dispatch, automation, workflow } = await mountSettings()
+
+    const textarea = wrapper.find('textarea')
+    expect(textarea.element.value).toBe('Before')
+    await textarea.setValue('Sends the **weekly** report')
+    await waitForDebounce()
+
+    expect(dispatch).toHaveBeenCalledWith('automationWorkflow/update', {
+      automation,
+      workflow,
+      values: expect.objectContaining({
+        description: 'Sends the **weekly** report',
+      }),
+    })
+    wrapper.unmount()
+    dispatch.mockRestore()
+  })
+
+  test('does not save a description that is too long', async () => {
+    const { wrapper, dispatch } = await mountSettings()
+
+    await wrapper.find('textarea').setValue('a'.repeat(2001))
+    await waitForDebounce()
+
+    expect(dispatch).not.toHaveBeenCalledWith(
+      'automationWorkflow/update',
+      expect.anything()
+    )
+    wrapper.unmount()
+    dispatch.mockRestore()
+  })
+})

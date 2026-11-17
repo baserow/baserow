@@ -1,0 +1,25 @@
+.note-indicator {
+  color: $palette-blue-700;
+  background-color: $palette-blue-50;
+  font-size: 16px;
+  width: 25px;
+  height: 25px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+
+  @include rounded($rounded-md);
+
+  &:hover {
+    background-color: $palette-blue-100;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 1px;
+  }
+}

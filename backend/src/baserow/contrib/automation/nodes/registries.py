@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.mixins import NoteMixin
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
@@ -86,6 +87,7 @@ class AutomationNodeType(
     def allowed_fields(self):
         return super().allowed_fields + [
             "label",
+            "note",
             "service",
         ]
 
@@ -285,6 +287,9 @@ class AutomationNodeType(
         :param id_mapping: the id mapping dict.
         :return: the deserialized version for this property.
         """
+
+        if prop_name == "note":
+            return NoteMixin.clean_imported_note(value)
 
         if prop_name == "service" and value:
             serialized_service = value
