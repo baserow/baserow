@@ -47,6 +47,7 @@ from baserow.contrib.agent.constants import (
     RUN_AS_LOST_TOOL_CALL_NOTE,
     TOOL_CHANGED_CALL_NOTE,
     TOOL_RETRIES,
+    TRIGGER_CONVERSATION_INSTRUCTIONS,
 )
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
@@ -2558,6 +2559,26 @@ def test_an_unattended_reply_waits_for_a_member_to_approve_an_ask_first_call(
 
     assert reply_state(reply.id) == ("completed", "", "Done.")
     assert row_names(table) == ["Plan"]
+
+
+@pytest.mark.django_db
+def test_only_a_reply_to_a_trigger_is_told_its_opening_message_is_data(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    trigger = data_fixture.create_agent_trigger(agent=agent)
+    received = respond(mocker)
+
+    run_reply(run_of(start(user, agent).conversation))
+    run_reply(
+        run_of(AgentHandler().start_trigger_conversation(trigger, "Tick").conversation)
+    )
+
+    assert [
+        TRIGGER_CONVERSATION_INSTRUCTIONS in messages[-1].instructions
+        for messages in received
+    ] == [False, True]
 
 
 @pytest.mark.django_db

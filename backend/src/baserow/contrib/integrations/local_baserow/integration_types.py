@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
 
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_ownership_type_registry
@@ -18,8 +19,9 @@ from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.types import Subject
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -300,47 +302,65 @@ class LocalBaserowIntegrationType(IntegrationType):
         return {"databases": databases}
 
     @staticmethod
-    def get_local_baserow_databases(integration: LocalBaserowIntegration) -> List:
+    def get_local_baserow_databases(
+        integration: LocalBaserowIntegration,
+    ) -> List[Database]:
         """
-        This method returns the databases that the user has access to in a query
-        efficient way while also checking for permissions. It will do so by fetching
-        all the tables at ones, and then group them by database.
+        The databases the integration's authorized subject has access to.
 
-        A side effect of this solution is that databases without tables don't show up
-        in this list.
+        :param integration: The Local Baserow integration.
+        :return: The databases with their tables and views, see
+            `get_local_baserow_databases_for`.
         """
 
         if not integration.application.workspace_id:
             return []
 
-        subject = integration.specific.authorized_subject
-        workspace = integration.application.workspace
+        return LocalBaserowIntegrationType.get_local_baserow_databases_for(
+            integration.specific.authorized_subject,
+            integration.application.workspace,
+        )
+
+    @staticmethod
+    def get_local_baserow_databases_for(
+        subject: Optional[Subject], workspace: Workspace, with_views: bool = True
+    ) -> List[Database]:
+        """
+        This method returns the databases that the subject has access to in a query
+        efficient way while also checking for permissions. It will do so by fetching
+        all the tables at ones, and then group them by database.
+
+        A side effect of this solution is that databases without tables don't show up
+        in this list.
+
+        :param subject: The subject the tables and views are listed for.
+        :param workspace: The workspace the databases are in.
+        :param with_views: Whether the views are listed; a caller offering only
+            tables saves reading every view of the workspace.
+        :return: The databases, each with its `tables` and `views` set, the
+            latter empty without views.
+        """
 
         tables = TableHandler().list_workspace_tables(subject, workspace)
 
-        views = ViewHandler().list_workspace_views(subject, workspace, specific=False)
-
-        views = list(
-            views.only(
-                "id",
-                "name",
-                "table_id",
-                "order",
-                "content_type",
-                "ownership_type",
-            ),
-        )
-
         views_by_table = defaultdict(list)
-        for view in views:
-            # The integration is shared, so only views of an ownership type that
-            # integrations may use are offered.
-            if not view_ownership_type_registry.get(
-                view.ownership_type
-            ).can_be_used_by_integrations:
-                continue
-            if view.get_type().can_filter or view.get_type().can_sort:
-                views_by_table[view.table_id].append(view)
+        if with_views:
+            views = (
+                ViewHandler()
+                .list_workspace_views(subject, workspace, specific=False)
+                .only(
+                    "id", "name", "table_id", "order", "content_type", "ownership_type"
+                )
+            )
+            for view in views:
+                # The integration is shared, so only views of an ownership type
+                # that integrations may use are offered.
+                if not view_ownership_type_registry.get(
+                    view.ownership_type
+                ).can_be_used_by_integrations:
+                    continue
+                if view.get_type().can_filter or view.get_type().can_sort:
+                    views_by_table[view.table_id].append(view)
 
         database_map = {}
         for table in tables:
