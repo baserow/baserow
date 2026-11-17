@@ -1,5 +1,6 @@
 <template>
   <div
+    class="subject-sample-field"
     :title="
       $t('subjectSampleField.titleAttr', {
         subjectCount: row.subject_count,
@@ -26,10 +27,7 @@
       :subject="{ name: sample.subject_label }"
     />
 
-    <div
-      v-if="row.subject_count > 10"
-      class="subject_sample_field-list__user-initials extras"
-    >
+    <div v-if="row.subject_count > 10" class="subject-sample-field__extras">
       +{{ row.subject_count - row[column.key].length }}
     </div>
   </div>

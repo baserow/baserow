@@ -147,9 +147,9 @@ export default {
     },
     tableLayout() {
       const layout = getManagementTableLayout(this.columns, 'default_role')
-      layout.columnWidths.name = '40%'
-      layout.columnWidths.default_role = 'auto'
-      layout.columnWidths.subject_sample = '120px'
+      layout.minTableWidth = '850px'
+      layout.columnWidths.name = 'auto'
+      layout.columnWidths.subject_sample = '280px'
       return layout
     },
     rowExpansion() {
