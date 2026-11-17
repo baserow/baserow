@@ -425,7 +425,8 @@
     "domainNameLabel": "Domain name"
   },
   "subDomainForm": {
-    "domainNameLabel": "Domain name"
+    "domainNameLabel": "Domain name",
+    "noDotError": "The subdomain can't contain a dot"
   },
   "subDomainDetails": {
     "text": "The DNS settings of the domain have already been configured and checked. It works without making any additional changes."
