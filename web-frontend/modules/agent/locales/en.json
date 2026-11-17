@@ -399,12 +399,16 @@
     "actionErrorRequired": "Required",
     "actionErrorInvalid": "Invalid value or missing input variable",
     "actionErrorUnavailable": "Unavailable",
+    "actionErrorFixedHost": "Start with a fixed address up to the host, as the request sends values you set",
     "actionFieldType": "Action type",
     "actionFieldIntegration": "Integration",
     "actionLimitReached": "This agent has reached its action limit ({limit}).",
     "toolSendEmail": "Send email",
     "toolSendEmailRunning": "Sending email…",
-    "toolSendEmailDone": "Email sent"
+    "toolSendEmailDone": "Email sent",
+    "toolHTTPRequest": "Send HTTP request",
+    "toolHTTPRequestRunning": "Sending HTTP request…",
+    "toolHTTPRequestDone": "HTTP request sent"
   },
   "trashType": {
     "agent_conversation": "conversation",

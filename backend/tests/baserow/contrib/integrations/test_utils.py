@@ -31,13 +31,17 @@ from advocate.connection import UnacceptableAddressException
 from baserow.contrib.integrations.utils import (
     DEADLINE_WATCHDOG_THREAD_NAME,
     MAX_REDIRECTS,
+    _check_redirect_stays_on_host,
     _pending_deadlines,
     _read_body,
     _RequestDeadline,
     _watchdog,
     send_http_request,
 )
-from baserow.core.services.exceptions import ResponseTooLargeDispatchException
+from baserow.core.services.exceptions import (
+    RedirectNotAllowedDispatchException,
+    ResponseTooLargeDispatchException,
+)
 
 
 class _QuietServer(ThreadingHTTPServer):
@@ -408,6 +412,81 @@ def test_a_redirect_is_followed_the_way_requests_follows_it(settings):
     assert response.json() == {"ok": True}
     # A 302 after a POST is followed with a GET, as Requests does.
     assert seen == [("POST", "/start"), ("GET", "/done")]
+
+
+def test_a_redirect_to_another_host_is_refused_when_redirects_stay_on_host(
+    settings,
+):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/collect": answer()}) as (other, other_seen):
+        # `localhost` is another host than `127.0.0.1`, as far as a URL goes.
+        elsewhere = other.replace("127.0.0.1", "localhost") + "/collect"
+        routes = {"/start": redirect(elsewhere, status=307), "/here": answer()}
+        with local_server(routes) as (base, seen):
+            with pytest.raises(RedirectNotAllowedDispatchException):
+                send_http_request(
+                    "POST",
+                    base + "/start",
+                    deadline=time.monotonic() + 5,
+                    redirects_stay_on_host=True,
+                    headers={"X-Api-Key": "secret"},
+                    json={"a": "b"},
+                )
+            assert other_seen == []
+
+            routes["/start"] = redirect("/here", status=307)
+            response = send_http_request(
+                "POST",
+                base + "/start",
+                deadline=time.monotonic() + 5,
+                redirects_stay_on_host=True,
+            )
+            assert response.status_code == 200
+
+            # Without it, every redirect is followed as before.
+            routes["/start"] = redirect(elsewhere, status=307)
+            send_http_request("POST", base + "/start", deadline=time.monotonic() + 5)
+    assert other_seen == [("POST", "/collect")]
+
+
+def test_a_redirect_to_another_port_of_the_host_is_refused(settings):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    with local_server({"/collect": answer()}) as (other, other_seen):
+        routes = {"/start": redirect(other + "/collect", status=307)}
+        with local_server(routes) as (base, _):
+            with pytest.raises(RedirectNotAllowedDispatchException):
+                send_http_request(
+                    "POST",
+                    base + "/start",
+                    deadline=time.monotonic() + 5,
+                    redirects_stay_on_host=True,
+                )
+    assert other_seen == []
+
+
+@pytest.mark.parametrize(
+    "url,location,allowed",
+    [
+        ("http://api.example.com/a", "https://api.example.com/a", True),
+        ("https://api.example.com/a", "https://api.example.com:443/b", True),
+        ("https://api.example.com/a", "https://api.example.com:8443/a", False),
+        ("http://api.example.com:8080/a", "https://api.example.com/a", False),
+        ("https://api.example.com/a", "http://api.example.com/a", False),
+    ],
+)
+def test_a_redirect_stays_on_host_when_only_its_path_or_its_https_changes(
+    url, location, allowed
+):
+    response = requests.Response()
+    response.url = url
+    response.headers["location"] = location
+    response.raw = Mock()
+
+    if allowed:
+        _check_redirect_stays_on_host(response)
+    else:
+        with pytest.raises(RedirectNotAllowedDispatchException):
+            _check_redirect_stays_on_host(response)
 
 
 def test_a_redirect_with_no_location_to_follow_keeps_its_body(settings):

@@ -47,6 +47,19 @@ class ToolInputError(Exception):
         self.hint = hint
 
 
+class ToolFailedError(Exception):
+    """A call that failed for a reason outside its arguments, worth explaining."""
+
+    def __init__(self, message: str, hint: str | None = None) -> None:
+        """
+        :param message: What went wrong, written for people.
+        :param hint: Advice for the model only, never shown to people.
+        """
+
+        super().__init__(message)
+        self.hint = hint
+
+
 def validation_messages(exc: DRFValidationError) -> str:
     """
     The messages of a DRF ``ValidationError``, each with the path of the field it's
@@ -168,6 +181,8 @@ def classify_tool_error(exc: Exception) -> ToolError:
 
     if isinstance(exc, ToolInputError):
         return ToolError(ToolErrorCode.INVALID_INPUT, str(exc), exc.hint)
+    if isinstance(exc, ToolFailedError):
+        return ToolError(ToolErrorCode.FAILED, str(exc), exc.hint)
     # UserNotInWorkspace is a PermissionException, but the user must not learn
     # whether the object exists in another workspace.
     if isinstance(exc, UserNotInWorkspace):

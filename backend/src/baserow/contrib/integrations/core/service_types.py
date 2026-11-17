@@ -121,6 +121,7 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     AddressNotAllowedDispatchException,
     InvalidContextContentDispatchException,
+    RedirectNotAllowedDispatchException,
     RemoteBusyDispatchException,
     RemoteRefusedDispatchException,
     RuntimeDispatchException,
@@ -531,6 +532,13 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             .prefetch_related("headers", "query_params", "form_data")
         )
 
+    def get_configuration_errors(
+        self, service: CoreHTTPRequestService
+    ) -> dict[str, str]:
+        if not (service.url or {}).get("formula", "").strip():
+            return {"url": "required"}
+        return {}
+
     def max_dispatch_seconds(self, service: CoreHTTPRequestService) -> int:
         # For a click, whose request gets one timeout in all. The watchdog
         # hangs up at the deadline; should the hang-up land late, a read
@@ -672,24 +680,32 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         self, service: CoreHTTPRequestService
     ) -> list[FormulaToResolve]:
         formulas = [
-            FormulaToResolve(
-                "body_content",
-                service.body_content,
-                ensure_string,
-                'property "body_content"',
-            ),
             FormulaToResolve("url", service.url, ensure_string, 'property "URL"'),
         ]
 
-        for fdata in service.form_data.all():
-            formulas.append(
+        # Only what the body type sends is resolved: a body left from another
+        # type must neither fail the request nor be checked.
+        if service.body_type in (BODY_TYPE.JSON, BODY_TYPE.RAW):
+            formulas.insert(
+                0,
                 FormulaToResolve(
-                    f"form_data_{fdata.id}",
-                    fdata.value,
+                    "body_content",
+                    service.body_content,
                     ensure_string,
-                    f'form data "{fdata.key}"',
+                    'property "body_content"',
                 ),
             )
+
+        if service.body_type == BODY_TYPE.FORM:
+            for fdata in service.form_data.all():
+                formulas.append(
+                    FormulaToResolve(
+                        f"form_data_{fdata.id}",
+                        fdata.value,
+                        ensure_string,
+                        f'form data "{fdata.key}"',
+                    ),
+                )
 
         for header in service.headers.all():
             formulas.append(
@@ -769,11 +785,16 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 params=query_params,
                 deadline=deadline,
                 operation_timeout=service.timeout,
+                redirects_stay_on_host=dispatch_context.redirects_stay_on_host,
                 **body_kwargs,
             )
-        except ServiceImproperlyConfiguredDispatchException:
-            # Too big. The message names no address, so it travels as it is
-            # rather than as an unknown error.
+        except (
+            ServiceImproperlyConfiguredDispatchException,
+            RedirectNotAllowedDispatchException,
+        ):
+            # Too big, or redirected where the caller doesn't follow. The
+            # message names no address, so it travels as it is rather than as
+            # an unknown error.
             raise
         except UnacceptableAddressException as e:
             # Refused before anything was sent, so a caller counting outbound
@@ -814,7 +835,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         Sends the request to the endpoint using the given data.
         """
 
-        body_content = resolved_values["body_content"]
+        body_content = resolved_values.get("body_content", "")
         body_dict = {}
 
         if service.body_type == BODY_TYPE.JSON:  # JSON payload
@@ -859,6 +880,8 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     "body_omitted": False,
                     "headers": {},
                     "status_code": 504,
+                    # Not an answer of the server: this side stopped waiting.
+                    "timed_out": True,
                 }
             }
 
