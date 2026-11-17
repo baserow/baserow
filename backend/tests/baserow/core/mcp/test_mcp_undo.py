@@ -1,8 +1,10 @@
 import json
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.shortcuts import reverse
+from django.test import override_settings
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -14,6 +16,7 @@ from baserow.api.sessions import set_untrusted_client_session_id
 from baserow.contrib.database.fields.actions import CreateFieldActionType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
+from baserow.core.exceptions import LockConflict
 from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.mcp.groups import GROUP_WORKSPACE_UNDO
 from baserow.core.mcp.handler import MCPEndpointHandler
@@ -23,7 +26,7 @@ User = get_user_model()
 TOOLS = ["create_rows", "create_fields", "undo", "redo"]
 
 
-def _call(endpoint, name, arguments=None):
+def _call(endpoint, name, arguments=None, expect_error=False):
     async def inner():
         server = BaserowMCPServer()
         token = current_key.set(endpoint.key)
@@ -35,8 +38,9 @@ def _call(endpoint, name, arguments=None):
 
     with transaction.atomic():
         result = async_to_sync(inner)()
-    assert result.isError is False, result.content[0].text
-    return json.loads(result.content[0].text)
+    assert result.isError is expect_error, result.content[0].text
+    text = result.content[0].text
+    return text if expect_error else json.loads(text)
 
 
 @pytest.fixture
@@ -104,6 +108,38 @@ def test_undo_takes_back_everything_one_call_changed(setup):
 
     assert len(_call(endpoint, "undo")) == 2
     assert {f.name for f in table.field_set.all()} == {"Name"}
+
+
+@pytest.mark.django_db
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
+def test_undo_takes_back_a_call_with_more_actions_than_a_group_limit(setup):
+    endpoint, table = setup
+    _call(endpoint, "create_rows", {"table_id": table.id, "rows": [{"Name": "A"}]})
+    _call(
+        endpoint,
+        "create_fields",
+        {
+            "table_id": table.id,
+            "fields": [{"name": "X", "type": "text"}, {"name": "Y", "type": "text"}],
+        },
+    )
+
+    assert len(_call(endpoint, "undo")) == 2
+    assert {f.name for f in table.field_set.all()} == {"Name"}
+    assert _names(table) == ["A"]
+
+    assert len(_call(endpoint, "redo")) == 2
+    assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y"}
+
+
+@pytest.mark.django_db
+def test_undo_reports_a_lock_conflict(setup):
+    endpoint, _ = setup
+
+    with patch.object(ActionHandler, "undo", side_effect=LockConflict()):
+        text = _call(endpoint, "undo", expect_error=True)
+
+    assert "Try again" in text
 
 
 @pytest.mark.django_db

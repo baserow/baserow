@@ -12,7 +12,6 @@ from typing import (
     Union,
     get_type_hints,
 )
-from uuid import uuid4
 
 from asgiref.sync import sync_to_async
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
@@ -144,25 +143,9 @@ class MCPTool(Instance):
                 raise MCPToolInputError(format_validation_error(exc)) from exc
         else:
             args = call_arguments
-        result = await sync_to_async(self._call_in_undo_session)(endpoint, args)
+        result = await sync_to_async(self._sync_call)(endpoint, args)
         text = result if isinstance(result, str) else json.dumps(result)
         return [TextContent(type="text", text=text)]
-
-    def _call_in_undo_session(self, endpoint: MCPEndpoint, args: Any) -> Any:
-        """
-        Runs ``_sync_call`` with the endpoint's undo session, so the ``undo`` tool
-        can find the changes it makes. Every call gets its own action group, so
-        one undo takes back everything a call changed.
-        """
-
-        from baserow.api.sessions import (
-            set_client_undo_redo_action_group_id,
-            set_untrusted_client_session_id,
-        )
-
-        set_untrusted_client_session_id(endpoint.user, endpoint.undo_session_id)
-        set_client_undo_redo_action_group_id(endpoint.user, str(uuid4()))
-        return self._sync_call(endpoint, args)
 
     def _sync_call(self, endpoint: MCPEndpoint, args: Any) -> Any:
         """

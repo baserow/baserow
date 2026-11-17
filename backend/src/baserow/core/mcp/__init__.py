@@ -2,6 +2,7 @@ import contextvars
 import json
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from asgiref.sync import sync_to_async
 from loguru import logger
@@ -107,6 +108,7 @@ class BaserowMCPServer:
     async def call_tool(self, name: str, arguments):
         from mcp.types import CallToolResult, TextContent
 
+        from baserow.core.action.context import undo_redo_session
         from baserow.core.mcp.registries import mcp_tool_registry
 
         endpoint = await self.get_endpoint()
@@ -122,7 +124,12 @@ class BaserowMCPServer:
                 isError=True,
             )
         try:
-            result = await tool.call(endpoint, arguments)
+            # Like a browser tab, so the `undo` tool can find what the call
+            # changed. Each call is its own group, so one undo takes it all back.
+            with undo_redo_session(
+                endpoint.user, endpoint.undo_session_id, str(uuid4())
+            ):
+                result = await tool.call(endpoint, arguments)
         except Exception as e:
             message = to_mcp_error(e)
             if message is None:
