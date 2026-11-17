@@ -41,6 +41,23 @@ describe('FormulaInputExplorerContext', () => {
     expect(footer(wrapper).exists()).toBe(false)
   })
 
+  it('explains when simple mode has no data and keeps expert mode available', async () => {
+    const wrapper = await mountContext({
+      enabledModes: ['simple', 'advanced'],
+      nodesHierarchy: [{ name: 'Functions', type: 'function', nodes: [] }],
+    })
+    expect(wrapper.get('[role="status"]').text()).toBe(
+      'nodeExplorer.noDataAvailable'
+    )
+    expect(footer(wrapper).text()).toContain(
+      'formulaInputExplorerContext.useAdvancedInput'
+    )
+    await wrapper.setProps({ loading: true })
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    await wrapper.setProps({ loading: false, mode: 'advanced' })
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+  })
+
   describe('mode toggle', () => {
     it('offers the mode toggle when both modes are enabled', async () => {
       const wrapper = await mountContext({

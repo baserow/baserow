@@ -48,6 +48,9 @@
             @toggle="toggleNode"
           />
         </template>
+        <div v-else class="node-explorer__content--empty" role="status">
+          {{ $t('nodeExplorer.noDataAvailable') }}
+        </div>
       </template>
     </div>
   </div>
