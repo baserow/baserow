@@ -20,3 +20,9 @@ ERROR_CANNOT_INCLUDE_ROW_METADATA = (
     HTTP_400_BAD_REQUEST,
     "The token cannot include row metadata.",
 )
+ERROR_NO_PERMISSION_TO_LINKED_TABLE = (
+    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+    HTTP_401_UNAUTHORIZED,
+    "The token does not have read permissions to the linked table {e.table_id}. "
+    "Linking or joining rows needs read access to the table they are in.",
+)

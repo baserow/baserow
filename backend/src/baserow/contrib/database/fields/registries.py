@@ -982,6 +982,19 @@ class FieldType(
         :type to_field_kwargs: dict
         """
 
+    def should_delete_view_default_values(self, old_field, new_field) -> bool:
+        """
+        Returns whether the default values that views have for the field must be
+        deleted because they can't be used with the updated field. It's called on the
+        field type of the updated field.
+
+        :param old_field: The field instance before the update.
+        :param new_field: The updated field instance.
+        :return: Whether the view default values of the field must be deleted.
+        """
+
+        return self.write_only and type(old_field) is not type(new_field)
+
     def after_update(
         self,
         from_field,

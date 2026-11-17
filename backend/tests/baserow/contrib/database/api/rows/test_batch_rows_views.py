@@ -2234,6 +2234,10 @@ def test_batch_update_rows_num_of_queries(api_client, data_fixture):
     url = reverse("api:database:rows:batch", kwargs={"table_id": table_b.id})
 
     related_link_field = link_field.link_row_related_field
+    # Linking rows checks read access to the linked table, which looks up the cached
+    # workspace templates once per process. Warm it so only per row queries can differ.
+    table.database.workspace.has_template()
+
     with CaptureQueriesContext(connection) as update_one_row_ctx:
         request_body = {
             "items": [

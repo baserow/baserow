@@ -61,3 +61,21 @@ class FieldsNotWritable(PermissionDenied):
             *args,
             **kwargs,
         )
+
+
+class CannotReadLinkedTable(PermissionDenied):
+    """
+    Raised when a user links or joins rows of a table whose rows they can't list, or
+    links rows of the same table that aren't visible in the view.
+    """
+
+    def __init__(self, table_id, actor=None, *args, **kwargs):
+        self.table_id = table_id
+        super().__init__(actor, *args, **kwargs)
+
+
+class LinkedRowsNotVisibleInView(CannotReadLinkedTable):
+    """
+    Raised when a user who can't list the rows of a table links rows of that same
+    table that don't exist or aren't visible in the view.
+    """

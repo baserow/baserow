@@ -39,6 +39,9 @@ view_field_options_updated = Signal()
 # event with the complete new view state.
 view_configuration_changed = Signal()
 
+# Sent when the default values of a view changed outside of the view itself.
+view_default_values_changed = Signal()
+
 rows_entered_view = Signal()
 rows_exited_view = Signal()
 

@@ -24,6 +24,7 @@ from baserow.contrib.database.views.registries import (
     ViewType,
     decorator_type_registry,
     decorator_value_provider_type_registry,
+    view_ownership_type_registry,
     view_type_registry,
 )
 from baserow.core.registries import OperationType
@@ -560,8 +561,26 @@ class DefaultRowValuesViewConfigurationCopyCategoryType(
         preserve_ids: bool = False,
         cache: Optional[Dict[str, Any]] = None,
     ) -> Optional[FieldOptionsDict]:
-        view.view_default_values.all().delete()
         existing_field_ids = _existing_field_ids(view, cache)
+        # Undo and redo restore defaults that the view already had.
+        ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        if (
+            user is not None
+            and not preserve_ids
+            and ownership_type.default_values_authorized_when_configured
+        ):
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            ViewHandler().check_can_read_linked_tables_of_default_values(
+                user,
+                view,
+                {
+                    default_value["field_id"]: default_value["value"]
+                    for default_value in configuration["default_row_values"]
+                    if default_value["field_id"] in existing_field_ids
+                },
+            )
+        view.view_default_values.all().delete()
         ViewDefaultValue.objects.bulk_create(
             [
                 ViewDefaultValue(
