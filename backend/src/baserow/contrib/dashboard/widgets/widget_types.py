@@ -253,10 +253,11 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
 
         multiple = widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple
         # A visitor whose page predates a switch between single and multiple
-        # selection still sends the previous shape: keep their selection.
+        # selection still sends the previous shape: keep their selection, or its
+        # first value when only one can be selected now.
         if multiple and isinstance(value, str):
             value = [value] if value else []
-        elif not multiple and isinstance(value, list) and len(value) <= 1:
+        elif not multiple and isinstance(value, list):
             value = value[0] if value else ""
         if multiple:
             if not isinstance(value, list) or any(

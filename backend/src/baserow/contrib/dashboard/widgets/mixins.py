@@ -181,6 +181,7 @@ class FilterWidgetTypeMixin:
 
         from baserow.contrib.dashboard.widgets.models import Widget
         from baserow.contrib.integrations.local_baserow.service_filter_groups import (
+            get_deleted_field_ids,
             validate_runtime_filter_group,
         )
 
@@ -226,9 +227,19 @@ class FilterWidgetTypeMixin:
                 keys.append("alternative_group")
             for key in keys:
                 filters, _ = validate_runtime_filter_group(link.get(key), service)
-                originals = link[key]["filters"]
+                originals = link[key].get("filters", [])
                 for condition in filters:
                     originals[condition["index"]]["value"] = condition["value"]
+                # Conditions on deleted fields stay, inactive, like imported ones.
+                validated = {condition["index"] for condition in filters}
+                deleted = get_deleted_field_ids(
+                    condition["field"]
+                    for index, condition in enumerate(originals)
+                    if index not in validated
+                )
+                for condition in originals:
+                    if condition["field"] in deleted:
+                        condition["field"] = 0
 
     def prepare_value_for_db(self, values, instance=None):
         """Validate contributed groups for every filter type using this mixin."""

@@ -1221,6 +1221,13 @@ class ViewFilterType(Instance):
     """
 
     compatible_field_types: List[Union[str, Callable[["Field"], bool]]] = []
+    """
+    Defines which field types are compatible with the filter. The values in this list
+    can either be the literal `FieldType.type` string, or a callable taking the
+    concrete field and returning True/False. When checking compatibility the
+    `FieldType.get_compatible_filter_field_type(field)` indirection is applied first,
+    allowing field types to alias themselves to another type for filtering purposes.
+    """
 
     accepts_multiple_values = False
     """
@@ -1233,13 +1240,6 @@ class ViewFilterType(Instance):
     """
     Whether the filter excludes the rows matching its value. Callers applying the
     filter once per value combine negated filters with AND, the others with OR.
-    """
-    """
-    Defines which field types are compatible with the filter. The values in this list
-    can either be the literal `FieldType.type` string, or a callable taking the
-    concrete field and returning True/False. When checking compatibility the
-    `FieldType.get_compatible_filter_field_type(field)` indirection is applied first,
-    allowing field types to alias themselves to another type for filtering purposes.
     """
 
     def default_filter_on_exception(self):

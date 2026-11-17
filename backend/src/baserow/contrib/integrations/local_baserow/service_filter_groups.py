@@ -125,6 +125,19 @@ def get_unavailable_field_ids(conditions, service) -> set[int]:
     }
 
 
+def get_deleted_field_ids(field_ids) -> set[int]:
+    """Return the given field ids which don't exist, not even trashed."""
+
+    from baserow.contrib.database.fields.models import Field
+
+    field_ids = set(field_ids)
+    if not field_ids:
+        return set()
+    return field_ids - set(
+        Field.objects_and_trash.filter(id__in=field_ids).values_list("id", flat=True)
+    )
+
+
 def has_applicable_conditions(group, service) -> bool:
     """Whether a transient group has a condition on a field still available."""
 
@@ -141,9 +154,9 @@ def validate_runtime_filter_group(group, service):
     Validate a transient group's shape, ancestry, fields, operators and formulas.
 
     Conditions on unavailable fields (see `get_unavailable_field_ids`) are kept by
-    the caller but neither validated nor returned, so they don't apply until the
-    field is restored. Each returned condition has the `index` of its position in
-    the group's filters.
+    the caller and only their operator and group are validated. They aren't
+    returned, so they don't apply until the field is restored. Each returned
+    condition has the `index` of its position in the group's filters.
     """
 
     from rest_framework.exceptions import ValidationError
@@ -163,6 +176,9 @@ def validate_runtime_filter_group(group, service):
         index
         for index, condition in enumerate(raw_filters)
         if not (isinstance(condition, dict) and condition.get("field") in unavailable)
+    ]
+    skipped = [
+        raw_filters[index] for index in set(range(len(raw_filters))) - set(indexes)
     ]
     groups = LocalBaserowTableServiceFilterGroupSerializer(
         data=group.get("filter_groups", []), many=True
@@ -191,6 +207,11 @@ def validate_runtime_filter_group(group, service):
             known.add(item["id"])
             ordered.append(item)
             pending.remove(item)
+    for condition in skipped:
+        if condition.get("type") not in view_filter_type_registry.get_types():
+            raise ValidationError("Unknown filter operator.")
+        if condition.get("group") not in known:
+            raise ValidationError("Unknown condition group.")
     for condition in filters.validated_data:
         field = condition["field"].specific
         if field.table_id != service.table_id or field.trashed:

@@ -376,7 +376,7 @@ def test_multiple_dropdown_exposes_lists_and_empty_policy(
         {"x": "value"},
         {"{widget}": 123},
         {"{widget}": None},
-        {"{widget}": ["Alpha", "Beta"]},
+        {"{widget}": [1, 2]},
         {"{widget}": "x" * 1001},
         {"01": "value"},
     ],
@@ -448,6 +448,16 @@ def test_dispatch_tolerates_values_from_an_outdated_page(
     widget.save()
     response = api_client.post(
         url, {"widget_data": {str(widget.id): ["Beta"]}}, format="json", **headers
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["result"] == "20"
+
+    # With several values selected, only the first one can still apply.
+    response = api_client.post(
+        url,
+        {"widget_data": {str(widget.id): ["Beta", "Alpha"]}},
+        format="json",
+        **headers,
     )
     assert response.status_code == 200, response.json()
     assert response.json()["result"] == "20"
@@ -1332,7 +1342,7 @@ def test_dispatch_validation_uses_non_filter_widget_type_hook(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("value", [123, None, ["Alpha", "Beta"]])
+@pytest.mark.parametrize("value", [123, None, [1, 2]])
 def test_internal_dispatch_validates_widget_values_in_provider(filter_dashboard, value):
     """Internal callers cannot bypass type validation by skipping the API serializer."""
     from rest_framework.exceptions import ValidationError
@@ -1920,3 +1930,53 @@ def test_import_drops_links_to_targets_missing_from_the_export(filter_dashboard)
     assert [link["target_widget_id"] for link in copied_widget.target_filters] == [
         target.id
     ]
+
+
+def patch_target_filters(api_client, token, widget, links):
+    return api_client.patch(
+        reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id}),
+        {"type": "text_filter", "target_filters": links},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+
+@pytest.mark.django_db
+def test_target_filter_group_without_conditions_key(api_client, filter_dashboard):
+    _, token, _, _, widget, _ = filter_dashboard
+    link = widget.target_filters[0]
+    link["group"] = {"filter_type": "AND", "filter_groups": []}
+
+    response = patch_target_filters(api_client, token, widget, [link])
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["target_filters"][0]["group"]["filters"] == []
+
+
+@pytest.mark.django_db
+def test_conditions_on_deleted_fields_are_kept_inactive(api_client, filter_dashboard):
+    _, token, _, _, widget, _ = filter_dashboard
+    link = widget.target_filters[0]
+    link["group"]["filters"][0]["field"] = 99999999
+
+    response = patch_target_filters(api_client, token, widget, [link])
+
+    assert response.status_code == 200, response.json()
+    condition = response.json()["target_filters"][0]["group"]["filters"][0]
+    assert condition["field"] == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "invalid", [{"type": "no_such_type"}, {"group": "unknown-group"}]
+)
+def test_conditions_on_unavailable_fields_are_still_validated(
+    api_client, filter_dashboard, invalid
+):
+    _, token, _, _, widget, _ = filter_dashboard
+    link = widget.target_filters[0]
+    link["group"]["filters"][0].update({"field": 0, **invalid})
+
+    response = patch_target_filters(api_client, token, widget, [link])
+
+    assert response.status_code == 400, response.json()
