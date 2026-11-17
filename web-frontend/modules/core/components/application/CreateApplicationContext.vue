@@ -41,12 +41,13 @@
             {{ applicationType.getDescription() }}
           </div>
         </a>
-        <CreateApplicationModal
+        <component
+          :is="applicationType.getCreateModalComponent()"
           :ref="'createApplicationModal' + applicationType.getType()"
           :application-type="applicationType"
           :workspace="workspace"
           @created="hide"
-        ></CreateApplicationModal>
+        ></component>
       </li>
       <li class="context__menu-item">
         <a
@@ -97,7 +98,6 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
 import TemplateModal from '@baserow/modules/core/components/template/TemplateModalSwitch'
 import ImportWorkspaceModal from '@baserow/modules/core/components/import/ImportWorkspaceModal.vue'
 import context from '@baserow/modules/core/mixins/context'
@@ -107,7 +107,6 @@ export default {
   name: 'CreateApplicationContext',
   components: {
     DevelopmentBadge,
-    CreateApplicationModal,
     ImportWorkspaceModal,
     TemplateModal,
   },

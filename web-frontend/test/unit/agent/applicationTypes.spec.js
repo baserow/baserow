@@ -1,6 +1,9 @@
 import { describe, expect, test, vi } from 'vitest'
 import { AgentApplicationType } from '@baserow/modules/agent/applicationTypes'
 import { AgentLastViewedItemType } from '@baserow/modules/agent/lastViewedItemTypes'
+import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import AgentCreateModal from '@baserow/modules/agent/components/AgentCreateModal'
+import CreateApplicationModal from '@baserow/modules/core/components/application/CreateApplicationModal'
 
 describe('AgentApplicationType', () => {
   const agent = { id: 10, type: 'agent', workspace: { id: 1 } }
@@ -36,6 +39,13 @@ describe('AgentApplicationType', () => {
       ).toEqual(enabled ? ['agent'] : [])
     }
   )
+
+  test('creates agents with the setup wizard and others with the core modal', () => {
+    expect(makeType().type.getCreateModalComponent()).toBe(AgentCreateModal)
+    expect(
+      new DatabaseApplicationType({ app: {} }).getCreateModalComponent()
+    ).toBe(CreateApplicationModal)
+  })
 
   test('opens the agent route by application ID', async () => {
     const { type, app } = makeType()
