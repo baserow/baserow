@@ -686,7 +686,6 @@ export class LocalBaserowDeleteRowServiceType extends WorkflowActionServiceTypeM
   }
 }
 
-// Passed as values, so every translation keeps the placeholders for the consumer.
 export class LocalBaserowRowsSignalTriggerServiceType extends TriggerServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {

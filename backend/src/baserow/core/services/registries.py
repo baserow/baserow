@@ -928,8 +928,8 @@ class ListServiceTypeMixin:
 class TriggerServiceTypeMixin(ABC):
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
-    # Nothing is dropped unless a type says a later event makes up for a skipped one.
-    events_can_be_skipped = False
+    # A busy consumer may skip an event unless a type says each of its events counts.
+    events_can_be_skipped = True
 
     @property
     def listeners(self) -> List[Callable]:

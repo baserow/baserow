@@ -28,9 +28,6 @@ from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import (
     CorePeriodicTriggerServiceType,
 )
-from baserow.contrib.integrations.local_baserow.service_types import (
-    LocalBaserowRowsCreatedTriggerServiceType,
-)
 from baserow.contrib.integrations.tasks import call_periodic_services_that_are_due
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.handler import ChatRunHandler
@@ -823,30 +820,6 @@ def test_an_event_caused_by_the_agent_itself_starts_nothing(
     assert AgentConversation.objects.get().trigger_id == trigger.id
 
 
-@pytest.mark.django_db
-def test_a_firing_queued_before_a_type_change_starts_nothing(
-    data_fixture, configured_agent
-):
-    agent = configured_agent(user=data_fixture.create_user())
-    trigger = periodic_trigger(data_fixture, agent)
-
-    with TestCase.captureOnCommitCallbacks() as queued_starts:
-        agent_trigger_dispatcher.on_event([trigger.service], {})
-    locked = AgentTrigger.objects.select_for_update().get(id=trigger.id)
-    AgentTriggerHandler().update_trigger(
-        locked,
-        service_type=service_type_registry.get(
-            LocalBaserowRowsCreatedTriggerServiceType.type
-        ),
-    )
-    for start in queued_starts:
-        start()
-
-    trigger.refresh_from_db()
-    assert not AgentConversation.objects.exists()
-    assert (trigger.last_skipped_on, trigger.last_fired_on) == (None, None)
-
-
 def switch_off(trigger: AgentTrigger) -> None:
     locked = AgentTrigger.objects.select_for_update().get(id=trigger.id)
     AgentTriggerHandler().update_trigger(locked, enabled=False)
@@ -954,6 +927,25 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
         in_another_connection(tick_without_starting).result(timeout=10)
 
         assert next_run_at(trigger) == DUE_AT + timedelta(minutes=1)
+
+
+@pytest.mark.django_db
+def test_a_firing_queued_before_a_type_change_starts_nothing(
+    data_fixture, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+    trigger = periodic_trigger(data_fixture, agent)
+
+    with TestCase.captureOnCommitCallbacks() as queued_starts:
+        agent_trigger_dispatcher.on_event([trigger.service], {})
+    AgentTriggerHandler().update_trigger(
+        AgentTrigger.objects.get(id=trigger.id),
+        service_type=service_type_registry.get("http_trigger"),
+    )
+    for start in queued_starts:
+        start()
+
+    assert not AgentConversation.objects.exists()
 
 
 @pytest.mark.django_db

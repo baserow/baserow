@@ -98,7 +98,7 @@
         <Alert
           v-if="needsWorkspaceAccess"
           type="info-primary"
-          class="agent-trigger-card__note"
+          class="margin-top-0 margin-bottom-2"
         >
           {{ $t('agent.triggerNeedsWorkspaceAccess') }}
         </Alert>
@@ -120,7 +120,7 @@
         </p>
         <FormGroup
           v-if="serviceType.returnsList(trigger.service)"
-          class="agent-trigger-card__batch-size"
+          class="margin-bottom-2 agent-trigger-card__batch-size"
           :label="$t('agent.triggerBatchSize')"
           :helper-text="$t('agent.triggerBatchSizeHelper')"
           :error-message="batchSizeError"

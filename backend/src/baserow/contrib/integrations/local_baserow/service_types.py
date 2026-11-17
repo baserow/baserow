@@ -3242,6 +3242,8 @@ class LocalBaserowRowsSignalTriggerServiceType(
     # We set `_returns_list` to `True` so that when we generate the schema,
     # the `type` is set to `array` instead of `object`.
     _returns_list = True
+    # No later event brings the rows of a skipped one again.
+    events_can_be_skipped = False
 
     def can_subject_read(
         self,

@@ -1311,7 +1311,7 @@ describe('Agent triggers', () => {
     expect(
       card.findAll('.dropdown__selected-text').map((item) => item.text())
     ).toEqual(['Sales', 'Orders'])
-    expect(card.find('.agent-trigger-card__note').exists()).toBe(false)
+    expect(card.find('.alert').exists()).toBe(false)
     expect(patches(testApp)).toEqual([])
   })
 
@@ -1331,14 +1331,14 @@ describe('Agent triggers', () => {
     )
     const rowsCard = () => wrapper.findAll('.agent-trigger-card')[1]
     const notes = () =>
-      wrapper.findAll('.agent-trigger-card__note').map((note) => note.text())
+      wrapper.findAll('.agent-trigger-card .alert').map((note) => note.text())
     const selected = () =>
       rowsCard()
         .findAll('.dropdown__selected-text')
         .map((item) => item.text())
 
     expect(notes()).toEqual(['agent.triggerNeedsWorkspaceAccess'])
-    expect(rowsCard().find('.agent-trigger-card__note').exists()).toBe(true)
+    expect(rowsCard().find('.alert').exists()).toBe(true)
     expect(selected()).not.toContain('Orders')
 
     await wrapper.setProps({

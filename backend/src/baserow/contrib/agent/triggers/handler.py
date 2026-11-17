@@ -167,8 +167,8 @@ class AgentTriggerHandler:
         """
         :param service_type: The service type of a trigger.
         :return: What a new trigger of the type does while its previous reply is
-            going: skip when a later event makes up for a skipped one, like a
-            schedule's next tick, else wait, so no event is lost.
+            going: wait when its events can't be skipped, like changed rows, so
+            none is lost, else skip.
         """
 
         if service_type.events_can_be_skipped:

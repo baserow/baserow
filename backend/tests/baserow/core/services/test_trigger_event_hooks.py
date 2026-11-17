@@ -28,15 +28,10 @@ def test_a_trigger_type_sends_whole_events_anyone_may_read_by_default(data_fixtu
         CoreHTTPTriggerServiceType,
         CoreInboundEmailTriggerServiceType,
         CoreManualTriggerServiceType,
+        CorePeriodicTriggerServiceType,
     ],
 )
-def test_trigger_events_cannot_be_skipped_by_default(service_type_class):
-    assert service_type_registry.get(service_type_class.type).events_can_be_skipped is (
-        False
-    )
-
-
-def test_a_periodic_trigger_lets_its_events_be_skipped():
-    service_type = service_type_registry.get(CorePeriodicTriggerServiceType.type)
+def test_trigger_events_can_be_skipped_by_default(service_type_class):
+    service_type = service_type_registry.get(service_type_class.type)
 
     assert service_type.events_can_be_skipped is True

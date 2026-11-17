@@ -20,18 +20,18 @@ MESSAGE_HELP_TEXT = (
     "conversation the trigger starts. Empty opens it with the payload itself."
 )
 SERVICE_HELP_TEXT = "The service producing the trigger's events."
+NAME_HELP_TEXT = (
+    "The trigger's name, trimmed. Blank shows a default worded by its type, such "
+    "as its schedule."
+)
 ON_OVERLAP_HELP_TEXT = (
     "What a firing does while a reply of the trigger is still going: `skip` "
     "starts nothing, `wait` queues its conversation until that reply ends, "
     "`parallel` starts it alongside, up to a cap, then queues it."
 )
 ON_OVERLAP_DEFAULT_HELP_TEXT = (
-    f"{ON_OVERLAP_HELP_TEXT} Left out, it is `skip` when a later event makes up "
-    "for a skipped one, like a schedule's next tick, and `wait` otherwise."
-)
-NAME_HELP_TEXT = (
-    "The trigger's name, trimmed. Blank shows a default worded by its type, such "
-    "as the table a row trigger watches."
+    f"{ON_OVERLAP_HELP_TEXT} Left out, it is `wait` for a type whose events can't "
+    "be skipped, like changed rows, and `skip` otherwise."
 )
 BATCH_SIZE_HELP_TEXT = (
     "How many records of a list payload, such as created rows, each "

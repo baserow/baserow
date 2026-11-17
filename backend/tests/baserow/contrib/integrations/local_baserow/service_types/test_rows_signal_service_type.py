@@ -88,7 +88,7 @@ def test_local_baserow_rows_signal_service_type_skips_table_of_another_workspace
 
 
 def identity_with_table(data_fixture) -> tuple[Identity, Table]:
-    """A run identity with the default member role and an Orders table it reads."""
+    """An identity with the default member role and an Orders table it reads."""
 
     workspace = data_fixture.create_workspace(user=data_fixture.create_user())
     database = data_fixture.create_database_application(
