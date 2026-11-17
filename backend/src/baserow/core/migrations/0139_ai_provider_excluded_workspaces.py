@@ -10,8 +10,7 @@ class Migration(LockTimeoutMigration):
     """
 
     dependencies = [
-        ("core", "0135_createusertemplatejob_make_public"),
-        ("core", "0135_workspaceinvitationlink_scope"),
+        ("core", "0138_workspaceinvitationlink_password"),
     ]
 
     operations = [
