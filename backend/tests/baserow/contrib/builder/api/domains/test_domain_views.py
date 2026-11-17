@@ -223,6 +223,30 @@ def test_create_sub_domain_name_contains_dot(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(BASEROW_BUILDER_DOMAINS=["test.com"])
+@pytest.mark.parametrize("separator", ["\u3002", "\uff0e", "\uff61"])
+def test_create_sub_domain_name_contains_dot_equivalent(
+    api_client, data_fixture, separator
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+
+    url = reverse(
+        "api:builder:builder_id:domains:list", kwargs={"builder_id": builder.id}
+    )
+    response = api_client.post(
+        url,
+        {"type": SubDomainType.type, "domain_name": f"hello{separator}world.test.com"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SUB_DOMAIN_NAME_CONTAINS_DOT"
+    assert not builder.domains.exists()
+
+
+@pytest.mark.django_db
 @override_settings(BASEROW_BUILDER_DOMAINS=["test.com", "eu.test.com"])
 def test_create_sub_domain_with_overlapping_domain_names(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()

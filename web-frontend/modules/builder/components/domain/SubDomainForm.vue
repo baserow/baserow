@@ -20,6 +20,14 @@ import { useVuelidate } from '@vuelidate/core'
 import { maxLength, required, helpers } from '@vuelidate/validators'
 import domainForm from '@baserow/modules/builder/mixins/domainForm'
 
+// Browsers resolve several Unicode characters to a dot in a domain name. The NFKC
+// normalization maps them to a dot, except for the ideographic full stop.
+const LABEL_SEPARATORS = ['.', '\u3002']
+const containsLabelSeparator = (value) => {
+  const normalized = value.normalize('NFKC')
+  return LABEL_SEPARATORS.some((separator) => normalized.includes(separator))
+}
+
 export default {
   name: 'SubDomainForm',
   mixins: [domainForm],
@@ -68,7 +76,7 @@ export default {
         ),
         noDot: helpers.withMessage(
           this.$t('subDomainForm.noDotError'),
-          (value) => !helpers.req(value) || !value.includes('.')
+          (value) => !helpers.req(value) || !containsLabelSeparator(value)
         ),
       },
     }

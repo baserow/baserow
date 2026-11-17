@@ -26,4 +26,16 @@ describe('SubDomainForm', () => {
     expect(wrapper.text()).toContain('subDomainForm.noDotError')
     expect(wrapper.vm.isFormValid()).toBe(false)
   })
+
+  test.each(['\u3002', '\uFF0E', '\uFF61'])(
+    'rejects a name that contains the dot equivalent %j',
+    async (separator) => {
+      const wrapper = await mountForm()
+
+      await wrapper.find('input').setValue(`hello${separator}world`)
+
+      expect(wrapper.vm.v$.domainPrefix.noDot.$invalid).toBe(true)
+      expect(wrapper.vm.isFormValid()).toBe(false)
+    }
+  )
 })
