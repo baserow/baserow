@@ -1132,6 +1132,16 @@ class CoreHandler:
         )
         return [wk_user.user for wk_user in wk_users]
 
+    def get_workspace_role_uid(self, role_uid: str, workspace: Workspace) -> str:
+        """Resolve a role alias using the workspace's active permission managers."""
+
+        for manager_name in settings.PERMISSION_MANAGERS:
+            manager = permission_manager_type_registry.get(manager_name)
+            resolved_role_uid = manager.get_workspace_role_uid(role_uid, workspace)
+            if resolved_role_uid is not None:
+                return resolved_role_uid
+        return role_uid
+
     def raise_if_invalid_workspace_role(
         self, role_uid: str, workspace: Workspace
     ) -> None:
@@ -1838,7 +1848,7 @@ class CoreHandler:
 
         return WorkspaceInvitationLink.objects.filter(
             workspace=workspace, scope_type__isnull=True
-        )
+        ).select_related("workspace")
 
     def create_workspace_invitation_link(
         self,

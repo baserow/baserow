@@ -52,12 +52,10 @@ class RolePermissionManagerType(PermissionManagerType):
             partial(LicenseHandler.workspace_has_feature, RBAC, workspace),
         )
 
-    def get_workspace_user_role_uid(self, workspace_user):
-        if self.is_enabled(workspace_user.workspace):
+    def get_workspace_role_uid(self, role_uid, workspace):
+        if self.is_enabled(workspace):
             return (
-                RoleAssignmentHandler()
-                .get_role_by_uid(workspace_user.permissions, use_fallback=True)
-                .uid
+                RoleAssignmentHandler().get_role_by_uid(role_uid, use_fallback=True).uid
             )
         return None
 

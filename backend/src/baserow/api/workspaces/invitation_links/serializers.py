@@ -34,6 +34,7 @@ class InvitationLinkPasswordField(serializers.CharField):
 
 
 class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
+    permissions = serializers.SerializerMethodField()
     has_password = serializers.BooleanField(
         read_only=True,
         help_text="Whether people must enter a password before they can use the link.",
@@ -51,6 +52,12 @@ class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             "created_on",
         )
         extra_kwargs = {"id": {"read_only": True}}
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_permissions(self, object):
+        return CoreHandler().get_workspace_role_uid(
+            object.permissions, object.workspace
+        )
 
 
 class CreateWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
@@ -167,7 +174,9 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             return None
         return {
             "current_permissions": current_permissions,
-            "permissions": object.permissions,
+            "permissions": CoreHandler().get_workspace_role_uid(
+                object.permissions, object.workspace
+            ),
         }
 
     @extend_schema_field(OpenApiTypes.BOOL)
