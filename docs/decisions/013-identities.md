@@ -55,11 +55,12 @@ UserProfile also stores the trash state and last activity of an identity.
 `date_joined` is its creation time and `first_name` its only name, limited to 150
 characters. Human profiles cannot be trashed, and the user type cannot be edited.
 
-An identity keeps its single membership for life. Membership writes lock the User
-row, the operations that add, remove or change the membership of a person refuse an
-identity, and removal goes through identity deletion. Permission checks deny an
-identity with more than one membership, counting trashed workspaces. Cross-workspace
-service accounts and conversion between human and identity are outside this decision.
+An identity keeps its single membership for life. The operations that add, remove or
+change the membership of a person refuse an identity: only the identity handler
+writes its role, and removal goes through identity deletion. Permission checks deny
+an identity with more than one membership, counting trashed workspaces.
+Cross-workspace service accounts and conversion between human and identity are
+outside this decision.
 
 ### Explicit query boundaries
 

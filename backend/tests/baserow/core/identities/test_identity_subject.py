@@ -1,3 +1,6 @@
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.core.exceptions import LastAdminOfWorkspace, WorkspaceUserIsLastAdmin
@@ -175,4 +178,28 @@ def test_identity_admin_does_not_replace_last_human_admin(data_fixture):
         handler.leave_workspace(identity, workspace)
     with pytest.raises(ValueError):
         handler.delete_workspace_user(human, identity_membership)
+    with pytest.raises(ValueError):
+        handler.force_update_workspace_user(
+            human, identity_membership, permissions="MEMBER"
+        )
     assert WorkspaceUser.objects_and_identities.filter(user=identity).count() == 1
+
+
+@pytest.mark.django_db
+def test_membership_writes_of_a_person_take_no_row_lock(data_fixture):
+    """The API locks the membership first, so a lock taken after it can deadlock."""
+
+    admin, member = data_fixture.create_user(), data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    handler = CoreHandler()
+
+    with CaptureQueriesContext(connection) as queries:
+        handler.force_update_workspace_user(
+            admin, workspace.get_workspace_user(member), permissions="ADMIN"
+        )
+        handler.leave_workspace(member, workspace)
+        handler.add_user_to_workspace(workspace, member)
+        handler.delete_workspace_user(admin, workspace.get_workspace_user(member))
+
+    assert not [query["sql"] for query in queries if "UPDATE OF" in query["sql"]]
+
