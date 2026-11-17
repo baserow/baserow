@@ -53,11 +53,14 @@ After the switch, clients set up with `http://localhost:8000/mcp` stop working,
 so point every client at the tunnel URL. When you switch back, sign in again
 from each client.
 
-### Plugin and skill
+### Plugin and skills
 
 [baserow/baserow-mcp](https://github.com/baserow/baserow-mcp) packages the
-server config with the `baserow-basics` skill, which teaches the agent how to
-use the tools. Test it once on a release candidate:
+server config with skills that teach the agent how to use the tools:
+`baserow-basics` (rows, errors, undo and missing tools), `baserow-databases`,
+`baserow-automations`, `baserow-dashboards`, `baserow-app-builder` and
+`baserow-workspace` (search, row comments and the audit log). Version 1.0.0
+needs Baserow 2.4.3 or newer. Test it once on a release candidate:
 
 - **Claude Code**: the plugin asks for the server URL:
   ```
@@ -70,7 +73,7 @@ use the tools. Test it once on a release candidate:
   by hand first, or Claude Code hides the plugin's server.
 - **Other agents**: the Codex, Cursor, VS Code, Copilot and Gemini plugins
   always point at `https://api.baserow.io/mcp`. To test another instance, add
-  the server by hand as the README describes and install only the skill:
+  the server by hand as the README describes and install only the skills:
   ```bash
   npx skills add baserow/baserow-mcp
   ```
@@ -171,6 +174,7 @@ The following tools are currently enabled:
 | `create_form_elements` | Add forms and form inputs |
 | `create_collection_elements` | Add tables and repeats over a data source |
 | `update_element` | Change an element's text, settings, columns or menu items |
+| `delete_element_items` | Delete table columns or menu items |
 | `update_element_style` | Change how an element looks |
 | `move_elements` | Move elements within a page |
 | `create_element_actions` | Add workflow actions to elements |
@@ -181,7 +185,8 @@ The following tools are currently enabled:
 | `list_audit_log` | List who did what in this workspace, with an optional text search (advanced or enterprise, admin) |
 
 The automation and audit log tools are off in the "Read only" preset. Turn them
-on at consent or under **Settings > Connected apps**. The "Read only" preset
+on at consent or with **Edit tools** next to the app under **My settings > MCP
+server**. The "Read only" preset
 includes reading dashboards and application builders, not changing them. The
 application builder tools need no licence, but `setup_user_source` is enterprise: a `BASEROW_OSS_ONLY` instance doesn't
 list it. `publish_workflow`, `pause_workflow`, `set_theme`, `update_database`,
@@ -277,8 +282,8 @@ Expected: Claude calls `list_audit_log` and names you. As a workspace member who
 
 ### Automations
 
-Connect with the "Read only" preset, then turn on the automation tools under
-**Settings > Connected apps**. Ask Claude: *"In my automation, create a
+Connect with the "Read only" preset, then turn on the automation tools with
+**Edit tools** under **My settings > MCP server**. Ask Claude: *"In my automation, create a
 workflow that runs when a row is created in [table name]. If the row's
 [number field] is above 100, email me with the row's Name in the subject."*
 
@@ -304,7 +309,8 @@ single select field. Connect with the "Read only" preset.
 Ask Claude: *"What dashboards do I have?"* Expected: `list_dashboards` lists
 them with their widget count.
 
-Turn on the dashboard editing tools under **Settings > Connected apps**. Ask
+Turn on the dashboard editing tools with **Edit tools** under **My settings >
+MCP server**. Ask
 Claude: *"Create a dashboard called Sales with the total of [number field] in
 [table], and a line chart of [number field] by [single select field]."*
 Expected: `create_dashboard`, then `create_widgets` with a `summary` and a
@@ -344,8 +350,8 @@ goes to the trash.
 
 ### Create a new application website
 
-Needs the enterprise app, which an instance with `BASEROW_OSS_ONLY` doesn't
-have. No licence is needed. Connect with `builder_edit` ticked. Ask Claude:
+No licence is needed, and it works with `BASEROW_OSS_ONLY`. Connect with
+`builder_edit` ticked. Ask Claude:
 *"create a new application website"*
 
 Expected: Claude calls `create_builder` and nothing else that creates an
@@ -358,7 +364,8 @@ Connect with the "Read only" preset. Ask Claude: *"What application builders
 and pages do I have?"* Expected: `list_builders`, then `list_pages`. Asking it
 to add a page fails, because `create_pages` is not in the list.
 
-Turn on **Edit application builders** under **Settings > Connected apps**, then
+Turn on **Edit application builders** with **Edit tools** under **My settings >
+MCP server**, then
 ask Claude, one request at a time:
 
 1. *"Create an application called Shop with two pages, Home and Products."*
@@ -381,7 +388,8 @@ ask Claude, one request at a time:
    confirmation first, and every theme setting is replaced.
 
 Ask Claude to delete the page. Expected: no tool does it, and Claude says so.
-In an `OSS_ONLY` instance none of the builder tools are listed.
+In a `BASEROW_OSS_ONLY` instance the builder tools are listed except
+`setup_user_source`, and creating an `auth_form` element is refused.
 
 ### Publish and pause a workflow
 
@@ -410,10 +418,11 @@ Verify these do **not** appear in your client's tool list.
 
 ## 6. Verify tool selection (OAuth)
 
-The consent page only shows again for a new grant, so first disconnect the
-app as in step 7. Sign in again from the client and leave only
+Click **Edit tools** next to the app under **Connected apps** and leave only
 **List databases** and **List tables** ticked. Verify the client lists only
-`list_databases` and `list_tables`, and that asking it to create a row fails.
+`list_databases` and `list_tables` on its next request, without signing in
+again, and that asking it to create a row fails. Disconnect the app and sign in
+again from the client: the consent page shows the same choice for a new grant.
 
 ## 7. Verify disconnect
 

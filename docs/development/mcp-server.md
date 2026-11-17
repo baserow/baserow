@@ -31,10 +31,10 @@ ActionTypes → Django ORM
 
 An `MCPEndpoint` links a user to one workspace and to the tools they allowed (`allowed_tools`, a list of tool names). Tools added later stay off until the user turns them on. Endpoints created before tool lists existed were given the original database tools in `LEGACY_DEFAULT_TOOLS`, and a null list still means that list. There are two kinds:
 
-- **OAuth grants**: created when a client signs in through the consent page (see [OAuth sign-in](#oauth-sign-in)). The client calls `POST /mcp` with an access token. They are listed, and can be disconnected, on the **OAuth** tab of **My settings > MCP server**.
+- **OAuth grants**: created when a client signs in through the consent page (see [OAuth sign-in](#oauth-sign-in)). The client calls `POST /mcp` with an access token. They are listed on the **OAuth** tab of **My settings > MCP server**, where **Edit tools** changes a connection's tools without a new sign-in and **Disconnect** revokes it.
 - **Endpoint keys**: a 32-character secret key, created under **My settings > MCP server** (on the **Endpoint** tab when OAuth is on). A new key gets every read-only tool plus the `LEGACY_DEFAULT_TOOLS`. Its tools can be changed with `PATCH` on the endpoint, like an OAuth connection's. Older clients use it in the SSE URL, `GET /mcp/{key}/sse`. `POST /mcp` also accepts it as `Authorization: Bearer <key>`.
 
-Users install the client side, the MCP server config plus skills, from [baserow/baserow-mcp](https://github.com/baserow/baserow-mcp). Its README has the install steps for each agent, the [MCP server user docs](https://baserow.io/user-docs/mcp-server) cover the hosted apps such as Claude and ChatGPT, and **My settings > MCP server** shows copy-ready setup with the instance's own URL.
+Users install the client side, the MCP server config plus skills, from [baserow/baserow-mcp](https://github.com/baserow/baserow-mcp). Its skills follow the tool areas: `baserow-basics` (rows, errors, undo, missing tools), `baserow-databases`, `baserow-automations`, `baserow-dashboards`, `baserow-app-builder` and `baserow-workspace` (search, row comments, audit log). When a tool's name, group or behaviour changes, check whether the matching skill there needs the same change. Its README has the install steps for each agent, the [MCP server user docs](https://baserow.io/user-docs/mcp-server) cover the hosted apps such as Claude and ChatGPT, and **My settings > MCP server** shows copy-ready setup with the instance's own URL.
 
 ## Running the server
 
@@ -189,7 +189,7 @@ The automation tools are in their own groups (`automation_read`, `automation_edi
 
 The dashboard tools are in the `dashboard_read`, `dashboard_edit` and `dashboard_delete` groups. `dashboard_read` is part of the "Read only" preset, because it only returns figures the user can already see on the dashboard. A widget is a `summary` (one field aggregated over the rows), a `chart` or a `pie_chart` (one or more series, optionally grouped by a field). Charts need a premium licence; without one the widget fails with the licence message. Each widget is saved on its own, so one that fails is listed in `errors` and the others are kept. An aggregation that doesn't fit a field, like `sum` on a text field, comes back in `errors` with the aggregations that do. A widget filters its rows through a view (`view_id`); filters on the data source itself are not offered. New widgets go where the dashboard places them by default.
 
-The application tools `create_database`, `create_automation`, `create_dashboard` and `create_builder` create one application each, and the four `update_` tools rename one. They sit in the edit group of their area (`database_edit`, `automation_edit`, `dashboard_edit`, `builder_edit`). `create_dashboard` replaces `create_dashboards`. Endpoints store tool names, so an endpoint that stored `create_dashboards` loses that tool and has to turn on `create_dashboard` under **Settings > Connected apps**.
+The application tools `create_database`, `create_automation`, `create_dashboard` and `create_builder` create one application each, and the four `update_` tools rename one. They sit in the edit group of their area (`database_edit`, `automation_edit`, `dashboard_edit`, `builder_edit`). `create_dashboard` replaces `create_dashboards`. Endpoints store tool names, so an endpoint that stored `create_dashboards` loses that tool and has to turn on `create_dashboard` with **Edit tools** next to the app under **My settings > MCP server**.
 
 `create_workflows` makes draft workflows, which do nothing. `publish_workflow` makes one live and is destructive, because it replaces the live copy and starts real effects such as sent emails and written rows; the client should ask the user first. `pause_workflow` stops a live workflow, and publishing again makes it live with the current draft. It is destructive too, because events while a workflow is paused are never run. `move_elements` is destructive because it changes where existing elements are.
 
@@ -204,8 +204,9 @@ The audit log tools are in their own group (`audit_log_read`), registered by the
 1. Create a class extending `MCPTool` in the appropriate `mcp/*/tools.py` file.
 2. Define a Pydantic model for the input and assign it to `input_schema`.
 3. Implement `_sync_call(self, endpoint, args)`.
-4. Register it in `backend/src/baserow/contrib/database/apps.py`.
-5. Add tests in `backend/tests/baserow/contrib/database/mcp/`.
+4. Register it with `mcp_tool_registry` in the `ready()` of the app that owns it, for example `backend/src/baserow/contrib/database/apps.py`, and set its `group`.
+5. Add tests next to the other tools of that app, for example in `backend/tests/baserow/contrib/database/mcp/`.
+6. Add it to the tools table above, and to the matching skill in [baserow/baserow-mcp](https://github.com/baserow/baserow-mcp).
 
 Set `enabled = False` on the class if the tool should not be exposed to MCP clients yet.
 
