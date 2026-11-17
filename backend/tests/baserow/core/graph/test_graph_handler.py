@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import pytest
 
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
@@ -1403,3 +1405,12 @@ def test_move_next_points_refuses_an_output_that_has_points():
 
     with pytest.raises(GraphPointReferencePointInvalid):
         model.get_graph().move_next_points(model.points[1], "", "uid1")
+
+
+def test_move_next_points_with_nothing_to_move_changes_nothing():
+    graph_dict = {"0": 1, "1": {"next": {"": [2]}}, "2": {}}
+    model = make_graph_model(deepcopy(graph_dict))
+
+    model.get_graph().move_next_points(model.points[1], "uid1", "")
+
+    assert model.graph == graph_dict

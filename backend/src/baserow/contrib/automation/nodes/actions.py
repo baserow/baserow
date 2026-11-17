@@ -56,7 +56,12 @@ class CreateAutomationNodeActionType(UndoableActionType):
                 node.workflow.automation.name,
                 node.id,
                 node.get_type().type,
-                data.get("next_output", ""),
+                # Only when nodes moved there, so undo and redo don't move nodes
+                # added on that output later.
+                next_output
+                if (next_output := data.get("next_output", ""))
+                and node.workflow.get_graph().get_next_points(node, next_output)
+                else "",
             ),
             scope=cls.scope(node.workflow.id),
             workspace=node.workflow.automation.workspace,

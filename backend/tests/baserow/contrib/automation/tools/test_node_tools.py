@@ -208,6 +208,58 @@ def test_add_nodes_router_before_a_node_moves_it_onto_the_named_branch(
     assert workflow.graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
 
 
+@pytest.mark.django_db
+def test_add_nodes_router_at_the_end_keeps_no_branch_for_undo(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )
+
+    # Nothing moved onto the branch, so undo and redo leave it alone.
+    assert Action.objects.latest("id").params["next_output"] == ""
+
+
+@pytest.mark.django_db
+def test_add_nodes_reads_the_graph_a_cached_handler_missed(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    stale = deepcopy(workflow.get_graph().graph)
+    (other,) = add_nodes(
+        ctx, workflow.id, [_email(ref="other", previous=str(email["id"]))]
+    )["created_nodes"]
+    # As in a Kuma run, where an earlier call's handler stays cached after
+    # another session changed the graph.
+    cached = workflow.get_graph().graph
+    cached.clear()
+    cached.update(stale)
+
+    (log,) = add_nodes(ctx, workflow.id, [_email(ref="log", previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    assert [node["id"] for node in list_nodes(ctx, workflow.id)["nodes"]] == [
+        trigger.id,
+        log["id"],
+        email["id"],
+        other["id"],
+    ]
+
+
 def test_add_nodes_rejects_a_shifted_node_edge_label_the_router_lacks():
     with pytest.raises(PydanticValidationError, match="'Big' is not a branch"):
         ActionNodeCreate(

@@ -503,19 +503,27 @@ def add_nodes(
 
     creation = NodeCreation()
     field_ids = table_field_ids()
-    with transaction.atomic():
-        # Read the nodes under the graph lock, so a concurrent change can't make
-        # shifted_nodes report a node this call didn't move.
-        workflow.get_graph().lock_for_update()
-        existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
-        refs = node_refs(existing)
-        check_node_refs(refs.copy(), nodes)
-        positions = node_positions(nodes_in_order(ctx.user, workflow, existing))
-        for node in nodes:
-            create_node(ctx, workflow, node, refs, creation, field_ids)
-        # In the transaction, so a failure here can't leave nodes the caller
-        # doesn't know were created.
-        shifted = shifted_nodes(ctx.user, workflow, existing, positions, creation)
+    try:
+        with transaction.atomic():
+            # Read the nodes under the graph lock, so a concurrent change can't
+            # make shifted_nodes report a node this call didn't move. The graph is
+            # read again first: a handler cached by an earlier call in the same
+            # run holds a stale graph and skips the lock.
+            _reload_graph(workflow)
+            workflow.get_graph().lock_for_update()
+            existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
+            refs = node_refs(existing)
+            check_node_refs(refs.copy(), nodes)
+            positions = node_positions(nodes_in_order(ctx.user, workflow, existing))
+            for node in nodes:
+                create_node(ctx, workflow, node, refs, creation, field_ids)
+            # In the transaction, so a failure here can't leave nodes the caller
+            # doesn't know were created.
+            shifted = shifted_nodes(ctx.user, workflow, existing, positions, creation)
+    except Exception:
+        # The cached graph still holds the inserts the rollback undid.
+        _reload_graph(workflow)
+        raise
 
     result: dict[str, Any] = {"created_nodes": creation.describe()}
     if shifted:
