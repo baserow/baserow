@@ -432,6 +432,20 @@ describe('Kuma durable streamed send and resume', () => {
     expect(store.state.assistant.messages).toEqual([])
   })
 
+  test('a refresh read that ends after the user starts a new chat leaves it open', async () => {
+    await open()
+    let read
+    service.fetchChatMessages.mockReturnValue(
+      new Promise((resolve) => (read = resolve))
+    )
+    const refreshing = store.dispatch('assistant/refreshCurrentChat')
+    const newChat = await store.dispatch('assistant/createChat')
+    read({ chat_id: 7, messages: [human] })
+    await refreshing
+    expect(store.state.assistant.currentChatId).toBe(newChat)
+    expect(store.state.assistant.messages).toEqual([])
+  })
+
   test.each([
     [429, 'ERROR_CHAT_RUN_LIMIT', 'assistant.runLimitReached'],
     [400, 'ERROR_REQUEST_BODY_VALIDATION', 'assistant.runFailedToStart'],

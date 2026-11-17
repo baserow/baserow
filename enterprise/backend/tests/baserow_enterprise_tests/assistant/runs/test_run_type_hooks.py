@@ -12,6 +12,7 @@ from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
 from baserow.core.chat_runs.service import serialize_run
 from baserow.core.chat_runs.types import ChatRunOutcome
+from baserow.core.models import Workspace
 from baserow_enterprise.assistant.chat_run_type import (
     AssistantChatRunType,
     trace_outcome_for,
@@ -103,6 +104,10 @@ def test_only_the_chat_owner_can_follow_it_while_a_member(
         assert run_type.can_follow_chat(chat.user, chat.id) is True
     assert run_type.can_follow_chat(stranger, chat.id) is False
     assert run_type.can_follow_chat(AnonymousUser(), chat.id) is False
+    workspaces = Workspace.objects_and_trash.filter(id=chat.workspace_id)
+    workspaces.update(trashed=True)
+    assert run_type.can_follow_chat(chat.user, chat.id) is False
+    workspaces.update(trashed=False)
     chat.workspace.workspaceuser_set.filter(user=chat.user).delete()
     assert run_type.can_follow_chat(chat.user, chat.id) is False
 
