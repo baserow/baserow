@@ -276,11 +276,9 @@ def get_formula_type_tool(
 
         nonlocal user, workspace
 
-        table = helpers.filter_tables(user, workspace).filter(id=table_id).first()
+        table = next(iter(helpers.readable_tables(user, workspace, id=table_id)), None)
         if not table:
-            valid_ids = list(
-                helpers.filter_tables(user, workspace).values_list("id", flat=True)
-            )
+            valid_ids = [t.id for t in helpers.readable_tables(user, workspace)]
             raise ModelRetry(
                 f"Table with ID {table_id} not found in workspace. "
                 f"Valid table IDs: {valid_ids}"

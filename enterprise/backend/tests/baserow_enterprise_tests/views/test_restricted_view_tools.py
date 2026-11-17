@@ -2,6 +2,7 @@
 
 import pytest
 from baserow_enterprise_tests.assistant.utils import make_test_ctx
+from pydantic_ai import ModelRetry
 
 from baserow.contrib.database.tools import rows, tables
 from baserow.contrib.database.tools.view_config import RowColour, add_row_colours
@@ -14,6 +15,7 @@ from baserow.contrib.database.views.models import View, ViewFilter
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.tools import ToolContext
 from baserow_enterprise.assistant.tools.database import helpers
+from baserow_enterprise.assistant.tools.database.agents import get_formula_type_tool
 from baserow_enterprise.assistant.tools.database.tools import list_rows, load_row_tools
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -247,3 +249,26 @@ def test_kuma_formulas_leave_out_tables_reached_through_a_view(
 
     assert readable(admin) == [table]
     assert readable(ctx.user) == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula", ["field('Salary')", "field('Nonexistent')"], ids=["valid", "invalid"]
+)
+def test_kuma_formula_check_refuses_a_table_reached_through_a_view(
+    restricted_view_member, formula
+):
+    ctx, admin, table, _ = restricted_view_member
+
+    with pytest.raises(ModelRetry) as exc_info:
+        get_formula_type_tool(ctx.user, ctx.workspace)(table.id, "Check", formula)
+
+    message = str(exc_info.value)
+    assert "Salary" not in message
+    assert "Valid table IDs: []" in message
+    assert (
+        get_formula_type_tool(admin, ctx.workspace)(
+            table.id, "Check", "field('Salary')"
+        )
+        == "text"
+    )
