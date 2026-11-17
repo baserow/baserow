@@ -174,3 +174,36 @@ test('read-only groups keep constants, formulas and nested conditions locked', a
   expect(wrapper.emitted('update')).toBeUndefined()
   expect(wrapper.html()).toMatchSnapshot()
 })
+
+test.each([
+  [null, false],
+  [null, true],
+  [{ id: 2, type: 'text_filter' }, false],
+  [{ id: 2, type: 'text_filter' }, true],
+])(
+  'new conditions use the owner value when available (%j, nested=%s)',
+  async (owner, nested) => {
+    const wrapper = await testApp.mount(TargetFilterGroup, {
+      props: {
+        group: { filters: [], filter_groups: [], filter_type: 'AND' },
+        fields: [{ id: 99, type: 'text', name: 'Name' }],
+        dashboard: { id: 1 },
+        owner,
+      },
+    })
+    const action = nested ? 'addFilterGroup' : 'addFilter'
+    await wrapper
+      .findAll('button')
+      .find(
+        (button) =>
+          button.text() === `localBaserowTableServiceConditionalForm.${action}`
+      )
+      .trigger('click')
+    const updated = wrapper.emitted('update').at(-1)[0]
+    expect(updated.filters[0].value).toEqual(
+      owner
+        ? { formula: "get('widget_data.2')", mode: 'simple' }
+        : { formula: '', mode: 'raw' }
+    )
+  }
+)

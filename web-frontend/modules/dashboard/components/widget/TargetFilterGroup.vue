@@ -4,6 +4,7 @@
     :filter-groups="localGroup.filter_groups"
     :filter-type="localGroup.filter_type"
     :fields="fields"
+    :default-filter-value="defaultFilterValue"
     :read-only="readOnly"
     :show-empty-state="false"
     @update:model-value="update('filters', $event)"
@@ -53,6 +54,11 @@ const props = defineProps({
   readOnly: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update'])
+const defaultFilterValue = computed(() =>
+  props.owner
+    ? { formula: `get('widget_data.${props.owner.id}')`, mode: 'simple' }
+    : { formula: '', mode: 'raw' }
+)
 const storePrefix = inject('storePrefix', ref(''))
 const localGroup = ref(props.group)
 watch(

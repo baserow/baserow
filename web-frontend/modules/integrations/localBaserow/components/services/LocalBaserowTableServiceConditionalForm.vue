@@ -126,6 +126,10 @@ export default {
     ViewFieldConditionsForm,
   },
   props: {
+    defaultFilterValue: {
+      type: Object,
+      default: () => ({ formula: '', mode: 'raw' }),
+    },
     showEmptyState: { type: Boolean, default: true },
     readOnly: { type: Boolean, default: false },
     modelValue: {
@@ -196,7 +200,7 @@ export default {
     /*
      * Responsible for asynchronously adding a new data source filter.
      * By default it'll be for the first compatible field, of type equal,
-     * and value blank. If a `filterGroupId` is provided, the filter is added
+     * and the provided default value. If a `filterGroupId` is provided, it is added
      * to that group, otherwise it applies directly to the service.
      */
     async addFilter({ filterGroupId = null } = {}) {
@@ -220,7 +224,7 @@ export default {
             id: ulid(),
             field: field.id,
             type: 'equal',
-            value: { formula: '', mode: 'raw' },
+            value: { ...this.defaultFilterValue },
             group: filterGroupId,
           })
           this.$emit('update:modelValue', newFilters)
