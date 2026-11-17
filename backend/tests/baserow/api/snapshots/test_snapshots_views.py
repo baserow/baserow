@@ -99,6 +99,8 @@ def test_create_snapshot_body_validation(api_client, data_fixture):
 def test_create_snapshot(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_1.snapshot_default_keep = 1
+    workspace_1.save()
     application_1 = data_fixture.create_database_application(
         workspace=workspace_1, order=1
     )
@@ -125,67 +127,35 @@ def test_create_snapshot(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_snapshot_limit_reached(api_client, data_fixture, settings):
-    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 3
+def test_create_snapshot_without_room(api_client, data_fixture, settings):
     user, token = data_fixture.create_user_and_token()
-    workspace_1 = data_fixture.create_workspace(user=user)
-    workspace_2 = data_fixture.create_workspace(user=user)
-    # workspace 1
-    application_1 = data_fixture.create_database_application(
-        workspace=workspace_1, order=1
-    )
-    application_2 = data_fixture.create_database_application(
-        workspace=workspace_1, order=2
-    )
-    snapshot_1 = data_fixture.create_snapshot(
-        user=user,
-        snapshot_from_application=application_1,
-        created_by=user,
-        name="Snapshot1",
-    )
-    snapshot_2 = data_fixture.create_snapshot(
-        user=user,
-        snapshot_from_application=application_1,
-        created_by=user,
-        name="Snapshot2",
-    )
-    snapshot_3 = data_fixture.create_snapshot(
-        user=user,
-        snapshot_from_application=application_2,
-        created_by=user,
-        name="Snapshot3",
-    )
-    # workspace 2
-    application_3 = data_fixture.create_database_application(
-        workspace=workspace_2, order=1
-    )
-    snapshot_4 = data_fixture.create_snapshot(
-        user=user,
-        snapshot_from_application=application_3,
-        created_by=user,
-        name="Snapshot1",
-    )
+    workspace = data_fixture.create_workspace(user=user)
+    no_keep = data_fixture.create_database_application(workspace=workspace)
+    full = data_fixture.create_database_application(workspace=workspace)
+    full.snapshot_keep = 1
+    full.save()
+    data_fixture.create_snapshot(user=user, snapshot_from_application=full)
 
-    response = api_client.post(
-        reverse("api:snapshots:list", kwargs={"application_id": application_2.id}),
-        {
-            "name": "New snapshot",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
+    def create(application):
+        return api_client.post(
+            reverse("api:snapshots:list", kwargs={"application_id": application.id}),
+            {"name": "New snapshot"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
 
+    response = create(no_keep)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SNAPSHOT_KEEP_IS_ZERO"
+
+    response = create(full)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SNAPSHOT_KEEP_FULL_OF_PROTECTED"
+
+    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 0
+    response = create(full)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MAXIMUM_SNAPSHOTS_REACHED"
-
-    response = api_client.post(
-        reverse("api:snapshots:list", kwargs={"application_id": application_3.id}),
-        {"name": "New snapshot"},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_202_ACCEPTED
 
 
 # List
@@ -293,6 +263,8 @@ def test_list_snapshots(api_client, data_fixture):
             "snapshot_from_application": application_1.id,
             "created_at": "2021-01-02T12:00:00Z",
             "created_by": {"username": user2.username},
+            "created_automatically": False,
+            "protected": True,
             "id": snapshot_2.id,
             "name": "Snapshot2",
         },
@@ -300,6 +272,8 @@ def test_list_snapshots(api_client, data_fixture):
             "snapshot_from_application": application_1.id,
             "created_at": "2021-01-02T12:00:00Z",
             "created_by": {"username": user.username},
+            "created_automatically": False,
+            "protected": True,
             "id": snapshot_1.id,
             "name": "Snapshot1",
         },
@@ -501,6 +475,8 @@ def test_delete_snapshot(api_client, data_fixture):
 def test_get_current_snapshot_job(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_1.snapshot_default_keep = 1
+    workspace_1.save()
     application_1 = data_fixture.create_database_application(
         workspace=workspace_1, order=1
     )
@@ -558,6 +534,8 @@ def test_get_current_snapshot_job(api_client, data_fixture):
 def test_get_current_snapshot_job_cancelled(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_1.snapshot_default_keep = 1
+    workspace_1.save()
     application_1 = data_fixture.create_database_application(
         workspace=workspace_1, order=1
     )
@@ -625,3 +603,267 @@ def test_get_current_snapshot_job_cancelled(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     resp = response.json()
     assert resp == []
+
+
+# Usage
+
+
+@pytest.mark.django_db
+def test_get_snapshot_usage(api_client, data_fixture, settings):
+    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 5
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    other_application = data_fixture.create_database_application(workspace=workspace)
+    workspace.snapshot_default_keep = 2
+    workspace.save()
+    application.snapshot_keep = 3
+    application.save()
+    data_fixture.create_snapshot(snapshot_from_application=application, user=user)
+    data_fixture.create_snapshot(
+        snapshot_from_application=application, user=user, protected=False
+    )
+    data_fixture.create_snapshot(snapshot_from_application=other_application, user=user)
+    url = reverse("api:snapshots:usage", kwargs={"application_id": application.id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "used": 5,
+        "limit": 5,
+        "over_allowance": False,
+        "blocked": False,
+        "snapshot_count": 3,
+        "default_keep": 2,
+        "max_keep": None,
+        "expiration_days": settings.BASEROW_SNAPSHOT_EXPIRATION_TIME_DAYS,
+        "keep": 3,
+        "effective_keep": 3,
+        "application_snapshot_count": 2,
+        "protected_count": 1,
+    }
+
+
+@pytest.mark.django_db
+def test_get_snapshot_usage_without_limit(api_client, data_fixture, settings):
+    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = -1
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_database_application(user=user)
+    url = reverse("api:snapshots:usage", kwargs={"application_id": application.id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.json()["limit"] is None
+
+
+@pytest.mark.django_db
+def test_get_snapshot_usage_outside_the_workspace(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_database_application()
+    url = reverse("api:snapshots:usage", kwargs={"application_id": application.id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+# Keep and protection
+
+
+@pytest.mark.django_db
+def test_update_application_snapshot_keep(api_client, data_fixture, settings):
+    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 4
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    url = reverse(
+        "api:snapshots:application_keep", kwargs={"application_id": application.id}
+    )
+
+    response = api_client.patch(
+        url, {"keep": 4}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["keep"] == 4
+    assert response.json()["used"] == 4
+
+    response = api_client.patch(
+        url, {"keep": 5}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SNAPSHOT_KEEP_EXCEEDS_ALLOWANCE"
+
+    response = api_client.patch(
+        url, {"keep": None}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["keep"] is None
+    assert response.json()["effective_keep"] == 0
+
+    response = api_client.patch(
+        url, {"keep": -1}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_lower_application_snapshot_keep_needs_confirmation(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    application.snapshot_keep = 2
+    application.save()
+    data_fixture.create_snapshot(
+        snapshot_from_application=application, user=user, protected=False
+    )
+    data_fixture.create_snapshot(
+        snapshot_from_application=application, user=user, protected=False
+    )
+    url = reverse(
+        "api:snapshots:application_keep", kwargs={"application_id": application.id}
+    )
+
+    with patch("baserow.core.snapshots.handler.delete_application_snapshot"):
+        response = api_client.patch(
+            url, {"keep": 1}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert response.json() == {
+            "error": "ERROR_SNAPSHOT_KEEP_CHANGE_DELETES_SNAPSHOTS",
+            "detail": "Lowering the keep deletes 1 snapshot(s). Send "
+            "`delete_snapshots` to confirm.",
+        }
+
+        response = api_client.patch(
+            url,
+            {"keep": 1, "delete_snapshots": True},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["application_snapshot_count"] == 1
+
+
+@pytest.mark.django_db
+def test_update_application_snapshot_keep_outside_the_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_database_application()
+    url = reverse(
+        "api:snapshots:application_keep", kwargs={"application_id": application.id}
+    )
+
+    response = api_client.patch(
+        url, {"keep": 1}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_workspace_snapshot_settings(api_client, data_fixture, settings):
+    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 10
+    settings.BASEROW_MAX_SNAPSHOTS_KEEP_PER_APPLICATION = 3
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    url = reverse("api:snapshots:workspace", kwargs={"workspace_id": workspace.id})
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {
+        "used": 0,
+        "limit": 10,
+        "over_allowance": False,
+        "blocked": False,
+        "snapshot_count": 0,
+        "default_keep": 0,
+        "max_keep": 3,
+        "expiration_days": settings.BASEROW_SNAPSHOT_EXPIRATION_TIME_DAYS,
+        "applications": [
+            {
+                "id": application.id,
+                "keep": None,
+                "snapshot_count": 0,
+                "protected_count": 0,
+            }
+        ],
+    }
+
+    response = api_client.patch(
+        url, {"default_keep": 3}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["default_keep"] == 3
+    assert response.json()["used"] == 3
+
+    response = api_client.patch(
+        url, {"default_keep": 4}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SNAPSHOT_KEEP_ABOVE_MAXIMUM"
+
+
+@pytest.mark.django_db
+def test_update_workspace_snapshot_settings_needs_an_admin(api_client, data_fixture):
+    admin = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    url = reverse("api:snapshots:workspace", kwargs={"workspace_id": workspace.id})
+
+    response = api_client.patch(
+        url, {"default_keep": 1}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
+def test_update_snapshot_protection(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=application, user=user
+    )
+    url = reverse("api:snapshots:item", kwargs={"snapshot_id": snapshot.id})
+
+    response = api_client.patch(
+        url, {"protected": False}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["protected"] is False
+    snapshot.refresh_from_db()
+    assert snapshot.protected is False
+
+    response = api_client.patch(
+        url,
+        {"protected": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {other_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_update_application_snapshot_keep_too_large(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_database_application(user=user)
+    url = reverse(
+        "api:snapshots:application_keep", kwargs={"application_id": application.id}
+    )
+
+    response = api_client.patch(
+        url, {"keep": 3000000000}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

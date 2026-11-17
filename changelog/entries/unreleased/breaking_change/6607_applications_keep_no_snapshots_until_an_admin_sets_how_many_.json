@@ -1,0 +1,9 @@
+{
+    "type": "breaking_change",
+    "message": "Applications keep no snapshots until an admin sets how many to keep, in the snapshots modal or the workspace's Snapshots settings. Applications that already have snapshots keep that many.",
+    "issue_origin": "github",
+    "issue_number": 6607,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-17"
+}

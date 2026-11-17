@@ -285,7 +285,10 @@ from baserow.core.snapshots.operations import (
     CreateSnapshotApplicationOperationType,
     DeleteApplicationSnapshotOperationType,
     ListSnapshotsApplicationOperationType,
+    ReadWorkspaceSnapshotSettingsOperationType,
     RestoreApplicationSnapshotOperationType,
+    UpdateApplicationSnapshotKeepOperationType,
+    UpdateWorkspaceSnapshotSettingsOperationType,
 )
 from baserow.core.trash.operations import (
     EmptyApplicationTrashOperationType,
@@ -307,6 +310,12 @@ from baserow.core.user_sources.operations import (
 from baserow_enterprise.assistant.operations import ChatAssistantChatOperationType
 from baserow_enterprise.audit_log.operations import (
     ListWorkspaceAuditLogEntriesOperationType,
+)
+from baserow_enterprise.automatic_snapshots.operations import (
+    ReadApplicationAutomaticSnapshotScheduleOperationType,
+    ReadWorkspaceAutomaticSnapshotScheduleOperationType,
+    UpdateApplicationAutomaticSnapshotScheduleOperationType,
+    UpdateWorkspaceAutomaticSnapshotScheduleOperationType,
 )
 from baserow_enterprise.field_permissions.operations import (
     ReadFieldPermissionsOperationType,
@@ -690,6 +699,13 @@ default_roles[ADMIN_ROLE_UID].extend(
         RestoreApplicationSnapshotOperationType,
         ListSnapshotsApplicationOperationType,
         DeleteApplicationSnapshotOperationType,
+        UpdateApplicationSnapshotKeepOperationType,
+        ReadWorkspaceSnapshotSettingsOperationType,
+        UpdateWorkspaceSnapshotSettingsOperationType,
+        ReadWorkspaceAutomaticSnapshotScheduleOperationType,
+        UpdateWorkspaceAutomaticSnapshotScheduleOperationType,
+        ReadApplicationAutomaticSnapshotScheduleOperationType,
+        UpdateApplicationAutomaticSnapshotScheduleOperationType,
         RestoreDomainOperationType,
         ListWorkspaceAuditLogEntriesOperationType,
         ReadRoleViewOperationType,

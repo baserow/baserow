@@ -10,6 +10,8 @@ from baserow.core.utils import Progress
 def test_can_create_a_snapshot_for_builder_application(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user)
+    builder.snapshot_keep = 1
+    builder.save()
 
     snapshot = SnapshotHandler().start_create_job(
         builder.id, performed_by=user, name="test"
@@ -24,6 +26,8 @@ def test_can_create_a_snapshot_for_builder_application(data_fixture):
 def test_can_delete_a_snapshot_for_builder_application(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user)
+    builder.snapshot_keep = 1
+    builder.save()
 
     snapshot = SnapshotHandler().start_create_job(
         builder.id, performed_by=user, name="test"

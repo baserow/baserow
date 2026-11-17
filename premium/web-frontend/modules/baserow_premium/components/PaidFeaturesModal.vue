@@ -106,6 +106,9 @@ export default {
     paidFeaturePlans() {
       const plans = {}
       Object.values(this.$registry.getAll('paidFeature')).forEach((feature) => {
+        if (!feature.isEnabled()) {
+          return
+        }
         const plan = feature.getPlan()
         if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
           plans[plan] = []

@@ -72,7 +72,6 @@ export default defineNuxtModule({
         featureFlags: '',
         baserowPresenceVisibleUsers: '3',
         baserowDisableGoogleDocsFilePreview: '',
-        baserowMaxSnapshotsPerGroup: -1,
         baserowFrontendSameSiteCookie: 'lax',
         baserowFrontendCookiePrefix: '',
         baserowFrontendJobsPollingTimeoutMs: 2000,

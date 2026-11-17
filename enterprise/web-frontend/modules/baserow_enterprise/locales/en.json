@@ -560,7 +560,9 @@
     "dataScanner": "Data scanner",
     "dataScannerContent": "Scan all data in your Baserow instance for sensitive patterns like IBAN numbers or medical IDs, or match against known value lists. Configure automatic scanning schedules and view detailed results.",
     "semanticSearch": "Semantic search",
-    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications."
+    "semanticSearchContent": "Find rows by the meaning of their text instead of exact words, and use the results in automations and applications.",
+    "automaticSnapshots": "Automatic snapshots",
+    "automaticSnapshotsContent": "Snapshot your applications on a schedule, for the whole workspace or one application at a time, so there's always a recent copy to go back to. The oldest unprotected snapshots are replaced as new ones are taken."
   },
   "assistantSidebarItem": {
     "title": "Kuma AI"
@@ -641,7 +643,8 @@
     "no_records": "No teams"
   },
   "snapshotModalWarning": {
-    "message": "Please be aware that a snapshot will include any permissions set on the application and its tables."
+    "messageApplication": "Includes the permissions set on the {applicationTypeName}.",
+    "messageDatabase": "Includes the permissions set on the database, its tables and its views."
   },
   "exportWorkspaceModalWarning": {
     "message": "Please be aware that an export will not include any permissions set on the application and its tables."
@@ -1058,5 +1061,78 @@
   },
   "madeWithBaserow": {
     "reportAbuse": "Report abuse"
+  },
+  "automaticSnapshots": {
+    "title": "Automatic snapshots",
+    "modalTitle": "Automatic snapshots of {name}",
+    "enterpriseBadge": "Advanced",
+    "upsell": "Create snapshots of {name} on a schedule and keep the most recent ones.",
+    "learnMore": "Learn more",
+    "badgeOwn": "Own schedule",
+    "badgeOff": "Off",
+    "badgeWorkspace": "Workspace schedule",
+    "off": "No automatic snapshots are created of {name}. The workspace schedule doesn't apply to it.",
+    "none": "Snapshot {name} on a schedule and keep the most recent copies, so a mistake can be undone.",
+    "nextRun": "Next snapshot {date}",
+    "keepsTheKeep": "Keeps as many as the application's keep",
+    "lastError": "The last automatic snapshot failed: {error}",
+    "edit": "Edit schedule",
+    "customise": "Customise for {name}",
+    "setByWorkspace": "Set by a workspace admin",
+    "resetToWorkspace": "Use workspace schedule",
+    "remove": "Remove schedule",
+    "setUp": "Set up a schedule",
+    "save": "Save schedule",
+    "repeatLabel": "Repeat",
+    "repeatMinutes": "Minutes",
+    "repeatHourly": "Hourly",
+    "repeatDaily": "Daily",
+    "repeatWeekly": "Weekly",
+    "repeatMonthly": "Monthly",
+    "weekdayLabel": "On",
+    "dayOfMonthLabel": "Day of the month",
+    "dayOfMonthHelper": "Shorter months use their last day.",
+    "timeLabel": "Time",
+    "timeFormatError": "Enter a time like 02:00.",
+    "everyMinutesLabel": "Every how many minutes",
+    "minutePastLabel": "Minutes past the hour",
+    "timezoneLabel": "Timezone",
+    "keepNote": "Each application keeps as many snapshots as its keep, set in the snapshots modal or the workspace's default keep. A new snapshot replaces the oldest unprotected one. Applications that keep none are skipped.",
+    "keepsNoneWarning": "{name} keeps no snapshots, so scheduled runs skip it. Raise its keep above to snapshot it on a schedule.",
+    "disabledWarning": "Snapshots are turned off for this workspace, so scheduled runs fail.",
+    "everyMinutes": "Every {minutes} minutes",
+    "everyHour": "Every hour at minute {minute}",
+    "everyDay": "Every day at {time}",
+    "everyWeek": "Every {day} at {time}",
+    "everyMonth": "Every month on day {day} at {time}"
+  },
+  "automaticSnapshotsSettings": {
+    "title": "Automatic snapshots",
+    "intro": "Snapshot this workspace's applications on a schedule. Each one follows the workspace schedule, has its own, or is turned off.",
+    "upsell": "Snapshot every application in this workspace on a schedule, and keep the most recent copies.",
+    "workspaceSchedule": "Workspace schedule",
+    "workspaceScheduleOff": "The workspace schedule is turned off, so applications without their own schedule aren't snapshotted.",
+    "workspaceScheduleNone": "Set up one schedule for every application in this workspace, including the ones created later. Applications can still have their own.",
+    "setUpWorkspace": "Set up a workspace schedule",
+    "removeWorkspace": "Remove workspace schedule",
+    "covers": "Applications following it: {count}",
+    "applications": "Schedule per application",
+    "searchPlaceholder": "Search applications",
+    "selected": "Selected: {count}",
+    "applySchedule": "Apply a schedule",
+    "clearSelection": "Clear selection",
+    "selectAll": "Select all applications",
+    "columnApplication": "Application",
+    "columnFollows": "Follows",
+    "columnSchedule": "Schedule",
+    "columnActions": "Actions",
+    "badgeNotScheduled": "Not scheduled",
+    "rowActions": "Actions for {name}",
+    "noApplications": "This workspace has no applications yet.",
+    "noSearchResults": "No applications match your search.",
+    "customise": "Give it its own schedule",
+    "turnOff": "Turn off",
+    "turnOn": "Turn on",
+    "bulkTitle": "Schedule for the selected applications"
   }
 }

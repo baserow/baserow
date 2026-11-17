@@ -114,7 +114,6 @@ frontendConfigMap:
 #   BASEROW_DISABLE_GOOGLE_DOCS_FILE_PREVIEW: ""
 #   DOWNLOAD_FILE_VIA_XHR: "1"
 #   BASEROW_MAX_IMPORT_FILE_SIZE_MB: "512"
-#   BASEROW_MAX_SNAPSHOTS_PER_GROUP: "-1"
 
 ## @section backend Secrets Configuration
 ## Configuration for the backend Secrets

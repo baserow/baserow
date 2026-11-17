@@ -50,6 +50,23 @@ def setup(settings):
         os.getenv("BASEROW_ENTERPRISE_AUDIT_LOG_RETENTION_DAYS", "") or 365
     )
 
+    # The shortest interval, in minutes, an automatic snapshot schedule can run at.
+    # Snapshots copy a whole application, so the default is hourly. Self-hosters can
+    # lower it if they choose to.
+    settings.BASEROW_ENTERPRISE_AUTOMATIC_SNAPSHOTS_MIN_INTERVAL_MINUTES = max(
+        1,
+        int(
+            os.getenv("BASEROW_ENTERPRISE_AUTOMATIC_SNAPSHOTS_MIN_INTERVAL_MINUTES", "")
+            or 60
+        ),
+    )
+
+    # The Celery queue the automatic snapshots are created on. It makes it possible
+    # to run them on dedicated workers, so they can't crowd out the user exports.
+    settings.BASEROW_ENTERPRISE_AUTOMATIC_SNAPSHOTS_QUEUE_NAME = (
+        os.getenv("BASEROW_ENTERPRISE_AUTOMATIC_SNAPSHOTS_QUEUE_NAME", "") or "export"
+    )
+
     # Comma-separated list of percentages (e.g. "50,80,95") at which the members of a
     # workspace are notified that it is approaching its application user limit. The
     # limit itself (100%) always notifies and is enforced separately.

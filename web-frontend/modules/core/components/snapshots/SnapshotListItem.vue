@@ -1,66 +1,215 @@
 <template>
-  <div class="snapshots-modal__snapshot">
-    <div class="snapshots-modal__info">
-      <div v-if="!jobIsRunning && !jobIsFinished">
-        <div class="snapshots-modal__name">
-          {{ snapshot.name }}
+  <li
+    class="snapshots-modal__row"
+    :class="{ 'snapshots-modal__row--confirm': confirmingDelete }"
+  >
+    <template v-if="confirmingDelete">
+      <div class="snapshots-modal__row-body">
+        <div class="snapshots-modal__row-name">
+          {{ $t('snapshotListItem.confirmDelete', { name: snapshot.name }) }}
         </div>
-        <div class="snapshots-modal__detail">
-          {{ snapshot.created_by ? `${snapshot.created_by.username} - ` : '' }}
-          {{ $t('snapshotListItem.created') }} {{ timeAgo }}
+        <div class="snapshots-modal__row-meta">
+          {{
+            $t('snapshotListItem.confirmDeleteDescription', {
+              applicationTypeName,
+            })
+          }}
         </div>
       </div>
-      <ProgressBar
-        v-else
-        :value="job.progress_percentage"
-        :status="jobHumanReadableState"
-      />
-    </div>
-    <div class="snapshots-modal__actions">
-      <a
-        :class="{ 'snapshots-modal__restore--loading': jobIsRunning }"
-        @click="restore"
-        >{{ $t('snapshotListItem.restore') }}</a
+      <Button
+        type="secondary"
+        size="small"
+        :disabled="deleteLoading"
+        @click="confirmingDelete = false"
+        >{{ $t('action.cancel') }}</Button
       >
-      <a
+      <Button
+        type="danger"
+        size="small"
+        :loading="deleteLoading"
+        :disabled="deleteLoading"
+        @click="deleteSnapshot"
+        >{{ $t('snapshotListItem.deleteConfirm') }}</Button
+      >
+    </template>
+
+    <template v-else>
+      <div
+        class="snapshots-modal__row-avatar"
+        :class="{
+          'snapshots-modal__row-avatar--automatic':
+            snapshot.created_automatically,
+        }"
+      >
+        <i v-if="snapshot.created_automatically" class="iconoir-clock"></i>
+        <template v-else>{{ creatorInitial }}</template>
+      </div>
+      <div class="snapshots-modal__row-body">
+        <template v-if="jobIsRunning">
+          <div class="snapshots-modal__row-progress-head">
+            <span class="snapshots-modal__row-name">{{ snapshot.name }}</span>
+            <span class="snapshots-modal__row-meta">{{
+              $t('snapshotListItem.restoring', {
+                percentage: job.progress_percentage,
+              })
+            }}</span>
+          </div>
+          <ProgressBar :value="job.progress_percentage" :show-value="false" />
+        </template>
+        <template v-else>
+          <div class="snapshots-modal__row-name">
+            <span class="snapshots-modal__row-name-text">{{
+              snapshot.name
+            }}</span>
+            <i
+              v-if="snapshot.protected"
+              class="iconoir-shield-check snapshots-modal__row-protected"
+              :title="$t('snapshotListItem.protectedTooltip')"
+            ></i>
+          </div>
+          <div v-if="jobIsFinished" class="snapshots-modal__row-restored">
+            <i class="iconoir-check-circle"></i>
+            {{
+              $t('snapshotListItem.restored', {
+                applicationTypeName,
+              })
+            }}
+          </div>
+          <div v-else class="snapshots-modal__row-meta" :title="meta">
+            {{ meta }}
+          </div>
+        </template>
+      </div>
+
+      <Button
         v-if="jobIsRunning || cancelLoading"
-        class="snapshots-modal__delete"
+        type="secondary"
+        size="small"
+        :loading="cancelLoading"
         @click="cancelJob(job.id)"
+        >{{ $t('snapshotsModal.cancel') }}</Button
       >
-        {{ $filters.lowercase($t('snapshotsModal.cancel')) }}
-      </a>
-      <a v-else class="snapshots-modal__delete" @click="showDelete">{{
-        $t('snapshotListItem.delete')
-      }}</a>
-      <DeleteSnapshotModal
-        ref="deleteSnapshotModal"
-        :snapshot="snapshot"
-        @snapshot-deleted="$emit('snapshot-deleted', $event)"
-      ></DeleteSnapshotModal>
-    </div>
-  </div>
+      <ButtonText v-else-if="jobIsFinished" @click="job = null">{{
+        $t('snapshotListItem.dismiss')
+      }}</ButtonText>
+      <template v-else>
+        <Button type="secondary" size="small" @click="restore">{{
+          $t('snapshotListItem.restore')
+        }}</Button>
+        <ButtonIcon
+          ref="menuButton"
+          icon="iconoir-more-horiz"
+          type="secondary"
+          :aria-label="
+            $t('snapshotListItem.moreActions', { name: snapshot.name })
+          "
+          @click="
+            $refs.context.toggle($refs.menuButton.$el, 'bottom', 'right', 4)
+          "
+        ></ButtonIcon>
+      </template>
+
+      <Context ref="context" overflow-scroll max-height-if-outside-viewport>
+        <ul class="context__menu">
+          <li class="context__menu-item">
+            <a
+              class="context__menu-item-link"
+              :class="{ 'context__menu-item-link--loading': protectLoading }"
+              @click.prevent="toggleProtected"
+            >
+              <i
+                class="context__menu-item-icon"
+                :class="
+                  snapshot.protected
+                    ? 'iconoir-shield-cross'
+                    : 'iconoir-shield-check'
+                "
+              ></i>
+              {{
+                snapshot.protected
+                  ? $t('snapshotListItem.unprotect')
+                  : $t('snapshotListItem.protect')
+              }}
+            </a>
+          </li>
+          <li class="context__menu-item">
+            <a
+              class="context__menu-item-link context__menu-item-link--delete"
+              @click.prevent="showDeleteConfirmation"
+            >
+              <i class="context__menu-item-icon iconoir-bin"></i>
+              {{ $t('snapshotListItem.delete') }}
+            </a>
+          </li>
+        </ul>
+      </Context>
+    </template>
+  </li>
 </template>
 
 <script>
+import moment from '@baserow/modules/core/moment'
 import SnapshotsService from '@baserow/modules/core/services/snapshots'
-import DeleteSnapshotModal from '@baserow/modules/core/components/snapshots/DeleteSnapshotModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import job from '@baserow/modules/core/mixins/job'
 import timeAgo from '@baserow/modules/core/mixins/timeAgo'
 import { RestoreSnapshotJobType } from '@baserow/modules/core/jobTypes'
 
 export default {
-  components: {
-    DeleteSnapshotModal,
-  },
   mixins: [job, timeAgo],
   props: {
     snapshot: {
       type: Object,
       required: true,
     },
+    applicationTypeName: {
+      type: String,
+      required: true,
+    },
+    /**
+     * After how many days snapshots are deleted, `null` when it's unknown.
+     */
+    expirationDays: {
+      type: [Number, null],
+      required: false,
+      default: null,
+    },
   },
-  emits: ['snapshot-deleted'],
+  emits: ['snapshot-deleted', 'snapshot-updated'],
+  data() {
+    return {
+      confirmingDelete: false,
+      deleteLoading: false,
+      protectLoading: false,
+    }
+  },
+  computed: {
+    creatorInitial() {
+      const username = this.snapshot.created_by?.username || '?'
+      return username.charAt(0).toUpperCase()
+    },
+    meta() {
+      const parts = [
+        this.snapshot.created_automatically
+          ? this.$t('snapshotListItem.automatic')
+          : this.snapshot.created_by?.username,
+        this.timeAgo,
+        this.snapshot.protected ? this.$t('snapshotListItem.protected') : null,
+      ]
+      if (this.expirationDays !== null) {
+        parts.push(
+          this.$t('snapshotListItem.keptUntil', {
+            date: moment
+              .utc(this.snapshot.created_at)
+              .add(this.expirationDays, 'days')
+              .local()
+              .format('D MMM YYYY'),
+          })
+        )
+      }
+      return parts.filter(Boolean).join(' · ')
+    },
+  },
   mounted() {
     if (!this.job) {
       this.restoreRunningState()
@@ -100,8 +249,35 @@ export default {
         notifyIf(error)
       }
     },
-    showDelete() {
-      this.$refs.deleteSnapshotModal.show()
+    async toggleProtected() {
+      this.protectLoading = true
+      try {
+        const { data } = await SnapshotsService(this.$client).updateProtected(
+          this.snapshot.id,
+          !this.snapshot.protected
+        )
+        this.$refs.context.hide()
+        this.$emit('snapshot-updated', data)
+      } catch (error) {
+        notifyIf(error)
+      } finally {
+        this.protectLoading = false
+      }
+    },
+    showDeleteConfirmation() {
+      this.$refs.context.hide()
+      this.confirmingDelete = true
+    },
+    async deleteSnapshot() {
+      this.deleteLoading = true
+      try {
+        await SnapshotsService(this.$client).delete(this.snapshot.id)
+        this.$emit('snapshot-deleted', this.snapshot)
+      } catch (error) {
+        notifyIf(error)
+      } finally {
+        this.deleteLoading = false
+      }
     },
     onJobFailed() {
       this.showError(

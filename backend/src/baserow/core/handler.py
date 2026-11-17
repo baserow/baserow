@@ -2473,6 +2473,17 @@ class CoreHandler:
                 ),
             )
 
+        # The copy keeps as many snapshots as the original. Its snapshots aren't
+        # copied, so this only reserves the same part of the snapshot allowance.
+        if application.snapshot_keep is not None:
+            from baserow.core.snapshots.handler import SnapshotHandler
+
+            copied_keep = SnapshotHandler().get_copied_keep(application.snapshot_keep)
+            Application.objects.filter(id=new_application_clone.id).update(
+                snapshot_keep=copied_keep
+            )
+            new_application_clone.snapshot_keep = copied_keep
+
         # broadcast the application_created signal
         application_created.send(
             self,

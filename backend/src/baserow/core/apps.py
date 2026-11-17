@@ -279,7 +279,10 @@ class CoreConfig(AppConfig):
             CreateSnapshotApplicationOperationType,
             DeleteApplicationSnapshotOperationType,
             ListSnapshotsApplicationOperationType,
+            ReadWorkspaceSnapshotSettingsOperationType,
             RestoreApplicationSnapshotOperationType,
+            UpdateApplicationSnapshotKeepOperationType,
+            UpdateWorkspaceSnapshotSettingsOperationType,
         )
         from .trash.operations import (
             EmptyApplicationTrashOperationType,
@@ -321,6 +324,9 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(DeleteApplicationSnapshotOperationType())
         operation_type_registry.register(ListSnapshotsApplicationOperationType())
         operation_type_registry.register(RestoreApplicationSnapshotOperationType())
+        operation_type_registry.register(UpdateApplicationSnapshotKeepOperationType())
+        operation_type_registry.register(ReadWorkspaceSnapshotSettingsOperationType())
+        operation_type_registry.register(UpdateWorkspaceSnapshotSettingsOperationType())
         operation_type_registry.register(ReadWorkspaceTrashOperationType())
         operation_type_registry.register(ReadApplicationTrashOperationType())
         operation_type_registry.register(EmptyApplicationTrashOperationType())
@@ -399,11 +405,17 @@ class CoreConfig(AppConfig):
             CreateSnapshotActionType,
             DeleteSnapshotActionType,
             RestoreSnapshotActionType,
+            UpdateApplicationSnapshotKeepActionType,
+            UpdateSnapshotProtectionActionType,
+            UpdateWorkspaceSnapshotDefaultKeepActionType,
         )
 
         action_type_registry.register(CreateSnapshotActionType())
         action_type_registry.register(DeleteSnapshotActionType())
         action_type_registry.register(RestoreSnapshotActionType())
+        action_type_registry.register(UpdateApplicationSnapshotKeepActionType())
+        action_type_registry.register(UpdateWorkspaceSnapshotDefaultKeepActionType())
+        action_type_registry.register(UpdateSnapshotProtectionActionType())
 
         from baserow.core.user_templates.actions import (
             ApproveUserTemplateAdminActionType,

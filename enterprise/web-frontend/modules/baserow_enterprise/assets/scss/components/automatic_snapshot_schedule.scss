@@ -1,0 +1,369 @@
+// Follows the snapshots modal's type scale: 14px for the title and 13px with a 20px
+// line height for everything else.
+.automatic-snapshot-schedule {
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+  overflow: hidden;
+  line-height: 20px;
+}
+
+.automatic-snapshot-schedule--empty {
+  border-style: dashed;
+  border-color: $palette-neutral-400;
+}
+
+.automatic-snapshot-schedule__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+}
+
+.automatic-snapshot-schedule__icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.automatic-snapshot-schedule__icon--blue {
+  background-color: $palette-blue-50;
+  color: $palette-blue-700;
+}
+
+.automatic-snapshot-schedule__icon--neutral {
+  background-color: $palette-neutral-100;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.automatic-snapshot-schedule__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.automatic-snapshot-schedule__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: $palette-neutral-1200;
+}
+
+.automatic-snapshot-schedule__schedule {
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.automatic-snapshot-schedule__timezone {
+  font-weight: 400;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule__description,
+.automatic-snapshot-schedule__detail {
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule__inline-actions {
+  margin-top: 12px;
+}
+
+.automatic-snapshot-schedule__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 20px 20px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: $palette-yellow-50;
+  color: $palette-neutral-1200;
+
+  i {
+    flex: none;
+    margin-top: 2px;
+    color: $palette-yellow-800;
+  }
+}
+
+.automatic-snapshot-schedule__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 20px 20px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: $palette-red-50;
+  color: $palette-red-800;
+
+  i {
+    flex: none;
+    font-size: 16px;
+    line-height: 20px;
+  }
+}
+
+.automatic-snapshot-schedule__footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: $palette-neutral-25;
+  border-top: 1px solid $palette-neutral-200;
+}
+
+// Long application names stay on one line.
+.automatic-snapshot-schedule__customise {
+  @extend %ellipsis;
+
+  display: block;
+  max-width: 280px;
+}
+
+.automatic-snapshot-schedule__modal-title {
+  @extend %ellipsis;
+}
+
+.automatic-snapshot-schedule__footer-note {
+  margin-left: auto;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshot-schedule-form__segments {
+  width: 100%;
+}
+
+.automatic-snapshot-schedule-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.automatic-snapshot-schedule-form__keep-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  color: $palette-neutral-900;
+  line-height: 20px;
+
+  i {
+    flex: none;
+    margin-top: 2px;
+  }
+}
+
+.automatic-snapshot-schedule-form__preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background-color: $palette-blue-50;
+  color: $palette-blue-900;
+  line-height: 20px;
+
+  i {
+    flex: none;
+    font-size: 16px;
+    line-height: 20px;
+  }
+}
+
+.automatic-snapshot-schedule-form__preview-title {
+  font-weight: 600;
+}
+
+.automatic-snapshots-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  line-height: 20px;
+}
+
+// A section of the workspace's Snapshots settings page, below the keep.
+.automatic-snapshots-settings__title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.automatic-snapshots-settings__intro {
+  margin: 4px 0 0;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshots-settings__muted {
+  font-weight: 400;
+  color: $palette-neutral-900;
+}
+
+.automatic-snapshots-settings__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.automatic-snapshots-settings__header-text {
+  min-width: 0;
+}
+
+.automatic-snapshots-settings__applications {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.automatic-snapshots-settings__applications-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 32px;
+}
+
+.automatic-snapshots-settings__search {
+  width: 240px;
+}
+
+.automatic-snapshots-settings__bulk {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: $palette-blue-50;
+}
+
+.automatic-snapshots-settings__pagination {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.automatic-snapshots-settings__table-wrapper {
+  // Keeps absolutely positioned parts of the rows, like the checkbox inputs,
+  // inside the scrolling box.
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+}
+
+// Fixed column widths: the application name takes the width that's left and is
+// truncated, and a long schedule wraps inside its own column.
+.automatic-snapshots-settings__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 12px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    white-space: nowrap;
+    font-weight: 500;
+    color: $palette-neutral-900;
+    background-color: $palette-neutral-25;
+    border-bottom: 1px solid $palette-neutral-200;
+  }
+
+  tbody tr:not(:last-child) td {
+    border-bottom: 1px solid $palette-neutral-200;
+  }
+}
+
+.automatic-snapshots-settings__check {
+  width: 44px;
+  padding-left: 16px !important;
+  padding-right: 0 !important;
+}
+
+.automatic-snapshots-settings__follows-column {
+  width: 160px;
+}
+
+.automatic-snapshots-settings__schedule-column {
+  width: 230px;
+}
+
+.automatic-snapshots-settings__menu-column {
+  width: 56px;
+  padding-left: 0 !important;
+  padding-right: 16px !important;
+  text-align: right !important;
+}
+
+.automatic-snapshots-settings__application {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  i {
+    flex: none;
+    font-size: 16px;
+    color: $palette-neutral-900;
+  }
+}
+
+.automatic-snapshots-settings__application-name {
+  @extend %ellipsis;
+
+  min-width: 0;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+}
+
+.automatic-snapshots-settings__schedule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.automatic-snapshots-settings__error-icon {
+  flex: none;
+  font-size: 16px;
+  color: $palette-red-800;
+}
+
+.automatic-snapshots-settings__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.automatic-snapshots-settings__empty {
+  padding: 24px;
+  border: 1px dashed $palette-neutral-400;
+  border-radius: 8px;
+  text-align: center;
+  color: $palette-neutral-900;
+}

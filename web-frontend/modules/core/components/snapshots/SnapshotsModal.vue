@@ -1,91 +1,249 @@
 <template>
   <Modal ref="modal">
-    <h2 class="box__title">
-      {{ application.name }} {{ $t('snapshotsModal.title') }}
-    </h2>
-    <p>
-      {{
-        $t('snapshotsModal.description', {
-          applicationTypeName: applicationTypeName,
-        })
-      }}
-      <span v-if="maxSnapshots >= 0">{{
-        $t('snapshotsModal.descriptionLimits', {
-          count: maxSnapshots,
-          n: maxSnapshots,
-        })
-      }}</span>
-    </p>
-    <component
-      :is="component"
-      v-for="(component, index) in snapshotModalAlertComponents"
-      :key="index"
-    ></component>
-    <Error :error="error"></Error>
     <div class="snapshots-modal">
-      <CreateSnapshotForm
-        v-if="!limitReached"
-        ref="form"
-        :application-name="application.name"
-        :snapshots="snapshots"
-        @submitted="submitted"
-      >
-        <template v-if="jobIsRunning || jobIsFinished" #input>
-          <div class="margin-right-2">
-            <ProgressBar
-              :value="job.progress_percentage"
-              :status="jobHumanReadableState"
-            />
-          </div>
-        </template>
-        <template #default>
-          <Button
-            v-if="!createFinished"
-            size="large"
-            :loading="createLoading"
-            :disabled="createLoading || snapshotsLoading"
+      <header class="snapshots-modal__header">
+        <div class="snapshots-modal__header-icon">
+          <i :class="applicationIconClass"></i>
+        </div>
+        <div class="snapshots-modal__header-body">
+          <h2
+            class="snapshots-modal__title"
+            :title="$t('snapshotsModal.heading', { name: application.name })"
           >
-            {{ $t('snapshotsModal.create') }}
-          </Button>
-          <Button v-else type="secondary" tag="a" size="large" @click="reset()">
-            {{ $t('snapshotsModal.reset') }}
-          </Button>
-        </template>
-        <template #cancel-action>
-          <ButtonText
-            v-if="jobIsRunning || cancelLoading"
-            tag="a"
-            type="secondary"
-            class="snapshots-modal__cancel-button"
-            :loading="cancelLoading"
-            @click="cancelJob(job.id)"
-          >
-            {{ $t('snapshotsModal.cancel') }}
-          </ButtonText>
-        </template>
-      </CreateSnapshotForm>
-      <div v-else>
-        {{ $t('snapshotsModal.limitReached') }}
+            {{ $t('snapshotsModal.heading', { name: application.name }) }}
+          </h2>
+          <p class="snapshots-modal__intro">
+            {{
+              $t('snapshotsModal.intro', {
+                applicationTypeName: applicationTypeName,
+              })
+            }}
+            <a
+              href="https://baserow.io/user-docs/snapshots"
+              target="_blank"
+              rel="noopener noreferrer"
+              >{{ $t('snapshotsModal.learnMore') }}</a
+            >
+          </p>
+        </div>
+      </header>
+
+      <div v-if="usage" class="snapshots-modal__usage">
+        <div class="snapshots-modal__usage-head">
+          <span>{{ $t('snapshotsModal.workspaceUsage') }}</span>
+          <span class="snapshots-modal__usage-count">{{ usageText }}</span>
+        </div>
+        <div v-if="usage.limit" class="snapshots-modal__usage-bar">
+          <div
+            class="snapshots-modal__usage-fill"
+            :class="{
+              'snapshots-modal__usage-fill--full': usage.over_allowance,
+            }"
+            :style="{ width: `${usagePercentage}%` }"
+          ></div>
+        </div>
+        <div v-if="usage.over_allowance" class="snapshots-modal__usage-warning">
+          <i class="iconoir-warning-circle"></i>
+          {{ $t('snapshotsModal.overAllowance') }}
+        </div>
       </div>
-      <div class="snapshots-modal__list">
+
+      <SnapshotKeep
+        v-if="usage && !snapshotsDisabled"
+        ref="keep"
+        :application="application"
+        :usage="usage"
+        :snapshots="snapshots"
+        :can-update="canUpdateKeep"
+        @updated="keepUpdated"
+        @stale="loadSnapshots()"
+      ></SnapshotKeep>
+
+      <Error :error="error"></Error>
+
+      <component
+        :is="component"
+        v-for="(component, index) in snapshotModalComponents"
+        :key="`component-${index}`"
+        :application="application"
+        :snapshot-usage="usage"
+      ></component>
+
+      <section class="snapshots-modal__card">
+        <div
+          class="snapshots-modal__card-icon"
+          :class="{ 'snapshots-modal__card-icon--error': blockedReason }"
+        >
+          <i
+            :class="blockedReason ? 'iconoir-warning-circle' : 'iconoir-camera'"
+          ></i>
+        </div>
+        <div class="snapshots-modal__card-body">
+          <h3 class="snapshots-modal__card-title">
+            <template v-if="blockedReason">
+              {{
+                $t(blockedCopy.title, {
+                  name: application.name,
+                })
+              }}
+            </template>
+            <template v-else>{{ $t('snapshotsModal.takeTitle') }}</template>
+          </h3>
+          <div class="snapshots-modal__card-description">
+            <template v-if="blockedReason">
+              {{ $t(blockedCopy.description) }}
+              <template v-if="canRaiseKeep && !canUpdateKeep">
+                {{ $t('snapshotsModal.askAnAdmin') }}
+              </template>
+            </template>
+            <template v-else>
+              <component
+                :is="component"
+                v-for="(component, index) in snapshotModalAlertComponents"
+                :key="index"
+                :application="application"
+              ></component>
+              <div
+                v-if="snapshotToReplace && !jobIsRunning && !createFinished"
+                class="snapshots-modal__replaces"
+              >
+                {{
+                  $t('snapshotsModal.replaces', {
+                    name: snapshotToReplace.name,
+                  })
+                }}
+              </div>
+            </template>
+          </div>
+          <div
+            v-if="canRaiseKeep && canUpdateKeep"
+            class="snapshots-modal__card-actions"
+          >
+            <Button type="secondary" size="small" @click="raiseKeep()">{{
+              $t('snapshotsModal.raiseKeep')
+            }}</Button>
+          </div>
+          <div
+            v-else-if="confirmingReplace"
+            class="snapshots-modal__confirm-replace"
+          >
+            <span>{{
+              $t('snapshotsModal.confirmReplace', {
+                name: snapshotToReplace ? snapshotToReplace.name : '',
+              })
+            }}</span>
+            <Button
+              type="secondary"
+              size="small"
+              @click="confirmingReplace = false"
+              >{{ $t('action.cancel') }}</Button
+            >
+            <Button size="small" @click="confirmReplace()">{{
+              $t('snapshotsModal.replaceAndCreate')
+            }}</Button>
+          </div>
+          <CreateSnapshotForm
+            v-if="!blockedReason"
+            v-show="!confirmingReplace"
+            ref="form"
+            class="snapshots-modal__form"
+            :application-name="application.name"
+            :snapshots="snapshots"
+            @submitted="submitted"
+          >
+            <template v-if="jobIsRunning || jobIsFinished" #input>
+              <div class="snapshots-modal__progress">
+                <ProgressBar
+                  :value="job.progress_percentage"
+                  :status="jobHumanReadableState"
+                />
+              </div>
+            </template>
+            <template #default>
+              <Button
+                v-if="!createFinished"
+                :loading="createLoading"
+                :disabled="createLoading || snapshotsLoading"
+              >
+                {{ $t('snapshotsModal.create') }}
+              </Button>
+              <Button v-else type="secondary" tag="a" @click="reset()">
+                {{ $t('snapshotsModal.reset') }}
+              </Button>
+            </template>
+            <template #cancel-action>
+              <ButtonText
+                v-if="jobIsRunning || cancelLoading"
+                tag="a"
+                type="secondary"
+                class="snapshots-modal__cancel-button"
+                :loading="cancelLoading"
+                @click="cancelJob(job.id)"
+              >
+                {{ $t('snapshotsModal.cancel') }}
+              </ButtonText>
+            </template>
+          </CreateSnapshotForm>
+        </div>
+      </section>
+
+      <section class="snapshots-modal__list">
+        <div class="snapshots-modal__list-head">
+          <h3 class="snapshots-modal__card-title">
+            {{ $t('snapshotsModal.listTitle') }}
+            <span class="snapshots-modal__list-count">{{
+              snapshots.length
+            }}</span>
+          </h3>
+          <SegmentControl
+            v-if="hasAutomaticSnapshots"
+            :segments="filterSegments"
+            :active-index="filterIndex"
+            size="small"
+            class="snapshots-modal__filter"
+            @update:active-index="filterIndex = $event"
+          ></SegmentControl>
+        </div>
         <div
           v-if="snapshotsLoading"
-          class="loading snapshots-modal__list--loading"
+          class="loading snapshots-modal__loading"
         ></div>
-        <div v-else-if="snapshots.length > 0">
+        <ul
+          v-else-if="filteredSnapshots.length > 0"
+          class="snapshots-modal__rows"
+        >
           <SnapshotListItem
-            v-for="snapshot in snapshots"
-            ref="snapshotsList"
+            v-for="snapshot in filteredSnapshots"
             :key="snapshot.id"
             :snapshot="snapshot"
             :last-updated="snapshot.created_at"
+            :application-type-name="applicationTypeName"
+            :expiration-days="usage ? usage.expiration_days : null"
             @snapshot-deleted="snapshotDeleted"
+            @snapshot-updated="snapshotUpdated"
           ></SnapshotListItem>
+        </ul>
+        <div v-else class="snapshots-modal__empty">
+          <i class="iconoir-camera snapshots-modal__empty-icon"></i>
+          <template v-if="snapshots.length === 0">
+            <div
+              class="snapshots-modal__empty-title"
+              :title="
+                $t('snapshotsModal.noSnapshots', { name: application.name })
+              "
+            >
+              {{ $t('snapshotsModal.noSnapshots', { name: application.name }) }}
+            </div>
+            <div>{{ $t('snapshotsModal.noSnapshotsDescription') }}</div>
+          </template>
+          <div v-else>{{ $t('snapshotsModal.noFilteredSnapshots') }}</div>
         </div>
-        <div v-else>
-          {{ $t('snapshotsModal.noSnapshots') }}
-        </div>
-      </div>
+      </section>
+
+      <footer v-if="usage" class="snapshots-modal__footer">
+        <i class="iconoir-info-empty"></i>
+        {{ $t('snapshotsModal.expiry', { days: usage.expiration_days }) }}
+      </footer>
     </div>
   </Modal>
 </template>
@@ -94,15 +252,23 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import CreateSnapshotForm from '@baserow/modules/core/components/snapshots/CreateSnapshotForm'
+import SnapshotKeep from '@baserow/modules/core/components/snapshots/SnapshotKeep'
 import SnapshotListItem from '@baserow/modules/core/components/snapshots/SnapshotListItem'
+import {
+  getSnapshotRoom,
+  getSnapshotToReplace,
+} from '@baserow/modules/core/utils/snapshots'
 import SnapshotsService from '@baserow/modules/core/services/snapshots'
 import job from '@baserow/modules/core/mixins/job'
 import { CreateSnapshotJobType } from '@baserow/modules/core/jobTypes'
+
+const FILTERS = ['all', 'automatic', 'manual']
 
 export default {
   name: 'SnapshotsModal',
   components: {
     CreateSnapshotForm,
+    SnapshotKeep,
     SnapshotListItem,
   },
   mixins: [modal, error, job],
@@ -118,35 +284,168 @@ export default {
       createFinished: false,
       snapshotsLoading: false,
       snapshots: [],
-      // Currently we don't query the backend to fetch the limit
-      limitReached: false,
+      usage: null,
+      filterIndex: 0,
+      confirmingReplace: false,
+      pendingValues: null,
     }
   },
   computed: {
-    applicationTypeName() {
-      return this.$registry
-        .get('application', this.application.type)
-        .getName()
-        .toLowerCase()
+    applicationType() {
+      return this.$registry.get('application', this.application.type)
     },
-    maxSnapshots() {
-      return parseInt(this.$config.public.baserowMaxSnapshotsPerGroup)
+    applicationTypeName() {
+      return this.applicationType.getName().toLowerCase()
+    },
+    applicationIconClass() {
+      return this.applicationType.getIconClass()
+    },
+    snapshotsDisabled() {
+      return this.usage !== null && this.usage.limit === 0
+    },
+    canUpdateKeep() {
+      return this.$hasPermission(
+        'application.update_snapshot_keep',
+        this.application,
+        this.application.workspace.id
+      )
+    },
+    /**
+     * Why no snapshot can be taken now: `disabled` when snapshots are turned off,
+     * `none` when the application keeps no snapshots, `protected` when every
+     * snapshot it keeps is protected. `null` when one can be taken.
+     */
+    blockedReason() {
+      if (
+        this.usage === null ||
+        this.snapshotsLoading ||
+        this.jobIsRunning ||
+        this.createFinished
+      ) {
+        return null
+      }
+      if (this.snapshotsDisabled) {
+        return 'disabled'
+      }
+      if (this.usage.blocked) {
+        return 'blocked'
+      }
+      const room = getSnapshotRoom(this.snapshots, this.usage.effective_keep)
+      return room === 'ok' ? null : room
+    },
+    blockedCopy() {
+      return {
+        disabled: {
+          title: 'snapshotsModal.disabledTitle',
+          description: 'snapshotsModal.disabled',
+        },
+        none: {
+          title: 'snapshotsModal.keepsNoneTitle',
+          description: 'snapshotsModal.keepsNone',
+        },
+        protected: {
+          title: 'snapshotsModal.allProtectedTitle',
+          description: 'snapshotsModal.allProtected',
+        },
+        blocked: {
+          title: 'snapshotsModal.blockedTitle',
+          description: 'snapshotsModal.blocked',
+        },
+      }[this.blockedReason]
+    },
+    /**
+     * Whether raising the keep makes room for a snapshot.
+     */
+    canRaiseKeep() {
+      return ['none', 'protected'].includes(this.blockedReason)
+    },
+    snapshotToReplace() {
+      if (this.usage === null) {
+        return null
+      }
+      return getSnapshotToReplace(this.snapshots, this.usage.effective_keep)
+    },
+    usagePercentage() {
+      return Math.min(100, (this.usage.used / this.usage.limit) * 100)
+    },
+    usageText() {
+      if (this.usage.limit === 0) {
+        return this.$t('snapshotsModal.usageDisabled')
+      }
+      if (this.usage.limit === null) {
+        return this.$t('snapshotsModal.usageWithoutLimit', {
+          used: this.usage.used,
+        })
+      }
+      return this.$t('snapshotsModal.usage', {
+        used: this.usage.used,
+        limit: this.usage.limit,
+      })
+    },
+    hasAutomaticSnapshots() {
+      return this.snapshots.some((snapshot) => snapshot.created_automatically)
+    },
+    filterSegments() {
+      return [
+        { label: this.$t('snapshotsModal.filterAll') },
+        { label: this.$t('snapshotsModal.filterAutomatic') },
+        { label: this.$t('snapshotsModal.filterManual') },
+      ]
+    },
+    filteredSnapshots() {
+      const filter = this.hasAutomaticSnapshots
+        ? FILTERS[this.filterIndex]
+        : 'all'
+      if (filter === 'all') {
+        return this.snapshots
+      }
+      const automatic = filter === 'automatic'
+      return this.snapshots.filter(
+        (snapshot) => snapshot.created_automatically === automatic
+      )
     },
     snapshotModalAlertComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .map((plugin) =>
-          plugin.getExtraSnapshotModalComponents(this.application.workspace)
+          plugin.getExtraSnapshotModalComponents(
+            this.application.workspace,
+            this.application
+          )
         )
         .filter((component) => component !== null)
+    },
+    snapshotModalComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getSnapshotModalComponents(
+          this.application.workspace,
+          this.application
+        )
+      )
     },
   },
   methods: {
     show(...args) {
       this.hideError()
+      this.confirmingReplace = false
       this.loadSnapshots()
       modal.methods.show.bind(this)(...args)
     },
-    async submitted(values) {
+    submitted(values) {
+      if (this.snapshotToReplace) {
+        this.pendingValues = values
+        this.confirmingReplace = true
+        return
+      }
+      return this.create(values)
+    },
+    confirmReplace() {
+      this.confirmingReplace = false
+      return this.create(this.pendingValues)
+    },
+    raiseKeep() {
+      this.$refs.keep.edit(this.usage.effective_keep + 1)
+    },
+    async create(values) {
       this.createLoading = true
       this.hideError()
       try {
@@ -170,6 +469,9 @@ export default {
         this.snapshots.unshift(this.job.snapshot)
       }
       this.$refs.form.v$.$reset()
+      // The oldest unprotected snapshots beyond the keep are deleted once the new
+      // one is created, so the list is loaded again.
+      this.loadSnapshots()
     },
     onJobFailed() {
       this.createLoading = false
@@ -188,9 +490,10 @@ export default {
       this.snapshotsLoading = true
 
       try {
-        const { data: snapshots } = await SnapshotsService(this.$client).list(
-          this.application.id
-        )
+        const [{ data: snapshots }] = await Promise.all([
+          SnapshotsService(this.$client).list(this.application.id),
+          this.loadUsage(),
+        ])
         this.snapshots = snapshots
       } catch (error) {
         this.handleError(error)
@@ -199,10 +502,33 @@ export default {
       }
       this.loadRunningJob()
     },
+    async loadUsage() {
+      try {
+        const { data } = await SnapshotsService(this.$client).usage(
+          this.application.id
+        )
+        this.usage = data
+      } catch (error) {
+        // The usage only adds context, the snapshots can be managed without it.
+        this.usage = null
+      }
+    },
+    keepUpdated(usage) {
+      this.usage = usage
+      // Lowering the keep can delete snapshots, so the list is loaded again.
+      this.loadSnapshots()
+    },
+    snapshotUpdated(updatedSnapshot) {
+      this.snapshots = this.snapshots.map((snapshot) =>
+        snapshot.id === updatedSnapshot.id ? updatedSnapshot : snapshot
+      )
+      this.loadUsage()
+    },
     snapshotDeleted(deletedSnapshot) {
       this.snapshots = this.snapshots.filter(
         (snapshot) => snapshot.id !== deletedSnapshot.id
       )
+      this.loadUsage()
     },
     loadRunningJob() {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(

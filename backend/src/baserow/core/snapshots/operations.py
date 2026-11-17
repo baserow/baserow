@@ -1,6 +1,6 @@
 import abc
 
-from baserow.core.operations import ApplicationOperationType
+from baserow.core.operations import ApplicationOperationType, WorkspaceCoreOperationType
 from baserow.core.registries import OperationType
 
 
@@ -23,3 +23,15 @@ class RestoreApplicationSnapshotOperationType(SnapshotOperationType):
 
 class DeleteApplicationSnapshotOperationType(SnapshotOperationType):
     type = "application.snapshot.delete"
+
+
+class UpdateApplicationSnapshotKeepOperationType(ApplicationOperationType):
+    type = "application.update_snapshot_keep"
+
+
+class ReadWorkspaceSnapshotSettingsOperationType(WorkspaceCoreOperationType):
+    type = "workspace.read_snapshot_settings"
+
+
+class UpdateWorkspaceSnapshotSettingsOperationType(WorkspaceCoreOperationType):
+    type = "workspace.update_snapshot_settings"

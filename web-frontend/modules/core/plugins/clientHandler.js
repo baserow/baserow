@@ -119,6 +119,30 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.maximumSnapshotsReachedTitle'),
         $i18n.t('clientHandler.maximumSnapshotsReachedDescription')
       ),
+      ERROR_SNAPSHOT_KEEP_IS_ZERO: new ResponseErrorMessage(
+        $i18n.t('clientHandler.snapshotKeepIsZeroTitle'),
+        $i18n.t('clientHandler.snapshotKeepIsZeroDescription')
+      ),
+      ERROR_SNAPSHOT_KEEP_FULL_OF_PROTECTED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.snapshotKeepFullOfProtectedTitle'),
+        $i18n.t('clientHandler.snapshotKeepFullOfProtectedDescription')
+      ),
+      ERROR_SNAPSHOT_KEEP_EXCEEDS_ALLOWANCE: new ResponseErrorMessage(
+        $i18n.t('clientHandler.snapshotKeepExceedsAllowanceTitle'),
+        $i18n.t('clientHandler.snapshotKeepExceedsAllowanceDescription')
+      ),
+      ERROR_SNAPSHOT_KEEP_ABOVE_MAXIMUM: new ResponseErrorMessage(
+        $i18n.t('clientHandler.snapshotKeepAboveMaximumTitle'),
+        $i18n.t('clientHandler.snapshotKeepAboveMaximumDescription')
+      ),
+      ERROR_SNAPSHOT_KEEP_BELOW_PROTECTED: new ResponseErrorMessage(
+        $i18n.t('clientHandler.snapshotKeepBelowProtectedTitle'),
+        $i18n.t('clientHandler.snapshotKeepBelowProtectedDescription')
+      ),
+      ERROR_SNAPSHOT_KEEP_CHANGE_DELETES_SNAPSHOTS: new ResponseErrorMessage(
+        $i18n.t('clientHandler.snapshotKeepChangeDeletesSnapshotsTitle'),
+        $i18n.t('clientHandler.snapshotKeepChangeDeletesSnapshotsDescription')
+      ),
       ERROR_SNAPSHOT_IS_BEING_CREATED: new ResponseErrorMessage(
         $i18n.t('clientHandler.snapshotBeingCreatedTitle'),
         $i18n.t('clientHandler.snapshotBeingCreatedDescription')

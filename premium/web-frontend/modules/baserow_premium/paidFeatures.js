@@ -22,6 +22,14 @@ export class PaidFeature extends Registerable {
   getContent() {
     return ''
   }
+
+  /**
+   * Whether the feature is listed in the paid features modal, for example while
+   * it's behind a feature flag.
+   */
+  isEnabled() {
+    return true
+  }
 }
 
 export class KanbanViewPaidFeature extends PaidFeature {

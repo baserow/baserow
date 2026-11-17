@@ -8,6 +8,7 @@ import pytest
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import JOB_FINISHED
+from baserow.core.models import Snapshot
 from baserow.core.snapshots.actions import (
     CreateSnapshotActionType,
     DeleteSnapshotActionType,
@@ -29,6 +30,8 @@ def test_create_snapshot_action_type(
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_database_application(workspace=workspace)
+    application.snapshot_keep = 1
+    application.save()
 
     with django_capture_on_commit_callbacks(execute=True):
         result = SnapshotHandler().start_create_job(
@@ -132,3 +135,31 @@ def test_delete_snapshot_action_type(data_fixture):
         action_type_registry.get(DeleteSnapshotActionType.type).do(user, snapshot.id)
 
     assert SnapshotHandler().list(from_application.id, user).count() == 0
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.core.snapshots.job_types.CreateSnapshotJobType.transaction_atomic_context",
+    new=contextlib.nullcontext,
+)
+@patch(
+    "baserow.core.snapshots.handler.SnapshotHandler.rotate_after_create",
+    side_effect=RuntimeError("rotation failed"),
+)
+def test_a_failed_rotation_doesnt_fail_the_snapshot_job(
+    rotate_mock, data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    application.snapshot_keep = 1
+    application.save()
+
+    with django_capture_on_commit_callbacks(execute=True):
+        result = SnapshotHandler().start_create_job(application.id, user, "Manual")
+
+    job = result["job"]
+    job.refresh_from_db()
+    assert rotate_mock.called
+    assert job.state == JOB_FINISHED
+    assert Snapshot.objects.filter(id=result["snapshot"].id).exists()

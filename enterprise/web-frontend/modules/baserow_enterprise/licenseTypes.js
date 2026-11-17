@@ -8,6 +8,7 @@ const commonAdvancedFeatures = [
   EnterpriseFeaturesObject.RBAC,
   EnterpriseFeaturesObject.TEAMS,
   EnterpriseFeaturesObject.AUDIT_LOG,
+  EnterpriseFeaturesObject.AUTOMATIC_SNAPSHOTS,
   // database
   EnterpriseFeaturesObject.DATA_SYNC,
   EnterpriseFeaturesObject.ADVANCED_WEBHOOKS,
