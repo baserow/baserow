@@ -41,6 +41,12 @@ class ScopedAIProviderState:
     def workspace_id(self) -> int | None:
         return self.workspace.id if self.workspace is not None else None
 
+    @property
+    def unavailable_instance_provider_ids(self) -> frozenset[int]:
+        """Instance providers this scope disabled or was excluded from."""
+
+        return self.disabled_instance_provider_ids | self.excluded_instance_provider_ids
+
     def get_feature_setting(self, feature_type: str) -> AIProviderFeatureSetting | None:
         """Return this scope's own setting, without falling back to the instance.
 

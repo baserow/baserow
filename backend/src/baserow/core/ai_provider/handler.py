@@ -138,8 +138,8 @@ class AIProviderHandler:
     def _inherited_scope(workspace: Workspace) -> Q:
         """
         Instance providers a workspace is allowed to see. What the instance
-        disabled stays private to the instance admin, so a workspace never
-        learns it exists.
+        disabled, or excluded this workspace from, stays private to the instance
+        admin, so the workspace never learns it exists.
         """
 
         return Q(workspace__isnull=True, is_active=True) & ~Q(

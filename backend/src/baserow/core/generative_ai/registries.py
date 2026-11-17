@@ -531,9 +531,7 @@ class GenerativeAIModelType(Instance):
             state = get_ai_provider_state(workspace)
         workspace_providers = state.owned_providers
         instance_providers = state.instance_providers
-        disabled_provider_ids = (
-            state.disabled_instance_provider_ids | state.excluded_instance_provider_ids
-        )
+        unavailable_provider_ids = state.unavailable_instance_provider_ids
 
         workspace_provider = workspace_providers.get(self.type)
         if workspace_provider is None and model_settings_override is None:
@@ -567,7 +565,7 @@ class GenerativeAIModelType(Instance):
             if (
                 instance_provider is not None
                 and instance_provider.is_active
-                and instance_provider.id not in disabled_provider_ids
+                and instance_provider.id not in unavailable_provider_ids
             ):
                 instance_models = [
                     model.model_identifier
@@ -592,7 +590,7 @@ class GenerativeAIModelType(Instance):
         elif (
             instance_provider is not None
             and instance_provider.is_active
-            and instance_provider.id not in disabled_provider_ids
+            and instance_provider.id not in unavailable_provider_ids
         ):
             provider = instance_provider
         if provider is None:
@@ -720,9 +718,7 @@ class GenerativeAIModelType(Instance):
         if state is None:
             state = get_ai_provider_state(workspace)
         instance_providers = state.instance_providers
-        disabled_provider_ids = (
-            state.disabled_instance_provider_ids | state.excluded_instance_provider_ids
-        )
+        unavailable_provider_ids = state.unavailable_instance_provider_ids
 
         workspace_provider = state.owned_providers.get(self.type)
         if workspace_provider is not None and workspace_provider.is_active:
@@ -743,7 +739,7 @@ class GenerativeAIModelType(Instance):
         if (
             instance_provider is not None
             and instance_provider.is_active
-            and instance_provider.id not in disabled_provider_ids
+            and instance_provider.id not in unavailable_provider_ids
             and any(
                 model.model_identifier == model_name and model.is_enabled
                 for model in instance_provider.models.all()
