@@ -7,7 +7,10 @@ import {
   getStoredOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
-import { isTerminalStatus } from '@baserow/modules/core/chatRuns/constants'
+import {
+  ERROR_CHAT_RUN_IN_PROGRESS,
+  isTerminalStatus,
+} from '@baserow/modules/core/chatRuns/constants'
 
 function parseMessage(message) {
   return {
@@ -33,8 +36,6 @@ function inFlightMessage(follower) {
     can_submit_feedback: false,
   }
 }
-
-const CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
 
 /**
  * How Kuma took a message: a run answers it, the chat still answers another
@@ -609,7 +610,7 @@ export const actions = {
       return { outcome: SEND_OUTCOME.FAILED, runId: null }
     }
     const code = error.handler?.code
-    if (code === CHAT_RUN_IN_PROGRESS) {
+    if (code === ERROR_CHAT_RUN_IN_PROGRESS) {
       commit('REMOVE_MESSAGE', draftId)
       try {
         await dispatch('selectChat', chat)
