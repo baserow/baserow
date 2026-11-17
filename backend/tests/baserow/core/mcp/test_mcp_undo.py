@@ -133,6 +133,26 @@ def test_undo_takes_back_a_call_with_more_actions_than_a_group_limit(setup):
 
 
 @pytest.mark.django_db
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
+def test_undo_stops_at_a_part_of_the_call_that_failed(setup):
+    endpoint, table = setup
+    _call(
+        endpoint,
+        "create_fields",
+        {
+            "table_id": table.id,
+            "fields": [{"name": "X", "type": "text"}, {"name": "Y", "type": "text"}],
+        },
+    )
+
+    with patch.object(CreateFieldActionType, "undo", side_effect=Exception("boom")):
+        undone = _call(endpoint, "undo")
+
+    assert undone == [{"action": "Create field", "failed": True}]
+    assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y"}
+
+
+@pytest.mark.django_db
 def test_undo_reports_a_lock_conflict(setup):
     endpoint, _ = setup
 
@@ -199,3 +219,28 @@ def test_undo_tools_are_off_for_new_keys_and_destructive():
         assert tool.destructive is True
         assert tool.read_only is False
         assert name not in MCPEndpointHandler().get_default_tools()
+
+
+@pytest.mark.django_db
+def test_another_user_cannot_undo_mcp_changes_with_the_session_header(
+    api_client, data_fixture, setup
+):
+    endpoint, table = setup
+    other = data_fixture.create_user()
+    data_fixture.create_user_workspace(
+        user=other, workspace=endpoint.workspace, permissions="ADMIN"
+    )
+    token = data_fixture.generate_token(other)
+
+    _call(endpoint, "create_rows", {"table_id": table.id, "rows": [{"Name": "A"}]})
+
+    response = api_client.patch(
+        reverse("api:user:undo"),
+        {"scopes": {"table": table.id}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+        HTTP_CLIENTSESSIONID=endpoint.undo_session_id,
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["actions"] == []
+    assert _names(table) == ["A"]

@@ -37,6 +37,7 @@ def _replay(
     Undoes or redoes the latest tool call of the endpoint. `ActionHandler` takes at
     most `MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP` actions of a group at a time, so
     it's called again while the next action in line is still from the same call.
+    It stops at a part that failed, so the rest of the call stays as it was.
     """
 
     # Only the changes made through this endpoint share its session, and an
@@ -49,7 +50,7 @@ def _replay(
                 actions = replay(user, [], session)
                 replayed.extend(actions)
                 group = actions[0].action_group if actions else None
-                if group is None:
+                if group is None or any(a.error is not None for a in actions):
                     break
                 following = next_in_line().filter(user=user, session=session).first()
                 if following is None or following.action_group != group:
@@ -91,8 +92,8 @@ class RedoMcpTool(MCPTool):
     Redoes the latest change undone with `undo`. Nothing is redone once another
     change was made through this endpoint key or connected app after the undo.
     Returns the redone actions, an empty list when there was nothing to redo. An
-    action with `failed` true had not been undone because its undo failed, so
-    nothing was changed for it.
+    action with `failed` true could not be redone, or had not been undone because
+    its undo failed.
     """
 
     type = "redo"
