@@ -172,3 +172,48 @@ def test_update_data_source_using_personal_view_can_be_undone_and_redone(
     service.refresh_from_db()
     assert service.search_query["formula"] == "'after'"
     assert service.view_id == personal_view.id
+
+
+@pytest.mark.django_db
+@pytest.mark.view_ownership
+@pytest.mark.undo_redo
+def test_update_data_source_away_from_personal_view_can_be_undone_and_redone(
+    data_fixture, alternative_per_workspace_license_service
+):
+    user, integration, collaborative_view, personal_view = _create_views(
+        data_fixture, alternative_per_workspace_license_service
+    )
+    page = data_fixture.create_builder_page(builder=integration.application)
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=page,
+        integration=integration,
+        table=personal_view.table,
+        view=personal_view,
+    )
+    scope = [PageActionScopeType.value(page.id)]
+
+    UpdateDataSourceActionType.do(
+        user,
+        data_source,
+        service_type=LocalBaserowListRowsUserServiceType(),
+        view_id=collaborative_view.id,
+    )
+    service = data_source.service.specific
+    service.refresh_from_db()
+    assert service.view_id == collaborative_view.id
+
+    undone = ActionHandler.undo(user, scope, "session-id")
+    assert [action.error for action in undone] == [None]
+    service.refresh_from_db()
+    assert service.view_id == personal_view.id
+
+    redone = ActionHandler.redo(user, scope, "session-id")
+    assert [action.error for action in redone] == [None]
+    service.refresh_from_db()
+    assert service.view_id == collaborative_view.id
+
+    undone = ActionHandler.undo(user, scope, "session-id")
+    assert [action.error for action in undone] == [None]
+    service.refresh_from_db()
+    assert service.view_id == personal_view.id
