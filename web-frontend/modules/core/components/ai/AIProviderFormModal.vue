@@ -127,62 +127,55 @@
       small-label
       class="margin-bottom-2"
     >
-      <div class="ai-provider-form__workspaces">
-        <Button
-          ref="addExcludedWorkspace"
-          type="secondary"
-          size="small"
-          icon="iconoir-plus"
-          :aria-label="$t('aiProviderAdmin.addExcludedWorkspace')"
-          :title="$t('aiProviderAdmin.addExcludedWorkspace')"
-          @click="openWorkspaceSelector(false, $event.currentTarget)"
-        />
-        <div class="ai-provider-form__workspace-list">
-          <span
-            v-for="workspace in visibleExcludedWorkspaces"
+      <PaginatedDropdown
+        ref="excludedWorkspaceDropdown"
+        :value="null"
+        :fetch-page="fetchWorkspaces"
+        :add-empty-item="false"
+        :not-selected-text="$t('aiProviderAdmin.addExcludedWorkspace')"
+        include-display-name-in-selected-event
+        fetch-on-open
+        fixed-items
+        @input="addExcludedWorkspace"
+      >
+        <template #items="{ results }">
+          <DropdownItem
+            v-for="workspace in results"
             :key="workspace.id"
-            class="ai-provider-form__workspace"
+            :name="`${workspace.value} (${workspace.id})`"
+            :value="workspace.id"
+            :disabled="excludedWorkspaceIds.has(workspace.id)"
+          />
+        </template>
+      </PaginatedDropdown>
+      <ul v-if="excludedWorkspaces.length" class="ai-provider-form__workspaces">
+        <li
+          v-for="workspace in excludedWorkspaces"
+          :key="workspace.id"
+          class="ai-provider-form__workspace"
+        >
+          <span
+            class="ai-provider-form__workspace-name"
+            :title="`${workspace.name} (${workspace.id})`"
+            >{{ workspace.name }}</span
           >
-            <span :title="`${workspace.name} (${workspace.id})`">{{
-              workspace.name
-            }}</span>
-            <button
-              type="button"
-              :aria-label="
-                $t('aiProviderAdmin.removeExcludedWorkspace', {
-                  name: workspace.name,
-                })
-              "
-              @click="removeExcludedWorkspace(workspace.id)"
-            >
-              <i class="iconoir-cancel" />
-            </button>
-          </span>
-          <Button
-            v-if="hiddenExcludedWorkspacesCount"
-            type="secondary"
-            size="small"
-            class="ai-provider-form__more-workspaces"
-            @click.stop="openWorkspaceSelector(true, $event.currentTarget)"
-            >{{
-              $t('aiProviderAdmin.moreExcludedWorkspaces', {
-                count: hiddenExcludedWorkspacesCount,
+          <button
+            type="button"
+            class="ai-provider-form__workspace-remove"
+            :aria-label="
+              $t('aiProviderAdmin.removeExcludedWorkspace', {
+                name: workspace.name,
               })
-            }}</Button
+            "
+            @click="removeExcludedWorkspace(workspace.id)"
           >
-        </div>
-      </div>
+            <i class="iconoir-cancel" />
+          </button>
+        </li>
+      </ul>
       <template #helper>{{
         $t('aiProviderAdmin.excludedWorkspacesHelp')
       }}</template>
-      <SelectWorkspaceModal
-        v-if="workspaceSelectorOpen"
-        ref="workspaceSelector"
-        :selected-workspaces="excludedWorkspaces"
-        @selected="excludedWorkspaces.push($event)"
-        @unselected="removeExcludedWorkspace"
-        @hidden="workspaceSelectorHidden"
-      />
     </FormGroup>
 
     <div class="actions margin-bottom-0">
@@ -201,8 +194,9 @@
 <script>
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
-import SelectWorkspaceModal from '@baserow/modules/core/components/admin/workspaces/modals/SelectWorkspaceModal'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import modal from '@baserow/modules/core/mixins/modal'
+import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/workspaces'
 
 const defaultFeatureTypes = (registry) =>
   registry
@@ -214,7 +208,7 @@ export default {
   components: {
     AIProviderModelCombobox,
     AIProviderModelFeatureSelector,
-    SelectWorkspaceModal,
+    PaginatedDropdown,
   },
   mixins: [modal],
   props: {
@@ -228,8 +222,6 @@ export default {
       this.provider?.provider_type || this.providerTypes[0]?.type
     return {
       loading: false,
-      workspaceSelectorOpen: false,
-      workspaceSelectorOpener: null,
       excludedWorkspaces: [...(this.provider?.excluded_workspaces || [])],
       providerTypeError: '',
       apiKeyEditing: false,
@@ -254,11 +246,8 @@ export default {
     }
   },
   computed: {
-    visibleExcludedWorkspaces() {
-      return this.excludedWorkspaces.slice(0, 10)
-    },
-    hiddenExcludedWorkspacesCount() {
-      return Math.max(0, this.excludedWorkspaces.length - 10)
+    excludedWorkspaceIds() {
+      return new Set(this.excludedWorkspaces.map(({ id }) => id))
     },
     canEditExclusions() {
       return (
@@ -330,23 +319,13 @@ export default {
         ({ id }) => id !== workspaceId
       )
     },
-    openWorkspaceSelector(showSelected = false, opener = null) {
-      const anchor = this.$refs.addExcludedWorkspace.$el
-      this.workspaceSelectorOpener = opener || anchor
-      this.workspaceSelectorOpen = true
-      this.$nextTick(() =>
-        this.$refs.workspaceSelector.show(anchor, showSelected)
-      )
+    fetchWorkspaces(page, search) {
+      return fetchWorkspaceOptions(this.$client, page, search)
     },
-    workspaceSelectorHidden() {
-      this.workspaceSelectorOpen = false
-      this.$nextTick(() => {
-        const opener = this.workspaceSelectorOpener
-        const target = opener?.isConnected
-          ? opener
-          : this.$refs.addExcludedWorkspace.$el
-        target.focus()
-      })
+    addExcludedWorkspace({ item }) {
+      this.excludedWorkspaces.push({ id: item.id, name: item.value })
+      // The dropdown stores the picked name after emitting, so reset it later.
+      this.$nextTick(() => this.$refs.excludedWorkspaceDropdown.clear())
     },
     emptyModel() {
       return {
