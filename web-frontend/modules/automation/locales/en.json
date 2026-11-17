@@ -100,7 +100,8 @@
     "currentIteration": "Current iteration",
     "currentNode": "This node",
     "item": "Item",
-    "previousNode": "Previous node"
+    "previousNode": "Previous node",
+    "requiresTesting": "Requires testing"
   },
   "nodeSidePanel": {
     "labelTitle": "Label",

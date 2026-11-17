@@ -84,6 +84,33 @@ def test_update_service(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_service_table_clears_sample_data(data_fixture):
+    user = data_fixture.create_user()
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    database = data_fixture.create_database_application(
+        workspace=integration.application.workspace
+    )
+    table = data_fixture.create_database_table(user=user, database=database)
+    other_table = data_fixture.create_database_table(user=user, database=database)
+    sample_data = {"data": {"id": 1, "Name": "Acme"}}
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=integration, table=table, sample_data=sample_data
+    )
+    service_type = service_type_registry.get("local_baserow_get_row")
+
+    # An update that keeps the table keeps the sample data.
+    ServiceHandler().update_service(
+        service_type, service, table=table, search_query="cheese"
+    )
+    service.refresh_from_db()
+    assert service.sample_data == sample_data
+
+    ServiceHandler().update_service(service_type, service, table=other_table)
+    service.refresh_from_db()
+    assert service.sample_data is None
+
+
+@pytest.mark.django_db
 def test_update_service_filters(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
