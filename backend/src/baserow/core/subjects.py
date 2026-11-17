@@ -179,10 +179,12 @@ class UserSubjectType(SubjectType):
         if workspace is not None:
             queryset = queryset.filter(workspaceuser__workspace=workspace)
         if search:
+            # The email and username of an identity are an internal key.
+            is_person = ~Q(profile__user_type=UserProfile.UserType.IDENTITY)
             queryset = queryset.filter(
                 Q(first_name__icontains=search)
-                | Q(username__icontains=search)
-                | Q(email__icontains=search)
+                | is_person
+                & (Q(username__icontains=search) | Q(email__icontains=search))
             )
         return queryset.annotate(
             subject_id=F("id"),

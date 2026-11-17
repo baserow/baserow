@@ -203,3 +203,20 @@ def test_membership_writes_of_a_person_take_no_row_lock(data_fixture):
 
     assert not [query["sql"] for query in queries if "UPDATE OF" in query["sql"]]
 
+
+@pytest.mark.django_db
+def test_subject_options_find_an_identity_by_its_name_only(data_fixture):
+    workspace = data_fixture.create_workspace()
+    person = data_fixture.create_user(workspace=workspace, email="jane@example.com")
+    identity = data_fixture.create_identity(workspace=workspace, name="Ops bot")
+
+    def found(search: str) -> list[int]:
+        options = UserSubjectType().get_options_queryset(
+            workspace=workspace, search=search
+        )
+        return [option["subject_id"] for option in options]
+
+    assert found("ops") == [identity.id]
+    assert found("example.com") == [person.id]
+    assert found("identities.invalid") == []
+    assert found("identity-") == []
