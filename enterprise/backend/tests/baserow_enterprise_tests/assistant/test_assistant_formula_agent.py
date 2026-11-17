@@ -109,7 +109,15 @@ def test_table_outside_the_workspace_is_not_leaked(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "formula", ["lookup('Link', 'Salary')", "lookup('Link', 'Nonexistent')"]
+    "formula",
+    [
+        "lookup('Link', 'Salary')",
+        "lookup('Link', 'Nonexistent')",
+        # A type error would tell the field's type before the permission check.
+        "upper(lookup('Link', 'Salary'))",
+        # The link's own values are the hidden table's primary field.
+        "field('Link')",
+    ],
 )
 def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
     enterprise_data_fixture, settings, formula
@@ -123,6 +131,7 @@ def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
     hidden = enterprise_data_fixture.create_database_table(database=database)
+    enterprise_data_fixture.create_text_field(table=hidden, name="Name", primary=True)
     enterprise_data_fixture.create_number_field(table=hidden, name="Salary")
     enterprise_data_fixture.create_link_row_field(
         table=table, name="Link", link_row_table=hidden

@@ -306,16 +306,23 @@ def get_formula_type_tool(
 
         # Only ModelRetry becomes a retry prompt; anything else aborts the turn.
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
+        field_cache = FieldCache()
         try:
-            field.recalculate_internal_fields(raise_if_invalid=True)
             # A field of another table the user may not read reads as unknown, as
-            # it does when the formula is saved.
+            # it does when the formula is saved. Checked before typing, whose
+            # errors would tell the field's type.
+            dependencies = [
+                dependency
+                for dependency in FormulaHandler.get_field_dependencies(
+                    field, field_cache
+                )
+                if dependency.dependency is not None
+            ]
             FieldDependencyHandler.raise_if_user_doesnt_have_operation_on_dependencies_in_other_tables(
-                workspace,
-                user,
-                field,
-                FormulaHandler.get_field_dependencies(field, FieldCache()),
-                ReadFieldOperationType.type,
+                workspace, user, field, dependencies, ReadFieldOperationType.type
+            )
+            field.recalculate_internal_fields(
+                raise_if_invalid=True, field_cache=field_cache
             )
             result = TypeFormulaResultSerializer(field).data
             error = result["error"]
