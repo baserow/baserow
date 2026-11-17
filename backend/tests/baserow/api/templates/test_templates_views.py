@@ -30,6 +30,7 @@ def test_list_templates(api_client, data_fixture):
     category_1 = data_fixture.create_template_category(name="Cat 1")
     category_3 = data_fixture.create_template_category(name="Cat 3")
     category_2 = data_fixture.create_template_category(name="Cat 2")
+    baserow = data_fixture.create_template_category(name="Baserow")
 
     template_1 = data_fixture.create_template(
         name="Template 1",
@@ -56,6 +57,12 @@ def test_list_templates(api_client, data_fixture):
 
     assert response_json == [
         {
+            "id": baserow.id,
+            "name": "Baserow",
+            "templates": [],
+            "user_selectable": False,
+        },
+        {
             "id": category_1.id,
             "name": "Cat 1",
             "templates": [
@@ -74,6 +81,7 @@ def test_list_templates(api_client, data_fixture):
                     "author_name": None,
                 }
             ],
+            "user_selectable": True,
         },
         {
             "id": category_2.id,
@@ -108,6 +116,7 @@ def test_list_templates(api_client, data_fixture):
                     "author_name": None,
                 },
             ],
+            "user_selectable": True,
         },
         {
             "id": category_3.id,
@@ -128,6 +137,7 @@ def test_list_templates(api_client, data_fixture):
                     "author_name": None,
                 }
             ],
+            "user_selectable": True,
         },
     ]
 

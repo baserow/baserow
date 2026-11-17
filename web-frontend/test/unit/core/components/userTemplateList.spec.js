@@ -20,6 +20,7 @@ const userTemplate = (id, name, state = 'private', extra = {}) => ({
   open_application: null,
   categories: [],
   state,
+  listed: state === 'public',
   reason: null,
   created_on: '2026-10-01T10:00:00Z',
   updated_on: '2026-10-01T10:00:00Z',
@@ -598,7 +599,11 @@ describe('UserTemplateList', () => {
     [false, ['userTemplateList.makePublic'], ['make-public']],
     [
       true,
-      ['userTemplateList.submitForReviewAgain', 'userTemplateList.makePrivate'],
+      [
+        'userTemplateList.submitForReviewAgain',
+        'userTemplateList.makePrivate',
+        'templateInstall.copyLink copied.label',
+      ],
       ['make-public', 'make-private'],
     ],
   ])(
@@ -640,30 +645,38 @@ describe('UserTemplateList', () => {
     }
   )
 
-  test('offers to copy the private link of a template', async () => {
-    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+  describe('copy item', () => {
     const token = 'a'.repeat(64)
-    mockPages(
-      page([
-        userTemplate(1, 'Sprint Tracker', 'private', {
-          private_link_token: token,
-        }),
-      ])
-    )
-    const wrapper = await mountComponent()
+    const slug = 'sprint-tracker-a1b2c3'
+    const sharing = ['templateInstall.copyLink', `/template/${slug}`]
+    const privateLink = [
+      'templateInstall.copyPrivateLink',
+      `/template/${slug}/private-link/${token}`,
+    ]
 
-    await wrapper.find('.user-template-list__more').trigger('click')
-    await wrapper
-      .findAll('.context__menu-item-link')
-      .find((link) => link.text().startsWith('userTemplateList.copyLink'))
-      .trigger('click')
-    await flushPromises()
+    test.each([
+      ['listed', 'public', { private_link_token: token }, sharing],
+      ['private link', 'private', { private_link_token: token }, privateLink],
+    ])('of a %s template', async (_shown, state, fields, expected) => {
+      vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+      mockPages(page([userTemplate(1, 'Sprint Tracker', state, fields)]))
+      const wrapper = await mountComponent()
 
-    const url = new URL(navigator.clipboard.writeText.mock.calls[0][0])
-    expect(url.pathname).toBe(
-      `/template/sprint-tracker-a1b2c3/private-link/${token}`
-    )
-    vi.unstubAllGlobals()
+      await wrapper.find('.user-template-list__more').trigger('click')
+      const items = wrapper
+        .findAll('.context__menu-item-link')
+        .filter((link) => link.text().startsWith('templateInstall.copy'))
+      expect(items.map((link) => link.text())).toStrictEqual(
+        expected ? [expect.stringMatching(`^${expected[0]}`)] : []
+      )
+      if (expected) {
+        await items[0].trigger('click')
+        await flushPromises()
+        const [url] = navigator.clipboard.writeText.mock.calls[0]
+        expect(new URL(url).pathname).toBe(expected[1])
+      }
+      vi.unstubAllGlobals()
+    })
   })
 
   test('manages the private link of a row and shows it in the row', async () => {

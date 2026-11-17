@@ -72,13 +72,16 @@
       <ul class="context__menu">
         <slot name="menu-items" :hide="hideContext"></slot>
         <li
-          v-if="showCopyLink || copyLinkUrl"
+          v-if="copyLinkItem"
           class="context__menu-item"
           :class="{ 'context__menu-item--with-separator': hasMenuItems }"
         >
-          <a class="context__menu-item-link" @click.prevent="copyTemplateLink">
+          <a
+            class="context__menu-item-link"
+            @click.prevent="copyLink(copyLinkItem.url, copiedRef)"
+          >
             <i class="context__menu-item-icon iconoir-link"></i>
-            {{ $t('templateInstall.copyLink') }}
+            {{ $t(copyLinkItem.label) }}
             <Copied ref="copiedRef"></Copied>
           </a>
         </li>
@@ -88,8 +91,7 @@
           "
           class="context__menu-item"
           :class="{
-            'context__menu-item--with-separator':
-              hasMenuItems && !showCopyLink && !copyLinkUrl,
+            'context__menu-item--with-separator': hasMenuItems && !copyLinkItem,
           }"
         >
           <a
@@ -124,7 +126,10 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
 import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
-import { canInstall } from '@baserow/modules/core/utils/userTemplate'
+import {
+  canInstall,
+  getCopyLinkItem,
+} from '@baserow/modules/core/utils/userTemplate'
 import { fetchPermissionsOfWorkspaces } from '@baserow/modules/core/utils/workspace'
 import TemplateService from '@baserow/modules/core/services/template'
 import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
@@ -143,15 +148,10 @@ const props = defineProps({
     required: false,
     default: null,
   },
-  showCopyLink: {
-    type: Boolean,
-    required: false,
-    default: true,
-  },
-  copyLinkUrl: {
+  copyLinkKind: {
     type: String,
     required: false,
-    default: null,
+    default: 'sharing',
   },
   // Whether the latest revision of a user template is installed, which only its
   // owner may. Otherwise it's the public revision, or the owner's latest one
@@ -191,12 +191,16 @@ const hasMenuItems = computed(() => !!slots['menu-items'])
 const installableUserTemplate = computed(
   () => installable.value && props.template.type === 'user'
 )
+const copyLinkItem = computed(() =>
+  getCopyLinkItem(
+    props.copyLinkKind,
+    props.template,
+    router,
+    config.public.publicWebFrontendUrl
+  )
+)
 const hasOtherMenuItems = computed(
-  () =>
-    hasMenuItems.value ||
-    !!slots['menu-items-end'] ||
-    props.showCopyLink ||
-    !!props.copyLinkUrl
+  () => hasMenuItems.value || !!slots['menu-items-end'] || !!copyLinkItem.value
 )
 
 const isAuthenticated = computed(() => store.getters['auth/isAuthenticated'])
@@ -351,14 +355,5 @@ function templateRoute() {
     name: 'template',
     params: { slug: props.template.slug },
   })
-}
-
-function copyTemplateLink() {
-  const { href } = templateRoute()
-  return copyLink(
-    props.copyLinkUrl ??
-      new URL(href, config.public.publicWebFrontendUrl).toString(),
-    copiedRef.value
-  )
 }
 </script>

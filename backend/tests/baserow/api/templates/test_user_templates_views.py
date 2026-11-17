@@ -89,8 +89,8 @@ def test_list_own_templates(api_client, data_fixture):
             "is_default": False,
             "open_application": 1,
             "categories": [
-                {"id": category_1.id, "name": "Cat 1"},
-                {"id": category_2.id, "name": "Cat 2"},
+                {"id": category_1.id, "name": "Cat 1", "user_selectable": True},
+                {"id": category_2.id, "name": "Cat 2", "user_selectable": True},
             ],
             "state": "rejected",
             "reason": "Not a template.",
@@ -432,14 +432,15 @@ def test_get_user_template_shows_others_its_public_revision(
             result["name"],
             result["is_own"],
             result["state"],
+            result["listed"],
             [category["name"] for category in result["categories"]],
             datetime.fromisoformat(result["updated_on"]),
         )
 
-    for token_used, shown_state in [
-        (None, None),
-        (other_token, None),
-        (staff_token, "public"),
+    for token_used, shown_state, listed in [
+        (None, None, None),
+        (other_token, None, None),
+        (staff_token, "public", True),
     ]:
         headers = {"HTTP_AUTHORIZATION": f"JWT {token_used}"} if token_used else {}
         assert get_shown(headers) == (
@@ -448,6 +449,7 @@ def test_get_user_template_shows_others_its_public_revision(
             "Second",
             False,
             shown_state,
+            listed,
             ["Sales"],
             public.created_on,
         )
@@ -462,7 +464,13 @@ def test_get_user_template_shows_others_its_public_revision(
             public_revision=public, blocked_at=None
         )
         Template.objects.filter(id=template.id).update(**changes)
-        assert get_shown(staff_headers)[1:5] == (latest.id, "Third", False, state)
+        assert get_shown(staff_headers)[1:6] == (
+            latest.id,
+            "Third",
+            False,
+            state,
+            False,
+        )
         response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
         assert response.status_code == HTTP_200_OK
@@ -482,7 +490,7 @@ def test_get_user_template_shows_others_its_public_revision(
             "is_own": True,
             "updated_on": latest.created_on.isoformat().replace("+00:00", "Z"),
             "categories": [
-                {"id": category.id, "name": category.name}
+                {"id": category.id, "name": category.name, "user_selectable": True}
                 for category in latest.categories.all()
             ],
             "state": state,
@@ -605,15 +613,20 @@ def test_create_user_template_job_request_validation(
     assert not CreateUserTemplateJob.objects.exists()
 
 
-@pytest.mark.parametrize("unknown", [True, False])
+@pytest.mark.parametrize("chosen", ["unknown", "none", "🔥 Most Popular", "Baserow"])
 def test_create_user_template_job_with_invalid_categories(
-    api_client, data_fixture, unknown
+    api_client, data_fixture, chosen
 ):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     category = TemplateCategory.objects.create(name="Cat")
-    category_ids = [category.id, category.id + 1000] if unknown else []
+    if chosen == "unknown":
+        category_ids = [category.id, category.id + 1000]
+    elif chosen == "none":
+        category_ids = []
+    else:
+        category_ids = [category.id, TemplateCategory.objects.create(name=chosen).id]
 
     response = create_job(
         api_client, token, workspace, [database], category_ids=category_ids
@@ -1364,7 +1377,9 @@ def test_public_template_categories(api_client, data_fixture):
     response = list_templates(api_client, view="public_categories")
 
     assert response.status_code == HTTP_200_OK
-    assert response.json() == [{"id": listed.id, "name": "Listed"}]
+    assert response.json() == [
+        {"id": listed.id, "name": "Listed", "user_selectable": True}
+    ]
 
 
 def test_listed_templates_combine_with_the_other_filters(api_client, data_fixture):

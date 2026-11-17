@@ -64,6 +64,7 @@ from baserow.core.user_templates.constants import (
     USER_TEMPLATE_ICON_MAX_LENGTH,
     USER_TEMPLATE_ICON_REGEX,
     USER_TEMPLATE_PURGE_BATCH_SIZE,
+    USER_TEMPLATE_RESERVED_CATEGORY_NAMES,
     InstallAccess,
 )
 from baserow.core.user_templates.exceptions import (
@@ -161,17 +162,22 @@ def author_name_expression(author: str) -> Coalesce:
 
 class UserTemplateHandler:
     def validate_icon_and_categories(
-        self, icon: str, category_ids: Iterable[int]
+        self, icon: str, category_ids: Iterable[int], allow_reserved: bool = False
     ) -> list[TemplateCategory]:
         """
         Checks the icon and the categories chosen for a user template.
 
         :param icon: The icon class name, an iconoir class.
         :param category_ids: The ids of the existing categories, at least one
-            unless the instance has none, like one that never synced templates.
+            unless the instance has none an author can pick, like one that never
+            synced templates.
+        :param allow_reserved: Whether the categories may be reserved for official
+            templates, see `USER_TEMPLATE_RESERVED_CATEGORY_NAMES`. Only when the
+            author doesn't choose them, so that a template that is in one already
+            keeps it.
         :raises InvalidTemplateIcon: If the icon isn't allowed.
-        :raises InvalidTemplateCategory: If no category is given while there are
-            some, or one of them doesn't exist.
+        :raises InvalidTemplateCategory: If no category is given while some can
+            be picked, one of them doesn't exist, or one is reserved.
         :return: The categories.
         """
 
@@ -184,13 +190,22 @@ class UserTemplateHandler:
 
         category_ids = set(category_ids)
         if not category_ids:
-            if TemplateCategory.objects.exists():
+            if TemplateCategory.objects.exclude(
+                name__in=USER_TEMPLATE_RESERVED_CATEGORY_NAMES
+            ).exists():
                 raise InvalidTemplateCategory("At least one category is required.")
             return []
 
         categories = list(TemplateCategory.objects.filter(id__in=category_ids))
         if len(categories) != len(category_ids):
             raise InvalidTemplateCategory("The categories are invalid.")
+        if not allow_reserved and any(
+            category.name in USER_TEMPLATE_RESERVED_CATEGORY_NAMES
+            for category in categories
+        ):
+            raise InvalidTemplateCategory(
+                "This category can't be used for user templates."
+            )
 
         return categories
 
@@ -263,8 +278,8 @@ class UserTemplateHandler:
         :param metadata: The private metadata of revision 1, built with
             `build_template_metadata`.
         :raises InvalidTemplateIcon: If the icon isn't allowed.
-        :raises InvalidTemplateCategory: If no category is given while there are
-            some, or one of them doesn't exist.
+        :raises InvalidTemplateCategory: If no category is given while some can
+            be picked, or one of them doesn't exist.
         :raises ValidationError: If the template isn't valid.
         :raises TemplateSlugGenerationFailed: If no free slug was found.
         :raises UserNotFound: If the owner was deleted.
@@ -329,6 +344,7 @@ class UserTemplateHandler:
         workspace: Workspace,
         archive: Optional[File | str] = None,
         metadata: Optional[TemplateMetadata] = None,
+        allow_reserved: bool = False,
     ) -> Template:
         """
         Creates the next revision of a user template, whose content is already
@@ -350,13 +366,15 @@ class UserTemplateHandler:
             file already in the storage.
         :param metadata: The private metadata of the revision, built with
             `build_template_metadata` or `get_source_metadata`.
+        :param allow_reserved: Whether the categories may be reserved, see
+            `validate_icon_and_categories`.
         :raises TemplateDoesNotExist: If the user doesn't own the template anymore,
             or it's marked for deletion.
         :raises TemplateChangedDuringUpdate: If the template has a newer revision
             than `base_revision`.
         :raises InvalidTemplateIcon: If the icon isn't allowed.
-        :raises InvalidTemplateCategory: If no category is given while there are
-            some, or one of them doesn't exist.
+        :raises InvalidTemplateCategory: If no category is given while some can
+            be picked, one of them doesn't exist, or one is reserved.
         :raises ValidationError: If the revision isn't valid.
         :return: The created revision.
         """
@@ -370,7 +388,9 @@ class UserTemplateHandler:
                     "The template was changed while it was being updated."
                 )
 
-            categories = self.validate_icon_and_categories(icon, category_ids)
+            categories = self.validate_icon_and_categories(
+                icon, category_ids, allow_reserved=allow_reserved
+            )
             revision = Template(
                 type=root.type,
                 root=root,

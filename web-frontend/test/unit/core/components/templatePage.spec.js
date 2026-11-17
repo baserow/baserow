@@ -354,7 +354,11 @@ describe('TemplatePage', () => {
       workspace: { id: workspaceId },
       tables: [],
     })
-    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    testApp.authenticate({
+      id: 1,
+      preferences: {},
+      completed_onboarding: false,
+    })
     testApp.dontFailOnErrorResponses()
     testApp.mock.onGet('/workspaces/').reply(200, [{ id: 1, name: 'First' }])
     testApp.mock.onGet('/applications/').reply(200, [])

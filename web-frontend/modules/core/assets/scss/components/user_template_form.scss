@@ -49,6 +49,10 @@
   list-style: disc;
 }
 
+.user-template-form__notice-list li + li {
+  margin-top: 4px;
+}
+
 .user-template-form__consent {
   margin-top: 12px;
   padding: 12px;

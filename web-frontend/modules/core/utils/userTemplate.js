@@ -24,6 +24,12 @@ export function canMakePrivate(template) {
   return ['public', 'in_review'].includes(template?.state)
 }
 
+export function getPublicAgainKey(template, requireApproval) {
+  return requireApproval || ['rejected', 'in_review'].includes(template?.state)
+    ? 'updateUserTemplateModal.publicAgainNeedsApproval'
+    : 'updateUserTemplateModal.publicAgainAnyTime'
+}
+
 export function canChangeVisibilityInDetails(template) {
   return ['private', 'public'].includes(template?.state)
 }
@@ -50,4 +56,45 @@ export function getPrivateLinkUrl(template, router, baseUrl) {
     params: { slug: template.slug, token: template.private_link_token },
   })
   return new URL(href, baseUrl).toString()
+}
+
+/**
+ * 'sharing', 'private' or null. Only the author and admins know `listed`; anyone
+ * else sees a listed template, unless they came through a private link.
+ */
+export function getCopyLinkKind(template, { isPrivateLinkPage = false } = {}) {
+  if (template?.state === 'blocked') {
+    return null
+  }
+  if (typeof template?.listed === 'boolean') {
+    if (template.listed) {
+      return 'sharing'
+    }
+    return template.private_link_token ? 'private' : null
+  }
+  return isPrivateLinkPage ? null : 'sharing'
+}
+
+export function getTemplateLinkUrl(template, router, baseUrl) {
+  const { href } = router.resolve({
+    name: 'template',
+    params: { slug: template.slug },
+  })
+  return new URL(href, baseUrl).toString()
+}
+
+export function getCopyLinkItem(kind, template, router, baseUrl) {
+  if (kind === 'private') {
+    return {
+      label: 'templateInstall.copyPrivateLink',
+      url: getPrivateLinkUrl(template, router, baseUrl),
+    }
+  }
+  if (kind === 'sharing') {
+    return {
+      label: 'templateInstall.copyLink',
+      url: getTemplateLinkUrl(template, router, baseUrl),
+    }
+  }
+  return null
 }

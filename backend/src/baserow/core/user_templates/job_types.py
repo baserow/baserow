@@ -336,6 +336,7 @@ class CreateUserTemplateJobType(JobType):
             categories = handler.validate_icon_and_categories(
                 base_revision.icon,
                 base_revision.categories.values_list("id", flat=True),
+                allow_reserved=True,
             )
             return update_values | {
                 "source_workspace": workspace,

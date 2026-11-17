@@ -99,13 +99,14 @@
         </div>
       </template>
     </div>
+    <TemplateModal v-if="linkedTemplateSlug" ref="templateModal" />
   </div>
 </template>
 
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useStore } from 'vuex'
-import { useRouter, useNuxtApp, useAsyncData } from '#app'
+import { useRoute, useRouter, useNuxtApp, useAsyncData } from '#app'
 import { useHead } from '#imports'
 
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -113,6 +114,8 @@ import WorkspaceInvitation from '@baserow/modules/core/components/workspace/Work
 import AllWorkspacesHeader from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesHeader'
 import AllWorkspacesWorkspaceBox from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesWorkspaceBox'
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
+import TemplateModal from '@baserow/modules/core/components/template/TemplateModal'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { getRoleTranslations } from '@baserow/modules/core/store/workspace'
 import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
@@ -147,6 +150,7 @@ definePageMeta({
 
 const store = useStore()
 const router = useRouter()
+const route = useRoute()
 const nuxtApp = useNuxtApp()
 const { $registry, $i18n } = nuxtApp
 
@@ -371,8 +375,19 @@ function keydownCapture(event) {
 // The cards show relative dates that must keep ageing while the page is open.
 provideNow()
 
+const linkedTemplateSlug =
+  nuxtApp.$featureFlagIsEnabled(FF_USER_TEMPLATES) &&
+  typeof route.query.template === 'string'
+    ? route.query.template
+    : null
+const templateModal = ref(null)
+
 onMounted(() => {
   document.addEventListener('keydown', keydownCapture, true)
+  if (linkedTemplateSlug) {
+    router.replace({ query: { ...route.query, template: undefined } })
+    templateModal.value.show(linkedTemplateSlug)
+  }
 })
 
 onBeforeUnmount(() => {

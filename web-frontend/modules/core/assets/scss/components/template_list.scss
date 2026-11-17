@@ -106,9 +106,10 @@
 
 .template-list__grid {
   display: grid;
-
-  // Three cards per row at the width of the design, fewer on narrow screens.
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(max(220px, calc((100% - 48px) / 3)), 1fr)
+  );
   gap: 16px;
 }
 

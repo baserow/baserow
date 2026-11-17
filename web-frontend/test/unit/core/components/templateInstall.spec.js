@@ -29,15 +29,15 @@ describe('TemplateInstall', () => {
   let testApp = null
   let push = null
 
-  beforeEach(() => {
+  beforeEach(async () => {
     testApp = new TestApp()
+    await testApp.nuxtApp.$router.replace('/template/project-tracker')
     push = vi.spyOn(testApp.nuxtApp.$router, 'push').mockResolvedValue()
   })
 
   afterEach(async () => {
     permission.check = () => true
     push.mockRestore()
-    await testApp.nuxtApp.$router.replace('/template/project-tracker')
     await testApp.afterEach()
   })
 
@@ -274,7 +274,7 @@ describe('TemplateInstall', () => {
     expect(wrapper.findAll('.context__menu-item-link')).toHaveLength(1)
 
     wrapper = await testApp.mount(TemplateInstall, {
-      props: { template, showCopyLink: false },
+      props: { template, copyLinkKind: null },
     })
     expect(
       wrapper.find('.template-install__actions .button-icon').exists()

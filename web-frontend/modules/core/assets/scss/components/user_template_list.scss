@@ -62,14 +62,18 @@
   gap: 16px;
   padding: 12px 16px;
   color: $palette-neutral-1200;
-  border-bottom: solid 1px $palette-neutral-200;
   cursor: pointer;
+
+  & + & {
+    border-top: solid 1px $palette-neutral-200;
+  }
 
   &:hover {
     background-color: $palette-neutral-25;
   }
 
   &--head {
+    border-bottom: solid 1px $palette-neutral-200;
     cursor: default;
     padding-top: 10px;
     padding-bottom: 10px;

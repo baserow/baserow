@@ -1,12 +1,13 @@
-$templates-width: 1180px;
+%templates-column {
+  max-width: 1180px;
+  margin: 0 auto;
+  border-left: solid 1px $palette-neutral-200;
+  border-right: solid 1px $palette-neutral-200;
+}
 
 .templates-modal .modal__box--full-screen {
   top: 16px;
   bottom: 16px;
-
-  // The width of the design, which fits three template cards per row.
-  max-width: $templates-width;
-  margin: 0 auto;
   overflow: hidden;
 
   .modal__actions {
@@ -19,15 +20,20 @@ $templates-width: 1180px;
   .templates__body .header {
     padding-right: 40px;
   }
+
+  .template-list {
+    @extend %templates-column;
+  }
 }
 
 .templates-page {
   @include absolute(0);
 
-  max-width: $templates-width;
-  margin: 0 auto;
-  border-left: solid 1px $palette-neutral-200;
-  border-right: solid 1px $palette-neutral-200;
+  background-color: $palette-neutral-0;
+
+  .template-list {
+    @extend %templates-column;
+  }
 }
 
 .templates__body {

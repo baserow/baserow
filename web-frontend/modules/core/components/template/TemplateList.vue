@@ -131,6 +131,11 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  initialCategoryId: {
+    type: Number,
+    required: false,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['selected'])
@@ -139,7 +144,7 @@ const { $priorityBus } = useNuxtApp()
 
 const searchInput = ref(null)
 const search = ref('')
-const selectedCategoryId = ref(null)
+const selectedCategoryId = ref(props.initialCategoryId)
 const collapsed = ref([])
 
 function matchesSearch(template, regex) {
