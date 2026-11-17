@@ -19,6 +19,9 @@ from pydantic_ai.messages import (
 from pydantic_ai.usage import UsageLimits
 
 from baserow.contrib.database.api.formula.serializers import TypeFormulaResultSerializer
+from baserow.contrib.database.fields.dependencies.exceptions import (
+    SelfReferenceFieldDependencyError,
+)
 from baserow.contrib.database.fields.dependencies.handler import (
     FieldDependencyHandler,
 )
@@ -326,6 +329,9 @@ def get_formula_type_tool(
             )
             result = TypeFormulaResultSerializer(field).data
             error = result["error"]
+        except SelfReferenceFieldDependencyError:
+            # Raised without a message, which would read as no error.
+            error = "the formula references its own field"
         except Exception as exc:
             error = str(exc)
 

@@ -96,6 +96,16 @@ def test_unknown_table_asks_the_model_to_retry_with_valid_ids(formula_env):
 
 
 @pytest.mark.django_db
+def test_formula_referencing_its_own_field_asks_the_model_to_retry(formula_env):
+    validate, table = formula_env
+
+    with pytest.raises(ModelRetry) as exc_info:
+        validate(table.id, "Label", "field('Label')")
+
+    assert "its own field" in str(exc_info.value)
+
+
+@pytest.mark.django_db
 def test_table_outside_the_workspace_is_not_leaked(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -144,10 +154,15 @@ def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
         member, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden
     )
 
-    with pytest.raises(ModelRetry) as exc_info:
-        get_formula_type_tool(member, workspace)(table.id, "Check", formula)
+    def message(formula):
+        with pytest.raises(ModelRetry) as exc_info:
+            get_formula_type_tool(member, workspace)(table.id, "Check", formula)
+        return str(exc_info.value)
 
-    assert "unknown field" in str(exc_info.value)
+    # The hidden field answers as a field that doesn't exist, but for its name.
+    unknown = formula.replace("Salary", "Nonexistent")
+    assert "unknown field" in message(formula)
+    assert message(formula).replace("Salary", "Nonexistent") == message(unknown)
     assert (
         get_formula_type_tool(admin, workspace)(
             table.id, "Check", "lookup('Link', 'Salary')"
