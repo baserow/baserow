@@ -706,16 +706,7 @@ def _update_table_formulas(
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
     # The element replaces its whole list of columns.
-    columns = [
-        {
-            "uid": str(column.uid),
-            "name": column.name,
-            "type": column.type,
-            "config": dict(column.config),
-            "styles": column.styles,
-        }
-        for column in orm_element.fields.order_by("order")
-    ]
+    columns = orm_element.get_type().get_field_values(orm_element)
     changed = False
     for key, formula in formulas.items():
         parts = key.split(".")

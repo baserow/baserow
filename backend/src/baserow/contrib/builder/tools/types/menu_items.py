@@ -1,6 +1,5 @@
 """Menu items as the builder tools read and change them."""
 
-import uuid
 from collections import defaultdict
 from collections.abc import Iterable
 from operator import attrgetter
@@ -8,7 +7,9 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from pydantic import Field, field_validator, model_validator
 
+from baserow.contrib.builder.elements.element_types import MenuElementType
 from baserow.contrib.builder.elements.models import MenuItemElement
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.tools.formula_utils import formula_text
 from baserow.core.tools.types import BaseModel
 
@@ -111,15 +112,12 @@ def new_menu_link(name: str, page_id: int) -> dict[str, Any]:
     :return: The values, keyed like a menu's ``menu_items`` input.
     """
 
-    return {
-        "uid": str(uuid.uuid4()),
-        "type": "link",
-        "variant": "link",
-        "name": name,
-        "navigation_type": "page",
-        "navigate_to_page_id": page_id,
-        "target": "self",
-    }
+    return element_type_registry.get(MenuElementType.type).get_new_menu_item_values(
+        type=MenuItemElement.TYPES.LINK,
+        name=name,
+        navigation_type=MenuItemElement.NAVIGATION_TYPES.PAGE,
+        navigate_to_page_id=page_id,
+    )
 
 
 def group_menu_items(
