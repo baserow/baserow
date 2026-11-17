@@ -102,7 +102,7 @@ source map below; they are independent of your acceptance checkbox.
 | [ ] | PERM-04 | Existing context observes disabled/trashed/revoked/deleted actors before the next effect, including prefetched membership paths. No new table/row/field is persisted on denial. | PASS — domain + live integration; E-REVOKE, UI-12/14 |
 | [ ] | PERM-05 | Personal views remain human-only through create, adoption, read/edit/publish and import; ordinary human ownership still works. | PASS — domain; B-PERSONAL |
 | [ ] | PERM-06 | User/identity/team field-permission choices preserve kind metadata and grant the intended access; no permission data leaks to lower-role callers. | PASS — API/domain + frontend units; B-FIELD; manual selector walkthrough not run |
-| [ ] | PERM-07 | Only identity managers bind an Agent application or Local Baserow integration to an identity. A duplicated or restored Agent keeps its binding only for them; a copied integration keeps its subject. Application editors keep or clear an existing binding and see no identity choices. | PASS — domain/API + frontend unit; B-BIND |
+| [ ] | PERM-07 | Only identity managers bind an Agent application or Local Baserow integration to an identity. A duplicated or restored application keeps its binding only for them: otherwise an Agent loses its run-as and an integration is authorized as the person copying. Application editors keep or clear an existing binding and see no identity choices. | PASS — domain/API + frontend unit; B-BIND |
 | [ ] | BILL-01 | Member/admin user lists, seat/free-user counts and license-user assignment exclude identities; team subject counts intentionally include eligible identities. | PASS — API/domain/browser; B-BILL, UI-06; combined UI totals are not seat counts |
 | [ ] | BILL-02 | Username/email uniqueness spans humans and identities while human administration targets only humans; collisions return the domain/API error, not a database error. | PASS — API/domain; B-UNIQUE |
 | [ ] | EXEC-01 | Paired human/identity tools list apps/tables/schema and create tables with real generated models and persisted schema. Row data is covered separately below. | PASS — domain; E-TOOLS |
@@ -195,7 +195,7 @@ shared developer/production database to execute these checks.
 2. Drain every old backend and worker before enabling identity creation. Existing
    identities require avoiding old/new overlap; flag removal does not make rollback
    safe. This gate was explicitly approved after reproducing the old last-admin bug.
-3. If this database already ran an earlier version of branch migration 0138, use a
+3. If this database already ran an earlier version of branch migration 0139, use a
    separately reviewed schema transition. Ordinary migrate will not rerun it.
 
 ## Evidence and results index
@@ -286,14 +286,14 @@ Important exact execution selectors in `test_identity_tool_context.py`:
 - `test_identity_tools_recheck_a_previously_used_context` (six states × plain/prefetched)
 - `test_user_tools_recheck_a_previously_used_context` (two states × plain/prefetched)
 
-The current real migration cases are `test_0138_identity_upgrade_and_guarded_rollback`
-and `test_0138_discards_legacy_agents_without_converting_references`. They check old
+The current real migration cases are `test_0139_identity_upgrade_and_guarded_rollback`
+and `test_0139_discards_legacy_agents_without_converting_references`. They check old
 Agent queries/workspace deletion during rollout, the rollback guard and the removal
-of Agent trash entries. `test_0073_deletes_rows_whose_subject_is_a_legacy_agent` and
-`test_0044_clears_legacy_agent_authorization` cover the enterprise and integrations
+of Agent trash entries. `test_0074_deletes_rows_whose_subject_is_a_legacy_agent` and
+`test_0045_clears_legacy_agent_authorization` cover the enterprise and integrations
 cleanup. The earlier
 four-case results above predate the decision to discard disposable legacy data.
-`test_identity_indexes.py` additionally interrupts the actual 0139 index build and
+`test_identity_indexes.py` additionally interrupts the actual 0140 index build and
 verifies that rerunning it recovers the invalid index.
 The browser report maps UI-01–17 to specific screenshots, trace actions, HTTP
 statuses and persisted row IDs. UI-18 is the retained repository spec.
@@ -322,7 +322,7 @@ just b run env -u DATABASE_URL DATABASE_NAME=identity_verify_execution_20261109 
 # Real migrations: explicitly disable the fast SQL/schema fixture.
 just b run env -u DATABASE_URL DATABASE_NAME=identity_verify_migrations_20261109 \
   BASEROW_TESTS_SETUP_DB_FIXTURE=off pytest tests/baserow/core/migrations/test_core_migrations.py \
-  -k 0138 --run-once-per-day-in-ci --reuse-db --create-db
+  -k 0139 --run-once-per-day-in-ci --reuse-db --create-db
 
 just f yarn test:core --run --maxWorkers=2
 just f yarn test:premium --run --maxWorkers=2
@@ -330,7 +330,7 @@ just f yarn test:enterprise --run --maxWorkers=2
 just f yarn test:core --run test/unit/core/components/settings/mcpOAuthConnections.spec.js --maxWorkers=2
 
 # Standard disposable Docker E2E stack, identities enabled and enterprise fixture license.
-# Build this branch; the restored schema must include migrations 0138 and 0139.
+# Build this branch; the restored schema must include migrations 0139 and 0140.
 just e2e build
 just e2e up
 just e2e test tests/identities/identityManagement.spec.ts
