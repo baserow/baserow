@@ -148,14 +148,14 @@ def test_import_rejects_malformed_inputs_and_resolves_reserved_names(
 
 
 @pytest.mark.django_db
-def test_agent_supports_smtp_integrations_only(data_fixture):
+def test_agent_supports_only_the_integrations_of_its_actions(data_fixture):
     from baserow.core.integrations.handler import IntegrationHandler
     from baserow.core.integrations.registries import integration_type_registry
 
     agent = data_fixture.create_agent_application()
     supported = AgentApplicationType().supports_integration_type
     assert supported(integration_type_registry.get("smtp"))
-    assert not supported(integration_type_registry.get("local_baserow"))
+    assert not supported(integration_type_registry.get("slack_bot"))
     source = data_fixture.create_smtp_integration()
     config = ImportExportConfig(
         include_permission_data=False, exclude_sensitive_data=False

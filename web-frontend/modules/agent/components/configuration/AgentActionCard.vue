@@ -18,7 +18,17 @@
           action.name || serviceType?.name || action.type
         }}</span>
       </button>
-      <template v-if="configurationErrors.length">
+      <button
+        v-if="lockedModal"
+        v-tooltip="lockedReason"
+        type="button"
+        class="agent-action-card__lock"
+        :aria-label="lockedReason"
+        @click="showLockedModal"
+      >
+        <i class="iconoir-lock" aria-hidden="true" />
+      </button>
+      <template v-else-if="configurationErrors.length">
         <button
           type="button"
           class="agent-action-card__misconfigured"
@@ -63,6 +73,7 @@
       </span>
       <SwitchInput
         v-tooltip="enabledTooltip"
+        :class="{ 'agent-action-card__switch--locked': locked }"
         small
         role="switch"
         :tabindex="editable ? 0 : -1"
@@ -91,59 +102,70 @@
           @update:model-value="update({ name: $event })"
         />
       </FormGroup>
-      <FormGroup
-        :label="$t('agent.actionDescription')"
-        :help-icon-tooltip="$t('agent.actionDescriptionHelp')"
-        class="margin-bottom-2"
-        small-label
+      <div
+        class="agent-action-card__settings"
+        :class="{
+          'agent-action-card__settings--locked': locked,
+          'agent-action-card__settings--upgradable': lockedModal,
+        }"
+        @click="showLockedModal"
       >
-        <FormTextarea
-          :model-value="action.description"
-          :maxlength="10000"
-          :disabled="!editable"
-          :rows="3"
-          @update:model-value="update({ description: $event })"
-        />
-      </FormGroup>
-      <FormGroup
-        class="agent-action-card__approval"
-        :helper-text="$t('agent.actionAskFirstHelp')"
-      >
-        <SwitchInput
-          small
-          role="switch"
-          :tabindex="editable ? 0 : -1"
-          :aria-checked="action.ask_first"
-          :aria-disabled="!editable"
-          :model-value="action.ask_first"
-          :disabled="!editable"
-          @update:model-value="update({ ask_first: $event })"
-          @keydown.enter.prevent="update({ ask_first: !action.ask_first })"
-          @keydown.space.prevent="update({ ask_first: !action.ask_first })"
-        >
-          {{ $t('agent.actionAskFirst') }}
-        </SwitchInput>
-      </FormGroup>
-      <AgentActionInputs
-        :model-value="action.inputs"
-        :editable="editable"
-        @update:model-value="update({ inputs: $event })"
-      />
-      <div v-if="serviceType" class="agent-action-card__service">
-        <h4>{{ $t('agent.actionConfiguration') }}</h4>
-        <ReadOnlyForm :read-only="!editable" :inert="!editable">
-          <component
-            :is="serviceType.formComponent"
-            ref="form"
-            :application="agent"
-            :service="action.service"
-            :service-type="serviceType"
-            :default-values="action.service"
-            :loading="saving"
-            :allow-integration-editing="editable"
-            @values-changed="onServiceValuesChanged"
+        <div :inert="locked || null">
+          <FormGroup
+            :label="$t('agent.actionDescription')"
+            :help-icon-tooltip="$t('agent.actionDescriptionHelp')"
+            class="margin-bottom-2"
+            small-label
+          >
+            <FormTextarea
+              :model-value="action.description"
+              :maxlength="10000"
+              :disabled="!editable"
+              :rows="3"
+              @update:model-value="update({ description: $event })"
+            />
+          </FormGroup>
+          <FormGroup
+            class="agent-action-card__approval"
+            :helper-text="$t('agent.actionAskFirstHelp')"
+          >
+            <SwitchInput
+              small
+              role="switch"
+              :tabindex="editable ? 0 : -1"
+              :aria-checked="action.ask_first"
+              :aria-disabled="!editable"
+              :model-value="action.ask_first"
+              :disabled="!editable"
+              @update:model-value="update({ ask_first: $event })"
+              @keydown.enter.prevent="update({ ask_first: !action.ask_first })"
+              @keydown.space.prevent="update({ ask_first: !action.ask_first })"
+            >
+              {{ $t('agent.actionAskFirst') }}
+            </SwitchInput>
+          </FormGroup>
+          <AgentActionInputs
+            :model-value="action.inputs"
+            :editable="editable"
+            @update:model-value="update({ inputs: $event })"
           />
-        </ReadOnlyForm>
+          <div v-if="serviceType" class="agent-action-card__service">
+            <h4>{{ $t('agent.actionConfiguration') }}</h4>
+            <ReadOnlyForm :read-only="!editable" :inert="!editable">
+              <component
+                :is="formComponent"
+                ref="form"
+                :application="agent"
+                :service="action.service"
+                :service-type="serviceType"
+                :default-values="action.service"
+                :loading="saving"
+                :allow-integration-editing="editable"
+                @values-changed="onServiceValuesChanged"
+              />
+            </ReadOnlyForm>
+          </div>
+        </div>
       </div>
       <p v-if="saveError" class="agent-action-card__error" role="alert">
         {{ saveError }}
@@ -166,6 +188,13 @@
         >{{ $t('agent.deleteAction') }}</ButtonText
       >
     </footer>
+    <component
+      :is="lockedModal[0]"
+      v-if="lockedModal"
+      ref="lockedModalRef"
+      :workspace="workspace"
+      v-bind="lockedModal[1]"
+    />
   </article>
 </template>
 
@@ -210,6 +239,15 @@ const agent = inject('agentApplication')
 const form = ref(null)
 const misconfiguredContext = ref(null)
 const serviceType = computed(() => serviceTypeOf($registry, props.action.type))
+const formComponent = computed(() => {
+  const presenter = $registry.exists('toolPresentation', props.action.type)
+    ? $registry.get('toolPresentation', props.action.type)
+    : null
+  return (
+    presenter?.getFormComponent(serviceType.value) ??
+    serviceType.value.formComponent
+  )
+})
 provide('formulaComponent', AgentFormulaInput)
 provide('dataProvidersAllowed', ['tool_input'])
 provide('workspace', toRef(props, 'workspace'))
@@ -232,7 +270,25 @@ const configurationErrors = computed(() =>
     })
   )
 )
+/** Why the action's type can't be used in the workspace, or ''. */
+const lockedReason = computed(
+  () =>
+    serviceType.value?.isDeactivatedReason({ workspace: props.workspace }) || ''
+)
+const locked = computed(() => Boolean(lockedReason.value))
+/** The upgrade modal, only when a license would unlock the type. */
+const lockedModal = computed(() =>
+  locked.value
+    ? serviceType.value.getDeactivatedClickModal({ workspace: props.workspace })
+    : null
+)
+const lockedModalRef = ref(null)
+function showLockedModal() {
+  lockedModalRef.value?.show()
+}
 const enabledTooltip = computed(() => {
+  if (locked.value)
+    return t('agent.actionLockedTooltip', { reason: lockedReason.value })
   if (!props.editable) return null
   return t(
     props.action.enabled
@@ -240,8 +296,16 @@ const enabledTooltip = computed(() => {
       : 'agent.actionDisabledTooltip'
   )
 })
+// The backend refuses any other change while the type is locked.
+const LOCKED_EDITABLE_FIELDS = ['name', 'enabled']
 function update(values) {
-  if (props.editable) emit('update', values)
+  if (!props.editable) return
+  if (
+    locked.value &&
+    Object.keys(values).some((field) => !LOCKED_EDITABLE_FIELDS.includes(field))
+  )
+    return
+  emit('update', values)
 }
 // Shared service forms expose reset() to adopt a remote configuration update.
 watch(

@@ -12,6 +12,7 @@ from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
 
+from .exceptions import AgentActionTypeNotAvailable
 from .handler import AgentActionHandler, AgentActionUpdated
 from .inputs import validate_action_name, validate_inputs
 from .registries import agent_action_type_registry
@@ -21,6 +22,7 @@ WRITE_OPERATIONS = (
     UpdateApplicationOperationType.type,
     ReadAgentConfigurationOperationType.type,
 )
+LOCKED_ACTION_EDITABLE_FIELDS = {"name", "enabled"}
 
 
 class AgentActionService:
@@ -138,9 +140,11 @@ class AgentActionService:
         agent = self.agent_service.get_authorized_agent(
             user, agent_id, *WRITE_OPERATIONS, for_update=True
         )
-        self.handler.check_type_available(agent, service_type_name)
-        defaults = agent_action_type_registry.get(service_type_name).get_defaults()
+        self.handler.check_type_usable(agent, service_type_name)
+        action_type = agent_action_type_registry.get(service_type_name)
+        defaults = action_type.get_defaults()
         initial_service = defaults.pop("service")
+        defaults.setdefault("ask_first", action_type.changes_data)
         defaults.update(values)
         defaults["name"] = (
             values["name"]
@@ -175,11 +179,15 @@ class AgentActionService:
         :param service_values: The service values to change, if any.
         :param values: The editable fields to change.
         :return: The action and what changed.
+        :raises AgentActionTypeNotAvailable: When it would change more than the
+            name or the switch of an action whose type can't be used in the
+            workspace.
         """
 
         action = self._get_authorized_action(
             user, agent_id, action_id, *WRITE_OPERATIONS, for_update=True
         )
+        self._check_locked_change(action, service_values, values)
         if "name" in values:
             validate_action_name(values["name"])
         if "inputs" in values:
@@ -196,6 +204,32 @@ class AgentActionService:
         if updated.changed_fields:
             agent_action_updated.send(self, action=action, user=user)
         return updated
+
+    def _check_locked_change(
+        self,
+        action: AgentAction,
+        service_values: dict[str, Any] | None,
+        values: dict[str, Any],
+    ) -> None:
+        """
+        A locked action can still be renamed, switched or deleted, so it's
+        ready again when its type becomes usable.
+
+        :param action: The action, with its agent and workspace.
+        :param service_values: The service values to change, if any.
+        :param values: The editable fields to change.
+        :raises AgentActionTypeNotAvailable: When anything else would change and
+            the action's type can't be used in the workspace.
+        """
+
+        changes_settings = service_values is not None or bool(
+            set(values) - LOCKED_ACTION_EDITABLE_FIELDS
+        )
+        type_name = action.service.get_type().type
+        if changes_settings and not agent_action_type_registry.get(
+            type_name
+        ).is_available(action.agent.workspace):
+            raise AgentActionTypeNotAvailable(type_name)
 
     @transaction.atomic
     def delete_action(

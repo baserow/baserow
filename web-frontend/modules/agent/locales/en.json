@@ -405,6 +405,7 @@
     "actionEnabled": "Enable {name}",
     "actionEnabledTooltip": "Action enabled. Click to disable.",
     "actionDisabledTooltip": "Action disabled. Click to enable.",
+    "actionLockedTooltip": "{reason}. The agent can't use this action until then.",
     "actionName": "Tool name",
     "actionNameHelp": "Use a unique name with up to 64 letters, numbers and underscores, starting with a letter or underscore. Names starting with \"mcp\" and a number are reserved for connected apps.",
     "actionDescription": "When to use this action",
