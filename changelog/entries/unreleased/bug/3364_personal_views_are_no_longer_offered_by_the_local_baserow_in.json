@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Personal views are no longer offered by the Local Baserow integration and can't be set on its services.",
+    "issue_origin": "github",
+    "issue_number": 3364,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-11-13"
+}

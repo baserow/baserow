@@ -81,10 +81,12 @@ export class LocalBaserowTableServiceType extends ServiceType {
       // reported by the more specific checks below (e.g. no table selected).
       // Callers must only pass `application` when the builder's integrations are
       // loaded in the store (editor mode) - see WorkflowActionServiceType.
+      let integration = null
       if (application !== undefined && service.integration_id) {
-        const integration = this.app.$store.getters[
-          'integration/getIntegrationById'
-        ](application, service.integration_id)
+        integration = this.app.$store.getters['integration/getIntegrationById'](
+          application,
+          service.integration_id
+        )
         // A data source whose integration has been trashed keeps its
         // integration_id, but the trashed integration is no longer in the store,
         // so it can't be resolved — the data source is misconfigured.
@@ -99,8 +101,35 @@ export class LocalBaserowTableServiceType extends ServiceType {
       if (!service.table_id) {
         return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
+      if (this.isViewUnusable(service, integration)) {
+        return this.app.$i18n.t('serviceType.errorViewUnusable')
+      }
     }
     return super.getErrorMessage({ service, application })
+  }
+
+  /**
+   * Whether the view of the service can't be used through its integration, for
+   * example because it became a personal view. The integration lists the views it
+   * offers per database, so the view is unusable when its table is listed and the
+   * view itself isn't. Nothing is reported when the table isn't listed, because
+   * the views of that table are then unknown.
+   *
+   * @param service - The service object.
+   * @param integration - The integration of the service, if it's resolved.
+   * @returns {boolean} - If the view of the service can't be used.
+   */
+  isViewUnusable(service, integration) {
+    if (!service.view_id || !integration) {
+      return false
+    }
+    const database = (integration.context_data?.databases || []).find(
+      ({ tables }) => tables.some(({ id }) => id === service.table_id)
+    )
+    if (!database) {
+      return false
+    }
+    return !database.views.some(({ id }) => id === service.view_id)
   }
 
   /**

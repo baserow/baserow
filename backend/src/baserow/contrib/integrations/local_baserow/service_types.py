@@ -77,6 +77,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDoesNotExist,
 )
 from baserow.contrib.database.views.models import DEFAULT_SORT_TYPE_KEY
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.contrib.database.views.service import ViewService
 from baserow.contrib.database.views.view_aggregations import (
     DistributionViewAggregationType,
@@ -115,6 +116,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_cast_function_from_response_serializer_field,
     guess_json_type_from_response_serializer_field,
 )
+from baserow.core.action.handler import is_replaying_action
 from baserow.core.cache import global_cache
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
@@ -1126,6 +1128,28 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
                         },
                         code="view_does_not_exist",
                     ) from exc
+
+                # A view the service already uses is kept as is, and so is one
+                # that an undo or redo restores, so only a view which is being
+                # newly set is checked.
+                view_is_being_set = (
+                    getattr(instance, "view_id", None) != view.id
+                    and not is_replaying_action()
+                )
+                if (
+                    view_is_being_set
+                    and not view_ownership_type_registry.get(
+                        view.ownership_type
+                    ).can_be_used_by_integrations
+                ):
+                    raise DRFValidationError(
+                        detail={
+                            "detail": f"The view with ID {view_id} can't be used "
+                            "because of its ownership type.",
+                            "error": "invalid_view",
+                        },
+                        code="invalid_view",
+                    )
 
                 # If we're PATCHing with a `table_id` alongside the `view_id`,
                 # validate with that table, otherwise we're PATCHing with just a
