@@ -130,11 +130,8 @@ def test_table_outside_the_workspace_is_not_leaked(data_fixture):
     ],
 )
 def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
-    enterprise_data_fixture, settings, formula
+    enable_enterprise, enterprise_data_fixture, formula
 ):
-    # Enterprise licences only count in debug mode, so roles would be ignored.
-    settings.DEBUG = True
-    enterprise_data_fixture.enable_enterprise()
     admin = enterprise_data_fixture.create_user()
     member = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=admin, members=[member])
