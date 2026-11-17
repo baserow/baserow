@@ -1,5 +1,4 @@
 import isEqual from 'lodash/isEqual'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   refreshWidgetSources,
   getTextFilterDefaultValue,
@@ -284,7 +283,7 @@ export class TextFilterWidgetType extends FilterWidgetType {
     return super.getValueAfterUpdate(widget, previousWidget, value)
   }
 
-  async afterOptionsLoad(widget, context, options) {
+  afterOptionsLoad(widget, context, options) {
     if (widget.mode !== 'dropdown') return
     const available = new Set(options)
     const retainAvailable = (value) =>
@@ -296,36 +295,16 @@ export class TextFilterWidgetType extends FilterWidgetType {
     const previousDefault = this.getDefaultValue(widget)
     const defaultValue = retainAvailable(previousDefault)
     const selectedValue = retainAvailable(context.state.widgetValues[widget.id])
-    const dashboard = context.rootGetters['application/get']?.(
-      context.state.dashboardId
-    )
-    const canSave =
-      !context.state.publicSlug &&
-      context.state === this.app.$store.state.dashboardApplication &&
-      dashboard &&
-      this.app.$hasPermission(
-        'dashboard.widget.update',
-        widget,
-        dashboard.workspace.id
-      )
-
-    let saving
     if (!isEqual(previousDefault, defaultValue)) {
-      const update = {
+      // Only use the still valid defaults locally: merely viewing a dashboard
+      // must not change its settings or add an entry to the viewer's undo
+      // history. The stored default changes when an editor changes it.
+      context.commit('UPDATE_WIDGET', {
         widgetId: widget.id,
         values: { default_value: defaultValue },
-        originalValues: { default_value: widget.default_value },
-      }
-      // Viewers use the valid defaults locally without writing dashboard settings.
-      if (canSave) saving = context.dispatch('updateWidget', update)
-      else context.commit('UPDATE_WIDGET', update)
+      })
     }
     this.valueChanged(widget, context, selectedValue)
-    try {
-      await saving
-    } catch (error) {
-      notifyIf(error, 'dashboard')
-    }
   }
 
   getDefaultValue(widget) {

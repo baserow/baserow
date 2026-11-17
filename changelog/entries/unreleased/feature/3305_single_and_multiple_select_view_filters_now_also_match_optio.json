@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Single and multiple select view filters now also match option names, so a filter value that isn't an option ID can match an option with that name",
+    "issue_origin": "github",
+    "issue_number": 3305,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-17"
+}

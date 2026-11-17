@@ -389,6 +389,8 @@ export const mutations = {
     if (state.dashboardId !== dashboardId) {
       cancelDataSourceRefresh(state)
       state.widgetValues = {}
+      state.widgetSelections = {}
+      state.widgetSaveGenerations = {}
       dataSourceDispatchQueues.get(state)?.cancelPending()
       state.dashboardGeneration += 1
       state.widgetFetchGeneration += 1

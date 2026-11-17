@@ -68,13 +68,9 @@ test.each([
     await loading
     expect(state().widgets[0].default_value).toEqual(expected)
     expect(state().widgetValues[12]).toEqual(expected)
-    if (JSON.stringify(initial) === JSON.stringify(expected))
-      expect(store.$client.patch).not.toHaveBeenCalled()
-    else
-      expect(store.$client.patch).toHaveBeenCalledWith(
-        '/dashboard/widgets/12/',
-        { default_value: expected }
-      )
+    // Viewing never saves the cleanup, even for editors: it would change the
+    // dashboard and add an undo entry nobody made.
+    expect(store.$client.patch).not.toHaveBeenCalled()
     await reconcile()
     expect(store.$client.get).not.toHaveBeenCalled()
   }

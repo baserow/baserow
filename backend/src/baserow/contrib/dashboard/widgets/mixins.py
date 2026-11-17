@@ -307,12 +307,20 @@ class FilterWidgetTypeMixin:
 
         updated_models = super().after_import(widget, id_mapping, **kwargs)
         import_export_config = kwargs.get("import_export_config")
+        imported_links = []
         for link in self.get_target_filters(widget):
-            link["target_widget_id"] = id_mapping["dashboard_widgets"][
+            target_id = id_mapping.get("dashboard_widgets", {}).get(
                 link["target_widget_id"]
-            ]
-            target = Widget.objects.get(id=link["target_widget_id"]).specific
-            source = target.get_type().get_data_source(target)
+            )
+            target = Widget.objects.filter(id=target_id).first() if target_id else None
+            target = target.specific if target else None
+            source = target.get_type().get_data_source(target) if target else None
+            if source is None or not source.service_id:
+                # The export doesn't contain the target or its source anymore, so
+                # the link can't apply. Drop it rather than failing the import.
+                continue
+            link["target_widget_id"] = target_id
+            imported_links.append(link)
             service_type = service_type_registry.get_by_model(
                 source.service.specific_class
             )
@@ -337,5 +345,7 @@ class FilterWidgetTypeMixin:
                         condition["value"] = import_formula(
                             condition["value"], id_mapping
                         )
+        # Saved with the other imported changes of the widget.
+        widget.target_filters = imported_links
         updated_models.add(widget)
         return updated_models

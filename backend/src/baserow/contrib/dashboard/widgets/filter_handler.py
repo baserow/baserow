@@ -9,6 +9,15 @@ from baserow.core.services.filter_groups import (
 
 from .models import WidgetFilterCondition, WidgetFilterGroup, WidgetFilterTarget
 
+# The optional API attributes kept in each level's `configuration`, so that a
+# configuration reads back exactly as it was written. Anything else is dropped.
+LINK_CONFIGURATION_KEYS = ("enabled", "empty_behavior")
+CONDITION_CONFIGURATION_KEYS = ("id", "group")
+
+
+def pick(values: dict, keys) -> dict:
+    return {key: values[key] for key in keys if key in values}
+
 
 class WidgetFilterHandler:
     """Translate the stable filter API representation into relational records."""
@@ -88,11 +97,7 @@ class WidgetFilterHandler:
                 order=order,
                 enabled=link.get("enabled", True),
                 empty_behavior=link.get("empty_behavior", "apply_nothing"),
-                configuration={
-                    key: value
-                    for key, value in link.items()
-                    if key not in ("target_widget_id", "group", "alternative_group")
-                },
+                configuration=pick(link, LINK_CONFIGURATION_KEYS),
             )
             for branch in ("group", "alternative_group"):
                 configuration = link.get(branch)
@@ -101,8 +106,9 @@ class WidgetFilterHandler:
                 self._create_branch(
                     target, configuration, branch == "alternative_group"
                 )
-        widget._target_filters = links
         widget._prefetched_objects_cache = {}
+        # Read back what was stored, so callers see the normalized configuration.
+        widget._target_filters = self.get_target_filters(widget)
         from baserow.contrib.dashboard.receivers import (
             invalidate_changed_widget_properties,
         )
@@ -115,11 +121,6 @@ class WidgetFilterHandler:
             target=target,
             alternative=alternative,
             filter_type=configuration.get("filter_type", "AND"),
-            configuration={
-                key: value
-                for key, value in configuration.items()
-                if key not in ("filter_type", "filters", "filter_groups")
-            },
         )
         groups = sync_filter_groups(
             WidgetFilterGroup.objects.none(),
@@ -130,11 +131,6 @@ class WidgetFilterHandler:
                     "reference": group["id"],
                     "filter_type": group.get("filter_type", "AND"),
                     "order": index,
-                    "configuration": {
-                        key: value
-                        for key, value in group.items()
-                        if key not in ("id", "parent_group", "filter_type")
-                    },
                 }
                 for index, group in enumerate(configuration.get("filter_groups", []))
             ],
@@ -151,11 +147,7 @@ class WidgetFilterHandler:
                     "type": condition["type"],
                     "value": condition["value"],
                     "group_id": condition.get("group"),
-                    "configuration": {
-                        key: value
-                        for key, value in condition.items()
-                        if key not in ("field", "type", "value")
-                    },
+                    "configuration": pick(condition, CONDITION_CONFIGURATION_KEYS),
                 }
             )
         replace_filters(

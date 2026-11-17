@@ -1869,3 +1869,54 @@ def test_import_without_the_database_keeps_conditions_inactive(
     assert condition["field"] == 0
     # Its widget reference points at the imported filter, not the original one.
     assert condition["value"]["formula"] == f"get('widget_data.{copied_widget.id}')"
+
+
+@pytest.mark.django_db
+def test_target_filters_only_store_known_attributes(api_client, filter_dashboard):
+    _, token, _, _, widget, _ = filter_dashboard
+    link = widget.target_filters[0]
+    link["junk"] = "x"
+    link["group"]["junk"] = "x"
+    link["group"]["filters"][0]["junk"] = "x"
+    link["group"]["filters"][0]["id"] = "01HCONDITION"
+    link["group"]["filter_groups"] = [
+        {"id": "child", "filter_type": "OR", "parent_group": None, "junk": "x"}
+    ]
+
+    response = api_client.patch(
+        reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id}),
+        {"type": "text_filter", "target_filters": [link]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200, response.json()
+    saved = response.json()["target_filters"][0]
+    assert "junk" not in saved
+    assert "junk" not in saved["group"]
+    assert "junk" not in saved["group"]["filter_groups"][0]
+    assert "junk" not in saved["group"]["filters"][0]
+    # The attributes clients rely on are kept.
+    assert saved["group"]["filters"][0]["id"] == "01HCONDITION"
+    assert saved["group"]["filter_groups"][0]["filter_type"] == "OR"
+
+
+@pytest.mark.django_db
+def test_import_drops_links_to_targets_missing_from_the_export(filter_dashboard):
+    _, _, dashboard, _, widget, _ = filter_dashboard
+    app_type = DashboardApplicationType()
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = app_type.export_serialized(dashboard, config)
+    exported_filter = next(
+        item for item in serialized["widgets"] if item["id"] == widget.id
+    )
+    stale_link = {**exported_filter["target_filters"][0], "target_widget_id": 99999999}
+    exported_filter["target_filters"].append(stale_link)
+
+    copied = app_type.import_serialized(dashboard.workspace, serialized, config, {})
+
+    copied_widget = TextFilterWidget.objects.get(dashboard=copied)
+    target = SummaryWidget.objects.get(dashboard=copied)
+    assert [link["target_widget_id"] for link in copied_widget.target_filters] == [
+        target.id
+    ]

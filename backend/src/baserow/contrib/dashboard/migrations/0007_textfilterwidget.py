@@ -57,57 +57,135 @@ class Migration(migrations.Migration):
             bases=("dashboard.widget",),
         ),
         migrations.CreateModel(
-            name='WidgetFilterGroup',
+            name="WidgetFilterGroup",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('alternative', models.BooleanField(db_default=False, default=False)),
-                ('filter_type', models.CharField(db_default='AND', default='AND', max_length=3)),
-                ('order', models.PositiveIntegerField(db_default=0, default=0)),
-                ('reference', models.JSONField(db_default=None, default=None, null=True)),
-                ('configuration', models.JSONField(db_default={}, default=dict)),
-                ('parent_group', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='children', to='dashboard.widgetfiltergroup')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("alternative", models.BooleanField(db_default=False, default=False)),
+                (
+                    "filter_type",
+                    models.CharField(db_default="AND", default="AND", max_length=3),
+                ),
+                ("order", models.PositiveIntegerField(db_default=0, default=0)),
+                (
+                    "reference",
+                    models.JSONField(db_default=None, default=None, null=True),
+                ),
+                ("configuration", models.JSONField(db_default={}, default=dict)),
+                (
+                    "parent_group",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="children",
+                        to="dashboard.widgetfiltergroup",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('order', 'id'),
+                "ordering": ("order", "id"),
             },
         ),
         migrations.CreateModel(
-            name='WidgetFilterCondition',
+            name="WidgetFilterCondition",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('field_id', models.BigIntegerField()),
-                ('type', models.CharField(max_length=48)),
-                ('value', baserow.core.formula.field.FormulaField(blank=True, default='', null=True)),
-                ('order', models.PositiveIntegerField(db_default=0, default=0)),
-                ('configuration', models.JSONField(db_default={}, default=dict)),
-                ('group', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='conditions', to='dashboard.widgetfiltergroup')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("field_id", models.BigIntegerField()),
+                ("type", models.CharField(max_length=48)),
+                (
+                    "value",
+                    baserow.core.formula.field.FormulaField(
+                        blank=True, default="", null=True
+                    ),
+                ),
+                ("order", models.PositiveIntegerField(db_default=0, default=0)),
+                ("configuration", models.JSONField(db_default={}, default=dict)),
+                (
+                    "group",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="conditions",
+                        to="dashboard.widgetfiltergroup",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('order', 'id'),
+                "ordering": ("order", "id"),
             },
         ),
         migrations.CreateModel(
-            name='WidgetFilterTarget',
+            name="WidgetFilterTarget",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order', models.PositiveIntegerField(db_default=0, default=0)),
-                ('enabled', models.BooleanField(db_default=True, default=True)),
-                ('empty_behavior', models.CharField(db_default='apply_nothing', default='apply_nothing', max_length=32)),
-                ('configuration', models.JSONField(db_default={}, default=dict)),
-                ('target_widget', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='contributed_filters', to='dashboard.widget')),
-                ('widget', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='filter_targets', to='dashboard.widget')),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("order", models.PositiveIntegerField(db_default=0, default=0)),
+                ("enabled", models.BooleanField(db_default=True, default=True)),
+                (
+                    "empty_behavior",
+                    models.CharField(
+                        db_default="apply_nothing",
+                        default="apply_nothing",
+                        max_length=32,
+                    ),
+                ),
+                ("configuration", models.JSONField(db_default={}, default=dict)),
+                (
+                    "target_widget",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="contributed_filters",
+                        to="dashboard.widget",
+                    ),
+                ),
+                (
+                    "widget",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="filter_targets",
+                        to="dashboard.widget",
+                    ),
+                ),
             ],
             options={
-                'ordering': ('order', 'id'),
+                "ordering": ("order", "id"),
             },
         ),
         migrations.AddField(
-            model_name='widgetfiltergroup',
-            name='target',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='groups', to='dashboard.widgetfiltertarget'),
+            model_name="widgetfiltergroup",
+            name="target",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="groups",
+                to="dashboard.widgetfiltertarget",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='widgetfiltertarget',
-            constraint=models.UniqueConstraint(fields=('widget', 'target_widget'), name='unique_widget_filter_target'),
+            model_name="widgetfiltertarget",
+            constraint=models.UniqueConstraint(
+                fields=("widget", "target_widget"), name="unique_widget_filter_target"
+            ),
         ),
     ]
