@@ -519,6 +519,12 @@ class ActionNodeCreate(BaseModel):
         default=None,
         description="(router) Branches. A default branch is auto-created.",
     )
+    shifted_node_edge_label: str = Field(
+        default="",
+        description="(router) The branch the node this router is inserted before "
+        "moves to, with the nodes after it. Leave empty only if that node should "
+        "run when no branch matches: it then goes on the default branch.",
+    )
 
     # -- smtp_email --
     to_emails: str | None = Field(
@@ -596,6 +602,16 @@ class ActionNodeCreate(BaseModel):
             raise ValueError("Each router branch needs its own label.")
         if self.type == "router" and self.edges is not None and not labels:
             raise ValueError("router requires at least one branch in edges")
+        if (
+            self.shifted_node_edge_label
+            and self.type == "router"
+            and not self.shifted_node_edge_uid()
+        ):
+            names = ", ".join(f"'{edge.label}'" for edge in self.edges or []) or "none"
+            raise ValueError(
+                f"shifted_node_edge_label '{self.shifted_node_edge_label}' is not a "
+                f"branch of this router. Its branches: {names}."
+            )
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
             missing = [
@@ -611,6 +627,20 @@ class ActionNodeCreate(BaseModel):
         if self.type != "router":
             return None
         return {edge.label: edge._uid for edge in self.edges or []}
+
+    def shifted_node_edge_uid(self) -> str:
+        """
+        The uid of the branch shifted_node_edge_label names, empty for the default
+        branch or when it names none.
+        """
+
+        if self.type != "router" or not self.shifted_node_edge_label:
+            return ""
+        edges = self.edges or []
+        matches = matching_branches(
+            [edge.label for edge in edges], self.shifted_node_edge_label
+        )
+        return edges[matches[0]]._uid if len(matches) == 1 else ""
 
     def to_orm_service_dict(self, values: ServiceValues) -> dict[str, Any]:
         """
@@ -894,7 +924,7 @@ def _ai_agent_update_service(
 
 # The node values each type takes, beyond the ones every node has.
 _NODE_FIELDS: dict[str, set[str]] = {
-    "router": {"edges"},
+    "router": {"edges", "shifted_node_edge_label"},
     "smtp_email": {
         "to_emails",
         "cc_emails",

@@ -1,12 +1,16 @@
 """Tests for add_nodes, update_nodes and delete_nodes, shared by MCP and Kuma."""
 
+from copy import deepcopy
 from unittest.mock import patch
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 import pytest
+from pydantic import ValidationError as PydanticValidationError
 
+from baserow.api.sessions import get_untrusted_client_session_id
+from baserow.contrib.automation.action_scopes import WorkflowActionScopeType
 from baserow.contrib.automation.nodes.actions import (
     DeleteAutomationNodeActionType,
     UpdateAutomationNodeActionType,
@@ -19,6 +23,7 @@ from baserow.contrib.automation.tools.nodes import (
     update_nodes,
 )
 from baserow.contrib.automation.tools.types import ActionNodeCreate, NodeUpdate
+from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.cache import local_cache
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
@@ -147,7 +152,71 @@ def test_add_nodes_before_a_node_on_a_router_branch(automation_ctx):
     assert shifted["id"] == email["id"]
     assert shifted["previous_node_ref"] == str(log["id"])
     assert "router_edge_label" not in shifted
-    assert "warnings" not in result
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_before_a_node_moves_it_onto_the_named_branch(
+    automation_ctx,
+):
+    ctx, automation, table, name = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (after,) = add_nodes(
+        ctx, workflow.id, [_email(ref="after", previous=str(email["id"]))]
+    )["created_nodes"]
+    before = deepcopy(workflow.get_graph().graph)
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[
+                    {
+                        "label": "acme.com",
+                        "condition": f"contains(get('previous_node.{trigger.id}"
+                        f".0.field_{name.id}'), 'acme.com')",
+                    }
+                ],
+                shifted_node_edge_label="ACME.com",
+            )
+        ],
+    )
+
+    (router,) = result["created_nodes"]
+    (shifted,) = result["shifted_nodes"]
+    assert (shifted["id"], shifted["router_edge_label"]) == (email["id"], "acme.com")
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    graph = workflow.get_graph().graph
+    # The email runs on the branch, and the node after it still follows it.
+    assert graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
+    assert graph[str(email["id"])]["next"][""] == [after["id"]]
+
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+    ActionHandler.redo(ctx.user, scope, session)
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
+
+
+def test_add_nodes_rejects_a_shifted_node_edge_label_the_router_lacks():
+    with pytest.raises(PydanticValidationError, match="'Big' is not a branch"):
+        ActionNodeCreate(
+            ref="router",
+            type="router",
+            previous_node_ref="1",
+            edges=[{"label": "Small", "condition": "true"}],
+            shifted_node_edge_label="Big",
+        )
 
 
 @pytest.mark.django_db

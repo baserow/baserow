@@ -8,12 +8,14 @@ from baserow.contrib.automation.action_scopes import (
     NODE_ACTION_CONTEXT,
     WorkflowActionScopeType,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.automation.workflows.signals import automation_workflow_updated
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.graph.types import GraphPointPositionType
@@ -34,6 +36,8 @@ class CreateAutomationNodeActionType(UndoableActionType):
         automation_name: str
         node_id: int
         node_type: str
+        # The output of the node that the nodes it was inserted before follow.
+        next_output: str = ""
 
     @classmethod
     def do(
@@ -52,6 +56,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
                 node.workflow.automation.name,
                 node.id,
                 node.get_type().type,
+                data.get("next_output", ""),
             ),
             scope=cls.scope(node.workflow.id),
             workspace=node.workflow.automation.workspace,
@@ -69,6 +74,11 @@ class CreateAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
+        if params.next_output:
+            # Back on the default output, the nodes take the node's place when it
+            # is deleted, as before it was inserted.
+            node = AutomationNodeHandler().get_node(params.node_id)
+            node.workflow.get_graph().move_next_points(node, params.next_output, "")
         AutomationNodeService().delete_node(user, params.node_id)
 
     @classmethod
@@ -83,6 +93,10 @@ class CreateAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
+        if params.next_output:
+            node = AutomationNodeHandler().get_node(params.node_id)
+            node.workflow.get_graph().move_next_points(node, "", params.next_output)
+            automation_workflow_updated.send(cls, workflow=node.workflow, user=None)
 
 
 class UpdateAutomationNodeActionType(UndoableActionType):

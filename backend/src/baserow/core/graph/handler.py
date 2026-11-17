@@ -1061,6 +1061,28 @@ class BaseGraphHandler(ABC):
 
         self._update_graph()
 
+    def move_next_points(
+        self, point: GraphPoint, from_output: str, to_output: str
+    ) -> None:
+        """
+        Move the points that follow a point on one of its outputs to another of its
+        outputs, the points after them coming along.
+
+        :raises GraphPointReferencePointInvalid: When points already follow the
+            point on `to_output`.
+        """
+
+        self._lock_instance_for_update()
+        next_points = self.get_info(point).get("next", {})
+        if next_points.get(to_output):
+            raise GraphPointReferencePointInvalid(
+                f"Points already follow point {point.id} on output {to_output}."
+            )
+        moved = next_points.pop(from_output, None)
+        if moved:
+            self.get_info(point)["next"] = {**next_points, to_output: moved}
+            self._update_graph()
+
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False
     ) -> GraphPointRemoved:

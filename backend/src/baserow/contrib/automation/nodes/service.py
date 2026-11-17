@@ -139,6 +139,7 @@ class AutomationNodeService:
         reference_node_id: int | None = None,
         position: GraphPointPositionType = "south",  # south, child
         output: str = "",
+        next_output: str = "",
         **kwargs,
     ) -> AutomationNode:
         """
@@ -150,6 +151,8 @@ class AutomationNodeService:
         :param reference_node_id: The node reference node for the position.
         :param position: The position relative to the reference node.
         :param output: The output of the reference node.
+        :param next_output: The output of the new node that the nodes it is
+            inserted before follow, the default one unless given.
         :param kwargs: Additional attributes of the automation node.
         :return: The created automation node.
         """
@@ -201,6 +204,8 @@ class AutomationNodeService:
         node_type.after_create(new_node)
 
         workflow.get_graph().insert(new_node, reference_node, position, output)
+        if next_output:
+            workflow.get_graph().move_next_points(new_node, "", next_output)
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)

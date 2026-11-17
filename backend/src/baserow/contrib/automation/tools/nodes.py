@@ -396,6 +396,7 @@ def create_node(
         data["reference_node_id"], data["output"] = refs.resolve(
             spec.previous_node_ref, spec.router_edge_label
         )
+        data["next_output"] = spec.shifted_node_edge_uid()
         data["service"] = spec.to_orm_service_dict(values)
     node = CreateAutomationNodeActionType.do(
         ctx.user, automation_node_type_registry.get(spec.type), workflow, data
@@ -459,26 +460,6 @@ def shifted_nodes(
     ]
 
 
-def default_branch_warnings(
-    shifted: list[tuple[AutomationNode, AutomationNode | None, str]],
-) -> list[str]:
-    """
-    A warning for each shifted node that now runs on a router's default branch,
-    so only when none of the router's branches match.
-    """
-
-    return [
-        f"Node {node.id} ({node.label}) is now on the default branch of router "
-        f"{previous.id} ({previous.label}), so it runs only when none of the "
-        "router's branches match. If it should run on a branch instead, tell the "
-        "user to drag it onto that branch in the editor."
-        for node, previous, output in shifted
-        if previous is not None
-        and output == ""
-        and previous.get_type().type == "router"
-    ]
-
-
 def add_nodes(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -498,13 +479,12 @@ def add_nodes(
     other. Use list_nodes to find the IDs of the nodes to attach to, and
     router_edge_label to attach to a router branch. A new node is inserted right
     after the node it follows: the node that followed it there now follows the
-    new node (on a new router's default branch), still connected and with its
-    settings, and is listed in shifted_nodes. To add a node before an existing
-    one, use that node's previous_node_ref and router_edge_label from
-    list_nodes; never delete and recreate a node to make room. A default branch
-    runs only when no other branch matches, and warnings says when a shifted
-    node landed on one. To add several nodes in a row, chain them by ref. A
-    value that takes a formula is a formula when it looks like one (get(...),
+    new node, still connected and with its settings, and is listed in
+    shifted_nodes. A new router takes it on its default branch, or on the branch
+    shifted_node_edge_label names. To add a node before an existing one, use that
+    node's previous_node_ref and router_edge_label from list_nodes; never delete
+    and recreate a node to make room. To add several nodes in a row, chain them
+    by ref. A value that takes a formula is a formula when it looks like one (get(...),
     concat(...), ...), otherwise a literal; to store text that looks like a
     formula, send it as a quoted string such as 'Call now()'. A formula reads an
     earlier node with get('previous_node.<node id>...'), with a path list_nodes
@@ -540,9 +520,6 @@ def add_nodes(
     result: dict[str, Any] = {"created_nodes": creation.describe()}
     if shifted:
         result["shifted_nodes"] = [describe_node(*entry) for entry in shifted]
-        warnings = default_branch_warnings(shifted)
-        if warnings:
-            result["warnings"] = warnings
     if creation.errors:
         result["errors"] = creation.errors
     if creation.formula_errors:

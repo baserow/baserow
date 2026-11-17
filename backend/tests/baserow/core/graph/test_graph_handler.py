@@ -1,3 +1,6 @@
+import pytest
+
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition
 from tests.baserow.core.graph.fixtures import make_graph_model, make_point
@@ -1375,3 +1378,28 @@ def test_get_ordered_point_ids_follows_only_the_default_output():
 
     # A page renders only the default output, so the others are not reached.
     assert model.get_graph().get_ordered_point_ids() == [1, 2]
+
+
+def test_move_next_points_moves_a_chain_to_another_output():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+    graph = model.get_graph()
+
+    graph.move_next_points(model.points[1], "", "uid1")
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_move_next_points_refuses_an_output_that_has_points():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2], "uid1": [3]}}, "2": {}, "3": {}}
+    )
+
+    with pytest.raises(GraphPointReferencePointInvalid):
+        model.get_graph().move_next_points(model.points[1], "", "uid1")
