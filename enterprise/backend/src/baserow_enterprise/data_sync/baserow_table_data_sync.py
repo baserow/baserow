@@ -46,6 +46,10 @@ from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.db import specific_iterator, specific_queryset
+from baserow.core.deferred_callbacks import (
+    is_deferred_callback_context_active,
+    register_deferred_callback,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Template
 from baserow.core.utils import ChildProgressBuilder
@@ -378,6 +382,37 @@ class LocalBaserowTableDataSyncType(DataSyncType):
     def import_serialized(
         self, table, serialized_values, id_mapping, import_export_config
     ):
+        if serialized_values["source_table_id"] in id_mapping["database_tables"]:
+            return self._import_data_sync(
+                table, serialized_values, id_mapping, import_export_config
+            )
+
+        # Unlocked until the data sync exists: if the import fails before that, the
+        # table must stay a regular editable table, not locked fields with no sync.
+        fields = list(table.field_set.all())
+        table.field_set.all().update(
+            read_only=False, immutable_type=False, immutable_properties=False
+        )
+
+        def import_data_sync():
+            data_sync = self._import_data_sync(
+                table, serialized_values, id_mapping, import_export_config
+            )
+            if data_sync is not None:
+                Field.objects.bulk_update(
+                    fields, ["read_only", "immutable_type", "immutable_properties"]
+                )
+            return data_sync
+
+        if is_deferred_callback_context_active():
+            register_deferred_callback(import_data_sync)
+            return None
+
+        return import_data_sync()
+
+    def _import_data_sync(
+        self, table, serialized_values, id_mapping, import_export_config
+    ):
         serialized_copy = serialized_values.copy()
         # Always unset the authorized user for security reasons. This is okay because
         # the first user to sync the data sync table will become the authorized user.
@@ -385,13 +420,14 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         source_table_id = serialized_copy["source_table_id"]
 
         if source_table_id in id_mapping["database_tables"]:
-            # If the source table exists in the mapping, it means that it was
-            # included in the export. In that case, we want to use that one as source
-            # table instead of the existing one.
+            # The source table was exported too, so the copy syncs from it; a view
+            # that wasn't imported (e.g. someone's personal view) is cleared.
             serialized_copy["source_table_id"] = id_mapping["database_tables"][
                 source_table_id
             ]
-            serialized_copy["authorized_user_id"] = None
+            serialized_copy["source_table_view_id"] = id_mapping.get(
+                "database_views", {}
+            ).get(serialized_copy.get("source_table_view_id"))
             data_sync = super().import_serialized(
                 table, serialized_copy, id_mapping, import_export_config
             )
@@ -411,19 +447,11 @@ class LocalBaserowTableDataSyncType(DataSyncType):
 
             return data_sync
 
-        if import_export_config.is_duplicate:
-            # When duplicating the database or table, and it doesn't exist in the
-            # id_mapping, then the source table is inside the same database or in
-            # another workspace. In that case, we want to keep using the same.
+        if import_export_config.keeps_unmapped_references:
             return super().import_serialized(
                 table, serialized_copy, id_mapping, import_export_config
             )
 
-        # If the source table doesn't exist in the mapping, and we're not
-        # duplicating, then it's not possible to preserve the data sync. We'll then
-        # transform the fields to editable fields, keep the data, and keep the table
-        # as regular table.
-        table.field_set.all().update(
-            read_only=False, immutable_type=False, immutable_properties=False
-        )
+        # Any other copy, template installs included, can't rely on the source table
+        # id, so the table stays a regular table with editable fields and its data.
         return None
