@@ -591,6 +591,7 @@
   "assistant": {
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
+    "statusCancelling": "Cancelling...",
     "messageCancelled": "Message cancelled",
     "runLimitReached": "Kuma is already answering as many of your messages as it can. Send this one when one of them is done.",
     "runFailedToStart": "Kuma couldn't start answering this message. Please try again.",

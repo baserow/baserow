@@ -126,6 +126,9 @@ export default {
       if (!follower) {
         return ''
       }
+      if (follower.stopRequested) {
+        return this.$t('assistant.statusCancelling')
+      }
       if (follower.replayUnavailable || !follower.streaming) {
         return this.$t('assistant.statusWaitingForOutput')
       }
