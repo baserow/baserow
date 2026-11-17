@@ -379,6 +379,7 @@ def check_shifted_branch_chosen(
     spec: ActionNodeCreate,
     reference_id: int,
     output: str,
+    creation: NodeCreation,
 ) -> None:
     """
     Refuse to insert a router before existing nodes without being told which of
@@ -390,11 +391,14 @@ def check_shifted_branch_chosen(
 
     shifted = workflow.get_graph().get_info(reference_id).get("next", {}).get(output)
     if shifted:
-        ids = ", ".join(str(node_id) for node_id in shifted)
+        # A node created earlier in the call is named by its ref: its ID goes
+        # with the rollback.
+        refs = {node.id: ref for ref, node in creation.nodes}
+        names = ", ".join(f"'{refs.get(node_id, node_id)}'" for node_id in shifted)
         raise DjangoValidationError(
-            f"Router '{spec.ref}' would be inserted before node {ids}. Set its "
+            f"Router '{spec.ref}' would be inserted before node {names}. Set its "
             "shifted_node_edge_label to the branch that node moves to: "
-            f"{spec.branch_choices()}. Nothing was written."
+            f"{spec.branch_choices()}."
         )
 
 
@@ -423,7 +427,7 @@ def create_node(
         next_output = spec.shifted_node_edge_uid()
         if next_output is None and spec.type == "router":
             check_shifted_branch_chosen(
-                workflow, spec, data["reference_node_id"], data["output"]
+                workflow, spec, data["reference_node_id"], data["output"], creation
             )
         data["next_output"] = next_output or ""
         data["service"] = spec.to_orm_service_dict(values)
@@ -522,7 +526,9 @@ def add_nodes(
     its ref there.
     A valid formula is stored as written. An invalid one leaves that value empty
     and is returned in formula_errors with the reason: fix it with update_nodes.
-    Nothing is written when a previous_node_ref or branch is unknown, or a ref is used twice.
+    Nothing is written when a previous_node_ref or branch is unknown, a ref is
+    used twice, or a router inserted before a node has no
+    shifted_node_edge_label.
     """
 
     if not nodes:

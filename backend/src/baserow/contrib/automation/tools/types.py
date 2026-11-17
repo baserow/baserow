@@ -262,6 +262,10 @@ class AutomationFieldValue(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+# The branch label that names a router's default branch, unless a branch has it.
+DEFAULT_BRANCH = "default"
+
+
 class NodeRefs:
     """
     The nodes a new node can follow, by the ref of a node defined earlier in the
@@ -322,6 +326,8 @@ class NodeRefs:
                 if label.lower() == edge_label.lower()
             ]
             uid = matches[0] if len(matches) == 1 else None
+        if uid is None and edge_label.lower() == DEFAULT_BRANCH:
+            return node_id, ""
         if uid is None:
             labels = ", ".join(f"'{label}'" for label in edges) or "none"
             raise DjangoValidationError(
@@ -490,10 +496,6 @@ ActionNodeType = Literal[
 ]
 
 
-# The value of shifted_node_edge_label that names a router's default branch.
-DEFAULT_BRANCH = "default"
-
-
 class ActionNodeCreate(BaseModel):
     """Flat model for creating an action node: type + type-specific fields."""
 
@@ -608,7 +610,7 @@ class ActionNodeCreate(BaseModel):
         if self.type == "router" and self.edges is not None and not labels:
             raise ValueError("router requires at least one branch in edges")
         if (
-            self.shifted_node_edge_label is not None
+            self.shifted_node_edge_label
             and self.type == "router"
             and self.shifted_node_edge_uid() is None
         ):
@@ -635,11 +637,11 @@ class ActionNodeCreate(BaseModel):
     def shifted_node_edge_uid(self) -> str | None:
         """
         The uid of the branch shifted_node_edge_label names: empty for the default
-        branch, None when it names none or isn't given.
+        branch, None when it names none or is empty.
         """
 
         label = self.shifted_node_edge_label
-        if self.type != "router" or label is None:
+        if self.type != "router" or not label:
             return None
         edges = self.edges or []
         # A branch of that name wins over the default branch's marker.

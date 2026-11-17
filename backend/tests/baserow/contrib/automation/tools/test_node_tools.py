@@ -299,6 +299,55 @@ def test_add_nodes_router_before_a_node_needs_its_branch_chosen(automation_ctx):
     assert workflow.get_graph().graph[str(created["id"])]["next"] == {"": [email["id"]]}
 
 
+@pytest.mark.django_db
+def test_add_nodes_router_before_a_node_of_the_call_names_it_by_ref(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    with pytest.raises(DjangoValidationError, match="before node 'a'"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [
+                _email(ref="a", previous=str(trigger.id)),
+                ActionNodeCreate(
+                    ref="r",
+                    type="router",
+                    previous_node_ref=str(trigger.id),
+                    edges=[{"label": "Big", "condition": "true"}],
+                    shifted_node_edge_label="",
+                ),
+            ],
+        )
+
+    assert AutomationNode.objects.filter(workflow=workflow).count() == 1
+
+
+@pytest.mark.django_db
+def test_add_nodes_router_at_the_end_takes_an_empty_shifted_label(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="r",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="",
+            ),
+            _email(ref="after", previous="r", router_edge_label="default"),
+        ],
+    )
+
+    router, after = result["created_nodes"]
+    graph = workflow.get_graph().graph
+    assert graph[str(router["id"])]["next"] == {"": [after["id"]]}
+
+
 def test_add_nodes_rejects_a_shifted_node_edge_label_the_router_lacks():
     with pytest.raises(PydanticValidationError, match="'Big' is not a branch"):
         ActionNodeCreate(
