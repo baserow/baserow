@@ -490,6 +490,10 @@ ActionNodeType = Literal[
 ]
 
 
+# The value of shifted_node_edge_label that names a router's default branch.
+DEFAULT_BRANCH = "default"
+
+
 class ActionNodeCreate(BaseModel):
     """Flat model for creating an action node: type + type-specific fields."""
 
@@ -519,11 +523,12 @@ class ActionNodeCreate(BaseModel):
         default=None,
         description="(router) Branches. A default branch is auto-created.",
     )
-    shifted_node_edge_label: str = Field(
-        default="",
-        description="(router) The branch the node this router is inserted before "
-        "moves to, with the nodes after it. Leave empty only if that node should "
-        "run when no branch matches: it then goes on the default branch.",
+    shifted_node_edge_label: str | None = Field(
+        default=None,
+        description="(router) Required when this router is inserted before a "
+        "node: the label of the branch that node moves to, with the nodes after "
+        f"it, or '{DEFAULT_BRANCH}' for the default branch, which runs only when no "
+        "branch matches.",
     )
 
     # -- smtp_email --
@@ -603,14 +608,13 @@ class ActionNodeCreate(BaseModel):
         if self.type == "router" and self.edges is not None and not labels:
             raise ValueError("router requires at least one branch in edges")
         if (
-            self.shifted_node_edge_label
+            self.shifted_node_edge_label is not None
             and self.type == "router"
-            and not self.shifted_node_edge_uid()
+            and self.shifted_node_edge_uid() is None
         ):
-            names = ", ".join(f"'{edge.label}'" for edge in self.edges or []) or "none"
             raise ValueError(
                 f"shifted_node_edge_label '{self.shifted_node_edge_label}' is not a "
-                f"branch of this router. Its branches: {names}."
+                f"branch of this router. Use {self.branch_choices()}."
             )
         required = self._REQUIRED_FIELDS.get(self.type)
         if required:
@@ -628,19 +632,29 @@ class ActionNodeCreate(BaseModel):
             return None
         return {edge.label: edge._uid for edge in self.edges or []}
 
-    def shifted_node_edge_uid(self) -> str:
+    def shifted_node_edge_uid(self) -> str | None:
         """
-        The uid of the branch shifted_node_edge_label names, empty for the default
-        branch or when it names none.
+        The uid of the branch shifted_node_edge_label names: empty for the default
+        branch, None when it names none or isn't given.
         """
 
-        if self.type != "router" or not self.shifted_node_edge_label:
-            return ""
+        label = self.shifted_node_edge_label
+        if self.type != "router" or label is None:
+            return None
         edges = self.edges or []
-        matches = matching_branches(
-            [edge.label for edge in edges], self.shifted_node_edge_label
+        # A branch of that name wins over the default branch's marker.
+        matches = matching_branches([edge.label for edge in edges], label)
+        if len(matches) == 1:
+            return edges[matches[0]]._uid
+        return "" if label.lower() == DEFAULT_BRANCH else None
+
+    def branch_choices(self) -> str:
+        """The values shifted_node_edge_label takes, for an error."""
+
+        labels = [f"'{edge.label}'" for edge in self.edges or []]
+        return " or ".join(
+            filter(None, [", ".join(labels), f"'{DEFAULT_BRANCH}' (default branch)"])
         )
-        return edges[matches[0]]._uid if len(matches) == 1 else ""
 
     def to_orm_service_dict(self, values: ServiceValues) -> dict[str, Any]:
         """

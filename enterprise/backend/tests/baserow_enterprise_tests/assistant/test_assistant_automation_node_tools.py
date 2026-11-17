@@ -134,8 +134,9 @@ def test_list_nodes(data_fixture):
 @pytest.mark.django_db(transaction=True)
 def test_add_node_after_existing(data_fixture):
     """
-    Add a router between the trigger and the existing email node. The email moves
-    to the router's default branch, with its settings, and is reported as shifted.
+    Add a router between the trigger and the existing email node, asking for the
+    default branch. The email moves there with its settings and is reported as
+    shifted.
     """
 
     user = data_fixture.create_user()
@@ -159,6 +160,7 @@ def test_add_node_after_existing(data_fixture):
                 edges=[
                     {"label": "Skip", "condition": "false"},
                 ],
+                shifted_node_edge_label="default",
             ),
         ],
         thought="insert router between trigger and email",
@@ -527,6 +529,7 @@ def test_router_edge_conditions_stay_valid_formulas(
                     RouterEdgeCreate(label="Do this", condition="High priority"),
                     RouterEdgeCreate(label="Do that", condition="Low priority"),
                 ],
+                shifted_node_edge_label="default",
             )
         ],
         thought="add router",

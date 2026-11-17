@@ -374,6 +374,30 @@ class NodeCreation:
         )
 
 
+def check_shifted_branch_chosen(
+    workflow: AutomationWorkflow,
+    spec: ActionNodeCreate,
+    reference_id: int,
+    output: str,
+) -> None:
+    """
+    Refuse to insert a router before existing nodes without being told which of
+    its branches they move to: on the default branch they would run only when no
+    branch matches, the opposite of what a caller adding a condition means.
+
+    :raises DjangoValidationError: When nodes follow the router's position.
+    """
+
+    shifted = workflow.get_graph().get_info(reference_id).get("next", {}).get(output)
+    if shifted:
+        ids = ", ".join(str(node_id) for node_id in shifted)
+        raise DjangoValidationError(
+            f"Router '{spec.ref}' would be inserted before node {ids}. Set its "
+            "shifted_node_edge_label to the branch that node moves to: "
+            f"{spec.branch_choices()}. Nothing was written."
+        )
+
+
 def create_node(
     ctx: ToolContext,
     workflow: AutomationWorkflow,
@@ -396,7 +420,12 @@ def create_node(
         data["reference_node_id"], data["output"] = refs.resolve(
             spec.previous_node_ref, spec.router_edge_label
         )
-        data["next_output"] = spec.shifted_node_edge_uid()
+        next_output = spec.shifted_node_edge_uid()
+        if next_output is None and spec.type == "router":
+            check_shifted_branch_chosen(
+                workflow, spec, data["reference_node_id"], data["output"]
+            )
+        data["next_output"] = next_output or ""
         data["service"] = spec.to_orm_service_dict(values)
     node = CreateAutomationNodeActionType.do(
         ctx.user, automation_node_type_registry.get(spec.type), workflow, data
@@ -480,13 +509,14 @@ def add_nodes(
     router_edge_label to attach to a router branch. A new node is inserted right
     after the node it follows: the node that followed it there now follows the
     new node, still connected and with its settings, and is listed in
-    shifted_nodes. A new router takes it on its default branch, or on the branch
-    shifted_node_edge_label names. To add a node before an existing one, use that
-    node's previous_node_ref and router_edge_label from list_nodes; never delete
-    and recreate a node to make room. To add several nodes in a row, chain them
-    by ref. A value that takes a formula is a formula when it looks like one (get(...),
-    concat(...), ...), otherwise a literal; to store text that looks like a
-    formula, send it as a quoted string such as 'Call now()'. A formula reads an
+    shifted_nodes. A new router inserted before a node needs
+    shifted_node_edge_label: the branch that node moves to, or 'default'. To add
+    a node before an existing one, use that node's previous_node_ref and
+    router_edge_label from list_nodes; never delete and recreate a node to make
+    room. To add several nodes in a row, chain them by ref. A value that takes a
+    formula is a formula when it looks like one (get(...), concat(...), ...),
+    otherwise a literal; to store text that looks like a formula, send it as a
+    quoted string such as 'Call now()'. A formula reads an
     earlier node with get('previous_node.<node id>...'), with a path list_nodes
     shows for that node, and a node defined earlier in the call can be named by
     its ref there.
