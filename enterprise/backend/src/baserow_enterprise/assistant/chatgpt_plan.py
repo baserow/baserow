@@ -12,7 +12,9 @@ store them per Baserow user, because each token spends one person's plan.
 See https://developers.openai.com/siwc/token-sharing-open-source
 """
 
+import asyncio
 import base64
+import dataclasses
 import fcntl
 import hashlib
 import json
@@ -26,10 +28,12 @@ from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
 import jwt
-from pydantic_ai.messages import ModelMessage, ModelResponse
-from pydantic_ai.models import Model, ModelRequestParameters
+from openai import AsyncOpenAI
+from pydantic_ai.models import Model
 from pydantic_ai.models.openai import OpenAIResponsesModel
-from pydantic_ai.settings import ModelSettings
+from pydantic_ai.profiles import ModelProfile
+from pydantic_ai.profiles.openai import OpenAIModelProfile
+from pydantic_ai.providers.openai import OpenAIProvider
 
 ISSUER = "https://auth.openai.com"
 AUTHORIZE_URL = f"{ISSUER}/api/accounts/authorize"
@@ -44,7 +48,23 @@ APP_NAME = "Baserow Kuma"
 REFRESH_MARGIN_SECONDS = 300
 
 # Responses fields the plan route rejects, by the ModelSettings key that sets them.
-_REJECTED_SETTINGS = ("temperature", "max_tokens", "top_p", "openai_user")
+# Kuma's model profiles set temperature and max_tokens on every role.
+_UNSUPPORTED_SETTINGS = (
+    "max_tokens",
+    "temperature",
+    "top_p",
+    "service_tier",
+    "openai_service_tier",
+    "openai_user",
+    "openai_top_logprobs",
+    "openai_truncation",
+    "openai_background",
+    "openai_moderation",
+    "openai_prompt_cache_retention",
+)
+# The plan route only accepts function tools grouped in a namespace.
+TOOL_NAMESPACE = "baserow"
+TOOL_NAMESPACE_DESCRIPTION = "Tools that read and change the user's Baserow workspace."
 
 
 class ChatGPTPlanError(Exception):
@@ -163,8 +183,11 @@ def build_authorization(port: int) -> tuple[str, dict]:
         "ext_agent_host_id": host_id,
     }
     if record.get("client_id"):
-        # Reuse the registration; tokens stay out of browser URLs.
+        # Reauthorize the existing registration. Access and refresh tokens never go
+        # in the URL; the ID token may, as a hint for the authorization endpoint.
         params["client_id"] = record["client_id"]
+        if record.get("id_token"):
+            params["id_token_hint"] = record["id_token"]
         if record.get("email"):
             params["login_hint"] = record["email"]
     else:
@@ -193,6 +216,13 @@ def finish_authorization(callback_url: str, pending: dict) -> dict:
     if pending["client_id"] and client_id != pending["client_id"]:
         raise ChatGPTPlanError("OpenAI returned a different client ID.")
 
+    path = get_credentials_path()
+    if not pending["client_id"]:
+        # Keep the new registration even if the exchange fails, so the next sign-in
+        # reauthorizes it instead of registering another client.
+        with _locked(path):
+            _write_private(path, {**_read(path), "client_id": client_id})
+
     tokens = _token_request(
         {
             "grant_type": "authorization_code",
@@ -204,7 +234,6 @@ def finish_authorization(callback_url: str, pending: dict) -> dict:
         }
     )
     claims = _validate_id_token(tokens["id_token"], client_id, pending["nonce"])
-    path = get_credentials_path()
     with _locked(path):
         record = {
             **_read(path),
@@ -246,47 +275,78 @@ def get_access_token() -> str:
         return _store_tokens(path, record, tokens)["access_token"]
 
 
+def _plan_profile(default: ModelProfile) -> ModelProfile:
+    """Layer the plan route's request rules on the model's normal OpenAI profile."""
+
+    unsupported = set(default.get("openai_unsupported_model_settings", ()))
+    return {
+        **default,
+        **OpenAIModelProfile(
+            openai_unsupported_model_settings=tuple(
+                sorted(unsupported | set(_UNSUPPORTED_SETTINGS))
+            ),
+            # Every request streams, including Agent.run() calls such as the title
+            # agent, and nothing is stored. With store=false, pydantic-ai replays
+            # reasoning through encrypted content instead of item IDs.
+            openai_responses_requires_streaming=True,
+            openai_responses_requires_store_false=True,
+            # System-role input items are rejected; developer messages are not.
+            openai_system_prompt_role="developer",
+            openai_supports_input_token_counting=False,
+            openai_responses_supports_prompt_cache_diagnostics=False,
+        ),
+    }
+
+
 class ChatGPTPlanResponsesModel(OpenAIResponsesModel):
     """
-    A Responses model that meets the plan route's request rules: every request
-    streams, nothing is stored, and sampling and length limits are not sent.
+    A Responses model that follows the plan route's request rules. Request fields
+    the route rejects are dropped through the profile, and function tools are
+    grouped in one namespace.
     """
 
-    def prepare_request(
-        self,
-        model_settings: ModelSettings | None,
-        model_request_parameters: ModelRequestParameters,
-    ) -> tuple[ModelSettings | None, ModelRequestParameters]:
-        model_settings, model_request_parameters = super().prepare_request(
-            model_settings, model_request_parameters
-        )
-        clean = {
-            key: value
-            for key, value in (model_settings or {}).items()
-            if key not in _REJECTED_SETTINGS
-        }
-        clean["openai_store"] = False
-        return clean, model_request_parameters
+    def __init__(self, model_name: str, *, provider: OpenAIProvider, **kwargs):
+        super().__init__(model_name, provider=provider, profile=_plan_profile, **kwargs)
 
-    async def request(
-        self,
-        messages: list[ModelMessage],
-        model_settings: ModelSettings | None,
-        model_request_parameters: ModelRequestParameters,
-    ) -> ModelResponse:
-        # Non-streaming callers, such as Agent.run(), get the streamed result.
-        async with self.request_stream(
-            messages, model_settings, model_request_parameters
-        ) as stream:
-            async for _ in stream:
-                pass
-        return stream.get()
+    async def _build_responses_request_params(self, *args, **kwargs):
+        params = await super()._build_responses_request_params(*args, **kwargs)
+        if not params.tools:
+            return params
+
+        functions = [tool for tool in params.tools if tool.get("type") == "function"]
+        if not functions:
+            return params
+        others = [tool for tool in params.tools if tool.get("type") != "function"]
+        namespace = {
+            "type": "namespace",
+            "name": TOOL_NAMESPACE,
+            "description": TOOL_NAMESPACE_DESCRIPTION,
+            "tools": functions,
+        }
+        # The response's function calls carry the namespace, and pydantic-ai sends it
+        # back when it replays them.
+        return dataclasses.replace(params, tools=[*others, namespace])
+
+
+async def _async_access_token() -> str:
+    # The file lock and token refresh block, so keep them off the event loop.
+    return await asyncio.to_thread(get_access_token)
 
 
 def make_chatgpt_plan_model(name: str) -> Model:
     """Build a Kuma model that spends the signed-in user's ChatGPT plan."""
 
-    from pydantic_ai.providers.openai import OpenAIProvider
-
-    provider = OpenAIProvider(api_key=get_access_token(), base_url=RESOURCE)
-    return ChatGPTPlanResponsesModel(name, provider=provider)
+    # Fail fast with a sign-in hint when there are no usable credentials.
+    get_access_token()
+    client = AsyncOpenAI(
+        # The SDK calls this before each request, so a long Kuma run picks up
+        # refreshed tokens.
+        api_key=_async_access_token,
+        base_url=RESOURCE,
+        # RetryingModel retries Kuma's requests; SDK retries would spend the plan
+        # twice.
+        max_retries=0,
+    )
+    return ChatGPTPlanResponsesModel(
+        name, provider=OpenAIProvider(openai_client=client)
+    )

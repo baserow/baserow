@@ -63,7 +63,10 @@ class Command(BaseCommand):
         server.server_close()
 
         if "error" in outcome:
-            raise CommandError(outcome["error"])
+            hint = ""
+            if "invalid_grant" in outcome["error"]:
+                hint = " Run the command again; it reuses the client OpenAI issued."
+            raise CommandError(outcome["error"] + hint)
         record = outcome["record"]
         self.stdout.write(
             self.style.SUCCESS(
