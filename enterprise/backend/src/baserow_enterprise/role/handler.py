@@ -2083,15 +2083,19 @@ class RoleAssignmentHandler:
         invitation_link: WorkspaceInvitationLink,
         role: Optional[Role] = None,
         name: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of a link to a scope or the role people get on the scope
-        when joining through it. People who already joined keep their role.
+        Changes the name of a link to a scope, the role people get on the scope
+        when joining through it or its password. People who already joined keep
+        their role.
 
         :param user: The user on whose behalf the link is updated.
         :param invitation_link: The link that must be updated.
         :param role: The new role of the link, if it changes.
         :param name: The new name of the link, if it changes.
+        :param password: The new password of the link, or an empty string to
+            remove it.
         :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
         :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
         :raises PermissionDenied: If the user can't manage the roles of the scope.
@@ -2111,6 +2115,9 @@ class RoleAssignmentHandler:
         if name is not None:
             invitation_link.name = name
             update_fields.append("name")
+        if password is not None:
+            invitation_link.set_password(password)
+            update_fields.append("password")
         invitation_link.save(update_fields=update_fields)
 
         return invitation_link

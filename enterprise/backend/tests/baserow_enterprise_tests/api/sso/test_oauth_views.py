@@ -425,6 +425,62 @@ def test_oauth2_callback_signin_with_workspace_invitation_link_does_not_join(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_oauth2_callback_signup_password_protected_invitation_link(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+    invitation_link = data_fixture.create_workspace_invitation_link()
+    invitation_link.set_password("correct horse battery")
+    invitation_link.save()
+
+    response = _oauth2_callback_with_invitation_link(
+        api_client, provider, invitation_link.slug
+    )
+
+    # The provider can't pass on the token of the link, but anyone can sign up,
+    # so the user signs up and enters the password on the link page to join.
+    assert response.status_code == HTTP_302_FOUND
+    assert response.headers["Location"].startswith(
+        f"{settings.PUBLIC_WEB_FRONTEND_URL}/templates?token="
+    )
+    params = dict(parse_qsl(urlparse(response.headers["Location"]).query))
+    user = get_user_from_token(params["token"], token_class=RefreshToken)
+    assert not WorkspaceUser.objects.filter(user=user).exists()
+    # Like any signup through a link, there is no personal workspace or onboarding.
+    assert user.profile.completed_onboarding is True
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_oauth2_callback_password_protected_invitation_link_doesnt_allow_signup(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+    provider = enterprise_data_fixture.create_oauth_provider(
+        type="google", client_id="g_client_id", secret="g_secret"
+    )
+    invitation_link = data_fixture.create_workspace_invitation_link()
+    invitation_link.set_password("correct horse battery")
+    invitation_link.save()
+    data_fixture.update_settings(
+        allow_new_signups=False, allow_signups_via_workspace_invitations=True
+    )
+
+    response = _oauth2_callback_with_invitation_link(
+        api_client, provider, invitation_link.slug
+    )
+
+    # Without the password, the link doesn't open the signup.
+    assert response.status_code == HTTP_302_FOUND
+    assert "error=errorSignupDisabled" in response.headers["Location"]
+    assert not WorkspaceUser.objects.filter(user__email="testuser@example.com").exists()
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_oauth2_callback_signup_workspace_invitation_link_invalid(
     api_client, data_fixture, enterprise_data_fixture
 ):

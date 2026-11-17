@@ -10,6 +10,10 @@ from baserow.core.action.registries import (
     ActionTypeDescription,
 )
 from baserow.core.action.scopes import RootActionScopeType, WorkspaceActionScopeType
+from baserow.core.actions import (
+    describe_invitation_link_password_change,
+    get_invitation_link_password_change,
+)
 from baserow.core.models import Workspace, WorkspaceInvitationLink
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow.core.types import ScopeObject
@@ -405,6 +409,7 @@ class UpdateScopedInvitationLinkActionType(ActionType):
         "role_uid",
         "original_role_uid",
         "scope_type_name",
+        "password_change",
     ]
 
     @dataclasses.dataclass
@@ -418,6 +423,7 @@ class UpdateScopedInvitationLinkActionType(ActionType):
         scope_id: int
         workspace_id: int
         workspace_name: str
+        password_change: str = ""
 
     @classmethod
     def do(
@@ -426,17 +432,22 @@ class UpdateScopedInvitationLinkActionType(ActionType):
         invitation_link: WorkspaceInvitationLink,
         role: Optional[Role] = None,
         name: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of a link to a scope or the role it gives. Look into
+        Changes the name of a link to a scope, the role it gives or its password.
+        Look into
         `RoleAssignmentHandler.update_scoped_invitation_link` for further details.
         """
 
         workspace = invitation_link.workspace
         original_role_uid = invitation_link.permissions
         original_name = invitation_link.name
+        password_change = get_invitation_link_password_change(
+            invitation_link.has_password, password
+        )
         invitation_link = RoleAssignmentHandler().update_scoped_invitation_link(
-            user, invitation_link, role=role, name=name
+            user, invitation_link, role=role, name=name, password=password
         )
 
         cls.register_action(
@@ -451,11 +462,18 @@ class UpdateScopedInvitationLinkActionType(ActionType):
                 invitation_link.scope_id,
                 workspace.id,
                 workspace.name,
+                password_change,
             ),
             scope=cls.scope(),
             workspace=workspace,
         )
         return invitation_link
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        return describe_invitation_link_password_change(
+            super().get_long_description(params_dict, *args, **kwargs), params_dict
+        )
 
     @classmethod
     def scope(cls) -> ActionScopeStr:

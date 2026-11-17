@@ -200,6 +200,14 @@ class WorkspaceInvitationLinkDoesNotExist(Exception):
     """
 
 
+class WorkspaceInvitationLinkPasswordRequired(WorkspaceInvitationLinkDoesNotExist):
+    """
+    Raised when a password protected invitation link is used without a valid
+    access token. It extends `WorkspaceInvitationLinkDoesNotExist`, so that every
+    place that doesn't handle it specifically treats the link as unusable.
+    """
+
+
 class WorkspaceInvitationLinkSignupsDisabled(Exception):
     """
     Raised when an invitation link is created while nobody can sign up through

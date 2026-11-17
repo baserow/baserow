@@ -24,7 +24,8 @@ export default (client) => {
       workspaceInvitationToken = null,
       templateId = null,
       captchaToken = '',
-      workspaceInvitationLinkSlug = null
+      workspaceInvitationLinkSlug = null,
+      workspaceInvitationLinkToken = null
     ) {
       const values = {
         name,
@@ -40,6 +41,10 @@ export default (client) => {
 
       if (workspaceInvitationLinkSlug !== null) {
         values.workspace_invitation_link_slug = workspaceInvitationLinkSlug
+      }
+
+      if (workspaceInvitationLinkToken) {
+        values.workspace_invitation_link_token = workspaceInvitationLinkToken
       }
 
       if (templateId !== null) {
