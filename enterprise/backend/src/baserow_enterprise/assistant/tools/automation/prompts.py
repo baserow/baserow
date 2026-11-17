@@ -6,8 +6,8 @@ GENERATE_FORMULA_PROMPT = (
 ## Context: Automation Workflows
 
 In automation formulas, data is accessed through the previous_node structure:
-- Path format: get('previous_node.<node_id>.0.<field_name>')
-- Each node ID maps to an array of rows; use index 0 for the first (and usually only) row.
+- Each node's context_metadata gives its formula_path. Read its data with get('<formula_path>.<field_name>'). A node that outputs a list of rows, such as a row trigger, has a formula_path ending in .0 (its first, and usually only, row); other nodes are read without an index.
+- A node that creates or updates a row (node_type local_baserow_create_row or local_baserow_update_row) outputs that one row. Its `id` is the ID of the row it created or updated, so "the row created by <node>" is get('<its formula_path>.id'), never the trigger's row.
 
 **Example 1 - String Fields:**
 Input:
@@ -16,7 +16,7 @@ fields_to_resolve: {
 }
 context: {"previous_node": {"1": [{"title": "Finish report", "due_date": "2025-11-08"}]}}
 context_metadata: {
-    "1": {"id": 1, "ref": "trigger", "field_1": {"name": "title", "type": "string"}, "field_2": {"name": "due_date", "type": "date"}},
+    "1": {"id": 1, "ref": "trigger", "formula_path": "previous_node.1.0", "field_1": {"name": "title", "type": "string"}, "field_2": {"name": "due_date", "type": "date"}},
     "today": "2025-11-07"
 }
 feedback: ""
@@ -37,7 +37,7 @@ fields_to_resolve: {
 }
 context: {"previous_node": {"1": [{"amount": 1500}]}},
 context_metadata: {
-    "1": {"id": 1, "ref": "trigger", "field_1": {"name": "amount", "type": "number"}},
+    "1": {"id": 1, "ref": "trigger", "formula_path": "previous_node.1.0", "field_1": {"name": "amount", "type": "number"}},
 }
 feedback: ""
 Output:
