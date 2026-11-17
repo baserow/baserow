@@ -108,6 +108,12 @@ def test_import_export_data_sync(data_fixture):
     assert imported_properties[1].key == properties[1].key == "dtstart"
     assert imported_properties[2].key == properties[2].key == "summary"
     assert imported_properties[3].key == properties[3].key == "uid"
+    assert [p.unique_primary for p in imported_properties] == [
+        False,
+        False,
+        False,
+        True,
+    ]
 
     fields = imported_data_sync.table.field_set.all().order_by("id")
     assert fields[0].read_only is True

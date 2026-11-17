@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Copies of a data sync keep their key and can be synced again",
+    "issue_origin": "github",
+    "issue_number": 6443,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-11-16"
+}
