@@ -1,9 +1,9 @@
 import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
-import { BaserowPlugin } from '@baserow/modules/core/plugins'
+import { PremiumRuntimePlugin } from '@baserow_premium/pluginsRuntime'
 import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
 
-export class PremiumPlugin extends BaserowPlugin {
+export class PremiumPlugin extends PremiumRuntimePlugin {
   static getType() {
     return 'premium'
   }
@@ -40,10 +40,6 @@ export class PremiumPlugin extends BaserowPlugin {
           ),
         ]
       : []
-  }
-
-  hasFeature(feature, forSpecificWorkspace) {
-    return this.app.$licenseHandler.hasFeature(feature, forSpecificWorkspace)
   }
 
   /**

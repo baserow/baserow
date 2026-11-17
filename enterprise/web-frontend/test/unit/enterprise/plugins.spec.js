@@ -1,3 +1,5 @@
+import registerPremium from '@baserow_premium/plugin'
+import registerHasFeature from '@baserow/modules/core/plugins/hasFeature'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import registerRuntime from '@baserow_enterprise/pluginRuntime'
 import registerEnterprise from '@baserow_enterprise/plugin'
@@ -70,7 +72,6 @@ describe('Test enterprise Baserow plugin', () => {
       'appAuthProvider',
       'roles',
       'element',
-      'license',
       'authProvider',
     ])
       registry.registerNamespace(namespace)
@@ -80,6 +81,9 @@ describe('Test enterprise Baserow plugin', () => {
     const runtimeApp = {
       ...app,
       $registry: registry,
+      provide(name, value) {
+        this[`$${name}`] = value
+      },
       $isApplicationShell: false,
       $isAuthenticationPage: false,
       $i18n: { t: (key) => key },
@@ -88,7 +92,9 @@ describe('Test enterprise Baserow plugin', () => {
       },
     }
     const licenses = new LicenseHandler(runtimeApp)
-    runtimeApp.$hasFeature = licenses.hasFeature.bind(licenses)
+    runtimeApp.$licenseHandler = licenses
+    await registerPremium(runtimeApp)
+    await registerHasFeature(runtimeApp)
     await registerEnterprise(runtimeApp)
     const html = registry.get('element', 'html')
     expect(html.isDeactivatedReason({ workspace: { id: 42 } })).toBeNull()
