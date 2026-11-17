@@ -371,3 +371,35 @@ def test_mode_only_update_restores_defaults_on_undo(data_fixture):
     assert_undo_redo_actions_are_valid(redone, [UpdateWidgetActionType])
     widget.refresh_from_db()
     assert (widget.multiple, widget.default_value) == (False, "France")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("flags", [[], ["dashboard-filters"], ["*"]])
+def test_filter_widget_creation_feature_flag(data_fixture, settings, flags):
+    """The flag gates new filters without blocking existing widgets or summaries."""
+    from baserow.core.exceptions import FeatureDisabledException
+
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    existing = WidgetService().create_widget(
+        user, "text_filter", dashboard.id, title="Filter"
+    )
+    settings.FEATURE_FLAGS = flags
+    service = WidgetService()
+    if flags:
+        assert (
+            service.create_widget(user, "text_filter", dashboard.id, title="Filter")
+            .get_type()
+            .type
+            == "text_filter"
+        )
+    else:
+        with pytest.raises(FeatureDisabledException):
+            service.create_widget(user, "text_filter", dashboard.id, title="Filter")
+    assert service.get_widget(user, existing.id).id == existing.id
+    assert (
+        service.create_widget(user, "summary", dashboard.id, title="Summary")
+        .get_type()
+        .type
+        == "summary"
+    )

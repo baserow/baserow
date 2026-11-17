@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from baserow.core.feature_flags import FF_DASHBOARD_FILTERS, feature_flag_is_enabled
+
 
 class DisplayWidgetTypeMixin:
     """Identify widgets whose data source can receive contributed filter groups."""
@@ -159,6 +161,10 @@ class FilterWidgetTypeMixin:
 
     is_filter_widget = True
     public_serializer_field_names = ["target_widget_ids"]
+
+    def before_create(self, user, dashboard):
+        feature_flag_is_enabled(FF_DASHBOARD_FILTERS, raise_if_disabled=True)
+        return super().before_create(user, dashboard)
 
     @property
     def public_serializer_mixins(self):

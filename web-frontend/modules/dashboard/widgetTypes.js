@@ -1,4 +1,5 @@
 import isEqual from 'lodash/isEqual'
+import { FF_DASHBOARD_FILTERS } from '@baserow/modules/core/plugins/featureFlags'
 import {
   refreshWidgetSources,
   getTextFilterDefaultValue,
@@ -181,6 +182,12 @@ export class SummaryWidgetType extends DataSourceWidgetType {
 }
 
 export class FilterWidgetType extends WidgetType {
+  get variations() {
+    return this.app.$featureFlagIsEnabled(FF_DASHBOARD_FILTERS)
+      ? super.variations
+      : []
+  }
+
   get hasCard() {
     return false
   }

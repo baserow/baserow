@@ -41,3 +41,22 @@ test('filter refresh targets include only enabled links and support the public l
   ).toEqual([1, 2])
   expect(type.getTargetWidgetIds({ target_widget_ids: [1, 2] })).toEqual([1, 2])
 })
+
+test.each([false, true])(
+  'filter creation follows its feature flag (%s)',
+  (enabled) => {
+    const featureApp = {
+      ...app,
+      $featureFlagIsEnabled: (flag) => flag === 'dashboard-filters' && enabled,
+    }
+    const filter = new TextFilterWidgetType({ app: featureApp })
+    const summary = new SummaryWidgetType({ app: featureApp })
+    expect(filter.variations.map(({ type }) => type.getType())).toEqual(
+      enabled ? ['text_filter'] : []
+    )
+    expect(summary.variations.map(({ type }) => type.getType())).toEqual([
+      'summary',
+    ])
+    expect(filter.component).toBeDefined()
+  }
+)
