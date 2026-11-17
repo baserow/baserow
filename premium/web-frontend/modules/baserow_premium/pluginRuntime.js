@@ -1,3 +1,4 @@
+import { PremiumRuntimePlugin } from '@baserow_premium/pluginsRuntime'
 import {
   SingleSelectFormattingType,
   MultipleSelectFormattingType,
@@ -9,6 +10,7 @@ import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
 export default async function register(nuxtApp) {
   const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
   const context = { app: nuxtApp }
+  $registry.register('plugin', new PremiumRuntimePlugin(context))
   $registry.registerNamespace('aiFieldOutputType')
   $registry.registerNamespace('paidFeature')
   $registry.registerNamespace('license')
