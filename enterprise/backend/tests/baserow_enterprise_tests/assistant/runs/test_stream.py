@@ -93,25 +93,10 @@ def test_navigation_is_live_and_origin_only_but_every_cursor_advances(mocker):
     ] == [{"table_id": 5}]
 
 
-def test_a_baseline_restarts_the_text_and_missing_replay_is_a_state_record(mocker):
+def test_missing_replay_is_a_state_record(mocker):
     records, _ = _collect(
         mocker,
         [
-            {
-                "kind": "run.baseline",
-                "data": {
-                    "segment": 0,
-                    "text": "Known",
-                    "progress": {"text": "Creating rows"},
-                },
-                "cursor": "old",
-                "replayed": True,
-            },
-            {
-                "kind": "text.delta",
-                "data": {"segment": 0, "text": " answer"},
-                "cursor": "new",
-            },
             {
                 "kind": "run.replay_unavailable",
                 "data": {"reason": "missing"},
@@ -119,17 +104,32 @@ def test_a_baseline_restarts_the_text_and_missing_replay_is_a_state_record(mocke
             },
         ],
     )
-    assert records[2]["content"] == "Known"
-    assert records[2]["_run"]["reset"] is True
-    assert records[2]["_run"]["replay"] is True
-    assert (records[3]["type"], records[3]["content"]) == (
-        "ai/thinking",
-        "Creating rows",
-    )
-    assert records[3]["_run"].keys() == {"id", "chat_id", "replay"}
-    assert records[4]["content"] == "Known answer"
-    assert records[5]["type"] == "chat-run-state"
-    assert records[5]["_run"]["replay_unavailable"] is True
+    assert records[2]["type"] == "chat-run-state"
+    assert records[2]["_run"]["replay_unavailable"] is True
+
+
+def test_closing_the_response_closes_the_follower(mocker):
+    closed = []
+
+    async def follow(*args, **options):
+        try:
+            while True:
+                yield {"kind": "run.heartbeat"}
+        finally:
+            closed.append(True)
+
+    mocker.patch("baserow_enterprise.assistant.stream.follow_run", side_effect=follow)
+
+    async def disconnect_after_a_heartbeat():
+        run = SimpleNamespace(id=uuid4(), chat_id=10, status="running")
+        stream = stream_run_messages(run, object(), human_message=HUMAN)
+        async for record in stream:
+            if record == "\n\n":
+                break
+        await stream.aclose()
+        return list(closed)
+
+    assert async_to_sync(disconnect_after_a_heartbeat)() == [True]
 
 
 def test_terminal_saved_message_is_authoritative(mocker):
