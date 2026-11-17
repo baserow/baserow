@@ -1,3 +1,8 @@
+import {
+  AdvancedLicenseType,
+  EnterpriseLicenseType,
+  EnterpriseWithoutSupportLicenseType,
+} from '@baserow_enterprise/licenseTypes'
 import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { EnterpriseRuntimePlugin } from '@baserow_enterprise/pluginsRuntime'
 import {
@@ -39,6 +44,13 @@ import {
 export default async function register(nuxtApp) {
   const { $config, $registry, $store, $featureFlagIsEnabled } = nuxtApp
   const context = { app: nuxtApp }
+  // Published pages check licensed elements without administrator authentication.
+  $registry.register('license', new AdvancedLicenseType(context))
+  $registry.register(
+    'license',
+    new EnterpriseWithoutSupportLicenseType(context)
+  )
+  $registry.register('license', new EnterpriseLicenseType(context))
   $registry.register(
     'service',
     new LocalBaserowSemanticSearchServiceType(context)

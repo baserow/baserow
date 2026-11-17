@@ -1,5 +1,7 @@
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import registerRuntime from '@baserow_enterprise/pluginRuntime'
+import registerEnterprise from '@baserow_enterprise/plugin'
+import { LicenseHandler } from '@baserow_premium/handlers/license'
 import { Registry } from '@baserow/modules/core/registry'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 
@@ -26,6 +28,7 @@ describe('Test enterprise Baserow plugin', () => {
       'appAuthProvider',
       'roles',
       'element',
+      'license',
     ]) {
       registry.registerNamespace(namespace)
     }
@@ -54,6 +57,46 @@ describe('Test enterprise Baserow plugin', () => {
         },
       ],
     })
+  })
+
+  test('public startup enables licensed HTML without loading sign-in providers', async () => {
+    const registry = new Registry()
+    for (const namespace of [
+      'plugin',
+      'permissionManager',
+      'userSource',
+      'service',
+      'workflowAction',
+      'appAuthProvider',
+      'roles',
+      'element',
+      'license',
+      'authProvider',
+    ])
+      registry.registerNamespace(namespace)
+    const userData = {
+      active_licenses: { per_workspace: { 42: { enterprise: true } } },
+    }
+    const runtimeApp = {
+      ...app,
+      $registry: registry,
+      $isApplicationShell: false,
+      $isAuthenticationPage: false,
+      $i18n: { t: (key) => key },
+      $store: {
+        getters: { 'auth/getAdditionalUserData': userData, 'settings/get': {} },
+      },
+    }
+    const licenses = new LicenseHandler(runtimeApp)
+    runtimeApp.$hasFeature = licenses.hasFeature.bind(licenses)
+    await registerEnterprise(runtimeApp)
+    const html = registry.get('element', 'html')
+    expect(html.isDeactivatedReason({ workspace: { id: 42 } })).toBeNull()
+    expect(registry.getAll('authProvider')).toEqual({})
+    userData.active_licenses.per_workspace[42] = {}
+    expect(html.isDeactivatedReason({ workspace: { id: 42 } })).toBe(
+      'enterprise.deactivated'
+    )
   })
 
   test('only mounts the assistant panel where Kuma is effectively enabled', () => {

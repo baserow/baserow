@@ -3,10 +3,9 @@ import { Registry } from '@baserow/modules/core/registry'
 import registerAuthentication from '@baserow_enterprise/pluginAuthentication'
 
 describe('enterprise authentication startup', () => {
-  test('registers sign-in providers and license metadata without application features', async () => {
+  test('registers sign-in providers without application features', async () => {
     const registry = new Registry()
     registry.registerNamespace('authProvider')
-    registry.registerNamespace('license')
     await registerAuthentication({ $registry: registry })
 
     expect(Object.keys(registry.getAll('authProvider')).sort()).toEqual([
@@ -18,10 +17,6 @@ describe('enterprise authentication startup', () => {
       'password',
       'saml',
     ])
-    expect(Object.keys(registry.getAll('license')).length).toBe(3)
-    expect(Object.keys(registry.registry).sort()).toEqual([
-      'authProvider',
-      'license',
-    ])
+    expect(Object.keys(registry.registry)).toEqual(['authProvider'])
   })
 })
