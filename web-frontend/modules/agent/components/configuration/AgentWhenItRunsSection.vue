@@ -15,16 +15,11 @@
         {{ $t('agent.addTrigger') }}
       </ButtonText>
     </div>
-    <ButtonText
+    <AgentCardListHeader
       v-if="!loading && !loadError && triggers.length"
-      class="agent-triggers__toggle-all"
-      type="secondary"
-      size="small"
-      button-type="button"
-      @click="toggleAll"
-    >
-      {{ $t(allExpanded ? 'agent.collapseAll' : 'agent.expandAll') }}
-    </ButtonText>
+      :all-expanded="allExpanded"
+      @toggle-all="toggleAll"
+    />
     <div v-if="loading" class="skeleton" aria-hidden="true">
       <SkeletonBlock width="100%" height="120px" />
     </div>
@@ -77,6 +72,7 @@ import { computed, inject, ref, watch } from 'vue'
 import { useStore } from 'vuex'
 import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
 import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'

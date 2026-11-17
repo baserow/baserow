@@ -445,9 +445,15 @@ describe('Agent triggers', () => {
       .reply(200, periodicTrigger({ enabled: false }))
     testApp.mock.onDelete('/agent/10/triggers/1/').reply(204)
     const wrapper = await mountSection([periodicTrigger()])
+    const switchTooltip = async () => {
+      await wrapper.get('.agent-trigger-card__switch').trigger('mouseenter')
+      return document.querySelector('.tooltip').textContent
+    }
 
+    expect(await switchTooltip()).toBe('agent.triggerEnabledTooltip')
     await wrapper.get('.agent-trigger-card__switch').trigger('click')
     await flushPromises()
+    expect(await switchTooltip()).toBe('agent.triggerDisabledTooltip')
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { enabled: false }],
     ])
@@ -474,11 +480,14 @@ describe('Agent triggers', () => {
         .findAll('.agent-trigger-card__body')
         .map((body) => body.isVisible())
     const toggles = wrapper.findAll('.agent-trigger-card__toggle')
-    const all = wrapper.get('.agent-triggers__toggle-all')
+    const all = wrapper.get('.agent-card-list-header__toggle-all')
 
     expect(bodies()).toEqual([false, false])
     expect(toggles[0].attributes('aria-expanded')).toBe('false')
     expect(all.text()).toBe('agent.expandAll')
+    expect(wrapper.get('.agent-card-list-header__label').text()).toBe(
+      'agent.enabled'
+    )
 
     await toggles[0].trigger('click')
     expect(bodies()).toEqual([true, false])

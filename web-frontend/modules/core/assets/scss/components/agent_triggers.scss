@@ -21,10 +21,6 @@
   color: $palette-neutral-700;
 }
 
-.agent-triggers__toggle-all {
-  margin-bottom: 12px;
-}
-
 .agent-triggers__list {
   display: flex;
   flex-direction: column;
@@ -50,12 +46,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: $palette-neutral-600;
   cursor: pointer;
-
-  &:hover {
-    color: $palette-neutral-900;
-  }
 }
 
 .agent-trigger-card__title {

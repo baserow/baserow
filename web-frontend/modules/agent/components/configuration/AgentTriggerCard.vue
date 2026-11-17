@@ -78,6 +78,7 @@
         />
       </span>
       <SwitchInput
+        v-tooltip="enabledTooltip"
         class="agent-trigger-card__switch"
         small
         role="switch"
@@ -408,6 +409,15 @@ function rename({ value }) {
   // An unchanged shown name, like a cleared default, doesn't reset the edited text.
   nextTick(() => nameEditable.value?.set())
 }
+
+const enabledTooltip = computed(() => {
+  if (!props.editable) return null
+  return t(
+    props.trigger.enabled
+      ? 'agent.triggerEnabledTooltip'
+      : 'agent.triggerDisabledTooltip'
+  )
+})
 
 function toggleEnabled() {
   if (props.editable) emit('update', { enabled: !props.trigger.enabled })

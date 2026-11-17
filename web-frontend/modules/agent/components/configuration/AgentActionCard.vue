@@ -7,16 +7,16 @@
         :aria-expanded="expanded"
         @click="$emit('toggle')"
       >
-        <Icon :icon="serviceType?.icon || 'iconoir-flash'" aria-hidden="true" />
-        <span class="agent-action-card__title">{{
-          action.name || serviceType?.name || action.type
-        }}</span>
         <Icon
           :icon="
             expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
           "
           aria-hidden="true"
         />
+        <Icon :icon="serviceType?.icon || 'iconoir-flash'" aria-hidden="true" />
+        <span class="agent-action-card__title">{{
+          action.name || serviceType?.name || action.type
+        }}</span>
       </button>
       <Icon
         v-if="configurationErrors.length || saveError"
@@ -32,6 +32,7 @@
         :aria-label="$t('agent.saving')"
       />
       <SwitchInput
+        v-tooltip="enabledTooltip"
         small
         role="switch"
         :tabindex="editable ? 0 : -1"
@@ -209,6 +210,14 @@ const configurationErrors = computed(() =>
     })
   )
 )
+const enabledTooltip = computed(() => {
+  if (!props.editable) return null
+  return t(
+    props.action.enabled
+      ? 'agent.actionEnabledTooltip'
+      : 'agent.actionDisabledTooltip'
+  )
+})
 function update(values) {
   if (props.editable) emit('update', values)
 }
