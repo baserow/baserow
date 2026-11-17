@@ -1,3 +1,6 @@
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
@@ -99,9 +102,6 @@ def test_get_node_excludes_trashed_application(data_fixture):
 
 @pytest.mark.django_db
 def test_lock_nodes_locks_the_workflow_nodes_in_id_order(data_fixture):
-    from django.db import connection, transaction
-    from django.test.utils import CaptureQueriesContext
-
     first = data_fixture.create_automation_node()
     second = data_fixture.create_automation_node(workflow=first.workflow)
     elsewhere = data_fixture.create_automation_node()

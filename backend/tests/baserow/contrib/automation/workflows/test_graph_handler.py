@@ -1072,25 +1072,25 @@ def test_graph_handler_get_positions_in_execution_order_stops_on_a_cycle():
         (2, 1, "south", ""),
     ]
 
-    long_chain = MagicMock()
-    long_chain.graph = {
+
+def test_graph_handler_get_positions_in_execution_order_long_chain():
+    workflow = MagicMock()
+    workflow.graph = {
         "0": 1,
         **{str(i): {"next": {"": [i + 1]}} for i in range(1, 5000)},
     }
-    assert (
-        len(
-            AutomationWorkflowGraphHandler(long_chain).get_positions_in_execution_order(
-                set(range(1, 5001)), lambda _: [""]
-            )
-        )
-        == 5000
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    positions = graph_handler.get_positions_in_execution_order(
+        set(range(1, 5001)), lambda _: [""]
     )
 
-    empty = MagicMock()
-    empty.graph = {}
-    assert (
-        AutomationWorkflowGraphHandler(empty).get_positions_in_execution_order(
-            {1}, lambda _: [""]
-        )
-        == []
-    )
+    assert len(positions) == 5000
+
+
+def test_graph_handler_get_positions_in_execution_order_empty_graph():
+    workflow = MagicMock()
+    workflow.graph = {}
+    graph_handler = AutomationWorkflowGraphHandler(workflow)
+
+    assert graph_handler.get_positions_in_execution_order({1}, lambda _: [""]) == []
