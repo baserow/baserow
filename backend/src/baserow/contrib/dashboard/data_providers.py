@@ -67,12 +67,18 @@ class WidgetDataProviderType(DataProviderType):
         values = dispatch_context.data.get(self.type, {})
         if not isinstance(values, dict):
             raise ValidationError("Expected widget data keyed by widget IDs.")
+        widgets = self.get_widgets(dispatch_context)
         validated = {}
         for key, value in values.items():
             try:
                 if not isinstance(key, str):
                     raise BaserowFormulaSyntaxError("Expected a dashboard widget ID.")
                 self.is_valid([key])
+                if key not in widgets:
+                    # A visitor whose page predates a widget's deletion still
+                    # sends its value. No formula can resolve it, so drop it
+                    # rather than failing every widget of the dashboard.
+                    continue
                 validated[key] = self.validate_data_chunk(key, value, dispatch_context)
             except (BaserowFormulaSyntaxError, InvalidFormulaContext) as exc:
                 raise ValidationError(str(exc)) from exc

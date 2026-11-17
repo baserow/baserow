@@ -85,8 +85,67 @@ class LocalBaserowServiceGroupedFiltersAdapter(GroupedFiltersAdapter):
         return [view_filter_type.prepare_value(value)], "AND"
 
 
+MAX_FIELD_ID = 2**63 - 1
+
+
+def get_unavailable_field_ids(conditions, service) -> set[int]:
+    """
+    Return the condition field ids that can't be applied to the service's table
+    anymore: the field is trashed, permanently deleted, or wasn't available when
+    the configuration was imported (stored as 0). Fields of another table aren't
+    unavailable, they are invalid.
+    """
+
+    from baserow.contrib.database.fields.models import Field
+
+    field_ids = {
+        condition.get("field")
+        for condition in conditions
+        if isinstance(condition, dict)
+        and isinstance(condition.get("field"), int)
+        and not isinstance(condition.get("field"), bool)
+        # Ids outside the column's range are left for the serializer to reject.
+        and 0 <= condition.get("field") <= MAX_FIELD_ID
+    }
+    if not field_ids:
+        return set()
+    existing = {
+        field_id: (table_id, trashed)
+        for field_id, table_id, trashed in Field.objects_and_trash.filter(
+            id__in=field_ids
+        ).values_list("id", "table_id", "trashed")
+    }
+    # Skipping such a condition can't widen access: visitors can already clear the
+    # filter value, so contributed conditions never restrict what they may see.
+    return {
+        field_id
+        for field_id in field_ids
+        if field_id not in existing
+        or (existing[field_id][0] == service.table_id and existing[field_id][1])
+    }
+
+
+def has_applicable_conditions(group, service) -> bool:
+    """Whether a transient group has a condition on a field still available."""
+
+    conditions = group.get("filters") or []
+    unavailable = get_unavailable_field_ids(conditions, service)
+    return any(
+        not (isinstance(condition, dict) and condition.get("field") in unavailable)
+        for condition in conditions
+    )
+
+
 def validate_runtime_filter_group(group, service):
-    """Validate a transient group's shape, ancestry, fields, operators and formulas."""
+    """
+    Validate a transient group's shape, ancestry, fields, operators and formulas.
+
+    Conditions on unavailable fields (see `get_unavailable_field_ids`) are kept by
+    the caller but neither validated nor returned, so they don't apply until the
+    field is restored. Each returned condition has the `index` of its position in
+    the group's filters.
+    """
+
     from rest_framework.exceptions import ValidationError
 
     from baserow.contrib.integrations.local_baserow.api.serializers import (
@@ -96,11 +155,20 @@ def validate_runtime_filter_group(group, service):
 
     if not isinstance(group, dict) or group.get("filter_type") not in ("AND", "OR"):
         raise ValidationError("Invalid filter group operator.")
+    raw_filters = group.get("filters", [])
+    if not isinstance(raw_filters, list):
+        raise ValidationError("Expected a list of filters.")
+    unavailable = get_unavailable_field_ids(raw_filters, service)
+    indexes = [
+        index
+        for index, condition in enumerate(raw_filters)
+        if not (isinstance(condition, dict) and condition.get("field") in unavailable)
+    ]
     groups = LocalBaserowTableServiceFilterGroupSerializer(
         data=group.get("filter_groups", []), many=True
     )
     filters = LocalBaserowTableServiceFilterSerializer(
-        data=group.get("filters", []),
+        data=[raw_filters[index] for index in indexes],
         many=True,
         context={
             "application_type": type(
@@ -139,7 +207,10 @@ def validate_runtime_filter_group(group, service):
             raise ValidationError("Incompatible filter operator.")
         if condition["group_id"] not in known:
             raise ValidationError("Unknown condition group.")
-    return filters.validated_data, ordered
+    return [
+        {**condition, "index": index}
+        for index, condition in zip(indexes, filters.validated_data)
+    ], ordered
 
 
 class RuntimeFilterGroupAdapter(LocalBaserowServiceGroupedFiltersAdapter):
@@ -148,8 +219,17 @@ class RuntimeFilterGroupAdapter(LocalBaserowServiceGroupedFiltersAdapter):
     def __init__(self, group, service, model, dispatch_context):
         from types import SimpleNamespace
 
+        from rest_framework.exceptions import ValidationError
+
         super().__init__(service, model, dispatch_context)
-        filters, groups = validate_runtime_filter_group(group, service)
+        try:
+            filters, groups = validate_runtime_filter_group(group, service)
+        except ValidationError as exc:
+            # The configuration was valid when saved, so it no longer matches the
+            # source. Report it like the source's own invalid filters.
+            raise ServiceImproperlyConfiguredDispatchException(
+                "A dashboard filter condition no longer matches its source."
+            ) from exc
         self._filter_type = group["filter_type"]
         self._filters = [
             SimpleNamespace(**{**f, "field_id": f["field"].id}) for f in filters
@@ -157,14 +237,19 @@ class RuntimeFilterGroupAdapter(LocalBaserowServiceGroupedFiltersAdapter):
         self._groups = [SimpleNamespace(**g) for g in groups]
 
     def get_filter_values(self, value, view_filter_type):
-        """Dashboard equality matches any selection; inequality excludes them all."""
+        """
+        Apply each selected value separately unless the operator combines lists
+        itself: a row matches when it matches any selection, and negated operators
+        exclude the rows matching any of them.
+        """
+
         if (
             isinstance(value, list)
             and value
-            and view_filter_type.type in ("equal", "not_equal")
+            and not view_filter_type.accepts_multiple_values
         ):
             return [view_filter_type.prepare_value(item) for item in value], (
-                "OR" if view_filter_type.type == "equal" else "AND"
+                "AND" if view_filter_type.negated else "OR"
             )
         return super().get_filter_values(value, view_filter_type)
 

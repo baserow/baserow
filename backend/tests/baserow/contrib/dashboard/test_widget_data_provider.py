@@ -19,6 +19,9 @@ from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.exceptions import InvalidFormulaContext
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.registries import ImportExportConfig
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -338,7 +341,11 @@ def test_multiple_dropdown_exposes_lists_and_empty_policy(
                 else {}
             ),
         }
-    for value in ["Beta", [1], [None], [["Beta"]]]:
+    # A single value from a page predating the switch to multiple is kept.
+    assert api_client.post(
+        url, {"widget_data": {str(widget.id): "Beta"}}, format="json", **headers
+    ).json() == {"result": "20", "_is_filtered": True}
+    for value in [[1], [None], [["Beta"]], ["Beta"] * 101]:
         assert (
             api_client.post(
                 url, {"widget_data": {str(widget.id): value}}, format="json", **headers
@@ -367,14 +374,19 @@ def test_multiple_dropdown_exposes_lists_and_empty_policy(
         [],
         "bad",
         {"x": "value"},
-        {"1": 123},
-        {"1": None},
-        {"999999": "value"},
+        {"{widget}": 123},
+        {"{widget}": None},
+        {"{widget}": ["Alpha", "Beta"]},
+        {"{widget}": "x" * 1001},
         {"01": "value"},
     ],
 )
 def test_invalid_widget_payload(api_client, filter_dashboard, value):
-    _, token, _, source, _, _ = filter_dashboard
+    _, token, _, source, widget, _ = filter_dashboard
+    if isinstance(value, dict):
+        value = {
+            key.replace("{widget}", str(widget.id)): item for key, item in value.items()
+        }
     response = api_client.post(
         reverse(
             "api:dashboard:data_sources:dispatch", kwargs={"data_source_id": source.id}
@@ -384,6 +396,61 @@ def test_invalid_widget_payload(api_client, filter_dashboard, value):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == 400, response.json()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("public", [False, True])
+def test_dispatch_tolerates_values_from_an_outdated_page(
+    api_client, filter_dashboard, public
+):
+    """A deleted filter or a changed selection mode must not break the dashboard."""
+
+    _, token, dashboard, source, widget, _ = filter_dashboard
+    deleted = TextFilterWidget.objects.create(dashboard=dashboard, title="Gone")
+    deleted_id = deleted.id
+    deleted.delete()
+    url, headers = (
+        (
+            reverse(
+                "api:dashboard:public:data_source_dispatch",
+                kwargs={"slug": dashboard.slug, "data_source_id": source.id},
+            ),
+            {},
+        )
+        if public
+        else (
+            reverse(
+                "api:dashboard:data_sources:dispatch",
+                kwargs={"data_source_id": source.id},
+            ),
+            {"HTTP_AUTHORIZATION": f"JWT {token}"},
+        )
+    )
+    payload = {str(widget.id): "Beta", str(deleted_id): "anything", "999999": "x"}
+    response = api_client.post(url, {"widget_data": payload}, format="json", **headers)
+    assert response.status_code == 200, response.json()
+    assert response.json()["result"] == "20"
+
+    # The page still sends a single value after the filter became multiple.
+    widget.mode = "dropdown"
+    widget.multiple = True
+    widget.default_value = []
+    widget.save()
+    response = api_client.post(
+        url, {"widget_data": {str(widget.id): "Beta"}}, format="json", **headers
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["result"] == "20"
+
+    # And a one-item list after it became single again.
+    widget.multiple = False
+    widget.default_value = ""
+    widget.save()
+    response = api_client.post(
+        url, {"widget_data": {str(widget.id): ["Beta"]}}, format="json", **headers
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["result"] == "20"
 
 
 @pytest.mark.django_db
@@ -647,7 +714,6 @@ def test_target_delete_undo_redo(filter_dashboard):
 
 @pytest.mark.django_db
 def test_nested_contribution_and_source_change(data_fixture, filter_dashboard):
-    from rest_framework.exceptions import ValidationError
 
     _, _, dashboard, source, widget, condition = filter_dashboard
     group = widget.target_filters[0]["group"]
@@ -671,7 +737,7 @@ def test_nested_contribution_and_source_change(data_fixture, filter_dashboard):
     service.table = data_fixture.create_database_table(database=service.table.database)
     service.field = data_fixture.create_number_field(table=service.table)
     service.save()
-    with pytest.raises(ValidationError):
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         DashboardDataSourceHandler().dispatch_data_source(
             source, DashboardDispatchContext(HttpRequest(), dashboard=dashboard)
         )
@@ -1266,7 +1332,7 @@ def test_dispatch_validation_uses_non_filter_widget_type_hook(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("value", [123, None, ["Alpha"]])
+@pytest.mark.parametrize("value", [123, None, ["Alpha", "Beta"]])
 def test_internal_dispatch_validates_widget_values_in_provider(filter_dashboard, value):
     """Internal callers cannot bypass type validation by skipping the API serializer."""
     from rest_framework.exceptions import ValidationError
@@ -1685,3 +1751,121 @@ def test_dropdown_selection_labels_in_runtime_and_stored_conditions(
         )
         result = DashboardDataSourceHandler().dispatch_data_source(source, context)
     assert Decimal(str(result["result"])) == expected
+
+
+def dispatch_with(source, dashboard, widget, value):
+    with local_cache.context():
+        return DashboardDataSourceHandler().dispatch_data_source(
+            source,
+            DashboardDispatchContext(
+                HttpRequest(),
+                dashboard=dashboard,
+                data={"widget_data": {str(widget.id): value}},
+            ),
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "operator,expected",
+    [
+        # Rows: Alpha 10, Beta 20, " " 40.
+        ("contains", "30"),
+        ("contains_word", "30"),
+        ("contains_not", "40"),
+        ("doesnt_contain_word", "40"),
+        ("equal", "30"),
+        ("not_equal", "40"),
+    ],
+)
+def test_multiple_dropdown_applies_every_operator_per_value(
+    filter_dashboard, operator, expected
+):
+    _, _, dashboard, source, widget, _ = filter_dashboard
+    widget.mode = "dropdown"
+    widget.multiple = True
+    widget.default_value = []
+    link = widget.target_filters[0]
+    link["group"]["filters"][0]["type"] = operator
+    widget.target_filters = [link]
+    widget.save()
+
+    assert dispatch_with(source, dashboard, widget, ["Alpha", "Beta"]) == {
+        "result": expected,
+        "_is_filtered": True,
+    }
+
+
+@pytest.mark.django_db
+def test_text_filter_default_value_is_bounded(data_fixture, filter_dashboard):
+    from rest_framework.exceptions import ValidationError
+
+    from baserow.contrib.dashboard.widgets.service import WidgetService
+
+    user, _, dashboard, _, _, _ = filter_dashboard
+    for default_value in [["a"] * 101, "x" * 1001]:
+        with pytest.raises(ValidationError):
+            WidgetService().create_widget(
+                user,
+                "text_filter",
+                dashboard.id,
+                mode="dropdown",
+                multiple=True,
+                default_value=default_value,
+            )
+
+
+@pytest.mark.django_db
+def test_conditions_on_a_trashed_field_are_skipped_until_restored(
+    api_client, filter_dashboard
+):
+    from baserow.contrib.database.fields.handler import FieldHandler
+    from baserow.contrib.database.fields.models import Field
+
+    user, token, dashboard, source, widget, condition = filter_dashboard
+    field = Field.objects.get(id=condition["field"])
+    FieldHandler().delete_field(user, field)
+
+    # The target still renders, without the unavailable condition.
+    assert dispatch_with(source, dashboard, widget, "Alpha") == {"result": "70"}
+    # The configuration returned by the API can still be saved as it is.
+    widget.refresh_from_db()
+    response = api_client.patch(
+        reverse("api:dashboard:widgets:item", kwargs={"widget_id": widget.id}),
+        {
+            "type": "text_filter",
+            "title": "Renamed",
+            "target_filters": widget.target_filters,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+
+    TrashHandler.restore_item(user, "field", field.id)
+    assert dispatch_with(source, dashboard, widget, "Alpha") == {
+        "result": "10",
+        "_is_filtered": True,
+    }
+
+
+@pytest.mark.django_db
+def test_import_without_the_database_keeps_conditions_inactive(
+    data_fixture, filter_dashboard
+):
+    """A dashboard imported without its tables keeps conditions it can't apply."""
+    from baserow.core.handler import CoreHandler
+
+    user, _, dashboard, _, _, _ = filter_dashboard
+    other_workspace = data_fixture.create_workspace(user=user)
+    config = ImportExportConfig(include_permission_data=False)
+    exported = [DashboardApplicationType().export_serialized(dashboard, config)]
+    applications, _ = CoreHandler().import_applications_to_workspace(
+        other_workspace, exported, None, config
+    )
+
+    copied_widget = TextFilterWidget.objects.get(dashboard=applications[0])
+    condition = copied_widget.target_filters[0]["group"]["filters"][0]
+    assert condition["field"] == 0
+    # Its widget reference points at the imported filter, not the original one.
+    assert condition["value"]["formula"] == f"get('widget_data.{copied_widget.id}')"

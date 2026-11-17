@@ -209,7 +209,7 @@ describe('TextFilterWidgetSettings', () => {
     expect(dispatch).toHaveBeenCalledWith(
       'dashboardApplication/updateWidget',
       expect.objectContaining({
-        values: expect.objectContaining({ mode: 'dropdown', multiple: true }),
+        values: { multiple: true, default_value: [] },
       })
     )
     dispatch.mockRestore()
@@ -232,44 +232,16 @@ describe('TextFilterWidgetSettings', () => {
     await flushPromises()
     expect(dispatch).toHaveBeenCalledWith('dashboardApplication/updateWidget', {
       widgetId: 2,
-      values: {
-        mode: 'input',
-        multiple: false,
-        options: {},
-        placeholder: '',
-        default_value: 'Initial',
-        target_filters: [],
-      },
-      originalValues: {
-        mode: 'input',
-        multiple: false,
-        options: {},
-        placeholder: 'Type here',
-        default_value: 'Initial',
-        target_filters: [],
-      },
+      values: { placeholder: '' },
+      originalValues: { placeholder: 'Type here' },
     })
     await inputs[1].setValue("get('literal')")
     await inputs[1].trigger('blur')
     await flushPromises()
     expect(dispatch).toHaveBeenCalledWith('dashboardApplication/updateWidget', {
       widgetId: 2,
-      values: {
-        mode: 'input',
-        multiple: false,
-        options: {},
-        placeholder: 'Type here',
-        default_value: "get('literal')",
-        target_filters: [],
-      },
-      originalValues: {
-        mode: 'input',
-        multiple: false,
-        options: {},
-        placeholder: 'Type here',
-        default_value: 'Initial',
-        target_filters: [],
-      },
+      values: { default_value: "get('literal')" },
+      originalValues: { default_value: 'Initial' },
     })
     dispatch.mockRestore()
   })

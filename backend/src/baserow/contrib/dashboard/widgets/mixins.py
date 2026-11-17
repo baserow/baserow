@@ -226,8 +226,9 @@ class FilterWidgetTypeMixin:
                 keys.append("alternative_group")
             for key in keys:
                 filters, _ = validate_runtime_filter_group(link.get(key), service)
-                for condition, original in zip(filters, link[key].get("filters", [])):
-                    original["value"] = condition["value"]
+                originals = link[key]["filters"]
+                for condition in filters:
+                    originals[condition["index"]]["value"] = condition["value"]
 
     def prepare_value_for_db(self, values, instance=None):
         """Validate contributed groups for every filter type using this mixin."""
@@ -330,6 +331,11 @@ class FilterWidgetTypeMixin:
                             remapped[0]["value"], id_mapping
                         )
                     else:
+                        # The condition stays, inactive, until edited, but its
+                        # widget references must still point at the imported copy.
                         condition["field"] = 0
+                        condition["value"] = import_formula(
+                            condition["value"], id_mapping
+                        )
         updated_models.add(widget)
         return updated_models

@@ -62,6 +62,32 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
     def get_name(self, instance):
         return self.context["data_source"].name
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_schema(self, instance):
+        # Display widgets render their source's whole result, so the schema is
+        # never narrowed by the option formulas of the filter widgets.
+        return instance.get_type().generate_public_schema(instance.specific)
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_context_data(self, instance):
+        """
+        Keep the context the display widgets need to format the result, but only
+        publish the options of a source field when a filter widget's options
+        formula references that field.
+        """
+
+        service_type = instance.get_type()
+        context_data = service_type.get_public_context_data(instance.specific)
+        if not context_data:
+            return context_data
+        option_names = service_type.get_context_option_names(instance.specific)
+        referenced = set(self.context.get("referenced_option_fields") or [])
+        return {
+            name: value
+            for name, value in context_data.items()
+            if name not in option_names or name in referenced
+        }
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # The table service types expose the id of their table, which is part of
@@ -83,20 +109,24 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
 
 
 def serialize_public_data_source(
-    data_source: DashboardDataSource, allowed_fields=None
+    data_source: DashboardDataSource, referenced_option_fields=None
 ) -> dict:
     """
     Serializes a data source with the public serializer of its service type.
 
     :param data_source: The data source to serialize. It must have a service.
-    :param allowed_fields: Service properties referenced by widget formulas.
+    :param referenced_option_fields: The context option entries of the service
+        referenced by widget formulas. Only those options are published.
     :return: The serialized data source.
     """
 
     return service_type_registry.get_serializer(
         data_source.service,
         PublicDashboardDataSourceSerializer,
-        context={"data_source": data_source, "allowed_fields": allowed_fields},
+        context={
+            "data_source": data_source,
+            "referenced_option_fields": referenced_option_fields,
+        },
         extra_params={"public": True},
     ).data
 

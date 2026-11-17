@@ -20,6 +20,11 @@ from .models import SummaryWidget, TextFilterWidget
 from .registries import WidgetType
 from .types import WidgetGridLayout
 
+# Bound what anonymous visitors of a public dashboard can make a dispatch filter
+# on: every selected value becomes a separate condition in the query.
+TEXT_FILTER_MAX_SELECTED_VALUES = 100
+TEXT_FILTER_MAX_VALUE_LENGTH = 1000
+
 
 class SummaryWidgetType(DisplayWidgetTypeMixin, WidgetType):
     type = "summary"
@@ -193,6 +198,18 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 {"default_value": "Expected text or a list of text values."}
             )
         defaults = value if isinstance(value, list) else [value] if value else []
+        if len(defaults) > TEXT_FILTER_MAX_SELECTED_VALUES or any(
+            len(item) > TEXT_FILTER_MAX_VALUE_LENGTH for item in defaults
+        ):
+            # Defaults are dispatched like visitor values, so they share the limits.
+            raise serializers.ValidationError(
+                {
+                    "default_value": (
+                        f"Expected at most {TEXT_FILTER_MAX_SELECTED_VALUES} values "
+                        f"of up to {TEXT_FILTER_MAX_VALUE_LENGTH} characters."
+                    )
+                }
+            )
         if mode == TextFilterWidget.Mode.DROPDOWN and multiple:
             return defaults
         return defaults[0] if defaults else ""
@@ -230,14 +247,36 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 yield instance
 
     def validate_dispatch_data(self, widget, value):
-        if widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple:
+        """
+        Accept one text value, or a bounded list of them for multiple dropdowns.
+        """
+
+        multiple = widget.mode == TextFilterWidget.Mode.DROPDOWN and widget.multiple
+        # A visitor whose page predates a switch between single and multiple
+        # selection still sends the previous shape: keep their selection.
+        if multiple and isinstance(value, str):
+            value = [value] if value else []
+        elif not multiple and isinstance(value, list) and len(value) <= 1:
+            value = value[0] if value else ""
+        if multiple:
             if not isinstance(value, list) or any(
                 not isinstance(item, str) for item in value
             ):
                 raise serializers.ValidationError(
                     "Expected a list of string filter values."
                 )
-            return value
-        if not isinstance(value, str):
+            if len(value) > TEXT_FILTER_MAX_SELECTED_VALUES:
+                raise serializers.ValidationError(
+                    f"Select at most {TEXT_FILTER_MAX_SELECTED_VALUES} filter values."
+                )
+            values = value
+        elif not isinstance(value, str):
             raise serializers.ValidationError("Expected a string filter value.")
+        else:
+            values = [value]
+        if any(len(item) > TEXT_FILTER_MAX_VALUE_LENGTH for item in values):
+            raise serializers.ValidationError(
+                f"Filter values are limited to {TEXT_FILTER_MAX_VALUE_LENGTH} "
+                "characters."
+            )
         return value

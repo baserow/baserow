@@ -35,6 +35,7 @@ from baserow.contrib.integrations.local_baserow.models import (
 from baserow.contrib.integrations.local_baserow.service_filter_groups import (
     LocalBaserowServiceGroupedFiltersAdapter,
     RuntimeFilterGroupAdapter,
+    has_applicable_conditions,
 )
 from baserow.core.formula import BaserowFormulaObject, resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
@@ -122,7 +123,7 @@ class LocalBaserowTableServiceFilterableMixin:
         return (
             bool(service.service_filters_with_untrashed_fields)
             or any(
-                group.get("filters")
+                has_applicable_conditions(group, service)
                 for group in dispatch_context.get_runtime_filters(service)
             )
             or super().is_filtered(service, dispatch_context)

@@ -340,6 +340,19 @@ class ServiceType(
 
         return None
 
+    def get_context_option_names(self, service: ServiceSubClass) -> set[str]:
+        """
+        Return the context data entries that list selectable values of the
+        service's source, like the select options of table fields, rather than
+        describe the service's own result. Surfaces that publish context data can
+        then expose only the entries something explicitly references.
+
+        :param service: The service we want the option entry names for.
+        :return: The names of the context data entries holding options.
+        """
+
+        return set()
+
     def get_public_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ):

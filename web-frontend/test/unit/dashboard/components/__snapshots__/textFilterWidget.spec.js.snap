@@ -10,7 +10,7 @@ exports[`TextFilterWidget > renders an accessible input and preserves viewer val
     <div class="control__elements">
       <div class="control__elements-wrapper">
         <div class="form-input form-input--icon-left form-input--suffix dashboard-text-filter-widget__input dashboard-text-filter-widget__input--active"><i class="form-input__icon form-input__icon-left iconoir-filter"></i>
-          <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="Type here" autocomplete="" value="Initial">
+          <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="Type here" autocomplete="" maxlength="1000" value="Initial">
             <!--v-if-->
             <!--v-if-->
           </div>

@@ -124,3 +124,54 @@ def test_selection_filter_import_preserves_labels_and_remaps_ids(operator):
         kind.prepare_value(["112", label]) if kind.accepts_multiple_values else label
     )
     assert kind.set_import_serialized_value(original, mapping) == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("operator", ["multiple_select_has", "multiple_select_has_not"])
+def test_multiple_select_label_ignores_unused_and_foreign_options(
+    data_fixture, operator
+):
+    """Labels of unused options, here or in another table, must not change results."""
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "multiple_select",
+        name="Tags",
+        select_options=[
+            {"value": "Foo", "color": "blue"},
+            {"value": "Bar", "color": "green"},
+        ],
+    )
+    foo, bar = field.select_options.order_by("id")
+    # An unused option with the same label in this field, and one in another table.
+    data_fixture.create_select_option(field=field, value="Foo", color="red")
+    other = data_fixture.create_multiple_select_field(user=user)
+    data_fixture.create_select_option(field=other, value="Foo")
+    rows = (
+        RowHandler()
+        .create_rows(
+            user,
+            table,
+            [
+                {field.db_column: [foo.id]},
+                {field.db_column: [bar.id]},
+                {field.db_column: []},
+            ],
+        )
+        .created_rows
+    )
+    view = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_filter(view=view, field=field, type=operator, value="Foo")
+
+    result = set(
+        ViewHandler()
+        .apply_filters(view, table.get_model().objects.all())
+        .values_list("id", flat=True)
+    )
+
+    if operator == "multiple_select_has":
+        assert result == {rows[0].id}
+    else:
+        assert result == {rows[1].id, rows[2].id}

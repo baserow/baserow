@@ -75,6 +75,7 @@
       :class="{ 'dashboard-text-filter-widget__input--active': value !== '' }"
       icon-left="iconoir-filter"
       :placeholder="widget.placeholder"
+      :maxlength="TEXT_FILTER_MAX_VALUE_LENGTH"
       @pointerdown.stop
       @mousedown.stop
     >
@@ -87,7 +88,10 @@
 
 <script setup>
 import { computed } from 'vue'
-import { getTextFilterDefaultValue } from '@baserow/modules/dashboard/utils/widgetFilters'
+import {
+  getTextFilterDefaultValue,
+  TEXT_FILTER_MAX_VALUE_LENGTH,
+} from '@baserow/modules/dashboard/utils/widgetFilters'
 import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
 import { useStore } from 'vuex'
 import FormGroup from '@baserow/modules/core/components/FormGroup'

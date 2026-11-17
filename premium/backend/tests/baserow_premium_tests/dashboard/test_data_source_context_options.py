@@ -71,15 +71,15 @@ def test_every_table_source_exposes_all_field_options(
         "color",
     }
     assert (
-        serialize_public_data_source(source, allowed_fields=[category.db_column])[
-            "context_data"
-        ][category.db_column]
+        serialize_public_data_source(
+            source, referenced_option_fields=[category.db_column]
+        )["context_data"][category.db_column]
         == expected
     )
     assert (
         audience.db_column
         not in serialize_public_data_source(
-            source, allowed_fields=[category.db_column]
+            source, referenced_option_fields=[category.db_column]
         )["context_data"]
     )
     provider = DashboardDataSourceContextDataProviderType()

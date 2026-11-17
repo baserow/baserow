@@ -565,27 +565,27 @@ async function removeTarget() {
 /** Save configuration through the shared undoable widget update flow. */
 async function updateSetting(field, value) {
   if (isEqual(value, props.widget[field])) return
-  const settings = {
-    mode: props.widget.mode || 'input',
-    multiple: props.widget.multiple || false,
-    options: props.widget.options || {},
-    placeholder: props.widget.placeholder,
-    default_value: props.widget.default_value,
-    target_filters: props.widget.target_filters || [],
-  }
-  const values = { ...settings, [field]: value }
+  // Only send what changed: a full copy would overwrite settings, like the
+  // target links, that another editor changed in the meantime.
+  const values = { [field]: value }
   if (field === 'options') {
     values.default_value = props.widget.multiple ? [] : ''
   } else if (field === 'mode' || field === 'multiple') {
-    values.default_value = getTextFilterDefaultValue(values)
+    values.default_value = getTextFilterDefaultValue({
+      ...props.widget,
+      [field]: value,
+    })
   }
+  const originalValues = Object.fromEntries(
+    Object.keys(values).map((key) => [key, props.widget[key]])
+  )
   try {
     await $store.dispatch(
       `${props.storePrefix}dashboardApplication/updateWidget`,
       {
         widgetId: props.widget.id,
         values,
-        originalValues: settings,
+        originalValues,
       }
     )
     return true

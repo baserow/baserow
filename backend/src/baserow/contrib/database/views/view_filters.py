@@ -98,6 +98,8 @@ def parse_int_filter_value(value: str) -> int:
 
 
 class NotViewFilterTypeMixin:
+    negated = True
+
     def default_filter_on_exception(self):
         return Q()
 
@@ -1160,7 +1162,7 @@ class SelectOptionFilterMixin:
             )
         return super().prepare_value(value)
 
-    def _get_label_filter(self, field_name, labels, model_field, effective_type):
+    def _get_label_filter(self, field_name, labels, model_field, field, effective_type):
         """Filter labels without extra option lookups or multiplying result rows."""
         if effective_type.type == FormulaFieldType.type:
             return get_jsonb_has_any_in_value_filter_expr(
@@ -1170,10 +1172,15 @@ class SelectOptionFilterMixin:
             )
         if self.multiple_select:
             remote = model_field.remote_field
+            # Only this field's options, and only those used by a row: an unused
+            # option would add a NULL row id, and `NOT IN (..., NULL)` excludes
+            # every row for the negated operators.
             return Q(
-                id__in=remote.model.objects.filter(value__in=labels).values(
-                    f"{remote.related_name}__id"
-                )
+                id__in=remote.model.objects.filter(
+                    field_id=field.id,
+                    value__in=labels,
+                    **{f"{remote.related_name}__isnull": False},
+                ).values(f"{remote.related_name}__id")
             )
         return Q(**{f"{field_name}__value__in": labels})
 
@@ -1200,7 +1207,9 @@ class SelectOptionFilterMixin:
             )
         if labels:
             filters.append(
-                self._get_label_filter(field_name, labels, model_field, effective_type)
+                self._get_label_filter(
+                    field_name, labels, model_field, field, effective_type
+                )
             )
         if not filters:
             return self.default_filter_on_exception()
@@ -1438,6 +1447,7 @@ class LinkRowHasNotViewFilterType(LinkRowHasViewFilterType):
     """
 
     type = "link_row_has_not"
+    negated = True
 
     def default_filter_on_exception(self):
         return Q()

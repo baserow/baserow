@@ -76,3 +76,6 @@ export const getTextFilterDefaultValue = (widget) => {
     ? values
     : values[0] || ''
 }
+
+/** Matches the backend limit on a dispatched filter value. */
+export const TEXT_FILTER_MAX_VALUE_LENGTH = 1000

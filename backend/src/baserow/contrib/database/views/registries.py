@@ -1221,6 +1221,19 @@ class ViewFilterType(Instance):
     """
 
     compatible_field_types: List[Union[str, Callable[["Field"], bool]]] = []
+
+    accepts_multiple_values = False
+    """
+    Whether `prepare_value` combines a list of resolved values into one filter
+    value itself. Otherwise, callers with several values apply the filter once per
+    value.
+    """
+
+    negated = False
+    """
+    Whether the filter excludes the rows matching its value. Callers applying the
+    filter once per value combine negated filters with AND, the others with OR.
+    """
     """
     Defines which field types are compatible with the filter. The values in this list
     can either be the literal `FieldType.type` string, or a callable taking the

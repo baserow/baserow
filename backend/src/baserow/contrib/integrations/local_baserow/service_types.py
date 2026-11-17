@@ -940,6 +940,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     ) -> Dict[str, Any]:
         return self._get_table_context_data(service, allowed_fields)
 
+    def get_context_option_names(self, service: ServiceSubClass) -> set[str]:
+        """The table context data only holds select options of the table fields."""
+
+        return set(self._get_table_context_data(service) or {})
+
     def _get_table_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
