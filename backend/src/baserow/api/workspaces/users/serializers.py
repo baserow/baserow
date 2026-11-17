@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from drf_spectacular.types import OpenApiTypes
@@ -13,8 +12,8 @@ from baserow.core.ai_provider.registries import (
 )
 from baserow.core.ai_provider.resolution import get_ai_provider_state
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
-from baserow.core.registries import permission_manager_type_registry
 
 User = get_user_model()
 
@@ -58,12 +57,7 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
     def get_role_uid(self, workspace_user):
         """Expose the resolved role without changing legacy permissions."""
 
-        for manager_name in settings.PERMISSION_MANAGERS:
-            manager = permission_manager_type_registry.get(manager_name)
-            role_uid = manager.get_workspace_user_role_uid(workspace_user)
-            if role_uid is not None:
-                return role_uid
-        return workspace_user.permissions
+        return CoreHandler().get_workspace_user_role_uid(workspace_user)
 
     def get_two_factor_auth(self, object):
         try:

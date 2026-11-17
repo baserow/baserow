@@ -15,7 +15,7 @@ from baserow_enterprise.teams.models import TeamSubject
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-@pytest.mark.parametrize("event", ["create", "update", "delete", "restore"])
+@pytest.mark.parametrize("event", ["create", "update", "role", "delete", "restore"])
 def test_identity_events_only_reach_users_allowed_to_list_identities(
     data_fixture, enable_enterprise, synced_roles, event
 ):
@@ -48,6 +48,8 @@ def test_identity_events_only_reach_users_allowed_to_list_identities(
             )
         elif event == "update":
             service.update_identity(admin, identity, name="Updated private identity")
+        elif event == "role":
+            handler.assign_role(identity, workspace, handler.get_role_by_uid("ADMIN"))
         elif event == "delete":
             service.delete_identity(admin, identity)
         else:
@@ -60,13 +62,14 @@ def test_identity_events_only_reach_users_allowed_to_list_identities(
     expected_type = {
         "create": "identity_created",
         "update": "identity_updated",
+        "role": "identity_updated",
         "delete": "identity_deleted",
         "restore": "identity_created",
     }[event]
     assert payload["type"] == expected_type
     assert payload["workspace_id"] == workspace.id
     assert broadcast.call_args.kwargs["ignore_web_socket_id"] == (
-        None if event == "restore" else "origin"
+        None if event in {"role", "restore"} else "origin"
     )
     workspace_broadcast.delay.assert_not_called()
 

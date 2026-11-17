@@ -144,19 +144,6 @@ class UserSubjectType(SubjectType):
             subject, workspace, role_uid, send_signals=send_signals
         )
 
-    def _store_workspace_role_uid(
-        self, subject: AbstractUser, workspace: Workspace, role_uid: str
-    ) -> None:
-        from baserow.core.handler import CoreHandler
-
-        # Roles stay on the membership so switching permission managers keeps them.
-        workspace_user = workspace.get_workspace_user(subject)
-        permissions = "MEMBER" if role_uid == "BUILDER" else role_uid
-        CoreHandler().force_update_workspace_user(
-            None, workspace_user, permissions=permissions
-        )
-        getattr(subject, "_prefetched_objects_cache", {}).pop("workspaceuser_set", None)
-
     def get_type_display_name(self):
         return "User"
 
@@ -323,7 +310,14 @@ class HumanSubjectType(UserSubjectType):
         role_uid: str,
         send_signals: bool = True,
     ) -> None:
-        self._store_workspace_role_uid(subject, workspace, role_uid)
+        from baserow.core.handler import CoreHandler
+
+        workspace_user = workspace.get_workspace_user(subject)
+        CoreHandler().force_update_workspace_user(
+            None,
+            workspace_user,
+            permissions=CoreHandler.get_stored_workspace_role_uid(role_uid),
+        )
 
     def get_label(self, subject: AbstractUser) -> str:
         return subject.email
@@ -400,7 +394,11 @@ class IdentitySubjectType(UserSubjectType):
         role_uid: str,
         send_signals: bool = True,
     ) -> None:
-        self._store_workspace_role_uid(subject, workspace, role_uid)
+        from baserow.core.identities.handler import IdentityHandler
+
+        # Fails when the identity is not in this workspace, as it does for a person.
+        workspace.get_workspace_user(subject)
+        IdentityHandler().update_identity(subject, role_uid=role_uid)
         if send_signals:
             identity_updated.send(self, user=None, identity=subject)
 

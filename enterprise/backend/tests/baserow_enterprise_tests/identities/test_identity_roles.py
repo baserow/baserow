@@ -110,6 +110,50 @@ def test_identity_workspace_role_batch_then_patch(data_fixture, api_client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("api", ["roles", "identities"])
+def test_identity_builder_role_is_stored_and_read_the_same_way(
+    data_fixture, api_client, api
+):
+    """Builder is stored under its basic name, so it survives losing RBAC."""
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = IdentityService().create_identity(user, workspace, name="Writer")
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    if api == "roles":
+        response = api_client.post(
+            reverse("api:enterprise:role:batch", kwargs={"workspace_id": workspace.id}),
+            {
+                "items": [
+                    {
+                        "scope_id": workspace.id,
+                        "scope_type": "workspace",
+                        "subject_id": identity.id,
+                        "subject_type": UserSubjectType.type,
+                        "role": "BUILDER",
+                    }
+                ]
+            },
+            format="json",
+            **headers,
+        )
+    else:
+        response = api_client.patch(
+            reverse("api:identities:item", kwargs={"identity_id": identity.id}),
+            {"role_uid": "BUILDER"},
+            format="json",
+            **headers,
+        )
+    assert response.status_code == 200
+
+    assert workspace.get_workspace_user(identity).permissions == "MEMBER"
+    response = api_client.get(
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        **headers,
+    )
+    assert [item["role_uid"] for item in response.json()["results"]] == ["BUILDER"]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("role_uid", ["VIEWER", "NO_ACCESS", "NO_ROLE_LOW_PRIORITY"])
 def test_stale_identity_workspace_role_is_ignored(
     data_fixture, enterprise_data_fixture, role_uid
@@ -248,7 +292,7 @@ def test_identity_rename_preserves_role_after_license_change(
     assert response.status_code == 200
     identity.refresh_from_db()
     assert identity.first_name == "Renamed"
-    assert IdentityHandler().get_role_uid(identity) == role_uid
+    assert workspace.get_workspace_user(identity).permissions == role_uid
 
     # Preserving an existing role must not allow selecting unavailable roles.
     response = api_client.patch(
@@ -259,8 +303,7 @@ def test_identity_rename_preserves_role_after_license_change(
     )
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_IDENTITY_ROLE_DOES_NOT_EXIST"
-    identity.refresh_from_db()
-    assert IdentityHandler().get_role_uid(identity) == role_uid
+    assert workspace.get_workspace_user(identity).permissions == role_uid
 
 
 @pytest.mark.django_db
@@ -271,7 +314,7 @@ def test_identity_with_unavailable_role_is_denied_permissions(
 
     workspace = data_fixture.create_workspace()
     identity = data_fixture.create_identity(
-        workspace=workspace, name="Builder", role_uid="BUILDER"
+        workspace=workspace, name="Editor", role_uid="EDITOR"
     )
     database = data_fixture.create_database_application(workspace=workspace)
     table, fields, _ = data_fixture.build_table(
@@ -295,11 +338,11 @@ def test_identity_with_unavailable_role_is_denied_permissions(
             for operation, context in checks
         ]
 
-    assert permissions() == [True, True, True]
+    assert permissions() == [True, False, True]
     enterprise_data_fixture.delete_all_licenses()
     assert permissions() == [False, False, False]
     enterprise_data_fixture.enable_enterprise()
-    assert permissions() == [True, True, True]
+    assert permissions() == [True, False, True]
 
 
 @pytest.mark.django_db
@@ -339,8 +382,9 @@ def test_identity_member_alias_is_valid_with_rbac(data_fixture, api_client):
         **headers,
     )
     assert response.status_code == 200
+    assert response.json()["role_uid"] == "BUILDER"
     identity = User.objects_and_identities.get(id=response.json()["id"])
-    assert IdentityHandler().get_role_uid(identity) == "MEMBER"
+    assert workspace.get_workspace_user(identity).permissions == "MEMBER"
     handler = RoleAssignmentHandler()
     assert (
         handler.get_current_role_assignment(identity, workspace).role.uid == "BUILDER"

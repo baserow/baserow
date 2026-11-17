@@ -13,7 +13,7 @@ from baserow.core.identities.service import IdentityService
 from baserow.core.models import User, UserProfile, WorkspaceUser
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
-from baserow_enterprise.features import TEAMS
+from baserow_enterprise.features import RBAC, TEAMS
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import RoleAssignment
 from baserow_enterprise.teams.exceptions import TeamSubjectDoesNotExist
@@ -389,6 +389,8 @@ def test_identity_list_loads_workspace_and_team_summaries_without_per_identity_q
     for identity in identities:
         TeamSubject.objects.create(team=team, subject=identity)
         TeamSubject.objects.create(team=trashed_team, subject=identity)
+    # A running server already holds the roles, they are cached per process.
+    RoleAssignmentHandler().get_role_by_uid("BUILDER")
     with patch(
         "baserow_enterprise.identities.identity_extension_types.LicenseHandler.workspace_has_feature",
         return_value=teams_enabled,
@@ -398,7 +400,10 @@ def test_identity_list_loads_workspace_and_team_summaries_without_per_identity_q
         with django_assert_num_queries(2):
             result = IdentitySerializer(queryset, many=True).data
 
-    workspace_has_feature.assert_called_once_with(TEAMS, workspace)
+    assert [call.args for call in workspace_has_feature.call_args_list] == [
+        (TEAMS, workspace),
+        (RBAC, workspace),
+    ]
 
     assert len(result) == 5
     assert all(item["workspace_id"] == workspace.id for item in result)

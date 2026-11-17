@@ -6,6 +6,7 @@ from django.db.models import Prefetch, QuerySet
 from django.utils import timezone
 
 from baserow.core.cache import global_cache
+from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityDoesNotExist
 from baserow.core.identities.registries import identity_extension_type_registry
 from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
@@ -38,7 +39,9 @@ class IdentityHandler:
 
     @classmethod
     def get_role_uid(cls, identity: User) -> str:
-        return cls.get_workspace_user(identity).permissions
+        return CoreHandler().get_workspace_user_role_uid(
+            cls.get_workspace_user(identity)
+        )
 
     @staticmethod
     def _identities() -> QuerySet[User]:
@@ -136,8 +139,10 @@ class IdentityHandler:
             user=identity,
             workspace=workspace,
             order=0,
-            permissions=values.get("role_uid")
-            or identity_extension_type_registry.get_default_role_uid(workspace),
+            permissions=CoreHandler.get_stored_workspace_role_uid(
+                values.get("role_uid")
+                or identity_extension_type_registry.get_default_role_uid(workspace)
+            ),
         )
         return identity
 
@@ -156,7 +161,9 @@ class IdentityHandler:
             identity.first_name = values["name"]
             identity.save(update_fields=["first_name"])
         if "role_uid" in values:
-            membership.permissions = values["role_uid"]
+            membership.permissions = CoreHandler.get_stored_workspace_role_uid(
+                values["role_uid"]
+            )
             membership.save(update_fields=["permissions", "updated_on"])
         return identity
 

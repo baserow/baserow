@@ -1175,6 +1175,35 @@ class CoreHandler:
         if not is_valid:
             raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
 
+    def get_workspace_user_role_uid(self, workspace_user: WorkspaceUser) -> str:
+        """
+        Returns the role of a workspace member as the first permission manager that
+        answers names it, which can differ from the stored `permissions` value.
+
+        :param workspace_user: The membership of a person or an identity.
+        :return: The resolved role uid.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            role_uid = permission_manager_type_registry.get(
+                permission_manager_name
+            ).get_workspace_user_role_uid(workspace_user)
+            if role_uid is not None:
+                return role_uid
+        return workspace_user.permissions
+
+    @staticmethod
+    def get_stored_workspace_role_uid(role_uid: str) -> str:
+        """
+        Returns the value a workspace role is stored with on the membership. Builder
+        is stored under its basic name, so switching permission managers keeps it.
+
+        :param role_uid: The role uid given to a person or an identity.
+        :return: The `permissions` value of the membership.
+        """
+
+        return WORKSPACE_USER_PERMISSION_MEMBER if role_uid == "BUILDER" else role_uid
+
     def is_workspace_role_upgrade(
         self, current_role_uid: str, new_role_uid: str, workspace: Workspace
     ) -> bool:
