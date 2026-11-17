@@ -135,6 +135,11 @@ class AssistantChatSerializer(serializers.ModelSerializer):
             "created_on",
             "updated_on",
         )
+        extra_kwargs = {
+            "status": {
+                "help_text": "Deprecated: always `idle`, removed in the next version."
+            }
+        }
 
 
 class AssistantMessageRole(StrEnum):

@@ -307,6 +307,8 @@ Background runs use the existing worker infrastructure:
   notification emails. When they delay each other, isolate Kuma without code
   changes: start the export worker with `-X chat_run` and add a container that
   runs `celery-exportworker -Q chat_run`.
+- **Limit.** A user can have two Kuma replies in progress at once, across all
+  chats and workspaces. A third message is refused until one of them is done.
 - **Deploys.** A deploy interrupts runs that take longer than the worker's stop
   grace. The compose files and the Helm chart give the export worker 120
   seconds. The all-in-one image stops it after 10 seconds, so a deploy there
