@@ -353,6 +353,30 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
   }
 }
 
+/** A page Baserow opens for the model, which works with every provider. */
+export class WebFetchToolPresentationType extends WebSearchToolPresentationType {
+  static getType() {
+    return 'web_fetch'
+  }
+
+  getLabel(t) {
+    return t('agent.toolWebFetch')
+  }
+
+  getActivity({ status, input }, t) {
+    const activity =
+      status === STEP_STATUS.RUNNING
+        ? t('agent.toolWebFetchRunning')
+        : status === STEP_STATUS.DONE
+          ? t('agent.toolWebFetchDone')
+          : t('agent.toolWebFetch')
+    const target = this.getUrl({ input })
+    return target
+      ? t('agent.toolWebSearchTarget', { activity, target })
+      : activity
+  }
+}
+
 const isEmpty = (value) =>
   value == null || value === '' || (Array.isArray(value) && !value.length)
 
@@ -458,6 +482,7 @@ export const agentToolPresentationTypes = [
   SMTPEmailToolPresentationType,
   HTTPRequestToolPresentationType,
   WebSearchToolPresentationType,
+  WebFetchToolPresentationType,
   ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,

@@ -26,6 +26,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   WEB_SEARCH_ENABLED: 'web_search_enabled',
   WEB_SEARCH_AVAILABLE: 'web_search_available',
   WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
+  WEB_FETCH_ENABLED: 'web_fetch_enabled',
   AVAILABLE_TRIGGER_TYPES: 'available_trigger_types',
   AVAILABLE_ACTION_TYPES: 'available_action_types',
   MAX_ACTIONS: 'max_actions',

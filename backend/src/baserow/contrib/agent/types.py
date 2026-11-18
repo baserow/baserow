@@ -50,6 +50,7 @@ class AgentConfiguration:
     web_search_enabled: bool
     web_search_available: bool
     web_search_blocked_by_tools: bool
+    web_fetch_enabled: bool
     ask_first_tools: list[str]
     available_trigger_types: list[str]
     available_action_types: list[str]
@@ -192,6 +193,8 @@ class AgentReplyRequest:
     """Whether web search is turned on, even when the model can't use it."""
     started_by_trigger: bool = False
     """Whether a trigger started the conversation, so its prompt is outside data."""
+    web_fetch_enabled: bool = False
+    """Whether the reply may open web pages, which Baserow fetches for any model."""
 
 
 @dataclass(frozen=True)

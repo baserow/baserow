@@ -37,6 +37,8 @@ class AgentApplication(Application):
     run_as_subject_id = models.BigIntegerField(null=True, blank=True, db_default=None)
     # Searches run at the AI provider, which charges for them.
     web_search_enabled = models.BooleanField(default=False, db_default=False)
+    # Pages are fetched by Baserow itself, so every model can open them.
+    web_fetch_enabled = models.BooleanField(default=False, db_default=False)
 
 
 class AgentAllowedTool(models.Model):

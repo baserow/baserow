@@ -128,7 +128,7 @@ class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title", "pinned"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
-    option_fields = ["web_search_enabled", "reasoning_effort"]
+    option_fields = ["web_search_enabled", "web_fetch_enabled", "reasoning_effort"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -177,6 +177,7 @@ class AgentHandler:
             (run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"]))
             or self.has_mcp_tools(agent)
             or bool(AgentActionHandler().get_callable_actions(agent))
+            or agent.web_fetch_enabled
         )
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
@@ -195,6 +196,7 @@ class AgentHandler:
             web_search_blocked_by_tools=web_search_tool is None
             and with_tools
             and self._get_web_search_tool(agent, False) is not None,
+            web_fetch_enabled=agent.web_fetch_enabled,
             available_trigger_types=AgentTriggerHandler().available_trigger_types(
                 agent
             ),
@@ -1363,7 +1365,10 @@ class AgentHandler:
         web_search_tool = (
             self._get_web_search_tool(
                 agent,
-                bool(tools["allowed_tools"]) or bool(mcp_servers) or bool(action_tools),
+                bool(tools["allowed_tools"])
+                or bool(mcp_servers)
+                or bool(action_tools)
+                or agent.web_fetch_enabled,
             )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
@@ -1390,6 +1395,7 @@ class AgentHandler:
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
             started_by_trigger=conversation.is_shared,
+            web_fetch_enabled=agent.web_fetch_enabled,
         )
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:

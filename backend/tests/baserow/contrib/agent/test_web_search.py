@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 
+import httpx2
 import pytest
 from pydantic_ai import WebSearchTool
 from pydantic_ai.exceptions import ModelHTTPError
@@ -24,6 +25,7 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import (
+    WEB_FETCH_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
@@ -967,3 +969,164 @@ def test_templates_turn_web_search_off(data_fixture, configured_agent):
     imported = application_type.import_serialized(workspace, serialized, config, {})
 
     assert imported.web_search_enabled is False
+
+
+def fetch(url: str, index: int = 0) -> dict[int, DeltaToolCall]:
+    return {index: DeltaToolCall(name="web_fetch", json_args=f'{{"url": "{url}"}}')}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("provider_type", ["openai", "mistral", "zai"])
+def test_reply_offers_web_fetch_to_any_model_only_when_turned_on(
+    mocker, data_fixture, configured_agent, provider_type
+):
+    user = data_fixture.create_user()
+    seen = []
+
+    async def stream(messages, info):
+        seen.append(
+            (
+                [tool.name for tool in info.function_tools],
+                info.model_request_parameters.native_tools,
+                info.instructions,
+            )
+        )
+        yield "ok"
+
+    use_stream(mocker, stream)
+    model = (provider_type, "test-model")
+
+    answer(
+        user,
+        configured_agent(user=user, provider_type=provider_type, available_model=model),
+    )
+    tools, _, instructions = seen[-1]
+    assert "web_fetch" not in tools
+    assert WEB_FETCH_INSTRUCTIONS not in instructions
+
+    answer(
+        user,
+        configured_agent(
+            user=user,
+            provider_type=provider_type,
+            available_model=model,
+            web_fetch_enabled=True,
+        ),
+    )
+    tools, native_tools, instructions = seen[-1]
+    assert tools == ["web_fetch"]
+    # Baserow fetches the page itself, so no provider tool is needed.
+    assert native_tools == []
+    assert WEB_FETCH_INSTRUCTIONS in instructions
+
+
+@pytest.mark.django_db
+def test_fetched_page_reaches_the_model_and_appears_as_a_step(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    download = mocker.patch(
+        "pydantic_ai.common_tools.web_fetch.safe_download",
+        return_value=httpx2.Response(
+            200,
+            headers={"content-type": "text/html"},
+            text="<html><title>Docs</title><body><h1>Hello page</h1></body></html>",
+            request=httpx2.Request("GET", "https://example.com/docs"),
+        ),
+    )
+    returned = []
+
+    async def stream(messages, info):
+        if len(messages) == 1:
+            yield fetch("https://example.com/docs")
+        else:
+            returned.append(messages[-1].parts[0].content)
+            yield "The page says hello."
+
+    use_stream(mocker, stream)
+
+    reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    assert reply.content == "The page says hello."
+    assert download.call_args.args[0] == "https://example.com/docs"
+    assert download.call_args.kwargs["allow_local"] is False
+    assert returned[0]["title"] == "Docs"
+    assert "Hello page" in returned[0]["content"]
+    assert "<h1>" not in returned[0]["content"]
+    assert [(step["tool"], step["status"], step["input"]) for step in reply.steps] == [
+        ("web_fetch", "done", {"url": "https://example.com/docs"})
+    ]
+    assert reply.steps[0]["changes_data"] is False
+
+
+@pytest.mark.django_db
+def test_web_fetch_refuses_internal_addresses(mocker, data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    retries = []
+
+    async def stream(messages, info):
+        if len(messages) == 1:
+            yield fetch("http://127.0.0.1:8000/api/settings/")
+        else:
+            retries.append(messages[-1].parts[0].content)
+            yield "I can't open that page."
+
+    use_stream(mocker, stream)
+
+    reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    assert reply.status == "completed"
+    assert "private" in retries[0].lower() or "blocked" in retries[0].lower()
+    assert reply.steps[0]["tool"] == "web_fetch"
+    assert reply.steps[0]["status"] == "failed"
+
+
+@pytest.mark.django_db
+def test_web_fetch_counts_as_a_tool_that_blocks_gemini_2_search(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(configured_agent, user, "google", "gemini-2.5-flash")
+    AgentHandler().update_configuration(agent, allowed_tools=[], web_fetch_enabled=True)
+
+    configuration = AgentHandler().get_configuration(agent)
+
+    assert configuration.web_fetch_enabled is True
+    assert configuration.web_search_available is False
+    assert configuration.web_search_blocked_by_tools is True
+
+
+@pytest.mark.django_db
+def test_web_fetch_setting_is_saved_through_the_api(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    agent = data_fixture.create_agent_application(user=user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"),
+        {"web_fetch_enabled": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json()["web_fetch_enabled"] is True
+    agent.refresh_from_db()
+    assert agent.web_fetch_enabled is True
+
+
+@pytest.mark.django_db
+def test_copies_keep_web_fetch_and_imports_from_elsewhere_turn_it_off(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user, web_fetch_enabled=True)
+    workspace = data_fixture.create_workspace(user=user)
+    config = ImportExportConfig(include_permission_data=False)
+    application_type = AgentApplicationType()
+
+    assert CoreHandler().duplicate_application(user, agent).specific.web_fetch_enabled
+
+    serialized = application_type.export_serialized(agent, config)
+    assert serialized["web_fetch_enabled"] is True
+    imported = application_type.import_serialized(workspace, serialized, config, {})
+    assert imported.web_fetch_enabled is False

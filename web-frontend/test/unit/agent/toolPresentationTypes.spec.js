@@ -66,6 +66,7 @@ describe('Agent tool presentations', () => {
             ![
               'mcp_server_tool',
               'web_search',
+              'web_fetch',
               'smtp_email',
               'http_request',
             ].includes(type)
@@ -637,6 +638,19 @@ describe('Agent tool presentations', () => {
   ])('shows a %s page the provider opened', (status, title) => {
     const activity = toolActivity(
       step('web_search', status, { input: { url: 'https://x.test' } }),
+      registry,
+      t
+    )
+    expect(activity.title).toBe(title)
+  })
+
+  test.each([
+    ['running', 'Opening a web page: https://x.test'],
+    ['done', 'Opened a web page: https://x.test'],
+    ['failed', 'Open a web page: https://x.test'],
+  ])('shows a %s page Baserow opened', (status, title) => {
+    const activity = toolActivity(
+      step('web_fetch', status, { input: { url: 'https://x.test' } }),
       registry,
       t
     )
