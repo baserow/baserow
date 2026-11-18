@@ -174,6 +174,9 @@ function createClient({
   }
 }
 
+// Collects the toasts the route shows.
+const storeDispatch = vi.fn()
+
 async function mountRoute(
   client,
   targetType,
@@ -189,6 +192,7 @@ async function mountRoute(
 ) {
   picker.removed = []
   picker.resets = 0
+  storeDispatch.mockClear()
   noAccessModal.answer = true
   noAccessModal.asked = []
   const app = {
@@ -212,7 +216,7 @@ async function mountRoute(
           }
           return true
         },
-        $store: { getters: { 'auth/getUserId': 7 } },
+        $store: { getters: { 'auth/getUserId': 7 }, dispatch: storeDispatch },
         $registry: createRegistry(app),
       },
       stubs: {
@@ -356,11 +360,22 @@ test('uses the shared list to change and revoke only a scoped invitation', async
       role: 'VIEWER',
     })
     expect(row.find('.invite-list__role > a').text()).toBe('Viewer')
+    expect(storeDispatch).not.toHaveBeenCalled()
 
     await row.find('.invite-list__role > a').trigger('click')
     await row.find('.context__menu-item-link--delete').trigger('click')
     await flushPromises()
     expect(client.delete.mock.calls).toEqual([['/role/invitations/1/']])
+    // Revoking only takes back the role on the object, which is said.
+    expect(storeDispatch.mock.calls).toEqual([
+      [
+        'toast/info',
+        {
+          title: 'shareScope.invitationRevokedTitle',
+          message: 'shareScope.invitationRevokedMessage',
+        },
+      ],
+    ])
     expect(wrapper.findAll('.invite-list__item')).toHaveLength(1)
     expect(wrapper.find('.invite-list__name').text()).toBe('Mark Delgado')
   } finally {
