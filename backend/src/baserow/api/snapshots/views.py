@@ -61,6 +61,7 @@ from baserow.core.snapshots.exceptions import (
 from baserow.core.snapshots.handler import SnapshotHandler
 
 from .serializers import (
+    CreateSnapshotSerializer,
     SnapshotSerializer,
     SnapshotUsageSerializer,
     UpdateApplicationSnapshotKeepSerializer,
@@ -130,9 +131,11 @@ class SnapshotsView(APIView):
         description=(
             "Creates a new application snapshot. Snapshots represent a state of an "
             "application at a specific point in time and can be restored later, "
-            "making it easy to create backups of entire applications."
+            "making it easy to create backups of entire applications. With "
+            "`raise_keep`, the keep of the application is raised by one first when "
+            "it has no room for another snapshot."
         ),
-        request=SnapshotSerializer,
+        request=CreateSnapshotSerializer,
         responses={
             202: JobSerializer,
             400: get_error_schema(
@@ -141,6 +144,8 @@ class SnapshotsView(APIView):
                     "ERROR_MAXIMUM_SNAPSHOTS_REACHED",
                     "ERROR_SNAPSHOT_KEEP_IS_ZERO",
                     "ERROR_SNAPSHOT_KEEP_FULL_OF_PROTECTED",
+                    "ERROR_SNAPSHOT_KEEP_ABOVE_MAXIMUM",
+                    "ERROR_SNAPSHOT_KEEP_EXCEEDS_ALLOWANCE",
                     "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
                     "ERROR_SNAPSHOT_IS_BEING_CREATED",
                     "ERROR_SNAPSHOT_NAME_NOT_UNIQUE",
@@ -157,20 +162,29 @@ class SnapshotsView(APIView):
             MaximumSnapshotsReached: ERROR_MAXIMUM_SNAPSHOTS_REACHED,
             SnapshotKeepIsZero: ERROR_SNAPSHOT_KEEP_IS_ZERO,
             SnapshotKeepFullOfProtected: ERROR_SNAPSHOT_KEEP_FULL_OF_PROTECTED,
+            SnapshotKeepAboveMaximum: ERROR_SNAPSHOT_KEEP_ABOVE_MAXIMUM,
+            SnapshotKeepExceedsAllowance: ERROR_SNAPSHOT_KEEP_EXCEEDS_ALLOWANCE,
             ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
             SnapshotIsBeingCreated: ERROR_SNAPSHOT_IS_BEING_CREATED,
             SnapshotNameNotUnique: ERROR_SNAPSHOT_NAME_NOT_UNIQUE,
             MaxJobCountExceeded: ERROR_SNAPSHOT_OPERATION_LIMIT_EXCEEDED,
         }
     )
-    @validate_body(SnapshotSerializer)
+    @validate_body(CreateSnapshotSerializer)
     @transaction.atomic
     def post(self, request, application_id, data):
         """
-        Creates a new application snapshot.
+        Creates a new application snapshot, after raising the keep of the
+        application when asked and needed.
         """
 
         handler = SnapshotHandler()
+        if data["raise_keep"]:
+            keep = handler.get_keep_to_make_room(application_id, request.user)
+            if keep is not None:
+                action_type_registry.get(
+                    UpdateApplicationSnapshotKeepActionType.type
+                ).do(request.user, application_id, keep)
         snapshot_created = handler.start_create_job(
             application_id, request.user, data["name"]
         )

@@ -90,11 +90,33 @@
             <template v-else>{{ $t('snapshotsModal.takeTitle') }}</template>
           </h3>
           <div class="snapshots-modal__card-description">
-            <template v-if="blockedReason">
+            <template v-if="canRaiseAndCreate">
+              {{ $t(raiseCopy, { count: raisedKeep }) }}
+              <Alert
+                v-if="raiseGoesOverAllowance"
+                type="warning"
+                class="snapshots-modal__raise-warning"
+              >
+                {{
+                  $t('snapshotKeep.overAllowance', {
+                    used: usage.used + 1,
+                    limit: usage.limit,
+                  })
+                }}
+              </Alert>
+            </template>
+            <template v-else-if="raiseProblem === 'permission'">
               {{ $t(blockedCopy.description) }}
-              <template v-if="canRaiseKeep && !canUpdateKeep">
-                {{ $t('snapshotsModal.askAnAdmin') }}
+              {{ $t('snapshotsModal.askAnAdmin') }}
+            </template>
+            <template v-else-if="raiseProblem">
+              <template v-if="blockedReason === 'protected'">
+                {{ $t('snapshotsModal.allProtectedCantRaise') }}
               </template>
+              {{ raiseProblemText }}
+            </template>
+            <template v-else-if="blockedReason">
+              {{ $t(blockedCopy.description) }}
             </template>
             <template v-else>
               <component
@@ -116,15 +138,7 @@
             </template>
           </div>
           <div
-            v-if="canRaiseKeep && canUpdateKeep"
-            class="snapshots-modal__card-actions"
-          >
-            <Button type="secondary" size="small" @click="raiseKeep()">{{
-              $t('snapshotsModal.raiseKeep')
-            }}</Button>
-          </div>
-          <div
-            v-else-if="confirmingReplace"
+            v-if="confirmingReplace"
             class="snapshots-modal__confirm-replace"
           >
             <span>{{
@@ -143,7 +157,7 @@
             }}</Button>
           </div>
           <CreateSnapshotForm
-            v-if="!blockedReason"
+            v-if="!blockedReason || canRaiseAndCreate"
             v-show="!confirmingReplace"
             ref="form"
             class="snapshots-modal__form"
@@ -165,7 +179,12 @@
                 :loading="createLoading"
                 :disabled="createLoading || snapshotsLoading"
               >
-                {{ $t('snapshotsModal.create') }}
+                <template v-if="canRaiseAndCreate">
+                  {{
+                    $t('snapshotsModal.raiseAndCreate', { count: raisedKeep })
+                  }}
+                </template>
+                <template v-else>{{ $t('snapshotsModal.create') }}</template>
               </Button>
               <Button v-else type="secondary" tag="a" @click="reset()">
                 {{ $t('snapshotsModal.reset') }}
@@ -257,6 +276,8 @@ import SnapshotListItem from '@baserow/modules/core/components/snapshots/Snapsho
 import {
   getSnapshotRoom,
   getSnapshotToReplace,
+  goesOverSnapshotAllowance,
+  validateSnapshotKeep,
 } from '@baserow/modules/core/utils/snapshots'
 import SnapshotsService from '@baserow/modules/core/services/snapshots'
 import job from '@baserow/modules/core/mixins/job'
@@ -359,6 +380,61 @@ export default {
     canRaiseKeep() {
       return ['none', 'protected'].includes(this.blockedReason)
     },
+    /**
+     * The keep that makes room for one more snapshot.
+     */
+    raisedKeep() {
+      return this.usage.effective_keep + 1
+    },
+    /**
+     * Why the keep can't be raised to make room: `permission` when the user can't
+     * change it, otherwise the translation key of the validation error. `null`
+     * when it can be raised, or raising it doesn't make room.
+     */
+    raiseProblem() {
+      if (!this.canRaiseKeep) {
+        return null
+      }
+      if (!this.canUpdateKeep) {
+        return 'permission'
+      }
+      return validateSnapshotKeep({
+        keep: this.raisedKeep,
+        originalKeep: this.usage.effective_keep,
+        used: this.usage.used,
+        newUsed: this.usage.used + 1,
+        limit: this.usage.limit,
+        maxKeep: this.usage.max_keep,
+        protectedCount: this.usage.protected_count,
+        canExceedAllowance: this.usage.can_exceed_allowance,
+      })
+    },
+    /**
+     * Whether the snapshot can be taken by raising the keep by one first.
+     */
+    canRaiseAndCreate() {
+      return this.canRaiseKeep && this.raiseProblem === null
+    },
+    raiseProblemText() {
+      if (this.raiseProblem === 'snapshotKeep.errorAboveMaximum') {
+        return this.$t('snapshotsModal.cantRaiseAboveMaximum', {
+          count: this.usage.max_keep,
+        })
+      }
+      return this.$t('snapshotsModal.cantRaiseAllowance')
+    },
+    raiseCopy() {
+      return this.blockedReason === 'none'
+        ? 'snapshotsModal.keepsNoneRaise'
+        : 'snapshotsModal.allProtectedRaise'
+    },
+    raiseGoesOverAllowance() {
+      return goesOverSnapshotAllowance({
+        used: this.usage.used,
+        newUsed: this.usage.used + 1,
+        limit: this.usage.limit,
+      })
+    },
     snapshotToReplace() {
       if (this.usage === null) {
         return null
@@ -431,6 +507,9 @@ export default {
       modal.methods.show.bind(this)(...args)
     },
     submitted(values) {
+      if (this.canRaiseAndCreate) {
+        return this.create({ ...values, raise_keep: true })
+      }
       if (this.snapshotToReplace) {
         this.pendingValues = values
         this.confirmingReplace = true
@@ -441,9 +520,6 @@ export default {
     confirmReplace() {
       this.confirmingReplace = false
       return this.create(this.pendingValues)
-    },
-    raiseKeep() {
-      this.$refs.keep.edit(this.usage.effective_keep + 1)
     },
     async create(values) {
       this.createLoading = true

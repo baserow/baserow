@@ -212,9 +212,9 @@ class UpdateApplicationSnapshotKeepActionType(ActionType):
 
     type = "update_application_snapshot_keep"
     description = ActionTypeDescription(
-        _("Update application snapshot keep"),
+        _("Update application max snapshots"),
         _(
-            'Snapshot keep of application "%(application_name)s" '
+            'Max snapshots of application "%(application_name)s" '
             "(%(application_id)s) changed from %(original_keep)s to %(keep)s, "
             "deleting %(deleted_count)s snapshot(s)."
         ),
@@ -279,9 +279,9 @@ class UpdateWorkspaceSnapshotDefaultKeepActionType(ActionType):
 
     type = "update_workspace_snapshot_default_keep"
     description = ActionTypeDescription(
-        _("Update workspace default snapshot keep"),
+        _("Update workspace default max snapshots"),
         _(
-            'Default snapshot keep of workspace "%(group_name)s" (%(group_id)s) '
+            'Default max snapshots of workspace "%(group_name)s" (%(group_id)s) '
             "changed from %(original_keep)s to %(keep)s, deleting "
             "%(deleted_count)s snapshot(s)."
         ),

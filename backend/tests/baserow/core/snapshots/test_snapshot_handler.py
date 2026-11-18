@@ -576,6 +576,63 @@ def test_update_application_keep_while_over_the_allowance(data_fixture: Fixtures
 
 
 @pytest.mark.django_db
+@override_settings(
+    BASEROW_MAX_SNAPSHOTS_PER_GROUP=4, BASEROW_MAX_SNAPSHOTS_KEEP_PER_APPLICATION=5
+)
+def test_a_plugin_can_let_a_keep_go_over_the_allowance(data_fixture: Fixtures, mocker):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    _set_keep(application, 4)
+    plugin = mocker.Mock()
+    plugin.get_snapshot_allowance.return_value = None
+    plugin.allows_snapshot_keep_over_allowance.return_value = True
+    mocker.patch(
+        "baserow.core.snapshots.handler.plugin_registry.get_all",
+        return_value=[plugin],
+    )
+    keep_updated = mocker.patch(
+        "baserow.core.snapshots.handler.snapshot_keep_updated.send"
+    )
+
+    SnapshotHandler().update_application_keep(application.id, user, 5)
+    SnapshotHandler().update_workspace_default_keep(workspace.id, user, 2)
+    data_fixture.create_database_application(workspace=workspace)
+    workspace.refresh_from_db()
+
+    assert SnapshotHandler().get_allowance_used(workspace) == 7
+    assert SnapshotHandler().is_over_allowance(workspace)
+    assert SnapshotHandler()._get_allowance_values(workspace)["can_exceed_allowance"]
+    assert keep_updated.call_count == 2
+    # The maximum keep still applies.
+    with pytest.raises(SnapshotKeepAboveMaximum):
+        SnapshotHandler().update_application_keep(application.id, user, 6)
+
+
+@pytest.mark.django_db
+def test_get_keep_to_make_room(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_database_application(workspace=workspace)
+    handler = SnapshotHandler()
+
+    assert handler.get_keep_to_make_room(application.id, user) == 1
+
+    _set_default_keep(workspace, 2)
+    assert handler.get_keep_to_make_room(application.id, user) is None
+
+    data_fixture.create_snapshot(user=user, snapshot_from_application=application)
+    unprotected = data_fixture.create_snapshot(
+        user=user, snapshot_from_application=application, protected=False
+    )
+    assert handler.get_keep_to_make_room(application.id, user) is None
+
+    unprotected.protected = True
+    unprotected.save()
+    assert handler.get_keep_to_make_room(application.id, user) == 3
+
+
+@pytest.mark.django_db
 @override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=-1)
 def test_update_application_keep_without_an_allowance_limit(data_fixture: Fixtures):
     user = data_fixture.create_user()

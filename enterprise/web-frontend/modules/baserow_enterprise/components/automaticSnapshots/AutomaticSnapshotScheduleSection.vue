@@ -85,13 +85,13 @@
       ></SwitchInput>
     </div>
 
-    <div
+    <Alert
       v-if="hasFeature && activeSchedule && keepWarning"
+      type="warning"
       class="automatic-snapshot-schedule__warning"
     >
-      <i class="iconoir-warning-triangle"></i>
-      <span>{{ keepWarning }}</span>
-    </div>
+      {{ keepWarning }}
+    </Alert>
 
     <div
       v-if="hasFeature && ownSchedule && ownSchedule.last_error"
@@ -167,6 +167,7 @@ import {
   describeSchedule,
   formatRunTime,
   getNewScheduleValues,
+  getScheduleBlockedWarning,
   getScheduleValues,
 } from '@baserow_enterprise/utils/automaticSnapshots'
 
@@ -242,22 +243,25 @@ const activeSchedule = computed(() => {
 })
 const switchedOn = computed(() => activeSchedule.value !== null)
 
-// Why scheduled runs create nothing, when they can't: snapshots are turned off, or
-// the application keeps none, so runs skip it.
+// Why scheduled runs create nothing, when they can't: snapshots are turned off,
+// the application keeps none, so runs skip it, or every snapshot it keeps is
+// protected, so runs fail.
 const keepWarning = computed(() => {
   const usage = props.snapshotUsage
   if (!usage) {
     return ''
   }
-  if (usage.limit === 0) {
-    return t('automaticSnapshots.disabledWarning')
-  }
-  if (usage.effective_keep === 0) {
-    return t('automaticSnapshots.keepsNoneWarning', {
-      name: props.application.name,
-    })
-  }
-  return ''
+  return (
+    getScheduleBlockedWarning(
+      {
+        limit: usage.limit,
+        keep: usage.effective_keep,
+        protectedCount: usage.protected_count,
+      },
+      props.application.name,
+      t
+    ) || ''
+  )
 })
 
 const stateBadge = computed(() => {

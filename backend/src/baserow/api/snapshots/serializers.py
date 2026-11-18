@@ -29,6 +29,10 @@ class SnapshotAllowanceSerializer(serializers.Serializer):
         help_text="Whether new snapshots are refused in the workspace, for example "
         "because it's been over its allowance for too long."
     )
+    can_exceed_allowance = serializers.BooleanField(
+        help_text="Whether raising a keep can take the workspace over its allowance. "
+        "New snapshots are then refused once it's been over for too long."
+    )
     snapshot_count = serializers.IntegerField(
         help_text="The number of snapshots the workspace holds."
     )
@@ -136,3 +140,16 @@ class SnapshotSerializer(serializers.ModelSerializer):
             "created_automatically",
             "protected",
         ]
+
+
+class CreateSnapshotSerializer(serializers.ModelSerializer):
+    raise_keep = serializers.BooleanField(
+        default=False,
+        help_text="Raises the keep of the application by one first when it has no "
+        "room for another snapshot: it keeps none, or every snapshot it keeps is "
+        "protected. Needs permission to change its keep.",
+    )
+
+    class Meta:
+        model = Snapshot
+        fields = ["name", "raise_keep"]

@@ -26,19 +26,25 @@ export function getAllowedIntervals(minIntervalMinutes) {
 }
 
 /**
- * The values a new schedule starts with: every day at midnight in the user's
- * timezone. When daily isn't allowed, the first allowed
- * interval is used.
+ * The values a new schedule starts with: every day at the current time in the
+ * user's timezone. When daily isn't allowed, the first allowed interval is used.
  */
-export function getNewScheduleValues(minIntervalMinutes, timezone) {
+export function getNewScheduleValues(
+  minIntervalMinutes,
+  timezone,
+  now = moment()
+) {
   const intervals = getAllowedIntervals(minIntervalMinutes)
   const interval = intervals.includes('DAY') ? 'DAY' : intervals[0]
+  // Starts at the current time, so schedules set up by different people are
+  // spread over the day instead of all running at midnight.
+  const local = moment.tz(now, timezone)
   return {
     enabled: true,
     interval,
     timezone,
-    minute: interval === 'MINUTE' ? minIntervalMinutes : 0,
-    hour: 0,
+    minute: interval === 'MINUTE' ? minIntervalMinutes : local.minutes(),
+    hour: local.hours(),
     day_of_week: 0,
     day_of_month: 1,
   }
@@ -170,6 +176,42 @@ export function getNextRun(schedule, from = moment()) {
     return next.isAfter(from)
       ? next
       : inMonth(local.clone().date(1).add(1, 'month'))
+  }
+  return null
+}
+
+/**
+ * Returns why scheduled runs can't create a snapshot of an application, or `null`
+ * when they can: snapshots are turned off, the application keeps none, so runs
+ * skip it, or every snapshot it keeps is protected, so runs fail.
+ *
+ * @param {object} values
+ * @param {number|null} values.limit The workspace allowance, `null` without one.
+ * @param {number} values.keep The most snapshots the application keeps.
+ * @param {number} values.protectedCount How many of its snapshots are protected.
+ * @param {string} name The name of the application.
+ * @param {Function} t The translation function.
+ * @param {boolean} short Whether to return the short version, for a row that
+ *   already names the application.
+ */
+export function getScheduleBlockedWarning(
+  { limit, keep, protectedCount },
+  name,
+  t,
+  short = false
+) {
+  const suffix = short ? 'Short' : ''
+  if (limit === 0) {
+    return t(`automaticSnapshots.disabledWarning${suffix}`)
+  }
+  if (keep === 0) {
+    return t(`automaticSnapshots.keepsNoneWarning${suffix}`, { name })
+  }
+  if (protectedCount >= keep) {
+    return t(`automaticSnapshots.fullOfProtectedWarning${suffix}`, {
+      name,
+      count: keep,
+    })
   }
   return null
 }

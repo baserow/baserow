@@ -325,7 +325,7 @@ def test_create_automatic_snapshot_records_disabled_snapshots(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_create_automatic_snapshot_records_a_keep_full_of_protected_snapshots(
+def test_create_automatic_snapshot_skips_a_keep_full_of_protected_snapshots(
     enterprise_data_fixture, enable_enterprise
 ):
     user = enterprise_data_fixture.create_user()
@@ -347,9 +347,7 @@ def test_create_automatic_snapshot_records_a_keep_full_of_protected_snapshots(
 
     assert not Snapshot.objects.filter(created_automatically=True).exists()
     schedule.refresh_from_db()
-    assert schedule.last_error == (
-        "The application is at its keep and every snapshot it holds is protected."
-    )
+    assert schedule.last_error == ""
 
 
 @pytest.mark.django_db(transaction=True)

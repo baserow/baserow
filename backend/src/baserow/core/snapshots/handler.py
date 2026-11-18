@@ -44,7 +44,10 @@ from baserow.core.snapshots.exceptions import (
     SnapshotKeepIsZero,
     SnapshotNameNotUnique,
 )
-from baserow.core.snapshots.signals import before_snapshot_created
+from baserow.core.snapshots.signals import (
+    before_snapshot_created,
+    snapshot_keep_updated,
+)
 from baserow.core.storage import get_default_storage
 from baserow.core.utils import Progress
 
@@ -229,6 +232,20 @@ class SnapshotHandler:
 
         allowance = self.get_allowance(workspace)
         return allowance >= 0 and self.get_allowance_used(workspace) > allowance
+
+    def can_exceed_allowance(self, workspace: Workspace) -> bool:
+        """
+        Whether raising a keep can take the provided workspace over its allowance.
+        Core never allows it; a plugin can, for example SaaS, which gives the
+        workspace a grace period before it refuses new snapshots.
+
+        :param workspace: The workspace.
+        """
+
+        return any(
+            plugin.allows_snapshot_keep_over_allowance(workspace)
+            for plugin in plugin_registry.get_all()
+        )
 
     def is_snapshot_creation_blocked(self, workspace: Workspace) -> bool:
         """
@@ -481,7 +498,12 @@ class SnapshotHandler:
             raise SnapshotKeepAboveMaximum()
 
         allowance = self.get_allowance(workspace)
-        if allowance >= 0 and new_used > original_used and new_used > allowance:
+        if (
+            allowance >= 0
+            and new_used > original_used
+            and new_used > allowance
+            and not self.can_exceed_allowance(workspace)
+        ):
             raise SnapshotKeepExceedsAllowance()
 
         protected = self._count_protected([application for application, _ in affected])
@@ -532,8 +554,8 @@ class SnapshotHandler:
         """
         Changes how many snapshots the provided application keeps. `None` makes it
         follow the workspace default keep again. Raising a keep is only allowed
-        within the workspace's allowance; lowering one deletes the oldest
-        unprotected snapshots beyond it.
+        within the workspace's allowance, unless a plugin lets it go over; lowering
+        one deletes the oldest unprotected snapshots beyond it.
 
         :param application_id: The id of the application.
         :param performed_by: The user changing the keep.
@@ -542,7 +564,7 @@ class SnapshotHandler:
             keep is confirmed.
         :raises SnapshotKeepAboveMaximum: When the keep is above the maximum.
         :raises SnapshotKeepExceedsAllowance: When raising the keep reserves more
-            than the allowance.
+            than the allowance, and the workspace can't go over it.
         :raises SnapshotKeepBelowProtected: When the keep is lower than the number
             of protected snapshots.
         :raises SnapshotKeepChangeDeletesSnapshots: When the change deletes
@@ -584,7 +606,38 @@ class SnapshotHandler:
         Application.objects.filter(id=application.id).update(snapshot_keep=keep)
         application.snapshot_keep = keep
         deleted = self._delete_rotated_snapshots(to_delete)
+        snapshot_keep_updated.send(self, workspace=workspace)
         return application, UpdatedSnapshotKeep(original_keep, keep, deleted)
+
+    def get_keep_to_make_room(
+        self, application_id: int, performed_by: AbstractUser
+    ) -> Optional[int]:
+        """
+        Returns the keep the provided application needs so that one more snapshot
+        fits without replacing one: its keep plus one, when it keeps no snapshots or
+        every snapshot it keeps is protected. `None` when it already has room. The
+        workspace stays locked until the end of the transaction, so the keep can be
+        raised and the snapshot created before another change gets in between.
+
+        :param application_id: The id of the application.
+        :param performed_by: The user creating the snapshot.
+        :raises ApplicationDoesNotExist: When the application doesn't exist.
+        :raises UserNotInWorkspace: When the user doesn't belong to the workspace.
+        :return: The keep to raise it to, or `None`.
+        """
+
+        application = self.get_application(
+            application_id,
+            performed_by,
+            CreateSnapshotApplicationOperationType.type,
+        )
+        application.workspace = self._lock_workspace(application.workspace)
+        application.refresh_from_db(fields=["snapshot_keep"])
+        try:
+            self.check_room_for_snapshot(application)
+        except (SnapshotKeepIsZero, SnapshotKeepFullOfProtected):
+            return self.get_effective_keep(application) + 1
+        return None
 
     def get_workspace(
         self, workspace_id: int, performed_by: AbstractUser, operation_type: str
@@ -622,7 +675,7 @@ class SnapshotHandler:
             keep is confirmed.
         :raises SnapshotKeepAboveMaximum: When the keep is above the maximum.
         :raises SnapshotKeepExceedsAllowance: When raising the keep reserves more
-            than the allowance.
+            than the allowance, and the workspace can't go over it.
         :raises SnapshotKeepBelowProtected: When the keep is lower than the number
             of protected snapshots of an application that follows it.
         :raises SnapshotKeepChangeDeletesSnapshots: When the change deletes
@@ -659,6 +712,7 @@ class SnapshotHandler:
         Workspace.objects.filter(id=workspace.id).update(snapshot_default_keep=keep)
         workspace.snapshot_default_keep = keep
         deleted = self._delete_rotated_snapshots(to_delete)
+        snapshot_keep_updated.send(self, workspace=workspace)
         return workspace, UpdatedSnapshotKeep(original_keep, keep, deleted)
 
     def update_protected(
@@ -785,6 +839,7 @@ class SnapshotHandler:
             "limit": allowance if allowance >= 0 else None,
             "over_allowance": allowance >= 0 and used > allowance,
             "blocked": self.is_snapshot_creation_blocked(workspace),
+            "can_exceed_allowance": self.can_exceed_allowance(workspace),
             "snapshot_count": self.count(workspace),
             "default_keep": workspace.snapshot_default_keep,
             "max_keep": self.get_max_keep(),

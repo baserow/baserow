@@ -88,9 +88,9 @@ describe('AutomaticSnapshotsSettings', () => {
     ...values,
   })
 
-  const mountComponent = async () => {
+  const mountComponent = async (snapshotSettings = null) => {
     const wrapper = await testApp.mount(AutomaticSnapshotsSettings, {
-      props: { workspace },
+      props: { workspace, snapshotSettings },
       global: { stubs: { PaidFeaturesModal: true } },
     })
     await flushPromises()
@@ -124,6 +124,39 @@ describe('AutomaticSnapshotsSettings', () => {
     expect(rows[1].text()).toContain('automaticSnapshots.badgeWorkspace')
     expect(rows[1].text()).toContain('automaticSnapshots.everyWeek')
     expect(rows[2].text()).toContain('automaticSnapshots.badgeOff')
+  })
+
+  test('warns about scheduled applications that runs can not snapshot', async () => {
+    testApp.mock.onGet(url).reply(200, response())
+    const wrapper = await mountComponent({
+      limit: 10,
+      default_keep: 0,
+      applications: [
+        // At its own max, and every snapshot is protected.
+        { id: 1, keep: 3, snapshot_count: 3, protected_count: 3 },
+        // Follows the default of 0, so runs skip it.
+        { id: 2, keep: null, snapshot_count: 0, protected_count: 0 },
+        // Turned off, so there's nothing to warn about.
+        { id: 3, keep: 1, snapshot_count: 1, protected_count: 1 },
+      ],
+    })
+
+    // Each warning goes on its own row, below the row of its application.
+    const rows = wrapper.findAll('tbody tr')
+    const warningAfter = (name) => {
+      const index = rows.findIndex((row) => row.text().includes(name))
+      const next = rows[index + 1]
+      return next?.classes('automatic-snapshots-settings__warning-row')
+        ? next.text()
+        : ''
+    }
+    expect(warningAfter('CRM')).toContain(
+      'automaticSnapshots.fullOfProtectedWarningShort'
+    )
+    expect(warningAfter('Portal')).toContain(
+      'automaticSnapshots.keepsNoneWarningShort'
+    )
+    expect(warningAfter('Archive')).toBe('')
   })
 
   test('offers to set up a workspace schedule when there is none', async () => {

@@ -76,6 +76,30 @@ describe('SnapshotKeep', () => {
     expect(testApp.mock.history.patch).toHaveLength(0)
   })
 
+  test('warns when the keep can go past the allowance', async () => {
+    testApp.mock
+      .onPatch('/snapshots/application/7/keep/')
+      .reply(200, usage({ keep: 4, effective_keep: 4, used: 6 }))
+    const wrapper = await mountComponent({ can_exceed_allowance: true })
+
+    await wrapper.vm.edit(4)
+    await flushPromises()
+
+    expect(wrapper.find('.snapshot-keep__error').exists()).toBe(false)
+    expect(wrapper.find('.snapshot-keep__warning').text()).toContain(
+      'snapshotKeep.overAllowance'
+    )
+    // The maximum keep is the only limit left, and there's none.
+    expect(wrapper.find('.snapshot-keep__hint').exists()).toBe(false)
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    expect(JSON.parse(testApp.mock.history.patch[0].data)).toEqual({
+      keep: 4,
+      delete_snapshots: false,
+    })
+  })
+
   test('saves a keep within the allowance', async () => {
     testApp.mock
       .onPatch('/snapshots/application/7/keep/')

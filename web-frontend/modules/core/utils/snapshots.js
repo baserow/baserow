@@ -69,6 +69,19 @@ export function countSnapshotsDeletedByKeep(applications, keep) {
 }
 
 /**
+ * Returns whether raising keeps from `used` to `newUsed` reserved snapshots takes
+ * the workspace over its allowance, or further over it.
+ *
+ * @param {object} values
+ * @param {number} values.used How much of the allowance is reserved now.
+ * @param {number} values.newUsed How much would be reserved after the change.
+ * @param {number|null} values.limit The allowance, `null` without a limit.
+ */
+export function goesOverSnapshotAllowance({ used, newUsed, limit }) {
+  return limit !== null && newUsed > used && newUsed > limit
+}
+
+/**
  * Validates a new keep, the way the backend does, and returns the translation key
  * of the problem, or `null` when it's valid.
  *
@@ -81,6 +94,8 @@ export function countSnapshotsDeletedByKeep(applications, keep) {
  * @param {number|null} values.maxKeep The maximum keep, `null` without one.
  * @param {number} values.protectedCount The most protected snapshots one of the
  *   affected applications holds.
+ * @param {boolean} values.canExceedAllowance Whether a keep can go over the
+ *   allowance, which then only warns.
  */
 export function validateSnapshotKeep({
   keep,
@@ -90,6 +105,7 @@ export function validateSnapshotKeep({
   limit,
   maxKeep,
   protectedCount,
+  canExceedAllowance = false,
 }) {
   if (!Number.isInteger(keep) || keep < 0) {
     return 'snapshotKeep.errorInvalid'
@@ -97,7 +113,10 @@ export function validateSnapshotKeep({
   if (maxKeep !== null && keep > maxKeep && keep > originalKeep) {
     return 'snapshotKeep.errorAboveMaximum'
   }
-  if (limit !== null && newUsed > used && newUsed > limit) {
+  if (
+    !canExceedAllowance &&
+    goesOverSnapshotAllowance({ used, newUsed, limit })
+  ) {
     return 'snapshotKeep.errorExceedsAllowance'
   }
   if (keep < protectedCount) {

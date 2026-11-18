@@ -108,6 +108,18 @@
         >
           {{ $t(error, errorParams) }}
         </div>
+        <Alert
+          v-else-if="overAllowance"
+          type="warning"
+          class="snapshots-workspace-settings__keep-warning"
+        >
+          {{
+            $t('snapshotKeep.overAllowance', {
+              used: newUsed(parseDraft()),
+              limit: data.limit,
+            })
+          }}
+        </Alert>
         <div
           v-if="confirmingCount > 0"
           class="snapshots-workspace-settings__confirm"
@@ -184,6 +196,7 @@
         v-for="(component, index) in pluginComponents"
         :key="index"
         :workspace="workspace"
+        :snapshot-settings="data"
       ></component>
     </template>
   </div>
@@ -196,6 +209,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   countSnapshotsDeletedByKeep,
   getSnapshotsDeletedByKeepError,
+  goesOverSnapshotAllowance,
   validateSnapshotKeep,
 } from '@baserow/modules/core/utils/snapshots'
 
@@ -284,20 +298,28 @@ function parseDraft() {
   return /^\d+$/.test(value) ? parseInt(value, 10) : NaN
 }
 
+// How much of the allowance is reserved once the default keep is `keep`.
+function newUsed(keep) {
+  const { used, default_keep: originalKeep } = data.value
+  return used + followers.value.length * (keep - originalKeep)
+}
+
 function validate(keep) {
   const {
     used,
     limit,
     max_keep: maxKeep,
     default_keep: originalKeep,
+    can_exceed_allowance: canExceedAllowance,
   } = data.value
   return validateSnapshotKeep({
     keep,
     originalKeep,
     used,
-    newUsed: used + followers.value.length * (keep - originalKeep),
+    newUsed: newUsed(keep),
     limit,
     maxKeep,
+    canExceedAllowance,
     protectedCount: Math.max(
       0,
       ...followers.value.map((application) => application.protected_count)
@@ -306,6 +328,18 @@ function validate(keep) {
 }
 
 const error = computed(() => (editing.value ? validate(parseDraft()) : null))
+
+// Whether saving the default keep takes the workspace over its allowance, when it
+// can go over it.
+const overAllowance = computed(
+  () =>
+    editing.value &&
+    goesOverSnapshotAllowance({
+      used: data.value.used,
+      newUsed: newUsed(parseDraft()),
+      limit: data.value.limit,
+    })
+)
 
 const errorParams = computed(() => {
   const {

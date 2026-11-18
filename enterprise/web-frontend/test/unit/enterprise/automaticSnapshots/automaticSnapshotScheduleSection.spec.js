@@ -187,6 +187,48 @@ describe('AutomaticSnapshotScheduleSection', () => {
     )
   })
 
+  test('warns that runs fail when every kept snapshot is protected', async () => {
+    giveEnterpriseLicense()
+    testApp.mock.onGet(url).reply(
+      200,
+      overview({
+        state: 'own_schedule',
+        schedule: schedule({ application_id: 10 }),
+      })
+    )
+
+    const wrapper = await mountComponent({
+      limit: 10,
+      effective_keep: 3,
+      protected_count: 3,
+    })
+
+    expect(
+      wrapper.find('.automatic-snapshot-schedule__warning').text()
+    ).toContain('automaticSnapshots.fullOfProtectedWarning')
+  })
+
+  test('does not warn when a snapshot can be replaced', async () => {
+    giveEnterpriseLicense()
+    testApp.mock.onGet(url).reply(
+      200,
+      overview({
+        state: 'own_schedule',
+        schedule: schedule({ application_id: 10 }),
+      })
+    )
+
+    const wrapper = await mountComponent({
+      limit: 10,
+      effective_keep: 3,
+      protected_count: 2,
+    })
+
+    expect(wrapper.find('.automatic-snapshot-schedule__warning').exists()).toBe(
+      false
+    )
+  })
+
   test('warns that runs fail when snapshots are turned off', async () => {
     giveEnterpriseLicense()
     testApp.mock.onGet(url).reply(

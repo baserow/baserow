@@ -56,6 +56,18 @@
     <div v-if="editing && error" class="snapshot-keep__error">
       {{ $t(error, errorParams) }}
     </div>
+    <Alert
+      v-else-if="overAllowance"
+      type="warning"
+      class="snapshot-keep__warning"
+    >
+      {{
+        $t('snapshotKeep.overAllowance', {
+          used: newUsed(parseDraft()),
+          limit: usage.limit,
+        })
+      }}
+    </Alert>
 
     <div v-if="confirmingCount > 0" class="snapshot-keep__confirm">
       <span>{{
@@ -91,6 +103,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   getSnapshotsDeletedByKeepError,
   getSnapshotsToDelete,
+  goesOverSnapshotAllowance,
   validateSnapshotKeep,
 } from '@baserow/modules/core/utils/snapshots'
 
@@ -144,16 +157,18 @@ const description = computed(() => {
 })
 
 // The highest keep the application can get: what's left of the allowance on top of
-// its current keep, and the maximum keep. `null` when there's no limit.
+// its current keep, unless the workspace can go over it, and the maximum keep.
+// `null` when there's no limit.
 const highestKeep = computed(() => {
   const {
     limit,
     used,
     effective_keep: effectiveKeep,
     max_keep: maxKeep,
+    can_exceed_allowance: canExceedAllowance,
   } = props.usage
   const candidates = []
-  if (limit !== null) {
+  if (limit !== null && !canExceedAllowance) {
     candidates.push(Math.max(effectiveKeep, limit - used + effectiveKeep))
   }
   if (maxKeep !== null) {
@@ -167,20 +182,38 @@ function parseDraft() {
   return /^\d+$/.test(value) ? parseInt(value, 10) : NaN
 }
 
-function validate(keep) {
+// How much of the allowance is reserved once the keep is changed to `keep`.
+function newUsed(keep) {
   const effectiveKeep = keep === null ? props.usage.default_keep : keep
+  return props.usage.used - props.usage.effective_keep + effectiveKeep
+}
+
+function validate(keep) {
   return validateSnapshotKeep({
-    keep: effectiveKeep,
+    keep: keep === null ? props.usage.default_keep : keep,
     originalKeep: props.usage.effective_keep,
     used: props.usage.used,
-    newUsed: props.usage.used - props.usage.effective_keep + effectiveKeep,
+    newUsed: newUsed(keep),
     limit: props.usage.limit,
     maxKeep: props.usage.max_keep,
     protectedCount: props.usage.protected_count,
+    canExceedAllowance: props.usage.can_exceed_allowance,
   })
 }
 
 const error = computed(() => (editing.value ? validate(parseDraft()) : null))
+
+// Whether saving the keep takes the workspace over its allowance, when it can go
+// over it.
+const overAllowance = computed(
+  () =>
+    editing.value &&
+    goesOverSnapshotAllowance({
+      used: props.usage.used,
+      newUsed: newUsed(parseDraft()),
+      limit: props.usage.limit,
+    })
+)
 
 const errorParams = computed(() => {
   const { limit, used, effective_keep: effectiveKeep } = props.usage

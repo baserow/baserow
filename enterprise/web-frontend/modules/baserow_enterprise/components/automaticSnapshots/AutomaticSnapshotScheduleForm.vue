@@ -319,7 +319,9 @@ export default {
       if (interval === 'MINUTE') {
         this.values.minute = this.minIntervalMinutes
       } else if (wasLocalTime && interval === 'HOUR') {
-        this.values.minute = 0
+        // Keeps the minute of the time of day, so the schedule stays spread out.
+        const match = TIME_PATTERN.exec(this.values.time)
+        this.values.minute = match ? parseInt(match[2]) : 0
       }
     },
     getFormValues() {

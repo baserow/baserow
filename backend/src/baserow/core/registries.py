@@ -313,6 +313,18 @@ class Plugin(APIUrlsInstanceMixin, Instance):
 
         return None
 
+    def allows_snapshot_keep_over_allowance(self, workspace: "Workspace") -> bool:
+        """
+        Whether raising a keep can take the provided workspace over its snapshot
+        allowance, for example when the plugin gives a grace period before new
+        snapshots are refused. Otherwise a keep can only be raised within it.
+
+        :param workspace: The workspace.
+        :return: Whether a keep can go over the allowance.
+        """
+
+        return False
+
     def is_snapshot_creation_blocked(self, workspace: "Workspace") -> bool:
         """
         Whether this plugin refuses new snapshots in the provided workspace, for

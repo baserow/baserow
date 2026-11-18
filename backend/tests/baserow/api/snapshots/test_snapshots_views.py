@@ -13,8 +13,8 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
-from baserow.core.jobs.constants import JOB_STARTED
-from baserow.core.jobs.models import JOB_STATES_RUNNING
+from baserow.core.jobs.constants import JOB_FINISHED, JOB_STARTED
+from baserow.core.jobs.models import JOB_STATES_RUNNING, Job
 from baserow.test_utils.helpers import is_dict_subset
 
 # Create
@@ -156,6 +156,65 @@ def test_create_snapshot_without_room(api_client, data_fixture, settings):
     response = create(full)
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MAXIMUM_SNAPSHOTS_REACHED"
+
+
+@pytest.mark.django_db
+def test_create_snapshot_raising_the_keep(api_client, data_fixture, settings):
+    settings.BASEROW_MAX_SNAPSHOTS_PER_GROUP = 3
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    no_keep = data_fixture.create_database_application(workspace=workspace)
+    full = data_fixture.create_database_application(workspace=workspace)
+    full.snapshot_keep = 1
+    full.save()
+    data_fixture.create_snapshot(user=user, snapshot_from_application=full)
+
+    def create(application, name):
+        # A user can only run one snapshot job at a time.
+        Job.objects.update(state=JOB_FINISHED)
+        return api_client.post(
+            reverse("api:snapshots:list", kwargs={"application_id": application.id}),
+            {"name": name, "raise_keep": True},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    response = create(no_keep, "First")
+    assert response.status_code == HTTP_202_ACCEPTED
+    no_keep.refresh_from_db()
+    assert no_keep.snapshot_keep == 1
+
+    response = create(full, "Second")
+    assert response.status_code == HTTP_202_ACCEPTED
+    full.refresh_from_db()
+    assert full.snapshot_keep == 2
+
+    # The allowance of 3 is now fully reserved.
+    response = create(no_keep, "Third")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_SNAPSHOT_KEEP_EXCEEDS_ALLOWANCE"
+    no_keep.refresh_from_db()
+    assert no_keep.snapshot_keep == 1
+
+
+@pytest.mark.django_db
+def test_create_snapshot_raising_the_keep_needs_to_change_it(api_client, data_fixture):
+    admin = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    application = data_fixture.create_database_application(workspace=workspace)
+
+    response = api_client.post(
+        reverse("api:snapshots:list", kwargs={"application_id": application.id}),
+        {"name": "Snapshot", "raise_keep": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+    application.refresh_from_db()
+    assert application.snapshot_keep is None
 
 
 # List
@@ -634,6 +693,7 @@ def test_get_snapshot_usage(api_client, data_fixture, settings):
         "limit": 5,
         "over_allowance": False,
         "blocked": False,
+        "can_exceed_allowance": False,
         "snapshot_count": 3,
         "default_keep": 2,
         "max_keep": None,
@@ -781,6 +841,7 @@ def test_workspace_snapshot_settings(api_client, data_fixture, settings):
         "limit": 10,
         "over_allowance": False,
         "blocked": False,
+        "can_exceed_allowance": False,
         "snapshot_count": 0,
         "default_keep": 0,
         "max_keep": 3,

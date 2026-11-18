@@ -585,13 +585,18 @@ class AutomaticSnapshotScheduleHandler:
             snapshot = snapshot_handler.create_automatic(
                 application, self.get_snapshot_name(schedule, application)
             )
-        except (SnapshotIsBeingCreated, SnapshotKeepIsZero):
-            # A manual snapshot is being created, or the application keeps no
-            # snapshots, which is how it's left out, so this run is skipped.
+        except (
+            SnapshotIsBeingCreated,
+            SnapshotKeepIsZero,
+            SnapshotKeepFullOfProtected,
+        ):
+            # A manual snapshot is being created, the application keeps no
+            # snapshots, which is how it's left out, or every snapshot it keeps is
+            # protected. The frontend warns about the last two, so this run is
+            # skipped without recording an error.
             return
         except (
             MaximumSnapshotsReached,
-            SnapshotKeepFullOfProtected,
             ApplicationOperationNotSupported,
         ) as exc:
             self._set_last_error(schedule, exc)
@@ -636,10 +641,6 @@ class AutomaticSnapshotScheduleHandler:
                 MaximumSnapshotsReached: (
                     "The workspace can't take snapshots: they're disabled, or it's "
                     "over its snapshot allowance."
-                ),
-                SnapshotKeepFullOfProtected: (
-                    "The application is at its keep and every snapshot it holds is "
-                    "protected."
                 ),
                 ApplicationOperationNotSupported: (
                     "The application doesn't support snapshots."

@@ -5,6 +5,7 @@ import {
   getAllowedIntervals,
   getNewScheduleValues,
   getNextRun,
+  getScheduleBlockedWarning,
 } from '@baserow_enterprise/utils/automaticSnapshots'
 
 const t = (key, params) => (params ? `${key} ${JSON.stringify(params)}` : key)
@@ -32,15 +33,43 @@ describe('automatic snapshot utils', () => {
     expect(getAllowedIntervals(1440)).toEqual(['DAY', 'WEEK', 'MONTH'])
   })
 
-  test('a new schedule runs daily unless that is too often', () => {
-    expect(getNewScheduleValues(60, 'Europe/Amsterdam')).toMatchObject({
+  test('a new schedule runs daily at the current time', () => {
+    const now = moment.utc('2026-11-18T16:37:00Z')
+    expect(getNewScheduleValues(60, 'Europe/Amsterdam', now)).toMatchObject({
       interval: 'DAY',
       timezone: 'Europe/Amsterdam',
-      hour: 0,
-      minute: 0,
+      hour: 17,
+      minute: 37,
       enabled: true,
     })
-    expect(getNewScheduleValues(20160, 'UTC').interval).toBe('MONTH')
+    expect(getNewScheduleValues(20160, 'UTC', now)).toMatchObject({
+      interval: 'MONTH',
+      hour: 16,
+      minute: 37,
+    })
+    // Every few minutes, the minute is the interval.
+    expect(getNewScheduleValues(5, 'UTC', now)).toMatchObject({
+      interval: 'DAY',
+      minute: 37,
+    })
+  })
+
+  test('says why scheduled runs can not create a snapshot', () => {
+    const warn = (values) =>
+      getScheduleBlockedWarning(
+        { limit: 10, keep: 3, protectedCount: 0, ...values },
+        'CRM',
+        t
+      )
+    expect(warn({})).toBeNull()
+    expect(warn({ protectedCount: 2 })).toBeNull()
+    expect(warn({ protectedCount: 3 })).toBe(
+      'automaticSnapshots.fullOfProtectedWarning {"name":"CRM","count":3}'
+    )
+    expect(warn({ keep: 0 })).toBe(
+      'automaticSnapshots.keepsNoneWarning {"name":"CRM"}'
+    )
+    expect(warn({ limit: 0 })).toBe('automaticSnapshots.disabledWarning')
   })
 
   test('describes when a schedule runs', () => {

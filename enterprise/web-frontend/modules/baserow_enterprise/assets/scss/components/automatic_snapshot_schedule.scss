@@ -83,20 +83,7 @@
 }
 
 .automatic-snapshot-schedule__warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   margin: 0 20px 20px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background-color: $palette-yellow-50;
-  color: $palette-neutral-1200;
-
-  i {
-    flex: none;
-    margin-top: 2px;
-    color: $palette-yellow-800;
-  }
 }
 
 .automatic-snapshot-schedule__error {
@@ -292,7 +279,19 @@
     border-bottom: 1px solid $palette-neutral-200;
   }
 
-  tbody tr:not(:last-child) td {
+  .automatic-snapshots-settings__row--with-warning td {
+    padding-bottom: 4px;
+  }
+
+  .automatic-snapshots-settings__warning-row td {
+    padding-top: 0;
+  }
+
+  // The warning of a row goes on its own line below it, across the columns, so
+  // the border goes below the warning instead.
+  tbody
+    tr:not(:last-child):not(.automatic-snapshots-settings__row--with-warning)
+    td {
     border-bottom: 1px solid $palette-neutral-200;
   }
 }
@@ -304,11 +303,11 @@
 }
 
 .automatic-snapshots-settings__follows-column {
-  width: 160px;
+  width: 150px;
 }
 
 .automatic-snapshots-settings__schedule-column {
-  width: 230px;
+  width: 250px;
 }
 
 .automatic-snapshots-settings__menu-column {
@@ -343,6 +342,20 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.automatic-snapshots-settings__row-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-weight: 400;
+  color: $palette-neutral-900;
+
+  i {
+    flex: none;
+    margin-top: 2px;
+    color: $palette-yellow-800;
+  }
 }
 
 .automatic-snapshots-settings__error-icon {

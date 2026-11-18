@@ -225,68 +225,90 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="row in pagedRows" :key="row.application_id">
-                <td class="automatic-snapshots-settings__check">
-                  <Checkbox
-                    :checked="selectedIds.includes(row.application_id)"
-                    :disabled="!row.editable"
-                    :aria-label="row.application_name"
-                    @input="toggleRow(row)"
-                  ></Checkbox>
-                </td>
-                <td>
-                  <div class="automatic-snapshots-settings__application">
-                    <i :class="row.iconClass"></i>
-                    <span
-                      class="automatic-snapshots-settings__application-name"
-                      :title="row.application_name"
-                      >{{ row.application_name }}</span
+              <template v-for="row in pagedRows" :key="row.application_id">
+                <tr
+                  :class="{
+                    'automatic-snapshots-settings__row--with-warning':
+                      row.blockedWarning,
+                  }"
+                >
+                  <td class="automatic-snapshots-settings__check">
+                    <Checkbox
+                      :checked="selectedIds.includes(row.application_id)"
+                      :disabled="!row.editable"
+                      :aria-label="row.application_name"
+                      @input="toggleRow(row)"
+                    ></Checkbox>
+                  </td>
+                  <td>
+                    <div class="automatic-snapshots-settings__application">
+                      <i :class="row.iconClass"></i>
+                      <span
+                        class="automatic-snapshots-settings__application-name"
+                        :title="row.application_name"
+                        >{{ row.application_name }}</span
+                      >
+                    </div>
+                  </td>
+                  <td>
+                    <Badge :color="row.badge.color" size="small">{{
+                      row.badge.label
+                    }}</Badge>
+                  </td>
+                  <td>
+                    <div class="automatic-snapshots-settings__schedule">
+                      <span>{{ row.scheduleText }}</span>
+                      <template v-if="row.lastError">
+                        <i
+                          class="iconoir-warning-circle automatic-snapshots-settings__error-icon"
+                          :title="row.lastError"
+                          aria-hidden="true"
+                        ></i>
+                        <span
+                          class="automatic-snapshots-settings__visually-hidden"
+                        >
+                          {{ row.lastError }}
+                        </span>
+                      </template>
+                    </div>
+                    <div
+                      v-if="row.nextRunText"
+                      class="automatic-snapshots-settings__muted"
                     >
-                  </div>
-                </td>
-                <td>
-                  <Badge :color="row.badge.color" size="small">{{
-                    row.badge.label
-                  }}</Badge>
-                </td>
-                <td>
-                  <div class="automatic-snapshots-settings__schedule">
-                    <span>{{ row.scheduleText }}</span>
-                    <template v-if="row.lastError">
+                      {{ row.nextRunText }}
+                    </div>
+                  </td>
+                  <td class="automatic-snapshots-settings__menu-column">
+                    <ButtonIcon
+                      v-if="row.editable"
+                      :ref="(el) => setMenuButton(row.application_id, el)"
+                      icon="iconoir-more-horiz"
+                      type="secondary"
+                      :aria-label="
+                        $t('automaticSnapshotsSettings.rowActions', {
+                          name: row.application_name,
+                        })
+                      "
+                      @click="openRowMenu(row)"
+                    ></ButtonIcon>
+                  </td>
+                </tr>
+                <tr
+                  v-if="row.blockedWarning"
+                  class="automatic-snapshots-settings__warning-row"
+                >
+                  <td></td>
+                  <td colspan="4">
+                    <div class="automatic-snapshots-settings__row-warning">
                       <i
-                        class="iconoir-warning-circle automatic-snapshots-settings__error-icon"
-                        :title="row.lastError"
+                        class="iconoir-warning-triangle"
                         aria-hidden="true"
                       ></i>
-                      <span
-                        class="automatic-snapshots-settings__visually-hidden"
-                      >
-                        {{ row.lastError }}
-                      </span>
-                    </template>
-                  </div>
-                  <div
-                    v-if="row.nextRunText"
-                    class="automatic-snapshots-settings__muted"
-                  >
-                    {{ row.nextRunText }}
-                  </div>
-                </td>
-                <td class="automatic-snapshots-settings__menu-column">
-                  <ButtonIcon
-                    v-if="row.editable"
-                    :ref="(el) => setMenuButton(row.application_id, el)"
-                    icon="iconoir-more-horiz"
-                    type="secondary"
-                    :aria-label="
-                      $t('automaticSnapshotsSettings.rowActions', {
-                        name: row.application_name,
-                      })
-                    "
-                    @click="openRowMenu(row)"
-                  ></ButtonIcon>
-                </td>
-              </tr>
+                      <span>{{ row.blockedWarning }}</span>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -378,6 +400,7 @@ import {
   describeSchedule,
   formatRunTime,
   getNewScheduleValues,
+  getScheduleBlockedWarning,
   getScheduleValues,
 } from '@baserow_enterprise/utils/automaticSnapshots'
 
@@ -385,6 +408,15 @@ const props = defineProps({
   workspace: {
     type: Object,
     required: true,
+  },
+  /**
+   * The snapshot settings of the workspace, as the core settings load them, with
+   * the keep and protected snapshots of every application. `null` while loading.
+   */
+  snapshotSettings: {
+    type: Object,
+    required: false,
+    default: null,
   },
 })
 
@@ -484,6 +516,36 @@ const scheduleByApplicationId = computed(() =>
   )
 )
 
+const snapshotSettingsByApplicationId = computed(() =>
+  Object.fromEntries(
+    (props.snapshotSettings?.applications || []).map((application) => [
+      application.id,
+      application,
+    ])
+  )
+)
+
+// Why scheduled runs can't snapshot the application, if they can't.
+function getBlockedWarning(application) {
+  const settings = props.snapshotSettings
+  const snapshotSettings = snapshotSettingsByApplicationId.value[application.id]
+  if (!settings || !snapshotSettings) {
+    return ''
+  }
+  return (
+    getScheduleBlockedWarning(
+      {
+        limit: settings.limit,
+        keep: snapshotSettings.keep ?? settings.default_keep,
+        protectedCount: snapshotSettings.protected_count,
+      },
+      application.name,
+      t,
+      true
+    ) || ''
+  )
+}
+
 const rows = computed(() => {
   if (!data.value) {
     return []
@@ -534,9 +596,12 @@ const rows = computed(() => {
       iconClass: $registry.get('application', application.type).getIconClass(),
       scheduleText: active ? describe(active) : '—',
       nextRunText: active
-        ? t('automaticSnapshots.nextRun', { date: formatNextRun(active) })
+        ? t('automaticSnapshotsSettings.nextRun', {
+            date: formatNextRun(active),
+          })
         : '',
       lastError: schedule?.last_error || '',
+      blockedWarning: active ? getBlockedWarning(application) : '',
     }
   })
 })

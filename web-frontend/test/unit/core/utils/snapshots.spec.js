@@ -75,6 +75,10 @@ describe('snapshot keep utils', () => {
     expect(validateSnapshotKeep({ ...values, newUsed: 11 })).toBe(
       'snapshotKeep.errorExceedsAllowance'
     )
+    // Unless the workspace can go over it.
+    expect(
+      validateSnapshotKeep({ ...values, newUsed: 11, canExceedAllowance: true })
+    ).toBeNull()
     // Lowering is allowed while over the allowance.
     expect(
       validateSnapshotKeep({ ...values, keep: 1, used: 12, newUsed: 11 })

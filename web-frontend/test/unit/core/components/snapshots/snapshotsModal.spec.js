@@ -37,6 +37,7 @@ describe('SnapshotsModal', () => {
     limit: 10,
     over_allowance: false,
     blocked: false,
+    can_exceed_allowance: false,
     snapshot_count: 3,
     default_keep: 0,
     max_keep: null,
@@ -59,10 +60,13 @@ describe('SnapshotsModal', () => {
     return wrapper
   }
 
-  const findButton = (wrapper, text) =>
-    wrapper.findAll('button').find((button) => button.text() === text)
+  // The test translations add the parameters after the key.
+  const findButton = (wrapper, key) =>
+    wrapper
+      .findAll('button')
+      .find((button) => button.text().split(' - ')[0] === key)
 
-  test('offers to raise the keep when the application keeps none', async () => {
+  test('takes a snapshot and raises the keep when it keeps none', async () => {
     const wrapper = await mountModal([], {
       keep: null,
       effective_keep: 0,
@@ -71,10 +75,27 @@ describe('SnapshotsModal', () => {
 
     expect(wrapper.vm.blockedReason).toBe('none')
     expect(wrapper.text()).toContain('snapshotsModal.keepsNoneTitle')
-    expect(findButton(wrapper, 'snapshotsModal.raiseKeep')).toBeTruthy()
+    expect(wrapper.text()).toContain('snapshotsModal.keepsNoneRaise')
+    expect(findButton(wrapper, 'snapshotsModal.raiseAndCreate')).toBeTruthy()
+
+    testApp.mock.onPost(listUrl).reply(202, {
+      id: 1,
+      type: 'create_snapshot',
+      state: 'pending',
+      progress_percentage: 0,
+      snapshot: snapshot(1, 1, true),
+    })
+    wrapper.vm.submitted({ name: 'New' })
+    await flushPromises()
+
+    expect(testApp.mock.history.post).toHaveLength(1)
+    expect(JSON.parse(testApp.mock.history.post[0].data)).toEqual({
+      name: 'New',
+      raise_keep: true,
+    })
   })
 
-  test('says there is no room when every kept snapshot is protected', async () => {
+  test('offers to raise the keep when every kept snapshot is protected', async () => {
     const wrapper = await mountModal(
       [snapshot(2, 2, true), snapshot(1, 1, true)],
       { keep: 2, effective_keep: 2, protected_count: 2 }
@@ -82,13 +103,51 @@ describe('SnapshotsModal', () => {
 
     expect(wrapper.vm.blockedReason).toBe('protected')
     expect(wrapper.text()).toContain('snapshotsModal.allProtectedTitle')
+    expect(wrapper.text()).toContain('snapshotsModal.allProtectedRaise')
+    expect(wrapper.vm.raisedKeep).toBe(3)
+    expect(findButton(wrapper, 'snapshotsModal.raiseAndCreate')).toBeTruthy()
+    expect(wrapper.text()).not.toContain('snapshotKeep.overAllowance')
+  })
+
+  test('warns when raising the keep goes over the allowance', async () => {
+    const wrapper = await mountModal([snapshot(1, 1, true)], {
+      keep: 1,
+      effective_keep: 1,
+      protected_count: 1,
+      used: 10,
+      can_exceed_allowance: true,
+    })
+
+    expect(findButton(wrapper, 'snapshotsModal.raiseAndCreate')).toBeTruthy()
+    expect(wrapper.text()).toContain('snapshotKeep.overAllowance')
+  })
+
+  test('says why the keep can not be raised', async () => {
+    const full = await mountModal([snapshot(1, 1, true)], {
+      keep: 1,
+      effective_keep: 1,
+      protected_count: 1,
+      used: 10,
+    })
+    expect(findButton(full, 'snapshotsModal.raiseAndCreate')).toBeFalsy()
+    expect(full.text()).toContain('snapshotsModal.allProtectedCantRaise')
+    expect(full.text()).toContain('snapshotsModal.cantRaiseAllowance')
+
+    const atMaximum = await mountModal([snapshot(1, 1, true)], {
+      keep: 1,
+      effective_keep: 1,
+      protected_count: 1,
+      max_keep: 1,
+    })
+    expect(findButton(atMaximum, 'snapshotsModal.raiseAndCreate')).toBeFalsy()
+    expect(atMaximum.text()).toContain('snapshotsModal.cantRaiseAboveMaximum')
   })
 
   test('says snapshots are turned off without offering a keep', async () => {
     const wrapper = await mountModal([], { limit: 0 })
 
     expect(wrapper.vm.blockedReason).toBe('disabled')
-    expect(findButton(wrapper, 'snapshotsModal.raiseKeep')).toBeFalsy()
+    expect(findButton(wrapper, 'snapshotsModal.raiseAndCreate')).toBeFalsy()
     expect(wrapper.text()).toContain('snapshotsModal.usageDisabled')
   })
 
@@ -100,7 +159,7 @@ describe('SnapshotsModal', () => {
 
     expect(wrapper.vm.blockedReason).toBe('blocked')
     expect(wrapper.text()).toContain('snapshotsModal.blockedTitle')
-    expect(findButton(wrapper, 'snapshotsModal.raiseKeep')).toBeFalsy()
+    expect(findButton(wrapper, 'snapshotsModal.raiseAndCreate')).toBeFalsy()
   })
 
   test('asks before a new snapshot replaces the oldest unprotected one', async () => {
