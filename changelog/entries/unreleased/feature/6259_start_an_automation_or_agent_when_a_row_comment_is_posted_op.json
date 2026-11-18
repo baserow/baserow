@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Start an automation or agent when a row comment is posted, optionally only when its user or identity is mentioned.",
+    "issue_origin": "github",
+    "issue_number": 6259,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-11-18"
+}

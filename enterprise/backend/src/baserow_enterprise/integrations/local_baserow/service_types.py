@@ -1,3 +1,4 @@
+from functools import cache
 from typing import Any, Dict, List, Optional
 
 from django.conf import settings
@@ -19,11 +20,13 @@ from baserow.contrib.integrations.local_baserow.mixins import (
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowTableRowsListServiceTypeMixin,
+    LocalBaserowTableSignalTriggerServiceType,
     LocalBaserowViewServiceType,
 )
 from baserow.core.embeddings import EmbeddingsServiceError
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.validator import ensure_string
+from baserow.core.models import Workspace
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -31,14 +34,21 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult, FormulaToResolve
+from baserow.core.types import Subject
 from baserow_enterprise.features import SEMANTIC_SEARCH
 from baserow_enterprise.integrations.local_baserow.models import (
+    LocalBaserowRowCommentPosted,
     LocalBaserowSemanticSearch,
 )
+from baserow_enterprise.license.row_comment_tools import RowCommentToolLicense
 from baserow_enterprise.semantic_search.exceptions import SemanticSearchNotAvailable
 from baserow_enterprise.semantic_search.handler import SemanticSearchHandler
 from baserow_enterprise.semantic_search.models import SemanticSearchField
 from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.row_comments.handler import ROW_COMMENT_SEARCH_OPERATIONS
+from baserow_premium.row_comments.models import RowComment
+from baserow_premium.row_comments.signals import row_comment_created
+from baserow_premium.row_comments.utils import row_comment_to_plain_text
 
 # The values of a row are nested, because a field can have any name, including the
 # names of the other properties of a result.
@@ -667,3 +677,107 @@ class LocalBaserowSemanticSearchServiceType(
                 "has_next_page": dispatch_data["has_next_page"],
             }
         )
+
+
+class LocalBaserowRowCommentPostedTriggerServiceType(
+    RowCommentToolLicense, LocalBaserowTableSignalTriggerServiceType
+):
+    """One committed comment in the watched table, shared by both trigger hosts."""
+
+    type = "local_baserow_row_comment_posted"
+    model_class = LocalBaserowRowCommentPosted
+    signal = row_comment_created
+    read_operations = ROW_COMMENT_SEARCH_OPERATIONS
+    allowed_fields = [
+        *LocalBaserowTableSignalTriggerServiceType.allowed_fields,
+        "only_when_mentioned",
+    ]
+    serializer_field_names = [
+        *LocalBaserowTableSignalTriggerServiceType.serializer_field_names,
+        "only_when_mentioned",
+    ]
+
+    class SerializedDict(LocalBaserowTableSignalTriggerServiceType.SerializedDict):
+        only_when_mentioned: bool
+
+    def get_form_choices(
+        self, subject: Subject | None, workspace: Workspace
+    ) -> dict[str, Any]:
+        return {
+            **super().get_form_choices(subject, workspace),
+            "mentionName": subject.first_name if subject else "",
+        }
+
+    def matches_event(
+        self,
+        service: LocalBaserowRowCommentPosted,
+        subject: Subject | None,
+        payload: dict[str, Any],
+    ) -> bool:
+        return not service.only_when_mentioned or (
+            subject is not None and subject.pk in payload["mentioned_user_ids"]
+        )
+
+    def _handle_signal(
+        self,
+        sender,
+        row_comment: RowComment,
+        user: AbstractUser,
+        mentions: list[AbstractUser],
+        **kwargs,
+    ):
+        table = row_comment.table
+        services = self.get_services_for_table(table)
+        if not services or self.is_deactivated(table.database.workspace):
+            return
+
+        # Serialize once, when the first listener requests the comment.
+        @cache
+        def payload():
+            return {
+                "comment_id": row_comment.id,
+                "table_id": table.id,
+                "row_id": row_comment.row_id,
+                "text": row_comment_to_plain_text(row_comment.message),
+                "user_id": user.id,
+                "user_name": user.first_name,
+                "created_on": row_comment.created_on.isoformat(),
+                "mentioned_user_ids": sorted(mentioned.pk for mentioned in mentions),
+            }
+
+        self.on_event(
+            services, lambda service: payload(), user=user, isolate_failures=True
+        )
+
+    def get_table_properties(self, service):
+        return {
+            "comment_id": {"type": "number", "title": "Comment ID"},
+            "table_id": {"type": "number", "title": "Table ID"},
+            "row_id": {"type": "number", "title": "Row ID"},
+            "text": {"type": "string", "title": "Comment"},
+            "user_id": {"type": "number", "title": "Author ID"},
+            "user_name": {"type": "string", "title": "Author"},
+            "created_on": {
+                "type": "string",
+                "format": "date-time",
+                "title": "Posted at",
+            },
+            "mentioned_user_ids": {
+                "type": "array",
+                "items": {"type": "number"},
+                "title": "Mentioned user IDs",
+            },
+        }
+
+    def extract_properties(self, service, path, **kwargs):
+        return [path[0]] if path else list(self.get_table_properties(service))
+
+    def prepare_value_path(self, service, path):
+        # Comment properties are fixed and never need a database field name lookup.
+        return path
+
+    def _get_table_context_data(self, service, allowed_fields=None):
+        return None
+
+    def get_context_data_schema(self, service, allowed_fields=None):
+        return None

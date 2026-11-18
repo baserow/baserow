@@ -138,8 +138,13 @@ import {
   CoreCodeActionNodeType,
   CoreXLSFileReaderActionNodeType,
   LocalBaserowSemanticSearchActionNodeType,
+  LocalBaserowRowCommentPostedTriggerNodeType,
 } from '@baserow_enterprise/automation/nodeTypes'
-import { LocalBaserowSemanticSearchServiceType } from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
+import { RowCommentPostedAgentTriggerType } from '@baserow_enterprise/agent/agentTriggerTypes'
+import {
+  LocalBaserowSemanticSearchServiceType,
+  LocalBaserowRowCommentPostedTriggerServiceType,
+} from '@baserow_enterprise/integrations/localBaserow/serviceTypes'
 import { SemanticSearchFieldFormAdvancedSettingType } from '@baserow_enterprise/fieldFormAdvancedSettingTypes'
 import {
   AISemanticSearchFieldType,
@@ -273,6 +278,18 @@ export default defineNuxtPlugin({
       )
       $registry.register('node', new CoreCodeActionNodeType(context))
     }
+    $registry.register(
+      'service',
+      new LocalBaserowRowCommentPostedTriggerServiceType(context)
+    )
+    $registry.register(
+      'node',
+      new LocalBaserowRowCommentPostedTriggerNodeType(context)
+    )
+    $registry.register(
+      'agentTriggerType',
+      new RowCommentPostedAgentTriggerType(context)
+    )
     $registry.register('service', new CoreXLSFileReaderServiceType(context))
     $registry.register(
       'workflowAction',

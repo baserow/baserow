@@ -5,6 +5,7 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowFilterableServiceMixin,
+    LocalBaserowTableService,
     LocalBaserowViewService,
 )
 from baserow.core.app_auth_providers.models import AppAuthProvider
@@ -111,3 +112,7 @@ class LocalBaserowSemanticSearch(
     @property
     def included_field_ids(self) -> list[int]:
         return sorted(field.id for field in self.included_fields.all())
+
+
+class LocalBaserowRowCommentPosted(LocalBaserowTableService):
+    only_when_mentioned = models.BooleanField(default=False)

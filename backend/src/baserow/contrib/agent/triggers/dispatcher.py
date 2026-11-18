@@ -197,7 +197,10 @@ class AgentTriggerDispatcher:
         """
 
         service = trigger.service.specific
-        can_read = self._can_read(trigger)
+        identity = AgentHandler().get_run_identity(trigger.agent)
+        if not service.get_type().matches_event(service, identity, payload):
+            return
+        can_read = AgentTriggerHandler().can_identity_read(trigger, identity)
         firings, dropped_batches = [], 0
         if can_read:
             batches = service.get_type().split_event_payload(

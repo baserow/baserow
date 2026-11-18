@@ -1014,6 +1014,12 @@ class TriggerServiceTypeMixin(ABC):
 
         return None
 
+    def matches_event(
+        self, service: Service, subject: Subject | None, payload: dict
+    ) -> bool:
+        """Whether the event matches the trigger's settings for its acting subject."""
+        return True
+
     def split_event_payload(
         self, service: Service, event_payload: dict[str, Any], size: int
     ) -> list[dict[str, Any]]:

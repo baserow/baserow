@@ -1,7 +1,14 @@
-import { LocalBaserowListRowsServiceType } from '@baserow/modules/integrations/localBaserow/serviceTypes'
+import LocalBaserowRowCommentPostedTriggerServiceForm from '@baserow_enterprise/integrations/localBaserow/components/services/LocalBaserowRowCommentPostedTriggerServiceForm'
+import {
+  LocalBaserowListRowsServiceType,
+  LocalBaserowTableSignalTriggerServiceType,
+} from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import { SemanticSearchPaidFeature } from '@baserow_enterprise/paidFeatures'
+import {
+  SemanticSearchPaidFeature,
+  RBACPaidFeature,
+} from '@baserow_enterprise/paidFeatures'
 import LocalBaserowSemanticSearchServiceForm from '@baserow_enterprise/integrations/localBaserow/components/services/LocalBaserowSemanticSearchServiceForm'
 
 export class LocalBaserowSemanticSearchServiceType extends LocalBaserowListRowsServiceType {
@@ -111,5 +118,47 @@ export class LocalBaserowSemanticSearchServiceType extends LocalBaserowListRowsS
 
   getOrder() {
     return 25
+  }
+}
+
+export class LocalBaserowRowCommentPostedTriggerServiceType extends LocalBaserowTableSignalTriggerServiceType {
+  static getType() {
+    return 'local_baserow_row_comment_posted'
+  }
+
+  get name() {
+    return this.app.$i18n.t('rowCommentTrigger.name')
+  }
+
+  get description() {
+    return this.app.$i18n.t('rowCommentTrigger.description')
+  }
+
+  get icon() {
+    return 'iconoir-chat-bubble'
+  }
+
+  get defaultNameTemplate() {
+    return 'rowCommentTrigger.inTable'
+  }
+
+  get formComponent() {
+    return LocalBaserowRowCommentPostedTriggerServiceForm
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return workspace &&
+      !this.app.$hasFeature(EnterpriseFeatures.RBAC, workspace.id)
+      ? this.app.$i18n.t('enterprise.deactivated')
+      : null
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    return this.isDeactivatedReason({ workspace })
+      ? [
+          PaidFeaturesModal,
+          { 'initial-selected-type': RBACPaidFeature.getType() },
+        ]
+      : null
   }
 }
