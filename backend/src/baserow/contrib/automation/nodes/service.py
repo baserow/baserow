@@ -203,6 +203,13 @@ class AutomationNodeService:
 
         node_type.after_create(new_node)
 
+        if next_output and next_output not in new_node.service.get_type().get_edges(
+            new_node.service.specific
+        ):
+            raise AutomationNodeMissingOutput(
+                f"Output {next_output} doesn't exist on node {new_node.id}"
+            )
+
         workflow.get_graph().insert(new_node, reference_node, position, output)
         if next_output:
             workflow.get_graph().move_next_points(new_node, "", next_output)
