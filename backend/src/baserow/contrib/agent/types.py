@@ -160,6 +160,14 @@ class AgentReplyResume:
 
 
 @dataclass(frozen=True)
+class AgentConversationUser:
+    """The person a private conversation is with."""
+
+    id: int
+    name: str
+
+
+@dataclass(frozen=True)
 class AgentReplyRequest:
     reply_id: int
     workspace: Workspace | None
@@ -184,6 +192,8 @@ class AgentReplyRequest:
     """The enabled actions, which don't act as the Agent's identity."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+    conversation_user: AgentConversationUser | None = None
+    """The person the conversation is with, or None when a trigger started it."""
     mcp_servers: tuple[MCPServerSnapshot, ...] = ()
     """The MCP servers with tools turned on, as reviewed when the reply started."""
     reasoning_effort: str | None = None

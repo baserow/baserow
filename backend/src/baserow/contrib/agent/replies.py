@@ -70,6 +70,7 @@ from baserow.core.utils import remove_null_characters
 from .action_tools.tools import BoundActionTool
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
+    CONVERSATION_USER_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     OUTPUT_RETRIES,
@@ -394,6 +395,11 @@ class AgentResponder:
 
         request = self._request
         instructions = request.instructions
+        if request.conversation_user is not None:
+            instructions += "\n\n" + CONVERSATION_USER_INSTRUCTIONS.format(
+                name=request.conversation_user.name,
+                user_id=request.conversation_user.id,
+            )
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if request.started_by_trigger:

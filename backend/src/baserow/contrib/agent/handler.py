@@ -71,6 +71,7 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
+    CONVERSATION_USER_NAME_MAX_LENGTH,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
     REJECTED_TOOL_CALL_NOTE,
@@ -106,6 +107,7 @@ from .types import (
     AgentConfigurationUpdated,
     AgentConversationCursor,
     AgentConversationUpdated,
+    AgentConversationUser,
     AgentMessageCreated,
     AgentPausedRun,
     AgentReplyRequest,
@@ -1413,6 +1415,7 @@ class AgentHandler:
             ask_first_tool_names=tools["ask_first_tools"],
             action_tools=action_tools,
             timezone=self._get_reply_timezone(conversation),
+            conversation_user=self._get_conversation_user(conversation),
             mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
@@ -1492,6 +1495,21 @@ class AgentHandler:
         if not conversation.is_shared:
             return conversation.owner_user.profile.timezone
         return trigger_timezone_name(conversation.trigger.service.specific)
+
+    def _get_conversation_user(
+        self, conversation: AgentConversation
+    ) -> AgentConversationUser | None:
+        """
+        :param conversation: The conversation the reply is written in.
+        :return: The person it is with, named on one short line as the name ends
+            up in the instructions, or None when a trigger started it.
+        """
+
+        if conversation.is_shared:
+            return None
+        owner = conversation.owner_user
+        name = " ".join(owner.first_name.split())
+        return AgentConversationUser(owner.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH])
 
     def _get_paused_transcript(
         self, reply: AgentMessage
