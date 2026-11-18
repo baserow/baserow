@@ -94,7 +94,7 @@ def load_test_data():
 
 
 def load_test_ai_provider():
-    """Create an instance OpenAI provider once, without discovering or testing models."""
+    """Create an instance OpenAI provider and model once, without network calls."""
 
     key_file = getattr(settings, "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE", "")
     if (
@@ -116,4 +116,8 @@ def load_test_ai_provider():
             "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE must not be empty."
         )
 
-    AIProviderHandler.create_provider("openai", api_key=api_key)
+    AIProviderHandler.create_provider(
+        "openai",
+        api_key=api_key,
+        models_data=[{"model_identifier": "gpt-5.6-luna"}],
+    )
