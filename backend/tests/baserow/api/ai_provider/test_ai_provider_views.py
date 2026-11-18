@@ -866,6 +866,75 @@ def test_kuma_feature_setting_api_supports_workspace_inherit_override_and_disabl
 
 
 @pytest.mark.django_db
+def test_reset_workspace_override_while_instance_provider_is_excluded(
+    api_client, data_fixture, settings
+):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "openai:legacy-model"
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    instance_provider = AIProviderConfig.objects.create(provider_type="openai")
+    instance_model = AIProviderModel.objects.create(
+        provider_config=instance_provider,
+        model_identifier="shared",
+        feature_types=["kuma"],
+    )
+    AIProviderFeatureSetting.objects.create(feature_type="kuma", model=instance_model)
+    local_provider = AIProviderConfig.objects.create(
+        provider_type="openai", workspace=workspace
+    )
+    local_model = AIProviderModel.objects.create(
+        provider_config=local_provider, model_identifier="local", feature_types=["kuma"]
+    )
+    override = AIProviderFeatureSetting.objects.create(
+        feature_type="kuma", workspace=workspace, model=local_model
+    )
+    instance_provider.excluded_workspaces.add(workspace)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    query = f"?workspace_id={workspace.id}"
+    list_url = reverse("api:ai_provider:features") + query
+    reset_url = (
+        reverse("api:ai_provider:feature_item", kwargs={"feature_type": "kuma"}) + query
+    )
+
+    # A broken instance selection still blocks a reset, even with an exclusion.
+    instance_model.is_enabled = False
+    instance_model.save(update_fields=["is_enabled"])
+    assert api_client.get(list_url, **headers).json()[0]["can_inherit"] is False
+    rejected = api_client.put(reset_url, {"mode": "inherit"}, format="json", **headers)
+    assert rejected.status_code == HTTP_400_BAD_REQUEST
+    assert rejected.json()["error"] == "ERROR_AI_PROVIDER_FEATURE_MODEL_NOT_AVAILABLE"
+    override.refresh_from_db()
+    assert override.model_id == local_model.id
+
+    instance_model.is_enabled = True
+    instance_model.save(update_fields=["is_enabled"])
+    current = api_client.get(list_url, **headers).json()[0]
+    assert current["can_inherit"] is True
+    assert current["model"]["id"] == local_model.id
+    assert current["inherited_model"] is None
+    assert current["inherited_state"] == "invalid"
+
+    reset = api_client.put(reset_url, {"mode": "inherit"}, format="json", **headers)
+    assert reset.status_code == HTTP_200_OK
+    assert reset.json()["mode"] == "inherit"
+    assert reset.json()["state"] == "invalid"
+    assert reset.json()["model"] is None
+    assert not AIProviderFeatureSetting.objects.filter(pk=override.pk).exists()
+    workspace_url = reverse("api:workspaces:list")
+    assert api_client.get(workspace_url, **headers).json()[0]["ai_features"][
+        "kuma"
+    ] == {
+        "is_enabled": False,
+        "state": "invalid",
+    }
+
+    instance_provider.excluded_workspaces.remove(workspace)
+    restored = api_client.get(list_url, **headers).json()[0]
+    assert restored["state"] == "inherited"
+    assert restored["model"]["id"] == instance_model.id
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     ("mode", "workspace_scoped"),
     [("disabled", False), ("legacy", False), ("inherit", True)],

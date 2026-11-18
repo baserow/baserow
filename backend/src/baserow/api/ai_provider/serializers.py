@@ -140,6 +140,10 @@ class AIProviderFeatureModelSerializer(serializers.Serializer):
 
 class AIProviderFeatureSettingSerializer(serializers.Serializer):
     feature_type = serializers.CharField()
+    can_inherit = serializers.BooleanField(
+        help_text="Whether the workspace can clear its override and follow the "
+        "instance setting, even if its provider excludes this workspace."
+    )
     mode = serializers.ChoiceField(choices=AI_PROVIDER_FEATURE_MODES)
     state = serializers.ChoiceField(
         choices=(

@@ -709,17 +709,14 @@ class AIProviderHandler:
     def _is_feature_model_available(
         model: AIProviderModel | None,
         feature_type: str,
-        state: ScopedAIProviderState,
-        inherited: bool = False,
+        state: ScopedAIProviderState | None = None,
     ) -> bool:
         """
         Check whether a feature can resolve through a model in one scope.
 
         :param model: The selected model, or None when nothing is selected.
         :param feature_type: The feature the model must be eligible for.
-        :param state: The already-loaded provider state of the scope.
-        :param inherited: Whether the scope inherits the model as the instance
-            selection, which ignores the scope's provider switch-offs.
+        :param state: The loaded scope, or None to check the instance selection.
         :return: Whether the model is enabled, eligible and reachable in the scope.
         """
 
@@ -731,14 +728,24 @@ class AIProviderHandler:
         provider = model.provider_config
         if not provider.is_active:
             return False
+        if state is None or state.workspace is None:
+            return provider.workspace_id is None
         if provider.workspace_id is not None:
             return provider.workspace_id == state.workspace_id
-        if provider.id in state.excluded_instance_provider_ids:
-            return False
-        # The legacy env model ignored workspace AI settings; inheritance keeps that.
-        if inherited or state.workspace is None:
-            return True
-        return provider.id not in state.disabled_instance_provider_ids
+        return provider.id not in state.unavailable_instance_provider_ids
+
+    @classmethod
+    def _instance_feature_state(
+        cls, setting: AIProviderFeatureSetting | None, feature_type: str
+    ) -> str:
+        """Resolve the instance selection before applying any workspace exclusion."""
+        if setting is None:
+            return "unconfigured"
+        if not setting.is_enabled:
+            return "disabled"
+        if cls._is_feature_model_available(setting.model, feature_type):
+            return "configured"
+        return "invalid"
 
     @classmethod
     def list_feature_settings(
@@ -765,19 +772,19 @@ class AIProviderHandler:
             feature_type
         ) in ai_provider_model_feature_type_registry.get_default_model_feature_types():
             instance_setting = state.get_instance_feature_setting(feature_type)
+            instance_state = cls._instance_feature_state(instance_setting, feature_type)
+            can_inherit = workspace is not None and instance_state != "invalid"
             instance_model = None
-            if instance_setting is None:
-                instance_state = "unconfigured"
-            elif not instance_setting.is_enabled:
-                instance_state = "disabled"
-            elif instance_setting.is_enabled:
-                if cls._is_feature_model_available(
-                    instance_setting.model, feature_type, state, inherited=True
+            if instance_state == "configured":
+                # Inheritance follows the instance even when a workspace switches
+                # the provider off. An instance-admin exclusion still blocks use.
+                if (
+                    instance_setting.model.provider_config_id
+                    in state.excluded_instance_provider_ids
                 ):
-                    instance_model = instance_setting.model
-                    instance_state = "configured"
-                else:
                     instance_state = "invalid"
+                else:
+                    instance_model = instance_setting.model
 
             scoped_setting = (
                 state.get_feature_setting(feature_type)
@@ -817,6 +824,7 @@ class AIProviderHandler:
                     "feature_type": feature_type,
                     "mode": mode,
                     "state": feature_state,
+                    "can_inherit": can_inherit,
                     "model": model,
                     "inherited_model": instance_model
                     if workspace is not None
@@ -884,15 +892,10 @@ class AIProviderHandler:
         if mode == AI_PROVIDER_FEATURE_MODE_INHERIT:
             if workspace is None:
                 raise AIProviderFeatureModeNotAllowed(mode)
-            state = get_ai_provider_state(workspace)
-            instance_setting = state.get_instance_feature_setting(feature_type)
-            if (
-                instance_setting is not None
-                and instance_setting.is_enabled
-                and not cls._is_feature_model_available(
-                    instance_setting.model, feature_type, state, inherited=True
-                )
-            ):
+            instance_setting = get_ai_provider_state().get_instance_feature_setting(
+                feature_type
+            )
+            if cls._instance_feature_state(instance_setting, feature_type) == "invalid":
                 raise AIProviderFeatureModelNotAvailable(
                     feature_type,
                     getattr(instance_setting.model, "id", None),

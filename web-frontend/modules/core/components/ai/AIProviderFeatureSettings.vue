@@ -270,10 +270,9 @@ export default {
       )
     },
     inheritDisabled(setting) {
-      // The backend refuses to inherit an unusable instance selection.
       const inheritedState = this.inheritedState(setting)
       if (inheritedState === 'invalid') {
-        return true
+        return setting.can_inherit !== true
       }
       return (
         inheritedState === 'unconfigured' &&

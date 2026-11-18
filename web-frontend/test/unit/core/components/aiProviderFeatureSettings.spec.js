@@ -493,31 +493,35 @@ describe('AIProviderFeatureSettings', () => {
     )
   })
 
-  test('never presents an unresolvable instance selection as the legacy model', async () => {
-    const setting = {
-      feature_type: 'kuma',
-      mode: 'disabled',
-      state: 'disabled',
-      model: null,
-      inherited_model: null,
-      inherited_state: 'invalid',
+  test.each([false, true])(
+    'shows an unavailable inherited model and respects can_inherit=%s',
+    async (canInherit) => {
+      const setting = {
+        feature_type: 'kuma',
+        mode: 'disabled',
+        state: 'disabled',
+        model: null,
+        inherited_model: null,
+        inherited_state: 'invalid',
+        can_inherit: canInherit,
+      }
+      testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
+      testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [setting])
+      testApp.store.commit('settings/UPDATE_SETTINGS', {
+        kuma: { is_enabled: true },
+      })
+
+      const wrapper = await mountComponent('groq:legacy-model', {
+        workspaceId: 42,
+      })
+      const inheritOption = wrapper.find('.select__item')
+
+      expect(inheritOption.text()).toBe(
+        'Use instance setting — selected instance model unavailable'
+      )
+      expect(inheritOption.classes().includes('disabled')).toBe(!canInherit)
     }
-    testApp.store.commit('aiProvider/SET_WORKSPACE_ID', 42)
-    testApp.store.commit('aiProvider/SET_FEATURE_SETTINGS', [setting])
-    testApp.store.commit('settings/UPDATE_SETTINGS', {
-      kuma: { is_enabled: true },
-    })
-
-    const wrapper = await mountComponent('groq:legacy-model', {
-      workspaceId: 42,
-    })
-    const inheritOption = wrapper.find('.select__item')
-
-    expect(inheritOption.text()).toBe(
-      'Use instance setting — selected instance model unavailable'
-    )
-    expect(inheritOption.classes()).toContain('disabled')
-  })
+  )
 
   test('offers the inherited instance model when that provider is switched off in the workspace', async () => {
     const inheritedModel = {
