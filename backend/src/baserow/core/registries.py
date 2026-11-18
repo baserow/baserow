@@ -1047,6 +1047,15 @@ class PermissionManagerType(abc.ABC, Instance):
     ) -> Optional[str]:
         """Resolve a workspace user's role UID, or defer to another manager."""
 
+        return self.get_workspace_role_uid(
+            workspace_user.permissions, workspace_user.workspace
+        )
+
+    def get_workspace_role_uid(
+        self, role_uid: str, workspace: "Workspace"
+    ) -> Optional[str]:
+        """Resolve a role UID for the workspace, or defer to another manager."""
+
         return None
 
     def get_roles(self) -> List:
