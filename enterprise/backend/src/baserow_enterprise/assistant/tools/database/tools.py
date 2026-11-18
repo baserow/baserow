@@ -1432,6 +1432,52 @@ def list_row_comments(
     )
 
 
+def search_row_comments(
+    ctx: RunContext[AssistantDeps],
+    database_id: Annotated[int, Field(description="The ID of the database to search.")],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+    table_ids: shared_row_comments.SearchedTableIds = None,
+    mentioned_users: shared_row_comments.MentionedUsers = None,
+    authors: shared_row_comments.CommentAuthors = None,
+    created_after: shared_row_comments.CreatedAfter = None,
+    created_before: shared_row_comments.CreatedBefore = None,
+    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    size: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=shared_row_comments.MAX_PAGE_SIZE,
+            description="The number of comments a page.",
+        ),
+    ] = 20,
+) -> dict[str, Any]:
+    """\
+    Find comments across the rows of a database.
+
+    WHEN to use: User asks which comments mention them or someone else, what a person commented, or what was commented lately, without naming one row.
+    WHAT it does: Returns comments newest first, each with its table and row. The filters combine: tables, mentioned users, authors and creation time.
+    HOW: "Comments that mention me" is mentioned_users=[0]. Leave table_ids out to search every table of the database.
+    RETURNS: comments with id, table_id, table, row_id, row, user_id, user_name, text, mentions, created_on, edited, and has_more.
+    DO NOT USE when: User names one row; use list_row_comments.
+    """
+
+    ctx.deps.tool_helpers.update_status(_("Searching the comments..."))
+
+    return shared_row_comments.search_row_comments(
+        ctx.deps.tool_context(),
+        database_id,
+        table_ids=table_ids,
+        mentioned_users=mentioned_users,
+        authors=authors,
+        created_after=created_after,
+        created_before=created_before,
+        page=page,
+        size=size,
+    )
+
+
 def create_row_comments(
     ctx: RunContext[AssistantDeps],
     table_id: Annotated[int, Field(description="The ID of the rows' table.")],
@@ -1609,6 +1655,7 @@ TOOL_FUNCTIONS = [
     list_rows,
     list_views,
     list_row_comments,
+    search_row_comments,
     create_row_comments,
     create_tables,
     create_fields,

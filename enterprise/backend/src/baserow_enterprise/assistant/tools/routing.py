@@ -110,7 +110,9 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     explain_mode = frozenset({AgentMode.EXPLAIN})
 
     database_reads = [
-        tool for tool in database_tools if tool.__name__.startswith(("list_", "get_"))
+        tool
+        for tool in database_tools
+        if tool.__name__.startswith(("list_", "get_", "search_"))
     ]
     application_reads = [
         tool for tool in application_tools if tool.__name__.startswith("list_")

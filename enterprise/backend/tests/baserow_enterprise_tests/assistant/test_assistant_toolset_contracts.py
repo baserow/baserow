@@ -490,6 +490,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "load_row_tools": frozenset({DATABASE}),
     "move_elements": frozenset({APPLICATION}),
     "navigate": EVERYWHERE,
+    "search_row_comments": EVERYWHERE,
     "search_user_docs": EVERYWHERE,
     "set_field_visibility": frozenset({DATABASE}),
     "add_row_colours": frozenset({DATABASE}),

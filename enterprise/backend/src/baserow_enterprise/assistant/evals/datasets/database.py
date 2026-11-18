@@ -1467,6 +1467,8 @@ PROMPT_READS_ROW_COMMENTS = (
     "What did people say about the Acme row of the Customers table?"
 )
 
+PROMPT_FINDS_COMMENTS_MENTIONING_ME = "Which comments in the Sales database mention me?"
+
 
 def _grant_premium(user: AbstractUser) -> None:
     """
@@ -1494,7 +1496,8 @@ def _row_comments_scenario(fx: Fixtures) -> EvalScenario:
 
     user = fx.create_user(first_name="Anna")
     _grant_premium(user)
-    workspace = fx.create_workspace(user=user)
+    bob = fx.create_user(first_name="Bob")
+    workspace = fx.create_workspace(users=[user, bob])
     database = fx.create_database_application(workspace=workspace, name="Sales")
     customers, _, rows = fx.build_table(
         user=user,
@@ -1509,6 +1512,12 @@ def _row_comments_scenario(fx: Fixtures) -> EvalScenario:
         user=user,
         message=prosemirror_doc_from_plain_text("They want a discount."),
     )
+    RowComment.objects.create(
+        table=customers,
+        row_id=rows[0].id,
+        user=bob,
+        message=prosemirror_doc_from_plain_text("The renewal is due, can you call?"),
+    ).mentions.set([user])
     return EvalScenario(
         user=user,
         workspace=workspace,
@@ -1557,6 +1566,23 @@ def _check_reads_row_comments(
     ]
 
 
+def _check_finds_comments_mentioning_me(
+    case: EvalCase, scenario: EvalScenario, output: EvalRunOutput
+) -> list[CheckResult]:
+    return [
+        CheckResult(
+            "called search_row_comments",
+            tool_called(output, "search_row_comments") >= 1,
+        ),
+        CheckResult(
+            "answer mentions the renewal and not the discount",
+            "renewal" in output.answer.lower()
+            and "discount" not in output.answer.lower(),
+            hint=output.answer[:200],
+        ),
+    ]
+
+
 register_case(
     EvalCase(
         id="database/adds-row-comment",
@@ -1574,6 +1600,16 @@ register_case(
         prompt=PROMPT_READS_ROW_COMMENTS,
         scenario="database-row-comments",
         checks=_check_reads_row_comments,
+        max_iters=10,
+    )
+)
+register_case(
+    EvalCase(
+        id="database/finds-comments-mentioning-me",
+        dataset="kuma-database",
+        prompt=PROMPT_FINDS_COMMENTS_MENTIONING_ME,
+        scenario="database-row-comments",
+        checks=_check_finds_comments_mentioning_me,
         max_iters=10,
     )
 )

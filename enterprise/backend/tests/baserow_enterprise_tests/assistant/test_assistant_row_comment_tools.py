@@ -1,4 +1,5 @@
 import pytest
+from baserow_premium_tests.row_comments.utils import create_comment_scenario
 from pydantic_ai import Tool
 from pydantic_ai.messages import (
     ModelRequest,
@@ -11,10 +12,13 @@ from baserow_enterprise.assistant.action_memory import get_mutation_evidence
 from baserow_enterprise.assistant.tools.database.tools import (
     create_row_comments,
     list_row_comments,
+    search_row_comments,
 )
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.row_comments.tools import (
     MAX_COMMENTS_PER_CALL,
+    MAX_SEARCHED_TABLES,
+    MAX_USER_REFERENCES,
     RowCommentCreate,
 )
 
@@ -52,11 +56,32 @@ def test_kuma_posts_and_reads_a_row_comment(premium_data_fixture, settings):
 
 
 @pytest.mark.django_db
+def test_kuma_finds_the_comments_that_mention_its_user(premium_data_fixture, settings):
+    settings.DEBUG = True
+    scenario = create_comment_scenario(
+        premium_data_fixture, has_active_premium_license=True
+    )
+    ctx = make_test_ctx(scenario.ctx.user, scenario.ctx.workspace)
+
+    found = search_row_comments(
+        ctx, scenario.database.id, thought="my mentions", mentioned_users=[0]
+    )
+
+    assert [(comment["table"], comment["row"]) for comment in found["comments"]] == [
+        ("Tasks", "Mail"),
+        ("Projects", "Globex"),
+    ]
+    assert found["has_more"] is False
+
+
+@pytest.mark.django_db
 def test_kuma_row_comments_need_premium(data_fixture):
     ctx, table, row = _setup(data_fixture)
 
     with pytest.raises(FeaturesNotAvailableError):
         list_row_comments(ctx, table.id, row.id, thought="read")
+    with pytest.raises(FeaturesNotAvailableError):
+        search_row_comments(ctx, table.database_id, thought="search")
 
 
 def _evidence_of(result):
@@ -109,3 +134,14 @@ def test_kuma_create_row_comments_limits_a_batch():
     schema = Tool(create_row_comments, takes_ctx=True).function_schema.json_schema
 
     assert schema["properties"]["comments"]["maxItems"] == MAX_COMMENTS_PER_CALL
+
+
+def test_kuma_search_row_comments_limits_its_lists():
+    schema = Tool(search_row_comments, takes_ctx=True).function_schema.json_schema
+
+    def max_items(name):
+        return schema["properties"][name]["anyOf"][0]["maxItems"]
+
+    assert max_items("table_ids") == MAX_SEARCHED_TABLES
+    assert max_items("mentioned_users") == MAX_USER_REFERENCES
+    assert max_items("authors") == MAX_USER_REFERENCES
