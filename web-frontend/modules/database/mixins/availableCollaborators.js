@@ -1,23 +1,9 @@
-import { getSelectableCollaborators } from '@baserow/modules/core/utils/collaborator'
+import { getFieldCollaborators } from '@baserow/modules/core/utils/collaborator'
 
 export default {
   computed: {
     workspaceCollaborators() {
-      const workspace = this.$store.getters['workspace/get'](this.workspaceId)
-      if (workspace) {
-        // Fields without the option, like created by, can always hold identities.
-        return getSelectableCollaborators(
-          this.$store.getters['workspace/getCollaborators'](workspace.id),
-          this.field.include_identities ?? true
-        )
-          .filter((collaborator) => !collaborator.to_be_deleted)
-          .map((collaborator) => ({
-            id: collaborator.user_id,
-            name: collaborator.name,
-            user_type: collaborator.user_type || 'human',
-          }))
-      }
-      return this.field.available_collaborators
+      return getFieldCollaborators(this.$store, this.field, this.workspaceId)
     },
     availableCollaborators() {
       // When converting from a CollaboratorField to another field it can happen

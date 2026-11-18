@@ -125,6 +125,32 @@ describe('Identity collaborators', () => {
     expect(wrapper.text()).not.toContain('Renamed Identity')
   })
 
+  test('a row picker lists people, then identities, by name', async () => {
+    testApp.store.commit('workspace/ADD_WORKSPACE_USER', {
+      workspaceId: 1,
+      values: { id: 11, user_id: 21, name: 'Adam' },
+    })
+    testApp.store.commit('workspace/UPSERT_WORKSPACE_IDENTITY', {
+      workspaceId: 1,
+      identity: { id: 40, name: 'Alpha' },
+    })
+    const wrapper = await testApp.mount(RowEditFieldMultipleCollaborators, {
+      props: {
+        field: { type: 'multiple_collaborators', include_identities: true },
+        workspaceId: 1,
+        value: [],
+        readOnly: false,
+      },
+    })
+    await wrapper.find('.button-text').trigger('click')
+    await flushPromises()
+    expect(
+      wrapper
+        .findAll('.select-collaborators__dropdown-option')
+        .map((option) => option.text())
+    ).toEqual(['Adam', 'Person', 'Alpha', 'Ops'])
+  })
+
   test('a row picker hides Identities unless the field includes them', async () => {
     const wrapper = await testApp.mount(RowEditFieldMultipleCollaborators, {
       props: {

@@ -278,7 +278,20 @@ describe('MultipleCollaboratorsFieldType sorting', () => {
     rows.sort(type.getSort('v', 'ASC'))
     expect(rows.map((row) => row.v[0].id)).toEqual([2, 3, 1])
     expect(type.prepareValueForCopy({}, rows[0].v)).toBe('Bot')
-    expect(type.prepareValueForPaste({}, 'Bot, missing', undefined)).toEqual([])
+    testApp.store.commit(
+      'workspace/SET_SELECTED',
+      testApp.store.getters['workspace/get'](1)
+    )
+    expect(
+      type.prepareValueForPaste({ include_identities: false }, 'Bot, missing')
+    ).toEqual([])
+    const staleField = {
+      include_identities: true,
+      available_collaborators: [{ id: 3, name: 'Gone', user_type: 'human' }],
+    }
+    expect(type.prepareValueForPaste(staleField, 'Zoe, Gone')).toEqual([
+      { id: 1, name: 'Zoe' },
+    ])
     for (const pasted of ['Bot, missing', 'Bot <identity>']) {
       expect(
         type.prepareValueForPaste(

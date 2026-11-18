@@ -780,15 +780,6 @@ export const getters = {
     }
     return users
   },
-  getAllUsersByName(state) {
-    const users = {}
-    for (const workspace of state.items) {
-      for (const user of workspace.users) {
-        users[user.name] = user
-      }
-    }
-    return users
-  },
   getUserById: (state, getters) => (userId) => {
     const users = getters.getAllUsers
     return users[userId]
@@ -796,10 +787,6 @@ export const getters = {
   getUserByEmail: (state, getters) => (email) => {
     const users = getters.getAllUsersByEmail
     return users[email]
-  },
-  getUserByName: (state, getters) => (name) => {
-    const users = getters.getAllUsersByName
-    return users[name]
   },
   haveWorkspacePermissionsBeenLoaded: (state, getters) => (workspaceId) => {
     return getters.get(workspaceId)._.permissionsLoaded

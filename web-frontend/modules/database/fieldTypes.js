@@ -30,7 +30,7 @@ import {
 import moment from '@baserow/modules/core/moment'
 import guessFormat from 'moment-guess'
 import { Registerable } from '@baserow/modules/core/registry'
-import { getSelectableCollaborators } from '@baserow/modules/core/utils/collaborator'
+import { getFieldCollaborators } from '@baserow/modules/core/utils/collaborator'
 import { mix } from '@baserow/modules/core/mixins'
 import {
   plainTextToMarkdown,
@@ -5194,18 +5194,11 @@ export class MultipleCollaboratorsFieldType extends FieldType {
       try {
         const data = this.app.$papa.stringToArray(clipboardData)
         const uniqueValuesOnly = Array.from(new Set(data))
-        const collaborators = field.available_collaborators
-          ? field.available_collaborators.map((collaborator) => ({
-              ...collaborator,
-              ...this.app.$store.getters['workspace/getCollaboratorById'](
-                collaborator.id
-              ),
-              user_id: collaborator.id,
-            }))
-          : getSelectableCollaborators(
-              this.app.$store.getters['workspace/getCollaborators'](),
-              field.include_identities
-            ).filter((collaborator) => !collaborator.to_be_deleted)
+        const collaborators = getFieldCollaborators(
+          this.app.$store,
+          field,
+          this.app.$store.getters['workspace/getSelected'].id
+        )
 
         return uniqueValuesOnly
           .map((emailOrName) => {
@@ -5227,7 +5220,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
           .filter((obj) => obj != null)
           .map((obj) => {
             return {
-              id: obj.user_id,
+              id: obj.id,
               name: obj.name,
             }
           })
