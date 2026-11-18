@@ -2165,7 +2165,7 @@ class CoreHandler:
 
         workspace_users = WorkspaceUser.objects_and_identities.filter(
             workspace_id=workspace_id
-        ).select_related("user")
+        ).select_related("user__profile")
 
         if only_emails:
             workspace_users = workspace_users.filter(user__email__in=only_emails)
