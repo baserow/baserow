@@ -396,6 +396,18 @@ class ApplicationType(
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
 
+    def can_import(self, import_export_config: ImportExportConfig) -> bool:
+        """
+        Whether applications of this type are imported when a workspace import,
+        such as a template install or a file import, holds them. Those that
+        return False are left out and the rest is imported.
+
+        :param import_export_config: How the applications are imported.
+        :return: False to leave the application out of the import.
+        """
+
+        return True
+
     def supports_integration_type(self, integration_type) -> bool:
         """
         Whether this application accepts an integration of the given type.

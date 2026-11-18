@@ -28,7 +28,7 @@ from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import WorkspaceUser
+from baserow.core.models import Template, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
@@ -937,3 +937,104 @@ def test_a_row_trigger_message_follows_its_fields_into_another_workspace(
     )
     assert copy.service.specific.table_id == imported_name.table_id
     assert copy.message["formula"] == f"get('trigger.rows.0.{imported_name.db_column}')"
+
+
+def export_for_template(applications) -> list[dict]:
+    config = ImportExportConfig(include_permission_data=False)
+    return json.loads(
+        json.dumps(
+            [
+                application.get_type().export_serialized(application, config)
+                for application in applications
+            ]
+        )
+    )
+
+
+TEMPLATE_INSTALL_CONFIG = ImportExportConfig(
+    include_permission_data=False, is_duplicate=True, is_template=True
+)
+
+
+@pytest.mark.django_db
+def test_template_install_skips_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    exported = export_for_template([database, agent])
+    settings.FEATURE_FLAGS = []
+    workspace = data_fixture.create_workspace(user=user)
+
+    applications, id_mapping = CoreHandler().import_applications_to_workspace(
+        workspace, exported, None, TEMPLATE_INSTALL_CONFIG
+    )
+
+    assert [application.get_type().type for application in applications] == ["database"]
+    assert not AgentApplication.objects.filter(workspace=workspace).exists()
+    assert agent.id not in id_mapping["applications"]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_zip_import_skips_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    export_path = data_fixture.export_workspace_applications_file([database, agent])
+    settings.FEATURE_FLAGS = []
+
+    applications = data_fixture.import_workspace_applications_file(export_path)
+
+    assert [application.get_type().type for application in applications] == ["database"]
+    assert not AgentApplication.objects.filter(
+        workspace=applications[0].workspace
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_duplicate_keeps_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    settings.FEATURE_FLAGS = []
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    assert isinstance(copied, AgentApplication)
+    assert copied.id != agent.id
+
+
+@pytest.mark.django_db
+def test_sync_template_maps_an_open_agent_to_none_when_the_flag_is_off(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    exported = export_for_template([database, agent])
+    (tmp_path / "agent-check.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent check",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": exported,
+                "open_application": agent.id,
+            }
+        )
+    )
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    settings.FEATURE_FLAGS = []
+
+    CoreHandler().sync_templates(pattern="agent-check")
+
+    template = Template.objects.get(slug="agent-check")
+    assert template.open_application is None
+    assert not AgentApplication.objects.filter(workspace=template.workspace).exists()

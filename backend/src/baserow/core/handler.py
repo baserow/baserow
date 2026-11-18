@@ -2686,9 +2686,6 @@ class CoreHandler:
                 "Imports into a template workspace must provide the files."
             )
 
-        progress = ChildProgressBuilder.build(
-            progress_builder, len(exported_applications) * 1000
-        )
         id_mapping: Dict[str, Any] = {}
         if not import_export_config.keeps_unmapped_references:
             # The applications may come without the ones they reference, for example
@@ -2708,7 +2705,18 @@ class CoreHandler:
             ).import_application_priority
 
         prioritized_applications = sorted(
-            exported_applications, key=application_priority_sort, reverse=True
+            [
+                application
+                for application in exported_applications
+                if application_type_registry.get(application["type"]).can_import(
+                    import_export_config
+                )
+            ],
+            key=application_priority_sort,
+            reverse=True,
+        )
+        progress = ChildProgressBuilder.build(
+            progress_builder, len(prioritized_applications) * 1000
         )
 
         # If files_buffer is a bytes object, decompress it. Otherwise, use it directly

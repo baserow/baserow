@@ -94,6 +94,16 @@ class AgentApplicationType(ApplicationType):
             return run_as
         return None, None
 
+    def can_import(self, import_export_config: ImportExportConfig) -> bool:
+        """
+        Agents can't run with the feature flag off, so imports leave them out.
+        Copies within the instance, like duplicates and snapshots, keep them.
+        """
+
+        return import_export_config.keeps_unmapped_references or (
+            feature_flag_is_enabled(FF_AGENT_BUILDER)
+        )
+
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""
 
