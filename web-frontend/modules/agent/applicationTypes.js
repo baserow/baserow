@@ -3,6 +3,8 @@ import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
 import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
 import AgentApplicationSidebar from '@baserow/modules/agent/components/AgentApplicationSidebar'
+import AgentTemplate from '@baserow/modules/agent/components/AgentTemplate'
+import AgentTemplateSidebar from '@baserow/modules/agent/components/AgentTemplateSidebar'
 import { FF_AGENT_BUILDER } from '@baserow/modules/core/plugins/featureFlags'
 
 export class AgentApplicationType extends ApplicationType {
@@ -48,6 +50,18 @@ export class AgentApplicationType extends ApplicationType {
 
   getSidebarComponent() {
     return AgentApplicationSidebar
+  }
+
+  getTemplateSidebarComponent() {
+    return AgentTemplateSidebar
+  }
+
+  getTemplatesPageComponent() {
+    return AgentTemplate
+  }
+
+  getTemplatePage(application) {
+    return { agent: application }
   }
 
   getOrder() {
