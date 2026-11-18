@@ -87,6 +87,9 @@ class CreateAutomationNodeActionType(UndoableActionType):
             # is deleted, as before it was inserted. Nodes added to the default
             # output since follow them.
             node = AutomationNodeHandler().get_node(params.node_id)
+            # Read the graph under the lock, so the check and the join see the
+            # same graph.
+            AutomationNodeHandler().lock_graph(node.workflow)
             graph = node.workflow.get_graph()
             joined_ids = graph.get_next_point_ids(node, "")
             if joined_ids:

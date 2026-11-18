@@ -15,6 +15,7 @@ from baserow.contrib.automation.nodes.actions import (
     DeleteAutomationNodeActionType,
     UpdateAutomationNodeActionType,
 )
+from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.nodes import (
     add_nodes,
@@ -389,6 +390,69 @@ def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router_mid_chain(
     assert "This step can't be undone" in action.error
     workflow.reload_graph()
     assert workflow.graph == before
+    assert AutomationNode.objects.filter(id=other.id).exists()
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_checks_the_chain_under_the_graph_lock(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    workflow.reload_graph()
+    stale = deepcopy(workflow.graph)
+    # Another session adds a router with branches at the end of the Big chain
+    # after the undo read the graph, but before it took the lock.
+    router2 = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=email["id"],
+        service={"edges": [{"uid": str(uuid4()), "label": "Small"}]},
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    get_node = AutomationNodeHandler.get_node
+
+    stale_reads = [router["id"]]
+
+    def get_node_reading_stale_graph(self, node_id, *args, **kwargs):
+        node = get_node(self, node_id, *args, **kwargs)
+        if node_id in stale_reads:
+            stale_reads.remove(node_id)
+            node.workflow.reload_graph()
+            node.workflow.graph.clear()
+            node.workflow.graph.update(deepcopy(stale))
+        return node
+
+    with patch.object(AutomationNodeHandler, "get_node", get_node_reading_stale_graph):
+        (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert not stale_reads
+    assert action.error and "AutomationNodeNotDeletable" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert workflow.graph[str(email["id"])]["next"] == {"": [router2.id]}
     assert AutomationNode.objects.filter(id=other.id).exists()
 
 
