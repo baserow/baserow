@@ -10,6 +10,7 @@ from django.db import connection, transaction
 from django.shortcuts import reverse
 from django.test import override_settings
 
+import anyio
 import pytest
 from asgiref.sync import async_to_sync
 from mcp.shared.memory import (
@@ -506,3 +507,134 @@ def test_a_call_waiting_for_the_lock_doesnt_hold_up_other_calls(setup):
     assert not read.isError, read.content[0].text
     assert read_seconds < 1
     assert write.isError and "Try again" in write.content[0].text
+
+
+@pytest.mark.django_db
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=2)
+def test_redo_restores_every_part_when_the_failed_part_is_a_short_batch(setup):
+    endpoint, table = setup
+    _call(
+        endpoint,
+        "create_fields",
+        {
+            "table_id": table.id,
+            "fields": [
+                {"name": "X", "type": "text"},
+                {"name": "Y", "type": "text"},
+                {"name": "Z", "type": "text"},
+            ],
+        },
+    )
+    undo_field = CreateFieldActionType.undo
+    calls = []
+
+    def fail_on_x(*args):
+        calls.append(args)
+        if len(calls) == 3:
+            raise Exception("boom")
+        return undo_field(*args)
+
+    # Undone newest first, two at a time: Z and Y, then X, which fails.
+    with patch.object(CreateFieldActionType, "undo", side_effect=fail_on_x):
+        assert _call(endpoint, "undo") == [
+            {"action": "Create field", "failed": False},
+            {"action": "Create field", "failed": False},
+            {"action": "Create field", "failed": True},
+        ]
+    assert {f.name for f in table.field_set.all()} == {"Name", "X"}
+
+    redone = _call(endpoint, "redo")
+
+    assert redone == [
+        {"action": "Create field", "failed": True},
+        {"action": "Create field", "failed": False},
+        {"action": "Create field", "failed": False},
+    ]
+    assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y", "Z"}
+    assert _call(endpoint, "redo") == []
+
+
+def _advisory_locks_of(endpoint):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' "
+            "AND database = (SELECT oid FROM pg_database "
+            "WHERE datname = current_database()) "
+            "AND classid = %s AND objid = %s AND objsubid = 2",
+            [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id],
+        )
+        return cursor.fetchone()[0]
+
+
+def _cancel_a_call_after(endpoint, table, seconds, release=None):
+    """
+    Runs a `create_rows` call on another thread and cancels it after `seconds`
+    the way the MCP SDK does, with an anyio cancel scope. Returns the number of
+    advisory locks with the endpoint's key once the thread is done, counted
+    before its connection closes, because closing it would release them.
+    """
+
+    tool = mcp_tool_registry.get("create_rows")
+    args = tool.input_schema(table_id=table.id, rows=[{"Name": "A"}])
+    result = {}
+
+    async def cancelled_call():
+        with anyio.move_on_after(seconds) as scope:
+            await tool.call(endpoint, args.model_dump())
+        result["cancelled"] = scope.cancelled_caught
+        if release is not None:
+            release.set()
+
+    def run():
+        try:
+            async_to_sync(cancelled_call)()
+            result["locks"] = _advisory_locks_of(endpoint)
+        finally:
+            connection.close()
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    thread.join(timeout=20)
+    assert not thread.is_alive(), "The cancelled call never finished."
+    return result
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_call_cancelled_while_it_runs_releases_the_endpoint_lock(setup):
+    endpoint, table = setup
+    release = threading.Event()
+    body_ran = []
+
+    def slow_body(*args):
+        body_ran.append(True)
+        release.wait(timeout=10)
+        return []
+
+    with patch.object(
+        type(mcp_tool_registry.get("create_rows")),
+        "_sync_call",
+        side_effect=slow_body,
+    ):
+        result = _cancel_a_call_after(endpoint, table, 0.3, release=release)
+
+    assert body_ran == [True]
+    assert result["cancelled"] is True
+    assert result["locks"] == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_call_cancelled_while_it_waits_for_the_lock_leaves_no_lock(setup):
+    endpoint, table = setup
+    key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(%s, %s)", key)
+    try:
+        with patch(f"{registries.__name__}.ENDPOINT_CHANGES_LOCK_WAIT_SECONDS", 20):
+            result = _cancel_a_call_after(endpoint, table, 0.35)
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_unlock(%s, %s)", key)
+
+    assert result["cancelled"] is True
+    assert result["locks"] == 1  # Only the one this test holds.
+    assert _names(table) == []

@@ -11,7 +11,8 @@ LEGACY_DEFAULT_TOOLS = [
     "delete_rows",
 ]
 
-# Keys pg_advisory_lock(namespace, endpoint id), see ``endpoint_changes_lock``.
+# Keys pg_advisory_lock(namespace, endpoint id), see
+# ``call_with_endpoint_changes_lock``.
 ENDPOINT_CHANGES_LOCK_NAMESPACE = 6753
 
 # How long a call keeps trying to take the endpoint's changes lock before it

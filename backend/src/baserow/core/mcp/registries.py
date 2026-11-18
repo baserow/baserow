@@ -1,8 +1,6 @@
-import asyncio
 import inspect
 import json
 from asyncio import sleep
-from contextlib import asynccontextmanager
 from functools import cached_property
 from time import monotonic
 from typing import (
@@ -40,57 +38,53 @@ if TYPE_CHECKING:
     from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 
-def _try_lock(key: list, suffix: str) -> bool:
+_NOT_TAKEN = object()
+
+
+def _call_holding_lock(key: list, suffix: str, function: Callable, *args) -> Any:
     with connection.cursor() as cursor:
         cursor.execute(f"SELECT pg_try_advisory_lock{suffix}(%s, %s)", key)
-        return cursor.fetchone()[0]
-
-
-def _unlock(key: list, suffix: str) -> None:
+        if not cursor.fetchone()[0]:
+            return _NOT_TAKEN
     try:
-        with connection.cursor() as cursor:
-            cursor.execute(f"SELECT pg_advisory_unlock{suffix}(%s, %s)", key)
-    except Error:
-        # Closing the connection is then the only way to release the lock.
-        connection.close()
+        return function(*args)
+    finally:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f"SELECT pg_advisory_unlock{suffix}(%s, %s)", key)
+        except Error:
+            # Closing the connection is then the only way to release the lock.
+            connection.close()
 
 
-@asynccontextmanager
-async def endpoint_changes_lock(endpoint: MCPEndpoint, exclusive: bool):
+async def call_with_endpoint_changes_lock(
+    endpoint: MCPEndpoint, exclusive: bool, function: Callable, *args
+) -> Any:
     """
-    Holds a lock on the changes made through the endpoint. Calls that change data
-    share it, so they still run side by side, while undo and redo hold it alone,
-    so no other call adds a change while they take one call back in parts.
-    Session level, because a tool call isn't one transaction. A call that can't
-    take it within ``ENDPOINT_CHANGES_LOCK_WAIT_SECONDS`` is asked to try again.
-    Nothing queues, so a steady stream of writes can keep undo and redo asking
-    the client to try again. The tries and the waits between them are separate
-    steps, so the thread that runs the worker's MCP calls is free in between.
-    Every step runs on that thread (``sync_to_async`` is thread sensitive), so
-    the body and the unlock use the connection that took the lock.
+    Calls ``function`` with ``args`` on the thread that runs the worker's MCP calls
+    while holding a lock on the changes made through the endpoint. Calls that
+    change data share it, so they still run side by side, while undo and redo
+    hold it alone, so no other call adds a change while they take one call back
+    in parts. Session level, because a tool call isn't one transaction. A call
+    that can't take it within ``ENDPOINT_CHANGES_LOCK_WAIT_SECONDS`` is asked to
+    try again. Nothing queues, so a steady stream of writes can keep undo and
+    redo asking the client to try again.
+
+    Taking the lock, the call and the unlock are one step on that thread, so a
+    cancelled tool call can't leave the lock taken. Only the waits between the
+    tries are awaited here, so the thread is free for other calls meanwhile.
     """
 
     suffix = "" if exclusive else "_shared"
     key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
     deadline = monotonic() + ENDPOINT_CHANGES_LOCK_WAIT_SECONDS
     while True:
-        attempt = asyncio.ensure_future(sync_to_async(_try_lock)(key, suffix))
-        try:
-            taken = await asyncio.shield(attempt)
-        except asyncio.CancelledError:
-            # The try still runs on the thread, and may take the lock.
-            if await attempt:
-                await sync_to_async(_unlock)(key, suffix)
-            raise
-        if taken:
-            break
+        result = await sync_to_async(_call_holding_lock)(key, suffix, function, *args)
+        if result is not _NOT_TAKEN:
+            return result
         if monotonic() >= deadline:
             raise ToolFailedError(LOCKED_MESSAGE)
         await sleep(ENDPOINT_CHANGES_LOCK_RETRY_SECONDS)
-    try:
-        yield
-    finally:
-        await sync_to_async(_unlock)(key, suffix)
 
 
 class MCPTool(Instance):
@@ -136,7 +130,8 @@ class MCPTool(Instance):
 
     replays_changes: bool = False
     """True for undo and redo: they wait for the other calls of the endpoint that
-    change data, and those wait for them, see ``endpoint_changes_lock``."""
+    change data, and those wait for them, see
+    ``call_with_endpoint_changes_lock``."""
 
     @property
     def name(self) -> str:
@@ -204,7 +199,7 @@ class MCPTool(Instance):
 
         Override ``_sync_call`` for the common case.  Override ``call``
         directly only when you need full async control. An override of a tool
-        that changes data must take ``endpoint_changes_lock`` itself.
+        that changes data must use ``call_with_endpoint_changes_lock`` itself.
         """
         from mcp.types import TextContent
 
@@ -218,8 +213,9 @@ class MCPTool(Instance):
         if self.read_only:
             result = await sync_to_async(self._sync_call)(endpoint, args)
         else:
-            async with endpoint_changes_lock(endpoint, self.replays_changes):
-                result = await sync_to_async(self._sync_call)(endpoint, args)
+            result = await call_with_endpoint_changes_lock(
+                endpoint, self.replays_changes, self._sync_call, endpoint, args
+            )
         text = result if isinstance(result, str) else json.dumps(result)
         return [TextContent(type="text", text=text)]
 

@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
+from baserow.core.action.signals import ActionCommandType
 from baserow.core.exceptions import LockConflict
 from baserow.core.mcp.constants import LOCKED_MESSAGE
 from baserow.core.mcp.groups import GROUP_WORKSPACE_UNDO
@@ -32,6 +33,47 @@ def _describe(actions: List[Action]) -> list[dict]:
         }
         for action in actions
     ]
+
+
+def _redo(user, scopes, session) -> List[Action]:
+    """
+    `ActionHandler.redo`, except for a part of a call whose undo failed. The
+    handler would take that part together with the parts undone right before it,
+    up to `MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP`, and only mark them all as not
+    undone. Here only the actions whose undo failed together are, so the parts
+    that were really undone are redone next.
+    """
+
+    latest = (
+        Action.objects.filter(user=user, session=session, undone_at__isnull=False)
+        .order_by("-undone_at", "-created_on", "-id")
+        .select_for_update(of=("self",))
+        .first()
+    )
+    if latest is None or latest.error is None or latest.action_group is None:
+        return ActionHandler.redo(user, scopes, session)
+    if Action.objects.filter(
+        user=user,
+        session=session,
+        undone_at__isnull=True,
+        created_on__gt=latest.undone_at,
+    ).exists():
+        return []
+    failed_together = Action.objects.filter(
+        user=user,
+        session=session,
+        action_group=latest.action_group,
+        undone_at=latest.undone_at,
+        error__isnull=False,
+    )
+    ids = list(failed_together.values_list("id", flat=True))
+    Action.objects.filter(pk__in=ids).update(undone_at=None)
+    actions = list(Action.objects.filter(pk__in=ids).order_by("created_on", "id"))
+    user.web_socket_id = None
+    ActionHandler.send_action_done_signal_for_actions(
+        user, actions, ActionCommandType.REDO
+    )
+    return actions
 
 
 def _replay(
@@ -153,7 +195,7 @@ class RedoMcpTool(MCPTool):
     def _sync_call(self, endpoint: MCPEndpoint, args: NoInput) -> list[dict]:
         return _replay(
             endpoint,
-            ActionHandler.redo,
+            _redo,
             lambda: Action.objects.filter(undone_at__isnull=False).order_by(
                 "-undone_at", "-created_on", "-id"
             ),
