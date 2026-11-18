@@ -18,7 +18,6 @@ from baserow.contrib.agent.operations import (
 )
 from baserow.contrib.agent.registries import (
     agent_data_provider_type_registry,
-    agent_tool_type_registry,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
@@ -286,7 +285,7 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
-            **AgentHandler().get_tool_configuration(application),
+            **AgentHandler().get_exported_tool_configuration(application),
             integrations=[
                 IntegrationHandler().export_integration(
                     integration,
@@ -381,25 +380,19 @@ class AgentApplicationType(ApplicationType):
             "web_fetch_enabled", False
         )
         application.save()
-        registered = agent_tool_type_registry.get_types()
-        allowed_tools = (
-            [
-                name
-                for name in serialized_values.get("allowed_tools", [])
-                if name in registered
-            ]
-            if application.run_as_subject_type and application.run_as_subject_id
-            else []
+        handler = AgentHandler()
+        tools = handler.filter_tool_choices(
+            serialized_values.get("allowed_tools") or [],
+            serialized_values.get("ask_first_tools") or [],
         )
-        AgentHandler().set_allowed_tools(
-            application,
-            allowed_tools,
-            [
-                name
-                for name in serialized_values.get("ask_first_tools", [])
-                if name in allowed_tools
-            ],
-        )
+        if application.run_as_subject_type and application.run_as_subject_id:
+            handler.set_allowed_tools(
+                application, tools["allowed_tools"], tools["ask_first_tools"]
+            )
+        elif tools["allowed_tools"]:
+            # Without an identity tools are off. They wait for the first one.
+            application.pending_tool_choices = tools
+            application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(
                 application,

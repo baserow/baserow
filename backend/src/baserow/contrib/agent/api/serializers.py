@@ -127,6 +127,11 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="The names of the allowed tools that wait for the conversation "
         "owner's approval before they run.",
     )
+    pending_tools = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The tools an imported agent turns on when an identity is first "
+        "selected without choosing tools.",
+    )
     available_tools = serializers.SerializerMethodField(
         help_text="Every tool an agent can be allowed to call, with its group and "
         "whether it changes data."

@@ -1119,3 +1119,97 @@ def test_duplicate_and_template_storage_keep_the_author_model(
     assert import_agent_with_models(
         data_fixture, agent, config, {"anthropic": ["claude-y"]}, mocker
     ) == ("openai", "gpt-x")
+
+
+def agent_with_tools(data_fixture, configured_agent, user):
+    agent = configured_agent(user=user)
+    identity = data_fixture.create_identity(workspace=agent.workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+    AgentHandler().set_allowed_tools(
+        agent, ["create_rows", "list_tables"], ask_first_names=["create_rows"]
+    )
+    return agent
+
+
+def install_as_template(data_fixture, agent, user, serialized=None):
+    if serialized is None:
+        serialized = export_for_template([agent])[0]
+    return AgentApplicationType().import_serialized(
+        data_fixture.create_workspace(user=user),
+        serialized,
+        TEMPLATE_INSTALL_CONFIG,
+        {},
+    )
+
+
+@pytest.mark.django_db
+def test_template_install_keeps_tool_choices_pending(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+
+    installed = install_as_template(data_fixture, agent, user)
+
+    assert not installed.allowed_tools.exists()
+    assert installed.pending_tool_choices == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["create_rows"],
+    }
+
+
+@pytest.mark.django_db
+def test_pending_tool_choices_drop_unregistered_tools(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    serialized = export_for_template([agent])[0]
+    serialized["allowed_tools"] = ["gone_tool", "list_tables"]
+    serialized["ask_first_tools"] = ["gone_tool", "list_tables", "create_rows"]
+
+    installed = install_as_template(data_fixture, agent, user, serialized)
+
+    assert installed.pending_tool_choices == {
+        "allowed_tools": ["list_tables"],
+        "ask_first_tools": ["list_tables"],
+    }
+
+
+@pytest.mark.django_db
+def test_old_payload_without_tool_keys_has_no_pending_choices(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    serialized = export_for_template([agent])[0]
+    serialized.pop("allowed_tools", None)
+    serialized.pop("ask_first_tools", None)
+
+    installed = install_as_template(data_fixture, agent, user, serialized)
+
+    assert installed.pending_tool_choices is None
+
+
+@pytest.mark.django_db
+def test_internal_copy_keeps_tools_without_pending_choices(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+
+    assert duplicate.pending_tool_choices is None
+    assert duplicate.allowed_tools.count() == 2
+
+
+@pytest.mark.django_db
+def test_reexport_of_an_installed_agent_keeps_pending_choices(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+    installed = install_as_template(data_fixture, agent, user)
+
+    serialized = export_for_template([installed])[0]
+
+    assert serialized["allowed_tools"] == ["list_tables", "create_rows"]
+    assert serialized["ask_first_tools"] == ["create_rows"]

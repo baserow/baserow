@@ -52,6 +52,8 @@ class AgentConfiguration:
     web_search_blocked_by_tools: bool
     web_fetch_enabled: bool
     ask_first_tools: list[str]
+    pending_tools: list[str]
+    """The tools an imported Agent turns on when an identity is first picked."""
     available_trigger_types: list[str]
     available_action_types: list[str]
     max_actions: int | None
