@@ -1,47 +1,56 @@
 <template>
-  <FormGroup
-    :label="$t('personalApplication.access')"
-    small-label
-    class="margin-bottom-2"
-  >
-    <Radio
-      :name="groupName"
-      :model-value="selected"
-      value="collaborative"
-      @update:model-value="select"
-    >
-      {{ $t('personalApplication.collaborative') }}
-    </Radio>
-    <div class="margin-bottom-1">
-      {{ $t('personalApplication.workspaceRoles') }}
+  <fieldset class="application-access">
+    <legend class="control__label control__label--small">
+      {{ $t('personalApplication.access') }}
+    </legend>
+    <div class="application-access__options">
+      <template v-for="option in options" :key="option.value">
+        <button
+          v-if="option.locked"
+          type="button"
+          class="application-access__option"
+          aria-haspopup="dialog"
+          :title="$t('personalApplication.unlock')"
+          :aria-label="$t('personalApplication.unlock')"
+          :aria-describedby="groupName + '-' + option.value"
+          @click="$refs.upgrade.show()"
+        >
+          <i class="iconoir-lock" aria-hidden="true"></i>
+          <span class="application-access__label">{{ option.label }}</span>
+          <span
+            :id="groupName + '-' + option.value"
+            class="application-access__description"
+          >
+            {{ option.description }}
+          </span>
+        </button>
+        <label v-else class="application-access__option">
+          <input
+            type="radio"
+            :name="groupName"
+            :value="option.value"
+            :checked="selected === option.value"
+            :aria-label="option.label"
+            :aria-describedby="groupName + '-' + option.value"
+            @change="select(option.value)"
+          />
+          <span class="application-access__label">{{ option.label }}</span>
+          <span
+            :id="groupName + '-' + option.value"
+            class="application-access__description"
+          >
+            {{ option.description }}
+          </span>
+        </label>
+      </template>
     </div>
-    <Radio
-      v-if="licensed"
-      :name="groupName"
-      :model-value="selected"
-      value="personal"
-      @update:model-value="select"
-    >
-      {{ $t('personalApplication.personal') }}
-    </Radio>
-    <Button
-      v-else
-      type="secondary"
-      size="small"
-      button-type="button"
-      icon="iconoir-lock"
-      @click="$refs.upgrade.show()"
-    >
-      {{ $t('personalApplication.personal') }}
-    </Button>
-    <div>{{ $t('personalApplication.initialAccess') }}</div>
     <PaidFeaturesModal
       v-if="!licensed"
       ref="upgrade"
       initial-selected-type="rbac"
       :workspace="workspace"
     />
-  </FormGroup>
+  </fieldset>
 </template>
 
 <script>
@@ -66,6 +75,21 @@ export default {
     },
     selected() {
       return this.values.access_policy || 'collaborative'
+    },
+    options() {
+      return [
+        {
+          value: 'collaborative',
+          label: this.$t('personalApplication.collaborative'),
+          description: this.$t('personalApplication.workspaceRoles'),
+        },
+        {
+          value: 'personal',
+          label: this.$t('personalApplication.personal'),
+          description: this.$t('personalApplication.initialAccess'),
+          locked: !this.licensed,
+        },
+      ]
     },
   },
   methods: {

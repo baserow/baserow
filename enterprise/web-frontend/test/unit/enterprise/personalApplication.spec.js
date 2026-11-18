@@ -41,13 +41,18 @@ async function mountForm(licensed) {
 
 test('Personal adds a policy to the submitted application, Collaborative removes it', async () => {
   const { wrapper } = await mountForm(true)
-  await wrapper.get('input[value="personal"]').trigger('click')
+  const group = wrapper.get('fieldset')
+  const collaborative = group.get('input[value="collaborative"]')
+  const personal = group.get('input[value="personal"]')
+  expect(collaborative.element.checked).toBe(true)
+  expect(personal.element.name).toBe(collaborative.element.name)
+  await personal.setValue()
   await wrapper.get('form').trigger('submit')
   expect(wrapper.emitted('submitted')[0][0]).toEqual({
     name: 'Test app',
     access_policy: 'personal',
   })
-  await wrapper.get('input[value="collaborative"]').trigger('click')
+  await collaborative.setValue()
   await wrapper.get('form').trigger('submit')
   expect(wrapper.emitted('submitted')[1][0]).toEqual({ name: 'Test app' })
 })
@@ -56,8 +61,11 @@ test('locked Personal opens the RBAC upgrade modal and leaves the form collabora
   const { wrapper, show } = await mountForm(false)
   const button = wrapper.get('button[type="button"]')
   expect(button.find('.iconoir-lock').exists()).toBe(true)
+  expect(button.attributes('aria-haspopup')).toBe('dialog')
   await button.trigger('click')
   expect(show).toHaveBeenCalledOnce()
+  expect(wrapper.emitted('submitted')).toBeUndefined()
+  expect(wrapper.get('input[value="collaborative"]').element.checked).toBe(true)
   expect(
     wrapper
       .getComponent(PersonalApplicationForm)

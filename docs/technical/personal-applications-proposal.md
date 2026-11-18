@@ -12,8 +12,9 @@ application Admin grant for its creator. Anyone who directly holds the workspace
 Admin role can also see and manage it, including managing its access if the
 creator leaves. Other members gain access through explicit grants to themselves
 or their teams. Sharing the app through the existing RBAC invitation dialog
-keeps it Personal. The creation form should say “You and workspace admins can
-access this app. You can invite others later.”
+keeps it Personal.
+
+![Database creation dialog with Collaborative and Personal access choices](../assets/screenshot_personal_application.png)
 
 | Actor | Collaborative app | Personal app |
 | --- | --- | --- |
