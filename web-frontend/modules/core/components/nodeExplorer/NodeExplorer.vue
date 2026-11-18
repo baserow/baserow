@@ -48,6 +48,9 @@
             @toggle="toggleNode"
           />
         </template>
+        <div v-else class="node-explorer__content--empty" role="status">
+          {{ $t('nodeExplorer.noDataAvailable') }}
+        </div>
       </template>
     </div>
   </div>
@@ -105,7 +108,8 @@ export default {
       type: String,
       required: false,
       default: 'none',
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
   },
   emits: ['node-selected', 'node-toggled', 'node-unselected', 'example-click'],

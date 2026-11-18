@@ -5919,7 +5919,10 @@ def test_grouped_aggregate_rows_service_public_schema_and_context_data(data_fixt
         == schema["items"]["properties"][f"{field.db_column}_sum"]
     )
     assert service_type.get_public_context_data(service) == {
-        "fields": {group_by_field.db_column: public_metadata}
+        group_by_field.db_column: [
+            {"id": option.id, "value": "Books", "color": "blue"}
+        ],
+        "fields": {group_by_field.db_column: public_metadata},
     }
 
 

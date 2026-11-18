@@ -6,13 +6,18 @@
       'dashboard-widget--selected': isSelected,
       'dashboard-widget--selectable': isSelectable,
       'dashboard-widget--layout-editable': isLayoutEditable,
+      'dashboard-widget--plain': !widgetType.hasCard,
     }"
     @click="selectWidgetIfAllowed(widget.id)"
   >
-    <div v-if="isSelected && isEditMode" class="dashboard-widget__name">
+    <div
+      v-if="widgetType.hasCard && isSelected && isEditMode"
+      class="dashboard-widget__name"
+    >
       {{ widgetType.name }}
     </div>
     <div
+      v-if="widgetType.hasCard"
       class="widget__header"
       :class="{
         'widget__header--edit-mode': isEditMode,
@@ -22,6 +27,15 @@
       <div class="widget__header-main">
         <div class="widget__header-title-wrapper">
           <div class="widget__header-title">{{ widget.title }}</div>
+          <span
+            v-if="isFiltered"
+            v-tooltip="$t('widget.filteredResults')"
+            class="dashboard-widget__filter-status"
+            role="img"
+            :aria-label="$t('widget.filteredResults')"
+          >
+            <i class="iconoir-filter" aria-hidden="true"></i>
+          </span>
           <span
             v-if="isMisconfigured"
             v-tooltip="$t('widget.fixConfiguration')"
@@ -48,7 +62,15 @@
       :widget="widget"
       :store-prefix="storePrefix"
       :loading="isLoading"
-    />
+    >
+      <template v-if="!widgetType.hasCard && isEditMode" #actions>
+        <WidgetContextMenu
+          :widget="widget"
+          :dashboard="dashboard"
+          @delete-widget="$emit('delete-widget', $event)"
+        />
+      </template>
+    </component>
   </div>
 </template>
 
@@ -106,6 +128,13 @@ export default {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/getData`
       ]
+    },
+    isFiltered() {
+      return (
+        this.widgetType.isDisplayWidget &&
+        this.widgetType.getDataSourceData(this.widget, this.widgetData)
+          ?._is_filtered === true
+      )
     },
     isMisconfigured() {
       return this.widgetType.isMisconfigured(this.widget, this.widgetData)

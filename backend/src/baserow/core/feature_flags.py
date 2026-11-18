@@ -2,6 +2,7 @@ from django.conf import settings
 
 from baserow.core.exceptions import FeatureDisabledException
 
+FF_DASHBOARD_FILTERS = "dashboard-filters"
 FF_ENABLE_ALL = "*"
 FF_IDENTITIES = "identities"
 FF_AGENT_BUILDER = "agent-builder"

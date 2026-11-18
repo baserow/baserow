@@ -30,6 +30,9 @@ function mountDashboardWidget({
     component: LoadingWidgetContent,
     isLoading: (_widget, data) => !data[1],
     isMisconfigured: () => isMisconfigured,
+    hasCard: true,
+    isDisplayWidget: true,
+    getDataSourceData: (_widget, data) => data[1],
     showHeaderBorder,
   }
 
@@ -76,6 +79,26 @@ function mountDashboardWidget({
 }
 
 describe('DashboardWidget', () => {
+  test('shows the filtered indicator only for filtered results', async () => {
+    const { wrapper, data } = mountDashboardWidget({ isLoading: false })
+    expect(wrapper.find('.dashboard-widget__filter-status').exists()).toBe(
+      false
+    )
+    data[1] = { result: 10, _is_filtered: true }
+    await nextTick()
+    const indicator = wrapper.get('.dashboard-widget__filter-status')
+    expect(indicator.attributes('aria-label')).toBe('widget.filteredResults')
+    expect(indicator.find('.iconoir-filter').exists()).toBe(true)
+    expect(indicator.element.previousElementSibling.textContent).toBe(
+      'Loading chart'
+    )
+    data[1] = { result: 42 }
+    await nextTick()
+    expect(wrapper.find('.dashboard-widget__filter-status').exists()).toBe(
+      false
+    )
+  })
+
   test('covers the header and data with one skeleton while the widget is loading', () => {
     const { wrapper } = mountDashboardWidget()
 

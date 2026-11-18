@@ -165,6 +165,10 @@ class DataProviderType(
         context created by the get_context method and stored in the context.
         """
 
+    def validate_data(self, dispatch_context: DispatchContext):
+        """Validate this provider's incoming dispatch data when validation is requested."""
+        return None
+
     def import_path(
         self, path: List[str], id_mapping: Dict[int, int], **kwargs
     ) -> List[str]:

@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils'
 import Dropdown from '@baserow/modules/core/components/Dropdown'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -220,5 +221,106 @@ describe('Dropdown component', () => {
     })
     children = await wrapper.vm.getDropdownItemComponents()
     expect(children.length).toEqual(4)
+  })
+
+  describe('fixed menu placement', () => {
+    let viewportHeight
+
+    beforeEach(() => {
+      viewportHeight = vi
+        .spyOn(window, 'innerHeight', 'get')
+        .mockReturnValue(800)
+    })
+
+    afterEach(() => vi.restoreAllMocks())
+
+    const mockMenuHeight = (wrapper, scrollHeight = 300) => {
+      const menu = wrapper.find('.dropdown__items').element
+      const items = wrapper.find('.select__items').element
+      // The list is constrained, but search and footer still take up 120px.
+      vi.spyOn(menu, 'offsetHeight', 'get').mockReturnValue(160)
+      vi.spyOn(items, 'clientHeight', 'get').mockReturnValue(40)
+      vi.spyOn(items, 'scrollHeight', 'get').mockReturnValue(scrollHeight)
+      return menu
+    }
+
+    const openFloatingMenu = async ({ top = 560, scrollHeight = 300 } = {}) => {
+      const wrapper = await testApp.mount({
+        components: { Dropdown },
+        template: `
+          <div>
+            <button @click="$refs.dropdown.show($event.currentTarget)">Add options</button>
+            <Dropdown ref="dropdown" :show-input="false" :tabindex="-1" fixed-items show-footer>
+              <DropdownItem value="a" name="A" />
+              <DropdownItem value="b" name="B" />
+              <template #footer><button>Apply</button></template>
+            </Dropdown>
+          </div>
+        `,
+      })
+      vi.spyOn(
+        wrapper.find('button').element,
+        'getBoundingClientRect'
+      ).mockReturnValue(new DOMRect(120, top, 280, 36))
+      vi.spyOn(
+        wrapper.find('.dropdown').element,
+        'getBoundingClientRect'
+      ).mockReturnValue(new DOMRect(40, 650, 100, 0))
+      const menu = mockMenuHeight(wrapper, scrollHeight)
+      await wrapper.find('button').trigger('click')
+      await flushPromises()
+      return menu
+    }
+
+    test('opens above an external button when the full list and footer do not fit below, and repositions after resize', async () => {
+      // 184px remains below the button: more than the old 140px threshold.
+      const menu = await openFloatingMenu()
+      expect(menu.style.left).toBe('120px')
+      expect(menu.style.minWidth).toBe('280px')
+      expect(menu.style.top).toBe('auto')
+      expect(menu.style.bottom).toBe('240px')
+      expect(menu.style.maxHeight).toBe('540px')
+
+      viewportHeight.mockReturnValue(1100)
+      window.dispatchEvent(new Event('resize'))
+      expect(menu.style.top).toBe('596px')
+      expect(menu.style.bottom).toBe('auto')
+      expect(menu.style.maxHeight).toBe('484px')
+    })
+
+    test('opens below an external button when there is enough space', async () => {
+      const menu = await openFloatingMenu({ top: 80 })
+      expect(menu.style.top).toBe('116px')
+      expect(menu.style.bottom).toBe('auto')
+      expect(menu.style.maxHeight).toBe('664px')
+    })
+
+    test('keeps a short menu below the button even when there is more space above', async () => {
+      const menu = await openFloatingMenu({ scrollHeight: 40 })
+      expect(menu.style.top).toBe('596px')
+      expect(menu.style.bottom).toBe('auto')
+      expect(menu.style.maxHeight).toBe('184px')
+    })
+
+    test('preserves the inline fixed dropdown alignment and minimum-height threshold', async () => {
+      const wrapper = await mountComponent({
+        props: { fixedItems: true, showFooter: true },
+        slots: {
+          default: '<DropdownItem value="a" name="A" />',
+          footer: '<button>Apply</button>',
+        },
+      })
+      vi.spyOn(wrapper.element, 'getBoundingClientRect').mockReturnValue(
+        new DOMRect(40, 560, 320, 36)
+      )
+      const menu = mockMenuHeight(wrapper)
+      await wrapper.find('.dropdown__selected').trigger('click')
+      await flushPromises()
+      expect(menu.style.left).toBe('40px')
+      expect(menu.style.minWidth).toBe('320px')
+      expect(menu.style.top).toBe('560px')
+      expect(menu.style.bottom).toBe('auto')
+      expect(menu.style.maxHeight).toBe('calc(100vh - 580px)')
+    })
   })
 })

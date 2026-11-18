@@ -355,7 +355,6 @@
     "viewFieldLabel": "View",
     "tableFieldLabel": "Table",
     "chooseNoView": "Not selected",
-    "databaseFieldLabel": "Database",
     "oneWayDataSyncedTableDescription": "One-way synced",
     "twoWayDataSyncedTableDescription": "Two-way synced"
   },

@@ -1105,16 +1105,7 @@ test.describe("Button field", () => {
     await openFieldEditor(page, "Retarget");
     await expandAction(page, 0);
     const actionForm = page.locator(".button-field-action-list__form");
-    // Database first, then table: the second dropdown of the pair.
-    const tableDropdown = actionForm.locator(".dropdown").nth(1);
-
-    const pickTable = async (name: string) => {
-      await tableDropdown.click();
-      await page
-        .locator(".dropdown__items:visible")
-        .locator(".select__item-link", { hasText: name })
-        .click();
-    };
+    const pickTable = (name: string) => pickTableOn(page, 0, "Button DB", name);
 
     // Switched back straight away, so the first table's fields are still in
     // flight when the second request goes out.
@@ -1244,17 +1235,7 @@ test.describe("Button field", () => {
       .click();
 
     await expandAction(page, 0);
-    // Database first, then table: the second dropdown of the pair.
-    const actionForm = page.locator(".button-field-action-list__form");
-    const pick = async (index: number, name: string) => {
-      await actionForm.locator(".dropdown").nth(index).click();
-      await page
-        .locator(".dropdown__items:visible")
-        .locator(".select__item-link", { hasText: name })
-        .click();
-    };
-    await pick(0, "Button DB");
-    await pick(1, "Tickets");
+    await pickTableOn(page, 0, "Button DB", "Tickets");
 
     await page.locator(".field-context button", { hasText: "Save" }).click();
 
@@ -1394,8 +1375,7 @@ test.describe("Button field", () => {
     await expect(page.locator(".grid-view__right")).toBeVisible();
 
     const form = page.locator(".button-field-action-list__form");
-    // Database first, then table.
-    const targetTable = form.locator(".dropdown__selected-text").nth(1);
+    const targetTable = form.locator(".dropdown__selected-text").first();
 
     // "Run" targets the table it lives on, so the copy's version follows the
     // copy.

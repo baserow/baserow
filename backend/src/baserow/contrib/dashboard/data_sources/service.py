@@ -18,6 +18,7 @@ from baserow.contrib.dashboard.data_sources.operations import (
     UpdateDashboardDataSourceOperationType,
 )
 from baserow.contrib.dashboard.handler import DashboardHandler
+from baserow.contrib.dashboard.widgets.signals import widget_updated
 from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import InvalidServiceTypeDispatchSource
 from baserow.core.services.registries import (
@@ -214,11 +215,47 @@ class DashboardDataSourceService:
             data_source, service_type=service_type, **prepared_values
         )
 
+        for widget in updated_data_source.updated_filter_widgets:
+            if not widget.trashed:
+                widget_updated.send(self, user=user, widget=widget)
+
         dashboard_data_source_updated.send(
             self, user=user, data_source=updated_data_source.data_source
         )
 
         return updated_data_source
+
+    def restore_data_source(
+        self, user, data_source_id, service_type, values, filter_links=None
+    ):
+        """Replay a saved configuration, including conditions cleared by table changes."""
+        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
+
+        updated = self.update_data_source(user, data_source_id, service_type, **values)
+        service = updated.data_source.service.specific
+        if "service_filters" in values or "service_filter_groups" in values:
+            service_type.update_service_filters(
+                service,
+                values.get("service_filters"),
+                values.get("service_filter_groups"),
+            )
+        filter_links = filter_links or {}
+        for widget in WidgetHandler().get_widgets_for_update(
+            updated.data_source.dashboard,
+            base_queryset=Widget.objects_and_trash.all(),
+        ):
+            widget = widget.specific
+            original_links = filter_links.get(str(widget.id))
+            restoration_data = (
+                {"target_filters": original_links} if original_links is not None else {}
+            )
+            changed = widget.get_type().after_data_source_restore(
+                widget, updated, restoration_data
+            )
+            if changed and not widget.trashed:
+                widget_updated.send(self, user=user, widget=widget)
+        return updated
 
     def delete_data_source(self, user: AbstractUser, data_source_id: int):
         """

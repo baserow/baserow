@@ -328,3 +328,33 @@ def test_widget_layout_handler_preserves_columns_and_fills_vertical_gaps(
             "grid_height": 4,
         },
     ]
+
+
+@pytest.mark.django_db
+def test_get_widgets_request_cache_is_scoped_and_invalidated(
+    data_fixture, django_assert_num_queries
+):
+    """Default widget reads share a cache; custom querysets and later edits stay correct."""
+    from baserow.core.cache import local_cache
+
+    widget = data_fixture.create_summary_widget()
+    dashboard = widget.dashboard
+    handler = WidgetHandler()
+    with local_cache.context():
+        first = list(handler.get_widgets(dashboard, with_cache=True))
+        with django_assert_num_queries(0):
+            assert list(handler.get_widgets(dashboard, with_cache=True)) == first
+        assert (
+            list(
+                handler.get_widgets(
+                    dashboard, base_queryset=Widget.objects.none(), with_cache=True
+                )
+            )
+            == []
+        )
+        generic = list(handler.get_widgets(dashboard, specific=False, with_cache=True))
+        assert type(generic[0]) is Widget
+        widget.title = "New title"
+        widget.save(update_fields=["title"])
+        refreshed = list(handler.get_widgets(dashboard, with_cache=True))
+        assert refreshed[0].title == "New title"

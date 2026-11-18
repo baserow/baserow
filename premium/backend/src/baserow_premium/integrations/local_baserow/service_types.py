@@ -94,10 +94,12 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     def get_schema_name(self, service: LocalBaserowGroupedAggregateRows) -> str:
         return f"GroupedAggregation{service.id}Schema"
 
-    def get_context_data_schema(
-        self, service: LocalBaserowGroupedAggregateRows
-    ) -> dict | None:
-        return None
+    def import_context_path(self, path, id_mapping, **kwargs):
+        """Remap references into the grouped source's existing context data."""
+        if len(path) >= 2 and path[0] == "fields":
+            field_name = self.import_property_name(path[1], id_mapping) or path[1]
+            return ["fields", field_name, *path[2:]]
+        return super().import_context_path(path, id_mapping, **kwargs)
 
     def prepare_record_ids(self, record_ids: list[Any]) -> list[str]:
         return [str(record_id) for record_id in record_ids if record_id != ""]
@@ -1005,7 +1007,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         service: LocalBaserowGroupedAggregateRows,
         allowed_fields: list[str] | None = None,
     ) -> dict:
-        return self._get_fields_context_data(service, public=False)
+        return {
+            **(super().get_context_data(service, allowed_fields) or {}),
+            **self._get_fields_context_data(service, public=False),
+        }
 
     def get_public_context_data(
         self,
@@ -1014,7 +1019,10 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     ) -> dict:
         # Anonymous visitors only need the grouped fields to format the grouped
         # values, never their configuration.
-        return self._get_fields_context_data(service, public=True)
+        return {
+            **(super().get_public_context_data(service, allowed_fields) or {}),
+            **self._get_fields_context_data(service, public=True),
+        }
 
     def _get_fields_context_data(
         self, service: LocalBaserowGroupedAggregateRows, public: bool
@@ -1449,4 +1457,4 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         if len(path) >= 1 and path[0] in result_properties:
             return [path[0]]
 
-        return []
+        return super().extract_properties(service, path, **kwargs)

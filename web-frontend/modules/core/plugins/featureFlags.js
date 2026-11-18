@@ -1,5 +1,6 @@
 import { useRuntimeConfig } from '#imports'
 
+export const FF_DASHBOARD_FILTERS = 'dashboard-filters'
 const FF_ENABLE_ALL = '*'
 export const FF_IDENTITIES = 'identities'
 export const FF_AGENT_BUILDER = 'agent-builder'
