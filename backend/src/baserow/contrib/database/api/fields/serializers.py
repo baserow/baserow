@@ -614,13 +614,7 @@ class AvailableCollaboratorSerializer(CollaboratorSerializer):
 
 
 class AvailableCollaboratorsSerializer(serializers.ListField):
-    def __init__(self, include_identities_source: str | None = None, **kwargs):
-        """
-        :param include_identities_source: The name of the field attribute that
-            tells whether identities are collaborators too. Humans only when None.
-        """
-
-        self.include_identities_source = include_identities_source
+    def __init__(self, **kwargs):
         kwargs["child"] = AvailableCollaboratorSerializer()
         kwargs["read_only"] = True
         kwargs["source"] = "*"
@@ -641,12 +635,11 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
             workspace.available_collaborators = (
                 CoreHandler()
                 .get_workspace_collaborators(workspace, include_identities=True)
+                .filter(profile__to_be_deleted=False)
                 .order_by("first_name")
             )
-        include_identities = bool(
-            self.include_identities_source
-            and getattr(instance, self.include_identities_source)
-        )
+        # Only a field with the option can leave identities out of its values.
+        include_identities = getattr(instance, "include_identities", True)
         people = [user for user in workspace.available_collaborators if is_human(user)]
         identities = [
             user

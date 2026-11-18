@@ -68,6 +68,15 @@ def get_user_label(user: AbstractUser) -> str:
     return user.first_name if has_internal_email(user) else user.email
 
 
+def collaborator_q(include_identities: bool, user_lookup: str = "") -> Q:
+    """Select the people, and optionally the active identities, among users."""
+
+    kinds = Q(**{f"{user_lookup}profile__user_type": "human"})
+    if include_identities:
+        kinds |= active_identity_q(user_lookup)
+    return kinds
+
+
 def active_identity_q(user_lookup: str = "") -> Q:
     """Select identities eligible for new assignments and run-as choices."""
 

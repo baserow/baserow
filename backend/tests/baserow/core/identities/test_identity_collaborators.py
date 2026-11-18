@@ -62,11 +62,20 @@ def test_identities_are_not_collaborators_unless_the_field_includes_them(
         field_type.prepare_value_for_db(field, [{"id": identity.id}])
     with pytest.raises(AllProvidedCollaboratorIdsMustBeValidUsers):
         field_type.prepare_value_for_db_in_bulk(field, {0: [{"id": identity.id}]})
-    assert AvailableCollaboratorsSerializer(
-        include_identities_source="include_identities"
-    ).to_representation(field) == [
+    assert AvailableCollaboratorsSerializer().to_representation(field) == [
         {"id": person.id, "name": "Person", "user_type": "human"}
     ]
+
+
+@pytest.mark.django_db
+def test_no_workspace_has_no_collaborators(data_fixture):
+    data_fixture.create_user()
+
+    collaborators = CoreHandler().get_workspace_collaborators(
+        None, include_identities=True
+    )
+
+    assert not collaborators.exists()
 
 
 @pytest.mark.django_db
@@ -89,9 +98,7 @@ def test_a_field_that_includes_identities_rejects_unavailable_ones(
     else:
         identity = data_fixture.create_identity()
 
-    available = AvailableCollaboratorsSerializer(
-        include_identities_source="include_identities"
-    ).to_representation(field)
+    available = AvailableCollaboratorsSerializer().to_representation(field)
     assert identity.id not in {option["id"] for option in available}
     assert (
         not CoreHandler()
@@ -124,9 +131,7 @@ def test_assigned_identity_is_shown_never_notified_and_hidden_while_trashed(
 
     assert shown() == {identity.id, person.id}
     assert not NotificationRecipient.objects.filter(recipient_id=identity.id).exists()
-    assert AvailableCollaboratorsSerializer(
-        include_identities_source="include_identities"
-    ).to_representation(field) == [
+    assert AvailableCollaboratorsSerializer().to_representation(field) == [
         {"id": person.id, "name": "Person", "user_type": "human"},
         {"id": identity.id, "name": "Ops", "user_type": "identity"},
     ]
@@ -139,8 +144,13 @@ def test_assigned_identity_is_shown_never_notified_and_hidden_while_trashed(
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+@pytest.mark.parametrize(
+    "as_default",
+    [lambda user: {"id": user.id}, lambda user: user.id],
+    ids=["objects", "ids"],
+)
 def test_excluding_identities_deletes_their_values_and_undo_restores_them(
-    data_fixture, collaborators
+    data_fixture, collaborators, as_default
 ):
     person, table, identity, field = collaborators
     view = data_fixture.create_grid_view(table=table)
@@ -148,7 +158,7 @@ def test_excluding_identities_deletes_their_values_and_undo_restores_them(
         view=view,
         field=field,
         enabled=True,
-        value=[{"id": identity.id}, {"id": person.id}],
+        value=[as_default(identity), as_default(person)],
     )
     count = FieldHandler().create_field(
         person, table, "formula", name="Count", formula=f"count(field('{field.name}'))"
@@ -171,7 +181,7 @@ def test_excluding_identities_deletes_their_values_and_undo_restores_them(
     assert assigned_ids(table, field, row) == {person.id}
     assert counted() == 1
     view_default.refresh_from_db()
-    assert view_default.value == [{"id": person.id}]
+    assert view_default.value == [as_default(person)]
 
     ActionHandler.undo(person, [UpdateFieldActionType.scope(table.id)], "session")
 
@@ -179,6 +189,40 @@ def test_excluding_identities_deletes_their_values_and_undo_restores_them(
     assert field.include_identities
     assert assigned_ids(table, field, row) == {identity.id, person.id}
     assert counted() == 2
+
+
+@pytest.mark.django_db
+def test_excluding_identities_backs_up_only_a_field_that_assigns_one(collaborators):
+    person, table, identity, field = collaborators
+    field_type = MultipleCollaboratorsFieldType()
+    excluding = {"include_identities": False}
+
+    RowHandler().create_row(person, table, {field.id: [{"id": person.id}]})
+    assert not field_type.should_backup_field_data_for_same_type_update(
+        field, excluding
+    )
+    assert not field_type.should_update_search_data(field, excluding)
+
+    RowHandler().create_row(person, table, {field.id: [{"id": identity.id}]})
+    assert field_type.should_backup_field_data_for_same_type_update(field, excluding)
+    assert field_type.should_update_search_data(field, excluding)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_field", ["create_created_by_field", "create_last_modified_by_field"]
+)
+def test_fields_without_the_option_list_identities_but_nobody_leaving(
+    data_fixture, collaborators, create_field
+):
+    person, table, identity, _ = collaborators
+    data_fixture.create_user(workspace=table.database.workspace, to_be_deleted=True)
+    field = getattr(data_fixture, create_field)(table=table)
+
+    assert AvailableCollaboratorsSerializer().to_representation(field) == [
+        {"id": person.id, "name": "Person", "user_type": "human"},
+        {"id": identity.id, "name": "Ops", "user_type": "identity"},
+    ]
 
 
 @pytest.mark.django_db

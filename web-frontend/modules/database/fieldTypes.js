@@ -5208,7 +5208,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
             const email = matches ? matches[2] : emailOrName
             // Exports write an identity as `$name <identity>`: it has no email.
             const identityName =
-              email === 'identity' ? matches[1].trim() : undefined
+              matches && email === 'identity' ? matches[1].trim() : undefined
             return collaborators.find(
               (collaborator) =>
                 collaborator.email === email ||

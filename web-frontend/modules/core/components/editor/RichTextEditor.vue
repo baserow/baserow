@@ -183,36 +183,39 @@ export default {
     resolvedMenuContainer() {
       return this.menuContainer ?? (() => document.body)
     },
+    mentionNames() {
+      return this.mentionableUsers
+        ? new Map(
+            this.mentionableUsers.map((user) => [user.user_id, user.name])
+          )
+        : null
+    },
   },
   watch: {
-    mentionableUsers: {
-      deep: true,
-      handler(users) {
-        if (!this.editor || !users) {
+    mentionNames(names) {
+      if (!this.editor || !names) {
+        return
+      }
+      const transaction = this.editor.state.tr
+      this.editor.state.doc.descendants((node, position) => {
+        if (node.type.name !== 'mention') {
           return
         }
-        const names = new Map(users.map((user) => [user.user_id, user.name]))
-        const transaction = this.editor.state.tr
-        this.editor.state.doc.descendants((node, position) => {
-          if (node.type.name !== 'mention') {
-            return
-          }
-          const name = names.get(Number(node.attrs.id))
-          if (name !== undefined && name !== node.attrs.label) {
-            transaction.setNodeMarkup(position, undefined, {
-              ...node.attrs,
-              label: name,
-            })
-          }
-        })
-        if (transaction.docChanged) {
-          // A display-name refresh changes neither the saved mention nor undo history.
-          transaction
-            .setMeta('preventUpdate', true)
-            .setMeta('addToHistory', false)
-          this.editor.view.dispatch(transaction)
+        const name = names.get(Number(node.attrs.id))
+        if (name !== undefined && name !== node.attrs.label) {
+          transaction.setNodeMarkup(position, undefined, {
+            ...node.attrs,
+            label: name,
+          })
         }
-      },
+      })
+      if (transaction.docChanged) {
+        // A display-name refresh changes neither the saved mention nor undo history.
+        transaction
+          .setMeta('preventUpdate', true)
+          .setMeta('addToHistory', false)
+        this.editor.view.dispatch(transaction)
+      }
     },
     editable: {
       handler() {

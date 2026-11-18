@@ -8116,9 +8116,7 @@ class MultipleCollaboratorsFieldType(
         *request_serializer_field_names,
     ]
     serializer_field_overrides = {
-        "available_collaborators": AvailableCollaboratorsSerializer(
-            include_identities_source="include_identities"
-        ),
+        "available_collaborators": AvailableCollaboratorsSerializer(),
         **request_serializer_field_overrides,
     }
     is_many_to_many_field = True
@@ -8126,6 +8124,18 @@ class MultipleCollaboratorsFieldType(
 
     def can_represent_collaborators(self, field):
         return True
+
+    @staticmethod
+    def _get_user_id(collaborator: Dict[str, Any] | int) -> int:
+        """
+        Returns the user id of a collaborator, which the API accepts, and a view
+        default stores, as an id or as an object holding it.
+
+        :param collaborator: The collaborator as it was provided.
+        :return: The id of the user.
+        """
+
+        return collaborator["id"] if isinstance(collaborator, dict) else collaborator
 
     def _stops_including_identities(
         self, old_field: Field, new_field_attrs: Dict[str, Any]
@@ -8136,15 +8146,54 @@ class MultipleCollaboratorsFieldType(
             and new_field_attrs.get("include_identities") is False
         )
 
+    def _identity_values(
+        self, field: MultipleCollaboratorsField, model: Type[GeneratedTableModel]
+    ) -> QuerySet:
+        """
+        Returns the cell values of the field that assign an identity, trashed and
+        disabled ones included.
+
+        :param field: The collaborators field.
+        :param model: The generated model of the field's table.
+        :return: The rows of the field's relation table that point to an identity.
+        """
+
+        through_model = model._meta.get_field(field.db_column).remote_field.through
+        user_field_name = through_model._meta.get_fields()[2].name
+        identity_ids = UserProfile.objects_and_trash.filter(
+            user_type=UserProfile.UserType.IDENTITY
+        ).values("user_id")
+        return through_model.objects.filter(
+            **{f"{user_field_name}_id__in": identity_ids}
+        )
+
+    def _loses_identity_values(
+        self, old_field: Field, new_field_attrs: Dict[str, Any]
+    ) -> bool:
+        """
+        Returns whether the update deletes cell values, so a field that never held
+        an identity is neither backed up nor indexed again.
+
+        :param old_field: The field before the update.
+        :param new_field_attrs: The attributes being updated.
+        :return: Whether the field stops including identities it has assigned.
+        """
+
+        if not self._stops_including_identities(old_field, new_field_attrs):
+            return False
+
+        model = old_field.table.get_model(fields=[old_field], field_ids=[])
+        return self._identity_values(old_field, model).exists()
+
     def should_backup_field_data_for_same_type_update(
         self, old_field: MultipleCollaboratorsField, new_field_attrs: Dict[str, Any]
     ) -> bool:
-        return self._stops_including_identities(old_field, new_field_attrs)
+        return self._loses_identity_values(old_field, new_field_attrs)
 
     def should_update_search_data(
         self, old_field: MultipleCollaboratorsField, new_field_attrs: Dict[str, Any]
     ) -> bool:
-        return self._stops_including_identities(old_field, new_field_attrs)
+        return self._loses_identity_values(old_field, new_field_attrs)
 
     def after_update(
         self,
@@ -8185,14 +8234,7 @@ class MultipleCollaboratorsFieldType(
         :param model: The generated model of the field's table.
         """
 
-        identity_profiles = UserProfile.objects_and_trash.filter(
-            user_type=UserProfile.UserType.IDENTITY
-        )
-        through_model = model._meta.get_field(field.db_column).remote_field.through
-        user_field_name = through_model._meta.get_fields()[2].name
-        through_model.objects.filter(
-            **{f"{user_field_name}_id__in": identity_profiles.values("user_id")}
-        ).delete()
+        self._identity_values(field, model).delete()
 
         view_defaults = [
             view_default
@@ -8200,17 +8242,20 @@ class MultipleCollaboratorsFieldType(
             if isinstance(view_default.value, list)
         ]
         identity_ids = set(
-            identity_profiles.filter(
+            UserProfile.objects_and_trash.filter(
+                user_type=UserProfile.UserType.IDENTITY,
                 user_id__in=[
-                    user["id"]
+                    self._get_user_id(user)
                     for view_default in view_defaults
                     for user in view_default.value
-                ]
+                ],
             ).values_list("user_id", flat=True)
         )
         for view_default in view_defaults:
             humans = [
-                user for user in view_default.value if user["id"] not in identity_ids
+                user
+                for user in view_default.value
+                if self._get_user_id(user) not in identity_ids
             ]
             if len(humans) != len(view_default.value):
                 view_default.value = humans
@@ -8308,7 +8353,7 @@ class MultipleCollaboratorsFieldType(
         if len(value) == 0:
             return []
 
-        user_ids = [v["id"] if isinstance(v, dict) else v for v in value]
+        user_ids = [self._get_user_id(v) for v in value]
         workspace_users_count = (
             self._get_collaborators(instance).filter(id__in=user_ids).count()
         )
@@ -8325,7 +8370,7 @@ class MultipleCollaboratorsFieldType(
         rows_by_value = defaultdict(list)
         all_user_ids = set()
         for row_index, values in values_by_row.items():
-            user_ids = [v["id"] if isinstance(v, dict) else v for v in values]
+            user_ids = [self._get_user_id(v) for v in values]
             for user_id in user_ids:
                 rows_by_value[user_id].append(row_index)
             all_user_ids = all_user_ids.union(user_ids)
@@ -8564,10 +8609,11 @@ class MultipleCollaboratorsFieldType(
             )
 
         id_to_email = cache[cache_entry]
+        user_ids = [self._get_user_id(user) for user in value]
         return [
-            id_to_email[user["id"]]
-            for user in value
-            if isinstance(user["id"], int) and user["id"] in id_to_email
+            id_to_email[user_id]
+            for user_id in user_ids
+            if isinstance(user_id, int) and user_id in id_to_email
         ]
 
     def import_serialized_default_value(

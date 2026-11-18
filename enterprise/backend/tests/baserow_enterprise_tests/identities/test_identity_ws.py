@@ -71,6 +71,10 @@ def test_identity_events_only_reach_users_allowed_to_list_identities(
     assert broadcast.call_args.kwargs["ignore_web_socket_id"] == (
         None if event in {"role", "restore"} else "origin"
     )
+    if event == "role":
+        # A role change alters neither the name nor who can be assigned.
+        workspace_broadcast.delay.assert_not_called()
+        return
     workspace_broadcast.delay.assert_called_once()
     workspace_id, collaborator = workspace_broadcast.delay.call_args.args
     assert workspace_id == workspace.id

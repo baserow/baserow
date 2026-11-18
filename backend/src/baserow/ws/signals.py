@@ -453,10 +453,12 @@ def identity_created(sender, identity, user=None, **kwargs):
 
 
 @receiver(identity_signals.identity_updated)
-def identity_updated(sender, identity, user, **kwargs):
+def identity_updated(sender, identity, user, updated_fields=(), **kwargs):
     """Notify users who can list identities about updated identity details."""
 
-    _broadcast_workspace_identity(identity)
+    # Role and team changes alter neither the name nor who can be assigned.
+    if "name" in updated_fields:
+        _broadcast_workspace_identity(identity)
     _broadcast_to_identity_listers(
         identity,
         user,

@@ -133,11 +133,7 @@ export default {
   },
   methods: {
     isIdentity(collaborator) {
-      return (
-        collaborator.user_type === 'identity' ||
-        this.$store.getters['workspace/getCollaboratorById'](collaborator.id)
-          ?.user_type === 'identity'
-      )
+      return collaborator.user_type === 'identity'
     },
     filterItems(search) {
       return this.collaborators.filter((collaborator) => {

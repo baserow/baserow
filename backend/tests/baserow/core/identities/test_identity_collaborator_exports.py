@@ -45,7 +45,9 @@ def test_identity_assignments_defaults_and_filters_import_only_into_its_workspac
     )
     with transaction.atomic():
         ViewHandler().update_view_default_values(
-            user, view, [{"field": field.id, "enabled": True, "value": values}]
+            user,
+            view,
+            [{"field": field.id, "enabled": True, "value": [user.id, identity.id]}],
         )
 
     target = workspace if same_workspace else data_fixture.create_workspace(user=user)

@@ -292,7 +292,7 @@ describe('MultipleCollaboratorsFieldType sorting', () => {
     expect(type.prepareValueForPaste(staleField, 'Zoe, Gone')).toEqual([
       { id: 1, name: 'Zoe' },
     ])
-    for (const pasted of ['Bot, missing', 'Bot <identity>']) {
+    for (const pasted of ['Bot, missing', 'Bot <identity>', 'identity, Bot']) {
       expect(
         type.prepareValueForPaste(
           { include_identities: true },

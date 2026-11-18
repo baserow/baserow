@@ -1,0 +1,11 @@
+{
+    "type": "bug",
+    "message": "Fix copies failing on collaborator view defaults",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [
+        "Only defaults saved through the API as plain ids"
+    ],
+    "created_at": "2026-11-18"
+}

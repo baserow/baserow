@@ -4,6 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import RowEditFieldMultipleCollaborators from '@baserow/modules/database/components/row/RowEditFieldMultipleCollaborators'
 import FieldCollaboratorDropdown from '@baserow/modules/database/components/field/FieldCollaboratorDropdown'
 import RowCardFieldMultipleCollaborators from '@baserow/modules/database/components/card/RowCardFieldMultipleCollaborators'
+import FormViewFieldMultipleCollaboratorsCheckboxes from '@baserow/modules/database/components/view/form/FormViewFieldMultipleCollaboratorsCheckboxes'
 import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 describe('Identity collaborators', () => {
@@ -30,8 +31,8 @@ describe('Identity collaborators', () => {
     const wrapper = await testApp.mount(FieldCollaboratorDropdown, {
       props: {
         collaborators: [
-          { id: 30, name: 'Ops' },
-          { id: 20, name: 'Person' },
+          { id: 30, name: 'Ops', user_type: 'identity' },
+          { id: 20, name: 'Person', user_type: 'human' },
         ],
         showEmptyValue: false,
       },
@@ -164,6 +165,25 @@ describe('Identity collaborators', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Person')
     expect(wrapper.text()).not.toContain('Ops')
+  })
+
+  test('a form lists people, then Identities in their own group', async () => {
+    const wrapper = await testApp.mount(
+      FormViewFieldMultipleCollaboratorsCheckboxes,
+      {
+        props: {
+          field: { type: 'multiple_collaborators', include_identities: true },
+          workspaceId: 1,
+          value: [],
+          readOnly: false,
+        },
+      }
+    )
+    expect(wrapper.text()).toMatch(
+      /Person\s*fieldmultipleCollaboratorsDropdown.identities\s*Ops/
+    )
+    await wrapper.findAll('.checkbox')[1].trigger('click')
+    expect(wrapper.emitted('update')[0][0]).toEqual([{ id: 30, name: 'Ops' }])
   })
 
   test('a public picker recognizes Identity options without workspace data', async () => {

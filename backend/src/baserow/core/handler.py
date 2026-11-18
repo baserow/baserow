@@ -44,7 +44,11 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import active_identity_q, load_user_types
+from baserow.core.user.identity import (
+    active_identity_q,
+    collaborator_q,
+    load_user_types,
+)
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_files.exceptions import TemplateImportWithoutFilesZip
 from baserow.core.user_files.template_files import template_file_owner
@@ -2132,22 +2136,22 @@ class CoreHandler:
         return workspace_user
 
     def get_workspace_collaborators(
-        self, workspace: Workspace | int, include_identities: bool = False
+        self, workspace: Workspace | int | None, include_identities: bool = False
     ) -> QuerySet[User]:
         """
         Returns the users who can be assigned or mentioned in a workspace.
 
-        :param workspace: The workspace or its ID.
+        :param workspace: The workspace or its ID. None, as in an import without a
+            workspace, has no collaborators.
         :param include_identities: Whether the active identities of the workspace
             are returned along with its human members.
         :return: The collaborators, with their profile loaded.
         """
 
-        kinds = Q(profile__user_type="human")
-        if include_identities:
-            kinds |= active_identity_q()
+        if workspace is None:
+            return User.objects.none()
         return User.objects_and_identities.filter(
-            kinds, workspaceuser__workspace=workspace
+            collaborator_q(include_identities), workspaceuser__workspace=workspace
         ).select_related("profile")
 
     @classmethod
