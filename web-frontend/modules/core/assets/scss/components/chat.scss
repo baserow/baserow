@@ -440,6 +440,11 @@ $chat-ease: cubic-bezier(0.22, 1, 0.36, 1);
     overflow-wrap: anywhere;
   }
 
+  th {
+    width: 1%;
+    white-space: nowrap;
+  }
+
   tr + tr {
     border-top: 1px solid $palette-neutral-200;
   }

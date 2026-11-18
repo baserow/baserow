@@ -33,7 +33,10 @@
         size="small"
         @update:active-index="choosePreset"
       />
-      <div v-if="presetIndex === PRESET.EVERYTHING" class="agent-workspace-tools__ask">
+      <div
+        v-if="presetIndex === PRESET.EVERYTHING"
+        class="agent-workspace-tools__ask"
+      >
         <div class="agent-workspace-tools__ask-text">
           <div class="agent-workspace-tools__ask-title">
             {{ $t('agent.askBeforeChanges') }}

@@ -173,7 +173,9 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
 
 
 @pytest.mark.django_db
-def test_a_copy_keeps_run_as_only_for_identity_managers(data_fixture, configured_agent):
+def test_a_copy_keeps_run_as_for_members_who_may_bind_it(
+    data_fixture, configured_agent
+):
     admin = data_fixture.create_user()
     member = data_fixture.create_user()
     agent = configured_agent(user=admin)
@@ -188,24 +190,20 @@ def test_a_copy_keeps_run_as_only_for_identity_managers(data_fixture, configured
     by_member = CoreHandler().duplicate_application(member, agent).specific
 
     assert by_admin.run_as_subject_id == identity.id
-    assert (by_member.run_as_subject_type, by_member.run_as_subject_id) == (
-        None,
-        None,
-    )
+    assert by_member.run_as_subject_id == identity.id
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "created_by,restored_by,keeps_run_as",
-    [("admin", "member", False), ("member", "admin", True)],
+    "created_by,restored_by",
+    [("admin", "member"), ("member", "admin")],
 )
-def test_a_restored_snapshot_keeps_run_as_only_for_identity_managers(
+def test_a_restored_snapshot_keeps_run_as_for_members_who_may_bind_it(
     data_fixture,
     configured_agent,
     use_tmp_media_root,
     created_by,
     restored_by,
-    keeps_run_as,
 ):
     people = {"admin": data_fixture.create_user(), "member": data_fixture.create_user()}
     agent = configured_agent(user=people["admin"])
@@ -226,7 +224,7 @@ def test_a_restored_snapshot_keeps_run_as_only_for_identity_managers(
         snapshot, Progress(total=100), restored_by=people[restored_by]
     ).specific
 
-    assert restored.run_as_subject_id == (identity.id if keeps_run_as else None)
+    assert restored.run_as_subject_id == identity.id
 
 
 @pytest.mark.django_db

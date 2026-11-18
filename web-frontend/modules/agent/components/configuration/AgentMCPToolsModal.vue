@@ -71,21 +71,21 @@
                   {{ $t('agent.connectedAppToolRemoved') }}
                 </Badge>
               </div>
-              <details v-if="tool.description" class="agent-mcp-tools__schema">
-                <summary>{{ $t('agent.toolDescription') }}</summary>
-                <p>{{ tool.description }}</p>
-              </details>
+              <ButtonText
+                v-if="tool.description"
+                v-bind="disclosure(tool, 'description')"
+              >
+                {{ $t('agent.toolDescription') }}
+              </ButtonText>
+              <p
+                v-if="tool.description && isOpen(tool, 'description')"
+                class="agent-mcp-tools__description"
+              >
+                {{ tool.description }}
+              </p>
               <ButtonText
                 v-if="parameters(tool).length"
-                :aria-expanded="!!expanded[tool.name]"
-                class="agent-mcp-tools__parameters-toggle"
-                size="small"
-                :icon="
-                  expanded[tool.name]
-                    ? 'iconoir-nav-arrow-down'
-                    : 'iconoir-nav-arrow-right'
-                "
-                @click="toggle(tool.name)"
+                v-bind="disclosure(tool, 'parameters')"
               >
                 {{
                   $t(
@@ -96,7 +96,7 @@
                 }}
               </ButtonText>
               <ul
-                v-if="expanded[tool.name] && parameters(tool).length"
+                v-if="parameters(tool).length && isOpen(tool, 'parameters')"
                 class="agent-mcp-tools__parameters"
               >
                 <li
@@ -120,10 +120,17 @@
                   >
                 </li>
               </ul>
-              <details v-if="hasSchema(tool)" class="agent-mcp-tools__schema">
-                <summary>{{ $t('agent.connectedAppToolSchema') }}</summary>
-                <pre>{{ JSON.stringify(tool.input_schema, null, 2) }}</pre>
-              </details>
+              <ButtonText
+                v-if="hasSchema(tool)"
+                v-bind="disclosure(tool, 'schema')"
+              >
+                {{ $t('agent.connectedAppToolSchema') }}
+              </ButtonText>
+              <pre
+                v-if="hasSchema(tool) && isOpen(tool, 'schema')"
+                class="agent-mcp-tools__schema"
+                >{{ JSON.stringify(tool.input_schema, null, 2) }}</pre
+              >
             </div>
             <span class="agent-mcp-tools__columns">
               <Checkbox
@@ -228,8 +235,23 @@ function hasSchema(tool) {
   return Object.keys(tool.input_schema ?? {}).some((key) => key !== 'type')
 }
 
-function toggle(name) {
-  expanded.value = { ...expanded.value, [name]: !expanded.value[name] }
+const isOpen = (tool, part) => Boolean(expanded.value[`${tool.name}:${part}`])
+
+function toggle(tool, part) {
+  const key = `${tool.name}:${part}`
+  expanded.value = { ...expanded.value, [key]: !expanded.value[key] }
+}
+
+/** Props and click handler for one collapsible part of a tool. */
+function disclosure(tool, part) {
+  const open = isOpen(tool, part)
+  return {
+    class: 'agent-mcp-tools__toggle',
+    size: 'small',
+    'aria-expanded': open,
+    icon: open ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right',
+    onClick: () => toggle(tool, part),
+  }
 }
 
 /**

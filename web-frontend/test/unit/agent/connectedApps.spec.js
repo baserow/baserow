@@ -370,10 +370,10 @@ describe('Agent connected apps', () => {
       .findAll('.agent-connected-apps__server button')[0]
       .trigger('click')
     await flushPromises()
-    buttonInBody('agent.connectedAppToolParameters').click()
+    buttonInBody('agent.connectedAppToolSchema').click()
     await flushPromises()
 
-    const schema = inBody('.modal__box .agent-mcp-tools__schema pre')
+    const schema = inBody('.modal__box .agent-mcp-tools__schema')
     expect(JSON.parse(schema[0].textContent)).toEqual(update.input_schema)
   })
 
