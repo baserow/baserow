@@ -145,9 +145,9 @@ export const routes = [
             redirect: { name: 'settings-members' },
           },
           {
-            name: 'settings-agents',
-            path: 'agents',
-            file: path.resolve(__dirname, 'pages/settings/agents.vue'),
+            name: 'settings-identities',
+            path: 'identities',
+            file: path.resolve(__dirname, 'pages/settings/identities.vue'),
           },
         ],
       },

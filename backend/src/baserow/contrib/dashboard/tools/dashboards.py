@@ -10,7 +10,7 @@ from django.utils.translation import gettext as _
 from pydantic import Field
 
 from baserow.contrib.dashboard.models import Dashboard
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.applications import (
     ApplicationName,
     create_application,
@@ -34,6 +34,7 @@ def get_dashboard_in_workspace(ctx: ToolContext, dashboard_id: int) -> Dashboard
     return get_application_in_workspace(ctx, dashboard_id, Dashboard)
 
 
+@tool_execution
 def list_dashboards(ctx: ToolContext) -> dict[str, Any]:
     """
     List the dashboards of the workspace with their id, name and number of
@@ -60,6 +61,7 @@ def list_dashboards(ctx: ToolContext) -> dict[str, Any]:
     }
 
 
+@tool_execution
 def create_dashboard(
     ctx: ToolContext,
     name: Annotated[
@@ -79,6 +81,7 @@ def create_dashboard(
     return {"created_dashboard": {"id": dashboard.id, "name": dashboard.name}}
 
 
+@tool_execution
 def update_dashboard(
     ctx: ToolContext,
     dashboard_id: Annotated[

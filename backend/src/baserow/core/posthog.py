@@ -114,7 +114,7 @@ def capture_event_action_done(
     **kwargs,
 ):
     subject_type = (
-        subject_type_registry.get_by_model(user) if user is not None else None
+        subject_type_registry.get_specific_type(user) if user is not None else None
     )
     if subject_type is not None and not subject_type.is_interactive_user:
         return

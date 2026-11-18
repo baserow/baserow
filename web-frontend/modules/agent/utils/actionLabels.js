@@ -11,6 +11,7 @@ export const ACTION_ERROR_LABELS = {
   required: 'agent.actionErrorRequired',
   invalid: 'agent.actionErrorInvalid',
   unavailable: 'agent.actionErrorUnavailable',
+  fixed_host: 'agent.actionErrorFixedHost',
 }
 
 export const ACTION_INPUT_TYPE_LABELS = {

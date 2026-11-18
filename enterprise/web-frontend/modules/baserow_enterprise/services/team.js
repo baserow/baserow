@@ -32,6 +32,38 @@ export default (client) => {
       deleteSubject(teamId, subjectId) {
         return client.delete(`/teams/${teamId}/subjects/${subjectId}/`)
       },
+      fetchInvitations(teamId) {
+        return client.get(`/teams/${teamId}/invitations/`)
+      },
+      createInvitation(teamId, { email, captchaToken }) {
+        const values = { email }
+        if (captchaToken) {
+          values.captcha_token = captchaToken
+        }
+        return client.post(`/teams/${teamId}/invitations/`, values)
+      },
+      deleteInvitation(teamId, teamInvitationId) {
+        return client.delete(
+          `/teams/${teamId}/invitations/${teamInvitationId}/`
+        )
+      },
+      fetchInvitationLinks(teamId) {
+        return client.get(`/teams/${teamId}/invitation-links/`)
+      },
+      createInvitationLink(teamId, values = {}) {
+        return client.post(`/teams/${teamId}/invitation-links/`, values)
+      },
+      updateInvitationLink(teamId, invitationLinkId, values) {
+        return client.patch(
+          `/teams/${teamId}/invitation-links/${invitationLinkId}/`,
+          values
+        )
+      },
+      deleteInvitationLink(teamId, invitationLinkId) {
+        return client.delete(
+          `/teams/${teamId}/invitation-links/${invitationLinkId}/`
+        )
+      },
     }
   )
 }

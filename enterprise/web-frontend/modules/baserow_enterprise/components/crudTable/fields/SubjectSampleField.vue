@@ -24,7 +24,10 @@
       :key="index"
       class="subject-sample-field-list__avatar"
       size="large"
-      :subject="{ name: sample.subject_label }"
+      :subject="{
+        name: sample.subject_label,
+        user_type: sample.user_type,
+      }"
     />
 
     <div v-if="row.subject_count > 10" class="subject-sample-field__extras">

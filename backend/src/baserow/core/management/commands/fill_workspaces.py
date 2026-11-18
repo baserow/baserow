@@ -84,8 +84,9 @@ class Command(BaseCommand):
                 workspace = Workspace.objects.create(name=f"Auto generated {i}")
 
                 email = random_email()
-                user = User(first_name=random_name(), email=email, username=email)
-                user.save()
+                user = User.objects.create_user(
+                    username=email, email=email, first_name=random_name()
+                )
 
                 WorkspaceUser.objects.create(
                     workspace=workspace,

@@ -394,13 +394,23 @@
     "title": "Manage {name} members",
     "subtitle": "Team in {workspace}",
     "subtitleWithRole": "Team in {workspace} • {role}",
-    "navigationLabel": "team"
+    "navigationLabel": "team",
+    "linkRoleHelpText": "People new to the workspace get the role of the team, which you can change in the team's settings. Existing members keep their own workspace role.",
+    "linkAdminWarning": "Anyone with this link joins {name}, which gives admin access to the whole workspace, including its members and invite links. Only share it with people you trust.",
+    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to join the team through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it stay in the team."
   },
   "teamMembersRoute": {
     "name": "Team members",
     "placeholder": "Search members to add",
+    "placeholderWithEmail": "Search members to add, or type an email",
     "noResults": "No members match your search.",
-    "emailDisabled": "Only members of the workspace can join a team. Invite them to the workspace first.",
+    "noResultsWithEmail": "No members match. Type a full email address to invite someone new.",
+    "emailRequiresInvitePermission": "Inviting new people requires workspace invitation permission. You can still add existing workspace members.",
+    "inviteEmailDescription": "Joins the workspace as {role} through this team",
+    "inviteEmailDescriptionNoRole": "Joins the workspace through this team, without a role",
+    "alreadyInvited": "An invitation to this team is already pending.\nYou can revoke it in the list below.",
+    "invitePending": "Invite pending",
+    "invitedSubtitle": "No workspace role - this team only",
     "add": "Add",
     "addCount": "Add {count}",
     "alreadyInTeam": "Already a member of this team",
@@ -592,7 +602,18 @@
     "statusThinking": "Thinking...",
     "statusAnswering": "Answering...",
     "statusCancelling": "Cancelling...",
-    "messageCancelled": "Message cancelled"
+    "messageCancelled": "Message cancelled",
+    "runLimitReached": "Kuma is already answering as many of your messages as it can. Send this one when one of them is done.",
+    "runFailedToStart": "Kuma couldn't start answering this message. Please try again.",
+    "statusWaitingForWorker": "Waiting for a free worker...",
+    "statusWaitingForOutput": "Waiting for the saved response...",
+    "runErrorInterrupted": "Kuma was interrupted. Some changes may already have been made, so check them, then tell Kuma how to continue.",
+    "runErrorNotStarted": "Kuma couldn't start on this message because no worker picked it up. Nothing was changed.",
+    "runErrorTimeout": "Kuma ran out of time before finishing. Some changes may already have been made.",
+    "runErrorFailed": "Something went wrong while Kuma was working. Some changes may already have been made.",
+    "runErrorPersistFailed": "Kuma finished, but its answer couldn't be saved. The changes it made are kept.",
+    "runErrorModelUnavailable": "Kuma's AI model isn't available right now, so nothing was changed.",
+    "runErrorAccessLost": "You lost access to Kuma before it started on this message, so nothing was changed."
   },
   "assistantChatHistoryContext": {
     "empty": "No chat history available",
@@ -1034,5 +1055,8 @@
     "title": "Tell us what you want to create",
     "placeholder": "Create company asset tracker",
     "build": "Build it"
+  },
+  "madeWithBaserow": {
+    "reportAbuse": "Report abuse"
   }
 }

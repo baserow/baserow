@@ -2,12 +2,14 @@
   <FormRow class="margin-bottom-2">
     <FormGroup
       :label="$t('localBaserowTableSelector.databaseFieldLabel')"
+      :error-message="formChoicesError"
       small-label
       required
     >
       <Dropdown
         v-model="databaseSelectedId"
         :show-search="false"
+        :error="Boolean(formChoicesError)"
         fixed-items
         :size="dropdownSize"
       >
@@ -111,6 +113,14 @@ export default {
         return ['regular', 'large'].includes(value)
       },
       default: 'regular',
+    },
+    /**
+     * Why there is nothing to choose from, shown as the error of the database.
+     */
+    formChoicesError: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   emits: ['update:modelValue', 'update:view-id'],

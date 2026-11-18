@@ -17,16 +17,11 @@
     <p v-if="atLimit" class="agent-actions__limit">
       {{ $t('agent.actionLimitReached', { limit: configuration.max_actions }) }}
     </p>
-    <ButtonText
+    <AgentCardListHeader
       v-if="actions.length"
-      class="agent-actions__toggle-all"
-      type="secondary"
-      size="small"
-      button-type="button"
-      @click="toggleAll"
-    >
-      {{ $t(allExpanded ? 'agent.collapseAll' : 'agent.expandAll') }}
-    </ButtonText>
+      :all-expanded="allExpanded"
+      @toggle-all="toggleAll"
+    />
     <div v-if="loading && !actions.length" class="skeleton" aria-hidden="true">
       <SkeletonBlock width="100%" height="120px" />
     </div>
@@ -77,6 +72,7 @@ import { computed, inject, ref, watch } from 'vue'
 import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
 import { useStore } from 'vuex'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
+import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import AgentActionCard from '@baserow/modules/agent/components/configuration/AgentActionCard'
 import AgentServicePicker from '@baserow/modules/agent/components/configuration/AgentServicePicker'
 import { useAgentActions } from '@baserow/modules/agent/composables/useAgentActions'

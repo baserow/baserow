@@ -36,7 +36,7 @@ class SubjectRoleAssignment(NamedTuple):
 
 class EffectiveAccess(NamedTuple):
     """
-    The role a user or an agent effectively holds on one scope, and where it comes
+    The role a user or an identity effectively holds on one scope, and where it comes
     from: `source_scope` is the scope, the given one or one above it, whose role
     applies, held by the subject themselves or, when `teams` isn't empty, through
     those teams.

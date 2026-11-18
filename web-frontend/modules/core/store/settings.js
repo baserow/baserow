@@ -26,11 +26,11 @@ export const mutations = {
 }
 
 export const actions = {
-  async load({ commit, state }) {
+  async load({ commit, state }, { requestConfig = {} } = {}) {
     const { $client } = this
     const requestGeneration = state.requestGeneration + 1
     commit('SET_REQUEST_GENERATION', requestGeneration)
-    const { data } = await SettingsService($client).get()
+    const { data } = await SettingsService($client).get(requestConfig)
     if (state.requestGeneration !== requestGeneration) {
       return
     }

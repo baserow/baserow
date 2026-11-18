@@ -6,8 +6,39 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceInvitationLink
 from baserow.core.registries import object_scope_type_registry
 
+MIN_INVITATION_LINK_PASSWORD_LENGTH = 8
+MAX_INVITATION_LINK_PASSWORD_LENGTH = 256
+
+
+class InvitationLinkPasswordField(serializers.CharField):
+    """
+    The raw password of an invitation link, or an empty string to remove it. It is
+    hashed by the handler and never returned.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("required", False)
+        kwargs.setdefault(
+            "help_text",
+            "The password people must enter before they can use the link, or an "
+            "empty string to remove it.",
+        )
+        super().__init__(
+            allow_blank=True,
+            write_only=True,
+            min_length=MIN_INVITATION_LINK_PASSWORD_LENGTH,
+            max_length=MAX_INVITATION_LINK_PASSWORD_LENGTH,
+            trim_whitespace=False,
+            **kwargs,
+        )
+
 
 class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
+    has_password = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether people must enter a password before they can use the link.",
+    )
+
     class Meta:
         model = WorkspaceInvitationLink
         fields = (
@@ -16,6 +47,7 @@ class WorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "permissions",
+            "has_password",
             "created_on",
         )
         extra_kwargs = {"id": {"read_only": True}}
@@ -29,9 +61,23 @@ class CreateWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
 
 
 class UpdateWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
+    password = InvitationLinkPasswordField()
+
     class Meta:
         model = WorkspaceInvitationLink
-        fields = ("name", "permissions")
+        fields = ("name", "permissions", "password")
+
+
+class InvitationLinkAuthRequestSerializer(serializers.Serializer):
+    password = serializers.CharField(trim_whitespace=False)
+
+
+class InvitationLinkAuthResponseSerializer(serializers.Serializer):
+    access_token = serializers.CharField(
+        help_text="The token to send in the `Baserow-Invitation-Link-Authorization` "
+        "header, as `JWT <token>`, and as `workspace_invitation_link_token` when "
+        "signing up through the link."
+    )
 
 
 class InvitationLinkRoleUpgradeSerializer(serializers.Serializer):
@@ -67,6 +113,11 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
         "and joining through the link would raise their role, on the object of the "
         "link if it has one."
     )
+    adds_member = serializers.SerializerMethodField(
+        help_text="Set when the user who opens the link is a member of the workspace "
+        "and joining through the link would add them to the object of the link, "
+        "like a team."
+    )
 
     class Meta:
         model = WorkspaceInvitationLink
@@ -79,6 +130,7 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             "scope_id",
             "scope_name",
             "role_upgrade",
+            "adds_member",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -117,3 +169,10 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
             "current_permissions": current_permissions,
             "permissions": object.permissions,
         }
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_adds_member(self, object):
+        user = self.context.get("user")
+        if user is None:
+            return False
+        return CoreHandler().invitation_link_adds_member(user, object)

@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 from unittest import mock
 from unittest.mock import patch
@@ -5,6 +6,7 @@ from unittest.mock import patch
 from django.db import connection
 from django.http import HttpRequest
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -52,6 +54,31 @@ def test_create_data_source(data_fixture):
 def test_get_data_source(data_fixture):
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source()
     assert DataSourceHandler().get_data_source(data_source.id).id == data_source.id
+
+
+@pytest.mark.django_db
+def test_get_data_source_with_base_queryset_only_queries_the_data_source(
+    data_fixture,
+):
+    # Regression test: a truthiness check on `base_queryset` used to load every
+    # data source of the base queryset before the real, filtered query.
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source()
+    data_fixture.create_builder_local_baserow_get_row_data_source()
+
+    with CaptureQueriesContext(connection) as ctx:
+        result = DataSourceHandler().get_data_source(
+            data_source.id, base_queryset=DataSource.objects.all(), with_cache=True
+        )
+
+    assert result.id == data_source.id
+    data_source_queries = [
+        q["sql"]
+        for q in ctx.captured_queries
+        if 'FROM "builder_datasource"' in q["sql"]
+    ]
+    scoped = re.compile(rf'"builder_datasource"\."id" = {data_source.id}\b')
+    assert data_source_queries
+    assert all(scoped.search(sql) for sql in data_source_queries), data_source_queries
 
 
 @pytest.mark.django_db

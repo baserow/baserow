@@ -47,6 +47,13 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     # endpoints that use both keep working.
     external_request_timeouts = 1
 
+    # Whether an external request only follows a redirect that stays on its
+    # host, without going from https to http. Its headers and body would go
+    # along to wherever the redirect points, unseen by whoever approved where
+    # the request goes. False by default: builder and automation follow every
+    # redirect, as they always have.
+    redirects_stay_on_host = False
+
     def get_sample_data_table_ids(self, service: Service) -> Optional[List[int]]:
         """
         The IDs of the database tables the sample data about to be stored for the

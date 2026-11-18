@@ -194,16 +194,18 @@ export default {
       return getWorkspaceMembersCount(
         this.selectedWorkspace,
         this.$hasPermission(
-          'workspace.list_agents',
+          'workspace.list_identities',
           this.selectedWorkspace,
           this.selectedWorkspace.id
         )
       )
     },
     isManagementPage() {
-      return ['settings-members', 'settings-teams', 'settings-agents'].includes(
-        this.$route.name
-      )
+      return [
+        'settings-members',
+        'settings-teams',
+        'settings-identities',
+      ].includes(this.$route.name)
     },
     sidebarWorkspaceComponents() {
       return Object.values(this.$registry.getAll('plugin'))

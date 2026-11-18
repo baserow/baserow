@@ -7,18 +7,22 @@ from django.contrib.auth.models import AbstractUser
 
 from rest_framework import serializers
 
+from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.contrib.integrations.api.local_baserow.serializers import (
     LocalBaserowContextDataSerializer,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
+from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
-from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.types import IntegrationDict
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
 from baserow.core.registries import ImportExportConfig, subject_type_registry
+from baserow.core.types import Subject
+from baserow.core.user.identity import is_identity
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -55,7 +59,7 @@ class LocalBaserowIntegrationType(IntegrationType):
 
     serializer_field_overrides = {
         "context_data": LocalBaserowContextDataSerializer(read_only=True),
-        # Include a trashed agent so clients can show the integration in error.
+        # Include a trashed identity so clients can show the integration in error.
         "authorized_subject": AuthorizedSubjectSerializerField(
             source="authorized_subject_including_trash", read_only=True
         ),
@@ -72,7 +76,7 @@ class LocalBaserowIntegrationType(IntegrationType):
             help_text="The ID of the subject whose permissions authenticate the integration.",
         ),
         "authorized_subject_type": serializers.ChoiceField(
-            choices=["auth.User", "core.Agent"], required=False, allow_null=True
+            choices=["auth.User"], required=False, allow_null=True
         ),
     }
 
@@ -112,7 +116,9 @@ class LocalBaserowIntegrationType(IntegrationType):
                 "authorized_subject_id and authorized_subject_type must be provided together."
             )
         else:
-            if subject_type_name == "auth.User" and subject_id != user.id:
+            subject_type = subject_type_registry.get(subject_type_name)
+            subject = subject_type_registry.get_subject(subject_type_name, subject_id)
+            if subject_id != user.id and not is_identity(subject):
                 raise serializers.ValidationError(
                     {
                         "authorized_subject_id": (
@@ -120,51 +126,20 @@ class LocalBaserowIntegrationType(IntegrationType):
                         )
                     }
                 )
-            subject_type = subject_type_registry.get(subject_type_name)
-            subject = subject_type_registry.get_subject(subject_type_name, subject_id)
             workspace = application.workspace
             if subject is None or not subject_type.is_in_workspace(subject, workspace):
                 raise serializers.ValidationError(
                     {"authorized_subject_id": "The subject does not exist."}
                 )
-            if getattr(subject, "trashed", False):
-                raise serializers.ValidationError(
-                    {"authorized_subject_id": "The agent is trashed."}
-                )
+            is_current_binding = instance is not None and (
+                instance.authorized_subject_type,
+                instance.authorized_subject_id,
+            ) == (subject_type_name, subject_id)
+            if is_identity(subject) and not is_current_binding:
+                IdentityService().check_can_bind(user, workspace)
 
         return super().prepare_values(
             values, user, application=application, instance=instance
-        )
-
-    def serialize_property(
-        self,
-        integration: Integration,
-        prop_name: str,
-        import_export_config=None,
-        files_zip=None,
-        storage=None,
-        cache=None,
-    ):
-        """
-        Serialize the canonical subject pair for import/export.
-        """
-
-        if prop_name == "authorized_subject":
-            return None
-
-        if prop_name == "authorized_subject_type":
-            return integration.authorized_subject_type
-
-        if prop_name == "authorized_subject_id":
-            return integration.authorized_subject_id
-
-        return super().serialize_property(
-            integration,
-            prop_name,
-            import_export_config=import_export_config,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
         )
 
     def export_serialized(
@@ -178,18 +153,8 @@ class LocalBaserowIntegrationType(IntegrationType):
         """Preserve canonical authorization only in same-workspace publications."""
 
         if import_export_config and import_export_config.is_publishing:
-            subject = None
-            if instance.authorized_subject_type and instance.authorized_subject_id:
-                subject_type = subject_type_registry.get(
-                    instance.authorized_subject_type
-                )
-                manager = getattr(
-                    subject_type.model_class,
-                    "objects_and_trash",
-                    subject_type.model_class.objects,
-                )
-                subject = manager.filter(id=instance.authorized_subject_id).first()
-            if getattr(subject, "trashed", False):
+            subject = instance.authorized_subject_including_trash
+            if is_identity(subject) and subject.profile.trashed:
                 raise IntegrationImproperlyConfigured(
                     "The authorized subject is trashed."
                 )
@@ -231,6 +196,41 @@ class LocalBaserowIntegrationType(IntegrationType):
             ]
         )
 
+    @staticmethod
+    def _copy_loses_identity(
+        workspace: Optional[Workspace],
+        serialized_values: Dict[str, Any],
+        import_export_config: Optional[ImportExportConfig],
+    ) -> bool:
+        """
+        Says whether a copy may not keep the identity its original acts as. A
+        duplicate or a restored snapshot is a new binding, so it keeps the identity
+        only when the person who makes it may bind identities.
+
+        :param workspace: The workspace of the copy, or None for a snapshot or a
+            published application, which keep their subject.
+        :param serialized_values: The exported integration.
+        :param import_export_config: How the integration is imported.
+        :return: Whether the copy must be authorized as someone else.
+        """
+
+        subject_type = serialized_values.get("authorized_subject_type")
+        subject_id = serialized_values.get("authorized_subject_id")
+        if (
+            workspace is None
+            or import_export_config is None
+            or not import_export_config.is_duplicate
+            or not subject_type
+            or not subject_id
+        ):
+            return False
+        subject = subject_type_registry.get_subject(
+            subject_type, subject_id, include_trash=True
+        )
+        return is_identity(subject) and not IdentityService().can_copy_binding(
+            workspace, import_export_config
+        )
+
     def import_serialized(
         self,
         application: Application,
@@ -253,21 +253,35 @@ class LocalBaserowIntegrationType(IntegrationType):
             cache = {}
 
         serialized_values = serialized_values.copy()
+        if serialized_values.get("authorized_subject_type") == "core.Agent":
+            raise IntegrationImproperlyConfigured(
+                "Legacy agent authorization is unsupported. Reauthorize the integration "
+                "before exporting it."
+            )
         username = serialized_values.pop("authorized_user", None)
         if username:
-            workspace_users = cache.setdefault(
-                "local_baserow_workspace_users",
-                {
+            if "local_baserow_workspace_users" not in cache:
+                cache["local_baserow_workspace_users"] = {
                     user.username: user
                     for user in User.objects.filter(
                         workspaceuser__workspace_id=id_mapping["import_workspace_id"]
                     )
-                },
+                }
+            legacy_authorized_user = cache["local_baserow_workspace_users"].get(
+                username
             )
-            legacy_authorized_user = workspace_users.get(username)
             if legacy_authorized_user:
                 serialized_values["authorized_subject_type"] = "auth.User"
                 serialized_values["authorized_subject_id"] = legacy_authorized_user.id
+
+        if self._copy_loses_identity(
+            application.workspace, serialized_values, import_export_config
+        ):
+            person = import_export_config.copied_by or import_export_config.restored_by
+            serialized_values["authorized_subject_type"] = (
+                subject_type_registry.get_by_model(person).type if person else None
+            )
+            serialized_values["authorized_subject_id"] = person.id if person else None
 
         integration = super().import_serialized(
             application,
@@ -279,9 +293,6 @@ class LocalBaserowIntegrationType(IntegrationType):
             cache=cache,
         )
         return integration
-
-    def enhance_queryset(self, queryset):
-        return queryset
 
     def get_context_data(self, instance: LocalBaserowIntegration) -> Optional[Dict]:
         try:
@@ -299,42 +310,65 @@ class LocalBaserowIntegrationType(IntegrationType):
         return {"databases": databases}
 
     @staticmethod
-    def get_local_baserow_databases(integration: LocalBaserowIntegration) -> List:
+    def get_local_baserow_databases(
+        integration: LocalBaserowIntegration,
+    ) -> List[Database]:
         """
-        This method returns the databases that the user has access to in a query
-        efficient way while also checking for permissions. It will do so by fetching
-        all the tables at ones, and then group them by database.
+        The databases the integration's authorized subject has access to.
 
-        A side effect of this solution is that databases without tables don't show up
-        in this list.
+        :param integration: The Local Baserow integration.
+        :return: The databases with their tables and views, see
+            `get_local_baserow_databases_for`.
         """
 
         if not integration.application.workspace_id:
             return []
 
-        subject = integration.specific.authorized_subject
-        workspace = integration.application.workspace
+        return LocalBaserowIntegrationType.get_local_baserow_databases_for(
+            integration.specific.authorized_subject,
+            integration.application.workspace,
+        )
+
+    @staticmethod
+    def get_local_baserow_databases_for(
+        subject: Optional[Subject], workspace: Workspace, with_views: bool = True
+    ) -> List[Database]:
+        """
+        This method returns the databases that the subject has access to in a query
+        efficient way while also checking for permissions. It will do so by fetching
+        all the tables at ones, and then group them by database.
+
+        A side effect of this solution is that databases without tables don't show up
+        in this list.
+
+        :param subject: The subject the tables and views are listed for.
+        :param workspace: The workspace the databases are in.
+        :param with_views: Whether the views are listed; a caller offering only
+            tables saves reading every view of the workspace.
+        :return: The databases, each with its `tables` and `views` set, the
+            latter empty without views.
+        """
 
         tables = TableHandler().list_workspace_tables(subject, workspace)
 
-        views = ViewHandler().list_workspace_views(subject, workspace, specific=False)
-
-        views = list(
-            views.only(
-                "id",
-                "name",
-                "table_id",
-                "order",
-                "content_type",
-            ),
-        )
-
         views_by_table = defaultdict(list)
-        [
-            views_by_table[view.table_id].append(view)
-            for view in views
-            if view.get_type().can_filter or view.get_type().can_sort
-        ]
+        if with_views:
+            views = (
+                ViewHandler()
+                .list_workspace_views(subject, workspace, specific=False)
+                .only(
+                    "id", "name", "table_id", "order", "content_type", "ownership_type"
+                )
+            )
+            for view in views:
+                # The integration is shared, so only views of an ownership type
+                # that integrations may use are offered.
+                if not view_ownership_type_registry.get(
+                    view.ownership_type
+                ).can_be_used_by_integrations:
+                    continue
+                if view.get_type().can_filter or view.get_type().can_sort:
+                    views_by_table[view.table_id].append(view)
 
         database_map = {}
         for table in tables:

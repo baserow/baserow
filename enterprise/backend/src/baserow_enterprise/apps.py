@@ -116,17 +116,17 @@ class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
-        from baserow.core.agents.registries import agent_extension_type_registry
+        from baserow.core.identities.registries import identity_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
-        from baserow_enterprise.agents.agent_extension_types import (
-            EnterpriseAgentExtensionType,
-        )
         from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
         )
         from baserow_enterprise.data_scanner.job_types import (
             DataScanResultExportJobType,
+        )
+        from baserow_enterprise.identities.identity_extension_types import (
+            EnterpriseIdentityExtensionType,
         )
 
         job_type_registry.register(AuditLogExportJobType())
@@ -148,7 +148,7 @@ class BaserowEnterpriseConfig(AppConfig):
         mcp_tool_registry.register(SetupUserSourceMcpTool())
 
         job_type_registry.register(DataScanResultExportJobType())
-        agent_extension_type_registry.register(EnterpriseAgentExtensionType())
+        identity_extension_type_registry.register(EnterpriseIdentityExtensionType())
 
         from baserow.api.user.registries import member_data_registry
         from baserow.core.action.registries import (
@@ -180,10 +180,15 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.scopes import TeamsActionScopeType
         from baserow_enterprise.teams.actions import (
             CreateTeamActionType,
+            CreateTeamInvitationActionType,
+            CreateTeamInvitationLinkActionType,
             CreateTeamSubjectActionType,
             DeleteTeamActionType,
+            DeleteTeamInvitationActionType,
+            DeleteTeamInvitationLinkActionType,
             DeleteTeamSubjectActionType,
             UpdateTeamActionType,
+            UpdateTeamInvitationLinkActionType,
         )
         from baserow_enterprise.teams.object_scopes import (
             TeamObjectScopeType,
@@ -245,6 +250,11 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(DeleteTeamActionType())
         action_type_registry.register(CreateTeamSubjectActionType())
         action_type_registry.register(DeleteTeamSubjectActionType())
+        action_type_registry.register(CreateTeamInvitationActionType())
+        action_type_registry.register(DeleteTeamInvitationActionType())
+        action_type_registry.register(CreateTeamInvitationLinkActionType())
+        action_type_registry.register(UpdateTeamInvitationLinkActionType())
+        action_type_registry.register(DeleteTeamInvitationLinkActionType())
         action_type_registry.register(BatchAssignRoleActionType())
         action_type_registry.register(CreateScopedInvitationActionType())
         action_type_registry.register(UpdateScopedInvitationActionType())
@@ -318,6 +328,10 @@ class BaserowEnterpriseConfig(AppConfig):
                 invitation_link_scope_type_registry.register(
                     RoleInvitationLinkScopeType(scope_type_name)
                 )
+
+        from .teams.invitation_link_scope_types import TeamInvitationLinkScopeType
+
+        invitation_link_scope_type_registry.register(TeamInvitationLinkScopeType())
 
         from baserow_enterprise.license_types import (
             AdvancedLicenseType,
@@ -571,6 +585,15 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
+
+        from baserow.core.chat_runs.registries import chat_run_type_registry
+        from baserow_enterprise.assistant.chat_run_type import AssistantChatRunType
+
+        chat_run_type_registry.register(AssistantChatRunType())
+
+        from baserow.config.streaming import register_async_stream_path
+
+        register_async_stream_path("assistant:chat_messages")
 
         # The signals must always be imported last because they use the registries
         # which need to be filled first.

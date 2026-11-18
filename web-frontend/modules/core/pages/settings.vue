@@ -34,6 +34,7 @@
 
 <script setup>
 import { useHead } from '#imports'
+import { getFallbackSettingsRoute } from '@baserow/modules/core/workspaceSettingsPageTypes'
 
 /* Using Vuex in Nuxt 3 with Composition API */
 
@@ -133,4 +134,17 @@ function clickDisabled(page) {
     ref.show()
   }
 }
+
+const fallbackRoute = computed(() =>
+  getFallbackSettingsRoute(pages.value, route.name)
+)
+
+async function leaveUnpermittedPage() {
+  if (fallbackRoute.value) {
+    await navigateTo(fallbackRoute.value, { replace: true })
+  }
+}
+
+watch(fallbackRoute, leaveUnpermittedPage)
+await leaveUnpermittedPage()
 </script>

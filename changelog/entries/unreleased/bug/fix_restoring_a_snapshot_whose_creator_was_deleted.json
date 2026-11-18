@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix restoring a snapshot whose creator was deleted",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-13"
+}

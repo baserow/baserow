@@ -21,7 +21,6 @@ from baserow.core.formula.validator import (
     ensure_string,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.registries import subject_type_registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -45,9 +44,7 @@ def prepare_files_for_db(
     :param actor: The subject dispatching the service.
     """
 
-    uploading_user = (
-        actor if subject_type_registry.get_by_model(actor).is_interactive_user else None
-    )
+    uploading_user = actor if isinstance(actor, AbstractUser) else None
 
     # It must be an array
     data = ensure_array(value)

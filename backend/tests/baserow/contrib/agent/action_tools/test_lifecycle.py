@@ -156,7 +156,7 @@ def test_duplicate_names_and_unregistered_types_are_rejected(
     )
     assert response.status_code == 400
     assert "name" in response.json()["detail"]
-    for type_name in ("http_request", "periodic", "unknown"):
+    for type_name in ("http_get", "periodic", "unknown"):
         response = api_client.post(
             agent_url(agent, "actions:list"), {"type": type_name}
         )
@@ -325,14 +325,11 @@ def test_configuration_offers_only_registered_available_actions(
     agent = data_fixture.create_agent_application(user=api_user)
     assert api_client.get(agent_url(agent, "configuration")).json()[
         "available_action_types"
-    ] == ["smtp_email"]
+    ] == ["smtp_email", "http_request"]
     mocker.patch.object(CoreSMTPEmailServiceType, "is_deactivated", return_value=True)
-    assert (
-        api_client.get(agent_url(agent, "configuration")).json()[
-            "available_action_types"
-        ]
-        == []
-    )
+    assert api_client.get(agent_url(agent, "configuration")).json()[
+        "available_action_types"
+    ] == ["http_request"]
 
 
 @pytest.mark.django_db

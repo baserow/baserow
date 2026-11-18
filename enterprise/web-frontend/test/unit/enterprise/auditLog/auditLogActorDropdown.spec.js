@@ -3,6 +3,7 @@ import flushPromises from 'flush-promises'
 
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import AuditLogActorDropdown from '@baserow_enterprise/components/auditLog/AuditLogActorDropdown'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 const actors = [
   {
@@ -12,9 +13,10 @@ const actors = [
     value: 'user@example.com',
   },
   {
-    id: 'core.Agent:1',
-    actor_id: 1,
-    actor_type: 'core.Agent',
+    id: 'auth.User:2',
+    actor_id: 2,
+    actor_type: 'auth.User',
+    user_type: 'identity',
     value: 'Row writer',
   },
 ]
@@ -32,6 +34,7 @@ async function mountComponent(fetchPage = null) {
         $t(key) {
           return {
             'auditLog.allActors': 'All Actors',
+            'subjectType.identities': 'Identities',
           }[key]
         },
       },
@@ -40,7 +43,11 @@ async function mountComponent(fetchPage = null) {
 }
 
 describe('AuditLogActorDropdown', () => {
-  test('renders users and agents in separate sections and selects an agent', async () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  test('renders users and identities in separate sections and selects an identity', async () => {
     const wrapper = await mountComponent()
     await wrapper.findComponent(PaginatedDropdown).vm.fetch()
     await flushPromises()
@@ -49,7 +56,20 @@ describe('AuditLogActorDropdown', () => {
 
     await wrapper.findAll('.select__item-link')[2].trigger('click')
 
-    expect(wrapper.emitted('input')).toEqual([[{ id: 1, type: 'core.Agent' }]])
+    expect(wrapper.emitted('input')).toEqual([[{ id: 2, type: 'auth.User' }]])
+  })
+
+  test('shows identities with the icon of the user subject type', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
+    const wrapper = await mountComponent()
+    await wrapper.findComponent(PaginatedDropdown).vm.fetch()
+    await flushPromises()
+
+    expect(wrapper.find('.iconoir-identity-test').exists()).toBe(true)
   })
 
   test('forwards the search query to the actor endpoint', async () => {

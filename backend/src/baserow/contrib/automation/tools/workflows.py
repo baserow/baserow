@@ -6,6 +6,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Annotated, Any
 
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -37,7 +38,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.applications import (
     get_application_in_workspace,
     visible_applications,
@@ -99,6 +100,7 @@ def describe_workflow(workflow: AutomationWorkflow) -> dict[str, Any]:
     }
 
 
+@tool_execution
 def list_workflows(
     ctx: ToolContext,
     automation_id: Annotated[
@@ -223,7 +225,7 @@ class WorkflowCreation:
     failed: list[str] = field(default_factory=list)
     """Why each workflow that could not be saved wasn't."""
 
-    def to_response(self, user) -> dict[str, Any]:
+    def to_response(self, user: AbstractUser) -> dict[str, Any]:
         from baserow.contrib.automation.tools.nodes import describe_node, nodes_in_order
 
         result: dict[str, Any] = {
@@ -338,6 +340,7 @@ def create_workflows_in_automation(
     return WorkflowCreation(plan=plan, created=created, failed=failed)
 
 
+@tool_execution
 def create_workflows(
     ctx: ToolContext,
     automation_id: Annotated[
@@ -446,6 +449,7 @@ def check_workflow_can_run(
     return warnings
 
 
+@tool_execution
 def publish_workflow(
     ctx: ToolContext,
     workflow_id: Annotated[
@@ -503,6 +507,7 @@ def publish_workflow(
     return result
 
 
+@tool_execution
 def pause_workflow(
     ctx: ToolContext,
     workflow_id: Annotated[

@@ -15,7 +15,7 @@ describe('CheckboxElement', () => {
   })
 
   const mountCheckbox = async (label, { required = false } = {}) => {
-    const page = reactive({ id: 1, elements: [] })
+    const page = reactive({ id: 1, elements: [], workflowActions: [] })
     const builder = { id: 1, theme: { primary_color: '#ccc' }, pages: [page] }
     const mode = 'public'
     const element = {

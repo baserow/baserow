@@ -51,6 +51,7 @@ from .types import (
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
+    from django.contrib.contenttypes.models import ContentType
 
     from baserow.core.models import (
         Application,
@@ -158,6 +159,12 @@ class ImportExportConfig:
     The authenticated person exporting an archive, when there is one. Application
     types can protect private configuration independently of application.read.
     System and CLI exports leave this unset; copying retains its existing context.
+    """
+
+    restored_by: Optional["AbstractUser"] = None
+    """
+    Who restores a snapshot. Kept apart from `copied_by` so a restore carries
+    every credential the snapshot holds.
     """
 
 
@@ -1132,12 +1139,29 @@ class InvitationLinkScopeType(Instance, abc.ABC):
             doesn't give the member more than they already have there.
         """
 
+    def adds_member(
+        self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
+    ) -> bool:
+        """
+        Whether joining through the link adds a member of the workspace to the
+        object of the link itself, like a team, instead of giving them a role on
+        it. Such a join can't be compared with the role the member has, so they
+        confirm it without a role upgrade.
+
+        :param user: A member of the workspace of the link.
+        :param invitation_link: The link that targets an object of this type.
+        :return: True if joining would add the member to the object.
+        """
+
+        return False
+
     @abc.abstractmethod
     def give_role(
         self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
     ):
         """
-        Gives the member the role of the link on the object of the link.
+        Gives the member what the link grants on its object: the role of the link
+        on it, or a place in it when the link adds members to the object.
 
         :param user: The member who joins through the link.
         :param invitation_link: The link that targets an object of this type.
@@ -1501,7 +1525,8 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
     """
 
     # Interactive users can persist undoable actions and emit product analytics.
-    is_interactive_user = False
+    is_interactive_user: bool = False
+
     display_name_field: Optional[str] = None
     lookup_fields = ("id", "pk")
     options_list_operation_type: Optional[str] = None
@@ -1520,6 +1545,17 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
         """Record usage when a subject dispatches a service through an integration."""
 
         pass
+
+    def get_specific_type(self, subject: Subject) -> "SubjectType":
+        """
+        Returns the subject type that holds the behaviour of the given subject. Only
+        subject types whose stored subjects differ in behaviour override this.
+
+        :param subject: A subject stored under this subject type.
+        :return: The subject type to ask about the subject.
+        """
+
+        return self
 
     def get_workspace_subjects(self, workspace: "Workspace", include_trash=False):
         """Return the subjects whose direct roles belong to a workspace.
@@ -1557,8 +1593,23 @@ class SubjectType(abc.ABC, Instance, ModelInstanceMixin):
 
         return self.type
 
-    def get_queryset(self, workspace_id: Optional[int] = None) -> Optional[QuerySet]:
-        """Return subjects matching the workspace scope, if listable."""
+    def get_queryset(self, include_trash: bool = False) -> Optional[QuerySet]:
+        """
+        Returns the stored subjects of this type, so callers never pick a manager.
+
+        :param include_trash: Whether trashed subjects are returned as well, for
+            subject types that can be trashed.
+        :return: The subjects, or None when this type is not stored in the database.
+        """
+
+        return None
+
+    def get_trashed_subjects_queryset(self) -> Optional[QuerySet]:
+        """
+        Returns the trashed subjects of this type.
+
+        :return: The trashed subjects, or None when this type cannot be trashed.
+        """
 
         return None
 
@@ -1695,6 +1746,29 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
     name = "subject"
     does_not_exist_exception_class = SubjectTypeNotExist
 
+    def get_by_content_type(self, content_type: "ContentType") -> SubjectType:
+        """
+        Returns the subject type of the subjects stored under the given content type.
+
+        :param content_type: The content type of a stored subject reference.
+        :raises SubjectTypeNotExist: When no subject type is registered for it.
+        :return: The subject type.
+        """
+
+        return self.get_for_class(content_type.model_class())
+
+    def get_specific_type(self, subject: Subject) -> SubjectType:
+        """
+        Returns the subject type that holds the behaviour of the given subject, for
+        code that needs what differs between the subjects stored under one type.
+
+        :param subject: The subject.
+        :raises SubjectTypeNotExist: When no subject type is registered for it.
+        :return: The specific subject type.
+        """
+
+        return self.get_by_model(subject).get_specific_type(subject)
+
     def get_serializer(self, model_instance, **kwargs) -> Serializer:
         """
         This function is used to get the correct serializer for a given subject model
@@ -1722,13 +1796,25 @@ class SubjectTypeRegistry(Registry[SubjectType], ModelRegistryMixin[Any, Subject
             stored in the database.
         """
 
-        model_class = self.get(type_name).model_class
-        manager = getattr(model_class, "objects", None)
-        if include_trash:
-            manager = getattr(model_class, "objects_and_trash", manager)
-        if manager is None:
-            return None
-        return manager.filter(id=subject_id).first()
+        queryset = self.get(type_name).get_queryset(include_trash=include_trash)
+        return None if queryset is None else queryset.filter(id=subject_id).first()
+
+    def get_trashed_subjects_q(self) -> Q:
+        """
+        Matches rows whose `subject_type` and `subject_id` point at a trashed subject.
+
+        :return: The condition, pairing both fields because IDs overlap across types.
+        """
+
+        trashed_subjects = Q()
+        for subject_type in self.get_all():
+            queryset = subject_type.get_trashed_subjects_queryset()
+            if queryset is not None:
+                trashed_subjects |= Q(
+                    subject_type=subject_type.get_content_type(),
+                    subject_id__in=queryset.values("id"),
+                )
+        return trashed_subjects
 
 
 class OperationType(abc.ABC, Instance):

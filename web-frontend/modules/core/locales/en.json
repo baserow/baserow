@@ -390,7 +390,10 @@
     "upgradeScopeRole": "You're already a member of {workspace}. Your role on {name} will change from {from} to {to}.",
     "failed": "Could not join the workspace",
     "failedMessage": "Something went wrong while joining the workspace. Please try again.",
-    "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one."
+    "invalidLinkMessage": "This invite link is no longer valid. Ask the person who shared it for a new one.",
+    "addMemberTitle": "Join {name}",
+    "addMember": "You're already a member of {workspace}. You will be added to {name}.",
+    "addMemberButton": "Join"
   },
   "workspaceForm": {
     "nameLabel": "Name"
@@ -495,16 +498,35 @@
     "linkTitle": "Invite members with a link",
     "linkEmptyTitle": "You have not yet created an invite link",
     "linkEmptyDescription": "You can create multiple links with different roles.",
+    "linkEmptyDescriptionNoRole": "Anyone you share a link with can join. You can create as many links as you need.",
     "linkColumn": "Link",
     "linkName": "Name",
     "linkNamePlaceholder": "E.g. Sales team",
     "linkAdd": "Add link",
     "linkInviteAs": "Invite as",
+    "linkNoRole": "No role",
     "linkCopy": "Copy link",
     "linkDelete": "Delete link",
+    "linkAddPassword": "Protect with a password",
+    "linkPasswordProtected": "Password protected",
     "pendingTitle": "Pending invitations",
     "pendingEmptyTitle": "No invitations are pending.",
     "pendingEmptyDescription": "Invitations show up here until they are accepted."
+  },
+  "invitationLinkPasswordModal": {
+    "newTitle": "Protect link with a password",
+    "changeTitle": "Change link password",
+    "description": "People who open the link must enter this password before they can see or join it. Changing it locks out everyone who only knows the previous one.",
+    "save": "Save password",
+    "remove": "Remove password"
+  },
+  "invitationLinkPassword": {
+    "title": "This invite link is password protected",
+    "description": "Enter the password you were given to continue.",
+    "passwordLabel": "Password",
+    "continue": "Continue",
+    "incorrectTitle": "Incorrect password",
+    "incorrectMessage": "The password is not correct. Ask the person who shared the link for the right one."
   },
   "invitationLinkDeleteModal": {
     "title": "Delete link",
@@ -1108,7 +1130,7 @@
     "settingsVerifyImportSignature": "Verify import signature",
     "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with.",
     "settingAllowReportingAbuseName": "Allow reporting abuse",
-    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views and forms can report them for abuse, and all instance admins are notified about the report.",
+    "settingAllowReportingAbuseDescription": "When enabled, visitors of publicly shared views, forms, dashboards and published applications can report them for abuse, and all instance admins are notified about the report.",
     "settingUserTemplatesRequireApprovalName": "Templates need approval",
     "settingUserTemplatesRequireApprovalDescription": "When enabled, a template made public is listed in the template browser only after an instance admin approves it, and so is every change to a listed template. Turning it off approves the templates in review that an admin can approve, except the ones rejected since their last approval."
   },
@@ -1842,7 +1864,7 @@
     "urlVersionTest": "Test",
     "copyUrl": "Copy Webhook URL",
     "urlCopied": "Webhook URL copied to clipboard",
-    "description": "This webhook will receive HTTP requests and trigger the workflow with the request data as the payload.",
+    "description": "This webhook receives HTTP requests and starts a run with the request data.",
     "methodsOptionLabel": "Allowed HTTP methods",
     "methodsOptionDescription": "Controls which HTTP methods are allowed for this webhook. Excluding GET reduces the chance of the webhook being triggered accidentally.",
     "methodsOptionAll": "All",
@@ -1995,5 +2017,8 @@
     "workspaceRunning": "Looking at your workspace",
     "workspaceDone": "Looked at your workspace",
     "workspace": "Workspace activity"
+  },
+  "serviceType": {
+    "eventCount": "Count"
   }
 }

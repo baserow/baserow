@@ -24,7 +24,7 @@
 .agent-triggers__list {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
 }
 
 .agent-trigger-card {
@@ -38,7 +38,15 @@
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  border-bottom: 1px solid $palette-neutral-200;
+}
+
+.agent-trigger-card__toggle {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .agent-trigger-card__title {
@@ -121,6 +129,11 @@
   margin-left: auto;
 }
 
+.agent-trigger-card__saving-slot {
+  display: flex;
+  flex: 0 0 14px;
+}
+
 .agent-trigger-card__saving {
   display: flex;
 
@@ -131,75 +144,12 @@
   flex-shrink: 0;
 }
 
-.agent-trigger-card__body {
-  .control__label {
-    font-weight: 400;
-    color: $palette-neutral-900;
-  }
-
-  .control__helper-text {
-    font-size: 12px;
-    line-height: 18px;
-    color: $palette-neutral-700;
-  }
-}
-
 .agent-trigger-card__section {
   display: flow-root;
   padding: 16px 12px 0;
 
   & + & {
     border-top: 1px solid $palette-neutral-200;
-  }
-}
-
-.agent-trigger-card__configuration {
-  .control {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 12px;
-    margin: 0 0 16px !important;
-  }
-
-  .control__label {
-    flex: 0 0 30%;
-    min-width: 0;
-    min-height: 36px;
-    margin: 0;
-  }
-
-  .control__wrapper {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .control__messages {
-    padding-top: 4px;
-  }
-
-  .flex {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    margin-bottom: 0 !important;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 0;
-    margin-bottom: 0 !important;
-  }
-}
-
-.agent-trigger-card__service {
-  .form-input.form-input--large {
-    height: 36px;
-  }
-
-  .dropdown--large .dropdown__selected {
-    @include fixed-height(36px, 13px);
-
-    padding: 12px;
   }
 }
 

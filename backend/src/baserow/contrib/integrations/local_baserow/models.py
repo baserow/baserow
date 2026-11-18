@@ -44,7 +44,7 @@ class LocalBaserowIntegration(Integration):
         """
         Return the subject whose permissions are used by this integration.
 
-        :param include_trash: Whether a trashed subject (e.g. a trashed agent) is
+        :param include_trash: Whether a trashed subject (e.g. a trashed identity) is
             returned. It must never be used to act, only to report why the
             integration can't be used.
         """

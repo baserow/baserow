@@ -1,5 +1,6 @@
 import { InvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
 import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments'
+import TeamService from '@baserow_enterprise/services/team'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 
@@ -19,7 +20,7 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
   /**
    * The roles a new person can be invited to the object with. Inviting someone
    * to an object with no access on it is pointless, so that role is left out
-   * here; members, teams and agents who already belong to the workspace can
+   * here; members, teams and identities who already belong to the workspace can
    * still be given it on the object.
    */
   getRoles(workspace, { scopeType }) {
@@ -161,7 +162,10 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
 /**
  * The members of one team. The target is `{ type: 'team', team }`. Joining a
  * team comes with the team's own role rather than one per member, so there are
- * no roles to choose from.
+ * no roles to choose from. Invitees join the workspace without a workspace role
+ * and land in the team once they accept. Links to the team have no role either:
+ * newcomers get the team's role, and members of the workspace are added to the
+ * team.
  */
 export class TeamInvitationTargetType extends InvitationTargetType {
   static getType() {
@@ -193,7 +197,97 @@ export class TeamInvitationTargetType extends InvitationTargetType {
       : this.$t('teamInvitationTarget.subtitle', { workspace: workspace.name })
   }
 
-  sendInvitation(workspace, target, values) {
-    throw new Error('Teams can only be joined by members of the workspace.')
+  async sendInvitation(workspace, { team }, values) {
+    const { data } = await TeamService(this.app.$client).createInvitation(
+      team.id,
+      { email: values.email, captchaToken: values.captchaToken }
+    )
+    // Lets the members page recount its pending invitations, as a new address
+    // gets a workspace invitation along with the team.
+    this.app.$bus.$emit('invite-submitted', {
+      id: data.invitation_id,
+      workspace: workspace.id,
+      email: data.email,
+    })
+    return data
+  }
+
+  /**
+   * Links bring newcomers into the workspace as well as adding people to the
+   * team, so managing them takes both rights.
+   */
+  supportsInvitationLinks(workspace) {
+    return (
+      this.app.$hasPermission(
+        'enterprise.teams.create_subject',
+        workspace,
+        workspace.id
+      ) &&
+      this.app.$hasPermission(
+        'workspace.create_invitation_link',
+        workspace,
+        workspace.id
+      )
+    )
+  }
+
+  async fetchInvitationLinks(workspace, { team }) {
+    const { data } = await TeamService(this.app.$client).fetchInvitationLinks(
+      team.id
+    )
+    return data
+  }
+
+  /**
+   * The team gives its own role, so the link has none and `permissions` is
+   * ignored.
+   */
+  async createInvitationLink(workspace, { team }, permissions) {
+    const { data } = await TeamService(this.app.$client).createInvitationLink(
+      team.id
+    )
+    return data
+  }
+
+  async updateInvitationLink(workspace, { team }, invitationLink, values) {
+    const { data } = await TeamService(this.app.$client).updateInvitationLink(
+      team.id,
+      invitationLink.id,
+      { name: values.name }
+    )
+    return data
+  }
+
+  async deleteInvitationLink(workspace, { team }, invitationLink) {
+    await TeamService(this.app.$client).deleteInvitationLink(
+      team.id,
+      invitationLink.id
+    )
+  }
+
+  getInvitationLinkRole(workspace, { team }) {
+    return (
+      workspace._.roles.find(({ uid }) => uid === team.default_role) || null
+    )
+  }
+
+  getInvitationLinkRoleHelpText(workspace, target) {
+    return this.$t('teamInvitationTarget.linkRoleHelpText')
+  }
+
+  invitationLinkGrantsAdmin(workspace, { team }) {
+    return team.default_role === 'ADMIN'
+  }
+
+  getInvitationLinkAdminWarning(workspace, { team }) {
+    return this.$t('teamInvitationTarget.linkAdminWarning', {
+      name: team.name,
+    })
+  }
+
+  getInvitationLinkDeleteWarning(workspace, { team }) {
+    return this.$t('teamInvitationTarget.linkDeleteWarning', {
+      name: team.name,
+    })
   }
 }

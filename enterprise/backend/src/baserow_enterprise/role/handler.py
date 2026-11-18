@@ -23,8 +23,8 @@ from baserow.core.exceptions import (
 )
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import (
+    User,
     Workspace,
     WorkspaceInvitation,
     WorkspaceInvitationLink,
@@ -40,6 +40,7 @@ from baserow.core.registries import (
 )
 from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck, ScopeObject, Subject
+from baserow.core.user.identity import is_human
 from baserow.core.user.utils import normalize_email_address
 from baserow_enterprise.exceptions import (
     CannotAssignRoleToSelf,
@@ -161,22 +162,9 @@ class RoleAssignmentHandler:
         role assignment related to a trashed subject.
         """
 
-        id_filters = Q()
-        for subject_type in subject_type_registry.get_all():
-            if issubclass(subject_type.model_class, TrashableModelMixin):
-                id_filters.add(
-                    ~Q(
-                        subject_id__in=subject_type.model_class.trash.all().values_list(
-                            "id", flat=True
-                        ),
-                        subject_type=subject_type.get_content_type(),
-                    ),
-                    Q.AND,
-                )
-
-        return RoleAssignment.objects.filter(id_filters).exclude(
-            self._direct_workspace_roles_q()
-        )
+        return RoleAssignment.objects.exclude(
+            subject_type_registry.get_trashed_subjects_q()
+        ).exclude(self._direct_workspace_roles_q())
 
     def _direct_workspace_roles_q(self):
         """Match workspace records whose role is owned by the subject type."""
@@ -986,7 +974,7 @@ class RoleAssignmentHandler:
         """
 
         if include_trash:
-            workspace_users = WorkspaceUser.objects_and_trash.filter(
+            workspace_users = WorkspaceUser.objects_and_identities_and_trash.filter(
                 workspace__in=workspaces, user_id=actor.id
             )
             return {wu.workspace_id: wu.permissions for wu in workspace_users}
@@ -995,7 +983,8 @@ class RoleAssignmentHandler:
         workspaces_to_query = []
         for workspace in workspaces:
             prefetched = getattr(workspace, "_prefetched_objects_cache", {})
-            if "workspaceuser_set" in prefetched:
+            # The prefetched memberships only hold the human members.
+            if "workspaceuser_set" in prefetched and is_human(actor):
                 for workspace_user in workspace.workspaceuser_set.all():
                     if workspace_user.user_id == actor.id:
                         permissions_per_workspace[workspace.id] = (
@@ -1005,7 +994,7 @@ class RoleAssignmentHandler:
                 workspaces_to_query.append(workspace)
 
         if workspaces_to_query:
-            workspace_users = WorkspaceUser.objects.filter(
+            workspace_users = WorkspaceUser.objects_and_identities.filter(
                 workspace__in=workspaces_to_query, user_id=actor.id
             )
             for workspace_user in workspace_users:
@@ -1370,7 +1359,13 @@ class RoleAssignmentHandler:
 
         prefetch_related_objects(
             [assignment for assignment in role_assignments if assignment is not None],
-            GenericPrefetch("subject", [TeamHandler().get_teams_queryset()]),
+            GenericPrefetch(
+                "subject",
+                [
+                    TeamHandler().get_teams_queryset(),
+                    User.objects_and_identities.select_related("profile"),
+                ],
+            ),
         )
 
     def get_role_assignments(self, workspace: Workspace, scope: Optional[ScopeObject]):
@@ -1405,7 +1400,7 @@ class RoleAssignmentHandler:
         self, workspace: Workspace, scope: ScopeObject
     ) -> List[EffectiveAccess]:
         """
-        Resolves the role every user and agent of the workspace effectively holds on
+        Resolves the role every user and identity of the workspace effectively holds on
         the given scope, with the resolution the permission checks use, and where it
         comes from.
 
@@ -1537,7 +1532,7 @@ class RoleAssignmentHandler:
         self, user: AbstractUser, workspace: Workspace, subjects: List[Subject]
     ) -> Dict[Subject, List[SubjectRoleAssignment]]:
         """
-        Returns the roles the given users, agents or teams hold on databases, tables
+        Returns the roles the given users, identities or teams hold on databases, tables
         and views of the workspace, as shown to the given user: only on objects whose
         roles the user may read, not on objects in the trash, and on views only while
         they are restricted, as a role on any other view has no effect.
@@ -1548,7 +1543,7 @@ class RoleAssignmentHandler:
 
         :param user: The user the roles are shown to.
         :param workspace: The workspace the roles are held in.
-        :param subjects: The users, agents or teams to return the roles of.
+        :param subjects: The users, identities or teams to return the roles of.
         :return: The roles of every given subject, grouped by the database they are
             in, a database before its tables and a table before its views, then by
             name.
@@ -1619,7 +1614,7 @@ class RoleAssignmentHandler:
                 parent = parent.get_parent()
             return parents
 
-        # The scopes on which each user or agent holds the admin role themselves.
+        # The scopes on which each user or identity holds the admin role themselves.
         admin_keys_per_subject_key = defaultdict(set)
         for role_assignment in role_assignments:
             subject_key = (role_assignment.subject_type_id, role_assignment.subject_id)
@@ -1733,7 +1728,7 @@ class RoleAssignmentHandler:
 
         :param user: The user the roles are shown to.
         :param workspace: The workspace the roles are held in.
-        :param subjects: The users, agents or teams to count the roles of.
+        :param subjects: The users, identities or teams to count the roles of.
         :return: The number of listed roles per subject, or an empty dict when roles
             don't apply to the workspace.
         """
@@ -2083,15 +2078,19 @@ class RoleAssignmentHandler:
         invitation_link: WorkspaceInvitationLink,
         role: Optional[Role] = None,
         name: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of a link to a scope or the role people get on the scope
-        when joining through it. People who already joined keep their role.
+        Changes the name of a link to a scope, the role people get on the scope
+        when joining through it or its password. People who already joined keep
+        their role.
 
         :param user: The user on whose behalf the link is updated.
         :param invitation_link: The link that must be updated.
         :param role: The new role of the link, if it changes.
         :param name: The new name of the link, if it changes.
+        :param password: The new password of the link, or an empty string to
+            remove it.
         :raises ScopeNotExist: If the scope was deleted or trashed in the meantime.
         :raises InvalidWorkspaceRole: If the role is unavailable or grants no access.
         :raises PermissionDenied: If the user can't manage the roles of the scope.
@@ -2111,6 +2110,9 @@ class RoleAssignmentHandler:
         if name is not None:
             invitation_link.name = name
             update_fields.append("name")
+        if password is not None:
+            invitation_link.set_password(password)
+            update_fields.append("password")
         invitation_link.save(update_fields=update_fields)
 
         return invitation_link

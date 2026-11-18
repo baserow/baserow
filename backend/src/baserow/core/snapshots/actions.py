@@ -104,7 +104,9 @@ class RestoreSnapshotActionType(ActionType):
         """
 
         original_application = snapshot.snapshot_from_application
-        application = SnapshotHandler().perform_restore(snapshot, progress)
+        application = SnapshotHandler().perform_restore(
+            snapshot, progress, restored_by=user
+        )
 
         workspace = application.workspace
         cls.register_action(

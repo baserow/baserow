@@ -44,7 +44,6 @@
   align-items: center;
   gap: 8px;
   padding: 12px;
-  border-bottom: 1px solid $palette-neutral-200;
 }
 
 .agent-action-card__title {
@@ -143,10 +142,6 @@
     right: 0;
     left: auto;
   }
-}
-
-.agent-actions__toggle-all {
-  margin-bottom: 12px;
 }
 
 .agent-action-inputs__toggle {

@@ -26,7 +26,7 @@ def send_queued_notifications_to_users(self):
     with transaction.atomic():
         queued_notificationrecipients = (
             NotificationRecipient.objects.filter(queued=True)
-            .select_related("notification", "notification__sender")
+            .select_related("notification", "notification__sender__profile")
             .order_by("recipient_id", "-created_on")
             .select_for_update(of=("notification",), skip_locked=True)
         )

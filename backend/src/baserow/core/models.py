@@ -6,6 +6,7 @@ from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
@@ -29,6 +30,8 @@ from django.db.models.functions import Coalesce
 from django.db.models.manager import BaseManager
 from django.utils.crypto import get_random_string
 
+from django_cte import CTEManager
+
 from baserow.core.context import PRIVATE_LINK_TOKEN_PATTERN
 from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
@@ -37,6 +40,8 @@ from baserow.core.jobs.mixins import (
     JobWithWebsocketId,
 )
 from baserow.core.jobs.models import Job
+from baserow.core.managers import make_trash_manager
+from baserow.core.user.managers import human_memberships
 from baserow.core.user_files.models import UserFile
 
 from .abuse_reports.models import AbuseReport
@@ -69,7 +74,6 @@ __all__ = [
     "WorkspaceUser",
     "WorkspaceInvitation",
     "WorkspaceInvitationLink",
-    "Agent",
     "Application",
     "TemplateCategory",
     "Template",
@@ -216,11 +220,33 @@ class Settings(models.Model):
     )
 
 
-class UserProfile(models.Model):
+class UserProfile(TrashableModelMixin, models.Model):
     """
     User profile to store user specific information that can't be stored in
     default user model.
     """
+
+    class UserType(models.TextChoices):
+        HUMAN = "human", "Human"
+        IDENTITY = "identity", "Identity"
+
+    user_type = models.CharField(
+        max_length=8,
+        choices=UserType.choices,
+        default=UserType.HUMAN,
+        db_default=UserType.HUMAN,
+    )
+    trashed = models.BooleanField(default=False, db_default=False)
+    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["user"],
+                condition=Q(trashed=True),
+                name="core_profile_trashed_idx",
+            )
+        ]
 
     # Keep these in sync with the web-frontend options in
     # web-frontend/modules/core/enums.js
@@ -454,12 +480,12 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         :return: The related workspace user instance.
         """
 
-        if include_trash:
-            manager = WorkspaceUser.objects_and_trash
-        else:
-            manager = WorkspaceUser.objects
-
-        return manager.get(user=user, workspace=self)
+        memberships = (
+            WorkspaceUser.objects_and_identities_and_trash
+            if include_trash
+            else WorkspaceUser.objects_and_identities
+        )
+        return memberships.get(user=user, workspace=self)
 
     def __str__(self):
         return f"<Workspace id={self.id}, name={self.name}>"
@@ -475,6 +501,13 @@ class WorkspaceUser(
     OrderableMixin,
     models.Model,
 ):
+    objects = human_memberships(make_trash_manager(False, parent="workspace"))()
+    trash = human_memberships(make_trash_manager(True, parent="workspace"))()
+    objects_and_trash = human_memberships(CTEManager)()
+    # These also return the memberships of identities, which the others leave out.
+    objects_and_identities = make_trash_manager(False, parent="workspace")()
+    objects_and_identities_and_trash = CTEManager()
+
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -505,34 +538,6 @@ class WorkspaceUser(
     def get_last_order(cls, user):
         queryset = cls.objects.filter(user=user)
         return cls.get_highest_order_of_queryset(queryset) + 1
-
-
-class Agent(
-    HierarchicalModelMixin,
-    TrashableModelMixin,
-    CreatedAndUpdatedOnMixin,
-    models.Model,
-):
-    """A non-authenticating subject owned by a workspace."""
-
-    workspace = models.ForeignKey(
-        Workspace,
-        related_name="agents",
-        on_delete=models.CASCADE,
-    )
-    name = models.CharField(max_length=160)
-    role_uid = models.CharField(
-        max_length=32,
-        default=WORKSPACE_USER_PERMISSION_MEMBER,
-        db_default=WORKSPACE_USER_PERMISSION_MEMBER,
-    )
-    last_active = models.DateTimeField(null=True, blank=True, db_default=None)
-
-    def get_parent(self):
-        return self.workspace
-
-    class Meta:
-        ordering = ("name", "id")
 
 
 class WorkspaceInvitation(
@@ -637,9 +642,36 @@ class WorkspaceInvitationLink(
         blank=True,
         help_text="The id of the object the link gives a role on.",
     )
+    password = models.CharField(
+        # Sized for the salted hash that Django generates, not for the password the
+        # admin types. The request serializer validates the raw password length.
+        max_length=128,
+        blank=True,
+        default="",
+        db_default="",
+        help_text="The hashed password that people must enter before they can see "
+        "or use the link. Empty when the link isn't password protected.",
+    )
 
     def get_parent(self):
         return self.workspace
+
+    @property
+    def has_password(self) -> bool:
+        return self.password != ""  # nosec b105
+
+    def set_password(self, raw_password: str):
+        """
+        Protects the link with the given password, or removes the protection when
+        the password is empty.
+        """
+
+        self.password = make_password(raw_password) if raw_password else ""
+
+    def check_password(self, raw_password: str) -> bool:
+        if not self.has_password:
+            return True
+        return check_password(raw_password, self.password)
 
     class Meta:
         ordering = ("id",)

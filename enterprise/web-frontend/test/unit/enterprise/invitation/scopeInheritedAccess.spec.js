@@ -1,10 +1,7 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { expect, test } from 'vitest'
 
-import {
-  AgentSubjectType,
-  UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import ScopeInheritedAccess from '@baserow_enterprise/components/invitation/ScopeInheritedAccess'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 
@@ -22,9 +19,17 @@ const database = { id: 30, name: 'CRM' }
 const table = { id: 20, name: 'Deals' }
 const view = { id: 40, name: 'Q4 pipeline' }
 
-const access = (subjectType, subjectId, role, sourceScopeType, sourceId) => ({
+const access = (
+  subjectType,
+  subjectId,
+  role,
+  sourceScopeType,
+  sourceId,
+  userType = 'human'
+) => ({
   subject_type: subjectType,
   subject_id: subjectId,
+  user_type: userType,
   role,
   source_scope_type: sourceScopeType,
   source_scope_id: sourceId,
@@ -46,7 +51,6 @@ async function mountSummary(
   const subjectTypes = [
     new UserSubjectType({ app }),
     new TeamSubjectType({ app }),
-    new AgentSubjectType({ app }),
   ]
   return await mountSuspended(ScopeInheritedAccess, {
     props: { workspace, target, targetType, effectiveAccess, directKeys },
@@ -58,7 +62,7 @@ async function mountSummary(
             return `${params.count} ${params.role}`
           }
           if (key === 'shareScope.identityRoleCount') {
-            return `${params.count} ${params.role} agent`
+            return `${params.count} ${params.role} identity`
           }
           if (key === 'shareScope.everyoneAt') {
             return `Everyone at ${params.name}`
@@ -85,14 +89,15 @@ const rows = (wrapper) =>
         row.find('.invite-list__subtitle').text().replace(/\s+/g, ' ')
     )
 
-test('counts members and agents per role under the level their role comes from', async () => {
+test('counts members and identities per role under the level their role comes from', async () => {
   const wrapper = await mountSummary(
     { type: 'scope', scopeType: 'database_view', scope: view, database, table },
     [
       access('auth.User', 1, 'ADMIN', 'workspace', 12),
       access('auth.User', 2, 'EDITOR', 'workspace', 12),
       access('auth.User', 3, 'EDITOR', 'workspace', 12),
-      access('core.Agent', 4, 'VIEWER', 'workspace', 12),
+      access('auth.User', 4, 'VIEWER', 'workspace', 12),
+      access('auth.User', 8, 'EDITOR', 'workspace', 12, 'identity'),
       access('auth.User', 5, 'VIEWER', 'application', 30),
       access('auth.User', 6, 'BUILDER', 'database_table', 20),
       // Given a role on the view itself, so it's direct access.
@@ -101,7 +106,7 @@ test('counts members and agents per role under the level their role comes from',
   )
   try {
     expect(rows(wrapper)).toEqual([
-      'Everyone at Widelab: 1 Admin • 2 Editor • 1 Viewer agent',
+      'Everyone at Widelab: 1 Admin • 2 Editor • 1 Viewer • 1 Editor identity',
       'Everyone with a role on CRM: 1 Viewer',
       'Everyone with a role on Deals: 1 Builder',
     ])

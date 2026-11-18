@@ -24,6 +24,7 @@ from baserow.core.tools.errors import (
     PERMISSION_DENIED_MESSAGE,
     ToolError,
     ToolErrorCode,
+    ToolFailedError,
     ToolInputError,
     classify_item_error,
     classify_tool_error,
@@ -41,6 +42,7 @@ class PaymentRequired(APIException):
     "error,expected",
     [
         (ToolInputError("Pick a table."), ("invalid_input", "Pick a table.")),
+        (ToolFailedError("The API timed out."), ("failed", "The API timed out.")),
         (ObjectDoesNotExist("private"), ("not_found", NOT_FOUND_MESSAGE)),
         (WorkspaceDoesNotExist("private"), ("not_found", NOT_FOUND_MESSAGE)),
         (UserNotInWorkspace(), ("not_found", NOT_FOUND_MESSAGE)),

@@ -17,7 +17,7 @@ from baserow.contrib.agent.models import (
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun, ChatRunStatus
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.signals import application_updated
 
 from .utils import agent_url, new_conversation
@@ -315,8 +315,10 @@ def test_always_allow_stops_asking_first_only_for_approved_tools_that_ask_first(
     api_client, api_user, data_fixture, held_reply, mocker
 ):
     agent = held_reply.conversation.agent
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     for tool_name in ("delete_rows", "list_tables"):
         data_fixture.create_agent_tool_approval(reply=held_reply, tool_name=tool_name)

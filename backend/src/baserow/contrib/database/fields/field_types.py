@@ -193,6 +193,7 @@ from baserow.core.storage import (
     get_default_storage,
 )
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.identity import get_user_label
 from baserow.core.user_files.exceptions import (
     InvalidUserFileNameError,
     UserFileDoesNotExist,
@@ -2636,11 +2637,11 @@ class LastModifiedByFieldType(ReadOnlyFieldType):
         self, value: Any, field_object: "FieldObject", rich_value: bool = False
     ) -> Any:
         """
-        Exported value will be the user's email address.
+        Exports the email of a person and the name of an identity.
         """
 
         user = value
-        return user.email if user else None
+        return get_user_label(user) if user else None
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
@@ -2866,11 +2867,11 @@ class CreatedByFieldType(ReadOnlyFieldType):
         self, value: Any, field_object: "FieldObject", rich_value: bool = False
     ) -> Any:
         """
-        Exported value will be the user's email address.
+        Exports the email of a person and the name of an identity.
         """
 
         user = value
-        return user.email if user else None
+        return get_user_label(user) if user else None
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None

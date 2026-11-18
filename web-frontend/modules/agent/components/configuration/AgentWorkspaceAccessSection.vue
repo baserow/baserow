@@ -29,11 +29,11 @@
           icon="iconoir-prohibition"
         />
         <DropdownItem
-          v-for="subject in results"
-          :key="subject.id"
-          :name="subject.name"
-          :value="subject.id"
-          icon="baserow-icon-agent"
+          v-for="identity in results"
+          :key="identity.id"
+          :name="identity.name"
+          :value="identity.id"
+          icon="iconoir-lock"
         />
       </template>
     </PaginatedDropdown>
@@ -57,6 +57,7 @@ import { useI18n } from 'vue-i18n'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
 import AgentWorkspaceTools from '@baserow/modules/agent/components/configuration/AgentWorkspaceTools'
 
@@ -101,7 +102,7 @@ const helperText = computed(() => {
 })
 const selected = computed(() => {
   const runAs = props.configuration.run_as
-  return runAs ? `${runAs.type}:${runAs.id}` : NO_WORKSPACE_ACCESS
+  return runAs ? runAs.id : NO_WORKSPACE_ACCESS
 })
 const initialName = computed(
   () =>
@@ -124,7 +125,7 @@ onBeforeUnmount(() => refreshOptions.cancel())
 watch(initialName, () => runAsDropdown.value?.clear(), { flush: 'post' })
 
 function fetchIdentities(page, search) {
-  return AgentApplicationService($client).getRunAsSubjects(
+  return AgentApplicationService($client).getRunAsIdentities(
     agent.value.id,
     page,
     search
@@ -138,14 +139,14 @@ function changeTools(tools) {
 }
 
 function select({ value, item }) {
-  if (value === selected.value) return
+  if (value === selected.value && !unavailable.value) return
   emit('change', {
     run_as:
       value === NO_WORKSPACE_ACCESS
         ? null
         : {
-            type: item.subject_type,
-            id: item.subject_id,
+            type: UserSubjectType.getType(),
+            id: item.id,
             name: item.name,
             trashed: false,
             status: RUN_AS_STATUS.ACTIVE,

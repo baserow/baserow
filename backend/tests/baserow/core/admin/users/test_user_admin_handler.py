@@ -224,6 +224,20 @@ def test_create_user_that_already_exists(data_fixture):
 
 
 @pytest.mark.django_db
+def test_admin_cannot_update_user_to_identity_username(data_fixture):
+    admin = data_fixture.create_user(is_staff=True)
+    user = data_fixture.create_user()
+    identity = data_fixture.create_identity()
+
+    with pytest.raises(UserAlreadyExist):
+        UserAdminHandler().update_user(admin, user.id, username=identity.username)
+
+    user.refresh_from_db()
+    identity.refresh_from_db()
+    assert user.username != identity.username
+
+
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_user_with_invalid_password(data_fixture):
     handler = UserAdminHandler()
