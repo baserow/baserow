@@ -24,7 +24,9 @@ BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 # Unset/empty means opt out for that provider. Existing instance providers are
 # preserved; otherwise unreadable/empty files fail population. Creates low-cost
 # gpt-5.6-luna (OpenAI) or claude-haiku-5-5 (Anthropic) models without discovery,
-# testing, or network calls.
+# testing, or network calls. Docker dev passes these variables to the backend;
+# use paths inside the container and mount the key files read-only via a local
+# Compose override when they are outside the existing bind mounts.
 BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = os.getenv(
     "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE", ""
 )
