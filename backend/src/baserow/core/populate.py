@@ -19,7 +19,7 @@ User = get_user_model()
 def load_test_data():
     """Populate development users, workspaces, and the optional instance provider."""
 
-    load_test_ai_provider()
+    load_test_ai_providers()
     print("Add basic users...")
     user_handler = UserHandler()
 
@@ -93,31 +93,32 @@ def load_test_data():
             )
 
 
-def load_test_ai_provider():
-    """Create an instance OpenAI provider and model once, without network calls."""
+def load_test_ai_providers():
+    """Create opted-in instance providers and models once, without network calls."""
 
-    key_file = getattr(settings, "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE", "")
-    if (
-        not key_file
-        or AIProviderConfig.objects.filter(
-            workspace__isnull=True, provider_type="openai"
-        ).exists()
+    for provider_type, model_identifier in (
+        ("openai", "gpt-5.6-luna"),
+        ("anthropic", "claude-haiku-5-5"),
     ):
-        return
+        setting_name = f"BASEROW_DEV_POPULATE_{provider_type.upper()}_API_KEY_FILE"
+        key_file = getattr(settings, setting_name, "")
+        if (
+            not key_file
+            or AIProviderConfig.objects.filter(
+                workspace__isnull=True, provider_type=provider_type
+            ).exists()
+        ):
+            continue
 
-    try:
-        api_key = Path(key_file).read_text(encoding="utf-8").strip()
-    except (OSError, UnicodeError):
-        raise CommandError(
-            "Cannot read BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE."
-        ) from None
-    if not api_key:
-        raise CommandError(
-            "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE must not be empty."
+        try:
+            api_key = Path(key_file).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError):
+            raise CommandError(f"Cannot read {setting_name}.") from None
+        if not api_key:
+            raise CommandError(f"{setting_name} must not be empty.")
+
+        AIProviderHandler.create_provider(
+            provider_type,
+            api_key=api_key,
+            models_data=[{"model_identifier": model_identifier}],
         )
-
-    AIProviderHandler.create_provider(
-        "openai",
-        api_key=api_key,
-        models_data=[{"model_identifier": "gpt-5.6-luna"}],
-    )
