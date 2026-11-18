@@ -483,8 +483,9 @@ class UserTemplateHandler:
         workspace = Workspace.objects.create(name=name)
         track_content(template_workspace=workspace)
 
-        # Exported on behalf of the owner, so that application types can keep out
-        # what the owner may not read, like an Agent's configuration.
+        # Exported on behalf of the owner, so that application types can refuse
+        # what the owner may not read, like an Agent's configuration, the same
+        # way an export to a file does.
         serialized = self.serialize_applications(
             applications,
             dataclasses.replace(config, exported_by=owner),
