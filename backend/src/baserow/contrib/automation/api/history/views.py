@@ -21,6 +21,7 @@ from baserow.contrib.automation.api.history.serializers import (
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowHistorySerializer,
+    workflow_history_context,
 )
 from baserow.contrib.automation.history.exceptions import (
     AutomationNodeHistoryDoesNotExist,
@@ -137,7 +138,10 @@ class CancelAutomationWorkflowHistoryView(APIView):
         workflow_history = AutomationHistoryService().request_cancellation(
             request.user, workflow_history_id
         )
-        serializer = AutomationWorkflowHistorySerializer(workflow_history)
+        serializer = AutomationWorkflowHistorySerializer(
+            workflow_history,
+            context=workflow_history_context(request.user, [workflow_history]),
+        )
         return Response(serializer.data)
 
 
@@ -181,10 +185,10 @@ class AutomationNodeResultView(APIView):
         node_result = AutomationHistoryService().get_node_history_result(
             request.user, node_history_id
         )
-        data = AutomationNodeResultSerializer(node_result).data
-        node = node_result.node_history.node
-        access = AutomationNodeAccess(request.user, include_trashed=True)
-        if access.node_hidden(node):
-            # The result holds the data of a table the user may not see.
-            data["result"] = None
-        return Response(data)
+        serializer = AutomationNodeResultSerializer(
+            node_result,
+            context={
+                "node_access": AutomationNodeAccess(request.user, include_trashed=True)
+            },
+        )
+        return Response(serializer.data)
