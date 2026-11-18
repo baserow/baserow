@@ -11,6 +11,7 @@ from baserow.core.ai_provider.constants import (
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderModel
 from baserow.core.ai_provider.registries import ai_provider_model_feature_type_registry
+from baserow.core.ai_provider.resolution import clear_ai_provider_state_cache
 from baserow.core.generative_ai.groq import GroqGPTOSSModel
 from baserow.core.generative_ai.model_profiles import (
     get_model_settings as get_shared_model_settings,
@@ -461,9 +462,11 @@ def test_unusable_kuma_selection_falls_back_to_environment_unless_excluded(
 
 
 @pytest.mark.django_db
-def test_excluded_instance_kuma_keeps_workspace_owned_selection_available(
+def test_workspace_kuma_selection_takes_precedence_over_excluded_instance_selection(
     data_fixture,
+    settings,
 ):
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = "openai:legacy-model"
     workspace = data_fixture.create_workspace()
     instance_provider = AIProviderHandler.create_provider(
         "openai",
@@ -499,6 +502,15 @@ def test_excluded_instance_kuma_keeps_workspace_owned_selection_available(
 
     assert profile.database_model.provider_config_id == workspace_provider.id
     assert profile.create_model().wrapped._provider.client.api_key == "workspace-key"
+
+    # The invalid selection belongs to the workspace's own provider, so the
+    # exclusion on the instance selection does not suppress the legacy fallback.
+    AIProviderModel.objects.filter(provider_config=workspace_provider).update(
+        is_enabled=False
+    )
+    clear_ai_provider_state_cache()
+    assert _kuma_availability(workspace) == {"is_enabled": True, "state": "legacy"}
+    assert resolve_assistant_model(workspace=workspace).source == "legacy"
 
 
 def test_explicit_model_profile_does_not_load_persisted_provider_state(mocker):

@@ -10,7 +10,7 @@ class Migration(LockTimeoutMigration):
     """
 
     dependencies = [
-        ("core", "0138_workspaceinvitationlink_password"),
+        ("core", "0140_userprofile_trashed_idx"),
     ]
 
     operations = [

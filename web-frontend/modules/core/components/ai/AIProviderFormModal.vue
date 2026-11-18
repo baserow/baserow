@@ -129,6 +129,7 @@
     >
       <PaginatedDropdown
         ref="excludedWorkspaceDropdown"
+        class="ai-provider-form__workspace-dropdown"
         :value="null"
         :fetch-page="fetchWorkspaces"
         :add-empty-item="false"
@@ -145,7 +146,14 @@
             :name="`${workspace.value} (${workspace.id})`"
             :value="workspace.id"
             :disabled="excludedWorkspaceIds.has(workspace.id)"
-          />
+          >
+            <span class="select__item-name-text" :title="workspace.value">{{
+              workspace.value
+            }}</span>
+            <span class="ai-provider-form__workspace-id"
+              >({{ workspace.id }})</span
+            >
+          </DropdownItem>
         </template>
       </PaginatedDropdown>
       <ul v-if="excludedWorkspaces.length" class="ai-provider-form__workspaces">

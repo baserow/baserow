@@ -38,6 +38,10 @@ describe('AIProviderFormModal', () => {
   })
 
   test('loads suggestions and creates a provider without pre-save testing', async () => {
+    testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+      count: 1,
+      results: [{ id: 20, value: 'Finance' }],
+    })
     const dispatch = vi
       .spyOn(testApp.store, 'dispatch')
       .mockImplementation((action) => {
@@ -120,12 +124,16 @@ describe('AIProviderFormModal', () => {
     ).toBe(false)
     expect(wrapper.find('.ai-provider-form__model-status').exists()).toBe(false)
 
+    const dropdown = wrapper.findComponent({ name: 'PaginatedDropdown' })
+    await dropdown.find('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await dropdown.find('.select__item-link').trigger('click')
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/create', {
       extra_settings: {},
-      excluded_workspace_ids: [],
+      excluded_workspace_ids: [20],
       provider_type: 'openai',
       api_key: 'temporary-secret',
       models: [
@@ -427,8 +435,13 @@ describe('AIProviderFormModal', () => {
 
     await pickOption(1)
     expect(
-      dropdown.findAll('.select__item').map((item) => item.text())
-    ).toEqual(['Original workspace (10)', 'Finance (20)', 'Operations (30)'])
+      dropdown.findAll('.select__item-name-text').map((item) => item.text())
+    ).toEqual(['Original workspace', 'Finance', 'Operations'])
+    expect(
+      dropdown
+        .findAll('.ai-provider-form__workspace-id')
+        .map((item) => item.text())
+    ).toEqual(['(10)', '(20)', '(30)'])
     expect(dropdown.find('.select__item').classes()).toContain('disabled')
     expect(dropdown.find('.dropdown__selected').text()).toBe(
       'aiProviderAdmin.addExcludedWorkspace'
@@ -480,6 +493,30 @@ describe('AIProviderFormModal', () => {
     expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
       providerId: 1,
       values: { extra_settings: {} },
+    })
+  })
+
+  test('creates a workspace provider without showing or sending exclusions', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        providerTypes: [
+          { type: 'ollama', uses_api_key: false, extra_fields: [] },
+        ],
+        workspaceId: 42,
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.findComponent({ name: 'PaginatedDropdown' }).exists()).toBe(
+      false
+    )
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/create', {
+      values: { provider_type: 'ollama', extra_settings: {}, models: [] },
+      workspaceId: 42,
     })
   })
 

@@ -220,14 +220,16 @@ def test_workspace_admin_cannot_configure_exclusions_or_see_other_workspace_name
         provider_type="openai", workspace=workspace, api_key="own-secret"
     )
     for target in [provider, own_provider]:
-        response = api_client.patch(
-            reverse("api:ai_provider:item", kwargs={"provider_id": target.id}) + query,
-            {"excluded_workspace_ids": [other.id]},
-            format="json",
-            **headers,
-        )
-        assert response.status_code == HTTP_400_BAD_REQUEST
-        assert response.json()["error"] == "ERROR_AI_PROVIDER_IS_READ_ONLY"
+        url = reverse("api:ai_provider:item", kwargs={"provider_id": target.id}) + query
+        for workspace_id in [other.id, 999999999]:
+            response = api_client.patch(
+                url,
+                {"excluded_workspace_ids": [workspace_id]},
+                format="json",
+                **headers,
+            )
+            assert response.status_code == HTTP_400_BAD_REQUEST
+            assert response.json()["error"] == "ERROR_AI_PROVIDER_IS_READ_ONLY"
 
 
 @pytest.mark.django_db
