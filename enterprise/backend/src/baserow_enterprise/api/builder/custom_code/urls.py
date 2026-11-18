@@ -1,10 +1,20 @@
 from django.urls import re_path
 
-from .views import CustomCodeView, PublicCustomCodeView
+from .views import (
+    CustomCodeView,
+    PreviewCustomHtmlView,
+    PublicCustomCodeView,
+    PublicCustomHtmlView,
+)
 
 app_name = "baserow_enterprise.api.custom_code"
 
 preview_urlpatterns = [
+    re_path(
+        r"^(?P<builder_id>[0-9]+)/custom-code/html/$",
+        PreviewCustomHtmlView.as_view(),
+        name="html",
+    ),
     re_path(
         r"^(?P<builder_id>[0-9]+)/custom-code/css/$",
         CustomCodeView.as_view(),
@@ -20,6 +30,11 @@ preview_urlpatterns = [
 ]
 
 urlpatterns = [
+    re_path(
+        r"^(?P<builder_id>[0-9]+)/html/public/$",
+        PublicCustomHtmlView.as_view(),
+        name="public_html",
+    ),
     re_path(
         r"^(?P<builder_id>[0-9]+)/css/public/$",
         PublicCustomCodeView.as_view(),

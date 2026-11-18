@@ -1,0 +1,82 @@
+import {
+  defineNuxtPlugin,
+  useCookie,
+  useRequestEvent,
+  useResponseHeader,
+  useRuntimeConfig,
+} from '#imports'
+import {
+  getBuilderPreviewApiPath,
+  getBuilderPreviewCookieName,
+  getBuilderPreviewSsrCookieName,
+} from '@baserow/modules/builder/utils/preview'
+
+export async function fetchBuilderHeadHtml(
+  { builder, mode, requestUrl, config, previewSession },
+  fetch = $fetch
+) {
+  if (builder.untrusted_content || !builder.custom_code?.has_html) {
+    return ''
+  }
+
+  const headers = { Accept: 'application/json' }
+  let path
+  if (mode === 'preview') {
+    const previewUrl = new URL(config.public.builderPreviewUrl)
+    const editorUrl = new URL(config.public.publicWebFrontendUrl)
+    // The editor's cookies are scoped by hostname, independent of ports.
+    if (
+      previewUrl.hostname === editorUrl.hostname ||
+      requestUrl.origin !== previewUrl.origin ||
+      !previewSession
+    ) {
+      return ''
+    }
+    headers.Cookie = `${getBuilderPreviewCookieName(config)}=${previewSession}`
+    path = getBuilderPreviewApiPath(builder.id, 'custom-code/html/')
+  } else if (mode === 'public') {
+    path = `custom_code/${builder.id}/html/public/`
+  } else {
+    return ''
+  }
+
+  const backendUrl = config.privateBackendUrl || config.public.publicBackendUrl
+  try {
+    const data = await fetch(path, {
+      baseURL: `${backendUrl.replace(/\/$/, '')}/api/`,
+      headers,
+      redirect: 'error',
+      retry: 0,
+      timeout: 2000,
+    })
+    return typeof data?.html === 'string' ? data.html : ''
+  } catch {
+    // Custom code is optional. A failed lookup should still render the page.
+    return ''
+  }
+}
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const event = useRequestEvent()
+  const config = useRuntimeConfig()
+  const cacheControl = useResponseHeader('Cache-Control')
+  const previewCookie = useCookie(getBuilderPreviewSsrCookieName(config), {
+    readonly: true,
+  })
+
+  nuxtApp.hook('builder:render', async ({ builder, mode, requestUrl }) => {
+    const fragment = await fetchBuilderHeadHtml({
+      builder,
+      mode,
+      requestUrl,
+      config,
+      previewSession: previewCookie.value,
+    })
+    if (fragment) {
+      event.context.baserowBuilderHeadHtml = fragment
+      if (mode === 'preview') {
+        cacheControl.value = 'private, no-store'
+      }
+    }
+  })
+})

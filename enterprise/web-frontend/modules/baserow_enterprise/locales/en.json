@@ -881,11 +881,15 @@
     "remove": "Remove {subject}"
   },
   "builderSettingTypes": {
-    "customCode": "Custom CSS/JS"
+    "customCode": "Custom code"
   },
   "customCodeSettingForm": {
     "customCSS": "Custom CSS",
     "customJS": "Custom JavaScript",
+    "customHtml": "Custom HTML in head",
+    "customHtmlHelp": "Add HTML to the head of every page. Publish the application to make saved changes live.",
+    "customHtmlSaveError": "Could not save the HTML. Your changes are still here. Try again.",
+    "saveHtml": "Save HTML",
     "customCSSPlaceholder": "Enter some custom CSS code...",
     "customJSPlaceholder": "Enter some custom JS code...",
     "externalScripts": "External scripts / stylesheets",

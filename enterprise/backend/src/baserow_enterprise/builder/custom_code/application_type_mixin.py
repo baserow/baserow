@@ -55,7 +55,20 @@ class CustomCodeBuilderApplicationTypeMixin:
         return {
             **super().serializer_field_overrides,
             "custom_code": CustomCodeSerializer(
-                help_text="Custom CSS/JS code for this builder"
+                help_text="Custom code for this builder"
+            ),
+        }
+
+    @property
+    def public_serializer_field_overrides(self):
+        from baserow_enterprise.api.builder.custom_code.serializers import (
+            PublicCustomCodeSerializer,
+        )
+
+        return {
+            **self.serializer_field_overrides,
+            "custom_code": PublicCustomCodeSerializer(
+                help_text="Custom code for this builder"
             ),
         }
 
@@ -74,7 +87,7 @@ class CustomCodeBuilderApplicationTypeMixin:
                 required=False,
             ),
             "custom_code": CustomCodeSerializer(
-                help_text="Custom CSS/JS code for this builder", required=False
+                help_text="Custom code for this builder", required=False
             ),
         }
 
@@ -104,9 +117,21 @@ class CustomCodeBuilderApplicationTypeMixin:
             self._create_scripts_in_bulk(instance, values["scripts"])
 
         if "custom_code" in values:
-            instance.custom_code.css = values["custom_code"].get("css", "")
-            instance.custom_code.js = values["custom_code"].get("js", "")
-            instance.custom_code.save()
+            code = instance.custom_code
+            code_values = values["custom_code"]
+            update_fields = []
+
+            # A dedicated HTML save leaves CSS and JS intact. Requests that
+            # update CSS or JS retain their existing replacement semantics.
+            if code_values.keys() != {"html"}:
+                code.css = code_values.get("css", "")
+                code.js = code_values.get("js", "")
+                update_fields.extend(("css", "js"))
+            if "html" in code_values:
+                code.html = code_values["html"]
+                update_fields.append("html")
+
+            code.save(update_fields=update_fields)
 
     def after_update(self, instance, values):
         """
@@ -169,7 +194,11 @@ class CustomCodeBuilderApplicationTypeMixin:
         return BuilderCustomCodeDict(
             **builder_dict,
             scripts=scripts,
-            custom_code={"css": builder.custom_code.css, "js": builder.custom_code.js},
+            custom_code={
+                "css": builder.custom_code.css,
+                "js": builder.custom_code.js,
+                "html": builder.custom_code.html,
+            },
         )
 
     @deferred_callback_context()
@@ -189,9 +218,10 @@ class CustomCodeBuilderApplicationTypeMixin:
         """
 
         serialized_scripts = serialized_values.pop("scripts", [])
-        serialized_custom_code = serialized_values.pop(
-            "custom_code", {"css": "", "js": ""}
-        )
+        serialized_custom_code = serialized_values.pop("custom_code", {})
+        html = serialized_custom_code.get("html", "")
+        if not isinstance(html, str):
+            raise ValueError("Custom HTML must be a string.")
 
         if cache is None:
             cache = {}
@@ -206,14 +236,16 @@ class CustomCodeBuilderApplicationTypeMixin:
             cache=cache,
         )
 
-        instance.custom_code.css = serialized_custom_code["css"]
-        instance.custom_code.js = serialized_custom_code["js"]
-        instance.custom_code.save()
+        code = instance.custom_code
+        code.css = serialized_custom_code.get("css", "")
+        code.js = serialized_custom_code.get("js", "")
+        code.html = html
+        code.save(update_fields=["css", "js", "html"])
 
         self._create_scripts_in_bulk(instance, serialized_scripts)
 
         report = cache.setdefault("import_report", [])
-        for code_type in ("css", "js"):
+        for code_type in ("css", "js", "html"):
             if serialized_custom_code.get(code_type):
                 report.append({"type": f"custom_{code_type}"})
         for script in instance.scripts.all():

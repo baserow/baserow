@@ -10,10 +10,41 @@ from baserow_enterprise.builder.custom_code.models import (
 )
 
 
+class CustomHtmlField(serializers.CharField):
+    def to_internal_value(self, data):
+        if not isinstance(data, str):
+            self.fail("invalid")
+        return super().to_internal_value(data)
+
+
 class CustomCodeSerializer(serializers.ModelSerializer):
+    html = CustomHtmlField(
+        required=False,
+        allow_blank=True,
+        trim_whitespace=False,
+        help_text="Custom HTML for the document head.",
+    )
+
     class Meta:
         model = BuilderCustomCode
-        fields = ["css", "js"]
+        fields = ["css", "js", "html"]
+
+
+class PublicCustomCodeSerializer(serializers.ModelSerializer):
+    has_html = serializers.SerializerMethodField(
+        help_text="Whether the builder has custom HTML for the document head."
+    )
+
+    class Meta:
+        model = BuilderCustomCode
+        fields = ["css", "js", "has_html"]
+
+    def get_has_html(self, instance: BuilderCustomCode) -> bool:
+        return bool(instance.html)
+
+
+class CustomHtmlSerializer(serializers.Serializer):
+    html = serializers.CharField()
 
 
 class CustomScriptSerializer(serializers.ModelSerializer):
