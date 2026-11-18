@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("baserow_enterprise", "0074_delete_legacy_agent_subjects"),
+        ("baserow_enterprise", "0075_auditlogentry_actor_user_type"),
         ("core", "0141_snapshot_keep_and_protection"),
     ]
 
