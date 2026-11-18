@@ -205,5 +205,8 @@ def test_field_list_returns_identity_collaborators_with_constant_queries(
         list_fields()
     for _ in range(3):
         data_fixture.create_identity(workspace=table.database.workspace)
+        data_fixture.create_multiple_collaborators_field(
+            table=table, include_identities=True
+        )
     with django_assert_max_num_queries(len(queries)):
         list_fields()

@@ -30,8 +30,8 @@ from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
-from baserow.core.models import User
-from baserow.core.user.identity import active_identity_q
+from baserow.core.handler import CoreHandler
+from baserow.core.user.identity import is_human, is_identity
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -638,27 +638,26 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            workspace.available_collaborators = workspace.users.order_by("first_name")
-        collaborators = [
-            {"id": user.id, "name": user.first_name, "user_type": "human"}
+            workspace.available_collaborators = (
+                CoreHandler()
+                .get_workspace_collaborators(workspace, include_identities=True)
+                .order_by("first_name")
+            )
+        include_identities = bool(
+            self.include_identities_source
+            and getattr(instance, self.include_identities_source)
+        )
+        people = [user for user in workspace.available_collaborators if is_human(user)]
+        identities = [
+            user
             for user in workspace.available_collaborators
+            if include_identities and is_identity(user)
         ]
-
-        if self.include_identities_source and getattr(
-            instance, self.include_identities_source
-        ):
-            if not hasattr(workspace, "available_identities"):
-                workspace.available_identities = list(
-                    User.objects_and_identities.filter(
-                        active_identity_q(), workspaceuser__workspace=workspace
-                    ).order_by("first_name")
-                )
-            collaborators += [
-                {"id": user.id, "name": user.first_name, "user_type": "identity"}
-                for user in workspace.available_identities
-            ]
-
-        return collaborators
+        return [
+            {"id": user.id, "name": user.first_name, "user_type": user_type}
+            for users, user_type in ((people, "human"), (identities, "identity"))
+            for user in users
+        ]
 
 
 class DuplicateFieldParamsSerializer(serializers.Serializer):

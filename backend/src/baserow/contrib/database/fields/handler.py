@@ -17,7 +17,7 @@ from typing import (
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, connection, transaction
-from django.db.models import Prefetch, QuerySet
+from django.db.models import Prefetch, Q, QuerySet
 from django.db.utils import DatabaseError, DataError, ProgrammingError
 
 from loguru import logger
@@ -58,11 +58,12 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewDefaultValue
 from baserow.core.db import specific_iterator, sql
 from baserow.core.handler import CoreHandler
-from baserow.core.models import TrashEntry, User
+from baserow.core.models import TrashEntry, User, UserProfile
 from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
+from baserow.core.user.identity import active_identity_q
 from baserow.core.utils import (
     ChildProgressBuilder,
     extract_allowed,
@@ -218,9 +219,13 @@ class FieldHandler:
         ).prefetch_related(
             Prefetch(
                 "table__database__workspace__users",
-                queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
-                    "first_name"
-                ),
+                queryset=User.objects_and_identities.filter(
+                    Q(profile__user_type=UserProfile.UserType.HUMAN)
+                    | active_identity_q(),
+                    profile__to_be_deleted=False,
+                )
+                .select_related("profile")
+                .order_by("first_name"),
                 to_attr="available_collaborators",
             ),
             "select_options",
