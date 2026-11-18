@@ -136,6 +136,8 @@ refuses a URL the step can't record in full, so the step always names the page
 that was requested. It downloads through the same outbound HTTP stack as the HTTP
 request integration (address checks on every redirect, the response size ceiling
 and one deadline), opens only text pages, and stops after a few pages per reply.
+Internal addresses are refused even where integrations may reach them, because
+the model picks the URL.
 A failure comes back as a tool error with a message instead of a retry, so broken
 links don't use up the reply's retries. Opening a page is never held for approval.
 A resumed reply offers it only if its paused run did and the setting is still on.

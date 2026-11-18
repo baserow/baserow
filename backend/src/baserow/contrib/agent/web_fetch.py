@@ -77,7 +77,7 @@ def _download(url: str):
     """
     Download the page through the same outbound HTTP stack as the HTTP request
     integration: its address checks on every redirect, its body size ceiling and
-    one deadline for the whole exchange.
+    one deadline for the whole exchange. Internal addresses are always refused.
 
     :param url: The page.
     :return: The response, its body read.
@@ -90,6 +90,9 @@ def _download(url: str):
         url,
         deadline=time.monotonic() + WEB_FETCH_TIMEOUT,
         operation_timeout=WEB_FETCH_TIMEOUT,
+        # The model picks the URL and a page can steer it, so the setting that
+        # lets integrations reach internal services doesn't apply here.
+        refuse_private_addresses=True,
         headers={
             "user-agent": f"Baserow/{BASEROW_VERSION}/AgentWebFetch",
             "accept": "text/markdown, text/html;q=0.9, text/*;q=0.8",

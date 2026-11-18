@@ -1089,9 +1089,12 @@ def fetch_results(mocker, urls: list[str], parallel: bool = False) -> list:
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("allow_private_address", [False, True])
 def test_web_fetch_refuses_internal_addresses_with_one_message(
-    mocker, data_fixture, configured_agent
+    mocker, settings, data_fixture, configured_agent, allow_private_address
 ):
+    # Even where integrations may reach internal services.
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = allow_private_address
     user = data_fixture.create_user()
     urls = [
         "http://127.0.0.1:8000/api/settings/",

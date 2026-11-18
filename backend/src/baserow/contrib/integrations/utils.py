@@ -587,6 +587,7 @@ def send_http_request(
     deadline: float,
     operation_timeout: Optional[float] = None,
     redirects_stay_on_host: bool = False,
+    refuse_private_addresses: bool = False,
     **kwargs,
 ) -> requests.Response:
     """
@@ -600,6 +601,8 @@ def send_http_request(
         when that is shorter than what is left until `deadline`.
     :param redirects_stay_on_host: Only follow a redirect to the same host,
         and never from https to http.
+    :param refuse_private_addresses: Check every hop's address even when
+        `INTEGRATIONS_ALLOW_PRIVATE_ADDRESS` is on, for URLs a model picks.
     :param kwargs: Anything else `requests.Session.request` accepts, except
         `timeout`, `stream` and `hooks`, which this function sets itself and
         must not be passed in.
@@ -617,6 +620,7 @@ def send_http_request(
     session_class = (
         _DeadlineSession
         if settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS is True
+        and not refuse_private_addresses
         else _DeadlineAdvocateSession
     )
     request_deadline = _RequestDeadline(deadline)
