@@ -148,10 +148,14 @@ def sentry_events(settings):
     `collect_sentry_events`.
     """
 
+    from sentry_sdk.integrations.threading import ThreadingIntegration
+
     from baserow.test_utils.sentry import TEST_SENTRY_DSN, collect_sentry_events
 
     settings.SENTRY_DSN = TEST_SENTRY_DSN
-    with collect_sentry_events() as events:
+    # Like the default integrations, so a thread started in the test reports to
+    # the same client.
+    with collect_sentry_events([ThreadingIntegration(propagate_scope=True)]) as events:
         yield events
 
 

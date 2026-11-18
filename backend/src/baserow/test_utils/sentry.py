@@ -45,3 +45,34 @@ def collect_sentry_events(
             yield transport.events
     finally:
         client.close()
+
+
+def sent_exception_types(events: list[dict[str, Any]]) -> list[str]:
+    """The type of the exception of each collected Sentry event."""
+
+    return [event["exception"]["values"][-1]["type"] for event in events]
+
+
+def make_openai_error(status_code: int = 429, message: str = "Provider error"):
+    """
+    Builds the error the OpenAI SDK raises for a response with this status, like
+    `RateLimitError` for a 429.
+
+    :param status_code: The status the provider answered with.
+    :param message: The error message.
+    """
+
+    import httpx
+    import openai
+
+    error_class = {
+        400: openai.BadRequestError,
+        401: openai.AuthenticationError,
+        403: openai.PermissionDeniedError,
+        404: openai.NotFoundError,
+        429: openai.RateLimitError,
+    }.get(status_code, openai.InternalServerError)
+    request = httpx.Request("POST", "https://api.openai.com/v1/responses")
+    return error_class(
+        message, response=httpx.Response(status_code, request=request), body=None
+    )

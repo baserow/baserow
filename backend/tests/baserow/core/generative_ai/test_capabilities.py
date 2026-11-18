@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+import sentry_sdk
 
 from baserow.core.generative_ai.capabilities import (
     ModelToolCallingNotSupportedError,
@@ -10,6 +11,7 @@ from baserow.core.generative_ai.capabilities import (
 from baserow.core.generative_ai.capabilities import (
     test_model_text_and_tool_calling as check_model_text_and_tool_calling,
 )
+from baserow.test_utils.sentry import make_openai_error, sent_exception_types
 
 
 def test_model_without_tool_support_is_rejected_without_making_a_request():
@@ -92,3 +94,48 @@ def test_compatibility_probe_times_out_and_closes_the_model():
         check_model_text_and_tool_calling(Model(), max_tokens=16, timeout_seconds=0.01)
 
     assert lifecycle == ["enter", "exit"]
+
+
+@pytest.mark.parametrize(
+    "make_error,reported",
+    [
+        # A failed probe is shown to the user, so the provider's fault isn't sent.
+        (lambda: make_openai_error(401), False),
+        # A probe that the provider rejects is Baserow's to fix, so it's sent.
+        (lambda: make_openai_error(400), True),
+        (lambda: TypeError("unexpected keyword argument 'timeout'"), True),
+    ],
+)
+def test_compatibility_probe_reports_only_errors_not_caused_by_the_provider(
+    sentry_events, make_error, reported
+):
+    error = make_error()
+
+    class Model:
+        profile = {"supports_tools": True}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            pass
+
+    class FailingAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def run(self, *args, **kwargs):
+            # Like the Sentry AI client integrations, which capture the client
+            # error before re-raising it.
+            sentry_sdk.capture_exception(error)
+            raise error
+
+    with (
+        patch("baserow.core.generative_ai.capabilities.Agent", FailingAgent),
+        pytest.raises(type(error)),
+    ):
+        check_model_text_and_tool_calling(Model(), max_tokens=16)
+
+    assert sent_exception_types(sentry_events) == (
+        [type(error).__name__] if reported else []
+    )

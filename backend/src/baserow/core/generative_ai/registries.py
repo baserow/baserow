@@ -1159,7 +1159,10 @@ class GenerativeAIModelType(Instance):
             validated output_type instance.
         """
 
-        from .exceptions import GenerativeAIPromptError
+        from .exceptions import (
+            GenerativeAIPromptError,
+            ignore_provider_faults_in_sentry,
+        )
 
         try:
             settings_override = self.get_model_settings_override(
@@ -1176,13 +1179,16 @@ class GenerativeAIModelType(Instance):
             # allocated immediately and must be scoped as soon as they exist.
             ai_model = self.get_ai_model(model, workspace, settings_override)
 
-            result = run_agent_sync_with_model(
-                agent,
-                user_prompt,
-                model=ai_model,
-                model_settings=model_settings,
-                timeout_seconds=timeout_seconds,
-            )
+            # The error is raised as a `GenerativeAIPromptError`, which every caller
+            # shows to the user, so the provider's fault isn't reported to Sentry.
+            with ignore_provider_faults_in_sentry():
+                result = run_agent_sync_with_model(
+                    agent,
+                    user_prompt,
+                    model=ai_model,
+                    model_settings=model_settings,
+                    timeout_seconds=timeout_seconds,
+                )
 
             if self._is_choices(output_type):
                 return self._resolve_choices(result.output, output_type)

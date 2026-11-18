@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -7,8 +7,13 @@ import pytest
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
+from baserow.test_utils.sentry import make_openai_error
 from baserow_premium.fields.models import AIFieldScheduledUpdate
-from baserow_premium.fields.tasks import schedule_ai_field_generation
+from baserow_premium.fields.tasks import (
+    generate_scheduled_ai_field_generation,
+    schedule_ai_field_generation,
+)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -154,3 +159,52 @@ def test_identity_auto_update_stores_its_user_and_generates_as_the_identity(
     )
     assert row.last_modified_by_id == identity.id
     assert has_feature.call_args.args[1] == identity
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+@override_settings(DEBUG=True)
+def test_failed_scheduled_generation_keeps_rows_for_the_next_periodic_run(
+    premium_data_fixture,
+):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        ai_prompt="'Test'",
+        ai_auto_update=True,
+        ai_auto_update_user=user,
+    )
+    rows = RowHandler().create_rows(user, table, rows_values=[{}]).created_rows
+    AIFieldScheduledUpdate.objects.create(
+        field_id=ai_field.id,
+        row_id=rows[0].id,
+        updated_on=timezone.now(),
+    )
+    # Rows scheduled while the job ran would normally start another run at once.
+    flag = MagicMock()
+    flag.is_set.return_value = True
+    prompt_error = GenerativeAIPromptError("You have no credits remaining.")
+    prompt_error.__cause__ = make_openai_error(429)
+
+    with (
+        patch(
+            "baserow.test_utils.fixtures.generative_ai."
+            "TestGenerativeAIModelType.prompt",
+            side_effect=prompt_error,
+        ),
+        patch(
+            "baserow_premium.fields.tasks._get_singleton_autoreschedule_flag",
+            return_value=flag,
+        ),
+        patch(
+            "baserow_premium.fields.tasks._schedule_generate_ai_value_generation"
+        ) as mock_schedule,
+    ):
+        # The failure was sent to the user, so the task doesn't raise it.
+        generate_scheduled_ai_field_generation(ai_field.id)
+
+    assert AIFieldScheduledUpdate.objects.filter(field_id=ai_field.id).count() == 1
+    mock_schedule.assert_not_called()

@@ -92,7 +92,7 @@ def generate_scheduled_ai_field_generation(field_id: int):
     # Synchronously run the job while keeping the singleton lock, to avoid
     # multiple concurrent job runs for the same field.
     try:
-        jh.create_and_start_job(
+        job = jh.create_and_start_job(
             user,
             GenerateAIValuesJobType.type,
             field_id=field_id,
@@ -102,6 +102,11 @@ def generate_scheduled_ai_field_generation(field_id: int):
     except AIFieldPromptInvalidError:
         # The prompt is broken, so there's nothing to generate. The scheduled rows
         # are kept so they can be processed once the prompt is fixed.
+        return
+
+    if job.failed:
+        # The rows that weren't generated stay scheduled for the next periodic run,
+        # so a failing provider isn't called again at once.
         return
 
     if flag.is_set():

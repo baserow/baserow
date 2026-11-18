@@ -1,6 +1,7 @@
 import json
+from contextlib import AbstractContextManager
 
-from pydantic_ai.exceptions import UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior
 
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 
@@ -45,6 +46,65 @@ def get_provider_api_error_types() -> tuple[type[Exception], ...]:
     from openai import APIError as OpenAIAPIError
 
     return (OpenAIAPIError, AnthropicAPIError, GoogleAPIError, GoogleTransportError)
+
+
+# The statuses a provider answers when its settings or the provider itself are at
+# fault: an invalid key, no credits or access, a timeout, a conflict and a rate
+# limit. Server errors (5xx) are too.
+PROVIDER_FAULT_STATUS_CODES = frozenset({401, 402, 403, 408, 409, 429})
+
+
+def _get_status_code(exc: BaseException) -> int | None:
+    # Google's errors have a `code`, the other SDKs and pydantic-ai a `status_code`.
+    status_code = getattr(exc, "status_code", None)
+    if status_code is None:
+        status_code = getattr(exc, "code", None)
+    return status_code if isinstance(status_code, int) else None
+
+
+def is_provider_fault(exc: BaseException) -> bool:
+    """
+    Whether a request failed because of the provider or its settings rather than
+    because of the request Baserow built: an invalid key, no credits, a rate limit,
+    a timeout, an unreachable host or a provider server error. A rejected request
+    (400, 404, 422) or a response that doesn't validate is Baserow's to fix, so it
+    isn't.
+
+    The causes are checked too, up to the first provider error: one of
+    `get_provider_api_error_types`, or pydantic-ai's `ModelAPIError`, which it
+    raises from the error of every provider.
+
+    :param exc: The exception to check.
+    :return: True when the first provider error found is the provider's fault.
+    """
+
+    provider_error_types = (*get_provider_api_error_types(), ModelAPIError)
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        if isinstance(exc, provider_error_types):
+            status_code = _get_status_code(exc)
+            return (
+                status_code is None
+                or status_code in PROVIDER_FAULT_STATUS_CODES
+                or status_code >= 500
+            )
+        seen.add(id(exc))
+        exc = exc.__cause__
+    return False
+
+
+def ignore_provider_faults_in_sentry() -> AbstractContextManager[None]:
+    """
+    Drops the Sentry events of the provider errors captured inside the block that
+    are the provider's fault, see `is_provider_fault`. The AI client integrations
+    of Sentry capture these before Baserow can show them to the user. Other
+    exceptions, including a provider rejecting the request Baserow built, are
+    still sent.
+    """
+
+    from baserow.core.sentry import ignore_sentry_exceptions_if
+
+    return ignore_sentry_exceptions_if(is_provider_fault)
 
 
 def get_user_friendly_error_message(exc: Exception) -> str:
