@@ -9,10 +9,10 @@ import {
   applySnapshot,
 } from './assistantRunHelpers'
 import {
-  storeOnboardingRunId,
+  setOnboardingRunId,
   storeChatUuid,
   getStoredChatUuid,
-  getStoredOnboardingRunId,
+  getOnboardingRunId,
   getTabId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 
@@ -194,7 +194,7 @@ describe('Kuma HTTP record adapter', () => {
   })
 
   test('a completed onboarding run opens its target in an open panel', async () => {
-    storeOnboardingRunId('run-1')
+    setOnboardingRunId('run-1')
     await applySnapshot(store, { status: 'completed', message: created })
     expect(navigated).toEqual([table])
   })
@@ -214,7 +214,7 @@ describe('Kuma HTTP record adapter', () => {
   })
 
   test('onboarding completed while closed opens its target once the panel opens', async () => {
-    storeOnboardingRunId('run-1')
+    setOnboardingRunId('run-1')
     const type = testApp.getRegistry().get('chatRunType', 'assistant')
     const follower = store.getters['chatRuns/getFollower']('run-1')
     expect(type.shouldRetainFollower(follower)).toBe(true)
@@ -229,7 +229,7 @@ describe('Kuma HTTP record adapter', () => {
 
   test('logout forgets the conversation and onboarding handoff before another login opens the panel', async () => {
     storeChatUuid(uuid)
-    storeOnboardingRunId('run-1')
+    setOnboardingRunId('run-1')
     store.commit('assistant/SET_PANEL_OPEN', false)
     await applySnapshot(store, { status: 'completed', message: created })
 
@@ -237,7 +237,7 @@ describe('Kuma HTTP record adapter', () => {
     store.commit('auth/LOGOFF')
     expect(store.getters['assistant/messages']).toEqual([])
     expect(getStoredChatUuid()).toBeNull()
-    expect(getStoredOnboardingRunId()).toBeNull()
+    expect(getOnboardingRunId()).toBeNull()
     testApp.authenticate({ id: 2, first_name: 'Other' })
     await store.dispatch('assistant/setPanelOpen', true)
     expect(navigated).toEqual([])

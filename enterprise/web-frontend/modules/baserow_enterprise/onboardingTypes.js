@@ -7,7 +7,7 @@ import AIPromptStep from '@baserow_enterprise/components/onboarding/AIPromptStep
 import AssistantOnboardingMessage from '@baserow_enterprise/components/assistant/AssistantOnboardingMessage.vue'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
 import {
-  storeOnboardingRunId,
+  setOnboardingRunId,
   storePanelOpen,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 
@@ -67,7 +67,7 @@ export class AIPromptOnboardingType extends OnboardingType {
     })
     if (!runId) throw new Error('Kuma could not start building the database.')
     storePanelOpen(true)
-    storeOnboardingRunId(runId)
+    setOnboardingRunId(runId)
     return { workspace, runId }
   }
 
