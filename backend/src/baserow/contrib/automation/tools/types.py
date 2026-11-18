@@ -319,6 +319,7 @@ class NodeRefs:
                 "not a router. Leave it out to follow the node."
             )
         uid = edges.get(edge_label)
+        matches = []
         if uid is None:
             matches = [
                 uid
@@ -326,7 +327,8 @@ class NodeRefs:
                 if label.lower() == edge_label.lower()
             ]
             uid = matches[0] if len(matches) == 1 else None
-        if uid is None and edge_label.lower() == DEFAULT_BRANCH:
+        # Only when no branch has the label: when several do, it is ambiguous.
+        if not matches and uid is None and edge_label.lower() == DEFAULT_BRANCH:
             return node_id, ""
         if uid is None:
             labels = ", ".join(f"'{label}'" for label in edges) or "none"

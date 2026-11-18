@@ -22,7 +22,11 @@ from baserow.contrib.automation.tools.nodes import (
     list_nodes,
     update_nodes,
 )
-from baserow.contrib.automation.tools.types import ActionNodeCreate, NodeUpdate
+from baserow.contrib.automation.tools.types import (
+    ActionNodeCreate,
+    NodeRefs,
+    NodeUpdate,
+)
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.cache import local_cache
@@ -1231,3 +1235,14 @@ def test_update_nodes_keeps_a_branch_listed_without_a_condition(automation_ctx):
         for edge in router.service.specific.edges.all()
     }
     assert edges == {"Big": "true", "Small": ""}
+
+
+def test_node_refs_refuses_default_when_two_branches_match_it():
+    refs = NodeRefs()
+    refs.add("router", 1, {"Default": "uid1", "DEFAULT": "uid2"})
+
+    assert refs.resolve("router", "Default") == (1, "uid1")
+    with pytest.raises(DjangoValidationError, match="is not a branch"):
+        refs.resolve("router", "default")
+    refs.add("plain", 2, {"Big": "uid3"})
+    assert refs.resolve("plain", "default") == (2, "")
