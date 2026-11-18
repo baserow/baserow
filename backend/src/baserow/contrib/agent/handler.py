@@ -191,6 +191,7 @@ class AgentHandler:
             ),
             run_as=run_as,
             **tools,
+            deactivated_tools=self.get_deactivated_tools(agent),
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
             web_search_blocked_by_tools=web_search_tool is None
@@ -298,10 +299,24 @@ class AgentHandler:
             readiness = AgentReadinessState.READY
         return readiness, errors
 
+    def get_deactivated_tools(self, agent: AgentApplication) -> list[str]:
+        """
+        :param agent: The Agent to read.
+        :return: The names of the registered tools the Agent's workspace can't
+            use, in registry order.
+        """
+
+        return [
+            tool_type.type
+            for tool_type in agent_tool_type_registry.get_all()
+            if tool_type.is_deactivated(agent.workspace)
+        ]
+
     def get_tool_configuration(self, agent: AgentApplication) -> AgentToolConfiguration:
         """
         Return the tools the Agent may call and those that wait for the owner's
-        approval, leaving out tools no longer registered.
+        approval, leaving out tools no longer registered or deactivated in the
+        Agent's workspace.
 
         :param agent: The Agent to read.
         :return: The allowed tool names and the ask first tool names, in registry
@@ -312,8 +327,11 @@ class AgentHandler:
         if not agent.run_as_subject_type or not agent.run_as_subject_id:
             return {"allowed_tools": [], "ask_first_tools": []}
         ask_first = dict(agent.allowed_tools.values_list("name", "ask_first"))
+        deactivated = set(self.get_deactivated_tools(agent))
         allowed_tools = [
-            name for name in agent_tool_type_registry.get_types() if name in ask_first
+            name
+            for name in agent_tool_type_registry.get_types()
+            if name in ask_first and name not in deactivated
         ]
         return {
             "allowed_tools": allowed_tools,

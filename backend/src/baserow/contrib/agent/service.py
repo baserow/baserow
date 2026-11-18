@@ -32,6 +32,7 @@ from .operations import (
     ReadAgentConversationsOperationType,
     UpdateAgentConversationOperationType,
 )
+from .registries import agent_tool_type_registry
 from .signals import (
     agent_conversation_activity,
     agent_conversation_deleted,
@@ -141,6 +142,8 @@ class AgentService:
             its configuration, or may not bind it to a different identity.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
+        :raises Exception: The tool type's own error when an allowed tool is
+            deactivated in the Agent's workspace.
         :return: The Agent, its original and new configuration values, and the
             resolved resulting configuration.
         """
@@ -156,6 +159,8 @@ class AgentService:
         current_run_as = [getattr(agent, field) for field in self.handler.run_as_fields]
         if any(run_as) and run_as != current_run_as:
             IdentityService().check_can_bind(user, agent.workspace)
+        for name in values.get("allowed_tools") or []:
+            agent_tool_type_registry.get(name).raise_if_deactivated(agent.workspace)
         updated = self.handler.update_configuration(agent, **values)
         if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.

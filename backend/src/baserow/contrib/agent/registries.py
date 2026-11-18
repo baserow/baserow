@@ -14,6 +14,7 @@ from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.registries import DataProviderTypeRegistry
+from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
@@ -216,6 +217,23 @@ class AgentToolType(Instance):
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Whether the tool can't be used in a workspace, for lack of a licence for
+        example. A deactivated tool stays listed, so it can be offered locked.
+
+        :param workspace: The workspace of the Agent.
+        :return: True when the Agent can't be allowed the tool and can't call it.
+        """
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        """
+        :param workspace: The workspace of the Agent.
+        :raises Exception: The type's own error when the tool is deactivated there.
+        """
 
     def hold_call(
         self,
