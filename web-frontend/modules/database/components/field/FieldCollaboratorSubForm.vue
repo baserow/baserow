@@ -6,6 +6,7 @@
     <Checkbox
       v-if="$featureFlagIsEnabled(FF_IDENTITIES)"
       v-model="values.include_identities"
+      class="margin-top-1"
     >
       {{ $t('fieldCollaboratorSubForm.includeIdentities') }}
     </Checkbox>

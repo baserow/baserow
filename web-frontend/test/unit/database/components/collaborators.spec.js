@@ -8,8 +8,13 @@ import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 describe('Identity collaborators', () => {
   let testApp
+  let identityIconClass
   beforeEach(async () => {
     testApp = new TestApp()
+    identityIconClass = testApp.$registry.get(
+      'subject',
+      'auth.User'
+    ).identityIconClass
     await testApp.store.dispatch('workspace/forceCreate', {
       id: 1,
       users: [{ id: 10, user_id: 20, name: 'Person' }],
@@ -42,7 +47,7 @@ describe('Identity collaborators', () => {
         option.find('.select-collaborators__dropdown-option').text()
       )
     ).toEqual(['Person', 'Ops'])
-    expect(options[1].find('.iconoir-lock').exists()).toBe(true)
+    expect(options[1].find(`.${identityIconClass}`).exists()).toBe(true)
     await options[1].trigger('click')
     expect(wrapper.emitted('input')[0]).toEqual([30])
   })
@@ -63,7 +68,7 @@ describe('Identity collaborators', () => {
     const wrapper = await testApp.mount(RowCardFieldMultipleCollaborators, {
       props: { value: [{ id: 30, name: 'Old name' }] },
     })
-    expect(wrapper.find('.iconoir-lock').exists()).toBe(true)
+    expect(wrapper.find(`.${identityIconClass}`).exists()).toBe(true)
     expect(wrapper.text()).toBe('Ops')
     testApp.store.commit('workspace/UPSERT_WORKSPACE_IDENTITY', {
       workspaceId: 1,
@@ -146,7 +151,7 @@ describe('Identity collaborators', () => {
     await wrapper.find('.dropdown__selected').trigger('click')
     await flushPromises()
     expect(wrapper.find('.select-collaborators__group').exists()).toBe(true)
-    expect(wrapper.find('.iconoir-lock').exists()).toBe(true)
+    expect(wrapper.find(`.${identityIconClass}`).exists()).toBe(true)
   })
 
   test('public chips identify Identities from the field options', async () => {
@@ -161,7 +166,7 @@ describe('Identity collaborators', () => {
         },
       },
     })
-    expect(wrapper.find('.iconoir-lock').exists()).toBe(true)
+    expect(wrapper.find(`.${identityIconClass}`).exists()).toBe(true)
     expect(wrapper.text()).toBe('Ops')
   })
 })

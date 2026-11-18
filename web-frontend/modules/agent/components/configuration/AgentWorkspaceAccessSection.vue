@@ -33,7 +33,7 @@
           :key="identity.id"
           :name="identity.name"
           :value="identity.id"
-          icon="iconoir-lock"
+          :icon="identityIconClass"
         />
       </template>
     </PaginatedDropdown>
@@ -69,10 +69,13 @@ const props = defineProps({
   editable: Boolean,
 })
 const emit = defineEmits(['change', 'flush'])
-const { $client } = useNuxtApp()
+const { $client, $registry } = useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
 const runAsDropdown = ref(null)
+const identityIconClass = computed(
+  () => $registry.get('subject', UserSubjectType.getType()).identityIconClass
+)
 
 const status = computed(() => getRunAsStatus(props.configuration.run_as))
 const identityAvailable = computed(() => status.value === RUN_AS_STATUS.ACTIVE)

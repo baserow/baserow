@@ -11,6 +11,7 @@
             $featureFlagIsEnabled(FF_IDENTITIES)
           "
           v-model="values.long_text_include_identities"
+          class="margin-top-1"
           >{{ $t('fieldLongTextSubForm.includeIdentities') }}</Checkbox
         >
       </div>

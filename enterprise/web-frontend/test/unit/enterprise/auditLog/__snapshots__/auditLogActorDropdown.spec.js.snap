@@ -27,7 +27,7 @@ exports[`AuditLogActorDropdown > renders users and identities in separate sectio
         <div class="dropdown-section__title">Identities</div>
         <li class="select__item select__item--no-options visible" role="listitem"><a class="select__item-link">
             <div class="select__item-name">
-              <!--v-if--><i class="select__item-icon iconoir-lock"></i>
+              <!--v-if--><i class="select__item-icon iconoir-hexagon"></i>
               <!--v-if--><span class="select__item-name-text" title="Row writer">Row writer</span>
             </div>
             <!--v-if-->

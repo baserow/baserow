@@ -14,7 +14,7 @@ const COPY = {
   mention: "Allow mentioning identities",
   removes: "Saving removes the identities already assigned in this field.",
 };
-const IDENTITY_ICON = ".iconoir-lock";
+const IDENTITY_ICON = ".iconoir-hexagon";
 
 async function editField(page: Page, name: string, option: string) {
   const editItem = page.locator(".context__menu-item:visible", {

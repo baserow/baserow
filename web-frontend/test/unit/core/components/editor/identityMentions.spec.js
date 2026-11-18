@@ -83,7 +83,9 @@ describe('Identity User mentions', () => {
       },
     })
     expect(wrapper.findAll('li')).toHaveLength(1)
-    expect(wrapper.find('.iconoir-lock').exists()).toBe(true)
+    expect(wrapper.get('.collaborator-avatar--identity i').classes()).toContain(
+      testApp.$registry.get('subject', 'auth.User').identityIconClass
+    )
     await wrapper.find('li').trigger('click')
     expect(command).toHaveBeenCalledWith({ id: 30, label: 'Ops' })
 

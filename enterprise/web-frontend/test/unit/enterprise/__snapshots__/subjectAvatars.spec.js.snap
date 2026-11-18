@@ -1,14 +1,14 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`identity avatar owns its appearance in compact and large lists > compact 1`] = `
-"<div class="avatar avatar--medium avatar--purple identity-avatar"><i class="iconoir-lock avatar__icon"></i>
+"<div class="avatar avatar--medium avatar--purple identity-avatar"><i class="iconoir-hexagon avatar__icon"></i>
   <!--v-if-->
   <!--v-if-->
 </div>"
 `;
 
 exports[`identity avatar owns its appearance in compact and large lists > large 1`] = `
-"<div class="avatar avatar--large avatar--purple identity-avatar"><i class="iconoir-lock avatar__icon"></i>
+"<div class="avatar avatar--large avatar--purple identity-avatar"><i class="iconoir-hexagon avatar__icon"></i>
   <!--v-if-->
   <!--v-if-->
 </div>"

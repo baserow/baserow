@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import {
   agentData,
   choose,
@@ -641,6 +642,11 @@ describe('Agent configuration', () => {
   })
 
   test('runs as a chosen identity or with no workspace access', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
     testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
@@ -659,19 +665,20 @@ describe('Agent configuration', () => {
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     const body = () => wrapper.get('.agent-configuration__body')
-    const select = async (name) => {
+    const select = async (name, expectedIcon) => {
       await body().get('.dropdown__selected').trigger('click')
       await flushPromises()
-      await body()
+      const item = body()
         .findAll('.select__item-link')
         .find((item) => item.text().includes(name))
-        .trigger('click')
+      expect(item.get('.select__item-icon').classes()).toContain(expectedIcon)
+      await item.trigger('click')
       await flushPromises()
     }
 
-    await select('Investor')
+    await select('Investor', 'iconoir-identity-test')
     expect(body().text()).toContain('agent.runAsHelper')
-    await select('agent.noWorkspaceAccess')
+    await select('agent.noWorkspaceAccess', 'iconoir-prohibition')
 
     expect(savedValues(testApp)).toEqual([
       { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
