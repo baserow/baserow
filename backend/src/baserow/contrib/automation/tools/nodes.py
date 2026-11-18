@@ -363,7 +363,7 @@ def check_shifted_branch_chosen(
     :raises DjangoValidationError: When nodes follow the router's position.
     """
 
-    shifted = workflow.get_graph().get_info(reference_id).get("next", {}).get(output)
+    shifted = workflow.get_graph().get_next_point_ids(reference_id, output)
     if shifted:
         # A node created earlier in the call is named by its ref: its ID goes
         # with the rollback.

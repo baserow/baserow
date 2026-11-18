@@ -466,6 +466,20 @@ class BaseGraphHandler(ABC):
         point_info = self.get_info(point)
         return [x for sublist in point_info.get("next", {}).values() for x in sublist]
 
+    def get_next_point_ids(
+        self, point: GraphPoint | str | int, output: str
+    ) -> List[int | str]:
+        """
+        Get the IDs of the points that follow the given point on one of its outputs,
+        without loading them.
+
+        :param point: The point, or its ID, to get the next point IDs from.
+        :param output: The output to get the next point IDs for.
+        :return: The IDs, empty when no point follows on that output.
+        """
+
+        return list(self.get_info(point).get("next", {}).get(output, []))
+
     def get_next_points(
         self, point: GraphPoint, output: str | None = None
     ) -> List[GraphPoint]:

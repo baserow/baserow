@@ -1451,3 +1451,21 @@ def test_join_next_points_moves_like_move_next_points_when_target_is_empty():
         "2": {"next": {"": [3]}},
         "3": {},
     }
+
+
+def test_get_next_point_ids_returns_the_ids_on_one_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2], "uid1": [3]}},
+            "2": {"next": {"": [4]}},
+            "3": {},
+            "4": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.get_next_point_ids(model.points[1], "") == [2]
+    assert graph.get_next_point_ids(1, "uid1") == [3]
+    assert graph.get_next_point_ids(1, "uid2") == []
+    assert graph.get_next_point_ids(3, "") == []
