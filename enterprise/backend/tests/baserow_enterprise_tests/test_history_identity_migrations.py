@@ -37,7 +37,7 @@ def _get_column(table_name, column_name):
 @pytest.mark.parametrize(
     "app,previous,current,table_name,column_name", HISTORY_IDENTITY_MIGRATIONS
 )
-def test_history_identity_columns_are_added_without_changing_entries(
+def test_history_identity_columns_are_added_nullable_without_a_default(
     migrator, app, previous, current, table_name, column_name
 ):
     migrator.migrate([(app, previous)])
