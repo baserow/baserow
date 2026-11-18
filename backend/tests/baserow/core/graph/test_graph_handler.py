@@ -1453,6 +1453,43 @@ def test_join_next_points_moves_like_move_next_points_when_target_is_empty():
     }
 
 
+def test_split_next_points_leaves_the_points_from_a_point_on_the_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+
+    model.get_graph().split_next_points(model.points[1], "", "uid1", 4)
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2], "": [4]}},
+        "2": {"next": {"": [3]}},
+        "3": {"next": {}},
+        "4": {},
+    }
+
+
+def test_split_next_points_moves_the_whole_chain_without_the_point():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+
+    model.get_graph().split_next_points(model.points[1], "", "uid1", 99)
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
 def test_get_next_point_ids_returns_the_ids_on_one_output():
     model = make_graph_model(
         {

@@ -258,11 +258,79 @@ def test_undo_router_insert_keeps_a_node_added_on_its_default_output(
 
     ActionHandler.redo(ctx.user, scope, session)
 
+    # Other is back on the router's default output, not after the branch.
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
     workflow.reload_graph()
     graph = workflow.graph
-    assert list(graph[str(router["id"])]["next"].values()) == [[email["id"]]]
+    assert graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [other.id],
+    }
+    assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
+    assert not graph[str(after["id"])].get("next", {}).get("")
+
+    ActionHandler.undo(ctx.user, scope, session)
+
+    workflow.reload_graph()
+    graph = workflow.graph
+    assert str(router["id"]) not in graph
+    assert graph[str(trigger.id)]["next"] == {"": [email["id"]]}
     assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
     assert graph[str(after["id"])]["next"] == {"": [other.id]}
+    assert not Action.objects.filter(error__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router2",
+                type="router",
+                previous_node_ref=str(email["id"]),
+                edges=[{"label": "Small", "condition": "true"}],
+            )
+        ],
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    # On the branch, the chain ends in a router: Other would then run only when
+    # none of its branches match, so the undo is refused.
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects.filter(id=other.id).exists()
 
 
 @pytest.mark.django_db

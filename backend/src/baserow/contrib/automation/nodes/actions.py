@@ -8,6 +8,7 @@ from baserow.contrib.automation.action_scopes import (
     NODE_ACTION_CONTEXT,
     WorkflowActionScopeType,
 )
+from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotDeletable
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
@@ -37,6 +38,9 @@ class CreateAutomationNodeActionType(UndoableActionType):
         node_type: str
         # The output of the node that the nodes it was inserted before follow.
         next_output: str = ""
+        # The first node that followed the node on its default output at the last
+        # undo, so redo leaves it there.
+        joined_node_id: int | None = None
 
     @classmethod
     def do(
@@ -59,7 +63,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
                 # added on that output later.
                 next_output
                 if (next_output := data.get("next_output", ""))
-                and node.workflow.get_graph().get_next_points(node, next_output)
+                and node.workflow.get_graph().get_next_point_ids(node, next_output)
                 else "",
             ),
             scope=cls.scope(node.workflow.id),
@@ -83,8 +87,35 @@ class CreateAutomationNodeActionType(UndoableActionType):
             # is deleted, as before it was inserted. Nodes added to the default
             # output since follow them.
             node = AutomationNodeHandler().get_node(params.node_id)
-            node.workflow.get_graph().join_next_points(node, params.next_output, "")
+            graph = node.workflow.get_graph()
+            joined_ids = graph.get_next_point_ids(node, "")
+            if joined_ids:
+                cls._check_chain_can_be_followed(node, params.next_output)
+            graph.join_next_points(node, params.next_output, "")
+            params.joined_node_id = joined_ids[0] if joined_ids else None
+            action_to_undo.params = params
         AutomationNodeService().delete_node(user, params.node_id)
+
+    @classmethod
+    def _check_chain_can_be_followed(cls, node: AutomationNode, output: str):
+        """
+        Check the nodes on the default output of a node can follow the chain on
+        another of its outputs. A chain that ends in a router can't be followed:
+        they would run only when none of its branches match.
+
+        :raises AutomationNodeNotDeletable: When the chain ends in a router.
+        """
+
+        tail_id = node.workflow.get_graph().get_chain_tail_id(node, output)
+        if tail_id is None:
+            return
+        tail = AutomationNodeHandler().get_node(int(tail_id))
+        if len(tail.service.get_type().get_edges(tail.service.specific)) > 1:
+            raise AutomationNodeNotDeletable(
+                f"Node {node.id} can't be removed: the nodes on its default output "
+                f"would follow router {tail.id} and run only when none of its "
+                "branches match."
+            )
 
     @classmethod
     def redo(
@@ -100,7 +131,9 @@ class CreateAutomationNodeActionType(UndoableActionType):
         )
         if params.next_output:
             node = AutomationNodeHandler().get_node(params.node_id)
-            node.workflow.get_graph().move_next_points(node, "", params.next_output)
+            node.workflow.get_graph().split_next_points(
+                node, "", params.next_output, params.joined_node_id
+            )
 
 
 class UpdateAutomationNodeActionType(UndoableActionType):

@@ -1124,6 +1124,62 @@ class BaseGraphHandler(ABC):
         self.get_info(point)["next"] = next_points
         self._update_graph()
 
+    def split_next_points(
+        self,
+        point: GraphPoint,
+        from_output: str,
+        to_output: str,
+        at_point_id: int | None = None,
+    ) -> None:
+        """
+        The opposite of `join_next_points`: only the points before `at_point_id` in
+        the chain on `from_output` move to `to_output`, it and the points after it
+        stay. The whole chain moves when it doesn't hold `at_point_id`.
+
+        :param point: The point whose outputs to change.
+        :param from_output: The output whose points move.
+        :param to_output: The output the points move to.
+        :param at_point_id: The ID of the first point that stays.
+        :raises GraphPointReferencePointInvalid: When there are points to move and
+            points already follow the point on `to_output`.
+        """
+
+        self._lock_instance_for_update()
+        next_points = self.get_info(point).get("next", {})
+        if not next_points.get(from_output):
+            return
+        chain = self._walk_chain_ids(next_points[from_output][0], set())
+        if at_point_id is None or str(at_point_id) not in chain:
+            self.move_next_points(point, from_output, to_output)
+            return
+        index = chain.index(str(at_point_id))
+        if index == 0:
+            return
+        if next_points.get(to_output):
+            raise GraphPointReferencePointInvalid(
+                f"Points already follow point {point.id} on output {to_output}."
+            )
+        staying = self.get_info(chain[index - 1])["next"].pop("")
+        self.get_info(point)["next"] = {
+            **next_points,
+            to_output: next_points[from_output],
+            from_output: staying,
+        }
+        self._update_graph()
+
+    def get_chain_tail_id(self, point: GraphPoint, output: str) -> str | None:
+        """
+        The ID of the last point of the chain that follows a point on one of its
+        outputs.
+
+        :param point: The point the chain follows.
+        :param output: The output of the point the chain is on.
+        :return: The ID, None when no point follows on that output.
+        """
+
+        next_ids = self.get_next_point_ids(point, output)
+        return self._get_chain_tail_id(next_ids[0]) if next_ids else None
+
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False
     ) -> GraphPointRemoved:
