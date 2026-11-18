@@ -30,6 +30,7 @@ from baserow.core.registries import subject_type_registry
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.types import Subject
+from baserow.core.user.identity import get_user_type
 
 
 class AutomationHistoryHandler:
@@ -103,6 +104,7 @@ class AutomationHistoryHandler:
             triggered_by_values = {
                 "triggered_by_id": triggered_by.id,
                 "triggered_by_type": subject_type.type,
+                "triggered_by_user_type": get_user_type(triggered_by),
                 "triggered_by_name": subject_type.get_display_name(triggered_by),
             }
 

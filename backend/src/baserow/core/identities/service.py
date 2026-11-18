@@ -16,6 +16,7 @@ from baserow.core.identities.signals import (
     identity_deleted,
     identity_updated,
 )
+from baserow.core.identities.types import UpdatedIdentity
 from baserow.core.models import User, Workspace
 from baserow.core.registries import ImportExportConfig
 
@@ -80,7 +81,9 @@ class IdentityService:
         return identity
 
     @transaction.atomic
-    def update_identity(self, user: AbstractUser, identity: User, **values) -> User:
+    def update_identity(
+        self, user: AbstractUser, identity: User, **values
+    ) -> UpdatedIdentity:
         """
         Updates an identity and its registered extension data.
 
@@ -88,7 +91,8 @@ class IdentityService:
         :param identity: The identity to update.
         :param values: The core and extension field values to update.
         :raises IdentityRoleDoesNotExist: If the requested role does not exist.
-        :return: The updated identity with its extension data loaded.
+        :return: The updated identity with its extension data loaded, and its name
+            and role before and after the update.
         """
 
         workspace = IdentityHandler.get_workspace(identity)
@@ -119,7 +123,7 @@ class IdentityService:
         identity = IdentityHandler().get_identity(
             identity.id, IdentityHandler().get_queryset(workspace)
         )
-        updated_values = {
+        new_values = {
             "name": identity.first_name,
             "role_uid": IdentityHandler.get_role_uid(identity),
         }
@@ -130,10 +134,10 @@ class IdentityService:
             updated_fields=[
                 key
                 for key, value in original_values.items()
-                if updated_values[key] != value
+                if new_values[key] != value
             ],
         )
-        return identity
+        return UpdatedIdentity(identity, original_values, new_values)
 
     @transaction.atomic
     def delete_identity(self, user: AbstractUser, identity: User) -> None:

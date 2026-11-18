@@ -3,6 +3,8 @@ from collections.abc import Iterable
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, prefetch_related_objects
 
+IDENTITY_EMAIL_DOMAIN = "identities.invalid"
+
 
 def load_user_types(users: Iterable[object]) -> None:
     """
@@ -41,6 +43,29 @@ def is_identity(user: object) -> bool:
     """Return whether the stored User represents a nonhuman identity."""
 
     return get_user_type(user) == "identity"
+
+
+def has_internal_email(user: AbstractUser) -> bool:
+    """
+    Returns whether the email of the user is the generated address of an identity,
+    which is a key and must never be shown.
+
+    :param user: The person or identity whose email is checked.
+    :return: Whether the email is in the domain reserved for identities.
+    """
+
+    return user.email.endswith(f"@{IDENTITY_EMAIL_DOMAIN}")
+
+
+def get_user_label(user: AbstractUser) -> str:
+    """
+    Returns the text that names a user where only text fits, such as an export.
+
+    :param user: The person or identity to name.
+    :return: The email of the user, or its name when the email is internal.
+    """
+
+    return user.first_name if has_internal_email(user) else user.email
 
 
 def active_identity_q(user_lookup: str = "") -> Q:

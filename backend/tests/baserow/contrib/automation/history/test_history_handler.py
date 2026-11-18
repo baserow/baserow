@@ -1096,6 +1096,10 @@ def test_create_workflow_history_records_identity_who_triggered_it(data_fixture)
     assert history.triggered_by_id == identity.id
     assert history.triggered_by_type == "auth.User"
     assert history.triggered_by_name == identity.first_name
+    identity.delete()
+    history.refresh_from_db()
+    assert history.triggered_by_user_type == "identity"
+    assert history.triggered_by_name == "Workflow identity"
 
 
 @pytest.mark.django_db

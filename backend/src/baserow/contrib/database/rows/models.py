@@ -8,14 +8,14 @@ from baserow.core.subjects import UserSubjectType
 
 class RowHistory(models.Model):
     # Reuse the former user columns so existing entries become User actors without a
-    # data migration. The actor type must always be used together with the actor ID
-    # because User and Agent primary keys can overlap.
+    # data migration. Actor IDs are scoped to their subject type.
     actor_id = models.PositiveIntegerField(
         db_column="user_id",
         null=True,
         help_text="The ID of the actor that performed the action.",
     )
     actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)
+    actor_user_type = models.CharField(max_length=8, null=True)
     actor_name = models.CharField(
         db_column="user_name",
         max_length=160,

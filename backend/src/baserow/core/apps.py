@@ -385,6 +385,16 @@ class CoreConfig(AppConfig):
         action_type_registry.register(ImportApplicationsActionType())
         action_type_registry.register(UpdateAdminSettingsActionType())
 
+        from baserow.core.identities.actions import (
+            CreateIdentityActionType,
+            DeleteIdentityActionType,
+            UpdateIdentityActionType,
+        )
+
+        action_type_registry.register(CreateIdentityActionType())
+        action_type_registry.register(UpdateIdentityActionType())
+        action_type_registry.register(DeleteIdentityActionType())
+
         from baserow.core.snapshots.actions import (
             CreateSnapshotActionType,
             DeleteSnapshotActionType,

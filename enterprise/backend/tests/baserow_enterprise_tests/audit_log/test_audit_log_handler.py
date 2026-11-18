@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
@@ -39,11 +40,78 @@ def test_identity_action_is_recorded_in_audit_log(
         "id": identity.id,
         "type": UserSubjectType.type,
         "name": identity.first_name,
+        "user_type": "identity",
     }
     assert (
         AuditLogSerializer(entry).data["user"] == f"Automation writer ({identity.id})"
     )
     assert not Action.objects.filter(type="create_rows").exists()
+
+    identity.delete()
+    entry.refresh_from_db()
+    assert entry.actor_user_type == "identity"
+    assert entry.actor_name
+
+
+@pytest.mark.django_db
+def test_identity_management_is_recorded_in_audit_log(
+    api_client, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, name="Ops")
+    auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    identity_id = api_client.post(
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        {"name": "Runner", "role_uid": "VIEWER"},
+        format="json",
+        **auth,
+    ).json()["id"]
+    item_url = reverse("api:identities:item", kwargs={"identity_id": identity_id})
+    api_client.patch(
+        item_url, {"name": "Writer", "role_uid": "ADMIN"}, format="json", **auth
+    )
+    api_client.delete(item_url, **auth)
+
+    entries = AuditLogEntry.objects.order_by("id")
+    assert {entry.actor_id for entry in entries} == {user.id}
+    assert [AuditLogSerializer(entry).data["description"] for entry in entries] == [
+        f'Identity "Runner" ({identity_id}) created with role VIEWER '
+        f'in group "Ops" ({workspace.id}).',
+        f'Identity ({identity_id}) changed from "Runner" with role VIEWER '
+        f'to "Writer" with role ADMIN in group "Ops" ({workspace.id}).',
+        f'Identity "Writer" ({identity_id}) deleted in group "Ops" ({workspace.id}).',
+    ]
+
+
+@pytest.mark.django_db
+def test_identity_update_is_audited_by_what_it_changed(
+    api_client, enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    team = enterprise_data_fixture.create_team(workspace=workspace)
+    auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    unchanged = {"name": "Runner", "role_uid": "VIEWER", "team_ids": [team.id]}
+
+    identity_id = api_client.post(
+        reverse("api:identities:workspace", kwargs={"workspace_id": workspace.id}),
+        unchanged,
+        format="json",
+        **auth,
+    ).json()["id"]
+    item_url = reverse("api:identities:item", kwargs={"identity_id": identity_id})
+    for values in ({}, unchanged, {"team_ids": []}):
+        api_client.patch(item_url, values, format="json", **auth)
+
+    joined, created, left = AuditLogEntry.objects.order_by("id")
+    assert [joined.action_type, created.action_type, left.action_type] == [
+        "create_team_subject",
+        "create_identity",
+        "delete_team_subject",
+    ]
+    assert joined.params["subject_lookup"] == {"id": identity_id}
+    assert left.params["subject_subject_id"] == identity_id
 
 
 @pytest.mark.django_db
