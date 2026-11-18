@@ -1664,7 +1664,10 @@ describe('Agent configuration', () => {
 
   test('keeps workspace tool controls inactive for a read-only member', async () => {
     allowed.value = (operation) => operation !== 'application.update'
-    mockConfiguration(testApp, withTools(['list_tables', 'create_rows']))
+    mockConfiguration(
+      testApp,
+      withTools(['list_tables', 'create_rows', 'delete_rows'])
+    )
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     const tools = wrapper.get('.agent-workspace-tools')
@@ -2102,22 +2105,19 @@ describe('Agent configuration', () => {
     ])
   })
 
-  test('locks the ask switch while no change tool is allowed', async () => {
-    mockConfiguration(testApp, withTools(['list_tables']))
-    const wrapper = await mount()
-    await openSection(wrapper, 'agent.workspaceAccess')
-    const ask = askSwitch(wrapper)
-    expect(ask.attributes('aria-checked')).toBe('false')
-    expect(ask.attributes('aria-disabled')).toBe('true')
-    expect(ask.element.tabIndex).toBe(-1)
+  test.each([
+    ['read only', ['list_tables']],
+    ['custom', ['list_tables', 'create_rows']],
+  ])(
+    'hides the ask switch outside the Everything preset (%s)',
+    async (_, allowedTools) => {
+      mockConfiguration(testApp, withTools(allowedTools))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
 
-    await ask.trigger('click')
-    await ask.trigger('keydown', { key: 'Enter' })
-    await flushPromises()
-
-    expect(groupCount(wrapper)).toBe('agent.toolsSummary')
-    expect(savedValues(testApp)).toEqual([])
-  })
+      expect(wrapper.find('.agent-workspace-tools__ask').exists()).toBe(false)
+    }
+  )
 
   test('renames the Agent through the application with the trimmed name', async () => {
     mockRename(testApp, { ...agentData, name: 'Support' })
