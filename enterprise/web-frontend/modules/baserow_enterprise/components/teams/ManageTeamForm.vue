@@ -68,60 +68,13 @@
         </FormGroup>
       </div>
     </div>
-    <div class="row">
-      <div class="col col-12">
-        <h3>{{ $t('manageTeamForm.membersTitle') }}</h3>
-        <div v-if="subjectsLoading" class="loading"></div>
-        <p v-if="!invitedSubjects.length">
-          {{ $t('manageTeamForm.noSubjectsSelected') }}
-        </p>
-        <List
-          v-if="invitedSubjects.length && !subjectsLoading"
-          class="select-members-list__items"
-          :items="invitedSubjects"
-          :attributes="[]"
-        >
-          <template #left-side="{ item }">
-            <component
-              :is="getSubjectAvatarComponent(item)"
-              :subject="item"
-              size="medium"
-            />
-            <span class="margin-left-1">
-              {{ item.name }}
-            </span>
-          </template>
-          <template #right-side="{ item }">
-            <span class="margin-right-1">{{ item.email }}</span>
-            <ButtonIcon
-              size="small"
-              icon="iconoir-bin"
-              @click.prevent="$emit('remove-subject', item)"
-            ></ButtonIcon>
-          </template>
-        </List>
-      </div>
+    <div v-if="$slots.default" class="margin-bottom-2">
+      <slot></slot>
     </div>
-    <div class="row margin-top-2">
-      <div class="col col-6">
-        <Button
-          type="secondary"
-          :loading="loading"
-          :disabled="loading"
-          tag="a"
-          @click="$emit('invite')"
-          >{{ $t('manageTeamForm.inviteMembers') }}
-        </Button>
-      </div>
-      <div class="col col-6 align-right">
-        <Button
-          type="primary"
-          :disabled="loading || subjectsLoading || disabled"
-          :loading="loading"
-        >
-          {{ $t('manageTeamForm.submit') }}</Button
-        >
-      </div>
+    <div class="align-right">
+      <Button type="primary" :disabled="loading" :loading="loading">
+        {{ $t('manageTeamForm.submit') }}</Button
+      >
     </div>
   </form>
 </template>
@@ -135,29 +88,15 @@ import { filterRoles } from '@baserow_enterprise/utils/roles'
 
 export default {
   name: 'ManageTeamForm',
-  emits: ['invite', 'remove-subject'],
   mixins: [form],
   props: {
     workspace: {
       type: Object,
       required: true,
     },
-    invitedSubjects: {
-      type: Array,
-      required: true,
-    },
     loading: {
       type: Boolean,
       required: true,
-    },
-    disabled: {
-      type: Boolean,
-      default: false,
-    },
-    subjectsLoading: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
   },
   setup() {
@@ -168,7 +107,6 @@ export default {
       values: {
         name: '',
         default_role: 'VIEWER',
-        subjects: [],
       },
     }
   },
@@ -186,18 +124,6 @@ export default {
       return this.roles.some((role) => role.isBillable)
     },
   },
-  watch: {
-    invitedSubjects: {
-      immediate: true,
-      handler(subjects) {
-        this.values.subjects = subjects.map(({ subject_id, subject_type }) => ({
-          subject_id,
-          subject_type,
-        }))
-      },
-    },
-  },
-
   validations() {
     return {
       values: {
@@ -227,11 +153,6 @@ export default {
   },
   mounted() {
     this.$refs.name.focus()
-  },
-  methods: {
-    getSubjectAvatarComponent(subject) {
-      return this.$registry.get('subject', subject.subject_type).avatarComponent
-    },
   },
 }
 </script>

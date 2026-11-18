@@ -36,6 +36,7 @@
           :node-selected="nodeSelected"
           :search="debouncedSearch"
           :allow-node-selection="allowNodeSelection"
+          :get-value="hierarchyNode.getValue"
           @click="$emit('node-selected', $event)"
           @toggle="$emit('toggle', $event)"
           @example-click="$emit('example-click', $event)"
@@ -86,7 +87,8 @@ export default {
     allowNodeSelection: {
       type: String,
       required: true,
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
   },
   emits: [

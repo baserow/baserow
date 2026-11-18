@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Don't keep form values Firefox restores after a page reload",
+    "issue_origin": "github",
+    "issue_number": 6697,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-12"
+}

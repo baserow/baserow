@@ -1,4 +1,6 @@
 import traceback
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Set, Tuple
 
@@ -23,6 +25,27 @@ from .registries import (
 from .signals import ActionCommandType
 
 tracer = trace.get_tracer(__name__)
+
+_replaying_action: ContextVar[bool] = ContextVar("replaying_action", default=False)
+
+
+def is_replaying_action() -> bool:
+    """
+    Whether an action is currently being undone or redone. The values an action
+    replays were accepted when they were first set, so checks that only apply to
+    a newly chosen value can use this to let a previous state be restored.
+    """
+
+    return _replaying_action.get()
+
+
+@contextmanager
+def replaying_action():
+    token = _replaying_action.set(True)
+    try:
+        yield
+    finally:
+        _replaying_action.reset(token)
 
 
 def scopes_to_q_filter(scopes: List[ActionScopeStr]):
@@ -79,7 +102,8 @@ class ActionHandler:
             # noinspection PyArgumentList
             latest_params = action_type.serialized_to_params(action.params)
 
-            action_type.undo(user, latest_params, action)
+            with replaying_action():
+                action_type.undo(user, latest_params, action)
             # action.params could be changed, so save the action
             action.undone_at = undone_at
             action.save()
@@ -161,7 +185,8 @@ class ActionHandler:
             # noinspection PyArgumentList
             latest_params = action_type.serialized_to_params(action.params)
 
-            action_type.redo(user, latest_params, action_being_redone)
+            with replaying_action():
+                action_type.redo(user, latest_params, action_being_redone)
 
             # action.params could be changed, so save the action
             action.undone_at = None

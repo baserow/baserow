@@ -52,7 +52,16 @@ export default {
             'service',
             this.dataSource.type
           )
-          return serviceType.getResult(this.dataSource, data)
+          const resultData =
+            data.result === null
+              ? {
+                  ...data,
+                  result: this.$registry
+                    .get('viewAggregation', this.dataSource.aggregation_type)
+                    .getEmptyValue(),
+                }
+              : data
+          return serviceType.getResult(this.dataSource, resultData)
         }
       }
       return 0

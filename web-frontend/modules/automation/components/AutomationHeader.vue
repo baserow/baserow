@@ -7,16 +7,10 @@
       height="12px"
     ></SkeletonBlock>
     <ul
-      v-else-if="
-        $hasPermission(
-          'application.update',
-          automation,
-          automation.workspace.id
-        )
-      "
+      v-else-if="canUpdateApplication || workflow?.description"
       class="header__filter"
     >
-      <li class="header__filter-item">
+      <li v-if="canUpdateApplication" class="header__filter-item">
         <a
           data-item-type="settings"
           class="header__filter-link"
@@ -27,7 +21,7 @@
           </span>
         </a>
       </li>
-      <li class="header__filter-item">
+      <li v-if="canUpdateApplication" class="header__filter-item">
         <a
           data-item-type="history"
           data-highlight="automation-history"
@@ -40,7 +34,24 @@
           }}</span>
         </a>
       </li>
-      <li class="header__filter-item">
+      <li v-if="workflow?.description" class="header__filter-item">
+        <a
+          ref="descriptionContextToggle"
+          data-item-type="description"
+          class="header__filter-link"
+          @click="toggleDescription()"
+          ><i class="header__filter-icon iconoir-info-empty"></i>
+          <span class="header__filter-name">{{
+            $t('automationHeader.descriptionBtn')
+          }}</span>
+        </a>
+        <MarkdownContext
+          ref="descriptionContext"
+          :title="$t('automationHeader.descriptionBtn')"
+          :content="workflow.description"
+        />
+      </li>
+      <li v-if="canUpdateApplication" class="header__filter-item">
         <a
           data-highlight="automation-docs"
           class="header__filter-link"
@@ -52,7 +63,7 @@
           }}</span>
         </a>
       </li>
-      <li v-if="isDev" class="header__filter-item">
+      <li v-if="canUpdateApplication && isDev" class="header__filter-item">
         <a
           data-item-type="debug"
           class="header__filter-link"
@@ -66,13 +77,15 @@
           }}</span>
         </a>
       </li>
-      <li
-        v-for="(component, index) in automationHeaderComponents"
-        :key="index"
-        class="header__filter-item"
-      >
-        <component :is="component" :workspace="automation.workspace" />
-      </li>
+      <template v-if="canUpdateApplication">
+        <li
+          v-for="(component, index) in automationHeaderComponents"
+          :key="index"
+          class="header__filter-item"
+        >
+          <component :is="component" :workspace="automation.workspace" />
+        </li>
+      </template>
     </ul>
 
     <ApplicationUntrustedContentAlert
@@ -93,17 +106,7 @@
       :message="$t('automationHeader.untrustedContentWarning')"
     />
 
-    <div
-      v-if="
-        !loading &&
-        $hasPermission(
-          'application.update',
-          automation,
-          automation.workspace.id
-        )
-      "
-      class="header__right"
-    >
+    <div v-if="!loading && canUpdateApplication" class="header__right">
       <span class="header__switch-container">
         <template v-if="!publishedOn">
           <Badge color="cyan" rounded size="small">{{
@@ -184,10 +187,15 @@ import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 import WorkflowSettingsModal from '@baserow/modules/automation/components/settings/WorkflowSettingsModal'
+import MarkdownContext from '@baserow/modules/core/components/MarkdownContext'
 
 export default defineComponent({
   name: 'AutomationHeader',
-  components: { WorkflowSettingsModal, ApplicationUntrustedContentAlert },
+  components: {
+    WorkflowSettingsModal,
+    MarkdownContext,
+    ApplicationUntrustedContentAlert,
+  },
   props: {
     automation: {
       type: Object,
@@ -360,7 +368,30 @@ export default defineComponent({
       workflowSettingsModal.value.show()
     }
 
+    const canUpdateApplication = computed(() =>
+      app.$hasPermission(
+        'application.update',
+        props.automation,
+        props.automation.workspace.id
+      )
+    )
+
+    const descriptionContext = ref(null)
+    const descriptionContextToggle = ref(null)
+    const toggleDescription = () => {
+      descriptionContext.value?.toggle(
+        descriptionContextToggle.value,
+        'bottom',
+        'left',
+        4
+      )
+    }
+
     return {
+      canUpdateApplication,
+      descriptionContext,
+      descriptionContextToggle,
+      toggleDescription,
       publishTooltipOptions: { contentClasses: 'tooltip__content--expandable' },
       trustContent,
       isDev,

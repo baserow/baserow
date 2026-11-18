@@ -185,11 +185,16 @@ def _describe(error: dict[str, Any], base: str) -> str:
 
 
 def formula_requests(
-    node: AutomationNode, errors: list[dict[str, Any]]
+    node: AutomationNode,
+    errors: list[dict[str, Any]],
+    previous: AutomationNode | None = None,
 ) -> dict[Any, Any]:
     """
     What to ask the generator for a node's formula errors, keyed as
     ``_request_key``. A row value is described with its field.
+
+    :param previous: The node ``node`` follows, so "the previous step" in a
+        value's description is read as that node, not the trigger.
     """
 
     fields = {}
@@ -202,14 +207,24 @@ def formula_requests(
             if "id" in field
         }
 
+    follows = ""
+    if previous is not None:
+        label = f" ('{previous.label}')" if previous.label else ""
+        follows = (
+            f" This node follows node {previous.id}{label}: that node is the "
+            "previous node or step."
+        )
+
     requests: dict[Any, Any] = {}
     for error in errors:
-        key = _request_key(error)
-        if "field_id" in error:
-            field = fields.get(error["field_id"], {"desc": ""})
-            requests[key] = {**field, "desc": _describe(error, field["desc"])}
-        else:
-            requests[key] = _describe(error, _DESCRIPTIONS.get(error["field"], ""))
+        field = (
+            fields.get(error["field_id"], {"desc": ""}) if "field_id" in error else None
+        )
+        base = field["desc"] if field else _DESCRIPTIONS.get(error["field"], "")
+        description = _describe(error, base) + follows
+        requests[_request_key(error)] = (
+            {**field, "desc": description} if field else description
+        )
     return requests
 
 
@@ -246,13 +261,18 @@ class WorkflowExamples:
         self._workflows: dict[int, tuple[dict, dict]] = {}
 
     def _read(self, workflow) -> tuple[dict, dict]:
+        """
+        The node each node of the workflow follows, by node ID, and the example
+        data of the nodes that have any.
+        """
+
         if workflow.id not in self._workflows:
-            previous_of = {}
+            previous_of: dict[int, AutomationNode | None] = {}
             examples = {}
             for node, previous, _output in shared_nodes.nodes_in_order(
                 self.user, workflow
             ):
-                previous_of[node.id] = previous.id if previous else None
+                previous_of[node.id] = previous
                 service = node.service.specific
                 schema = service.get_type().generate_schema(service)
                 if not schema:
@@ -260,6 +280,8 @@ class WorkflowExamples:
                 metadata = minimize_json_schema(schema)
                 metadata["node_id"] = node.id
                 metadata["label"] = node.label
+                metadata["node_type"] = node.get_type().type
+                metadata["formula_path"] = shared_nodes.formula_path(node)
                 if node.id in self.refs:
                     metadata["node_ref"] = self.refs[node.id]
                 if previous is not None:
@@ -280,6 +302,16 @@ class WorkflowExamples:
             ref: node_id for node_id, ref in self.refs.items() if node_id in previous_of
         }
 
+    def previous(self, node: AutomationNode) -> AutomationNode | None:
+        """
+        The node ``node`` follows, when the generator gets its data. One without
+        example data, such as an iterator with no sample, isn't named.
+        """
+
+        previous_of, examples = self._read(node.workflow)
+        previous = previous_of.get(node.id)
+        return previous if previous is not None and previous.id in examples else None
+
     def context_for(self, node: AutomationNode) -> "AssistantFormulaContext":
         """
         The nodes that run before ``node`` on its path, the only ones its
@@ -291,8 +323,8 @@ class WorkflowExamples:
         ancestor = previous_of.get(node.id)
         ancestors = []
         while ancestor is not None:
-            ancestors.append(ancestor)
-            ancestor = previous_of.get(ancestor)
+            ancestors.append(ancestor.id)
+            ancestor = previous_of.get(ancestor.id)
         for node_id in reversed(ancestors):
             if node_id in examples:
                 example, metadata = examples[node_id]
@@ -471,7 +503,8 @@ def _repair_node(
         _("Generating formulas for node '%(label)s'...") % {"label": node.label}
     )
     context = examples.context_for(node)
-    generated = generate_formula(formula_requests(node, node_errors), context) or {}
+    requests = formula_requests(node, node_errors, examples.previous(node))
+    generated = generate_formula(requests, context) or {}
     # The user may cancel while the model runs; nothing is written then.
     raise_if_cancelled()
 

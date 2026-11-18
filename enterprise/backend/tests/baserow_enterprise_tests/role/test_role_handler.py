@@ -10,7 +10,8 @@ from tqdm import tqdm
 from baserow.contrib.database.object_scopes import DatabaseObjectScopeType
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent, WorkspaceUser
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.models import WorkspaceUser
 from baserow.core.registries import object_scope_type_registry, subject_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.subjects import UserSubjectType
@@ -440,22 +441,22 @@ def test_assign_role_batch_create_role_assignments(data_fixture):
 
 
 @pytest.mark.django_db
-def test_assign_role_batch_create_agent_role_assignments(data_fixture):
+def test_assign_role_batch_create_identity_role_assignments(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
     table = data_fixture.create_database_table(database=database, user=user)
     view = data_fixture.create_grid_view(table=table, user=user)
-    agent = Agent.objects.create(workspace=workspace, name="Writer")
+    identity = data_fixture.create_identity(workspace=workspace, name="Writer")
     builder_role = Role.objects.get(uid="BUILDER")
 
     RoleAssignmentHandler().assign_role_batch_for_user(
         user,
         workspace,
         [
-            NewRoleAssignment(agent, builder_role, database.application_ptr),
-            NewRoleAssignment(agent, builder_role, table),
-            NewRoleAssignment(agent, builder_role, view),
+            NewRoleAssignment(identity, builder_role, database.application_ptr),
+            NewRoleAssignment(identity, builder_role, table),
+            NewRoleAssignment(identity, builder_role, view),
         ],
     )
 
@@ -466,7 +467,7 @@ def test_assign_role_batch_create_agent_role_assignments(data_fixture):
         view,
     }
     assert all(
-        role_assignment.subject == agent and role_assignment.role == builder_role
+        role_assignment.subject == identity and role_assignment.role == builder_role
         for role_assignment in role_assignments
     )
 
@@ -654,26 +655,26 @@ def test_assign_role_batch_checks_every_subject_sharing_scope(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     other_workspace = data_fixture.create_workspace()
-    local_agent = Agent.objects.create(
+    local_identity = data_fixture.create_identity(
         workspace=workspace, name="Local", role_uid="VIEWER"
     )
-    foreign_agent = Agent.objects.create(
+    foreign_identity = data_fixture.create_identity(
         workspace=other_workspace, name="Foreign", role_uid="VIEWER"
     )
     admin_role = Role.objects.get(uid="ADMIN")
 
     values = [
-        NewRoleAssignment(local_agent, admin_role, workspace),
-        NewRoleAssignment(foreign_agent, admin_role, workspace),
+        NewRoleAssignment(local_identity, admin_role, workspace),
+        NewRoleAssignment(foreign_identity, admin_role, workspace),
     ]
 
     with pytest.raises(SubjectNotExist):
         RoleAssignmentHandler().assign_role_batch_for_user(user, workspace, values)
 
-    local_agent.refresh_from_db()
-    foreign_agent.refresh_from_db()
-    assert local_agent.role_uid == "VIEWER"
-    assert foreign_agent.role_uid == "VIEWER"
+    local_identity.refresh_from_db()
+    foreign_identity.refresh_from_db()
+    assert IdentityHandler().get_role_uid(local_identity) == "VIEWER"
+    assert IdentityHandler().get_role_uid(foreign_identity) == "VIEWER"
 
 
 @pytest.mark.django_db

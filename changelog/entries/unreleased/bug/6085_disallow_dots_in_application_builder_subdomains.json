@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Prevent adding a dot to the name of an application builder subdomain, because the resulting domain can't be served securely.",
+    "issue_origin": "github",
+    "issue_number": 6085,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-13"
+}

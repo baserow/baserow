@@ -18,6 +18,23 @@ BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 5 * 60
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = 4
 BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 
+# Optional development-only AI provider/model creation during populate_test_data.
+# Set either/both variables to absolute paths to untracked UTF-8 API key files
+# (chmod 600). Example: BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE=/path/to/openai-key
+# Each file must contain only the key: its whole content, stripped of surrounding
+# whitespace, is stored as the API key. Unset/empty means opt out for that provider. Existing instance providers are
+# preserved; otherwise unreadable/empty files fail population. Creates low-cost
+# gpt-5.6-luna (OpenAI) or claude-haiku-5-5 (Anthropic) models without discovery,
+# testing, or network calls. Docker dev passes these variables to the backend;
+# use paths inside the container and mount the key files read-only via a local
+# Compose override when they are outside the existing bind mounts.
+BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = os.getenv(
+    "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE", ""
+)
+BASEROW_DEV_POPULATE_ANTHROPIC_API_KEY_FILE = os.getenv(
+    "BASEROW_DEV_POPULATE_ANTHROPIC_API_KEY_FILE", ""
+)
+
 INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 

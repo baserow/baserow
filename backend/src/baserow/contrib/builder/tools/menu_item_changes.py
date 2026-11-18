@@ -8,6 +8,7 @@ from django.db.models import Count
 
 from baserow.contrib.builder.elements.element_types import MenuElementType
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.core.tools.errors import ToolInputError
@@ -238,7 +239,7 @@ def _check_anchors_stay(
 
 
 def _saved_values(item: MenuItemElement) -> MenuItemValues:
-    return MenuElementType.export_menu_item(item)
+    return element_type_registry.get(MenuElementType.type).get_menu_item_values(item)
 
 
 def _saved_tree(

@@ -34,6 +34,14 @@ class AddressNotAllowedDispatchException(UnexpectedDispatchException):
     """
 
 
+class RedirectNotAllowedDispatchException(UnexpectedDispatchException):
+    """
+    Raised when a request was redirected to another host, or from https to
+    http, while its caller only lets it follow redirects on the same host. The
+    first request went out; the redirect was not followed.
+    """
+
+
 class ServiceImproperlyConfiguredDispatchException(DispatchException):
     """Raised when trying to dispatch a service that is not fully configured."""
 

@@ -17,7 +17,29 @@
       <span v-if="depth > 0" class="node-explorer-content__icon">
         <i class="node-explorer-content__content-icon" :class="getIcon(node)" />
       </span>
-      <span class="node-explorer-content__name">{{ node.name }}</span>
+      <span
+        class="node-explorer-content__name"
+        :class="{
+          'node-explorer-content__name--with-value': valuePreview || node.hint,
+        }"
+        >{{ node.name }}</span
+      >
+      <span
+        v-if="valuePreview"
+        class="node-explorer-content__value"
+        :class="{
+          'node-explorer-content__value--muted': valuePreview.muted,
+        }"
+        :style="{
+          '--node-explorer-content-value-length': valuePreviewLength,
+        }"
+        :title="valuePreview.text"
+        >{{ valuePreview.text }}</span
+      >
+      <span v-else-if="node.hint" class="node-explorer-content__hint">
+        <i class="iconoir-warning-triangle" />
+        {{ node.hint }}
+      </span>
       <span v-if="isSelected" class="node-explorer-content__selected-icon">
         <i class="iconoir-check-circle" />
       </span>
@@ -55,6 +77,7 @@
           }`"
           :node-selected="nodeSelected"
           :allow-node-selection="allowNodeSelection"
+          :get-value="getValue"
           :search="search"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
@@ -72,6 +95,7 @@
           :search="search"
           :path="`${path}.${subNode.identifier}`"
           :allow-node-selection="allowNodeSelection"
+          :get-value="getValue"
           :search-path="`${searchPath}.__any__`"
           @click="$emit('click', $event)"
           @toggle="$emit('toggle', $event)"
@@ -91,6 +115,7 @@
 
 <script>
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip.vue'
+import { getSamplePreview } from '@baserow/modules/core/utils/samplePreview'
 export default {
   name: 'NodeExplorerContent',
   components: {
@@ -134,7 +159,18 @@ export default {
       type: String,
       required: false,
       default: 'none',
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
+    },
+    /**
+     * Optional function returning the sample value held by the data node at
+     * the given path, or `undefined` when none is known. When set, the value
+     * is shown next to the node's name.
+     */
+    getValue: {
+      type: Function,
+      required: false,
+      default: null,
     },
   },
   emits: ['click', 'toggle', 'example-click'],
@@ -142,6 +178,13 @@ export default {
     return { count: 3, tooltipTimer: null, tooltipHideTimer: null }
   },
   computed: {
+    /**
+     * The width the value is guaranteed, in characters. A short value keeps
+     * the room it needs and leaves the rest of the row to the name.
+     */
+    valuePreviewLength() {
+      return Math.min((this.valuePreview?.text.length || 0) + 1, 40)
+    },
     hasChildren() {
       const children = this.node.nodes
       return children && children.length > 0
@@ -166,6 +209,39 @@ export default {
     },
     isSelected() {
       return this.nodeSelected === this.path
+    },
+    valuePreview() {
+      if (!this.getValue || this.depth === 0 || !this.path) {
+        return null
+      }
+      const preview = getSamplePreview(this.getValue(this.path))
+      if (!preview) {
+        return null
+      }
+      switch (preview.kind) {
+        case 'empty':
+          return { text: this.$t('dataExplorerNode.emptyValue'), muted: true }
+        case 'items':
+          return {
+            text: this.$t(
+              'dataExplorerNode.itemCount',
+              { count: preview.count },
+              preview.count
+            ),
+            muted: true,
+          }
+        case 'fields':
+          return {
+            text: this.$t(
+              'dataExplorerNode.fieldCount',
+              { count: preview.count },
+              preview.count
+            ),
+            muted: true,
+          }
+        default:
+          return { text: preview.text, muted: false }
+      }
     },
     shouldShow() {
       if (!this.search) return true
@@ -209,6 +285,10 @@ export default {
     showNodeSelector(node) {
       if (this.depth === 0) {
         return false
+      }
+      // Value pickers expose the existing Select action on scalar fields only.
+      if (this.allowNodeSelection === 'value') {
+        return ['string', 'number', 'integer', 'boolean'].includes(node.type)
       }
       if (node.type !== 'array' && node.type !== 'object') {
         return false

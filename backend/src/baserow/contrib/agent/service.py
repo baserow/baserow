@@ -2,19 +2,20 @@ from uuid import UUID
 
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated, application_updated
-from baserow.core.subject_options import SubjectOptionsHandler
 from baserow.core.types import PermissionCheck
 
 from .action_tools.handler import AgentActionHandler
 from .action_tools.signals import agent_action_updated
-from .constants import RUN_AS_SUBJECT_TYPES, AgentReadinessState
+from .constants import AgentReadinessState
 from .exceptions import (
     AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
@@ -97,7 +98,7 @@ class AgentService:
         )
         return self.handler.get_configuration(agent)
 
-    def get_run_as_subject_options(
+    def get_run_as_identities(
         self, user: AbstractUser, agent_id: int, search: str = ""
     ) -> QuerySet:
         """
@@ -107,7 +108,8 @@ class AgentService:
         :param agent_id: The Agent whose configuration is being edited.
         :param search: The optional identity-name search.
         :raises PermissionException: When the user may not read and update the Agent.
-        :return: Active identity options from the Agent's authoritative workspace.
+        :return: Active identity options from the Agent's authoritative workspace,
+            none when the user may not bind identities.
         """
 
         agent = self.get_authorized_agent(
@@ -116,11 +118,14 @@ class AgentService:
             UpdateApplicationOperationType.type,
             ReadAgentConfigurationOperationType.type,
         )
-        return SubjectOptionsHandler.get_options(
-            workspace=agent.workspace,
-            search=search,
-            subject_types=set(RUN_AS_SUBJECT_TYPES),
-        )
+        identities = IdentityHandler().get_queryset(agent.workspace, for_selection=True)
+        if not IdentityService().check_can_bind(
+            user, agent.workspace, raise_permission_exceptions=False
+        ):
+            identities = identities.none()
+        if search := search.strip():
+            identities = identities.filter(first_name__icontains=search)
+        return identities.values("id", name=F("first_name"))
 
     @transaction.atomic
     def update_configuration(
@@ -133,7 +138,7 @@ class AgentService:
         :param agent_id: The id of the Agent.
         :param values: The configuration values to set, by field name.
         :raises PermissionException: When the user may not update the Agent or read
-            its configuration.
+            its configuration, or may not bind it to a different identity.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
         :return: The Agent, its original and new configuration values, and the
@@ -147,6 +152,10 @@ class AgentService:
             ReadAgentConfigurationOperationType.type,
             for_update=True,
         )
+        run_as = [values.get(field) for field in self.handler.run_as_fields]
+        current_run_as = [getattr(agent, field) for field in self.handler.run_as_fields]
+        if any(run_as) and run_as != current_run_as:
+            IdentityService().check_can_bind(user, agent.workspace)
         updated = self.handler.update_configuration(agent, **values)
         if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.
@@ -484,8 +493,7 @@ class AgentService:
         :raises AgentMessageConflict: When the uuid was accepted with another first
             message.
         :raises AgentNotReady: When the agent isn't ready for a new conversation.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The conversation, its first message and its reply, and whether they
             are new.
         """
@@ -544,8 +552,7 @@ class AgentService:
         :raises AgentNotReady: When the agent isn't ready for a new message.
         :raises ChatRunAlreadyActive: When the agent is still replying in this
             conversation.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The conversation, the message and its reply, and whether the message
             is new.
         """
@@ -605,8 +612,7 @@ class AgentService:
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The reply with its approvals, the run continuing it or None while
             some held calls are still undecided, and the tools that stopped asking
             first.

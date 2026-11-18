@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from io import BytesIO
 
 import pytest
 from freezegun import freeze_time
@@ -16,16 +17,18 @@ from baserow.contrib.agent.models import (
     AgentTrigger,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_DAY
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Agent
+from baserow.core.models import WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
@@ -133,10 +136,10 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=agent.workspace, name="Investor", trashed=trashed
     )
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     AgentHandler().set_allowed_tools(
         agent, ["list_tables", "create_rows"], ask_first_names=["list_tables"]
@@ -170,17 +173,77 @@ def test_only_copies_that_keep_run_as_keep_the_tools(
 
 
 @pytest.mark.django_db
+def test_a_copy_keeps_run_as_only_for_identity_managers(data_fixture, configured_agent):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    agent = configured_agent(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=agent.workspace, user=member, permissions="MEMBER"
+    )
+    identity = data_fixture.create_identity(workspace=agent.workspace)
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+
+    by_admin = CoreHandler().duplicate_application(admin, agent).specific
+    by_member = CoreHandler().duplicate_application(member, agent).specific
+
+    assert by_admin.run_as_subject_id == identity.id
+    assert (by_member.run_as_subject_type, by_member.run_as_subject_id) == (
+        None,
+        None,
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "created_by,restored_by,keeps_run_as",
+    [("admin", "member", False), ("member", "admin", True)],
+)
+def test_a_restored_snapshot_keeps_run_as_only_for_identity_managers(
+    data_fixture,
+    configured_agent,
+    use_tmp_media_root,
+    created_by,
+    restored_by,
+    keeps_run_as,
+):
+    people = {"admin": data_fixture.create_user(), "member": data_fixture.create_user()}
+    agent = configured_agent(user=people["admin"])
+    data_fixture.create_user_workspace(
+        workspace=agent.workspace, user=people["member"], permissions="MEMBER"
+    )
+    identity = data_fixture.create_identity(workspace=agent.workspace)
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=agent, name=agent.name, created_by=people[created_by]
+    )
+    snapshots = SnapshotHandler()
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=people[restored_by]
+    ).specific
+
+    assert restored.run_as_subject_id == (identity.id if keeps_run_as else None)
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("state", ["missing", "foreign", "unsupported", "unknown"])
 def test_run_as_copy_clears_invalid_references(data_fixture, configured_agent, state):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     if state == "missing":
         identity.delete()
     elif state == "foreign":
-        identity.workspace = data_fixture.create_workspace()
-        identity.save()
+        WorkspaceUser.objects_and_identities.filter(user=identity).update(
+            workspace=data_fixture.create_workspace()
+        )
     elif state == "unsupported":
         agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", user.id
     else:
@@ -199,10 +262,10 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=agent.workspace, name="Investor", trashed=trashed_at_creation
     )
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     snapshot = data_fixture.create_snapshot(
@@ -215,7 +278,7 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
     archived = snapshot.snapshot_to_application.specific
     assert archived.workspace_id is None
     assert (archived.run_as_subject_type, archived.run_as_subject_id) == (
-        "core.Agent",
+        "auth.User",
         identity.id,
     )
     assert AgentHandler().get_tool_configuration(archived)["allowed_tools"] == [
@@ -223,11 +286,13 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         "create_rows",
     ]
 
-    identity.trashed = True
-    identity.save()
-    restored = snapshots.perform_restore(snapshot, Progress(total=100)).specific
+    identity.profile.trashed = True
+    identity.profile.save(update_fields=["trashed"])
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=user
+    ).specific
     assert (restored.run_as_subject_type, restored.run_as_subject_id) == (
-        "core.Agent",
+        "auth.User",
         identity.id,
     )
     handler = AgentHandler()
@@ -242,8 +307,9 @@ def test_snapshot_preserves_run_as_through_identity_trash_and_restore(
         is None
     )
 
-    identity.trashed = False
-    identity.save()
+    identity.profile.trashed = False
+
+    identity.profile.save(update_fields=["trashed"])
     assert (
         handler.get_usable_run_as_subject(
             restored.run_as_subject_type, restored.run_as_subject_id, restored.workspace
@@ -278,14 +344,16 @@ def test_run_as_is_exported_only_for_internal_copies(
     data_fixture, configured_agent, config_values, keeps_identity
 ):
     agent = configured_agent()
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     config = ImportExportConfig(include_permission_data=False, **config_values)
 
     serialized = AgentApplicationType().export_serialized(agent, config)
 
     if keeps_identity:
-        assert serialized["run_as_subject_type"] == "core.Agent"
+        assert serialized["run_as_subject_type"] == "auth.User"
         assert serialized["run_as_subject_id"] == identity.id
     else:
         assert "run_as_subject_type" not in serialized
@@ -297,8 +365,10 @@ def test_portable_import_clears_run_as_even_when_identity_exists(
     data_fixture, configured_agent
 ):
     agent = configured_agent()
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
 
     imported = AgentApplicationType().import_serialized(
@@ -318,8 +388,10 @@ def test_template_install_clears_run_as_with_a_destination_identity_collision(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Agent.objects.create(workspace=agent.workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     AgentHandler().set_allowed_tools(agent, ["list_tables", "create_rows"])
     template = data_fixture.create_template(slug="agent-identity-collision")
     settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
@@ -585,13 +657,14 @@ def test_an_imported_tool_is_hashed_from_what_is_imported(data_fixture):
     assert tool.definition_hash != "a" * 64
 
 
-@pytest.mark.django_db
-def test_a_duplicate_leaves_out_apps_the_copier_cant_read(data_fixture, mocker):
+@pytest.fixture
+def unreadable_mcp_server(data_fixture, mocker):
+    """An MCP server its owner may copy but not read, as under a narrower role."""
+
     user = data_fixture.create_user()
     server = data_fixture.create_mcp_server_integration(
         user=user, auth_header_name="Authorization", auth_header_value="Bearer s3cr3t"
     )
-    # As under a role that may duplicate the Agent but not read this app.
     original = CoreHandler.check_multiple_permissions
 
     def deny_reading_integrations(self, checks, *args, **kwargs):
@@ -606,10 +679,35 @@ def test_a_duplicate_leaves_out_apps_the_copier_cant_read(data_fixture, mocker):
     mocker.patch.object(
         CoreHandler, "check_multiple_permissions", deny_reading_integrations
     )
+    return user, server
+
+
+@pytest.mark.django_db
+def test_a_duplicate_leaves_out_apps_the_copier_cant_read(unreadable_mcp_server):
+    user, server = unreadable_mcp_server
 
     duplicate = CoreHandler().duplicate_application(user, server.application)
 
     assert not MCPServerIntegration.objects.filter(application=duplicate).exists()
+
+
+@pytest.mark.django_db
+def test_a_snapshot_restore_keeps_apps_the_restorer_cant_read(
+    data_fixture, unreadable_mcp_server, use_tmp_media_root
+):
+    user, server = unreadable_mcp_server
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=server.application, name="s", created_by=user
+    )
+    snapshots = SnapshotHandler()
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=user
+    )
+
+    assert MCPServerIntegration.objects.filter(application=restored).exists()
 
 
 @pytest.mark.django_db
@@ -675,8 +773,8 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         service_type_registry.get("periodic"),
         {"interval": PERIODIC_INTERVAL_DAY, "hour": 9},
         message="'Digest'",
-        name="Morning digest",
         on_overlap=AgentTrigger.OnOverlap.WAIT,
+        name="Morning digest",
     )
     fired_at = datetime(2026, 11, 10, 9, 0, tzinfo=timezone.utc)
     AgentTrigger.objects.filter(id=trigger.id).update(
@@ -701,6 +799,7 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         "enabled",
         "message",
         "on_overlap",
+        "batch_size",
         "service",
     }
     assert copy.service_id != trigger.service_id
@@ -765,3 +864,76 @@ def test_duplicate_keeps_shared_conversations_on_the_copied_trigger(
     )
     assert conversation.trigger == copied.triggers.get()
     assert conversation.messages.get().role == AgentMessage.Role.TRIGGER
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exported,imported", [(5, 5), (None, 20), (0, 20), (101, 20), ("7", 20)]
+)
+def test_a_trigger_batch_size_is_copied_and_invalid_values_get_the_default(
+    data_fixture, configured_agent, exported, imported
+):
+    agent = configured_agent()
+    data_fixture.create_agent_trigger(agent=agent)
+    serialized = export_internal(agent)
+    serialized["triggers"][0]["batch_size"] = exported
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.triggers.get().batch_size == imported
+
+
+@pytest.mark.django_db
+def test_a_copied_trigger_message_naming_no_imported_id_stays_as_written(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=data_fixture.create_database_table(database=database), integration=None
+    )
+    written = (
+        "concat(get('trigger.count'), ' rows were created in ', "
+        "get('trigger.table'), ': ', get('trigger.rows'))"
+    )
+    data_fixture.create_agent_trigger(agent=agent, service=service, message=written)
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    assert copied.triggers.get().message["formula"] == written
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_row_trigger_message_follows_its_fields_into_another_workspace(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Orders")
+    name = data_fixture.create_text_field(table=table, name="Name", primary=True)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    service = data_fixture.create_local_baserow_rows_created_service(
+        table=table, integration=None
+    )
+    data_fixture.create_agent_trigger(
+        agent=agent, service=service, message=f"get('trigger.rows.0.{name.db_column}')"
+    )
+    imported_workspace = data_fixture.create_workspace(user=user)
+    config = ImportExportConfig(include_permission_data=False)
+    handler = CoreHandler()
+
+    exported = handler.export_workspace_applications(workspace, BytesIO(), config)
+    handler.import_applications_to_workspace(
+        imported_workspace, exported, BytesIO(), config, None
+    )
+
+    copy = AgentTrigger.objects.get(agent__workspace=imported_workspace)
+    imported_name = Field.objects.get(
+        table__database__workspace=imported_workspace, name="Name"
+    )
+    assert copy.service.specific.table_id == imported_name.table_id
+    assert copy.message["formula"] == f"get('trigger.rows.0.{imported_name.db_column}')"

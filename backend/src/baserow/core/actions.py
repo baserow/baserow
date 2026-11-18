@@ -39,7 +39,7 @@ from baserow.core.registries import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
-from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.handler import TemplateContent, UserTemplateHandler
 from baserow.core.utils import ChildProgressBuilder
 
 
@@ -775,7 +775,7 @@ class InstallTemplateActionType(UndoableActionType):
         template: Template,
         progress_builder: Optional[ChildProgressBuilder] = None,
         *,
-        content: Optional[List[Dict[str, Any]]] = None,
+        content: Optional[TemplateContent] = None,
     ) -> List[Application]:
         """
         Install a template into the provided workspace. See
@@ -789,8 +789,8 @@ class InstallTemplateActionType(UndoableActionType):
         :param template: The template to install, a revision for a user template.
         :param progress_builder: A progress builder instance that can be used to
             track the progress of the installation.
-        :param content: The serialized content of a user template, see
-            UserTemplateHandler.serialize_template_content.
+        :param content: The serialized content of a user template and the transfer of
+            its files.
         :return: The list of installed applications.
         """
 
@@ -1198,6 +1198,53 @@ class CreateWorkspaceInvitationLinkActionType(ActionType):
         return RootActionScopeType.value()
 
 
+# How the password of an invitation link changed, recorded in the audit log.
+INVITATION_LINK_PASSWORD_ADDED = "added"
+INVITATION_LINK_PASSWORD_CHANGED = "changed"
+INVITATION_LINK_PASSWORD_REMOVED = "removed"
+
+
+def get_invitation_link_password_change(
+    had_password: bool, password: str | None
+) -> str:
+    """
+    Tells how an update changes the password of an invitation link, so that the
+    audit log records it without the password itself.
+
+    :param had_password: Whether the link had a password before the update.
+    :param password: The password given to the update: `None` leaves it as it
+        is, an empty string removes it.
+    :return: One of the `INVITATION_LINK_PASSWORD_*` values, or an empty string
+        when the password stays the same.
+    """
+
+    if password is None:
+        return ""
+    if password:
+        return (
+            INVITATION_LINK_PASSWORD_CHANGED
+            if had_password
+            else INVITATION_LINK_PASSWORD_ADDED
+        )
+    return INVITATION_LINK_PASSWORD_REMOVED if had_password else ""
+
+
+def describe_invitation_link_password_change(
+    description: str, params_dict: dict[str, Any]
+) -> str:
+    """
+    Adds the password change of an invitation link update to its audit log
+    description. Entries logged before passwords existed have no such change.
+    """
+
+    sentence = {
+        INVITATION_LINK_PASSWORD_ADDED: _("Password protection added."),
+        INVITATION_LINK_PASSWORD_CHANGED: _("Password changed."),
+        INVITATION_LINK_PASSWORD_REMOVED: _("Password protection removed."),
+    }.get(params_dict.get("password_change") or "")
+    return f"{description} {sentence}" if sentence else description
+
+
 class UpdateWorkspaceInvitationLinkActionType(ActionType):
     type = "update_workspace_invitation_link"
     description = ActionTypeDescription(
@@ -1213,6 +1260,7 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
         "permissions",
         "workspace_id",
         "original_permissions",
+        "password_change",
     ]
 
     @dataclasses.dataclass
@@ -1224,6 +1272,7 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
         original_permissions: str
         name: str
         original_name: str
+        password_change: str = ""
 
     @classmethod
     def do(
@@ -1232,10 +1281,11 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
         invitation_link: WorkspaceInvitationLink,
         permissions: str | None = None,
         name: str | None = None,
+        password: str | None = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of the link or the permissions people get when joining
-        through it.
+        Changes the name of the link, the permissions people get when joining
+        through it or its password.
         Look into baserow.core.handler.CoreHandler.update_workspace_invitation_link
         for further details.
         """
@@ -1243,8 +1293,15 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
         workspace = invitation_link.workspace
         original_permissions = invitation_link.permissions
         original_name = invitation_link.name
+        password_change = get_invitation_link_password_change(
+            invitation_link.has_password, password
+        )
         invitation_link = CoreHandler().update_workspace_invitation_link(
-            user, invitation_link, permissions=permissions, name=name
+            user,
+            invitation_link,
+            permissions=permissions,
+            name=name,
+            password=password,
         )
 
         cls.register_action(
@@ -1257,11 +1314,18 @@ class UpdateWorkspaceInvitationLinkActionType(ActionType):
                 original_permissions=original_permissions,
                 name=invitation_link.name,
                 original_name=original_name,
+                password_change=password_change,
             ),
             scope=cls.scope(),
             workspace=workspace,
         )
         return invitation_link
+
+    @classmethod
+    def get_long_description(cls, params_dict: dict[str, Any], *args, **kwargs) -> str:
+        return describe_invitation_link_password_change(
+            super().get_long_description(params_dict, *args, **kwargs), params_dict
+        )
 
     @classmethod
     def scope(cls) -> ActionScopeStr:
@@ -1372,13 +1436,14 @@ class JoinWorkspaceViaInvitationLinkActionType(ActionType):
         raised_permissions = handler.get_permissions_raised_by_invitation_link(
             user, invitation_link
         )
+        adds_member = handler.invitation_link_adds_member(user, invitation_link)
         workspace_user = handler.join_workspace_via_invitation_link(
             user, invitation_link
         )
 
         # Members open the link on their way into the workspace, so only record
         # the visits that changed their membership.
-        if was_member and raised_permissions is None:
+        if was_member and raised_permissions is None and not adds_member:
             return workspace_user
 
         scope_type_name = None

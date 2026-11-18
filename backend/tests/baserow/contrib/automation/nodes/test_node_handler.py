@@ -1,12 +1,21 @@
+import re
+
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
+    LocalBaserowRowsCreatedTriggerNode,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.cache import local_cache
+from baserow.core.constants import NOTE_MAX_LEN
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyDict
@@ -73,6 +82,34 @@ def test_get_nodes_excludes_trashed_application(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_nodes_does_not_evaluate_the_base_queryset(data_fixture):
+    # Regression test: `not base_queryset` evaluated the given queryset, which
+    # loaded every node it contained before the real, workflow-filtered query.
+    workflow = data_fixture.create_automation_workflow()
+    other_workflow = data_fixture.create_automation_workflow()
+    data_fixture.create_automation_node(workflow=other_workflow)
+
+    with CaptureQueriesContext(connection) as ctx:
+        nodes = list(
+            AutomationNodeHandler().get_nodes(
+                workflow, specific=False, base_queryset=AutomationNode.objects.all()
+            )
+        )
+
+    assert {node.workflow_id for node in nodes} == {workflow.id}
+    node_queries = [
+        q["sql"]
+        for q in ctx.captured_queries
+        if 'FROM "automation_automationnode"' in q["sql"]
+    ]
+    scoped = re.compile(
+        rf'"automation_automationnode"\."workflow_id" = {workflow.id}\b'
+    )
+    assert len(node_queries) == 1
+    assert scoped.search(node_queries[0]), node_queries
+
+
+@pytest.mark.django_db
 def test_get_node(data_fixture):
     node = data_fixture.create_automation_node()
 
@@ -97,6 +134,22 @@ def test_get_node_excludes_trashed_application(data_fixture):
 
 
 @pytest.mark.django_db
+def test_lock_nodes_locks_the_workflow_nodes_in_id_order(data_fixture):
+    first = data_fixture.create_automation_node()
+    second = data_fixture.create_automation_node(workflow=first.workflow)
+    elsewhere = data_fixture.create_automation_node()
+
+    with transaction.atomic(), CaptureQueriesContext(connection) as queries:
+        locked = AutomationNodeHandler().lock_nodes(
+            first.workflow, [elsewhere.id, second.id, first.id]
+        )
+
+    assert locked == [first.id, second.id]
+    assert len(queries) == 1
+    assert "FOR UPDATE" in queries[0]["sql"]
+
+
+@pytest.mark.django_db
 def test_update_node(data_fixture):
     user = data_fixture.create_user()
     node = data_fixture.create_automation_node(user=user)
@@ -116,6 +169,7 @@ def test_export_prepared_values(data_fixture):
 
     assert values == {
         "label": "My node",
+        "note": "",
         "on_failure": "stop",
         "max_retries": 2,
         "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
@@ -147,6 +201,7 @@ def test_export_node(data_fixture):
     assert result == {
         "id": node.id,
         "label": node.label,
+        "note": "",
         "on_failure": "stop",
         "max_retries": 2,
         "retry_condition": {"formula": "", "mode": "simple", "version": "0.1"},
@@ -403,3 +458,86 @@ def test_duplicate_node_keeps_the_error_policy(data_fixture):
     assert duplicated_node.on_failure == "retry"
     assert duplicated_node.max_retries == 3
     assert "current_node.id" in duplicated_node.retry_condition["formula"]
+
+
+@pytest.mark.django_db
+def test_update_node_note(data_fixture):
+    node = data_fixture.create_automation_node()
+
+    assert node.note == ""
+
+    updated_node = AutomationNodeHandler().update_node(node, note="Why **this** step")
+
+    updated_node.refresh_from_db()
+    assert updated_node.note == "Why **this** step"
+
+
+@pytest.mark.django_db
+def test_export_and_import_node_keeps_the_note(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, note="Creates the invoice row"
+    )
+
+    exported = AutomationNodeHandler().export_node(node)
+    assert exported["note"] == "Creates the invoice row"
+
+    target_workflow = data_fixture.create_automation_workflow(
+        automation=workflow.automation
+    )
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported = AutomationNodeHandler().import_node(
+        target_workflow, exported, id_mapping
+    )
+
+    assert imported.note == "Creates the invoice row"
+
+
+@pytest.mark.django_db
+def test_import_node_without_a_note(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+
+    exported = AutomationNodeHandler().export_node(node)
+    del exported["note"]
+
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported = AutomationNodeHandler().import_node(workflow, exported, id_mapping)
+
+    assert imported.note == ""
+
+
+@pytest.mark.django_db
+def test_duplicate_node_keeps_the_note(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    action = data_fixture.create_local_baserow_create_row_action_node(
+        workflow=workflow, note="Creates the invoice row"
+    )
+
+    duplicated_node = AutomationNodeHandler().duplicate_node(action)
+
+    assert duplicated_node.id != action.id
+    assert duplicated_node.note == "Creates the invoice row"
+
+
+@pytest.mark.django_db
+def test_import_node_cuts_a_note_that_is_too_long(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    node = data_fixture.create_local_baserow_create_row_action_node(workflow=workflow)
+
+    exported = AutomationNodeHandler().export_node(node)
+    exported["note"] = "a" * (NOTE_MAX_LEN + 50)
+
+    id_mapping = {
+        "integrations": MirrorDict(),
+        "automation_workflow_nodes": MirrorDict(),
+    }
+    imported = AutomationNodeHandler().import_node(workflow, exported, id_mapping)
+
+    assert imported.note == "a" * NOTE_MAX_LEN

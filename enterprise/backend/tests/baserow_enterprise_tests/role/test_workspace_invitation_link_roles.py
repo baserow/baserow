@@ -112,3 +112,102 @@ def test_workspace_invitation_link_validates_enterprise_roles(
         assert WorkspaceInvitationLink.objects.filter(workspace=workspace).count() == 1
         invitation_link.refresh_from_db()
         assert invitation_link.permissions == "MEMBER"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("method", ["get", "post", "patch"])
+def test_invitation_link_member_role_follows_license(
+    api_client, enterprise_data_fixture, method
+):
+    """Resolve legacy MEMBER links without rewriting their stored permissions."""
+
+    admin, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+    link = enterprise_data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER"
+    )
+    url = reverse(
+        "api:workspaces:invitation_links:item"
+        if method == "patch"
+        else "api:workspaces:invitation_links:list",
+        kwargs={"invitation_link_id": link.id}
+        if method == "patch"
+        else {"workspace_id": workspace.id},
+    )
+    for licensed, expected_role in [
+        (True, "BUILDER"),
+        (False, "MEMBER"),
+        (True, "BUILDER"),
+    ]:
+        if licensed:
+            enterprise_data_fixture.enable_enterprise()
+        else:
+            enterprise_data_fixture.delete_all_licenses()
+        response = getattr(api_client, method)(
+            url,
+            **(
+                {}
+                if method == "get"
+                else {"data": {"permissions": "MEMBER"}, "format": "json"}
+            ),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == 200, response.json()
+        payload = response.json()
+        if method == "get":
+            assert {item["permissions"] for item in payload} == {expected_role}
+        else:
+            assert payload["permissions"] == expected_role
+        link.refresh_from_db()
+        assert link.permissions == "MEMBER"
+
+
+@pytest.mark.django_db
+def test_public_invitation_link_upgrade_resolves_member_role(api_client, data_fixture):
+    """The confirmation page also receives the effective role of legacy links."""
+
+    admin = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="VIEWER"
+    )
+    link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="MEMBER"
+    )
+    response = api_client.get(
+        reverse("api:workspaces:invitation_links:slug", kwargs={"slug": link.slug}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["role_upgrade"] == {
+        "current_permissions": "VIEWER",
+        "permissions": "BUILDER",
+    }
+
+
+@pytest.mark.django_db
+def test_public_invitation_link_upgrade_resolves_member_current_role(
+    api_client, data_fixture
+):
+    """The confirmation page also receives the effective role of legacy members."""
+
+    admin = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="ADMIN"
+    )
+    response = api_client.get(
+        reverse("api:workspaces:invitation_links:slug", kwargs={"slug": link.slug}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["role_upgrade"] == {
+        "current_permissions": "BUILDER",
+        "permissions": "ADMIN",
+    }
+    assert WorkspaceUser.objects.get(user=member).permissions == "MEMBER"

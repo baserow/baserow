@@ -4,7 +4,6 @@ import AuditLogActorTypeField from '@baserow_enterprise/components/auditLog/Audi
 
 const actorTypeNames = {
   'auth.User': 'User',
-  'core.Agent': 'Agent',
 }
 
 async function mountComponent(type) {
@@ -33,13 +32,23 @@ async function mountComponent(type) {
 describe('AuditLogActorTypeField', () => {
   test.each([
     ['auth.User', 'User'],
-    ['core.Agent', 'Agent'],
     ['custom.Robot', 'custom.Robot'],
   ])('renders the %s actor type', async (type, expected) => {
     const wrapper = await mountComponent(type)
 
     expect(wrapper.text()).toBe(expected)
     expect(wrapper.attributes('title')).toBe(expected)
+  })
+
+  test('renders the Identity label for an identity User', async () => {
+    const wrapper = await mountSuspended(AuditLogActorTypeField, {
+      props: {
+        row: { actor: { type: 'auth.User', user_type: 'identity' } },
+        column: { key: 'actor_type' },
+      },
+    })
+
+    expect(wrapper.text()).toBe('subjectType.identity')
   })
 
   test('renders an empty value for a legacy actor', async () => {

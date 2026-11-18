@@ -5,7 +5,7 @@
     small-label
     required
   >
-    <FormGroup class="margin-bottom-2">
+    <FormGroup v-if="!isFormFieldHidden('test_url')" class="margin-bottom-2">
       <RadioGroup v-model="isPublishedUrl" :options="urlVersions" type="button">
       </RadioGroup>
     </FormGroup>
@@ -46,6 +46,7 @@
     </FormGroup>
 
     <FormGroup
+      v-if="!isFormFieldHidden('wait_for_response')"
       class="margin-bottom-2"
       small-label
       :label="$t('coreHTTPTriggerServiceForm.responseOptionsLabel')"
@@ -127,7 +128,7 @@ export default {
     webhookUrl() {
       if (this.defaultValues.uid) {
         const url = `${this.$config.public.publicBackendUrl}/api/webhooks/${this.defaultValues.uid}/`
-        if (!this.isPublishedUrl) {
+        if (!this.isFormFieldHidden('test_url') && !this.isPublishedUrl) {
           return `${url}?test=true`
         } else {
           return url
@@ -155,7 +156,7 @@ export default {
   },
   validations() {
     return {
-      values: {
+      values: this.omitHiddenFormFields({
         response_timeout_seconds: {
           minValue: helpers.withMessage(
             this.$t('error.minValueField', { min: 1 }),
@@ -176,7 +177,7 @@ export default {
           ),
           integer: helpers.withMessage(this.$t('error.integerField'), integer),
         },
-      },
+      }),
     }
   },
 }

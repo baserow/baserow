@@ -60,6 +60,10 @@ AUDIT_LOG_CSV_COLUMN_NAMES = OrderedDict(
             "field": "actor_type",
             "descr": _("Actor Type"),
         },
+        "actor_user_type": {
+            "field": "actor_user_type",
+            "descr": _("Actor User Type"),
+        },
         "actor_name": {
             "field": "actor_name",
             "descr": _("Actor Name"),

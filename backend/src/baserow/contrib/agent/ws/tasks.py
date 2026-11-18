@@ -4,9 +4,9 @@ from baserow.config.celery import app
 from baserow.config.db_routers import set_db_alias
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
+from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 from baserow.ws.tasks import broadcast_to_users_individual_payloads
 
@@ -62,7 +62,7 @@ def broadcast_run_as_updates(workspace_id: int, identity_id: int) -> None:
         )
         payload["agent_ids"].append(agent.id)
         if (
-            agent.run_as_subject_type == AgentSubjectType.type
+            agent.run_as_subject_type == UserSubjectType.type
             and agent.run_as_subject_id == identity_id
         ):
             payload["selected_agent_ids"].append(agent.id)

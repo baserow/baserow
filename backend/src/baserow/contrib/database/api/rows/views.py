@@ -202,6 +202,40 @@ def build_response_with_metadata(
     return Response(response_serializer.data)
 
 
+def check_token_can_read_linked_tables(
+    request: Request, model, rows_values: list[dict], view: View | None = None
+):
+    """
+    Raises if the request uses a database token that can't read a table the rows values
+    link rows from. Linking a row returns its primary field value, so the token needs
+    read access to the linked table on top of write access to this one.
+
+    :param request: The request that might be authenticated with a token.
+    :param model: The model of the table that the values are written to.
+    :param rows_values: The validated rows values, keyed by internal field name.
+    :param view: The view new rows are created in. Its default values are checked too
+        if they aren't authorized when they're configured, otherwise values equal to
+        them aren't checked.
+    :raises NoPermissionToLinkedTable: If the token can't read a linked table.
+    """
+
+    token = TokenHandler().get_token_from_request(request)
+    if token is None:
+        return
+
+    if view is not None:
+        view_defaults = ViewHandler().get_view_default_values_for_row_creation(
+            view, model=model
+        )
+        rows_values = RowHandler().get_rows_values_to_check_for_linked_tables(
+            model, rows_values, view, view_defaults
+        )
+
+    TokenHandler().check_can_read_linked_tables(
+        token, RowHandler().get_linked_tables_written_by_rows_values(model, rows_values)
+    )
+
+
 class RowsView(APIView):
     authentication_classes = APIView.authentication_classes + [TokenAuthentication]
     permission_classes = (IsAuthenticated,)
@@ -301,6 +335,7 @@ class RowsView(APIView):
                     "field names for which we want to lookup additional values. "
                     "You can provide one or multiple target fields. It is not possible "
                     "to lookup a value of a link row field in the target table. "
+                    "Read access to the target table is required. "
                     "If `user_field_names` parameter is set, the names of the fields "
                     "should be user field names. In this case the resulting field "
                     "names in the output will also be user field names. "
@@ -359,7 +394,13 @@ class RowsView(APIView):
                     "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -549,6 +590,9 @@ class RowsView(APIView):
             "types, the numbers/ids in the example are just there for example "
             "purposes, the field_ID must be replaced with the actual id of the field "
             "or the name of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
         ),
         request=get_example_row_serializer_class(
             example_type="post", user_field_names=True
@@ -566,7 +610,14 @@ class RowsView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -615,6 +666,8 @@ class RowsView(APIView):
 
         view_id = query_params.get("view")
         view = ViewHandler().get_view(view_id) if view_id else None
+
+        check_token_can_read_linked_tables(request, model, [data], view=view)
 
         before_id = query_params.get("before")
         before_row = (
@@ -962,6 +1015,9 @@ class RowView(APIView):
             "numbers/ids in the example are just there for example purposes, "
             "the field_ID must be replaced with the actual id of the field or the name "
             "of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
         ),
         request=get_example_row_serializer_class(
             example_type="patch", user_field_names=True
@@ -978,7 +1034,14 @@ class RowView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -1041,6 +1104,8 @@ class RowView(APIView):
             user_field_names=user_field_names,
         )
         data = validate_data(validation_serializer, request_data, return_validated=True)
+        check_token_can_read_linked_tables(request, model, [data])
+
         try:
             data["id"] = int(row_id)
             row = (
@@ -1368,6 +1433,9 @@ class BatchRowsView(APIView):
             "types, the numbers/ids in the example are just there for example "
             "purposes, the field_ID must be replaced with the actual id of the field "
             "or the name of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
             "\n\n **WARNING:** This endpoint doesn't yet work with row created webhooks."
         ),
         request=get_example_batch_rows_serializer_class(
@@ -1387,7 +1455,14 @@ class BatchRowsView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -1444,6 +1519,8 @@ class BatchRowsView(APIView):
         data = validate_data(
             validation_serializer, request_data, partial=True, return_validated=True
         )
+
+        check_token_can_read_linked_tables(request, model, data["items"], view=view)
 
         try:
             rows = action_type_registry.get_by_type(CreateRowsActionType).do(
@@ -1538,6 +1615,9 @@ class BatchRowsView(APIView):
             "numbers/ids in the example are just there for example purposes, "
             "the field_ID must be replaced with the actual id of the field or the name "
             "of the field if `user_field_names` is provided."
+            " Linking rows in a link row field also needs read access to the "
+            "linked table, or to the linked rows in the view for a link to the same "
+            "table."
             "\n\n **WARNING:** This endpoint doesn't yet work with row updated webhooks."
         ),
         request=get_example_batch_rows_serializer_class(
@@ -1559,7 +1639,14 @@ class BatchRowsView(APIView):
                     "ERROR_USER_FILE_DOES_NOT_EXIST",
                 ]
             ),
-            401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_TABLE",
+                    "ERROR_NO_PERMISSION_TO_LINKED_TABLE",
+                    "ERROR_CANNOT_READ_LINKED_TABLE",
+                    "ERROR_LINKED_ROWS_NOT_VISIBLE_IN_VIEW",
+                ]
+            ),
             404: get_error_schema(
                 [
                     "ERROR_TABLE_DOES_NOT_EXIST",
@@ -1612,6 +1699,8 @@ class BatchRowsView(APIView):
         data = validate_data(
             validation_serializer, request_data, partial=True, return_validated=True
         )
+
+        check_token_can_read_linked_tables(request, model, data["items"])
 
         try:
             updated_data = action_type_registry.get_by_type(UpdateRowsActionType).do(

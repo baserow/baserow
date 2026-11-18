@@ -232,11 +232,9 @@ def test_a_new_link_goes_last_at_its_level(seeded: SeededMenu) -> None:
     assert contact == {
         "uid": contact["uid"],
         "type": "link",
-        "variant": "link",
         "name": "Contact",
         "navigation_type": "page",
         "navigate_to_page_id": seeded.pages["Contact"].id,
-        "target": "self",
         "children": [],
     }
     assert contact["uid"] not in seeded.uids.values()

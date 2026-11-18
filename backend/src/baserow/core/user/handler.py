@@ -29,6 +29,7 @@ from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.emails import EmailPendingVerificationEmail
 from baserow.core.exceptions import (
     WorkspaceInvitationEmailMismatch,
+    WorkspaceInvitationLinkPasswordRequired,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
@@ -82,6 +83,7 @@ from .exceptions import (
     UserIsLastAdmin,
     UserNotFound,
 )
+from .identity import is_human
 from .registries import user_preference_type_registry
 from .signals import user_password_changed
 from .tasks import share_onboarding_details_with_baserow
@@ -140,6 +142,7 @@ class UserHandler:
         except User.DoesNotExist:
             raise UserNotFound("The user with the provided parameters is not found.")
 
+    @transaction.atomic
     def force_create_user(self, email, name, password, **kwargs):
         """
         Creates a new user and their profile.
@@ -162,7 +165,9 @@ class UserHandler:
             language = kwargs.pop("language") or settings.LANGUAGE_CODE
 
         email = normalize_email_address(email)
-        user_query = User.objects.filter(Q(email=email) | Q(username=email))
+        user_query = User.objects_and_identities.filter(
+            Q(email=email) | Q(username=email)
+        )
         if user_query.exists():
             user = user_query.first()
             if user.is_active:
@@ -201,6 +206,7 @@ class UserHandler:
         email_verified: bool = False,
         workspace_invitation_link_slug: Optional[str] = None,
         join_invitation_link_workspace: bool = True,
+        workspace_invitation_link_token: Optional[str] = None,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -226,6 +232,8 @@ class UserHandler:
         :param join_invitation_link_workspace: Whether the user joins the workspace
             of the invitation link right away. When False, the link only allows the
             signup, and the user confirms joining on the page of the link.
+        :param workspace_invitation_link_token: The access token handed out for
+            the password of a password protected invitation link.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
@@ -233,6 +241,8 @@ class UserHandler:
         :raises SignupDisabledError: If signing up is disabled.
         :raises WorkspaceInvitationLinkDoesNotExist: If the invitation link does not
             exist.
+        :raises WorkspaceInvitationLinkPasswordRequired: If the user joins a
+            password protected invitation link right away without its token.
         :return: The user object.
         """
 
@@ -253,22 +263,40 @@ class UserHandler:
                     "user."
                 )
 
+        locked_invitation_link = False
         if workspace_invitation_link_slug:
-            workspace_invitation_link = (
-                core_handler.get_workspace_invitation_link_by_slug(
-                    workspace_invitation_link_slug
+            try:
+                workspace_invitation_link = (
+                    core_handler.get_workspace_invitation_link_by_slug(
+                        workspace_invitation_link_slug,
+                        access_token=workspace_invitation_link_token,
+                    )
                 )
-            )
+            except WorkspaceInvitationLinkPasswordRequired:
+                if join_invitation_link_workspace:
+                    raise
+                # Signing up through an identity provider can't carry the token
+                # of a password protected link. The user still signs up as
+                # someone joining through the link, and the page of the link
+                # asks for the password before they can join. Without the
+                # password, the link doesn't let them sign up on its own, so
+                # this only works while anyone can sign up.
+                locked_invitation_link = True
 
         invited_to_workspace = (
-            workspace_invitation is not None or workspace_invitation_link is not None
+            workspace_invitation is not None
+            or workspace_invitation_link is not None
+            or locked_invitation_link
         )
 
         instance_settings = core_handler.get_settings()
         allow_new_signups = instance_settings.allow_new_signups
         allow_signup_for_invited_user = (
             instance_settings.allow_signups_via_workspace_invitations
-            and invited_to_workspace
+            and (
+                workspace_invitation is not None
+                or workspace_invitation_link is not None
+            )
         )
         if not (allow_new_signups or allow_signup_for_invited_user):
             raise DisabledSignupError("Sign up is disabled.")
@@ -511,6 +539,8 @@ class UserHandler:
         :return: Whether the email was sent.
         """
 
+        if not is_human(user):
+            return False
         if not CoreHandler().get_settings().allow_reset_password:
             raise ResetPasswordDisabledError("Reset password is disabled")
 
@@ -613,7 +643,7 @@ class UserHandler:
         :return: The changed user instance.
         """
 
-        if not user.check_password(old_password):
+        if not is_human(user) or not user.check_password(old_password):
             raise InvalidPassword("The provided old password is incorrect.")
 
         try:
@@ -674,6 +704,9 @@ class UserHandler:
         :raises ChangeEmailNotAllowed: When the user does not have a password set.
         """
 
+        if not is_human(user):
+            raise ChangeEmailNotAllowed()
+
         # Email changes are only for password-based accounts. Accounts that don't
         # have password set are accounts created via SSO.
         if user.password == "":  # nosec
@@ -688,7 +721,9 @@ class UserHandler:
         new_email = normalize_email_address(new_email)
 
         # Check if a user with the new email already exists
-        if User.objects.filter(Q(email=new_email) | Q(username=new_email)).exists():
+        if User.objects_and_identities.filter(
+            Q(email=new_email) | Q(username=new_email)
+        ).exists():
             raise UserAlreadyExist(f"A user with email {new_email} already exists.")
 
         signer = self.get_change_email_signer()
@@ -733,7 +768,9 @@ class UserHandler:
         # Check again if a user with the new email already exists because it could be
         # that a new user was created in the meantime.
         if (
-            User.objects.filter(Q(email=new_email) | Q(username=new_email))
+            User.objects_and_identities.filter(
+                Q(email=new_email) | Q(username=new_email)
+            )
             .exclude(id=user.id)
             .exists()
         ):
@@ -917,6 +954,7 @@ class UserHandler:
                     "workspaceuser",
                     filter=(
                         Q(workspaceuser__permissions="ADMIN")
+                        & Q(workspaceuser__user__profile__user_type="human")
                         & ~Q(workspaceuser__user__in=users_to_delete)
                     ),
                 ),
@@ -1136,6 +1174,8 @@ class UserHandler:
             were sent to the user recently.
         """
 
+        if not is_human(user):
+            return False
         if user.profile.email_verified:
             raise EmailAlreadyVerified()
 

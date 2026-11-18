@@ -131,6 +131,31 @@ def test_create_data_sync_table_without_access_to_source_table(enterprise_data_f
 @pytest.mark.django_db
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
+def test_user_template_table_cant_be_synced(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+    database = enterprise_data_fixture.create_database_application(user=user)
+    source_table = enterprise_data_fixture.create_database_table(name="Source")
+    template = enterprise_data_fixture.create_user_template(
+        user=user, workspace=source_table.database.workspace
+    )
+    handler = DataSyncHandler()
+
+    assert template.workspace.has_openable_template(user)
+    with pytest.raises(SyncError, match="user template"):
+        handler.create_data_sync_table(
+            user=user,
+            database=database,
+            table_name="Test",
+            type_name="local_baserow_table",
+            synced_properties=["id"],
+            source_table_id=source_table.id,
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
 def test_sync_data_sync_table_source_table_deleted(enterprise_data_fixture):
     enterprise_data_fixture.enable_enterprise()
 
@@ -1055,7 +1080,7 @@ def test_sync_data_sync_table_single_select_field(enterprise_data_fixture):
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_field_and_making_changes(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -1150,7 +1175,7 @@ def test_sync_data_sync_table_single_select_field_and_making_changes(
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_field_with_default_and_making_changes(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
@@ -1232,7 +1257,7 @@ def test_sync_data_sync_table_single_select_field_with_default_and_making_change
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_field_default_option_deleted(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()
@@ -1418,7 +1443,7 @@ def test_sync_data_sync_table_single_select_get_metadata_update(
 @pytest.mark.data_sync
 @override_settings(DEBUG=True)
 def test_sync_data_sync_table_single_select_get_metadata_delete(
-    enterprise_data_fixture,
+    enterprise_data_fixture, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
     user = enterprise_data_fixture.create_user()

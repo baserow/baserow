@@ -56,11 +56,14 @@ from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.exceptions import IdentityDoesNotExist
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
+from baserow.core.user.identity import is_identity
 from baserow.core.utils import extract_allowed, remove_unstorable_characters
 
 from .action_tools.handler import AgentActionHandler
@@ -430,19 +433,22 @@ class AgentHandler:
         ):
             return missing
         subject = self.get_run_as_subject(subject_type, subject_id, include_trash=True)
-        if subject is None:
+        if not is_identity(subject) or not subject.is_active:
             return missing
-        registered_type = subject_type_registry.get(subject_type)
-        if not registered_type.is_in_workspace(subject, workspace, include_trash=True):
+        try:
+            identity_workspace = IdentityHandler.get_workspace(subject)
+        except IdentityDoesNotExist:
+            return missing
+        if identity_workspace.id != workspace.id:
             return missing
         return AgentRunAsResolution(
             AgentRunAsState.TRASHED
-            if getattr(subject, "trashed", False)
+            if subject.profile.trashed
             else AgentRunAsState.ACTIVE,
             subject_type,
             subject_id,
             subject,
-            registered_type.get_display_name(subject),
+            subject_type_registry.get(subject_type).get_display_name(subject),
         )
 
     def get_usable_run_as_subject(
@@ -460,6 +466,17 @@ class AgentHandler:
         resolution = self.resolve_run_as_subject(subject_type, subject_id, workspace)
         return (
             resolution.subject if resolution.status == AgentRunAsState.ACTIVE else None
+        )
+
+    def get_run_identity(self, agent: AgentApplication) -> Subject | None:
+        """
+        :param agent: The Agent, with its workspace.
+        :return: The Agent's run identity when the Agent may act as it now, or
+            None when it has none or the identity is trashed or gone.
+        """
+
+        return self.get_usable_run_as_subject(
+            agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
 
     def update_configuration(
@@ -894,8 +911,8 @@ class AgentHandler:
         :param content: The content of the message.
         :param role: Who sent the message: a person or a trigger.
         :param uuid: The client's uuid of the message, or None for a new one.
-        :param raise_on_run_limit: Whether a workspace at its maximum of replies
-            running raises, or fails the reply with ``chat_run_limit_reached``.
+        :param raise_on_run_limit: Whether a reached reply limit raises, or fails
+            the reply with ``chat_run_limit_reached``.
         :param failure: The error code failing the reply instead of running or
             queueing it, or None.
         :param start_run: Whether the run starts now, or the reply stays queued
@@ -952,8 +969,7 @@ class AgentHandler:
 
         :param conversation: The conversation, with its agent and owner.
         :param reply: The empty reply the run writes.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run.
         """
 
@@ -972,8 +988,7 @@ class AgentHandler:
         conversation's latest activity.
 
         :param reply: The reply, with its conversation, agent and workspace.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run writing the reply.
         """
 
@@ -1195,8 +1210,7 @@ class AgentHandler:
         leaves the decisions pending.
 
         :param reply: The waiting reply, with its conversation, agent and owner.
-        :raises ChatRunLimitReached: When the workspace has its maximum of replies
-            running.
+        :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The run continuing the reply.
         """
 
@@ -1375,6 +1389,7 @@ class AgentHandler:
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
+            started_by_trigger=conversation.is_shared,
         )
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:

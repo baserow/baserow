@@ -4,7 +4,9 @@
     class="image-element"
     :style="getStyleOverride('image')"
   >
+    <!-- Only the picture is clickable, not the empty space beside it. -->
     <ABImage
+      :image-attributes="imageAttributes"
       :alt="
         element.alt_text
           ? resolvedAltText ||
@@ -17,13 +19,13 @@
 </template>
 
 <script>
-import element from '@baserow/modules/builder/mixins/element'
+import clickableElement from '@baserow/modules/builder/mixins/clickableElement'
 import { IMAGE_SOURCE_TYPES } from '@baserow/modules/builder/enums'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'ImageElement',
-  mixins: [element],
+  mixins: [clickableElement],
   props: {
     /**
      * @type {Object}
@@ -52,6 +54,22 @@ export default {
     classes() {
       return {
         'element--no-value': !this.imageSource && !this.resolvedAltText,
+      }
+    },
+    canContainInteractiveContent() {
+      // The click target is the image itself.
+      return false
+    },
+    imageAttributes() {
+      if (!this.isClickable) {
+        return {}
+      }
+      return {
+        ...this.clickableElementAttributes,
+        class: 'element--clickable',
+        onClick: this.onElementClick,
+        onKeydown: this.onElementKeydown,
+        onKeyup: this.onElementKeyup,
       }
     },
   },

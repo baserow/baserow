@@ -1,6 +1,12 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.management import CommandError
 from django.db import transaction
 
+from baserow.core.ai_provider.handler import AIProviderHandler
+from baserow.core.ai_provider.models import AIProviderConfig
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.user.exceptions import UserAlreadyExist
@@ -11,6 +17,9 @@ User = get_user_model()
 
 @transaction.atomic
 def load_test_data():
+    """Populate development users, workspaces, and optional instance AI providers."""
+
+    load_test_ai_providers()
     print("Add basic users...")
     user_handler = UserHandler()
 
@@ -82,3 +91,34 @@ def load_test_data():
                 user=member,
                 defaults=dict(permissions="MEMBER", order=j + 2),
             )
+
+
+def load_test_ai_providers():
+    """Create opted-in instance providers and models once, without network calls."""
+
+    for provider_type, model_identifier in (
+        ("openai", "gpt-5.6-luna"),
+        ("anthropic", "claude-haiku-5-5"),
+    ):
+        setting_name = f"BASEROW_DEV_POPULATE_{provider_type.upper()}_API_KEY_FILE"
+        key_file = getattr(settings, setting_name, "")
+        if (
+            not key_file
+            or AIProviderConfig.objects.filter(
+                workspace__isnull=True, provider_type=provider_type
+            ).exists()
+        ):
+            continue
+
+        try:
+            api_key = Path(key_file).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError):
+            raise CommandError(f"Cannot read {setting_name}.") from None
+        if not api_key:
+            raise CommandError(f"{setting_name} must not be empty.")
+
+        AIProviderHandler.create_provider(
+            provider_type,
+            api_key=api_key,
+            models_data=[{"model_identifier": model_identifier}],
+        )

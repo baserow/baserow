@@ -11,9 +11,13 @@ from baserow.contrib.integrations.local_baserow.integration_types import (
     LocalBaserowIntegrationType,
 )
 from baserow.core.cache import local_cache
+from baserow.core.exceptions import PermissionException
+from baserow.core.handler import CoreHandler
+from baserow.core.integrations.exceptions import IntegrationImproperlyConfigured
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
-from baserow.core.models import Agent
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 
 
 @pytest.mark.django_db
@@ -52,11 +56,11 @@ def test_update_local_baserow_integration_authorizes_current_user_only(data_fixt
     user = data_fixture.create_user()
     other_user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=application.workspace, name="Writer", role_uid="ADMIN"
     )
     integration = data_fixture.create_local_baserow_integration(
-        application=application, authorized_agent=agent
+        application=application, authorized_identity=identity
     )
 
     updated_integration = (
@@ -85,11 +89,11 @@ def test_update_local_baserow_integration_authorizes_current_user_only(data_fixt
 def test_update_local_baserow_integration_keeps_existing_authorization(data_fixture):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=application.workspace, name="Writer", role_uid="ADMIN"
     )
     integration = data_fixture.create_local_baserow_integration(
-        application=application, authorized_agent=agent
+        application=application, authorized_identity=identity
     )
 
     updated_integration = (
@@ -99,7 +103,109 @@ def test_update_local_baserow_integration_keeps_existing_authorization(data_fixt
     )
 
     assert updated_integration.name == "Renamed integration"
-    assert updated_integration.authorized_subject == agent
+    assert updated_integration.authorized_subject == identity
+
+
+@pytest.mark.django_db
+def test_only_identity_managers_bind_an_integration_to_an_identity(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(member, "MEMBER")]
+    )
+    application = data_fixture.create_builder_application(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+    integration_type = integration_type_registry.get("local_baserow")
+    binding = {
+        "authorized_subject_type": "auth.User",
+        "authorized_subject_id": identity.id,
+    }
+
+    with pytest.raises(PermissionException):
+        IntegrationService().create_integration(
+            member, integration_type, application=application, **binding
+        )
+    integration = IntegrationService().create_integration(
+        admin, integration_type, application=application, **binding
+    )
+    kept = IntegrationService().update_integration(
+        member, integration, name="Renamed", **binding
+    )
+
+    assert kept.integration.authorized_subject == identity
+
+
+def _application_acting_as(data_fixture, authorized_by: str):
+    """
+    Creates an application whose integration acts as an identity or as the admin.
+
+    :param authorized_by: Either `identity` or `admin`.
+    :return: The application and the admin, member and identity of its workspace.
+    """
+
+    people = {"admin": data_fixture.create_user(), "member": data_fixture.create_user()}
+    workspace = data_fixture.create_workspace(
+        user=people["admin"], custom_permissions=[(people["member"], "MEMBER")]
+    )
+    people["identity"] = data_fixture.create_identity(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    subject = (
+        "authorized_identity" if authorized_by == "identity" else "authorized_user"
+    )
+    data_fixture.create_local_baserow_integration(
+        application=application, **{subject: people[authorized_by]}
+    )
+    return application, people
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "authorized_by,copied_by,acts_as",
+    [
+        ("identity", "admin", "identity"),
+        ("identity", "member", "member"),
+        ("admin", "member", "admin"),
+    ],
+)
+def test_a_copy_keeps_the_identity_only_for_identity_managers(
+    data_fixture, authorized_by, copied_by, acts_as
+):
+    application, people = _application_acting_as(data_fixture, authorized_by)
+
+    copy = CoreHandler().duplicate_application(people[copied_by], application)
+
+    integration = copy.integrations.get().specific
+    assert integration.authorized_subject_id == people[acts_as].id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "authorized_by,restored_by,acts_as",
+    [
+        ("identity", "admin", "identity"),
+        ("identity", "member", "member"),
+        ("admin", "member", "admin"),
+    ],
+)
+def test_a_restored_snapshot_keeps_the_identity_only_for_identity_managers(
+    data_fixture, authorized_by, restored_by, acts_as
+):
+    application, people = _application_acting_as(data_fixture, authorized_by)
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=application,
+        name="Before",
+        created_by=people["admin"],
+    )
+    snapshots = SnapshotHandler()
+    snapshots.perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    restored = snapshots.perform_restore(
+        snapshot, Progress(total=100), restored_by=people[restored_by]
+    )
+
+    integration = restored.integrations.get().specific
+    assert integration.authorized_subject_id == people[acts_as].id
 
 
 @pytest.mark.django_db
@@ -108,11 +214,11 @@ def test_update_local_baserow_integration_reauthorizes_with_current_user(
 ):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=application.workspace, name="Writer", role_uid="ADMIN"
     )
     integration = data_fixture.create_local_baserow_integration(
-        application=application, authorized_agent=agent
+        application=application, authorized_identity=identity
     )
 
     updated_integration = (
@@ -130,19 +236,19 @@ def test_update_local_baserow_integration_reauthorizes_with_current_user(
 
 
 @pytest.mark.django_db
-def test_update_local_baserow_integration_does_not_reauthorize_a_trashed_agent(
+def test_update_local_baserow_integration_does_not_reauthorize_a_trashed_identity(
     data_fixture,
 ):
     user = data_fixture.create_user()
     application = data_fixture.create_builder_application(user=user)
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=application.workspace, name="Writer", role_uid="ADMIN"
     )
     integration = data_fixture.create_local_baserow_integration(
-        application=application, authorized_agent=agent
+        application=application, authorized_identity=identity
     )
-    agent.trashed = True
-    agent.save(update_fields=["trashed"])
+    identity.profile.trashed = True
+    identity.profile.save(update_fields=["trashed"])
 
     updated_integration = (
         IntegrationService()
@@ -157,8 +263,8 @@ def test_update_local_baserow_integration_does_not_reauthorize_a_trashed_agent(
     )
 
     assert updated_integration.name == "Renamed integration"
-    assert updated_integration.authorized_subject_type == "core.Agent"
-    assert updated_integration.authorized_subject_id == agent.id
+    assert updated_integration.authorized_subject_type == "auth.User"
+    assert updated_integration.authorized_subject_id == identity.id
     assert updated_integration.authorized_subject is None
 
 
@@ -188,6 +294,35 @@ def test_import_legacy_authorized_user_reauthorizes_the_importing_user(data_fixt
 
 
 @pytest.mark.django_db
+def test_import_legacy_authorization_reuses_workspace_users(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration_type = integration_type_registry.get("local_baserow")
+    cache = {}
+    id_mapping = {"import_workspace_id": application.workspace_id}
+
+    with CaptureQueriesContext(connection) as queries:
+        for integration_id in (1, 2):
+            imported = integration_type.import_serialized(
+                application,
+                {
+                    "id": integration_id,
+                    "name": "Legacy local Baserow",
+                    "order": "1.00000000000000000000",
+                    "type": "local_baserow",
+                    "authorized_user": user.username,
+                },
+                id_mapping,
+                cache=cache,
+            )
+            assert imported.authorized_subject_type == "auth.User"
+            assert imported.authorized_subject_id == user.id
+
+    user_queries = [query for query in queries if 'FROM "auth_user"' in query["sql"]]
+    assert len(user_queries) == 1
+
+
+@pytest.mark.django_db
 def test_get_local_baserow_databases_no_databases(data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(authorized_user=user)
@@ -198,14 +333,16 @@ def test_get_local_baserow_databases_no_databases(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_local_baserow_databases_with_agent(data_fixture):
+def test_get_local_baserow_databases_with_identity(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    agent = Agent.objects.create(workspace=workspace, name="Reader", role_uid="ADMIN")
+    identity = data_fixture.create_identity(
+        workspace=workspace, name="Reader", role_uid="ADMIN"
+    )
     builder = data_fixture.create_builder_application(workspace=workspace)
     integration = data_fixture.create_local_baserow_integration(
         authorized_user=user,
-        authorized_agent=agent,
+        authorized_identity=identity,
         application=builder,
     )
     database = data_fixture.create_database_application(workspace=workspace)
@@ -455,3 +592,22 @@ def test_after_import(data_fixture):
     assert integration.authorized_subject == user
     assert integration.authorized_subject_type == "auth.User"
     assert integration.authorized_subject_id == user.id
+
+
+@pytest.mark.django_db
+def test_legacy_agent_import_is_rejected_without_reauthorizing(data_fixture):
+    application = data_fixture.create_builder_application()
+    with pytest.raises(IntegrationImproperlyConfigured, match="Legacy agent"):
+        LocalBaserowIntegrationType().import_serialized(
+            application,
+            {
+                "id": 1,
+                "type": "local_baserow",
+                "name": "Old identity",
+                "order": "1.0",
+                "authorized_subject_type": "core.Agent",
+                "authorized_subject_id": 1,
+            },
+            {"import_workspace_id": application.workspace_id},
+        )
+    assert not application.integrations.exists()

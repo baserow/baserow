@@ -8,7 +8,7 @@
   >
     <ABDropdown
       ref="recordSelectorDropdown"
-      v-model="inputValue"
+      :model-value="inputValue"
       :show-search="adhocSearchEnabled"
       :emit-search="adhocSearchEnabled"
       class="choice-element"
@@ -17,7 +17,7 @@
       :clearable="!element.multiple && !element.required"
       :before-show="beforeShow"
       @hide="onFormElementTouch"
-      @update:model-value="handleFormElementChange"
+      @update:model-value="onSelectionChange"
       @query-change="adhocSearch = $event"
       @scroll="$refs.infiniteScroll.handleScroll($event)"
     >
@@ -61,6 +61,7 @@
             :key="value"
             :name="`${name}${nameSuffix ? ` - ${nameSuffix}` : ''}`"
             :value="value"
+            :disabled="workflowActionsInProgress"
           />
         </template>
       </InfiniteScroll>
@@ -71,7 +72,7 @@
 <script>
 import _ from 'lodash'
 import { ensureString } from '@baserow/modules/core/utils/validator'
-import formElement from '@baserow/modules/builder/mixins/formElement'
+import changeableFormElement from '@baserow/modules/builder/mixins/changeableFormElement'
 import collectionElement from '@baserow/modules/builder/mixins/collectionElement'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll.vue'
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
@@ -81,7 +82,7 @@ import { DATA_SCOPES } from '@baserow/modules/builder/constants'
 export default {
   name: 'RecordSelectorElement',
   components: { InfiniteScroll },
-  mixins: [formElement, collectionElement],
+  mixins: [changeableFormElement, collectionElement],
   props: {
     /**
      * @type {Object}

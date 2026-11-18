@@ -1,16 +1,15 @@
-from typing import TYPE_CHECKING, Dict, List, Set
-
-from antlr4.tree import Tree
+from typing import TYPE_CHECKING, Dict, List
 
 from baserow.contrib.builder.data_providers.registries import (
     builder_data_provider_type_registry,
 )
 from baserow.contrib.builder.elements.models import Element
-from baserow.contrib.builder.formula_importer import BaserowFormulaImporter
-from baserow.core.formula import BaserowFormula
-from baserow.core.formula.exceptions import InvalidRuntimeFormula
+from baserow.contrib.builder.workflow_actions.models import EventTypes
+from baserow.core.formula.property_extractor import (
+    FormulaFieldVisitor as RuntimeFormulaFieldVisitor,
+)
 from baserow.core.user_sources.user_source_user import UserSourceUser
-from baserow.core.utils import merge_dicts_no_duplicates, to_path
+from baserow.core.utils import merge_dicts_no_duplicates
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.data_sources.models import DataSource
@@ -18,72 +17,11 @@ if TYPE_CHECKING:
     from baserow.core.workflow_actions.models import WorkflowAction
 
 
-class FormulaFieldVisitor(BaserowFormulaImporter):
-    """
-    This visitor will visit all nodes of a formula and return its properties.
-    """
+class FormulaFieldVisitor(RuntimeFormulaFieldVisitor):
+    """Extract Builder formula properties with the shared runtime formula visitor."""
 
     def __init__(self, **kwargs):
-        """
-        Save the extra context to give it to data provider later.
-        """
-
-        self.results = {}
-        self.extra_context = kwargs
-
-    def get_data_provider_type_registry(self):
-        return builder_data_provider_type_registry
-
-    def visit(self, tree: Tree) -> Set[str]:
-        """
-        Due to the way the formula parsing works, the properties that are found by
-        visitFunctionCall() need to be collected in an instance variable.
-
-        This method is overridden to create the results set and return it.
-        """
-
-        self.results = {}
-        super().visit(tree)
-        return self.results
-
-    def visitFunctionCall(self, ctx: BaserowFormula.FunctionCallContext):
-        """
-        Visits all nodes of the formula and stores its Field IDs in the
-        self.results instance attribute.
-        """
-
-        function_name = ctx.func_name().accept(self).lower()
-        function_argument_expressions = ctx.expr()
-
-        parts = [expr.accept(self) for expr in function_argument_expressions]
-
-        if function_name == "get" and isinstance(
-            function_argument_expressions[0], BaserowFormula.StringLiteralContext
-        ):
-            # This is the formula with the function name stripped
-            # e.g. "'current_record.property_33'"
-            unquoted_arg = parts[0]
-
-            # Remove the surrounding quotes and split the data provider name
-            # e.g. "current_record" from the rest of the path, e.g. ["property_33"]
-            data_provider_name, *path = to_path(unquoted_arg[1:-1])
-
-            data_provider_type = self.get_data_provider_type_registry().get(
-                data_provider_name
-            )
-
-            try:
-                self.results = merge_dicts_no_duplicates(
-                    self.results,
-                    data_provider_type.extract_properties(path, **self.extra_context),
-                )
-            except InvalidRuntimeFormula:
-                # If the property extraction failed because of an Invalid formula
-                # we can ignore it. Maybe the related data source is gone.
-                pass
-
-    def visitBinaryOp(self, ctx: BaserowFormula.BinaryOpContext):
-        return self.visitChildren(ctx)
+        super().__init__(builder_data_provider_type_registry, **kwargs)
 
 
 def get_element_property_names(
@@ -137,7 +75,9 @@ def get_workflow_action_property_names(
 
     for workflow_action in workflow_actions:
         formula_context = ElementHandler().get_import_context_addition(
-            workflow_action.element_id, element_map
+            workflow_action.element_id,
+            element_map,
+            include_target=workflow_action.event != EventTypes.CHANGE,
         )
 
         found_properties = workflow_action.get_type().extract_properties(

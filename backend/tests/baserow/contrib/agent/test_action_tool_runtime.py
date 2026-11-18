@@ -522,7 +522,7 @@ def test_runtime_shows_the_adapter_preview_and_dispatches_the_arguments(
         def prepare(self, action, arguments):
             return {"payload": arguments["payload"]}
 
-        def get_preview(self, action, resolved_values):
+        def get_preview(self, action, resolved_values, arguments):
             return preview
 
         def dispatch(self, action, resolved_values):

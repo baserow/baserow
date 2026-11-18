@@ -4761,7 +4761,7 @@ def test_multiple_select_has_filter_type_export_import():
     assert view_filter_type.get_export_serialized_value("1", {}) == "1"
     assert view_filter_type.set_import_serialized_value("1", id_mapping) == "2"
     assert view_filter_type.set_import_serialized_value("", id_mapping) == ""
-    assert view_filter_type.set_import_serialized_value("wrong", id_mapping) == ""
+    assert view_filter_type.set_import_serialized_value("wrong", id_mapping) == "wrong"
 
 
 @pytest.mark.django_db

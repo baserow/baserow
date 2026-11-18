@@ -14,6 +14,11 @@ import {
 } from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
+import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
+import {
+  storeChatUuid,
+  storeOnboardingRunId,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import { MadeWithBaserowBuilderPageDecoratorType } from '@baserow_enterprise/builderPageDecoratorTypes'
 import {
@@ -27,13 +32,19 @@ import {
 } from '@baserow_enterprise/authProviderTypes'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import {
-  EnterpriseRolesAgentExtensionType,
-  EnterpriseTeamsAgentExtensionType,
-} from '@baserow_enterprise/agentExtensionTypes'
-import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+  EnterpriseRolesIdentityExtensionType,
+  EnterpriseTeamsIdentityExtensionType,
+} from '@baserow_enterprise/identityExtensionTypes'
+import { EnterpriseTeamsIdentitySettingsType } from '@baserow_enterprise/identitySettingsTypes'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes.jsx'
-import { ScopeInvitationTargetType } from '@baserow_enterprise/invitationTargetTypes'
-import { MemberInvitationRouteType } from '@baserow_enterprise/invitationRouteTypes'
+import {
+  ScopeInvitationTargetType,
+  TeamInvitationTargetType,
+} from '@baserow_enterprise/invitationTargetTypes'
+import {
+  MemberInvitationRouteType,
+  TeamMembersInvitationRouteType,
+} from '@baserow_enterprise/invitationRouteTypes'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import {
   AdvancedLicenseType,
@@ -163,6 +174,21 @@ export default defineNuxtPlugin({
 
     $store.registerModuleNuxtSafe('authProviderAdmin', authProviderAdminStore)
     $store.registerModuleNuxtSafe('assistant', assistantStore)
+    $registry.register('chatRunType', new AssistantChatRunType(context))
+    if (import.meta.client) {
+      $store.watch(
+        (_, getters) => getters['auth/isAuthenticated'],
+        (authenticated) => {
+          if (!authenticated) {
+            storeChatUuid(null)
+            storeOnboardingRunId(null)
+            $store.dispatch('assistant/reset')
+            $store.commit('assistant/SET_UI_LOCATION', null)
+          }
+        },
+        { flush: 'sync' }
+      )
+    }
 
     $registry.register('admin', new AuthProvidersType(context))
     $registry.unregister(
@@ -194,16 +220,16 @@ export default defineNuxtPlugin({
       new TeamsWorkspaceSettingsPageType(context)
     )
     $registry.register(
-      'agentExtension',
-      new EnterpriseTeamsAgentExtensionType(context)
+      'identityExtension',
+      new EnterpriseTeamsIdentityExtensionType(context)
     )
     $registry.register(
-      'agentExtension',
-      new EnterpriseRolesAgentExtensionType(context)
+      'identityExtension',
+      new EnterpriseRolesIdentityExtensionType(context)
     )
     $registry.register(
-      'agentSettings',
-      new EnterpriseTeamsAgentSettingsType(context)
+      'identitySettings',
+      new EnterpriseTeamsIdentitySettingsType(context)
     )
     $registry.register('subject', new TeamSubjectType(context))
     $registry.register(
@@ -211,8 +237,16 @@ export default defineNuxtPlugin({
       new ScopeInvitationTargetType(context)
     )
     $registry.register(
+      'invitationTarget',
+      new TeamInvitationTargetType(context)
+    )
+    $registry.register(
       'invitationRoute',
       new MemberInvitationRouteType(context)
+    )
+    $registry.register(
+      'invitationRoute',
+      new TeamMembersInvitationRouteType(context)
     )
 
     $registry.register('job', new AuditLogExportJobType(context))

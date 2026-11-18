@@ -14,7 +14,7 @@ from django.utils import timezone as django_timezone
 from pydantic import AwareDatetime, Field, StringConstraints
 
 from baserow.core.subjects import UserSubjectType
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.audit_log.utils import (
     check_for_license_and_permissions_or_raise,
@@ -65,11 +65,7 @@ def _page(
             {
                 "id": entry.id,
                 "timestamp": entry.action_timestamp.astimezone(timezone).isoformat(),
-                "actor": {
-                    "id": entry.actor_id,
-                    "type": entry.actor_type,
-                    "name": entry.actor_name,
-                },
+                "actor": entry.actor,
                 "action_type": entry.action_type,
                 "description": str(entry.description),
             }
@@ -79,6 +75,7 @@ def _page(
     }
 
 
+@tool_execution
 def list_audit_log(
     ctx: ToolContext,
     query: SearchQuery | None = None,

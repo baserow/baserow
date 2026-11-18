@@ -3314,3 +3314,62 @@ describe('Invalid id filter value tests', () => {
     expect(filter.matches([{ id: 1 }], '1,²', {}, {})).toBe(true)
   })
 })
+
+describe('Selection filter labels', () => {
+  let app
+  beforeEach(() => {
+    app = new TestApp()
+  })
+  afterEach(() => app.afterEach())
+
+  test.each([
+    ['single_select_equal', false, false],
+    ['single_select_not_equal', false, true],
+    ['single_select_is_any_of', false, false],
+    ['single_select_is_none_of', false, true],
+    ['multiple_select_has', true, false],
+    ['multiple_select_has_not', true, true],
+  ])(
+    '%s matches exact labels and keeps ID precedence',
+    (operator, multiple, negated) => {
+      const filter = app._app.$registry.get('viewFilter', operator)
+      const options = [
+        { id: 1, value: 'Alpha' },
+        { id: 2, value: 'Beta' },
+        { id: 3, value: 'Fruit, "Fresh"' },
+        { id: 4, value: '1' },
+        { id: 5, value: 'Alpha' },
+      ]
+      const rows = multiple
+        ? [...options.map((option) => [option]), [options[0], options[1]], []]
+        : [...options, null]
+      const cases = [
+        ['Alpha', [0, 4, ...(multiple ? [5] : [])]],
+        ['1', [0, ...(multiple ? [5] : [])]],
+        [
+          operator.includes('equal') ? 'Fruit, "Fresh"' : '"Fruit, ""Fresh"""',
+          [2],
+        ],
+        ['missing', []],
+      ]
+      if (!operator.includes('equal'))
+        cases.push(['1,Beta', [0, 1, ...(multiple ? [5] : [])]])
+      for (const [value, matching] of cases) {
+        const actual = rows
+          .map((row, index) =>
+            filter.matches(row, value, {}, {}) ? index : null
+          )
+          .filter((index) => index !== null)
+        const expected = rows
+          .map((_, index) => index)
+          .filter((index) => matching.includes(index) !== negated)
+        expect(actual).toEqual(expected)
+      }
+      if (!operator.includes('equal')) {
+        expect(filter.prepareValue('"Fruit, ""Fresh"""', {})).toBe(
+          '"Fruit, ""Fresh"""'
+        )
+      }
+    }
+  )
+})

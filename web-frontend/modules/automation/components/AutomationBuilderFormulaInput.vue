@@ -19,7 +19,10 @@
 <script setup>
 import FormulaInputField from '@baserow/modules/core/components/formula/FormulaInputField'
 import { buildFormulaFunctionNodes } from '@baserow/modules/core/formula'
-import { getDataNodesFromDataProvider } from '@baserow/modules/core/utils/dataProviders'
+import {
+  getDataNodesFromDataProvider,
+  getSampleValueFromDataProviders,
+} from '@baserow/modules/core/utils/dataProviders'
 
 const props = defineProps({
   modelValue: { type: [Object, String], required: false, default: () => ({}) },
@@ -51,6 +54,11 @@ const dataProviders = computed(() => {
   )
 })
 
+// Shown by the explorer next to each data node: the value from the last test
+// of the node it belongs to.
+const getDataNodeValue = (path) =>
+  getSampleValueFromDataProviders(dataProviders.value, applicationContext, path)
+
 const nodesHierarchy = computed(() => {
   const hierarchy = []
 
@@ -64,6 +72,7 @@ const nodesHierarchy = computed(() => {
     type: 'data',
     icon: 'iconoir-database',
     nodes: filteredDataNodes,
+    getValue: getDataNodeValue,
     empty: filteredDataNodes.length === 0,
     emptyText: app.$i18n.t('runtimeFormulaTypes.formulaTypeDataEmpty'),
   })

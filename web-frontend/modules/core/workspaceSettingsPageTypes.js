@@ -1,5 +1,16 @@
 import { Registerable } from '@baserow/modules/core/registry'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
+
+/**
+ * Returns the route to open instead of one that isn't among the pages the user
+ * may see, which would render nothing. Null when the route is one of them.
+ */
+export function getFallbackSettingsRoute(pages, routeName) {
+  if (pages.some((page) => page.to?.name === routeName)) {
+    return null
+  }
+  return pages.find((page) => page.navigable)?.to ?? null
+}
 
 export class WorkspaceSettingsPageType extends Registerable {
   /**
@@ -82,13 +93,13 @@ export class MembersWorkspaceSettingsPageType extends WorkspaceSettingsPageType 
   }
 }
 
-export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
+export class IdentitiesWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
   getOrder() {
     return 40
   }
 
   static getType() {
-    return 'agents'
+    return 'identities'
   }
 
   getBadge() {
@@ -105,14 +116,18 @@ export class AgentsWorkspaceSettingsPageType extends WorkspaceSettingsPageType {
 
   hasPermission(workspace) {
     return (
-      this.app.$featureFlagIsEnabled(FF_AGENTS) &&
-      this.app.$hasPermission('workspace.list_agents', workspace, workspace.id)
+      this.app.$featureFlagIsEnabled(FF_IDENTITIES) &&
+      this.app.$hasPermission(
+        'workspace.list_identities',
+        workspace,
+        workspace.id
+      )
     )
   }
 
   getRoute(workspace) {
     return {
-      name: 'settings-agents',
+      name: 'settings-identities',
       params: { workspaceId: workspace.id },
     }
   }

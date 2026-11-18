@@ -8,14 +8,31 @@ from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.mixins import TrashableModelMixin
-from baserow.core.models import Workspace
-from baserow.core.registries import subject_type_registry
+from baserow.core.exceptions import WorkspaceInvitationLinkSignupsDisabled
+from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
+from baserow.core.handler import CoreHandler
+from baserow.core.models import (
+    Workspace,
+    WorkspaceInvitation,
+    WorkspaceInvitationLink,
+)
+from baserow.core.operations import (
+    CreateInvitationLinkWorkspaceOperationType,
+    ListInvitationsWorkspaceOperationType,
+)
+from baserow.core.registries import SubjectType, subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user.utils import normalize_email_address
 from baserow.core.utils import atomic_if_not_already
-from baserow_enterprise.models import Role, RoleAssignment, Team, TeamSubject
+from baserow_enterprise.models import (
+    Role,
+    RoleAssignment,
+    Team,
+    TeamSubject,
+    WorkspaceTeamInvitation,
+)
+from baserow_enterprise.role.constants import NO_ROLE_LOW_PRIORITY_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.signals import (
     team_created,
@@ -26,12 +43,17 @@ from baserow_enterprise.signals import (
 )
 from baserow_enterprise.teams.exceptions import (
     TeamDoesNotExist,
+    TeamInvitationDoesNotExist,
     TeamNameNotUnique,
     TeamSubjectBadRequest,
     TeamSubjectBulkDoesNotExist,
     TeamSubjectDoesNotExist,
     TeamSubjectNotInGroup,
     TeamSubjectTypeUnsupported,
+)
+from baserow_enterprise.teams.operations import (
+    CreateTeamSubjectOperationType,
+    ListTeamSubjectsOperationType,
 )
 from baserow_premium.license.handler import LicenseHandler
 
@@ -40,21 +62,15 @@ from ..features import TEAMS
 TeamForUpdate = NewType("TeamForUpdate", Team)
 TeamSubjectForUpdate = NewType("TeamSubjectForUpdate", TeamSubject)
 
-SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type, AgentSubjectType.type)
+SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type,)
 
 
 class TeamHandler:
     def get_team_subjects_queryset(self) -> QuerySet:
         """Hide trashed subjects while retaining memberships for their restoration."""
-        queryset = TeamSubject.objects.all()
-        for subject_type in subject_type_registry.get_all():
-            if issubclass(subject_type.model_class, TrashableModelMixin):
-                # IDs can overlap across subject types, so filter by both fields.
-                queryset = queryset.exclude(
-                    subject_type=subject_type.get_content_type(),
-                    subject_id__in=subject_type.model_class.trash.values("id"),
-                )
-        return queryset
+        return TeamSubject.objects.exclude(
+            subject_type_registry.get_trashed_subjects_q()
+        )
 
     def get_teams_queryset(self) -> QuerySet:
         """
@@ -156,6 +172,10 @@ class TeamHandler:
                 SELECT
                     sub.id AS team_subject_id,
                     sub.subject_id,
+                    CASE WHEN ct.app_label = 'auth' AND ct.model = 'user' THEN (
+                        SELECT profile.user_type FROM core_userprofile profile
+                        WHERE profile.user_id = sub.subject_id
+                    ) END AS user_type,
                     CONCAT(ct.app_label, '.', INITCAP(ct.model)) AS subject_type,
                     CASE
                         {" ".join(subject_label_cases)}
@@ -266,67 +286,70 @@ class TeamHandler:
         default_role: Optional[Role] = None,
     ) -> Team:
         """
-        Updates an existing team instance.
+        Updates an existing team instance. The members of the team are replaced by
+        `subjects`, unless it is `None`, which leaves them as they are.
         """
 
         LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, team.workspace)
 
-        if subjects is None:
-            subjects = []
-
         # In a transaction...
-        # 1. Fetch the existing subjects and workspace them by their type.
-        # 2. Update the name field.
+        # 1. Update the name field.
+        # 2. Fetch the existing subjects and workspace them by their type.
         # 3. Create any new subjects we've been given.
         # 4. Remove any existing subjects we don't want anymore.
         with atomic_if_not_already():
-            # Build a default dict of existing subjects in the team. The key is the
-            # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
-            # every membership ID so removing a subject also removes duplicates.
-            existing_subjects = defaultdict(lambda: defaultdict(list))
-            # Trashed subjects are absent from the edit form. Preserve their
-            # memberships so saving visible members does not break restoration.
-            existing_subject_qs = self.list_subjects_in_team(team.id)
-            for existing_subject in existing_subject_qs:
-                existing_subjects[existing_subject.subject_type_natural_key][
-                    existing_subject.subject_id
-                ].append(existing_subject.id)
-
             try:
                 team.name = name
                 team.save(update_fields=["name"])
             except DatabaseError:
                 raise TeamNameNotUnique(name=name)
 
-            # Loop over the subjects we've been given. If the `subject_id`
-            # isn't present in our `existing_subjects` dict, keyed by the
-            # `subject_type`, then it's a new subject.
-            for subject in subjects:
-                subject_id = subject["subject_id"]
-                subject_type = subject["subject_type"]
-                if subject_id not in existing_subjects[subject_type]:
-                    self.create_subject(user, {"id": subject_id}, subject_type, team)
+            if subjects is not None:
+                # Build a default dict of existing subjects in the team. The key is the
+                # `TeamSubject.subject_type_natural_key`, then the `subject_id`. Keep
+                # every membership ID so removing a subject also removes duplicates.
+                existing_subjects = defaultdict(lambda: defaultdict(list))
+                # Trashed subjects are absent from the edit form. Preserve their
+                # memberships so saving visible members does not break restoration.
+                existing_subject_qs = self.list_subjects_in_team(team.id)
+                for existing_subject in existing_subject_qs:
+                    existing_subjects[existing_subject.subject_type_natural_key][
+                        existing_subject.subject_id
+                    ].append(existing_subject.id)
 
-            # Determine if any existing subjects need to be removed.
-            for existing_type, existing_subject_ids in existing_subjects.items():
-                # Find all the subjects in `subjects` which
-                # have the `subject_type` we're looping over.
-                payload_subjects_for_type = filter(
-                    lambda payload_sub: payload_sub["subject_type"] == existing_type,
-                    subjects,
-                )
-                # Pluck out the subject IDs of this `subject_type`.
-                payload_subject_ids_for_type = [
-                    payload["subject_id"] for payload in payload_subjects_for_type
-                ]
-                # Find the difference between `existing_type_ids`
-                # and `payload_subject_ids_for_type`
-                removed_subjects = list(
-                    set(existing_subject_ids) - set(payload_subject_ids_for_type)
-                )
-                for removed_subject_id in removed_subjects:
-                    for membership_id in existing_subject_ids[removed_subject_id]:
-                        self.delete_subject_by_id(user, membership_id, team)
+                # Loop over the subjects we've been given. If the `subject_id`
+                # isn't present in our `existing_subjects` dict, keyed by the
+                # `subject_type`, then it's a new subject.
+                for subject in subjects:
+                    subject_id = subject["subject_id"]
+                    subject_type = subject["subject_type"]
+                    if subject_id not in existing_subjects[subject_type]:
+                        self.create_subject(
+                            user, {"id": subject_id}, subject_type, team
+                        )
+
+                # Determine if any existing subjects need to be removed.
+                for existing_type, existing_subject_ids in existing_subjects.items():
+                    # Find all the subjects in `subjects` which
+                    # have the `subject_type` we're looping over.
+                    payload_subjects_for_type = filter(
+                        lambda payload_sub: (
+                            payload_sub["subject_type"] == existing_type
+                        ),
+                        subjects,
+                    )
+                    # Pluck out the subject IDs of this `subject_type`.
+                    payload_subject_ids_for_type = [
+                        payload["subject_id"] for payload in payload_subjects_for_type
+                    ]
+                    # Find the difference between `existing_type_ids`
+                    # and `payload_subject_ids_for_type`
+                    removed_subjects = list(
+                        set(existing_subject_ids) - set(payload_subject_ids_for_type)
+                    )
+                    for removed_subject_id in removed_subjects:
+                        for membership_id in existing_subject_ids[removed_subject_id]:
+                            self.delete_subject_by_id(user, membership_id, team)
 
             # If we've been given a `default_role`, assign it to the team.
             RoleAssignmentHandler().assign_role(team, team.workspace, default_role)
@@ -415,9 +438,6 @@ class TeamHandler:
             # Build a list of unique subject IDs, of this type.
             subject_ids_of_type = []
 
-            # Find the model class for this `subject_type`.
-            model_class = subject_type_registry.get(unique_subject_type).model_class
-
             # Find the subjects we've been given for this `subject_type`...
             subjects_of_type = filter(
                 lambda s: s["subject_type"] == unique_subject_type, subjects
@@ -432,11 +452,19 @@ class TeamHandler:
                 if pk_override:
                     pk_overrides[unique_subject_type][subject_id] = pk_override
 
-            # TODO: if we support a subject type that doesn't have a `workspace`
-            #   relation on its model, then this filter need to be modified.
-            type_subject_models = model_class.objects.filter(
-                pk__in=subject_ids_of_type, workspace=team.workspace_id
+            subject_type = subject_type_registry.get(unique_subject_type)
+            candidates = list(
+                subject_type.get_queryset().filter(pk__in=subject_ids_of_type)
             )
+            type_subject_models = [
+                subject
+                for subject, belongs in zip(
+                    candidates,
+                    subject_type.are_in_workspace(candidates, team.workspace),
+                    strict=True,
+                )
+                if belongs
+            ]
 
             # If the subjects we found don't match those in `subject_ids_of_type`,
             # and we want to raise an exception if a subject isn't found, work out
@@ -472,6 +500,27 @@ class TeamHandler:
 
         return TeamSubject.objects.bulk_create(bulk_teamsubjects)
 
+    def _check_subject_lookups(
+        self, subject_type: SubjectType, subject_lookup: Dict[str, Union[str, int]]
+    ) -> None:
+        """
+        Refuses the lookups that the subject type doesn't support.
+
+        :param subject_type: The subject type that the lookup is for.
+        :param subject_lookup: The lookup that selects the subject.
+        :raises TeamSubjectBadRequest: When a lookup is not supported.
+        """
+
+        unexpected_lookups = [
+            lookup
+            for lookup in subject_lookup
+            if not subject_type.supports_lookup_field(lookup)
+        ]
+        if unexpected_lookups:
+            raise TeamSubjectBadRequest(
+                f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
+            )
+
     def create_subject(
         self,
         user: AbstractUser,
@@ -492,27 +541,23 @@ class TeamHandler:
             )
 
         subject_type = subject_type_registry.get(subject_natural_key)
-        unexpected_lookups = [
-            lookup
-            for lookup in subject_lookup
-            if not subject_type.supports_lookup_field(lookup)
-        ]
-        if unexpected_lookups:
-            raise TeamSubjectBadRequest(
-                f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
-            )
+        self._check_subject_lookups(subject_type, subject_lookup)
 
         # Get the model for this `subject_natural_key`.
         model_class = subject_type.model_class
 
         try:
-            subject = model_class.objects.get(**subject_lookup)
+            subject = subject_type.get_queryset().get(**subject_lookup)
         except model_class.DoesNotExist:
             lookup_str = ", ".join([f"{k}={v}" for k, v in subject_lookup.items()])
             raise TeamSubjectDoesNotExist(
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
+        # The specific type can refuse a lookup that its stored type accepts.
+        self._check_subject_lookups(
+            subject_type_registry.get_specific_type(subject), subject_lookup
+        )
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 
@@ -577,3 +622,301 @@ class TeamHandler:
         team_subject_deleted.send(
             self, subject_id=subject.id, subject=subject, user=user
         )
+
+    def create_team_invitation(
+        self, user: AbstractUser, team: Team, email: str
+    ) -> WorkspaceTeamInvitation:
+        """
+        Invites the given email address to a team. The person joins the workspace
+        with the `NO_ROLE_LOW_PRIORITY` workspace role, so that the role of the team
+        applies, and is added to the team once they accept. If a pending invitation
+        already exists for the address it is reused: its workspace role is kept as it
+        is and the team is added to it, so one invitation can add the person to
+        several teams. Inviting the same address to the same team again sends the
+        invitation email again.
+
+        :param user: The user on whose behalf the invitation is created.
+        :param team: The team the person is invited to.
+        :param email: The email address of the person that is invited.
+        :raises WorkspaceUserAlreadyExists: If the address already belongs to a
+            member of the workspace, who should be added to the team directly.
+        :return: The created or existing team invitation.
+        """
+
+        workspace = team.workspace
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)
+        CoreHandler().check_permissions(
+            user,
+            CreateTeamSubjectOperationType.type,
+            workspace=workspace,
+            context=team,
+        )
+
+        email = normalize_email_address(email)
+        existing_invitation = WorkspaceInvitation.objects.filter(
+            workspace=workspace, email=email
+        ).first()
+        permissions = (
+            existing_invitation.permissions
+            if existing_invitation
+            else NO_ROLE_LOW_PRIORITY_ROLE_UID
+        )
+        invitation = CoreHandler().create_workspace_invitation(
+            user, workspace, email, permissions
+        )
+
+        team_invitation, _ = WorkspaceTeamInvitation.objects.get_or_create(
+            invitation=invitation, team=team
+        )
+        return team_invitation
+
+    def list_team_invitations(
+        self, user: AbstractUser, team: Team
+    ) -> QuerySet[WorkspaceTeamInvitation]:
+        """
+        Returns the pending invitations to a team. They hold email addresses, so the
+        user must be allowed to list the invitations of the workspace as well as the
+        members of the team.
+
+        :param user: The user on whose behalf the invitations are listed.
+        :param team: The team the invitations add people to.
+        :return: A queryset of the team invitations, oldest first.
+        """
+
+        workspace = team.workspace
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)
+        CoreHandler().check_permissions(
+            user,
+            ListTeamSubjectsOperationType.type,
+            workspace=workspace,
+            context=team,
+        )
+        CoreHandler().check_permissions(
+            user,
+            ListInvitationsWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+        return WorkspaceTeamInvitation.objects.filter(team=team).select_related(
+            "invitation"
+        )
+
+    def get_team_invitation(
+        self, team_invitation_id: int, team: Team
+    ) -> WorkspaceTeamInvitation:
+        """
+        Returns the invitation with the given id to the given team.
+
+        :param team_invitation_id: The id of the team invitation.
+        :param team: The team the invitation must belong to.
+        :raises TeamInvitationDoesNotExist: If it doesn't exist.
+        :return: The team invitation with its invitation loaded.
+        """
+
+        try:
+            return WorkspaceTeamInvitation.objects.select_related(
+                "invitation", "team__workspace"
+            ).get(id=team_invitation_id, team=team)
+        except WorkspaceTeamInvitation.DoesNotExist:
+            raise TeamInvitationDoesNotExist(
+                f"The team invitation with id {team_invitation_id} does not exist."
+            )
+
+    def delete_team_invitation(
+        self, user: AbstractUser, team_invitation: WorkspaceTeamInvitation
+    ):
+        """
+        Revokes the invitation of a person to a team. Only the team is removed, the
+        workspace invitation itself and the other teams or objects it carries are
+        kept.
+
+        :param user: The user revoking the team invitation.
+        :param team_invitation: The team invitation to delete.
+        """
+
+        team = team_invitation.team
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, team.workspace)
+        # Whoever can invite someone to the team can take that invitation back.
+        CoreHandler().check_permissions(
+            user,
+            CreateTeamSubjectOperationType.type,
+            workspace=team.workspace,
+            context=team,
+        )
+
+        team_invitation.delete()
+
+    def add_invitee_to_teams(
+        self, invitation: WorkspaceInvitation, user: AbstractUser
+    ) -> List[TeamSubject]:
+        """
+        Adds the user who accepted a workspace invitation to the teams the
+        invitation carries. Teams that were trashed in the meantime, or that the
+        user is already in, are skipped, and so are all of them if the workspace
+        lost the teams feature, so the person always joins the workspace.
+
+        :param invitation: The accepted invitation, still carrying its teams.
+        :param user: The user who accepted it and is now a member of the workspace.
+        :return: The created team subjects.
+        """
+
+        if not LicenseHandler.workspace_has_feature(TEAMS, invitation.workspace):
+            return []
+
+        team_subjects = []
+        for team_invitation in invitation.team_invitations.select_related(
+            "team__workspace"
+        ):
+            team = team_invitation.team
+            if team.trashed:
+                continue
+            if self.get_teamsubject_subject_qs(user).filter(team=team).exists():
+                continue
+            team_subjects.append(
+                self.create_subject(user, {"id": user.id}, UserSubjectType.type, team)
+            )
+        return team_subjects
+
+    def _check_invitation_link_permissions(self, user: AbstractUser, team: Team):
+        """
+        Runs the checks that guard managing the invitation links of a team. Links
+        add people to the team and bring newcomers into the workspace, so the user
+        must be allowed to add members to the team and to create invitation links
+        to the workspace.
+
+        :param user: The user managing the links of the team.
+        :param team: The team the links add people to.
+        :raises FeatureDisabledException: If invitation links aren't enabled.
+        :raises FeatureNotAvailable: If the workspace doesn't have teams.
+        :raises PermissionDenied: If the user isn't allowed to manage the links.
+        """
+
+        feature_flag_is_enabled(FF_RBAC_IMPROVEMENTS, raise_if_disabled=True)
+
+        workspace = team.workspace
+        LicenseHandler.raise_if_user_doesnt_have_feature(TEAMS, user, workspace)
+        CoreHandler().check_permissions(
+            user,
+            CreateTeamSubjectOperationType.type,
+            workspace=workspace,
+            context=team,
+        )
+        CoreHandler().check_permissions(
+            user,
+            CreateInvitationLinkWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
+
+    def _get_team_invitation_links_queryset(
+        self, team: Team
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        return WorkspaceInvitationLink.objects.filter(
+            workspace_id=team.workspace_id,
+            scope_type=ContentType.objects.get_for_model(Team),
+            scope_id=team.id,
+        )
+
+    def list_team_invitation_links(
+        self, user: AbstractUser, team: Team
+    ) -> QuerySet[WorkspaceInvitationLink]:
+        """
+        Returns the permanent invitation links to a team. Anyone with a link can
+        use it, so listing them needs the same rights as managing them.
+
+        :param user: The user on whose behalf the links are listed.
+        :param team: The team the links add people to.
+        :return: A queryset of the links of the team, oldest first.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+        return self._get_team_invitation_links_queryset(team).order_by("id")
+
+    def get_team_invitation_link(
+        self, invitation_link_id: int, team: Team
+    ) -> WorkspaceInvitationLink:
+        """
+        Returns the invitation link with the given id to the given team.
+
+        :param invitation_link_id: The id of the invitation link.
+        :param team: The team the link must add people to.
+        :raises WorkspaceInvitationLinkDoesNotExist: If the team has no such link.
+        :return: The invitation link with its workspace loaded.
+        """
+
+        return CoreHandler().get_workspace_invitation_link(
+            invitation_link_id,
+            base_queryset=self._get_team_invitation_links_queryset(team),
+        )
+
+    def create_team_invitation_link(
+        self, user: AbstractUser, team: Team, name: str = ""
+    ) -> WorkspaceInvitationLink:
+        """
+        Creates a permanent link that anyone can use to join the team. People who
+        aren't a member of the workspace yet join it without a workspace role, so
+        that the role of the team applies to them, and members of the workspace
+        are added to the team. The link itself has no role: the team gives it.
+
+        :param user: The user on whose behalf the link is created.
+        :param team: The team the link adds people to.
+        :param name: A name that reminds the admins what the link is for.
+        :raises WorkspaceInvitationLinkSignupsDisabled: If the instance settings
+            don't let anyone sign up through the link.
+        :return: The created invitation link.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+
+        if not CoreHandler().invitation_link_signups_allowed():
+            raise WorkspaceInvitationLinkSignupsDisabled(
+                "Invitation links can't be created while signups are disabled."
+            )
+
+        return WorkspaceInvitationLink.objects.create(
+            workspace=team.workspace,
+            created_by=user,
+            # The workspace role of newcomers, which lets the team's role apply.
+            permissions=NO_ROLE_LOW_PRIORITY_ROLE_UID,
+            name=name,
+            scope=team,
+        )
+
+    def update_team_invitation_link(
+        self,
+        user: AbstractUser,
+        team: Team,
+        invitation_link: WorkspaceInvitationLink,
+        name: str,
+    ) -> WorkspaceInvitationLink:
+        """
+        Changes the name of a link to a team.
+
+        :param user: The user on whose behalf the link is updated.
+        :param team: The team of the link.
+        :param invitation_link: The link that must be updated.
+        :param name: The new name of the link.
+        :return: The updated invitation link.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+
+        invitation_link.name = name
+        invitation_link.save(update_fields=["name", "updated_on"])
+        return invitation_link
+
+    def delete_team_invitation_link(
+        self, user: AbstractUser, team: Team, invitation_link: WorkspaceInvitationLink
+    ):
+        """
+        Deletes a link to a team, after which it can't be used anymore. People who
+        joined through it stay in the team.
+
+        :param user: The user on whose behalf the link is deleted.
+        :param team: The team of the link.
+        :param invitation_link: The link that must be deleted.
+        """
+
+        self._check_invitation_link_permissions(user, team)
+        invitation_link.delete()

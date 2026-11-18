@@ -12,7 +12,7 @@ from pydantic import Field, ValidationError
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import (
     ToolInputError,
     format_validation_error,
@@ -40,6 +40,7 @@ from .types import (
 from .types.limits import MAX_ITEMS_PER_CALL, MAX_NESTED_ITEMS
 
 
+@tool_execution
 def list_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -186,6 +187,7 @@ def create_elements(
     )
 
 
+@tool_execution
 def create_display_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -223,6 +225,7 @@ def create_display_elements(
     )
 
 
+@tool_execution
 def create_layout_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -258,6 +261,7 @@ def create_layout_elements(
     )
 
 
+@tool_execution
 def create_form_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -291,6 +295,7 @@ def create_form_elements(
     )
 
 
+@tool_execution
 def create_collection_elements(
     ctx: ToolContext,
     page_id: Annotated[int, Field(description="The ID of the page, from list_pages.")],
@@ -370,6 +375,7 @@ def _update_element(
     return result
 
 
+@tool_execution
 def update_element(
     ctx: ToolContext,
     element_id: Annotated[
@@ -417,6 +423,7 @@ def update_element(
     )
 
 
+@tool_execution
 def delete_element_items(
     ctx: ToolContext,
     element_id: Annotated[
@@ -461,6 +468,7 @@ def delete_element_items(
     )
 
 
+@tool_execution
 def update_element_style(
     ctx: ToolContext,
     element_id: Annotated[
@@ -494,6 +502,7 @@ def update_element_style(
     }
 
 
+@tool_execution
 def move_elements(
     ctx: ToolContext,
     moves: Annotated[

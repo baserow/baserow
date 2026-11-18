@@ -44,7 +44,10 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
+from baserow.core.user.identity import load_user_types
 from baserow.core.user.utils import normalize_email_address
+from baserow.core.user_files.exceptions import TemplateImportWithoutFilesZip
+from baserow.core.user_files.template_files import template_file_owner
 
 from .context import clear_current_workspace_id, set_current_workspace_id
 from .emails import WorkspaceInvitationEmail, can_deliver_emails
@@ -68,6 +71,7 @@ from .exceptions import (
     WorkspaceInvitationEmailMismatch,
     WorkspaceInvitationEmailNotVerified,
     WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkPasswordRequired,
     WorkspaceInvitationLinkSignupsDisabled,
     WorkspaceUserAlreadyExists,
     WorkspaceUserDoesNotExist,
@@ -107,6 +111,7 @@ from .operations import (
     UpdateWorkspaceOperationType,
     UpdateWorkspaceUserOperationType,
 )
+from .public_sharing import encode_public_access_token, is_public_access_token_valid
 from .registries import (
     ImportExportConfig,
     InvitationLinkScopeType,
@@ -337,6 +342,7 @@ class CoreHandler:
 
         result = {}
         undetermined_checks = set(checks)
+        load_user_types(check.actor for check in checks)
 
         for permission_manager_name in settings.PERMISSION_MANAGERS:
             if not undetermined_checks:
@@ -856,7 +862,16 @@ class CoreHandler:
         )
         workspaceuser_workspaces = WorkspaceUser.objects.select_related(
             "workspace"
-        ).annotate(workspace_agent_count=Count("workspace__agents", distinct=True))
+        ).annotate(
+            workspace_identity_count=Count(
+                "workspace__workspaceuser",
+                filter=Q(
+                    workspace__workspaceuser__user__profile__user_type="identity",
+                    workspace__workspaceuser__user__profile__trashed=False,
+                ),
+                distinct=True,
+            )
+        )
         workspaceuser_workspaces = workspaceuser_workspaces.prefetch_related(
             Prefetch(
                 "workspace__workspaceuser_set",
@@ -947,6 +962,7 @@ class CoreHandler:
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
 
+        self._raise_if_not_a_person(user.pk)
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -1128,6 +1144,16 @@ class CoreHandler:
         )
         return [wk_user.user for wk_user in wk_users]
 
+    def get_workspace_role_uid(self, role_uid: str, workspace: Workspace) -> str:
+        """Resolve a role alias using the workspace's active permission managers."""
+
+        for manager_name in settings.PERMISSION_MANAGERS:
+            manager = permission_manager_type_registry.get(manager_name)
+            resolved_role_uid = manager.get_workspace_role_uid(role_uid, workspace)
+            if resolved_role_uid is not None:
+                return resolved_role_uid
+        return role_uid
+
     def raise_if_invalid_workspace_role(
         self, role_uid: str, workspace: Workspace
     ) -> None:
@@ -1155,6 +1181,35 @@ class CoreHandler:
 
         if not is_valid:
             raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
+
+    def get_workspace_user_role_uid(self, workspace_user: WorkspaceUser) -> str:
+        """
+        Returns the role of a workspace member as the first permission manager that
+        answers names it, which can differ from the stored `permissions` value.
+
+        :param workspace_user: The membership of a person or an identity.
+        :return: The resolved role uid.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            role_uid = permission_manager_type_registry.get(
+                permission_manager_name
+            ).get_workspace_user_role_uid(workspace_user)
+            if role_uid is not None:
+                return role_uid
+        return workspace_user.permissions
+
+    @staticmethod
+    def get_stored_workspace_role_uid(role_uid: str) -> str:
+        """
+        Returns the value a workspace role is stored with on the membership. Builder
+        is stored under its basic name, so switching permission managers keeps it.
+
+        :param role_uid: The role uid given to a person or an identity.
+        :return: The `permissions` value of the membership.
+        """
+
+        return WORKSPACE_USER_PERMISSION_MEMBER if role_uid == "BUILDER" else role_uid
 
     def is_workspace_role_upgrade(
         self, current_role_uid: str, new_role_uid: str, workspace: Workspace
@@ -1231,6 +1286,7 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
+            self._raise_if_not_a_person(workspace_user.user_id)
             if kwargs["permissions"] != "ADMIN":
                 CoreHandler.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
@@ -1274,6 +1330,8 @@ class CoreHandler:
             raise CannotDeleteYourselfFromWorkspace(
                 "Cannot delete yourself from workspace."
             )
+
+        self._raise_if_not_a_person(workspace_user.user_id)
 
         before_workspace_user_deleted.send(
             self,
@@ -1584,9 +1642,11 @@ class CoreHandler:
         :param user: the user we want to add.
         :param permissions: the permissions of the user in this workspace. 'member' by
             default if not specified.
+        :raises ValueError: When the user is not a person.
         :return: The created or existing `WorkspaceUser` object.
         """
 
+        self._raise_if_not_a_person(user.pk)
         workspace_user, created = WorkspaceUser.objects.get_or_create(
             user=user,
             workspace=workspace,
@@ -1705,7 +1765,10 @@ class CoreHandler:
         )
 
     def get_workspace_invitation_link_by_slug(
-        self, slug: str
+        self,
+        slug: str,
+        access_token: Optional[str] = None,
+        check_password: bool = True,
     ) -> WorkspaceInvitationLink:
         """
         Returns the workspace invitation link of the given slug, which is what the
@@ -1713,9 +1776,17 @@ class CoreHandler:
         no link can be used while the instance doesn't let anyone sign up through
         it. The links are kept, so they work again once signups are allowed.
 
+        A password protected link is only returned with the access token handed
+        out for its password, see `encode_invitation_link_access_token`.
+
         :param slug: The slug of the link.
+        :param access_token: The token handed out for the password of the link.
+        :param check_password: Whether a password protected link requires the
+            token. Only the endpoint that checks the password itself skips it.
         :raises FeatureDisabledException: If invitation links aren't enabled.
         :raises WorkspaceInvitationLinkDoesNotExist: If no usable link has the slug.
+        :raises WorkspaceInvitationLinkPasswordRequired: If the link is password
+            protected and the token is missing or invalid.
         :return: The workspace invitation link.
         """
 
@@ -1742,7 +1813,43 @@ class CoreHandler:
                     "The object of the workspace invitation link can't be joined."
                 )
 
+        if (
+            check_password
+            and invitation_link.has_password
+            and not self.is_invitation_link_access_token_valid(
+                invitation_link, access_token
+            )
+        ):
+            raise WorkspaceInvitationLinkPasswordRequired(
+                "The workspace invitation link is password protected."
+            )
+
         return invitation_link
+
+    def encode_invitation_link_access_token(
+        self, invitation_link: WorkspaceInvitationLink
+    ) -> str:
+        """
+        Returns the token that grants access to a password protected link. It is
+        tied to the slug and the password of the link, so changing the password
+        invalidates every token handed out before.
+
+        :param invitation_link: The password protected link.
+        :return: The access token.
+        """
+
+        return encode_public_access_token(
+            invitation_link.slug, invitation_link.password
+        )
+
+    def is_invitation_link_access_token_valid(
+        self, invitation_link: WorkspaceInvitationLink, access_token: Optional[str]
+    ) -> bool:
+        if not access_token:
+            return False
+        return is_public_access_token_valid(
+            invitation_link.slug, invitation_link.password, access_token
+        )
 
     def get_invitation_link_scope_type(
         self, invitation_link: WorkspaceInvitationLink
@@ -1787,7 +1894,7 @@ class CoreHandler:
 
         return WorkspaceInvitationLink.objects.filter(
             workspace=workspace, scope_type__isnull=True
-        )
+        ).select_related("workspace")
 
     def create_workspace_invitation_link(
         self,
@@ -1838,16 +1945,21 @@ class CoreHandler:
         invitation_link: WorkspaceInvitationLink,
         permissions: str | None = None,
         name: str | None = None,
+        password: str | None = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of the link or the permissions that people get when joining
-        through it. It doesn't change the permissions of people who already joined.
+        Changes the name of the link, the permissions that people get when joining
+        through it or its password. It doesn't change the permissions of people who
+        already joined.
 
         :param user: The user on whose behalf the link is updated.
         :param invitation_link: The link that must be updated.
         :param permissions: The new workspace permissions of the link, if they
             change.
         :param name: The new name of the link, if it changes.
+        :param password: The new password of the link, or an empty string to
+            remove it. Changing it invalidates the access tokens handed out for
+            the previous password.
         :raises PermissionException: If the user isn't allowed to update the link.
         :raises InvalidWorkspaceRole: If the provided permissions are not available.
         :return: The updated workspace invitation link.
@@ -1868,6 +1980,9 @@ class CoreHandler:
         if name is not None:
             invitation_link.name = name
             update_fields.append("name")
+        if password is not None:
+            invitation_link.set_password(password)
+            update_fields.append("password")
         invitation_link.save(update_fields=update_fields)
 
         return invitation_link
@@ -1937,6 +2052,30 @@ class CoreHandler:
             return None
         return permissions
 
+    def invitation_link_adds_member(
+        self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
+    ) -> bool:
+        """
+        Whether joining through a link to an object of the workspace would add a
+        member of the workspace to that object, like a team they aren't in yet.
+
+        :param user: The user who opened the link, possibly anonymous.
+        :param invitation_link: The link the user opened.
+        :return: True if the user is a member and joining would add them to the
+            object of the link.
+        """
+
+        if not user.is_authenticated or invitation_link.scope_type_id is None:
+            return False
+
+        if not WorkspaceUser.objects.filter(
+            user=user, workspace_id=invitation_link.workspace_id
+        ).exists():
+            return False
+
+        scope_type = self.get_invitation_link_scope_type(invitation_link)
+        return scope_type is not None and scope_type.adds_member(user, invitation_link)
+
     def join_workspace_via_invitation_link(
         self, user: AbstractUser, invitation_link: WorkspaceInvitationLink
     ) -> WorkspaceUser:
@@ -1945,7 +2084,9 @@ class CoreHandler:
         link. Someone who is already a member gets the permissions of the link when
         they are an upgrade, and otherwise keeps their current permissions. A link
         to an object of the workspace gives its permissions on that object only,
-        and with the same rule: they're never lowered.
+        and with the same rule: they're never lowered. A link that adds members
+        to its object, like a team, adds anyone who isn't in it yet, which can
+        change their access to what the object gives access to, and lower it.
 
         :param user: The user who joins the workspace.
         :param invitation_link: The link the user joins through.
@@ -1963,8 +2104,12 @@ class CoreHandler:
                 permissions=scope_type.get_newcomer_permissions(invitation_link),
             )
             # A link can raise the role of a member on its object, but never
-            # lowers it.
-            if scope_type.get_raised_role(user, invitation_link) is not None:
+            # lowers it. A link that adds members to its object, like a team,
+            # adds anyone who isn't in it yet, even if the role of the object
+            # gives them less access somewhere.
+            if scope_type.get_raised_role(
+                user, invitation_link
+            ) is not None or scope_type.adds_member(user, invitation_link):
                 scope_type.give_role(user, invitation_link)
         else:
             workspace_user = self.add_user_to_workspace(
@@ -1993,7 +2138,16 @@ class CoreHandler:
     def get_user_email_mapping(
         cls, workspace_id: int, only_emails: list[Email]
     ) -> UserEmailMapping:
-        workspace_users = WorkspaceUser.objects.filter(
+        """
+        Returns the people and identities of a workspace by email, so a copy can
+        resolve the users its rows are attributed to.
+
+        :param workspace_id: The workspace the copy is imported into.
+        :param only_emails: Limits the mapping to these emails when not empty.
+        :return: The member of the workspace for each email.
+        """
+
+        workspace_users = WorkspaceUser.objects_and_identities.filter(
             workspace_id=workspace_id
         ).select_related("user")
 
@@ -2478,8 +2632,10 @@ class CoreHandler:
         :param exported_applications: A list containing the applications generated by
             the `export_workspace_applications` method.
         :param files_buffer: A file buffer containing the exported files in ZIP
-            format, or None when the files are already in the storage, for example
-            when the applications are copied within this instance.
+            format, an object that reads them like a zip, or None when the files
+            are already in the storage, for example when the applications are
+            duplicated within this instance. Required when
+            `user_files_belong_to_workspace` is set.
         :param storage: The storage where the files can be copied to.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
@@ -2488,9 +2644,17 @@ class CoreHandler:
         :param atomic_per_application: Whether each application is imported in its
             own atomic block, so that a failure leaves no half-imported application
             behind when the caller has no transaction of its own.
+        :raises TemplateImportWithoutFilesZip: If the files must belong to the
+            workspace but none are provided, so the copy would share them.
         :return: The newly created applications based on the import and a dict
             containing a mapping of old ids to new ids.
         """
+
+        files_belong_to_workspace = import_export_config.user_files_belong_to_workspace
+        if files_belong_to_workspace and files_buffer is None:
+            raise TemplateImportWithoutFilesZip(
+                "Imports into a template workspace must provide the files."
+            )
 
         progress = ChildProgressBuilder.build(
             progress_builder, len(exported_applications) * 1000
@@ -2527,9 +2691,12 @@ class CoreHandler:
         else:
             files_zip = files_buffer
         try:
-            # Callbacks registered during the loop run when this context exits,
-            # by which point every application exists.
-            with deferred_callback_context():
+            with (
+                template_file_owner(workspace.id)
+                if files_belong_to_workspace
+                else nullcontext(),
+                deferred_callback_context(),
+            ):
                 imported_applications = []
                 next_application_order_value = Application.get_last_order(workspace)
                 for application in prioritized_applications:
@@ -3035,6 +3202,23 @@ class CoreHandler:
                 )
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
+
+    @staticmethod
+    def _raise_if_not_a_person(user_id: int) -> None:
+        """
+        Refuses to write the membership of a user who is not a person. Only a person
+        joins, leaves or changes role this way, the membership of an identity follows
+        the identity.
+
+        :param user_id: The id of the user whose membership is written.
+        :raises ValueError: When the user is not a person.
+        """
+
+        if not User.objects.filter(pk=user_id).exists():
+            raise ValueError(
+                "Only a person joins, leaves or changes role this way. The membership "
+                "of an identity follows the identity."
+            )
 
     @classmethod
     def raise_if_user_is_last_admin_of_workspace(cls, workspace_user: WorkspaceUser):

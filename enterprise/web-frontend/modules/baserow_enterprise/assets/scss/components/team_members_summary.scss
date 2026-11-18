@@ -1,0 +1,36 @@
+.team-members-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border: 1px solid $palette-neutral-300;
+
+  @include rounded($rounded-md);
+}
+
+.team-members-summary--empty {
+  border-style: dashed;
+  border-color: $palette-neutral-400;
+}
+
+.team-members-summary__avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.team-members-summary__avatar {
+  box-shadow: 0 0 0 2px $white;
+
+  &:not(:first-child) {
+    margin-left: -6px;
+  }
+}
+
+.team-members-summary__names {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: $palette-neutral-900;
+
+  @extend %ellipsis;
+}

@@ -40,6 +40,8 @@ from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
     FormElementTypeMixin,
     MultiPageElementTypeMixin,
+    get_saved_values,
+    get_value_names,
 )
 from baserow.contrib.builder.elements.models import (
     INPUT_TEXT_TYPES,
@@ -154,6 +156,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         layout_type: str
         column_weights: list
         column_stacking: Dict[str, str]
+
+    def get_event_names(self, instance: ColumnElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     @property
     def serializer_field_names(self):
@@ -434,6 +439,9 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
         pass
 
+    def get_event_names(self, instance: SimpleContainerElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {}
 
@@ -593,6 +601,9 @@ class RecordSelectorElementType(
         placeholder: BaserowFormulaObject
         multiple: bool
         option_name_suffix: BaserowFormulaObject
+
+    def get_event_names(self, instance: RecordSelectorElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     @property
     def serializer_field_overrides(self):
@@ -844,6 +855,9 @@ class HeadingElementType(ElementType):
         value: BaserowFormulaObject
         level: int
 
+    def get_event_names(self, instance: HeadingElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     def get_graph_point_label(self, instance: HeadingElement) -> str:
         value = instance.value
         if isinstance(value, dict):
@@ -910,6 +924,9 @@ class TextElementType(ElementType):
     class SerializedDict(ElementDict):
         value: BaserowFormulaObject
         format: str
+
+    def get_event_names(self, instance: TextElement) -> List[str]:
+        return [EventTypes.CLICK.value]
 
     def get_pytest_params(self, pytest_data_fixture):
         return {
@@ -1292,6 +1309,9 @@ class ImageElementType(ElementType):
         image_url: BaserowFormulaObject
         alt_text: BaserowFormulaObject
 
+    def get_event_names(self, instance: ImageElement) -> List[str]:
+        return [EventTypes.CLICK.value]
+
     def get_pytest_params(self, pytest_data_fixture):
         return {
             "image_source_type": ImageElement.IMAGE_SOURCE_TYPES.UPLOAD,
@@ -1500,6 +1520,9 @@ class RatingInputElementType(InputElementType):
         "label",
     ]
     simple_formula_fields = ["value", "label"]
+
+    def get_event_names(self, instance: RatingInputElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
@@ -1773,6 +1796,9 @@ class CheckboxElementType(InputElementType):
     serializer_field_names = ["label", "default_value", "required"]
     simple_formula_fields = ["label", "default_value"]
 
+    def get_event_names(self, instance: CheckboxElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
+
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
         required: bool
@@ -1905,6 +1931,9 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         option_type: str
         formula_value: BaserowFormulaObject
         formula_name: BaserowFormulaObject
+
+    def get_event_names(self, instance: ChoiceElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     @property
     def serializer_field_overrides(self):
@@ -2442,6 +2471,11 @@ class FooterElementType(MultiPageContainerElementType):
     model_class = FooterElement
 
 
+# Left out of a menu item's values: its id, and its position, which a menu update
+# sets from the item's place in the list.
+MENU_ITEM_EXCLUDED_FIELDS = frozenset({"id", "menu_item_order", "parent_menu_item"})
+
+
 class MenuElementType(ElementType):
     """
     A Menu element that provides navigation capabilities to the application.
@@ -2472,6 +2506,36 @@ class MenuElementType(ElementType):
             for item in instance.menu_items.all()
             if item.type == MenuItemElement.TYPES.BUTTON
         ]
+
+    def get_menu_item_values(self, item: MenuItemElement) -> Dict[str, Any]:
+        """
+        Return a menu item's values, keyed like an item of the ``menu_items`` value
+        an update takes. An update replaces every item, so sending these back keeps
+        the item as it is, with its uid and so its workflow actions. The position
+        is left out: the update gives it from the item's place in the list.
+
+        :param item: The menu item.
+        :return: The item's values.
+        """
+
+        return get_saved_values(item, MENU_ITEM_EXCLUDED_FIELDS)
+
+    def get_new_menu_item_values(self, **values: Any) -> Dict[str, Any]:
+        """
+        Return the values of a new menu item with a new uid. The values not given
+        get the model's defaults when the item is created.
+
+        :param values: The item's values, keyed like those of get_menu_item_values,
+            without the uid.
+        :return: The values, keyed like an item of the ``menu_items`` value.
+        :raises ValueError: When a key isn't a value of a new menu item.
+        """
+
+        names = get_value_names(MenuItemElement, MENU_ITEM_EXCLUDED_FIELDS)
+        unknown = sorted(values.keys() - (set(names) - {"uid"}))
+        if unknown:
+            raise ValueError(f"A new menu item can't be given {unknown}.")
+        return {"uid": str(uuid.uuid4()), **values}
 
     @property
     def serializer_field_overrides(self) -> Dict[str, Any]:
@@ -2513,26 +2577,6 @@ class MenuElementType(ElementType):
     ) -> QuerySet[MenuItemElement]:
         return queryset.prefetch_related("menu_items")
 
-    @staticmethod
-    def export_menu_item(item: MenuItemElement) -> Dict[str, Any]:
-        """
-        :return: The values of one menu item, without its sub-links, as
-            `after_update` saves them.
-        """
-
-        return {
-            "uid": str(item.uid),
-            "type": item.type,
-            "variant": item.variant,
-            "name": item.name,
-            "navigation_type": item.navigation_type,
-            "navigate_to_page_id": item.navigate_to_page_id,
-            "navigate_to_url": item.navigate_to_url,
-            "page_parameters": item.page_parameters,
-            "query_parameters": item.query_parameters,
-            "target": item.target,
-        }
-
     def export_prepared_values(
         self, instance: MenuElement, field_names: Optional[Collection[str]] = None
     ) -> Dict[str, Any]:
@@ -2552,10 +2596,12 @@ class MenuElementType(ElementType):
         children: Dict[int, List[Dict[str, Any]]] = defaultdict(list)
         for item in items:
             if item.parent_menu_item_id is not None:
-                children[item.parent_menu_item_id].append(self.export_menu_item(item))
+                children[item.parent_menu_item_id].append(
+                    self.get_menu_item_values(item)
+                )
 
         values["menu_items"] = [
-            {**self.export_menu_item(item), "children": children[item.id]}
+            {**self.get_menu_item_values(item), "children": children[item.id]}
             for item in items
             if item.parent_menu_item_id is None
         ]

@@ -28,6 +28,10 @@ from baserow.core.models import WorkspaceUser
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.models import UserFile
+from baserow.core.user_files.template_files import (
+    template_file_prefix,
+)
 from baserow.test_utils.helpers import ReplayValues, is_dict_subset
 
 
@@ -1014,6 +1018,27 @@ def test_import_export_view_ownership_type(data_fixture):
 
 
 @pytest.mark.django_db
+def test_import_personal_view_does_not_assign_identity_owner(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    data_fixture.create_grid_view(table=table, owned_by=user, ownership_type="personal")
+    database_type = application_type_registry.get("database")
+    config = ImportExportConfig(include_permission_data=False)
+    serialized = database_type.export_serialized(table.database, config)
+    serialized["tables"][0]["views"][0]["owned_by"] = identity.email
+
+    imported_database = database_type.import_serialized(
+        workspace, serialized, config, {}
+    )
+
+    imported_table = imported_database.table_set.get()
+    assert not imported_table.view_set.exists()
+
+
+@pytest.mark.django_db
 def test_import_export_view_ownership_type_created_by_backward_compatible(data_fixture):
     workspace = data_fixture.create_workspace()
     user = data_fixture.create_user(workspace=workspace)
@@ -1146,3 +1171,29 @@ def test_new_fields_are_hidden_by_default_in_views_if_other_fields_are_hidden(
     assert options[0].hidden is False
     assert options[1].hidden is True
     assert options[2].hidden is True
+
+
+@pytest.mark.django_db
+def test_form_rejects_template_cover_and_logo_names(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    template_workspace = data_fixture.create_workspace()
+    template_file = data_fixture.create_user_file(
+        original_name="cover.png",
+        is_image=True,
+        unique=template_file_prefix(template_workspace.id) + "a" * 19,
+    )
+    normal_file = data_fixture.create_user_file(
+        original_name="cover.png", is_image=True, sha256_hash=template_file.sha256_hash
+    )
+    form_view_type = view_type_registry.get("form")
+
+    for key in ["cover_image", "logo_image"]:
+        with pytest.raises(UserFile.DoesNotExist):
+            form_view_type.prepare_values(
+                {key: {"name": template_file.name}}, table, user
+            )
+        values = form_view_type.prepare_values(
+            {key: {"name": normal_file.name}}, table, user
+        )
+        assert values[key] == normal_file

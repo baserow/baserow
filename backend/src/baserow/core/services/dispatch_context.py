@@ -47,6 +47,13 @@ class DispatchContext(RuntimeFormulaContext, ABC):
     # endpoints that use both keep working.
     external_request_timeouts = 1
 
+    # Whether an external request only follows a redirect that stays on its
+    # host, without going from https to http. Its headers and body would go
+    # along to wherever the redirect points, unseen by whoever approved where
+    # the request goes. False by default: builder and automation follow every
+    # redirect, as they always have.
+    redirects_stay_on_host = False
+
     def __init__(
         self,
         workspace: Optional["Workspace"] = None,
@@ -94,6 +101,10 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         self.workspace = workspace
         self.resolved_values = resolved_values
         super().__init__()
+
+    def get_runtime_filters(self, service: Service) -> list[dict]:
+        """Return additional groups applied with AND after the stored service filters."""
+        return []
 
     def range(self, service: Service) -> tuple[int, int | None]:
         """

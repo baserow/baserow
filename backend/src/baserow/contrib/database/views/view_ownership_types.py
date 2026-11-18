@@ -18,6 +18,7 @@ class CollaborativeViewOwnershipType(ViewOwnershipType):
     """
 
     type = "collaborative"
+    default_values_authorized_when_configured = True
 
     def change_ownership_type(self, user: AbstractUser, view: View) -> View:
         view.ownership_type = self.type

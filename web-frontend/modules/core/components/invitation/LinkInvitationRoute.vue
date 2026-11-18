@@ -13,13 +13,24 @@
         {{ $t('inviteModal.linkEmptyTitle') }}
       </h3>
       <p class="invitation-link-empty__description">
-        {{ $t('inviteModal.linkEmptyDescription') }}
+        {{
+          hasRoles
+            ? $t('inviteModal.linkEmptyDescription')
+            : $t('inviteModal.linkEmptyDescriptionNoRole')
+        }}
       </p>
     </div>
     <template v-else>
       <div class="invitation-links__head">
         <div>{{ $t('inviteModal.linkName') }}</div>
-        <div>{{ $t('inviteModal.linkInviteAs') }}</div>
+        <div>
+          {{ $t('inviteModal.linkInviteAs') }}
+          <HelpIcon
+            v-if="roleHelpText"
+            :tooltip="roleHelpText"
+            :tooltip-content-classes="['tooltip__content--expandable']"
+          />
+        </div>
         <div>{{ $t('inviteModal.linkColumn') }}</div>
       </div>
       <ul class="invitation-links__items">
@@ -38,6 +49,16 @@
             @keydown.enter="$event.target.blur()"
           />
           <WorkspaceRoleSelector
+            v-if="!hasRoles"
+            :model-value="fixedRole?.uid ?? ''"
+            :roles="fixedRole ? [fixedRole] : []"
+            :workspace="workspace"
+            :placeholder="$t('inviteModal.linkNoRole')"
+            show-role-icons
+            disabled
+          />
+          <WorkspaceRoleSelector
+            v-else
             :model-value="invitationLink.permissions"
             :roles="roles"
             :workspace="workspace"
@@ -65,6 +86,26 @@
               ></Copied>
             </a>
             <a
+              v-tooltip="
+                invitationLink.has_password
+                  ? $t('inviteModal.linkPasswordProtected')
+                  : $t('inviteModal.linkAddPassword')
+              "
+              class="invitation-links__action"
+              :class="{
+                'invitation-links__action--active': invitationLink.has_password,
+              }"
+              @click="$refs.passwordModal.show(invitationLink)"
+            >
+              <i
+                :class="
+                  invitationLink.has_password
+                    ? 'iconoir-lock'
+                    : 'iconoir-no-lock'
+                "
+              ></i>
+            </a>
+            <a
               v-tooltip="$t('inviteModal.linkDelete')"
               class="invitation-links__action"
               @click="$refs.deleteModal.show(invitationLink)"
@@ -82,7 +123,7 @@
       position="absolute"
       icon="iconoir-plus"
       :loading="creating"
-      :disabled="defaultRoleUid === null"
+      :disabled="hasRoles && defaultRoleUid === null"
       @click="create"
     />
     <ConfirmModal
@@ -93,6 +134,15 @@
       danger
       @hidden="pendingChange = null"
       @confirm="confirmPendingChange"
+    />
+    <InvitationLinkPasswordModal
+      ref="passwordModal"
+      :workspace="workspace"
+      :target="target"
+      :target-type="targetType"
+      @updated="
+        (invitationLink, updated) => Object.assign(invitationLink, updated)
+      "
     />
     <InvitationLinkDeleteModal
       ref="deleteModal"
@@ -107,25 +157,27 @@
 <script>
 import ConfirmModal from '@baserow/modules/core/components/modals/ConfirmModal'
 import InvitationLinkDeleteModal from '@baserow/modules/core/components/invitation/InvitationLinkDeleteModal'
+import InvitationLinkPasswordModal from '@baserow/modules/core/components/invitation/InvitationLinkPasswordModal'
 import WorkspaceRoleSelector from '@baserow/modules/core/components/workspace/WorkspaceRoleSelector'
 import error from '@baserow/modules/core/mixins/error'
 import { copyToClipboard } from '@baserow/modules/core/utils/clipboard'
-
-const ADMIN_ROLE_UID = 'ADMIN'
 
 /**
  * Lists the permanent links that anyone can use to join the target, each with
  * a name and the role it grants, and lets the links be created, changed,
  * copied and deleted. Granting the admin role through a link and deleting a
  * link must be confirmed first. The links come from the target type, so only
- * targets supporting them get this route. It is registered behind the
- * `RBAC_IMPROVEMENTS` feature flag.
+ * targets supporting them get this route. A target without roles to choose
+ * from, like a team that gives its own role, gets links without a role: the
+ * route shows the role of the target in a disabled role selector. It is
+ * registered behind the `RBAC_IMPROVEMENTS` feature flag.
  */
 export default {
   name: 'LinkInvitationRoute',
   components: {
     ConfirmModal,
     InvitationLinkDeleteModal,
+    InvitationLinkPasswordModal,
     WorkspaceRoleSelector,
   },
   mixins: [error],
@@ -156,6 +208,24 @@ export default {
   computed: {
     roles() {
       return this.targetType.getRoles(this.workspace, this.target)
+    },
+    hasRoles() {
+      return this.roles.length > 0
+    },
+    /**
+     * The role that targets without roles to choose from give to everyone
+     * joining through their links, shown in a disabled selector.
+     */
+    fixedRole() {
+      return this.targetType.getInvitationLinkRole(this.workspace, this.target)
+    },
+    roleHelpText() {
+      return this.hasRoles
+        ? null
+        : this.targetType.getInvitationLinkRoleHelpText(
+            this.workspace,
+            this.target
+          )
     },
     /**
      * The role of a new link: the default role for invitations, or else the last
@@ -206,7 +276,13 @@ export default {
      * in which case it waits for the confirmation.
      */
     confirmIfAdmin(roleUid, change) {
-      if (roleUid === ADMIN_ROLE_UID) {
+      if (
+        this.targetType.invitationLinkGrantsAdmin(
+          this.workspace,
+          this.target,
+          roleUid
+        )
+      ) {
         this.pendingChange = change
         this.$refs.adminConfirmModal.show()
       } else {
@@ -220,14 +296,16 @@ export default {
       change?.()
     },
     create() {
-      this.confirmIfAdmin(this.defaultRoleUid, async () => {
+      // Targets without roles create links without one.
+      const roleUid = this.hasRoles ? this.defaultRoleUid : null
+      this.confirmIfAdmin(roleUid, async () => {
         this.creating = true
         this.hideError()
         try {
           const invitationLink = await this.targetType.createInvitationLink(
             this.workspace,
             this.target,
-            this.defaultRoleUid
+            roleUid
           )
           this.invitationLinks.push(invitationLink)
           // A new link has no name yet, so it's asked for right away.

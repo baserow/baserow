@@ -3,7 +3,8 @@
 @import 'colors';
 @import 'add';
 @import 'avatar';
-@import 'agent_avatar';
+@import 'identity_avatar';
+@import 'agent_card_list_header';
 @import 'agent_triggers';
 @import 'agent_actions';
 @import 'icon';
@@ -23,11 +24,16 @@
 @import 'layout';
 @import 'tree';
 @import 'sidebar';
+@import 'sidebar_expandable';
 @import 'header';
 @import 'untrusted_content_report';
 @import 'scrollbar';
 @import 'modal';
+@import 'item_picker_modal';
+@import 'item_picker_card';
 @import 'context';
+@import 'markdown_context';
+@import 'note_indicator';
 @import 'select';
 @import 'choose_select';
 @import 'dropdown';

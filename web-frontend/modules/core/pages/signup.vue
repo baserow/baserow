@@ -51,6 +51,7 @@
           v-if="passwordLoginEnabled"
           :invitation="invitation"
           :invitation-link="invitationLink"
+          :invitation-link-token="invitationLinkToken"
           @success="next"
         >
         </PasswordRegister>
@@ -76,6 +77,7 @@ import LoginButtons from '@baserow/modules/core/components/auth/LoginButtons'
 import LoginActions from '@baserow/modules/core/components/auth/LoginActions'
 import EmailNotVerified from '@baserow/modules/core/components/auth/EmailNotVerified.vue'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
+import { getInvitationLinkToken } from '@baserow/modules/core/utils/invitationLink'
 import { EMAIL_VERIFICATION_OPTIONS } from '@baserow/modules/core/enums'
 
 definePageMeta({
@@ -88,7 +90,8 @@ const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const config = useRuntimeConfig()
-const { $client } = useNuxtApp()
+const nuxtApp = useNuxtApp()
+const { $client } = nuxtApp
 
 // Reactive data
 const displayEmailNotVerified = ref(false)
@@ -127,6 +130,11 @@ const { data: invitation } = await useAsyncData(
 
 // Fetch the invitation link the visitor came from, if any.
 const invitationLinkSlug = route.query.invitationLinkSlug
+// A password protected link was unlocked on its own page, which remembered the
+// token for the signup.
+const invitationLinkToken = invitationLinkSlug
+  ? await getInvitationLinkToken(nuxtApp, invitationLinkSlug)
+  : null
 const { data: invitationLink } = await useAsyncData(
   `signup-invitation-link-${invitationLinkSlug || 'none'}`,
   async () => {
@@ -135,10 +143,9 @@ const { data: invitationLink } = await useAsyncData(
     }
 
     try {
-      const { data } =
-        await WorkspaceService($client).fetchInvitationLinkBySlug(
-          invitationLinkSlug
-        )
+      const { data } = await WorkspaceService(
+        $client
+      ).fetchInvitationLinkBySlug(invitationLinkSlug, invitationLinkToken)
       return data
     } catch {
       return null

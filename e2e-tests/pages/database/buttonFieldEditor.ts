@@ -113,7 +113,7 @@ export async function actionOrder(page: Page) {
     .allTextContents();
 }
 
-/** Points a row action at a table by picking its database and table. */
+/** Picks a row action table from its database group in the shared dropdown. */
 export async function pickTableOn(
   page: Page,
   index: number,
@@ -121,19 +121,19 @@ export async function pickTableOn(
   table: string,
 ) {
   await expandAction(page, index);
-  const dropdowns = actionItem(page, index).locator(
-    ".button-field-action-list__form .dropdown",
-  );
-  for (const [position, name] of [
-    [0, database],
-    [1, table],
-  ] as [number, string][]) {
-    await dropdowns.nth(position).click();
-    // Matched whole, or "Tickets" also picks up the "Tickets 2" the
-    // duplication test leaves behind.
-    await page
-      .locator(".dropdown__items:visible")
-      .locator(".select__item-link", { hasText: exactly(name) })
-      .click();
-  }
+  await actionItem(page, index)
+    .locator(".button-field-action-list__form .dropdown")
+    .first()
+    .click();
+  // Match the database group as well as the whole table label: different
+  // databases can contain tables with the same name.
+  await page
+    .locator(".dropdown__items:visible .dropdown-section")
+    .filter({
+      has: page.locator(".dropdown-section__title", {
+        hasText: `${database} (`,
+      }),
+    })
+    .locator(".select__item-link", { hasText: exactly(table) })
+    .click();
 }

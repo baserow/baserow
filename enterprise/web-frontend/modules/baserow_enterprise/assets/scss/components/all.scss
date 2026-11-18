@@ -1,5 +1,5 @@
 @import 'auth_provider_admin';
-@import 'agents';
+@import 'identities';
 @import 'saml_settings_form';
 @import 'auth_provider_buttons';
 @import 'auth_provider_icon';
@@ -8,6 +8,7 @@
 @import 'scope_access';
 @import 'subject_role_assignments';
 @import 'manage_team_form';
+@import 'team_members_summary';
 @import 'audit_log';
 @import 'crud_table_filters';
 @import 'long_text_field';

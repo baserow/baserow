@@ -15,6 +15,7 @@ from baserow.core.workflow_actions.models import WorkflowAction
 
 class EventTypes(models.TextChoices):
     CLICK = "click"
+    CHANGE = "change"
     SUBMIT = "submit"
     AFTER_LOGIN = "after_login"
 

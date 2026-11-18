@@ -18,6 +18,7 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     LocalBaserowRowsCreatedTriggerNodeType,
 )
+from baserow.core.constants import NOTE_MAX_LEN
 from baserow.test_utils.helpers import AnyDict, AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -66,6 +67,7 @@ def test_create_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        "note": "",
         **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": "local_baserow_update_row",
@@ -234,6 +236,7 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": trigger.id,
             "label": trigger.label,
+            "note": "",
             **DEFAULT_ERROR_POLICY,
             "service": AnyDict(),
             "type": "local_baserow_rows_created",
@@ -242,6 +245,7 @@ def test_get_nodes(api_client, data_fixture):
         {
             "id": node.id,
             "label": node.label,
+            "note": "",
             **DEFAULT_ERROR_POLICY,
             "service": AnyDict(),
             "type": "local_baserow_create_row",
@@ -420,12 +424,13 @@ def test_update_node(api_client, data_fixture):
 
     api_kwargs = get_api_kwargs(token)
     update_url = reverse(API_URL_ITEM, kwargs={"node_id": node.id})
-    payload = {"label": "foo"}
+    payload = {"label": "foo", "note": "Why **this** step"}
     response = api_client.patch(update_url, payload, **api_kwargs)
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "id": node.id,
         "label": "foo",
+        "note": "Why **this** step",
         **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": node.get_type().type,
@@ -654,6 +659,7 @@ def test_replace_node_type_with_replaceable_type_trigger(
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        "note": "",
         **DEFAULT_ERROR_POLICY,
         "type": replaceable_type,
         "workflow": workflow.id,
@@ -687,6 +693,7 @@ def test_replace_node_type_with_replaceable_type(
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        "note": "",
         **DEFAULT_ERROR_POLICY,
         "type": replaceable_type,
         "workflow": workflow.id,
@@ -717,6 +724,7 @@ def test_create_router_node(api_client, data_fixture):
     assert response.json() == {
         "id": AnyInt(),
         "label": "",
+        "note": "",
         **DEFAULT_ERROR_POLICY,
         "service": {
             "sample_data": None,
@@ -1313,6 +1321,7 @@ def test_update_node_error_policy(api_client, data_fixture):
     assert response.json() == {
         "id": node.id,
         "label": "",
+        "note": "",
         "on_failure": "retry",
         "max_retries": 4,
         "retry_condition": retry_condition,
@@ -1386,6 +1395,7 @@ def test_update_trigger_node_ignores_error_policy(api_client, data_fixture):
     assert response.json() == {
         "id": trigger.id,
         "label": "Rows",
+        "note": "",
         **DEFAULT_ERROR_POLICY,
         "service": AnyDict(),
         "type": trigger.get_type().type,
@@ -1485,3 +1495,21 @@ def test_update_periodic_trigger_with_unknown_timezone_is_a_misconfigured_servic
         "error": "ERROR_AUTOMATION_NODE_MISCONFIGURED_SERVICE",
         "detail": "The timezone `Middle/Earth` is not a valid timezone.",
     }
+
+
+@pytest.mark.django_db
+def test_update_node_note_too_long(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_automation_node(user=user, workflow=workflow)
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"note": "a" * (NOTE_MAX_LEN + 1)},
+        **get_api_kwargs(token),
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    assert response_json["detail"]["note"][0]["code"] == "max_length"

@@ -718,3 +718,29 @@ test('dismisses the popup on outside click without clearing picks or search', as
     wrapper.unmount()
   }
 })
+
+test('picks without a role when there are no roles to choose from', async () => {
+  const wrapper = await mountInput({
+    roles: [],
+    options: [member, pickable],
+    tabs: [{ value: 'auth.User', label: 'Members' }],
+    emailDisabledReason: 'Only members can join',
+  })
+  try {
+    expect(wrapper.find('.role').exists()).toBe(false)
+
+    const input = wrapper.find('input')
+    await input.trigger('focus')
+    await input.setValue('foo@bar.com new@x.com')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(chips(wrapper)).toEqual(['Foo Bar Viewer', 'new@x.com'])
+    expect(errorChips(wrapper)).toEqual(['new@x.com'])
+
+    await wrapper.find('.invite-input__row button').trigger('click')
+    const [picked, roleUid] = wrapper.emitted('add')[0]
+    expect(picked.map(({ key }) => key)).toEqual(['auth.User:9'])
+    expect(roleUid).toBeNull()
+  } finally {
+    wrapper.unmount()
+  }
+})

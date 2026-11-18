@@ -85,6 +85,7 @@ def test_core_http_request_basic(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -239,6 +240,7 @@ def test_core_http_request_timeout_returns_504(data_fixture, timeout_exception):
         "body_omitted": False,
         "headers": {},
         "status_code": 504,
+        "timed_out": True,
     }
 
 
@@ -267,6 +269,7 @@ def test_core_http_request_basic_body_raw(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -297,6 +300,7 @@ def test_core_http_request_basic_body_json(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -398,6 +402,7 @@ def test_core_http_request_body_json_with_to_json_escapes_data_source(data_fixtu
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -438,6 +443,7 @@ def test_core_http_request_basic_body_json_with_control_characters(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -469,6 +475,7 @@ def test_core_http_request_with_formulas(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/2",
             }
         )
@@ -506,6 +513,7 @@ def test_core_http_request_with_headers(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -539,6 +547,7 @@ def test_core_http_request_with_query_params(
                 "params": {"test": "test__2", "test2": "value"},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -573,9 +582,37 @@ def test_core_http_request_with_form_data(
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "body_type,resolved",
+    [
+        (BODY_TYPE.JSON, ["body_content", "url"]),
+        (BODY_TYPE.RAW, ["body_content", "url"]),
+        (BODY_TYPE.FORM, ["url", "form_data"]),
+        (BODY_TYPE.NONE, ["url"]),
+    ],
+)
+def test_core_http_request_resolves_only_the_body_its_body_type_sends(
+    data_fixture, body_type, resolved
+):
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        body_type=body_type,
+        body_content="'left from another body type'",
+    )
+    form_data = service.form_data.create(key="left", value="'over'")
+
+    keys = [formula.key for formula in service.get_type().formulas_to_resolve(service)]
+
+    assert keys == [
+        f"form_data_{form_data.id}" if key == "form_data" else key for key in resolved
+    ]
 
 
 @pytest.mark.django_db
@@ -896,6 +933,7 @@ def test_core_http_request_dispatch_data_with_json(data_fixture, content_type):
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )
@@ -955,6 +993,7 @@ def test_core_http_request_dispatch_data_with_text(data_fixture, content_type):
                 "params": {},
                 "deadline": ANY,
                 "operation_timeout": ANY,
+                "redirects_stay_on_host": False,
                 "url": "http://example.notexist/",
             }
         )

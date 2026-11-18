@@ -79,6 +79,7 @@ def test_notification_creation_on_creating_group_invitation(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": None,
                 "data": {
@@ -152,6 +153,7 @@ def test_notification_creation_on_accepting_group_invitation(
                     "id": user_2.id,
                     "username": user_2.username,
                     "first_name": user_2.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace_1.id},
                 "data": {
@@ -226,6 +228,7 @@ def test_notification_creation_on_rejecting_group_invitation(
                     "id": user_2.id,
                     "username": user_2.username,
                     "first_name": user_2.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace_1.id},
                 "data": {

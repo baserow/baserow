@@ -17,6 +17,7 @@ describe('form element validation', () => {
     const page = reactive({
       id: 1,
       elements: [],
+      workflowActions: [],
       graph: insideForm
         ? { 0: 41, 41: { children: { '': [42] } }, 42: {} }
         : { 0: 42, 42: {} },
@@ -55,7 +56,7 @@ describe('form element validation', () => {
             currentPage: page,
             elementPage: page,
             mode,
-            applicationContext: { builder, page, mode },
+            applicationContext: { builder, page, mode, element },
             element,
             workspace: {},
           },

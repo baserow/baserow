@@ -293,8 +293,9 @@ x-backend-variables:
   BASEROW_OLLAMA_MODELS:
   # Supported AI Field runtime limit.
   BASEROW_AI_FIELD_MAX_CONCURRENT_GENERATIONS:
-  # Agent replies that can run at once in one workspace.
+  # Agent replies that can run at once in one workspace and for one user.
   BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_WORKSPACE:
+  BASEROW_AGENT_MAX_ACTIVE_RUNS_PER_USER:
   # Actions one Agent can have (unset or 0 is no limit).
   BASEROW_AGENT_MAX_ACTIONS_PER_AGENT:
   # How often Agent triggers may start conversations, and how many runs may wait (0 is no limit).
@@ -302,6 +303,8 @@ x-backend-variables:
   BASEROW_AGENT_TRIGGER_AGENT_RATE_LIMITS:
   BASEROW_AGENT_TRIGGER_MAX_QUEUED_RUNS:
   BASEROW_AGENT_TRIGGER_MAX_PARALLEL_RUNS:
+  # How many conversations one Agent trigger event, such as a bulk row change, may start.
+  BASEROW_AGENT_TRIGGER_MAX_BATCHES_PER_EVENT:
   BASEROW_SERVE_FILES_THROUGH_BACKEND:
   BASEROW_SERVE_FILES_THROUGH_BACKEND_PERMISSION:
   BASEROW_SERVE_FILES_THROUGH_BACKEND_EXPIRE_SECONDS:

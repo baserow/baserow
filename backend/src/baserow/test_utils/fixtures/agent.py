@@ -27,20 +27,23 @@ class AgentApplicationFixtures:
         kwargs.setdefault("order", 0)
         return AgentApplication.objects.create(**kwargs)
 
-    def create_agent_action(self, agent=None, **kwargs) -> AgentAction:
+    def create_agent_action(
+        self, agent=None, action_type="smtp_email", **kwargs
+    ) -> AgentAction:
         """
-        Create an email action with the production starter, without permissions.
-        Unlike a new action, it doesn't ask first unless the test says so.
+        Create an action with the production starter of its type, an email by
+        default, without permissions. Unlike a new action, it doesn't ask first
+        unless the test says so.
         """
 
         kwargs.setdefault("ask_first", False)
         agent = agent or self.create_agent_application()
-        defaults = agent_action_type_registry.get("smtp_email").get_defaults()
+        defaults = agent_action_type_registry.get(action_type).get_defaults()
         service_values = defaults.pop("service")
         service = kwargs.pop("service", None)
         if service is None:
             service = ServiceHandler().create_service(
-                service_type_registry.get("smtp_email"), **service_values
+                service_type_registry.get(action_type), **service_values
             )
         defaults.update(kwargs)
         defaults["name"] = AgentActionHandler().unique_name(agent, defaults["name"])

@@ -749,36 +749,25 @@ def test_export_user_file_doesnt_add_if_file_exists_in_files_zip(
 
 
 @pytest.mark.django_db
-def test_export_user_file_doesnt_add_if_file_in_cache(
-    data_fixture,
-    tmpdir,
-):
-    """Ensure the file isn't added to files_zip if it is in the cache."""
-
+def test_export_user_file_adds_a_file_once_per_export_cache(data_fixture, tmpdir):
     user = data_fixture.create_user()
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
-
-    # Create an image user file
-    image = Image.new("RGB", (100, 140), color="red")
-    image_bytes = BytesIO()
-    image.save(image_bytes, format="PNG")
-
-    original_name = "mock_image.png"
     handler = UserFileHandler()
     user_file = handler.upload_user_file(
-        user, original_name, image_bytes, storage=storage
+        user, "file.txt", BytesIO(b"Content"), storage=storage
     )
+    zip_file = ExportZipFile(
+        compress_level=settings.BASEROW_DEFAULT_ZIP_COMPRESS_LEVEL,
+        compress_type=zipstream.ZIP_DEFLATED,
+    )
+    cache = {}
 
-    cache = {f"user_file_{user_file.name}": True}
-    files_buffer = BytesIO()
-    storage.open = MagicMock()
-    with ZipFile(files_buffer, "a", ZIP_DEFLATED, False) as files_zip:
-        result = handler.export_user_file(
-            user_file, files_zip=files_zip, storage=storage, cache=cache
+    for _ in range(2):
+        handler.export_user_file(
+            user_file, files_zip=zip_file, storage=storage, cache=cache
         )
 
-    assert result == {"name": user_file.name, "original_name": original_name}
-    storage.open.assert_not_called()
+    assert [item["name"] for item in zip_file.info_list()] == [user_file.name]
 
 
 @pytest.mark.django_db
@@ -820,7 +809,6 @@ def test_export_user_file_adds_if_files_zip_is_empty_and_not_in_cache(
 
     assert result == {"name": user_file.name, "original_name": original_name}
     assert user_file.name in file_names_in_zip
-    assert cache[f"user_file_{user_file.name}"] is True
 
 
 def test_import_user_file_returns_none_if_user_file_is_empty():

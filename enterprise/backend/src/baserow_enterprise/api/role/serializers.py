@@ -7,6 +7,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.serializers import NaturalKeyRelatedField
+from baserow.api.workspaces.invitation_links.serializers import (
+    InvitationLinkPasswordField,
+)
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.core.models import WorkspaceInvitationLink
 from baserow.core.registries import (
@@ -62,7 +65,7 @@ class SubjectTypeField(serializers.ChoiceField):
     """
 
     def to_representation(self, value):
-        return subject_type_registry.get_by_model(value.model_class()).type
+        return subject_type_registry.get_by_content_type(value).type
 
     def to_internal_value(self, data):
         return subject_type_registry.get(data).get_content_type()
@@ -364,6 +367,7 @@ class ScopedInvitationLinkSerializer(serializers.ModelSerializer):
             "permissions",
             "scope_id",
             "scope_type",
+            "has_password",
             "created_on",
         )
         read_only_fields = fields
@@ -410,6 +414,7 @@ class CreateScopedInvitationLinkSerializer(serializers.Serializer):
 
 
 class UpdateScopedInvitationLinkSerializer(serializers.Serializer):
+    password = InvitationLinkPasswordField()
     name = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -444,9 +449,12 @@ class EffectiveAccessSerializer(serializers.Serializer):
     """
 
     subject_type = serializers.SerializerMethodField(
-        help_text="The type of the subject: a user or an agent."
+        help_text="The type of the subject: a user or an identity."
     )
     subject_id = serializers.SerializerMethodField(help_text="The subject's id.")
+    user_type = serializers.CharField(
+        source="subject.profile.user_type", read_only=True
+    )
     role = serializers.SerializerMethodField(
         help_text="The uid of the role the subject effectively holds on the scope."
     )
@@ -567,6 +575,6 @@ class SubjectRoleAssignmentSerializer(serializers.Serializer):
 class SubjectRoleAssignmentsQueryParametersSerializer(serializers.Serializer):
     subject_type = serializers.ChoiceField(
         choices=lazy(lambda: ALLOWED_SUBJECT_TYPE_BY_PRIORITY, list)(),
-        help_text="The type of the subject: a user, an agent or a team.",
+        help_text="The type of the subject: a user, an identity or a team.",
     )
     subject_id = serializers.IntegerField(min_value=1, help_text="The subject's id.")

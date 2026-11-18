@@ -24,6 +24,7 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
 from baserow.core.registries import (
@@ -364,7 +365,10 @@ class ViewType(
 
         if self.can_set_default_values and view.table_id is not None:
             default_row_values = self._export_default_row_values(
-                view, cache, files_zip, storage
+                view,
+                cache,
+                files_zip if import_export_config.is_user_template else None,
+                storage,
             )
             if default_row_values:
                 serialized["default_row_values"] = default_row_values
@@ -691,7 +695,12 @@ class ViewType(
                 continue
             if field_type is not None and value is not None:
                 value = field_type.export_serialized_default_value(
-                    value, field, workspace_id, cache
+                    value,
+                    field,
+                    workspace_id,
+                    cache,
+                    files_zip=files_zip,
+                    storage=storage,
                 )
 
             serialized_values[str(default_value.field_id)] = {
@@ -753,7 +762,12 @@ class ViewType(
             value = default_value_data.get("value")
             if value is not None:
                 value = field_type.import_serialized_default_value(
-                    value, id_mapping, workspace_id, cache
+                    value,
+                    id_mapping,
+                    workspace_id,
+                    cache,
+                    files_zip=files_zip,
+                    storage=storage,
                 )
 
             records.append(
@@ -1215,6 +1229,19 @@ class ViewFilterType(Instance):
     allowing field types to alias themselves to another type for filtering purposes.
     """
 
+    accepts_multiple_values = False
+    """
+    Whether `prepare_value` combines a list of resolved values into one filter
+    value itself. Otherwise, callers with several values apply the filter once per
+    value.
+    """
+
+    negated = False
+    """
+    Whether the filter excludes the rows matching its value. Callers applying the
+    filter once per value combine negated filters with AND, the others with OR.
+    """
+
     def default_filter_on_exception(self):
         """The default Q to use when the filter value is of an incompatible type."""
 
@@ -1238,6 +1265,10 @@ class ViewFilterType(Instance):
         """
 
         raise NotImplementedError("Each must have his own get_filter method.")
+
+    def prepare_value(self, value: Any) -> str:
+        """Convert a resolved formula value to this filter's input representation."""
+        return ensure_string(value)
 
     def get_preload_values(self, view_filter) -> dict:
         """
@@ -1617,6 +1648,22 @@ class FormViewModeRegistry(Registry):
 class ViewOwnershipType(Instance):
     """
     A `ViewOwnershipType` represents allowed style of view ownership.
+    """
+
+    default_values_authorized_when_configured = False
+    """
+    Whether a link row default value can be applied to a new row without the person
+    creating the row being able to read the linked table. That only holds for views
+    that the people using them don't configure themselves, so the check when saving
+    the default is what counts.
+    """
+
+    can_be_used_by_integrations = True
+    """
+    Whether an integration, such as the Local Baserow one, may offer views of this
+    ownership type and let its services use them. An integration is shared by
+    everyone who works on the application, so views that belong to a single user
+    must set this to `False`.
     """
 
     def can_import_view(self, serialized_data: Dict, id_mapping: Dict) -> bool:

@@ -705,14 +705,8 @@ def _update_table_formulas(
 
     from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
-    # The element replaces its whole list of columns. The configs are copied: they
-    # can be the prefetched columns' own, which the undo snapshot reads.
-    columns = [
-        {**column, "config": dict(column["config"])}
-        for column in orm_element.get_type().export_prepared_values(
-            orm_element, ["fields"]
-        )["fields"]
-    ]
+    # The element replaces its whole list of columns.
+    columns = orm_element.get_type().get_field_values(orm_element)
     changed = False
     for key, formula in formulas.items():
         parts = key.split(".")

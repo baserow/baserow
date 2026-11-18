@@ -7,12 +7,13 @@ from baserow.contrib.dashboard.models import Dashboard
 from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.types import UpdatedWidget, WidgetGridLayout
 from baserow.core.registry import (
-    CustomFieldsInstanceMixin,
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
     Instance,
+    InstanceWithFormulaMixin,
     ModelInstanceMixin,
     ModelRegistryMixin,
+    PublicCustomFieldsInstanceMixin,
     Registry,
 )
 
@@ -23,13 +24,17 @@ DASHBOARD_WIDGETS = "dashboard_widgets"
 
 
 class WidgetType(
+    InstanceWithFormulaMixin,
     EasyImportExportMixin[Widget],
-    CustomFieldsInstanceMixin,
+    PublicCustomFieldsInstanceMixin,
     ModelInstanceMixin[Widget],
     Instance,
     ABC,
 ):
     """Widget type"""
+
+    is_display_widget = False
+    is_filter_widget = False
 
     SerializedDict = WidgetDict
     parent_property_name = "dashboard"
@@ -43,6 +48,19 @@ class WidgetType(
         max_width=6,
         max_height=16,
     )
+
+    def extract_properties(self, instance, **kwargs):
+        """Extract properties from the formulas supplied by this widget type."""
+        from baserow.contrib.dashboard.data_providers import (
+            dashboard_property_data_provider_registry,
+        )
+        from baserow.core.formula.property_extractor import extract_formula_properties
+
+        return extract_formula_properties(
+            self.formula_generator(instance),
+            dashboard_property_data_provider_registry,
+            **kwargs,
+        )
 
     def get_grid_layout(self) -> WidgetGridLayout:
         return self.grid_layout
@@ -82,6 +100,28 @@ class WidgetType(
 
         return updated_widget
 
+    def after_data_source_restore(
+        self, instance, updated_data_source, restoration_data
+    ):
+        """Restore related widget state after a source update; return whether it changed."""
+        return False
+
+    def get_data_source(self, instance: Widget):
+        """Return the source used by this widget, when it has one."""
+        return None
+
+    def get_runtime_filter(self, instance: Widget, target: Widget, dispatch_context):
+        """Return conditions contributed to a target widget, or None."""
+        return None
+
+    def get_dispatch_data(self, instance: Widget, values):
+        """Resolve supplied runtime input, with no default unless the type defines one."""
+        return values.get(str(instance.id))
+
+    def validate_dispatch_data(self, instance: Widget, value):
+        """Validate and normalize runtime input supplied for this widget type."""
+        return value
+
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         """
         This function allows you to hook into the moment a widget is created or
@@ -117,24 +157,20 @@ class WidgetType(
 
         pass
 
-    def before_trashed(self, instance: Widget):
-        """
-        This function allows you to hook into the process of trashing
-        a widget and do widget type specific steps.
-
-        :param instance: The instance that will be restored.
-        """
-
+    def before_trashed(self, instance: Widget, requesting_user, trash_entry):
+        """Prepare widget-specific state before trashing, using restoration metadata."""
         pass
 
-    def before_restore(self, instance: Widget):
-        """
-        This function allows you to hook into the process of restoring
-        a widget and do widget type specific steps.
+    def after_trashed(self, instance: Widget, requesting_user, trash_entry):
+        """Run widget-specific cleanup after the widget has been marked trashed."""
+        pass
 
-        :param instance: The instance that will be restored.
-        """
+    def before_restore(self, instance: Widget, trash_entry):
+        """Prepare related state before restoring the widget from its trash entry."""
+        pass
 
+    def after_restore(self, instance: Widget, trash_entry):
+        """Restore widget-specific state after the widget and layout are restored."""
         pass
 
     def deserialize_property(

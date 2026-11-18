@@ -1,3 +1,4 @@
+import { useNuxtApp } from '#app'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement.vue'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 
@@ -20,9 +21,15 @@ describe('HeadingElement', () => {
 
   test('Default HeadingElement component', async () => {
     const builder = { id: 1, theme: { primary_color: '#ccc' } }
-    const page = {}
+    const page = { id: 1, elements: [], workflowActions: [] }
     const workspace = {}
-    const element = { level: 2, value: { formula: '' }, styles: {} }
+    const element = {
+      id: 1,
+      type: 'heading',
+      level: 2,
+      value: { formula: '' },
+      styles: {},
+    }
     const mode = 'public'
 
     const wrapper = await mountComponent({
@@ -44,9 +51,15 @@ describe('HeadingElement', () => {
 
   test('Default HeadingElement component v2', async () => {
     const builder = { id: 1, theme: { primary_color: '#ccc' } }
-    const page = {}
+    const page = { id: 1, elements: [], workflowActions: [] }
     const workspace = {}
-    const element = { level: 3, value: { formula: '"hello"' }, styles: {} }
+    const element = {
+      id: 1,
+      type: 'heading',
+      level: 3,
+      value: { formula: '"hello"' },
+      styles: {},
+    }
     const mode = 'public'
 
     const wrapper = await mountComponent({

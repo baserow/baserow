@@ -87,6 +87,39 @@ describe('GridViewFieldLinkRow component', () => {
     return { patched, select, shown: () => ids(getRow().field_1) }
   }
 
+  test.each([
+    ['can list the rows of the linked table', [], true],
+    [
+      "can read but can't list the linked table",
+      ['database.table.list_rows'],
+      false,
+    ],
+    ["can't read the linked table", ['database.table.read'], false],
+  ])('the add link button shows when the user %s', async (_, denied, shown) => {
+    const wrapper = await testApp.mount(GridViewFieldLinkRow, {
+      global: {
+        mocks: { $hasPermission: (operation) => !denied.includes(operation) },
+      },
+      props: {
+        field: {
+          id: 1,
+          table_id: 10,
+          type: 'link_row',
+          link_row_table_id: 11,
+          link_row_related_field_id: 21,
+          link_row_multiple_relationships: true,
+        },
+        value: [],
+        row: { id: 7, order: '1.00', field_1: [] },
+        selected: true,
+        storePrefix: 'page/',
+        workspaceId: 1,
+      },
+    })
+
+    expect(wrapper.find('.iconoir-plus').exists()).toBe(shown)
+  })
+
   test('a row created with the link back shows without a PATCH and stays on the next pick', async () => {
     const { patched, select, shown } = await mountCell({ tableId: 10 })
 

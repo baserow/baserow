@@ -6,19 +6,21 @@
     :error-message="displayFormDataError ? $t('error.requiredField') : ''"
   >
     <Rating
+      data-builder-interactive
       :value="inputValue"
       :max-value="element.max_value"
       :custom-color="resolveColor(element.color, colorVariables)"
       :rating-style="element.rating_style || 'star'"
       show-unselected
-      @update="onRatingChange"
+      :read-only="workflowActionsInProgress"
+      @update="onSelectionChange"
     />
   </ABFormGroup>
 </template>
 
 <script>
 import Rating from '@baserow/modules/database/components/Rating'
-import formElement from '@baserow/modules/builder/mixins/formElement'
+import changeableFormElement from '@baserow/modules/builder/mixins/changeableFormElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
@@ -28,7 +30,7 @@ export default {
   components: {
     Rating,
   },
-  mixins: [formElement],
+  mixins: [changeableFormElement],
   setup() {
     return { v$: useVuelidate() }
   },
@@ -46,12 +48,6 @@ export default {
   },
   validations() {
     return this.rules
-  },
-  methods: {
-    onRatingChange(value) {
-      this.inputValue = value
-      this.handleFormElementChange()
-    },
   },
 }
 </script>

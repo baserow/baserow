@@ -730,6 +730,7 @@ class ElementHandler:
         self,
         element_id: int,
         element_map: Dict[int, Element] = None,
+        include_target: bool = True,
     ) -> Dict[str, Any]:
         """
         Generates and return the import context for the given element and all its
@@ -740,6 +741,8 @@ class ElementHandler:
         :param element_id: The element_id to compute the context for.
         :param element_map: An optional map of already loaded elements to improve
           performances.
+        :param include_target: Whether to include this element's own context or
+          only its ancestors' context.
         :return: An object that can be used as import context.
         """
 
@@ -765,7 +768,7 @@ class ElementHandler:
         # Merge outermost ancestor first so that an inner element's context
         # overrides its ancestors', matching the original recursive semantics.
         context = {}
-        for element in reversed(chain):
+        for element in reversed(chain if include_target else chain[1:]):
             context |= element.get_type().import_context_addition(element)
         return context
 

@@ -15,6 +15,7 @@ from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
+    NoteMixin,
     PolymorphicContentTypeMixin,
     TrashableModelMixin,
     WithRegistry,
@@ -52,6 +53,7 @@ class AutomationNode(
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
     GraphPointMixin,
+    NoteMixin,
     WithRegistry,
 ):
     """

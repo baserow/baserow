@@ -1,4 +1,8 @@
+import re
 from unittest.mock import patch
+
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 
@@ -245,6 +249,33 @@ def test_get_nodes(data_fixture: Fixtures):
     trigger = workflow.get_trigger()
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
     assert AutomationNodeService().get_nodes(user, workflow) == [trigger, node.specific]
+
+
+@pytest.mark.django_db
+def test_get_nodes_only_queries_the_workflow_nodes(data_fixture: Fixtures):
+    # Regression test: the RBAC base queryset used to span every automation node of
+    # the instance, and a truthiness check in the handler loaded all of them. The
+    # handler side is covered in test_node_handler.py.
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    data_fixture.create_automation_node(workflow=workflow)
+    other_workflow = data_fixture.create_automation_workflow()
+    data_fixture.create_automation_node(workflow=other_workflow)
+
+    with CaptureQueriesContext(connection) as ctx:
+        nodes = AutomationNodeService().get_nodes(user, workflow)
+
+    assert {node.workflow_id for node in nodes} == {workflow.id}
+    node_queries = [
+        q["sql"]
+        for q in ctx.captured_queries
+        if 'FROM "automation_automationnode"' in q["sql"]
+    ]
+    scoped = re.compile(
+        rf'"automation_automationnode"\."workflow_id" = {workflow.id}\b'
+    )
+    assert node_queries
+    assert all(scoped.search(sql) for sql in node_queries), node_queries
 
 
 @pytest.mark.django_db
@@ -986,3 +1017,19 @@ def test_delete_node_updates_workflow_dirty_cache(data_fixture):
     AutomationNodeService().delete_node(user, node.id)
 
     assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
+def test_replace_node_clears_the_note(data_fixture: Fixtures):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    original_node = data_fixture.create_automation_node(
+        workflow=workflow, label="Invoice", note="Creates the invoice row"
+    )
+
+    replace_result = AutomationNodeService().replace_node(
+        user, original_node.id, "local_baserow_update_row"
+    )
+
+    assert replace_result.node.id != original_node.id
+    assert replace_result.node.note == ""
