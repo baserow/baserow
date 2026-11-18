@@ -4,7 +4,9 @@ from collections import Counter
 from copy import deepcopy
 from typing import Any, NamedTuple
 
+from baserow.contrib.builder.elements.element_types import TableElementType
 from baserow.contrib.builder.elements.models import TableElement
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
@@ -158,16 +160,7 @@ def merge_table_columns(
 
 
 def _stored_columns(element: TableElement) -> list[Column]:
-    return [
-        {
-            "uid": str(column.uid),
-            "name": column.name,
-            "type": column.type,
-            "config": column.config,
-            "styles": column.styles,
-        }
-        for column in element.fields.all()
-    ]
+    return element_type_registry.get(TableElementType.type).get_field_values(element)
 
 
 def _listing(columns: list[Column]) -> str:

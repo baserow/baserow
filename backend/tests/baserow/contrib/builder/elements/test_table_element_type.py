@@ -607,3 +607,39 @@ def test_table_element_duplication_regenerates_collection_field_uids(data_fixtur
     assert (
         duplicated_workflow_action.event == f"{duplicated_collection_field.uid}_click"
     )
+
+
+@pytest.mark.django_db
+def test_table_field_values_save_the_fields_unchanged(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table_element = data_fixture.create_builder_table_element(page=page)
+    table_type = element_type_registry.get("table")
+    ElementService().update_element(
+        user,
+        table_element,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": "get('name')"},
+                "styles": {"cell": {"font_color": "red"}},
+            },
+            {"name": "Open", "type": "button", "config": {"label": "'Open'"}},
+        ],
+    )
+    saved = list(table_element.fields.values("uid", "name", "type", "config"))
+
+    values = table_type.get_field_values(table_element)
+
+    assert [(value["name"], value["type"]) for value in values] == [
+        ("Name", "text"),
+        ("Open", "button"),
+    ]
+    assert values[0]["styles"] == {"cell": {"font_color": "red"}}
+    assert [value["uid"] for value in values] == [str(row["uid"]) for row in saved]
+
+    ElementService().update_element(user, table_element, fields=values)
+
+    assert list(table_element.fields.values("uid", "name", "type", "config")) == saved
+    assert table_type.get_field_values(table_element) == values
