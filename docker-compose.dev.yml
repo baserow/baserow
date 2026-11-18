@@ -152,6 +152,8 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
       - OTEL_TRACES_SAMPLER=always_on
       - BASEROW_DANGEROUS_SILKY_ANALYZE_QUERIES
+      - BASEROW_ASSISTANT_PHOENIX_URL=${BASEROW_ASSISTANT_PHOENIX_URL:-}
+      - BASEROW_ASSISTANT_PHOENIX_API_KEY=${BASEROW_ASSISTANT_PHOENIX_API_KEY:-}
     volumes:
       - ./docs:/baserow/docs
       - ./backend:/baserow/backend
