@@ -431,3 +431,35 @@ rm -rf web-frontend/.nuxt
 - [running-the-dev-env-with-docker.md](running-the-dev-env-with-docker.md) - Alternative: Docker development
 - [vscode-setup.md](vscode-setup.md) - VS Code configuration
 - [intellij-setup.md](intellij-setup.md) - IntelliJ/PyCharm configuration
+
+
+## Optional OpenAI test data
+
+To create an instance OpenAI provider during development test-data population,
+store your API key in an untracked UTF-8 file outside the repository, restrict it
+with `chmod 600 /absolute/path/to/openai-api-key`, and add this to `.env.local`:
+
+```bash
+BASEROW_POPULATE_OPENAI_API_KEY_FILE=/absolute/path/to/openai-api-key
+```
+
+Run `just b m populate_test_data`, or your local `just post-install` recipe if
+it already invokes that command. Backend recipes load `.env.local`, so no extra
+population hook is required. For new worktrees, set this path in each worktree's
+local environment before its first population. Never commit the key file or put
+its contents in commands or logs. Docker users must explicitly pass the variable
+and mount the file read-only at the configured container path.
+
+An unset or empty path does nothing. When creation is needed, an unreadable,
+non-UTF-8, or empty file fails population without printing its contents. Leading
+and trailing whitespace is stripped. Existing instance OpenAI configuration,
+including its key, active state, models, and feature selections, is preserved;
+the file is not read in that case. Workspace-owned providers are also preserved.
+To rotate an existing key, use the instance AI provider settings.
+
+The new provider is inherited by workspaces using the normal provider rules.
+Population makes no OpenAI requests and does not discover, test, or add models.
+Add model identifiers and feature selections through the AI provider settings
+before using AI features. The key is stored using the existing provider storage
+mechanism. This setting only affects the development-only `populate_test_data`
+command; it does not configure production or enable AI on normal server startup.

@@ -368,6 +368,12 @@ until you make a model available to Kuma and select it under **AI features**; se
 | BASEROW\_BUILDER\_PUBLICLY\_USED\_PROPERTIES\_CACHE\_TTL\_SECONDS | How long, in seconds, a published application caches which data source fields its pages use, so that only those fields are sent to visitors. Publishing the application again starts with a fresh cache. | 7200 |
 | BASEROW\_BUILDER\_DISPATCH\_ACTION\_CACHE\_TTL\_SECONDS | How long, in seconds, the result of an Application Builder workflow action is kept so that the actions after it in the same event can use it. | 300 |
 
+### Development test-data population
+
+| Name | Description | Defaults |
+| ---- | ----------- | -------- |
+| BASEROW_POPULATE_OPENAI_API_KEY_FILE | Local UTF-8 API key file used only by `populate_test_data` to create an instance OpenAI provider. Existing instance OpenAI configuration is preserved. See the [local development guide](../development/running-the-dev-env-locally.md#optional-openai-test-data). | "" (disabled) |
+
 ### Misc Configuration
 
 | Name                         | Description                                                                                                                                                                          | Defaults          |
