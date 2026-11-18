@@ -7,17 +7,29 @@ nodes its formulas read, resolved into its test run data, its run results and
 the schemas built from them. A user who may not see the node's table isn't
 shown any of it; a user who may see the node's table but not one the node
 reads, directly or through other nodes, isn't shown the data built from it.
+
+What a test run data was built from is decided when it is stored: the service
+keeps the IDs of the tables of the node and of the nodes it read in
+`sample_data_table_ids`. A table that no longer exists counts as one the user may
+not see. The formulas of today only decide for test run data stored before the
+IDs were kept, as editing a formula or deleting a node doesn't change the data
+already built.
 """
 
 import copy
+import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+from baserow.contrib.automation.data_providers.registries import (
+    automation_data_provider_type_registry,
+)
 from baserow.contrib.automation.formula_importer import AutomationFormulaImporter
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
+from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import (
     BaserowFormula,
     BaserowFormulaObject,
@@ -28,15 +40,30 @@ from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
 from baserow.core.services.models import Service
 from baserow.core.utils import to_path
 
-# The data providers whose paths start with the ID of the node they read.
-NODE_DATA_PROVIDERS = ("previous_node", "current_iteration")
-
 # What can wrap the path of a get() and still be read as a literal.
 _WRAPPERS = (
     BaserowFormula.BracketsContext,
     BaserowFormula.LeftWhitespaceOrCommentsContext,
     BaserowFormula.RightWhitespaceOrCommentsContext,
 )
+
+# The node of a path as it is written in a literal: `previous_node.5.x` or
+# `previous_node[5].x`.
+_NODE_PART_RE = re.compile(r"\s*[^.\[\s]+\s*(?:\.([^.\[]*)|\[([^\]]*)\])")
+
+
+@dataclass
+class NodeRead:
+    """A get() reading a path of a node."""
+
+    provider: str
+    # The node as written in the path, which isn't always an ID.
+    node: str
+    # The path after the node.
+    rest: tuple[str, ...]
+    # Where the node is in the formula, when it can be told.
+    start: Optional[int] = None
+    end: Optional[int] = None
 
 
 @dataclass
@@ -47,17 +74,33 @@ class FormulaReads:
     # A get() whose path is computed, like get(concat('previous_node.', 1)), can
     # read any node.
     any_node: bool = False
+    paths: list[NodeRead] = field(default_factory=list)
 
 
-def _literal_path(expr) -> Optional[str]:
-    """The path of a get() argument, or None when it is computed."""
+def _literal(expr) -> Optional[BaserowFormula.StringLiteralContext]:
+    """The string literal of a get() argument, or None when it is computed."""
 
     while isinstance(expr, _WRAPPERS):
         expr = expr.expr()
-    if not isinstance(expr, BaserowFormula.StringLiteralContext):
-        return None
-    text = expr.getText()
-    return convert_string_literal_token_to_string(text, text[0] == "'")
+    return expr if isinstance(expr, BaserowFormula.StringLiteralContext) else None
+
+
+def _node_span(literal, node: str) -> tuple[Optional[int], Optional[int]]:
+    """Where the node is in the formula, or None when escapes move it."""
+
+    text = literal.getText()
+    path = text[1:-1]
+    if convert_string_literal_token_to_string(text, text[0] == "'") != path:
+        return None, None
+    match = _NODE_PART_RE.match(path)
+    if match is None:
+        return None, None
+    group = 1 if match.group(1) is not None else 2
+    raw = match.group(group)
+    if raw.strip() != node:
+        return None, None
+    start = literal.start.start + 1 + match.start(group) + raw.index(node)
+    return start, start + len(node)
 
 
 class NodeReferenceCollector(AutomationFormulaImporter):
@@ -73,17 +116,28 @@ class NodeReferenceCollector(AutomationFormulaImporter):
         if function_name != "get" or not function_argument_expressions:
             # A get() without a path reads nothing.
             return ""
-        path = _literal_path(function_argument_expressions[0])
-        if path is None:
+        literal = _literal(function_argument_expressions[0])
+        if literal is None:
             self.reads.any_node = True
             return ""
-        provider, *rest = to_path(path)
-        if provider in NODE_DATA_PROVIDERS and rest:
-            try:
-                # As the data providers read it.
-                self.reads.node_ids.add(int(rest[0]))
-            except (TypeError, ValueError):
-                pass  # Not a node ID, so it reads nothing.
+        text = literal.getText()
+        provider, *rest = to_path(
+            convert_string_literal_token_to_string(text, text[0] == "'")
+        )
+        try:
+            provider_type = automation_data_provider_type_registry.get(provider)
+        except InstanceTypeDoesNotExist:
+            return ""
+        if not provider_type.reads_node_id or not rest:
+            return ""
+        node, *rest = rest
+        start, end = _node_span(literal, node)
+        self.reads.paths.append(NodeRead(provider, node, tuple(rest), start, end))
+        try:
+            # As the data providers read it.
+            self.reads.node_ids.add(int(node))
+        except (TypeError, ValueError):
+            pass  # Not a node ID, so it reads nothing.
         return ""
 
 
@@ -109,15 +163,19 @@ def formula_reads(formulas: Iterable[Any], reads: FormulaReads = None) -> Formul
 def node_reads(node: AutomationNode) -> FormulaReads:
     """
     The nodes the formulas of a node read: those of its service, such as an
-    iterator's source or a router's conditions, and its retry condition.
+    iterator's source or a router's conditions, and those of the node itself, such
+    as its retry condition.
     """
 
     service = node.service.specific
+    node = node.specific
     try:
-        formulas = list(service.get_type().formula_generator(service))
+        formulas = [
+            *service.get_type().formula_generator(service),
+            *node.get_type().formula_generator(node),
+        ]
     except Exception:  # noqa: BLE001 - whatever stops the read, fail closed
         return FormulaReads(any_node=True)
-    formulas.append(node.retry_condition)
     return formula_reads(formulas)
 
 
@@ -217,10 +275,45 @@ class AutomationNodeAccess:
 
         table_ids = set()
         for other in self.read_nodes(node):
-            table_id = getattr(other.service.specific, "table_id", None)
-            if table_id is not None:
-                table_ids.add(table_id)
+            table_ids |= node_table_ids(other)
         return table_ids
+
+    def node_of_service(self, workflow, service: Service) -> Optional[AutomationNode]:
+        """The node of the workflow that has the service."""
+
+        return next(
+            (
+                node
+                for node in self._nodes_of_workflow(workflow).values()
+                if node.service_id == service.id
+            ),
+            None,
+        )
+
+    def sample_table_ids(self, node: AutomationNode) -> set[int]:
+        """
+        The tables the test run data stored now for the node is built from: its
+        own, those of the nodes it reads, directly or not, and those their own
+        test run data was built from.
+        """
+
+        table_ids = node_table_ids(node)
+        for other in self.read_nodes(node):
+            table_ids |= node_table_ids(other)
+            table_ids |= set(other.service.specific.sample_data_table_ids or ())
+        return table_ids
+
+    def data_table_ids(self, node: AutomationNode) -> set[int]:
+        """
+        The tables whose fields the user must be able to list to be shown the
+        data of the node: those its test run data was built from, or when they
+        weren't kept those of the nodes its formulas read, and its own.
+        """
+
+        stored = node.service.specific.sample_data_table_ids
+        if stored is None:
+            stored = self.read_table_ids(node)
+        return set(stored) | node_table_ids(node)
 
     def _workflow_has_hidden_table(self, node: AutomationNode) -> bool:
         return self.workflow_has_hidden_data(node.workflow)
@@ -239,8 +332,15 @@ class AutomationNodeAccess:
         """Whether a node of the workflow shows data the user may not see."""
 
         return any(
-            not self.tables.allows(other.service.specific)
-            for other in self._nodes_of_workflow(workflow).values()
+            not self.tables.allows(service)
+            or any(
+                not self.tables.allows_table(table_id)
+                for table_id in service.sample_data_table_ids or ()
+            )
+            for service in (
+                other.service.specific
+                for other in self._nodes_of_workflow(workflow).values()
+            )
         )
 
     def node_hidden(self, node: AutomationNode) -> bool:
@@ -260,14 +360,28 @@ class AutomationNodeAccess:
 
     def data_allows(self, service: Service) -> bool:
         """
-        Whether the user may see the data the node of the service shows. A service
-        whose node wasn't added is only checked for its own table.
+        Whether the user may see the data the node of the service shows. When the
+        tables its test run data was built from are known, they decide, whatever
+        the node reads now. A service whose node wasn't added is only checked for
+        its own table.
         """
 
+        stored = service.sample_data_table_ids
+        if stored is not None:
+            return self.tables.allows(service) and all(
+                self.tables.allows_table(table_id) for table_id in stored
+            )
         node = self._node(service)
         if node is None:
             return self.tables.allows(service)
         return not self.node_hidden(node)
+
+
+def node_table_ids(node: AutomationNode) -> set[int]:
+    """The tables the service of the node reads or writes."""
+
+    service = node.service.specific
+    return service.get_type().get_table_ids(service)
 
 
 class FixedNodeAccess:
@@ -278,7 +392,7 @@ class FixedNodeAccess:
         self.data = data
 
     def table_allows(self, service: Service) -> bool:
-        return self.table or getattr(service, "table_id", None) is None
+        return self.table or not service.get_type().get_table_ids(service)
 
     def data_allows(self, service: Service) -> bool:
         return self.data

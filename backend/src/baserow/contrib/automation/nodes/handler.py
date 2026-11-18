@@ -707,7 +707,7 @@ class AutomationNodeHandler:
 
         if simulate_until_node and simulate_until_node.id == node.id:
             service = node.service.specific
-            service.refresh_from_db(fields=["sample_data"])
+            service.refresh_from_db(fields=["sample_data", "sample_data_table_ids"])
             automation_node_updated.send(self, user=None, node=node)
             return True
 

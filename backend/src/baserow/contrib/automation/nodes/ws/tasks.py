@@ -1,6 +1,9 @@
 from typing import Optional
 
+from django.db import DEFAULT_DB_ALIAS
+
 from baserow.config.celery import app
+from baserow.config.db_routers import set_db_alias
 
 
 @app.task(bind=True)
@@ -31,6 +34,7 @@ def broadcast_node_event_to_permitted_users(
         ALLOW_ALL,
         AutomationNodeAccess,
         FixedNodeAccess,
+        node_table_ids,
     )
     from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
     from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -38,12 +42,13 @@ def broadcast_node_event_to_permitted_users(
         ReadAutomationNodeOperationType,
     )
     from baserow.contrib.automation.nodes.ws.signals import bounded_node_event
-    from baserow.contrib.database.fields.operations import ListFieldsOperationType
-    from baserow.contrib.database.table.models import Table
+    from baserow.contrib.integrations.local_baserow.utils import ServiceTableAccess
     from baserow.core.handler import CoreHandler
     from baserow.core.models import Workspace, WorkspaceUser
     from baserow.ws.tasks import broadcast_to_users
 
+    # This task runs after commit; the reads must not lag it.
+    set_db_alias(DEFAULT_DB_ALIAS)
     workspace = Workspace.objects.filter(id=workspace_id).first()
     try:
         node = AutomationNodeHandler().get_node(node_id)
@@ -64,37 +69,13 @@ def broadcast_node_event_to_permitted_users(
     if not readers:
         return
 
-    table_id = getattr(node.service.specific, "table_id", None)
-    read_table_ids = AutomationNodeAccess(None).read_table_ids(node)
-    wanted = set(read_table_ids) | ({table_id} if table_id is not None else set())
-    tables = {
-        table.id: table
-        for table in Table.objects_and_trash.select_related(
-            "database__workspace"
-        ).filter(id__in=wanted)
-    }
-
-    def allowed_on(table_ids, users):
-        # A table gone in the meantime is checked like one they may not see.
-        allowed = set(users) if all(i in tables for i in table_ids) else set()
-        for read_table_id in table_ids:
-            if not allowed:
-                break
-            table = tables[read_table_id]
-            allowed &= set(
-                CoreHandler().check_permission_for_multiple_actors(
-                    list(allowed),
-                    ListFieldsOperationType.type,
-                    table.database.workspace,
-                    context=table,
-                )
-            )
-        return allowed
-
-    own_table_readers = (
-        allowed_on([table_id], readers) if table_id is not None else set(readers)
+    access = AutomationNodeAccess(None)
+    tables = ServiceTableAccess(None)
+    own_table_ids = node_table_ids(node)
+    own_table_readers = tables.users_allowed_on(own_table_ids, readers)
+    full_readers = tables.users_allowed_on(
+        access.data_table_ids(node), own_table_readers
     )
-    full_readers = allowed_on(read_table_ids, own_table_readers)
 
     groups = {}
     for user in readers:

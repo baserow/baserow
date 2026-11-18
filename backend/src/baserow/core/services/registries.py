@@ -1,7 +1,18 @@
 from abc import ABC, abstractmethod
 from dataclasses import fields
 from enum import Enum
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
@@ -104,6 +115,10 @@ class ServiceType(
             )
             for key in self.get_property_names()
         }
+        if serialized.get("sample_data_table_ids") is None:
+            # Left out when unknown, which is what services outside the
+            # automations always have.
+            serialized.pop("sample_data_table_ids", None)
         if getattr(import_export_config, "exclude_sensitive_data", False):
             for prop_name in self.sensitive_fields:
                 if prop_name not in serialized:
@@ -286,6 +301,45 @@ class ServiceType(
         :param values: The values that were passed when creating the service
             metadata.
         """
+
+    def get_table_ids(self, service: ServiceSubClass) -> Set[int]:
+        """
+        The IDs of the database tables whose data the service reads or writes, and
+        so whose fields its schema and sample data show. A type that works on
+        tables overrides it, so what shows a table's data can ask which tables a
+        service uses without knowing the type.
+
+        :param service: The specific service.
+        """
+
+        return set()
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Dict[int, int]],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ) -> Any:
+        if prop_name == "sample_data_table_ids" and value is not None:
+            # The tables the sample was built from, as they are after the import.
+            # A table the import doesn't hold keeps its ID: the sample stays
+            # hidden from whoever may not see that table.
+            tables = id_mapping.get("database_tables", {})
+            return [tables.get(table_id, table_id) for table_id in value]
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
     def outdates_sample_data(self, changes: Dict[str, Tuple]) -> bool:
         """
@@ -639,6 +693,9 @@ class ServiceType(
                 )
             ):
                 service.sample_data = {"_error": str(e)}
+                service.sample_data_table_ids = (
+                    dispatch_context.get_sample_data_table_ids(service)
+                )
                 service.save()
             raise
         else:
@@ -664,13 +721,18 @@ class ServiceType(
                 # it is for a failed dispatch, unless the context asks to keep
                 # the sample data the service already had.
                 previous_sample_data = service.sample_data
+                previous_table_ids = service.sample_data_table_ids
                 service.sample_data = sample_data
+                service.sample_data_table_ids = (
+                    dispatch_context.get_sample_data_table_ids(service)
+                )
                 try:
                     with transaction.atomic():
                         service.save()
                 except Exception as e:
                     if dispatch_context.keep_sample_data_on_error:
                         service.sample_data = previous_sample_data
+                        service.sample_data_table_ids = previous_table_ids
                     else:
                         service.sample_data = {"_error": str(e)}
                         service.save()
