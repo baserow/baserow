@@ -23,19 +23,28 @@
       :key="reply.uuid"
       class="agent-pending-approvals__reply"
     >
-      <ButtonText
-        icon="iconoir-chat-bubble-empty"
-        @click="openConversation(reply.conversation)"
-      >
-        {{ reply.conversation.title || $t('agent.newConversation') }}
-      </ButtonText>
       <AgentApprovalCard
         :items="items(reply)"
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
         :deciding="decidingReplies.has(reply.uuid)"
+        compact
         @decide="(decisions, options) => review(reply, decisions, options)"
-      />
+      >
+        <template #title>
+          <button
+            type="button"
+            class="agent-pending-approvals__conversation"
+            :title="reply.conversation.title || $t('agent.newConversation')"
+            @click="openConversation(reply.conversation)"
+          >
+            <i class="iconoir-chat-bubble-empty" aria-hidden="true" />
+            <span class="agent-pending-approvals__conversation-name">{{
+              reply.conversation.title || $t('agent.newConversation')
+            }}</span>
+          </button>
+        </template>
+      </AgentApprovalCard>
     </section>
     <Alert v-if="error" type="error">
       {{ $t('agent.pendingApprovalsLoadError') }}
@@ -59,7 +68,6 @@
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
-import ButtonText from '@baserow/modules/core/components/ButtonText'
 import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import {

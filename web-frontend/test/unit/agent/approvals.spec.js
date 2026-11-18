@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
+import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
 import AgentPendingApprovalsContext from '@baserow/modules/agent/components/AgentPendingApprovalsContext'
 import * as vueI18n from 'vue-i18n'
 import service from '@baserow/modules/core/services/chatRuns'
@@ -968,6 +969,37 @@ describe('Agent tool approvals', () => {
     expect(menu.text()).toContain('agent.pendingApprovalsEmpty')
     expect(selected(wrapper).text()).toContain('Idle')
   })
+
+  test.each([
+    [
+      false,
+      [
+        'agent.alwaysAllowAllPendingTools',
+        'agent.rejectAll',
+        'agent.approveAll',
+      ],
+    ],
+    [true, ['agent.alwaysAllow', 'agent.reject', 'agent.approve']],
+  ])(
+    'a compact card (%s) keeps short header labels',
+    async (compact, labels) => {
+      const items = ['create_rows', 'delete_rows'].map((tool, index) => ({
+        id: index + 1,
+        status: 'pending',
+        tool,
+        title: tool,
+      }))
+      const card = await testApp.mount(AgentApprovalCard, {
+        props: { items, canAlwaysAllow: true, compact },
+        global: { provide: { agentApplication: ref(agent) } },
+      })
+      const header = card.get('.agent-approval__header')
+      expect(header.findAll('button').map((button) => button.text())).toEqual(
+        labels
+      )
+      expect(card.classes('agent-approval--compact')).toBe(compact)
+    }
+  )
 
   test('retries a failed page of approvals and keeps earlier replies', async () => {
     testApp.dontFailOnErrorResponses()

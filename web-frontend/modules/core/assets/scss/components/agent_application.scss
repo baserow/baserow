@@ -1218,8 +1218,50 @@
   overflow: auto;
 }
 
-.agent-pending-approvals__reply {
-  display: grid;
+.agent-pending-approvals__reply + .agent-pending-approvals__reply {
+  margin-top: 8px;
+}
+
+.agent-approval--compact {
+  .agent-approval__header {
+    flex-wrap: nowrap;
+  }
+
+  .agent-approval__title {
+    flex-basis: 0;
+    display: flex;
+  }
+
+  .agent-approval__always-allow.button {
+    flex-shrink: 0;
+  }
+}
+
+.agent-pending-approvals__conversation {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  cursor: pointer;
+
+  &:hover .agent-pending-approvals__conversation-name {
+    text-decoration: underline;
+  }
+
+  i {
+    flex-shrink: 0;
+    font-size: 16px;
+    color: $palette-neutral-700;
+  }
+}
+
+.agent-pending-approvals__conversation-name {
+  @extend %ellipsis;
 }
