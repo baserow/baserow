@@ -22,6 +22,33 @@ export class PaidFeature extends Registerable {
   getContent() {
     return ''
   }
+
+  /**
+   * Whether the feature is listed with the paid features, in the paid features
+   * modal and on the licenses page, for example while it's behind a feature flag.
+   */
+  isEnabled() {
+    return true
+  }
+}
+
+/**
+ * Returns the enabled paid features of the provided registry, grouped by the name
+ * of their plan.
+ */
+export function getPaidFeaturesByPlan(registry) {
+  const plans = {}
+  Object.values(registry.getAll('paidFeature')).forEach((feature) => {
+    if (!feature.isEnabled()) {
+      return
+    }
+    const plan = feature.getPlan()
+    if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
+      plans[plan] = []
+    }
+    plans[plan].push(feature)
+  })
+  return plans
 }
 
 export class KanbanViewPaidFeature extends PaidFeature {

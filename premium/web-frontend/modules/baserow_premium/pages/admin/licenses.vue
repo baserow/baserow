@@ -165,6 +165,7 @@ import moment from '@baserow/modules/core/moment'
 import SettingsService from '@baserow/modules/core/services/settings'
 import { copyToClipboard as copyToClipboardUtil } from '@baserow/modules/database/utils/clipboard'
 import { getPricingURL } from '@baserow_premium/utils/pricing'
+import { getPaidFeaturesByPlan } from '@baserow_premium/paidFeatures'
 
 definePageMeta({
   layout: 'app',
@@ -212,17 +213,7 @@ const instanceId = computed(() => data.value?.instanceId || '')
 
 const getLicenseURL = computed(() => getPricingURL(instanceId.value))
 
-const paidFeaturePlans = computed(() => {
-  const plans = {}
-  Object.values($registry.getAll('paidFeature')).forEach((feature) => {
-    const plan = feature.getPlan()
-    if (!Object.prototype.hasOwnProperty.call(plans, plan)) {
-      plans[plan] = []
-    }
-    plans[plan].push(feature)
-  })
-  return plans
-})
+const paidFeaturePlans = computed(() => getPaidFeaturesByPlan($registry))
 
 const orderedLicenses = computed(() => {
   return licenses.value

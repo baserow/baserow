@@ -274,6 +274,65 @@ class BaserowEnterpriseConfig(AppConfig):
         action_type_registry.register(DeleteScopedInvitationLinkActionType())
         action_type_registry.register(UpdateFieldPermissionsActionType())
 
+        from baserow_enterprise.automatic_snapshots.actions import (
+            CreateApplicationAutomaticSnapshotScheduleActionType,
+            CreateWorkspaceAutomaticSnapshotScheduleActionType,
+            DeleteApplicationAutomaticSnapshotScheduleActionType,
+            DeleteWorkspaceAutomaticSnapshotScheduleActionType,
+            UpdateApplicationAutomaticSnapshotScheduleActionType,
+            UpdateWorkspaceAutomaticSnapshotScheduleActionType,
+        )
+        from baserow_enterprise.automatic_snapshots.operations import (
+            ReadApplicationAutomaticSnapshotScheduleOperationType,
+            ReadWorkspaceAutomaticSnapshotScheduleOperationType,
+            UpdateApplicationAutomaticSnapshotScheduleOperationType,
+            UpdateWorkspaceAutomaticSnapshotScheduleOperationType,
+        )
+
+        action_type_registry.register(
+            CreateWorkspaceAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            UpdateWorkspaceAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            DeleteWorkspaceAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            CreateApplicationAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            UpdateApplicationAutomaticSnapshotScheduleActionType()
+        )
+        action_type_registry.register(
+            DeleteApplicationAutomaticSnapshotScheduleActionType()
+        )
+        operation_type_registry.register(
+            ReadWorkspaceAutomaticSnapshotScheduleOperationType()
+        )
+        operation_type_registry.register(
+            UpdateWorkspaceAutomaticSnapshotScheduleOperationType()
+        )
+        operation_type_registry.register(
+            ReadApplicationAutomaticSnapshotScheduleOperationType()
+        )
+        operation_type_registry.register(
+            UpdateApplicationAutomaticSnapshotScheduleOperationType()
+        )
+
+        from baserow.core.permission_manager import BasicPermissionManagerType
+
+        # Without RBAC, the basic permission manager allows every workspace member
+        # to do anything that isn't admin-only, so the schedules are made admin-only.
+        BasicPermissionManagerType.ADMIN_ONLY_OPERATIONS.extend(
+            [
+                ReadWorkspaceAutomaticSnapshotScheduleOperationType.type,
+                UpdateWorkspaceAutomaticSnapshotScheduleOperationType.type,
+                ReadApplicationAutomaticSnapshotScheduleOperationType.type,
+                UpdateApplicationAutomaticSnapshotScheduleOperationType.type,
+            ]
+        )
+
         trash_item_type_registry.register(TeamTrashableItemType())
 
         member_data_registry.register(EnterpriseMemberTeamsDataType())
@@ -611,6 +670,7 @@ class BaserowEnterpriseConfig(AppConfig):
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F401
         import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.automatic_snapshots.tasks  # noqa: F401
         import baserow_enterprise.data_scanner.tasks  # noqa: F401
         import baserow_enterprise.ws.signals  # noqa: F401
 
