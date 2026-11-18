@@ -19,6 +19,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models.function import FunctionModel
 
 from baserow_enterprise.assistant import model_profiles
+from baserow_enterprise.assistant.tools.database import agents
 from baserow_enterprise.assistant.tools.database import agents as database_agents
 from baserow_enterprise.assistant.tools.database.agents import (
     GET_FORMULA_TYPE_TOOL_NAME,
@@ -117,31 +118,34 @@ def test_table_outside_the_workspace_is_not_leaked(data_fixture):
         validate(other_table.id, "Broken", "field('Customer')")
 
 
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "formula",
-    [
-        "lookup('Link', 'Salary')",
-        "lookup('Link', 'Nonexistent')",
-        # A type error would tell the field's type before the permission check.
-        "upper(lookup('Link', 'Salary'))",
-        # The link's own values are the hidden table's primary field.
-        "field('Link')",
-    ],
-)
-def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
-    enable_enterprise, enterprise_data_fixture, formula
-):
+@pytest.fixture
+def hidden_table_env(enable_enterprise, enterprise_data_fixture):
+    """
+    A member who may use `table` but not `hidden`, which `table` links to through
+    `Link`, and `readable`, which links to `hidden` through `Hidden link`.
+    """
+
     admin = enterprise_data_fixture.create_user()
     member = enterprise_data_fixture.create_user()
     workspace = enterprise_data_fixture.create_workspace(user=admin, members=[member])
     database = enterprise_data_fixture.create_database_application(workspace=workspace)
     table = enterprise_data_fixture.create_database_table(database=database)
+    readable = enterprise_data_fixture.create_database_table(database=database)
     hidden = enterprise_data_fixture.create_database_table(database=database)
-    enterprise_data_fixture.create_text_field(table=hidden, name="Name", primary=True)
+    enterprise_data_fixture.create_text_field(table=table, name="Title", primary=True)
+    enterprise_data_fixture.create_text_field(table=readable, name="Code", primary=True)
+    enterprise_data_fixture.create_text_field(
+        table=hidden, name="Secret name", primary=True
+    )
     enterprise_data_fixture.create_number_field(table=hidden, name="Salary")
     enterprise_data_fixture.create_link_row_field(
         table=table, name="Link", link_row_table=hidden
+    )
+    enterprise_data_fixture.create_link_row_field(
+        table=table, name="Readable link", link_row_table=readable
+    )
+    enterprise_data_fixture.create_link_row_field(
+        table=readable, name="Hidden link", link_row_table=hidden
     )
     roles = RoleAssignmentHandler()
     roles.assign_role(
@@ -151,21 +155,73 @@ def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
         member, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden
     )
 
-    def message(formula):
+    def message(user, formula):
         with pytest.raises(ModelRetry) as exc_info:
-            get_formula_type_tool(member, workspace)(table.id, "Check", formula)
+            get_formula_type_tool(user, workspace)(table.id, "Check", formula)
         return str(exc_info.value)
+
+    def formula_type(user, formula):
+        return get_formula_type_tool(user, workspace)(table.id, "Check", formula)
+
+    return admin, member, message, formula_type
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula",
+    [
+        "lookup('Link', 'Salary')",
+        # A type error would tell the field's type before the permission check.
+        "upper(lookup('Link', 'Salary'))",
+        # Errors elsewhere in the formula are reported as for a missing field.
+        "concat(lookup('Link', 'Salary'), field('Missing'))",
+    ],
+)
+def test_lookup_into_a_table_the_user_cannot_read_looks_unknown(
+    hidden_table_env, formula
+):
+    admin, member, message, formula_type = hidden_table_env
 
     # The hidden field answers as a field that doesn't exist, but for its name.
     unknown = formula.replace("Salary", "Nonexistent")
-    assert "unknown field" in message(formula)
-    assert message(formula).replace("Salary", "Nonexistent") == message(unknown)
-    assert (
-        get_formula_type_tool(admin, workspace)(
-            table.id, "Check", "lookup('Link', 'Salary')"
-        )
-        == "array"
+    assert "unknown field" in message(member, formula)
+    assert message(member, formula).replace("Salary", "Nonexistent") == message(
+        member, unknown
     )
+    assert formula_type(admin, "lookup('Link', 'Salary')") == "array"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "formula,link",
+    [
+        # The link's own values are the hidden table's primary field.
+        ("field('Link')", "Link"),
+        # Looking up a link reads the primary field of the table it links to.
+        ("lookup('Readable link', 'Hidden link')", "Hidden link"),
+    ],
+)
+def test_link_into_a_table_the_user_cannot_read_names_only_the_link(
+    hidden_table_env, formula, link
+):
+    admin, member, message, formula_type = hidden_table_env
+
+    error = message(member, formula)
+    assert f"the field {link} links to a table you cannot read" in error
+    assert "Secret name" not in error
+    assert formula_type(admin, formula) == "array"
+    assert formula_type(member, "lookup('Readable link', 'Code')") == "array"
+
+
+@pytest.mark.django_db
+def test_linked_table_permissions_are_checked_once_per_table(hidden_table_env, mocker):
+    admin, member, message, formula_type = hidden_table_env
+    spy = mocker.spy(agents, "permitted_tables")
+
+    formula = "concat(" + ", ".join(["join(lookup('Readable link', 'Code'), ',')"] * 3)
+    formula_type(member, formula + ", totext(count(field('Readable link'))))")
+
+    assert spy.call_count == 1
 
 
 @pytest.mark.django_db

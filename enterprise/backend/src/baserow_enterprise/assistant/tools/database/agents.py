@@ -22,16 +22,10 @@ from baserow.contrib.database.api.formula.serializers import TypeFormulaResultSe
 from baserow.contrib.database.fields.dependencies.exceptions import (
     SelfReferenceFieldDependencyError,
 )
-from baserow.contrib.database.fields.dependencies.handler import (
-    FieldDependencyHandler,
-)
 from baserow.contrib.database.fields.field_cache import FieldCache
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import FormulaField
-from baserow.contrib.database.fields.operations import (
-    ListFieldsOperationType,
-    ReadFieldOperationType,
-)
+from baserow.contrib.database.fields.models import FormulaField, LinkRowField
+from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.formula import FormulaHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.tools.tables import get_table, permitted_tables
@@ -272,6 +266,56 @@ def _type_mismatch_hint(error: str) -> str:
     return hint
 
 
+class _ReadableFieldCache(FieldCache):
+    """
+    A field cache in which the fields of tables the user may not list are missing,
+    so a formula looking one up gets the same answer as for a field that doesn't
+    exist. Permissions are checked once per table.
+    """
+
+    def __init__(self, ctx: ToolContext, table: Table):
+        super().__init__()
+        self._ctx = ctx
+        self._readable_table_ids = {table.id: True}
+
+    def can_read(self, table: Table) -> bool:
+        if table.id not in self._readable_table_ids:
+            self._readable_table_ids[table.id] = bool(
+                permitted_tables(self._ctx, [table], ListFieldsOperationType.type)
+            )
+        return self._readable_table_ids[table.id]
+
+    def lookup_by_name(self, table, field_name: str):
+        field = super().lookup_by_name(table, field_name)
+        if field is None or not self.can_read(table):
+            return None
+        return field
+
+
+def _link_to_hidden_table(
+    field: FormulaField, field_cache: _ReadableFieldCache
+) -> str | None:
+    """
+    The name of the visible link field through which the formula reads the primary
+    field of a table the user may not list, if any. `field('Link')` reads the linked
+    table's primary field, and looking up a link field reads the primary field of
+    the table that one links to.
+    """
+
+    for dependency in FormulaHandler.get_field_dependencies(field, field_cache):
+        target = dependency.dependency
+        if target is None or dependency.via is None:
+            continue
+        # The cached link knows its table; the field would query it.
+        if not field_cache.can_read(dependency.via.link_row_table):
+            return dependency.via.name
+        if isinstance(target, LinkRowField) and not field_cache.can_read(
+            target.link_row_table
+        ):
+            return target.name
+    return None
+
+
 def get_formula_type_tool(
     user: AbstractUser, workspace: Workspace
 ) -> Callable[[str], str]:
@@ -309,26 +353,21 @@ def get_formula_type_tool(
 
         # Only ModelRetry becomes a retry prompt; anything else aborts the turn.
         field = FormulaField(formula=formula, table=table, name=field_name, order=0)
-        field_cache = FieldCache()
+        field_cache = _ReadableFieldCache(ctx, table)
         try:
-            # A field of another table the user may not read reads as unknown, as
-            # it does when the formula is saved. Checked before typing, whose
-            # errors would tell the field's type.
-            dependencies = [
-                dependency
-                for dependency in FormulaHandler.get_field_dependencies(
-                    field, field_cache
+            # Checked before typing, whose errors would tell the hidden field's type.
+            hidden_link = _link_to_hidden_table(field, field_cache)
+            if hidden_link is not None:
+                error = (
+                    f"the field {hidden_link} links to a table you cannot read, "
+                    "so its values can't be used"
                 )
-                if dependency.dependency is not None
-            ]
-            FieldDependencyHandler.raise_if_user_doesnt_have_operation_on_dependencies_in_other_tables(
-                workspace, user, field, dependencies, ReadFieldOperationType.type
-            )
-            field.recalculate_internal_fields(
-                raise_if_invalid=True, field_cache=field_cache
-            )
-            result = TypeFormulaResultSerializer(field).data
-            error = result["error"]
+            else:
+                field.recalculate_internal_fields(
+                    raise_if_invalid=True, field_cache=field_cache
+                )
+                result = TypeFormulaResultSerializer(field).data
+                error = result["error"]
         except SelfReferenceFieldDependencyError:
             # Raised without a message, which would read as no error.
             error = "the formula references its own field"
