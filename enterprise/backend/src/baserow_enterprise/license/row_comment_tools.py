@@ -6,10 +6,7 @@ from baserow_premium.license.handler import LicenseHandler
 class RowCommentToolLicense:
     """Workspace licence shared by the Kuma and Agent row comment tools."""
 
-    unavailable_message = (
-        "The list_row_comments, search_row_comments and create_row_comments tools "
-        "are unavailable because this workspace lacks an Advanced or Enterprise license."
-    )
+    unavailable_reason = "this workspace lacks an Advanced or Enterprise license"
 
     @staticmethod
     def is_deactivated(workspace: Workspace) -> bool:

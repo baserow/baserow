@@ -155,7 +155,9 @@ def test_row_comment_tools_are_locked_without_a_workspace_licence(
         assert [tool.name for tool in info.function_tools] == ["list_tables"]
         instructions = messages[-1].instructions
         assert instructions.count("Advanced") == 1
-        assert all(name in instructions for name in ROW_COMMENT_TOOLS)
+        # Only the tool the Agent was allowed is named.
+        assert "search_row_comments" in instructions
+        assert "create_row_comments" not in instructions
         yield "ok"
 
     responder = AgentResponder(
@@ -171,3 +173,7 @@ def test_row_comment_tools_are_locked_without_a_workspace_licence(
     )
     assert "licence" in result.return_value["error"]["message"].lower()
     assert not preview
+
+    # An Agent that was never allowed a locked tool isn't told about them.
+    AgentHandler().set_allowed_tools(agent, ["list_tables"])
+    assert AgentHandler().get_reply_request(reply).unavailable_tool_messages == []

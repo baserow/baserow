@@ -221,8 +221,9 @@ class AgentToolType(Instance):
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
 
-    unavailable_message: str = ""
-    """Optional model instruction explaining why a deactivated tool is unavailable."""
+    unavailable_reason: str = ""
+    """Why a workspace can't use the tool, worded to follow "because". The model of
+    an Agent that was allowed the tool is told, and nothing is told without one."""
 
     def is_deactivated(self, workspace: Workspace) -> bool:
         """

@@ -72,6 +72,7 @@ from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
     CONVERSATION_USER_NAME_MAX_LENGTH,
+    DEACTIVATED_TOOLS_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
     REJECTED_TOOL_CALL_NOTE,
@@ -1357,7 +1358,7 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
-        deactivated = self.get_deactivated_tools(agent)
+        deactivated = self.get_deactivated_tools(agent) if acting_subject else []
         tools: AgentToolConfiguration = (
             self.get_tool_configuration(agent, deactivated)
             if acting_subject
@@ -1405,15 +1406,13 @@ class AgentHandler:
             and (transcript is None or transcript.paused_web_search)
             else None
         )
-        unavailable_messages = {
-            agent_tool_type_registry.get(name).unavailable_message
-            for name in deactivated
-        }
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,
             instructions=agent.instructions,
-            unavailable_tool_messages=sorted(unavailable_messages - {""}),
+            unavailable_tool_messages=self._get_unavailable_tool_messages(
+                agent, deactivated
+            ),
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
             prompt=prompt,
@@ -1506,6 +1505,33 @@ class AgentHandler:
         if not conversation.is_shared:
             return conversation.owner_user.profile.timezone
         return trigger_timezone_name(conversation.trigger.service.specific)
+
+    def _get_unavailable_tool_messages(
+        self, agent: AgentApplication, deactivated: list[str]
+    ) -> list[str]:
+        """
+        :param agent: The Agent to read.
+        :param deactivated: The tools its workspace can't use, in registry order.
+        :return: One instruction per reason, naming the tools the Agent was
+            allowed and its workspace can't use.
+        """
+
+        if not deactivated:
+            return []
+        lost = set(
+            agent.allowed_tools.filter(name__in=deactivated).values_list(
+                "name", flat=True
+            )
+        )
+        names_by_reason: dict[str, list[str]] = defaultdict(list)
+        for name in deactivated:
+            reason = agent_tool_type_registry.get(name).unavailable_reason
+            if name in lost and reason:
+                names_by_reason[reason].append(name)
+        return [
+            DEACTIVATED_TOOLS_INSTRUCTIONS.format(reason=reason, tools=", ".join(names))
+            for reason, names in names_by_reason.items()
+        ]
 
     def _get_conversation_user(
         self, conversation: AgentConversation
