@@ -58,9 +58,10 @@ describe('Agent template preview', () => {
     testApp.mock
       .onGet('/agent/10/actions/')
       .reply(200, [{ id: 3, type: 'smtp_email', name: 'Notify the team' }])
-    testApp.mock
-      .onGet('application/10/integrations/')
-      .reply(200, [{ id: 4, type: 'mcp_server', name: 'Docs' }])
+    testApp.mock.onGet('application/10/integrations/').reply(200, [
+      { id: 4, type: 'mcp_server', name: 'Docs' },
+      { id: 5, type: 'smtp', name: 'Mail server' },
+    ])
     return testApp.mount(AgentTemplate, {
       props: { pageValue: { agent: { ...agentData } } },
     })
@@ -77,6 +78,8 @@ describe('Agent template preview', () => {
     expect(text).toContain('Morning digest')
     expect(text).toContain('Notify the team')
     expect(text).toContain('Docs')
+    // Only MCP servers are connected apps; the rest belong to actions.
+    expect(text).not.toContain('Mail server')
     expect(wrapper.findAll('input, textarea, button')).toHaveLength(0)
   })
 

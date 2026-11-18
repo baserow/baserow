@@ -74,6 +74,7 @@ import AgentActionService from '@baserow/modules/agent/services/agentActions'
 import IntegrationService from '@baserow/modules/core/services/integration'
 import { agentToolLabel } from '@baserow/modules/agent/agentTools'
 import { serviceTypeOf } from '@baserow/modules/agent/utils/triggers'
+import { MCP_SERVER_INTEGRATION_TYPE } from '@baserow/modules/agent/constants'
 
 /**
  * Shows an Agent of a template read-only. It only reads what a template preview
@@ -145,7 +146,10 @@ async function load(agentId) {
     configuration.value = configurationResponse.data
     triggers.value = triggersResponse.data
     actions.value = actionsResponse.data
-    servers.value = integrationsResponse.data
+    // Actions keep their integrations too; only MCP servers are connected apps.
+    servers.value = integrationsResponse.data.filter(
+      (integration) => integration.type === MCP_SERVER_INTEGRATION_TYPE
+    )
   } catch {
     if (current === request) loadError.value = true
   } finally {
