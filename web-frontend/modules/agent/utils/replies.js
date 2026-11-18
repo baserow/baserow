@@ -36,6 +36,8 @@ const FAILED_REPLY_NOTICES = {
     'agent.replyProviderAuthFailed',
   [AGENT_REPLY_ERROR_CODE.PROVIDER_RATE_LIMITED]:
     'agent.replyProviderRateLimited',
+  [AGENT_REPLY_ERROR_CODE.PROVIDER_OUT_OF_CREDITS]:
+    'agent.replyProviderOutOfCredits',
   [AGENT_REPLY_ERROR_CODE.PROVIDER_UNAVAILABLE]:
     'agent.replyProviderUnavailable',
   [AGENT_REPLY_ERROR_CODE.USAGE_LIMIT_EXCEEDED]:

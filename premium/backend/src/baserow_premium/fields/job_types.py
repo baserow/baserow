@@ -34,6 +34,7 @@ from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
     ModelDoesNotBelongToType,
     get_user_friendly_error_message,
+    is_provider_fault,
 )
 from baserow.core.generative_ai.usage import (
     AIUsageLimitExceeded,
@@ -53,7 +54,11 @@ from .constants import (
     AI_FIELD_USAGE_FEATURE,
     GENERATE_AI_VALUES_JOB_USAGE_REFERENCE,
 )
-from .exceptions import AIFieldEmptyPromptError, AIFieldPromptInvalidError
+from .exceptions import (
+    AIFieldEmptyPromptError,
+    AIFieldPromptInvalidError,
+    AIFieldProviderError,
+)
 from .handler import AIFieldHandler
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
 from .visitors import get_ai_prompt_error
@@ -79,9 +84,13 @@ class GenerateAIValuesJobType(JobType):
         AIFieldPromptInvalidError: ERROR_AI_FIELD_PROMPT_INVALID,
         ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
     }
-    # A refusal, like when the workspace has no AI credits left, tells the user
-    # why, and isn't an unexpected error.
-    job_exceptions_map = {AIUsageLimitExceeded: "{e}"}
+    job_exceptions_map = {
+        # A refusal, like when the workspace has no AI credits left, tells the
+        # user why, and isn't an unexpected error.
+        AIUsageLimitExceeded: "{e}",
+        # The rows that failed were already reported to the user with this error.
+        AIFieldProviderError: "{e}",
+    }
     request_serializer_field_names = [
         "field_id",
         "row_ids",
@@ -437,6 +446,10 @@ class AIValueGenerator:
         # The first refusal of a row, which is raised instead of a generic error.
         self.refusal = None
 
+        # Whether every error came from the provider, like an invalid key or no
+        # credits left, rather than from Baserow.
+        self.only_provider_errors = True
+
         self.row_handler = RowHandler()
         self.on_progress = on_progress
 
@@ -507,7 +520,7 @@ class AIValueGenerator:
             block=True,
         )
 
-    def handle_error(self, error_message: str):
+    def handle_error(self, error_message: str, from_provider: bool = False):
         """
         Error handling routine, if an error occurred during getting AI model response
         for a row.
@@ -516,10 +529,12 @@ class AIValueGenerator:
         the frontend on a first occurrence of an error.
 
         :param error_message: The exception message to log and send with the signal.
+        :param from_provider: Whether the provider was at fault, see `is_provider_fault`.
         """
 
         self.stop_scheduling_rows()
         self.error_msg = error_message
+        self.only_provider_errors = self.only_provider_errors and from_provider
 
     def raise_if_error(self):
         """
@@ -529,11 +544,16 @@ class AIValueGenerator:
 
         This should be called at the end of processing, to inform the caller that
         there was an error.
+
+        :raises AIFieldProviderError: When the provider was at fault for every error.
+        :raises GenerativeAIPromptError: When any other error occurred.
         """
 
         if self.refusal is not None:
             raise self.refusal
         if self.error_msg:
+            if self.only_provider_errors:
+                raise AIFieldProviderError(self.error_msg)
             raise GenerativeAIPromptError(self.error_msg)
 
     def process(self, rows: QuerySet[GeneratedTableModel]):
@@ -626,7 +646,7 @@ class AIValueGenerator:
             exc = result.result
             if isinstance(exc, AIUsageLimitExceeded) and self.refusal is None:
                 self.refusal = exc
-            self.handle_error(str(exc))
+            self.handle_error(str(exc), from_provider=is_provider_fault(exc))
 
         self.finished += 1
         self.in_process.remove(result.row.id)

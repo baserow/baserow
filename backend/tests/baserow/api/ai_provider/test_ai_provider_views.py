@@ -3,9 +3,7 @@ from unittest.mock import patch
 from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
 
-import httpx
 import httpx2
-import openai
 import pytest
 import sentry_sdk
 from google.genai import errors as google_errors
@@ -30,6 +28,7 @@ from baserow.core.ai_provider.models import (
     AIProviderModel,
     AIProviderWorkspaceOverride,
 )
+from baserow.test_utils.sentry import make_openai_connection_error
 
 AI_PROVIDER_API_CASES = (
     ("get", "list"),
@@ -1403,12 +1402,6 @@ def test_saved_models_are_tested_in_one_request_and_results_are_persisted(
     ]
 
 
-def _openai_connection_error():
-    return openai.APIConnectionError(
-        request=httpx.Request("POST", "https://does-not-exist.invalid/v1/responses")
-    )
-
-
 def _google_server_error():
     return google_errors.ServerError(
         504, {"error": {"message": "Deadline expired before operation could complete."}}
@@ -1428,7 +1421,7 @@ def _google_read_timeout():
 @pytest.mark.parametrize(
     "make_error,reported",
     [
-        (_openai_connection_error, False),
+        (make_openai_connection_error, False),
         (_google_server_error, False),
         (_google_connect_error, False),
         (_google_read_timeout, False),

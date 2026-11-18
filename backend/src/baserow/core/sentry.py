@@ -179,16 +179,75 @@ def ignore_sentry_exceptions(
     if callable(exception_types):
         exception_types = exception_types()
 
+    with _drop_sentry_exceptions(lambda exc: isinstance(exc, exception_types)):
+        yield
+
+
+@contextmanager
+def ignore_sentry_exceptions_if(
+    should_ignore: Callable[[BaseException], bool],
+) -> Iterator[None]:
+    """
+    Like `ignore_sentry_exceptions`, but drops the Sentry events of the exceptions
+    for which `should_ignore` returns True.
+
+    :param should_ignore: Called with each captured exception, only when Sentry is
+        enabled.
+    """
+
+    if not settings.SENTRY_DSN:
+        yield
+        return
+
+    with _drop_sentry_exceptions(should_ignore):
+        yield
+
+
+@contextmanager
+def _drop_sentry_exceptions(
+    should_drop: Callable[[BaseException], bool],
+) -> Iterator[None]:
     import sentry_sdk
 
     def drop_ignored_exceptions(
         event: dict[str, Any], hint: dict[str, Any]
     ) -> dict[str, Any] | None:
         exc_info = hint.get("exc_info")
-        if exc_info and isinstance(exc_info[1], exception_types):
+        if exc_info and should_drop(exc_info[1]):
             return None
+        if exc_info:
+            _mark_sent_to_sentry(exc_info[1])
         return event
 
     with sentry_sdk.new_scope() as scope:
         scope.add_event_processor(drop_ignored_exceptions)
         yield
+
+
+_SENT_TO_SENTRY_ATTRIBUTE = "_baserow_sent_to_sentry"
+
+
+def _mark_sent_to_sentry(exc: BaseException) -> None:
+    try:
+        setattr(exc, _SENT_TO_SENTRY_ATTRIBUTE, True)
+    except AttributeError:
+        pass
+
+
+def was_sent_to_sentry(exc: BaseException) -> bool:
+    """
+    Whether the exception, or one of its causes, was captured inside an
+    `ignore_sentry_exceptions` or `ignore_sentry_exceptions_if` block and kept, like
+    a provider error the AI client integrations of Sentry captured. Use it to avoid
+    sending the same error again.
+
+    :param exc: The exception to check.
+    """
+
+    seen = set()
+    while exc is not None and id(exc) not in seen:
+        if getattr(exc, _SENT_TO_SENTRY_ATTRIBUTE, False):
+            return True
+        seen.add(id(exc))
+        exc = exc.__cause__
+    return False

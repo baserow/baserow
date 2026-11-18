@@ -7,6 +7,7 @@ from django.core.management import call_command
 from django.http import HttpRequest
 
 import pytest
+import sentry_sdk
 from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 from rest_framework import serializers
@@ -55,6 +56,7 @@ from baserow.core.services.handler import ServiceHandler
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import AnyInt
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow.test_utils.sentry import make_openai_error, sent_exception_types
 
 
 def mock_ai_prompt(return_value="AI response", should_fail=False):
@@ -751,6 +753,58 @@ def test_ai_agent_service_dispatch_ai_error(data_fixture, settings):
             service_type.dispatch(service, dispatch_context)
 
     assert "AI prompt execution failed" in str(exc_info.value)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "make_error,reported",
+    [
+        # The provider's fault fails the node, which shows it in its history.
+        (lambda: make_openai_error(403, "<html>Just a moment...</html>"), False),
+        # A request Baserow built that the provider rejects is still sent.
+        (lambda: make_openai_error(400, "Invalid schema"), True),
+    ],
+)
+def test_ai_agent_service_dispatch_reports_only_errors_not_caused_by_the_provider(
+    data_fixture, settings, sentry_events, make_error, reported
+):
+    settings.BASEROW_OPENAI_API_KEY = "sk-test"
+    settings.BASEROW_OPENAI_MODELS = ["gpt-4"]
+
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+    integration = (
+        IntegrationService()
+        .create_integration(user, AIIntegrationType(), application=application)
+        .specific
+    )
+    service = ServiceHandler().create_service(
+        AIAgentServiceType(),
+        integration_id=integration.id,
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model="gpt-4",
+        ai_output_type="text",
+        ai_prompt="'Test'",
+    )
+
+    error = make_error()
+
+    async def run_failing_provider(*args, **kwargs):
+        # Like the Sentry AI client integrations, which capture the client error
+        # before re-raising it to the caller.
+        sentry_sdk.capture_exception(error)
+        raise error
+
+    with patch(
+        "baserow.core.generative_ai.lifecycle.run_agent_with_model",
+        side_effect=run_failing_provider,
+    ):
+        with pytest.raises(RuntimeDispatchException):
+            service.get_type().dispatch(service, FakeDispatchContext())
+
+    assert sent_exception_types(sentry_events) == (
+        [type(error).__name__] if reported else []
+    )
 
 
 @pytest.mark.django_db

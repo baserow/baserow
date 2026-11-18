@@ -11,6 +11,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 import pytest
+import sentry_sdk
 from asgiref.sync import sync_to_async
 from mcp.server.fastmcp import FastMCP
 from opentelemetry.sdk.trace import TracerProvider
@@ -108,6 +109,7 @@ from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
+from baserow.test_utils.sentry import make_openai_error, sent_exception_types
 
 from ..integrations.mcp.utils import serve
 from .utils import agent_url, new_conversation, queued_reply, run_reply
@@ -3087,3 +3089,34 @@ def test_a_failing_plugin_does_not_break_persisting_the_reply(reply_run):
 
     assert reply["plugin_data"] == {}
     assert reply_state(reply_id)[0] == "completed"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "error, error_code, sent",
+    [
+        # The reply tells why it failed, so the provider's fault isn't sent.
+        (make_openai_error(429), "provider_rate_limited", []),
+        # A request Baserow built that the provider rejects is still sent.
+        (make_openai_error(400), "failed", ["BadRequestError"]),
+    ],
+)
+def test_a_failed_reply_reports_only_baserow_errors_to_sentry(
+    reply_run, mocker, sentry_events, error, error_code, sent
+):
+    async def stream(messages, info):
+        # Like the Sentry AI client integrations, which capture the client error
+        # before re-raising it.
+        sentry_sdk.capture_exception(error)
+        raise error
+        yield
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+
+    run_reply(reply_run)
+
+    assert reply_state(reply_run.context["reply_id"])[:2] == ("failed", error_code)
+    assert sent_exception_types(sentry_events) == sent

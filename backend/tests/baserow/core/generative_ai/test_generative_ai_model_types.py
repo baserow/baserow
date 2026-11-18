@@ -28,6 +28,7 @@ from baserow.core.generative_ai.generative_ai_model_types import (
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.generative_ai.xai import XAI_BASE_URL, XaiChatProvider
 from baserow.core.generative_ai.zai import ZaiChatProvider
+from baserow.test_utils.sentry import make_openai_stream_error, raised_from
 from baserow_premium.fields.ai_file import AIFile
 
 
@@ -1392,11 +1393,13 @@ GOOGLE_INVALID_API_KEY = {
     }
 }
 XAI_INVALID_API_KEY = "Incorrect API key provided. You can obtain an API key."
-
-
-def raised_from(error: Exception, cause: Exception) -> Exception:
-    error.__cause__ = cause
-    return error
+ANTHROPIC_NO_CREDITS = {
+    "type": "error",
+    "error": {
+        "type": "invalid_request_error",
+        "message": "Your credit balance is too low to access the Anthropic API.",
+    },
+}
 
 
 @pytest.mark.parametrize(
@@ -1407,6 +1410,39 @@ def raised_from(error: Exception, cause: Exception) -> Exception:
         ("openai", ModelHTTPError(429, "m"), "provider_rate_limited"),
         ("openai", ModelHTTPError(408, "m"), "provider_unavailable"),
         ("openai", ModelHTTPError(500, "m"), "provider_unavailable"),
+        ("openai", ModelHTTPError(409, "m"), "provider_unavailable"),
+        ("openrouter", ModelHTTPError(402, "m"), "provider_out_of_credits"),
+        (
+            "anthropic",
+            ModelHTTPError(400, "m", ANTHROPIC_NO_CREDITS),
+            "provider_out_of_credits",
+        ),
+        ("anthropic", ModelHTTPError(400, "m", {"error": {}}), None),
+        # An outage or rate limit inside a stream, which has no status.
+        ("openai", ModelAPIError("m", "server_error: Retry."), "provider_unavailable"),
+        (
+            "openai",
+            ModelAPIError("m", "rate_limit_exceeded: Slow."),
+            "provider_rate_limited",
+        ),
+        (
+            "openrouter",
+            raised_from(ModelAPIError("m", "m"), make_openai_stream_error(502)),
+            "provider_unavailable",
+        ),
+        (
+            "openrouter",
+            raised_from(
+                ModelAPIError("m", "m"),
+                make_openai_stream_error(None, error_type="server_error"),
+            ),
+            "provider_unavailable",
+        ),
+        (
+            "openrouter",
+            raised_from(ModelAPIError("m", "m"), make_openai_stream_error(402)),
+            "provider_out_of_credits",
+        ),
         (
             "openai",
             raised_from(ModelAPIError("m", "m"), httpx2.ConnectError("refused")),

@@ -19,6 +19,7 @@ class ProviderFailure(StrEnum):
 
     AUTH_FAILED = "provider_auth_failed"
     RATE_LIMITED = "provider_rate_limited"
+    OUT_OF_CREDITS = "provider_out_of_credits"
     UNAVAILABLE = "provider_unavailable"
 
 
