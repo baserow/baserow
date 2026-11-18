@@ -114,6 +114,13 @@ class ImportExportConfig:
 
     user_files_belong_to_workspace: bool = False
 
+    is_template_storage: bool = False
+    """
+    The import stores content for a template (a template workspace or a user
+    template copy), not for use. Settings that depend on the destination, like
+    an AI model, are resolved when the template is installed instead.
+    """
+
     is_publishing: bool = False
     """
     Indicates whether or not we are currently publishing. This class is used

@@ -2926,6 +2926,7 @@ class CoreHandler:
         sync_templates_import_export_config = ImportExportConfig(
             include_permission_data=False,
             is_template=True,
+            is_template_storage=True,
             # Without reducing disk space usage Baserow after first time install
             # takes up over 1GB of disk space.
             reduce_disk_space_usage=True,

@@ -493,7 +493,9 @@ class UserTemplateHandler:
             workspace,
             serialized,
             files,
-            dataclasses.replace(config, user_files_belong_to_workspace=True),
+            dataclasses.replace(
+                config, user_files_belong_to_workspace=True, is_template_storage=True
+            ),
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,

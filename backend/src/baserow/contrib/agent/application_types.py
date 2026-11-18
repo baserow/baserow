@@ -22,6 +22,7 @@ from baserow.contrib.agent.registries import (
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
+from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -104,6 +105,58 @@ class AgentApplicationType(ApplicationType):
             feature_flag_is_enabled(FF_AGENT_BUILDER)
         )
 
+    @staticmethod
+    def _enabled_models(workspace: Workspace) -> dict[str, list[str]]:
+        return generative_ai_model_type_registry.get_enabled_models_per_type(
+            workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
+        )
+
+    @staticmethod
+    def _default_model(
+        enabled_models: dict[str, list[str]],
+    ) -> tuple[str | None, str | None]:
+        """The first enabled model, like the AI Agent service defaults to."""
+
+        for provider_type, identifiers in enabled_models.items():
+            if identifiers:
+                return provider_type, identifiers[0]
+        return None, None
+
+    def _imported_model(
+        self,
+        workspace: Workspace | None,
+        serialized_values: dict,
+        import_export_config: ImportExportConfig,
+    ) -> tuple[str | None, str | None]:
+        """
+        The model an imported Agent replies with: the author's when it's enabled
+        in the destination, otherwise the first enabled one. Internal copies and
+        template content keep the author's, and so does an import into a workspace
+        where nothing is enabled, so its settings show what the author used.
+
+        :param workspace: The workspace the Agent is imported into.
+        :param serialized_values: The exported Agent.
+        :param import_export_config: How the Agent is imported.
+        :return: The provider type and model identifier to save.
+        """
+
+        author_model = (
+            serialized_values.get("provider_type") or None,
+            serialized_values.get("model_identifier") or None,
+        )
+        if (
+            workspace is None
+            or import_export_config.keeps_unmapped_references
+            or import_export_config.is_template_storage
+        ):
+            return author_model
+        enabled = self._enabled_models(workspace)
+        provider_type, model_identifier = author_model
+        if model_identifier in enabled.get(provider_type, []):
+            return author_model
+        default = self._default_model(enabled)
+        return default if default[0] else author_model
+
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""
 
@@ -169,14 +222,16 @@ class AgentApplicationType(ApplicationType):
         init_with_data: bool = False,
         **kwargs,
     ) -> AgentApplication:
-        models = generative_ai_model_type_registry.get_enabled_models_per_type(
-            workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
-        )
         # Match AI Agent service defaults, only when creating a new application.
         # Reading or importing an Agent must preserve deliberately blank settings.
-        if models and not {"provider_type", "model_identifier"}.intersection(kwargs):
-            provider_type, identifiers = next(iter(models.items()))
-            kwargs.update(provider_type=provider_type, model_identifier=identifiers[0])
+        if not {"provider_type", "model_identifier"}.intersection(kwargs):
+            provider_type, model_identifier = self._default_model(
+                self._enabled_models(workspace)
+            )
+            if provider_type:
+                kwargs.update(
+                    provider_type=provider_type, model_identifier=model_identifier
+                )
         return super().create_application(
             user, workspace, init_with_data=init_with_data, **kwargs
         )
@@ -304,8 +359,9 @@ class AgentApplicationType(ApplicationType):
             progress_builder,
         )
         application.instructions = serialized_values.get("instructions", "")
-        application.provider_type = serialized_values.get("provider_type") or None
-        application.model_identifier = serialized_values.get("model_identifier") or None
+        application.provider_type, application.model_identifier = self._imported_model(
+            workspace, serialized_values, import_export_config
+        )
         reasoning_effort = serialized_values.get("reasoning_effort")
         application.reasoning_effort = (
             reasoning_effort if reasoning_effort in ReasoningEffort else None

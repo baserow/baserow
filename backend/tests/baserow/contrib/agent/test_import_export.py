@@ -1038,3 +1038,84 @@ def test_sync_template_maps_an_open_agent_to_none_when_the_flag_is_off(
     template = Template.objects.get(slug="agent-check")
     assert template.open_application is None
     assert not AgentApplication.objects.filter(workspace=template.workspace).exists()
+
+
+def import_agent_with_models(data_fixture, agent, config, enabled, mocker):
+    """Imports the Agent into a new workspace where only `enabled` models exist."""
+
+    serialized = json.loads(
+        json.dumps(AgentApplicationType().export_serialized(agent, config))
+    )
+    mocker.patch(
+        "baserow.contrib.agent.application_types.generative_ai_model_type_registry"
+        ".get_enabled_models_per_type",
+        return_value=enabled,
+    )
+    workspace = data_fixture.create_workspace()
+    imported = AgentApplicationType().import_serialized(
+        workspace, serialized, config, {}
+    )
+    return imported.provider_type, imported.model_identifier
+
+
+@pytest.mark.django_db
+def test_template_install_falls_back_to_an_enabled_model(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        TEMPLATE_INSTALL_CONFIG,
+        {"anthropic": ["claude-y", "claude-z"]},
+        mocker,
+    ) == ("anthropic", "claude-y")
+
+
+@pytest.mark.django_db
+def test_import_keeps_an_enabled_author_model(data_fixture, configured_agent, mocker):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        ImportExportConfig(include_permission_data=False),
+        {"anthropic": ["claude-y"], "openai": ["gpt-w", "gpt-x"]},
+        mocker,
+    ) == ("openai", "gpt-x")
+
+
+@pytest.mark.django_db
+def test_import_keeps_the_author_model_when_nothing_is_enabled(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        ImportExportConfig(include_permission_data=False),
+        {},
+        mocker,
+    ) == ("openai", "gpt-x")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "config_values",
+    [
+        INTERNAL_COPY,
+        {"is_template": True, "is_template_storage": True},
+        {"is_user_template": True, "is_template_storage": True},
+    ],
+)
+def test_duplicate_and_template_storage_keep_the_author_model(
+    data_fixture, configured_agent, mocker, config_values
+):
+    agent = configured_agent(provider_type="openai", model_identifier="gpt-x")
+    config = ImportExportConfig(include_permission_data=False, **config_values)
+
+    assert import_agent_with_models(
+        data_fixture, agent, config, {"anthropic": ["claude-y"]}, mocker
+    ) == ("openai", "gpt-x")
