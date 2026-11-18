@@ -1,6 +1,6 @@
 import re
 
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -131,6 +131,22 @@ def test_get_node_excludes_trashed_application(data_fixture):
         AutomationNodeHandler().get_node(node.id)
 
     assert str(e.value) == f"The node {node.id} does not exist."
+
+
+@pytest.mark.django_db
+def test_lock_nodes_locks_the_workflow_nodes_in_id_order(data_fixture):
+    first = data_fixture.create_automation_node()
+    second = data_fixture.create_automation_node(workflow=first.workflow)
+    elsewhere = data_fixture.create_automation_node()
+
+    with transaction.atomic(), CaptureQueriesContext(connection) as queries:
+        locked = AutomationNodeHandler().lock_nodes(
+            first.workflow, [elsewhere.id, second.id, first.id]
+        )
+
+    assert locked == [first.id, second.id]
+    assert len(queries) == 1
+    assert "FOR UPDATE" in queries[0]["sql"]
 
 
 @pytest.mark.django_db
