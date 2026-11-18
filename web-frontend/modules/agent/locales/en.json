@@ -13,6 +13,7 @@
     "noWorkspaceAccess": "No workspace access",
     "runAsHelper": "Sees and changes only what {name} may. Anyone who can chat with the agent can read what {name} can read.",
     "noWorkspaceAccessHelper": "The agent can’t read or change anything in this workspace.",
+    "pendingToolsHelper": "Select an identity to turn on the {count} tool this agent was set up with. | Select an identity to turn on the {count} tools this agent was set up with.",
     "runAsTrashed": "{name} is in the trash, so the agent has no workspace access.",
     "runAsMissingLabel": "Unavailable identity",
     "runAsMissing": "The selected identity no longer exists, so the agent has no workspace access. Choose another identity or No workspace access.",

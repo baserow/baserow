@@ -694,6 +694,51 @@ describe('Agent configuration', () => {
     trashed: false,
   }
 
+  describe('pending tools of an imported agent', () => {
+    const pending = (extra = {}) =>
+      completeConfiguration({
+        run_as: null,
+        allowed_tools: [],
+        pending_tools: ['list_tables', 'create_rows'],
+        ...extra,
+      })
+    const body = (wrapper) => wrapper.get('.agent-configuration__body')
+
+    test('shows the pending tools helper while there is no identity', async () => {
+      mockConfiguration(testApp, pending())
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+
+      expect(body(wrapper).text()).toContain('agent.pendingToolsHelper')
+      expect(body(wrapper).text()).not.toContain(
+        'agent.noWorkspaceAccessHelper'
+      )
+    })
+
+    test('picking an identity sends no tools so the pending ones apply', async () => {
+      testApp.mock
+        .onGet('/agent/10/run-as-identities/')
+        .reply(200, page([{ id: 7, name: 'Investor' }]))
+      mockConfiguration(testApp, pending())
+      mockSaves(
+        testApp,
+        pending({
+          run_as: { type: 'auth.User', id: 7, name: 'Investor' },
+          allowed_tools: ['list_tables', 'create_rows'],
+          pending_tools: [],
+        })
+      )
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.workspaceAccess')
+      await pickRunAs(wrapper, 'Investor')
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([
+        { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
+      ])
+    })
+  })
+
   const workspaceAccessRow = (wrapper) =>
     wrapper
       .findAll('.menu-list__item-button')

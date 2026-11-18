@@ -99,8 +99,13 @@ const errorMessage = computed(() => {
 })
 const helperText = computed(() => {
   if (unavailable.value) return ''
-  return props.configuration.run_as
-    ? t('agent.runAsHelper', { name: props.configuration.run_as.name })
+  if (props.configuration.run_as) {
+    return t('agent.runAsHelper', { name: props.configuration.run_as.name })
+  }
+  // An imported agent turns on its tools when an identity is first picked.
+  const pending = props.configuration.pending_tools?.length ?? 0
+  return pending
+    ? t('agent.pendingToolsHelper', { count: pending }, pending)
     : t('agent.noWorkspaceAccessHelper')
 })
 const selected = computed(() => {
