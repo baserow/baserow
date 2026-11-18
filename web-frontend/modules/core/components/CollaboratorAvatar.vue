@@ -3,7 +3,7 @@
     class="collaborator-avatar"
     :class="{ 'collaborator-avatar--identity': identity }"
   >
-    <i v-if="identity" class="iconoir-lock" aria-hidden="true"></i>
+    <i v-if="identity" :class="identityIconClass" aria-hidden="true"></i>
     <template v-else>{{ name.slice(0, 1).toUpperCase() }}</template>
   </div>
 </template>
@@ -12,6 +12,7 @@
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 const props = defineProps({
   field: { type: Object, default: null },
@@ -21,6 +22,10 @@ const props = defineProps({
   },
 })
 const store = useStore()
+const { $registry } = useNuxtApp()
+const identityIconClass = computed(
+  () => $registry.get('subject', UserSubjectType.getType()).identityIconClass
+)
 const value = computed(() =>
   typeof props.collaborator === 'number'
     ? { id: props.collaborator }

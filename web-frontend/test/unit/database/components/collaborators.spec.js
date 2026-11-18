@@ -4,6 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import RowEditFieldMultipleCollaborators from '@baserow/modules/database/components/row/RowEditFieldMultipleCollaborators'
 import FieldCollaboratorDropdown from '@baserow/modules/database/components/field/FieldCollaboratorDropdown'
 import RowCardFieldMultipleCollaborators from '@baserow/modules/database/components/card/RowCardFieldMultipleCollaborators'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 describe('Identity collaborators', () => {
   let testApp
@@ -16,6 +17,7 @@ describe('Identity collaborators', () => {
     })
   })
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -43,6 +45,18 @@ describe('Identity collaborators', () => {
     expect(options[1].find('.iconoir-lock').exists()).toBe(true)
     await options[1].trigger('click')
     expect(wrapper.emitted('input')[0]).toEqual([30])
+  })
+
+  test('chips show the identity icon of the user subject type', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
+    const wrapper = await testApp.mount(RowCardFieldMultipleCollaborators, {
+      props: { value: [{ id: 30, name: 'Ops' }] },
+    })
+    expect(wrapper.find('.iconoir-identity-test').exists()).toBe(true)
   })
 
   test('chips show the Identity icon and update its name after a rename', async () => {
