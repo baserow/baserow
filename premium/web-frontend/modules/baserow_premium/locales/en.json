@@ -54,6 +54,29 @@
     "title": "{sender} posted a comment in row {row} in {table}",
     "deletedUser": "A deleted user"
   },
+  "rowCommentTools": {
+    "listRowComments": "Read row comments",
+    "listRowCommentsDescription": "Read the comments of a row",
+    "listRowCommentsRequestedTable": "Read comments in {table}",
+    "listRowCommentsRunning": "Reading comments",
+    "listRowCommentsDone": "Read comments",
+    "listRowCommentsDoneTable": "Read comments in {table}",
+    "listRowCommentsDoneCount": "Read {count} comment | Read {count} comments",
+    "listRowCommentsDoneCountTable": "Read {count} comment in {table} | Read {count} comments in {table}",
+    "searchRowComments": "Search row comments",
+    "searchRowCommentsDescription": "Find comments in a database by mention, author and date",
+    "searchRowCommentsRunning": "Searching comments",
+    "searchRowCommentsDone": "Searched comments",
+    "searchRowCommentsDoneCount": "Found {count} comment | Found {count} comments",
+    "createRowComments": "Post row comments",
+    "createRowCommentsDescription": "Add comments to rows",
+    "createRowCommentsRequestedCount": "Post {count} comment | Post {count} comments",
+    "createRowCommentsRequestedCountTable": "Post {count} comment in {table} | Post {count} comments in {table}",
+    "createRowCommentsRunning": "Posting comments",
+    "createRowCommentsRunningCount": "Posting {count} comment | Posting {count} comments",
+    "createRowCommentsDoneCount": "Posted {count} comment | Posted {count} comments",
+    "createRowCommentsDoneCountTable": "Posted {count} comment in {table} | Posted {count} comments in {table}"
+  },
   "trashType": {
     "row_comment": "row comment"
   },

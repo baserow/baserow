@@ -12,7 +12,7 @@ const requestedTable = (input) =>
   typeof input?.values?.table === 'string' ? input.values.table.trim() : ''
 
 /** Database presenters share count/table formatting; Core knows neither field. */
-class DatabaseToolPresentationType extends ToolPresentationType {
+export class DatabaseToolPresentationType extends ToolPresentationType {
   static getType() {
     return this.definition.type
   }

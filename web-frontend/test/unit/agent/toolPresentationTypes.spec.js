@@ -5,6 +5,7 @@ import coreEn from '@baserow/modules/core/locales/en.json'
 import agentEn from '@baserow/modules/agent/locales/en.json'
 import integrationsEn from '@baserow/modules/integrations/locales/en.json'
 import { groupAgentTools } from '@baserow/modules/agent/agentTools'
+import { agentToolPresentationTypes } from '@baserow/modules/agent/toolPresentationTypes'
 import { actionFieldLabel } from '@baserow/modules/agent/utils/actionLabels'
 import { STEP_ERROR_CODE } from '@baserow/modules/core/chatRuns/constants'
 import {
@@ -59,6 +60,10 @@ describe('Agent tool presentations', () => {
     expect(
       registry
         .getList('toolPresentation')
+        // The other editions pin the presenters they register.
+        .filter((presenter) =>
+          agentToolPresentationTypes.some((Type) => presenter instanceof Type)
+        )
         .map((presenter) => presenter.getType())
         // These have no agent tool type: the provider runs web search, Baserow
         // opens web pages itself, and the others come from servers or actions.
