@@ -74,6 +74,9 @@
   padding: 0 8px 0 12px;
   border: 0;
   border-right: 1px solid $palette-neutral-200;
+  border-radius: inherit;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   background: transparent;
   cursor: pointer;
 
@@ -102,26 +105,15 @@
 }
 
 .agent-trigger-card__name {
-  @extend %ellipsis;
-
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
   font-size: 13px;
   line-height: 20px;
   color: $palette-neutral-1200;
-}
-
-.agent-trigger-card__rename {
-  flex-shrink: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: $palette-neutral-600;
-  cursor: pointer;
-
-  &:hover {
-    color: $palette-neutral-900;
-  }
 }
 
 .agent-trigger-card__status {

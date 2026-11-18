@@ -25,12 +25,14 @@
         :aria-label="saveError || $t('agent.actionMisconfigured')"
         role="img"
       />
-      <span
-        v-if="saving"
-        class="agent-action-card__saving"
-        role="status"
-        :aria-label="$t('agent.saving')"
-      />
+      <span class="agent-action-card__saving-slot">
+        <span
+          v-if="saving"
+          class="agent-action-card__saving"
+          role="status"
+          :aria-label="$t('agent.saving')"
+        />
+      </span>
       <SwitchInput
         v-tooltip="enabledTooltip"
         small

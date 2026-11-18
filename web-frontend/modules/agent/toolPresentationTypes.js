@@ -195,6 +195,28 @@ export class CreateTablesToolPresentationType extends DatabaseToolPresentationTy
     counted: true,
     table: true,
   }
+
+  getActivityDetails({ status, facts }, t) {
+    if (
+      status !== STEP_STATUS.DONE ||
+      !Number.isSafeInteger(facts.database_id) ||
+      !Array.isArray(facts.created_tables)
+    )
+      return {}
+    const links = facts.created_tables
+      .filter(
+        (table) => Number.isSafeInteger(table?.id) && trimmedName(table.name)
+      )
+      .map((table) => ({
+        label: t('agent.openTable', { table: table.name }),
+        to: {
+          name: 'database-table',
+          params: { databaseId: facts.database_id, tableId: table.id },
+        },
+        id: table.id,
+      }))
+    return { links }
+  }
 }
 
 export class CreateFieldsToolPresentationType extends DatabaseToolPresentationType {
@@ -340,16 +362,15 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
       this.getQueries({ input }).length === 0 && this.getUrl({ input })
         ? 'agent.toolWebSearchOpenPage'
         : 'agent.toolWebSearch'
-    const activity =
-      status === STEP_STATUS.RUNNING
-        ? t(`${key}Running`)
-        : status === STEP_STATUS.DONE
-          ? t(`${key}Done`)
-          : t(key)
-    const target = this.getTarget({ input })
-    return target
-      ? t('agent.toolWebSearchTarget', { activity, target })
-      : activity
+    return status === STEP_STATUS.RUNNING
+      ? t(`${key}Running`)
+      : status === STEP_STATUS.DONE
+        ? t(`${key}Done`)
+        : t(key)
+  }
+
+  getActivityDetails({ input }) {
+    return { description: input.unavailable ? '' : this.getTarget({ input }) }
   }
 }
 

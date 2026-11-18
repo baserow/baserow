@@ -72,6 +72,12 @@ export default (client) => ({
       values
     )
   },
+  getPendingApprovals(agentId, page = 1) {
+    return client.get(`/agent/${agentId}/pending-approvals/`, {
+      params: { page, size: 20 },
+      ...getRealtimeRecoveryRequestConfig(),
+    })
+  },
   decideApprovals(agentId, conversationUuid, decisions, { alwaysAllow } = {}) {
     return client.post(
       `/agent/${agentId}/conversations/${conversationUuid}/approvals/`,

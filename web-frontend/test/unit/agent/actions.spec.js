@@ -523,6 +523,21 @@ describe('Agent action editor', () => {
     )
   })
 
+  test('hides a deleting action immediately and restores it when deletion fails', async () => {
+    testApp.dontFailOnErrorResponses()
+    const held = deferredReply()
+    testApp.mock.onDelete('/agent/10/actions/1/').reply(held.reply)
+    const wrapper = await mountSection([emailAction()])
+    await wrapper.get('.agent-action-card__footer button').trigger('click')
+    expect(wrapper.find('.agent-action-card').exists()).toBe(false)
+    await flushPromises()
+    held.resolve(500, {})
+    await flushPromises()
+    expect(
+      wrapper.get('.agent-action-card__toggle').attributes('aria-expanded')
+    ).toBe('true')
+  })
+
   test('realtime changes update the current agent and preserve local drafts', async () => {
     useFakeTimers()
     saveEdits()

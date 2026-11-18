@@ -52,6 +52,11 @@
   color: $palette-neutral-1200;
 }
 
+.agent-action-card__saving-slot {
+  display: flex;
+  flex: 0 0 14px;
+}
+
 .agent-action-card__saving {
   @include loading-spinner($palette-neutral-700, 14px);
 }

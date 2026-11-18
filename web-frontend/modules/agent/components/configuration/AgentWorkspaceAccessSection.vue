@@ -36,7 +36,25 @@
           :icon="identityIconClass"
         />
       </template>
+      <template v-if="canCreateIdentity" #footer="{ hide }">
+        <div class="select__footer">
+          <button
+            type="button"
+            class="select__footer-button"
+            @click="addIdentity(hide)"
+          >
+            <i class="iconoir-plus" aria-hidden="true"></i>
+            {{ $t('agent.addIdentity') }}
+          </button>
+        </div>
+      </template>
     </PaginatedDropdown>
+    <ManageIdentityModal
+      v-if="canCreateIdentity"
+      ref="identityModal"
+      :workspace="workspace"
+      @saved="identityCreated"
+    />
   </FormGroup>
   <AgentWorkspaceTools
     class="margin-top-3"
@@ -52,6 +70,9 @@
 
 <script setup>
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
+import { useStore } from 'vuex'
+import ManageIdentityModal from '@baserow/modules/core/components/settings/identities/ManageIdentityModal'
+import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import debounce from 'lodash/debounce'
 import { useI18n } from 'vue-i18n'
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
@@ -69,13 +90,35 @@ const props = defineProps({
   editable: Boolean,
 })
 const emit = defineEmits(['change', 'flush'])
-const { $client, $registry } = useNuxtApp()
+const { $client, $registry, $hasPermission, $featureFlagIsEnabled } =
+  useNuxtApp()
 const { t } = useI18n()
 const agent = inject('agentApplication')
 const runAsDropdown = ref(null)
 const identityIconClass = computed(
   () => $registry.get('subject', UserSubjectType.getType()).identityIconClass
 )
+const identityModal = ref(null)
+const store = useStore()
+const workspace = computed(() =>
+  store.getters['workspace/get'](agent.value.workspace.id)
+)
+const canCreateIdentity = computed(
+  () =>
+    props.editable &&
+    $featureFlagIsEnabled(FF_IDENTITIES) &&
+    workspace.value &&
+    $hasPermission('identity.create', workspace.value, workspace.value.id)
+)
+function addIdentity(hide) {
+  hide()
+  identityModal.value.show()
+}
+
+function identityCreated(item) {
+  optionsVersion.value++
+  select({ value: item.id, item })
+}
 
 const status = computed(() => getRunAsStatus(props.configuration.run_as))
 const identityAvailable = computed(() => status.value === RUN_AS_STATUS.ACTIVE)

@@ -77,6 +77,10 @@ export class ToolPresentationType extends Registerable {
     return t(`toolPresentation.${step.status}`)
   }
 
+  getActivityDetails(step, t) {
+    return {}
+  }
+
   /** Opt in to the backend's curated input preview; hidden by default. */
   getInput(step, t) {
     return null
@@ -212,6 +216,7 @@ export function toolActivity(step, registry, t) {
     return {
       ...fallback,
       title,
+      ...presenter.getActivityDetails(normalized, translate),
       group: !data.changes_data ? presenter.group : null,
       input: toolInput(presenter, normalized, translate),
     }

@@ -1,4 +1,5 @@
 import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
+import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import AgentApplicationContext from '@baserow/modules/agent/components/AgentApplicationContext'
 import AgentApplicationForm from '@baserow/modules/agent/components/AgentApplicationForm'
@@ -50,8 +51,12 @@ export class AgentApplicationType extends ApplicationType {
     return AgentApplicationSidebar
   }
 
+  get developmentStage() {
+    return DEVELOPMENT_STAGES.BETA
+  }
+
   getOrder() {
-    return 100
+    return 10
   }
 
   populate(application) {

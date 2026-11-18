@@ -263,8 +263,17 @@ def test_every_tool_acts_as_the_agent_identity(workspace_data, name):
     assert not (
         isinstance(value, dict) and (value.get("error") or value.get("errors"))
     ), value
+    facts = PRESENTATIONS[name]["facts"]
+    if name == "create_tables":
+        facts = {
+            **facts,
+            "database_id": workspace_data.table.database_id,
+            "created_tables": [
+                {"id": t["id"], "name": t["name"]} for t in value["created_tables"]
+            ],
+        }
     assert (result.metadata, result.input) == (
-        {"facts": PRESENTATIONS[name]["facts"]},
+        {"facts": facts},
         PRESENTATIONS[name].get("preview", {}),
     ), value
 
@@ -566,7 +575,14 @@ def test_reused_tables_are_counted_apart_and_used_view_names_are_conflicts(
         },
     )
 
-    assert tables.metadata["facts"] == {"count": 1, "table": "Projects"}
+    assert tables.metadata["facts"] == {
+        "count": 1,
+        "table": "Projects",
+        "database_id": workspace_data.table.database_id,
+        "created_tables": [
+            {"id": tables.return_value["created_tables"][0]["id"], "name": "Projects"}
+        ],
+    }
     assert views.return_value["error"]["code"] == "conflict"
 
 

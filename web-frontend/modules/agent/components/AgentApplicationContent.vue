@@ -6,10 +6,11 @@
       <div class="agent-application__header-title">
         <div class="agent-application__header-name">{{ agent.name }}</div>
         <button
-          v-if="agent.pending_count > 0"
+          v-if="agent.pending_count > 0 && state.canReadConversations"
           type="button"
           class="agent-application__approvals"
-          @click="state.selectNextWaitingConversation"
+          aria-haspopup="dialog"
+          @click="approvalsMenu.toggle($event.currentTarget)"
         >
           <i
             class="agent-application__approvals-icon iconoir-shield-check"
@@ -18,6 +19,17 @@
           {{ $t('agent.approvalsWaiting', { count: agent.pending_count }) }}
         </button>
       </div>
+      <AgentPendingApprovalsContext
+        v-if="state.canReadConversations"
+        :key="agent.id"
+        ref="approvalsMenu"
+        :agent="agent"
+        :can-decide="state.canReviewPending"
+        :can-always-allow="state.canUpdateConfiguration"
+        :deciding-replies="state.decidingReplies"
+        :decide="state.decideApprovals"
+        @open-conversation="state.openPendingConversation"
+      />
       <ButtonIcon
         v-if="state.canReadConfiguration"
         icon="iconoir-settings"
@@ -258,6 +270,7 @@ import {
   toolActivity,
 } from '@baserow/modules/core/toolPresentationTypes'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
+import AgentPendingApprovalsContext from '@baserow/modules/agent/components/AgentPendingApprovalsContext'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
@@ -287,6 +300,7 @@ const state = reactive({
   ...configuration,
   ...useAgentConversations(agent, configuration),
 })
+const approvalsMenu = ref(null)
 const configurationOpen = ref(true)
 provideNow()
 // Configuration sections read the Agent's workspace from here.

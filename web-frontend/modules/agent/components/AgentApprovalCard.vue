@@ -7,7 +7,17 @@
     :aria-labelledby="titleId"
   >
     <div class="agent-approval__header">
-      <i class="iconoir-shield-check agent-approval__icon" aria-hidden="true" />
+      <span
+        v-if="deciding"
+        class="agent-approval__saving"
+        role="status"
+        :aria-label="$t('agent.saving')"
+      />
+      <i
+        v-else
+        class="iconoir-shield-check agent-approval__icon"
+        aria-hidden="true"
+      />
       <span :id="titleId" class="agent-approval__title">
         {{
           pending.length
@@ -109,6 +119,11 @@
             </Button>
           </div>
         </div>
+        <div v-if="item.links?.length" class="chat-step-group__links">
+          <NuxtLink v-for="link in item.links" :key="link.id" :to="link.to">{{
+            link.label
+          }}</NuxtLink>
+        </div>
         <p v-if="item.failureHint" class="agent-approval__item-note">
           {{ item.failureHint }}
         </p>
@@ -204,11 +219,13 @@ const pending = computed(() =>
 )
 const { $registry } = useNuxtApp()
 const { locale, t } = useI18n()
-const pendingToolNames = computed(() =>
-  [...new Set(pending.value.map((item) => item.tool))].map((tool) =>
-    agentToolLabel(tool, $registry, t)
-  )
-)
+const pendingToolNames = computed(() => [
+  ...new Set(
+    pending.value.map(
+      (item) => item.toolLabel || agentToolLabel(item.tool, $registry, t)
+    )
+  ),
+])
 const alwaysAllowLabel = computed(() =>
   pendingToolNames.value.length > 1
     ? t('agent.alwaysAllowAllPendingTools')

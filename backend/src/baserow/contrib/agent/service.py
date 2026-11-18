@@ -196,6 +196,15 @@ class AgentService:
             agent, user, cursor, pinned, has_pending_approvals
         )
 
+    def list_pending_replies(
+        self, user: AbstractUser, agent_id: int
+    ) -> QuerySet[AgentMessage]:
+        """Replies with undecided tool calls in conversations visible to this user."""
+
+        return self.handler.list_pending_replies(
+            self.list_conversations(user, agent_id)
+        )
+
     def list_messages(
         self, user: AbstractUser, agent_id: int, conversation_uuid: UUID
     ) -> tuple[AgentConversation, QuerySet[AgentMessage]]:

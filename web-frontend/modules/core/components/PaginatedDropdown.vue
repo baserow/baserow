@@ -75,6 +75,7 @@
         </slot>
         <div v-if="loading" class="select__items-loading"></div>
       </ul>
+      <slot name="footer" :hide="hide"></slot>
     </div>
   </div>
 </template>
