@@ -32,7 +32,8 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
-from baserow.core.job_types import DuplicateApplicationJobType
+from baserow.core.job_types import DuplicateApplicationJobType, InstallTemplateJobType
+from baserow.core.jobs.constants import JOB_FAILED
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Template, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
@@ -1332,7 +1333,7 @@ def test_duplicate_without_its_identity_keeps_tools_pending(
     }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_installing_a_template_of_only_agents_with_the_flag_off_fails(
     data_fixture, configured_agent, settings, tmp_path
 ):
@@ -1356,8 +1357,19 @@ def test_installing_a_template_of_only_agents_with_the_flag_off_fails(
     settings.FEATURE_FLAGS = []
     workspace = data_fixture.create_workspace(user=user)
 
-    with pytest.raises(TemplateHasNoContent):
-        CoreHandler().install_template(user, workspace, template)
+    job = JobHandler().create_and_start_job(
+        user,
+        InstallTemplateJobType.type,
+        sync=True,
+        workspace_id=workspace.id,
+        template_id=template.id,
+    )
+    job.refresh_from_db()
+
+    assert job.state == JOB_FAILED
+    assert job.human_readable_error == (
+        "None of the applications in this template can be installed here."
+    )
 
     assert not workspace.application_set.exists()
 

@@ -34,6 +34,13 @@ class TemplateHasNoContent(Exception):
     """
 
 
+class TemplateHasNothingToInstall(TemplateHasNoContent):
+    """
+    Raised when a template has content, but none of it can be installed on this
+    instance, for example Agents while their feature flag is off.
+    """
+
+
 class TemplateUpdated(Exception):
     """
     Raised when a user template changed since the user or admin saw it.

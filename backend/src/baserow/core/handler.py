@@ -3213,11 +3213,13 @@ class CoreHandler:
             files_buffer.close()
 
         if not applications and parsed_json["export"]:
-            from baserow.core.user_templates.exceptions import TemplateHasNoContent
+            from baserow.core.user_templates.exceptions import (
+                TemplateHasNothingToInstall,
+            )
 
             # Every application was left out, for example Agents behind a
             # disabled feature flag. Reporting that as installed would be wrong.
-            raise TemplateHasNoContent(
+            raise TemplateHasNothingToInstall(
                 "No application of the template can be installed."
             )
 

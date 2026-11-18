@@ -76,6 +76,7 @@ from baserow.core.user_templates.exceptions import (
     TemplateBlockReasonRequired,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
+    TemplateHasNothingToInstall,
     TemplateNotReviewable,
     TemplateRejectReasonRequired,
     TemplateSlugGenerationFailed,
@@ -670,7 +671,7 @@ class UserTemplateHandler:
         :param content: The content returned by `serialize_template_content`.
         :param progress_builder: A progress builder that allows for publishing
             progress.
-        :raises TemplateHasNoContent: If none of its applications can be
+        :raises TemplateHasNothingToInstall: If none of its applications can be
             installed here.
         :return: The installed applications.
         """
@@ -691,7 +692,7 @@ class UserTemplateHandler:
         if not applications and content.applications:
             # Every application was left out, for example Agents behind a
             # disabled feature flag, so there is no install to count.
-            raise TemplateHasNoContent(
+            raise TemplateHasNothingToInstall(
                 "No application of the template can be installed."
             )
 
