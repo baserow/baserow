@@ -1,5 +1,5 @@
 <template>
-  <div @keydown.enter.stop>
+  <form @submit.prevent @keydown.enter.stop>
     <h2 class="box__title">
       {{ $t('customCodeSettingForm.customCodeTitle') }}
     </h2>
@@ -65,7 +65,7 @@
         @delete="onDelete(script)"
       />
     </FormGroup>
-  </div>
+  </form>
 </template>
 
 <script>

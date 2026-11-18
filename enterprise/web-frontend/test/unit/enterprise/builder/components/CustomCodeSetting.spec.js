@@ -40,17 +40,11 @@ async function mountSetting() {
     .findAll('label[for]')
     .find((label) => label.text() === 'customCodeSettingForm.customHtml')
   const html = wrapper.get(`textarea[id="${label.attributes('for')}"]`)
-  const save = wrapper.get('button[type="submit"]')
-  const saveHtml = async () => {
-    await wrapper.get('form:has(button[type="submit"])').trigger('submit')
-    await flushPromises()
-  }
-  return { builder, dispatch, applyUpdate, wrapper, html, save, saveHtml }
+  return { builder, dispatch, applyUpdate, wrapper, html }
 }
 
-test('saves the HTML text explicitly and can clear it', async () => {
-  const { builder, dispatch, wrapper, html, save, saveHtml } =
-    await mountSetting()
+test('autosaves HTML independently of CSS and can clear it', async () => {
+  const { builder, dispatch, wrapper, html } = await mountSetting()
 
   const javascript = wrapper.get('textarea[data-language="javascript"]')
   const externalScripts = wrapper.get('.custom-code__add-script')
@@ -63,8 +57,7 @@ test('saves the HTML text explicitly and can clear it', async () => {
       Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy()
   expect(html.element.value).toBe(savedHtml)
-  expect(save.element.disabled).toBe(true)
-  await html.setValue(newHtml)
+  expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
   await wrapper.get('textarea[data-language="css"]').setValue('body {}')
 
   await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce())
@@ -74,15 +67,15 @@ test('saves the HTML text explicitly and can clear it', async () => {
   })
   expect(builder.custom_code.html).toBe(savedHtml)
 
-  await saveHtml()
+  await html.setValue(newHtml)
+  await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(2))
   expect(dispatch).toHaveBeenLastCalledWith('application/update', {
     application: builder,
     values: { custom_code: { html: newHtml } },
   })
-  expect(save.element.disabled).toBe(true)
 
   await html.setValue('')
-  await saveHtml()
+  await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(3))
   expect(dispatch).toHaveBeenLastCalledWith('application/update', {
     application: builder,
     values: { custom_code: { html: '' } },
@@ -91,8 +84,7 @@ test('saves the HTML text explicitly and can clear it', async () => {
 })
 
 test('waits for an in-flight autosave and keeps the HTML draft after a failed save', async () => {
-  const { builder, dispatch, applyUpdate, wrapper, html, save, saveHtml } =
-    await mountSetting()
+  const { builder, dispatch, applyUpdate, wrapper, html } = await mountSetting()
   let finishAutosave
   const pendingAutosave = new Promise((resolve) => {
     finishAutosave = resolve
@@ -108,9 +100,9 @@ test('waits for an in-flight autosave and keeps the HTML draft after a failed sa
     .setValue('let a = 1')
   await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce())
   await html.setValue(newHtml)
-  await saveHtml()
+  await html.trigger('blur')
   expect(dispatch).toHaveBeenCalledOnce()
-  expect(save.element.disabled).toBe(true)
+  expect(html.element.disabled).toBe(false)
 
   finishAutosave()
   await flushPromises()
@@ -120,10 +112,54 @@ test('waits for an in-flight autosave and keeps the HTML draft after a failed sa
   expect(wrapper.get('[role="alert"]').text()).toBe(
     'customCodeSettingForm.customHtmlSaveError'
   )
-  expect(save.element.disabled).toBe(false)
 
-  await saveHtml()
+  const retryHtml = `${newHtml}\n`
+  await html.setValue(retryHtml)
+  await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(3))
   expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-  expect(builder.custom_code.html).toBe(newHtml)
+  expect(builder.custom_code.html).toBe(retryHtml)
   expect(builder.custom_code.js).toBe('let a = 1')
+})
+
+test('flushes a scheduled HTML autosave when the settings close', async () => {
+  const { builder, dispatch, wrapper, html } = await mountSetting()
+
+  await html.setValue(newHtml)
+  expect(dispatch).not.toHaveBeenCalled()
+  wrapper.unmount()
+  await flushPromises()
+
+  expect(dispatch).toHaveBeenCalledExactlyOnceWith('application/update', {
+    application: builder,
+    values: { custom_code: { html: newHtml } },
+  })
+  expect(builder.custom_code.html).toBe(newHtml)
+})
+
+test('persists a revert to the original HTML while a different value is saving', async () => {
+  const { builder, dispatch, applyUpdate, html } = await mountSetting()
+  let finishFirstSave
+  const firstSave = new Promise((resolve) => {
+    finishFirstSave = resolve
+  })
+  dispatch.mockImplementationOnce(async (...args) => {
+    await firstSave
+    await applyUpdate(...args)
+  })
+
+  await html.setValue(newHtml)
+  await html.trigger('blur')
+  expect(dispatch).toHaveBeenCalledOnce()
+  await html.setValue(savedHtml)
+  await html.trigger('blur')
+  finishFirstSave()
+  await flushPromises()
+
+  expect(dispatch).toHaveBeenCalledTimes(2)
+  expect(dispatch).toHaveBeenLastCalledWith('application/update', {
+    application: builder,
+    values: { custom_code: { html: savedHtml } },
+  })
+  expect(builder.custom_code.html).toBe(savedHtml)
+  expect(html.element.value).toBe(savedHtml)
 })

@@ -15,43 +15,34 @@
       @values-changed="onValuesChanged"
     >
       <template #head-html>
-        <form @submit.prevent="saveHtml">
-          <FormGroup
-            class="margin-bottom-2"
-            :helper-text="$t('customCodeSettingForm.customHtmlHelp')"
+        <FormGroup
+          class="margin-bottom-2"
+          :helper-text="$t('customCodeSettingForm.customHtmlHelp')"
+          :error="htmlSaveError"
+          small-label
+        >
+          <template #label>
+            <label :for="htmlInputId">
+              {{ $t('customCodeSettingForm.customHtml') }}
+            </label>
+          </template>
+          <FormTextarea
+            :id="htmlInputId"
+            :model-value="htmlDraft ?? savedHtml"
+            :rows="6"
             :error="htmlSaveError"
-            small-label
-          >
-            <template #label>
-              <label :for="htmlInputId">
-                {{ $t('customCodeSettingForm.customHtml') }}
-              </label>
-            </template>
-            <FormTextarea
-              :id="htmlInputId"
-              v-model="htmlDraft"
-              :rows="6"
-              :disabled="savingHtml"
-              :error="htmlSaveError"
-              :aria-invalid="htmlSaveError"
-              :aria-describedby="htmlSaveError ? htmlErrorId : undefined"
-              spellcheck="false"
-            />
-            <template #error>
-              <span :id="htmlErrorId" role="alert">
-                {{ $t('customCodeSettingForm.customHtmlSaveError') }}
-              </span>
-            </template>
-          </FormGroup>
-          <Button
-            button-type="submit"
-            type="secondary"
-            :loading="savingHtml"
-            :disabled="htmlDraft === savedHtml"
-          >
-            {{ $t('customCodeSettingForm.saveHtml') }}
-          </Button>
-        </form>
+            :aria-invalid="htmlSaveError"
+            :aria-describedby="htmlSaveError ? htmlErrorId : undefined"
+            spellcheck="false"
+            @update:model-value="onHtmlChanged"
+            @blur="autosaveHtml.flush()"
+          />
+          <template #error>
+            <span :id="htmlErrorId" role="alert">
+              {{ $t('customCodeSettingForm.customHtmlSaveError') }}
+            </span>
+          </template>
+        </FormGroup>
       </template>
     </CustomCodeSettingForm>
   </div>
@@ -59,12 +50,14 @@
 
 <script>
 import { useId } from 'vue'
+import _ from 'lodash'
 import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import FormTextarea from '@baserow/modules/core/components/FormTextarea'
 import { clone, isSubObject } from '@baserow/modules/core/utils/object'
 import CustomCodeSettingForm from '@baserow_enterprise/components/builder/CustomCodeSettingForm.vue'
 
 const pendingCodeUpdates = new WeakMap()
+const AUTOSAVE_DELAY = 500
 
 export default {
   name: 'CustomCodeSetting',
@@ -91,9 +84,7 @@ export default {
   },
   data() {
     return {
-      debounceTimeout: null,
-      htmlDraft: this.builder.custom_code?.html ?? '',
-      savingHtml: false,
+      htmlDraft: null,
       htmlSaveError: false,
     }
   },
@@ -106,18 +97,13 @@ export default {
       return { custom_code: { css, js }, scripts: this.builder.scripts }
     },
   },
-  watch: {
-    savedHtml(html, previousHtml) {
-      if (this.htmlDraft === previousHtml) {
-        this.htmlDraft = html
-      }
-    },
-    htmlDraft() {
-      this.htmlSaveError = false
-    },
+  created() {
+    this.autosaveSettings = _.debounce(this.updateApplication, AUTOSAVE_DELAY)
+    this.autosaveHtml = _.debounce(this.saveHtml, AUTOSAVE_DELAY)
   },
   beforeUnmount() {
-    clearTimeout(this.debounceTimeout)
+    this.autosaveSettings.cancel()
+    this.autosaveHtml.flush()
   },
   methods: {
     trustContent() {
@@ -170,34 +156,38 @@ export default {
         }
       }
     },
-    onValuesChanged(newValues) {
-      clearTimeout(this.debounceTimeout)
-      const values = clone(newValues)
-      this.debounceTimeout = setTimeout(() => {
-        this.updateApplication(values)
-      }, 500)
+    onValuesChanged(values) {
+      this.autosaveSettings(clone(values))
     },
-    async saveHtml() {
-      const html = this.htmlDraft
-      if (this.savingHtml || html === this.savedHtml) {
-        return
-      }
-
-      this.savingHtml = true
+    onHtmlChanged(html) {
+      this.htmlDraft = html
       this.htmlSaveError = false
+      this.autosaveHtml(html)
+    },
+    async saveHtml(html) {
       try {
-        await this.queueCodeUpdate(() =>
-          this.$store.dispatch('application/update', {
-            application: this.builder,
-            values: { custom_code: { html } },
-          })
-        )
-        this.htmlSaveError = this.savedHtml !== html
+        await this.queueCodeUpdate(async () => {
+          if (this.htmlDraft !== html) {
+            return
+          }
+          if (this.savedHtml !== html) {
+            await this.$store.dispatch('application/update', {
+              application: this.builder,
+              values: { custom_code: { html } },
+            })
+          }
+          if (this.htmlDraft === html) {
+            this.htmlSaveError = this.savedHtml !== html
+            if (!this.htmlSaveError) {
+              this.htmlDraft = null
+            }
+          }
+        })
       } catch (error) {
-        this.htmlSaveError = true
+        if (this.htmlDraft === html) {
+          this.htmlSaveError = true
+        }
         error.handler?.handled?.()
-      } finally {
-        this.savingHtml = false
       }
     },
   },
