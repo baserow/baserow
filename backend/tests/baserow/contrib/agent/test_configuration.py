@@ -1212,3 +1212,21 @@ def test_configuration_exposes_pending_tools(configured_agent, api_client, api_u
 
     assert response.json()["pending_tools"] == ["list_tables", "create_rows"]
     assert response.json()["allowed_tools"] == []
+
+
+@pytest.mark.django_db
+def test_tools_sent_without_an_identity_keep_pending_tools(
+    configured_agent, api_client, api_user
+):
+    agent, _ = agent_with_pending_tools(configured_agent, api_user)
+
+    response = api_client.patch(
+        agent_url(agent, "configuration"),
+        {"allowed_tools": [], "ask_first_tools": []},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["pending_tools"] == ["list_tables", "create_rows"]
+    agent.refresh_from_db()
+    assert agent.pending_tool_choices is not None

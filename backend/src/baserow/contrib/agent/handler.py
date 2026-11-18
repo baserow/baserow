@@ -593,7 +593,9 @@ class AgentHandler:
             # No workspace access deliberately turns tools off. Selecting an
             # identity later must not reactivate old default tool rows.
             allowed_tools, ask_first_tools = [], None
-        if agent.pending_tool_choices is not None and (has_run_as or tools_sent):
+        # Tools without an identity stay off, so sending them keeps the pending
+        # ones. Once there's an identity they were applied or replaced.
+        if agent.pending_tool_choices is not None and has_run_as:
             agent.pending_tool_choices = None
             changed_fields.append("pending_tool_choices")
         tools_changed = allowed_tools is not None and (
