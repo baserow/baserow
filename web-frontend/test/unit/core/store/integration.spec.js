@@ -325,10 +325,11 @@ describe('integration store', () => {
       ...integration,
       authorized_subject: {
         id: 3,
-        type: 'core.Agent',
-        name: 'Writer agent',
+        type: 'auth.User',
+        user_type: 'identity',
+        name: 'Writer identity',
       },
-      context_data: { databases: [{ id: 4, name: 'Agent database' }] },
+      context_data: { databases: [{ id: 4, name: 'Identity database' }] },
     }
     testApp.mock.onPatch('/integration/1/').reply(200, updatedIntegration)
 
@@ -337,7 +338,7 @@ describe('integration store', () => {
       integrationId: integration.id,
       values: {
         authorized_subject_id: 3,
-        authorized_subject_type: 'core.Agent',
+        authorized_subject_type: 'auth.User',
       },
     })
 

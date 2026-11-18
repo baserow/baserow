@@ -72,6 +72,7 @@ from baserow.core.registries import (
     object_scope_type_registry,
 )
 from baserow.core.types import Actor, PermissionCheck
+from baserow.core.user.identity import is_human
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.views.models import OWNERSHIP_TYPE_PERSONAL
@@ -222,21 +223,12 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
                 context, at_scope_type=view_scope_type
             )
 
-            # Personal views are owned by users. Other subject types can never own
-            # one, even when their integer ID matches the owner's user ID.
-            if (
-                not isinstance(actor, User)
-                and view.ownership_type == OWNERSHIP_TYPE_PERSONAL
-            ):
-                result_by_check[check] = PermissionDenied(
-                    "Only users can access personal views"
-                )
-                continue
-
-            # The remaining ownership rules depend on a per-user premium license, which
-            # only applies to users. Let the lower permission managers decide for other
-            # actors like tokens or anonymous users.
-            if not isinstance(actor, User):
+            # Personal views and the per-user licence behind them only apply to people.
+            if not is_human(actor):
+                if view.ownership_type == OWNERSHIP_TYPE_PERSONAL:
+                    result_by_check[check] = PermissionDenied(
+                        "Only users can access personal views"
+                    )
                 continue
 
             premium = local_cache.get(
@@ -342,7 +334,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             q=~Q(ownership_type=OWNERSHIP_TYPE_PERSONAL)
         )
         decisions = {workspace.id: without_personal for workspace in workspaces}
-        if not isinstance(actor, User):
+        if not is_human(actor):
             return decisions
 
         premium_workspaces = [

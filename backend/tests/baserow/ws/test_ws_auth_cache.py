@@ -5,7 +5,11 @@ from django.test.utils import override_settings
 
 import pytest
 
-from baserow.core.user.cache import invalidate_cached_user, set_cached_user
+from baserow.core.user.cache import (
+    aget_cached_user,
+    invalidate_cached_user,
+    set_cached_user,
+)
 from baserow.ws.auth import get_user
 
 User = get_user_model()
@@ -145,6 +149,27 @@ async def test_cached_user_without_a_preloaded_profile_falls_back(data_fixture):
     user, token = data_fixture.create_user_and_token()
     set_cached_user(User.objects.defer("password").get(pk=user.pk))
 
+    authenticated = await get_user(token)
+
+    assert authenticated is not None
+    assert authenticated.id == user.id
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+@_CACHE_ON
+async def test_old_release_cached_profile_falls_back_without_deferred_queries(
+    data_fixture, monkeypatch
+):
+    user, token = data_fixture.create_user_and_token()
+    for field in ("user_type", "trashed", "last_active"):
+        del user.profile.__dict__[field]
+    set_cached_user(user)
+    # Django must reject any accidental synchronous database access on this thread.
+    monkeypatch.delenv("DJANGO_ALLOW_ASYNC_UNSAFE", raising=False)
+
+    assert await aget_cached_user(user.id) is None
     authenticated = await get_user(token)
 
     assert authenticated is not None

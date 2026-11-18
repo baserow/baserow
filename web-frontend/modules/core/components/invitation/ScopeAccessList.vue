@@ -75,7 +75,7 @@
 import ScopeRoleSelector from '@baserow/modules/core/components/invitation/ScopeRoleSelector'
 
 /**
- * Direct access for existing users, teams and agents, plus pending invitations.
+ * Direct access for existing users, teams and identities, plus pending invitations.
  * Callers provide normalized rows and own the permissions, API calls and
  * meaning of removal. Null roles emitted here request removal, not no access.
  * A row with `removeOnly`, like a member of a team, has no role and only gets

@@ -13,7 +13,7 @@ from baserow.contrib.agent.operations import (
 from baserow.contrib.agent.service import AgentService
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -80,8 +80,8 @@ def test_an_editor_cannot_always_allow_and_nothing_is_decided(
         editor, workspace, Role.objects.get(uid="EDITOR")
     )
     agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
-    identity = Agent.objects.create(workspace=workspace, name="Investor")
-    agent.run_as_subject_type, agent.run_as_subject_id = "core.Agent", identity.id
+    identity = IdentityHandler().create_identity(workspace=workspace, name="Investor")
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     AgentHandler().set_allowed_tools(agent, ["create_rows"], ["create_rows"])
     approval = enterprise_data_fixture.create_agent_tool_approval(

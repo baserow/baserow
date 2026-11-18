@@ -84,7 +84,7 @@ const triggerTypeOf = (type) =>
 
 const activeRunAs = {
   run_as: {
-    type: 'core.Agent',
+    type: 'auth.User',
     id: 4,
     name: 'Reader',
     trashed: false,

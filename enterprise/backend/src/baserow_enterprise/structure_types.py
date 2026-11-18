@@ -4,7 +4,11 @@ from django.contrib.contenttypes.models import ContentType
 
 from baserow.contrib.database.views.models import View
 from baserow.core.models import Application
-from baserow.core.registries import ImportExportConfig, SerializationProcessorType
+from baserow.core.registries import (
+    ImportExportConfig,
+    SerializationProcessorType,
+    subject_type_registry,
+)
 from baserow.core.types import SerializationProcessorScope
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.features import RBAC
@@ -65,12 +69,17 @@ class RoleAssignmentSerializationProcessorType(SerializationProcessorType):
         with atomic_if_not_already():
             new_role_assignments = []
             for serialized_role_assignment in serialized_role_assignments:
-                subject_type = ContentType.objects.get(
-                    pk=serialized_role_assignment["subject_type_id"]
+                subject_type = subject_type_registry.get_by_content_type(
+                    ContentType.objects.get(
+                        pk=serialized_role_assignment["subject_type_id"]
+                    )
                 )
-                subject = subject_type.model_class().objects.get(
-                    pk=serialized_role_assignment["subject_id"]
+                subject = subject_type_registry.get_subject(
+                    subject_type.type, serialized_role_assignment["subject_id"]
                 )
+                # A snapshot can outlive a subject, whose role can't come back.
+                if subject is None:
+                    continue
                 role = Role.objects.get(pk=serialized_role_assignment["role_id"])
                 new_role_assignments.append(NewRoleAssignment(subject, role, scope))
             RoleAssignmentHandler().assign_role_batch(

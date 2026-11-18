@@ -32,7 +32,7 @@ export async function createAgentIdentity(
   workspace: Workspace
 ): Promise<number> {
   const response: any = await getClient(workspace.user).post(
-    `agents/workspace/${workspace.id}/`,
+    `identities/workspace/${workspace.id}/`,
     { name }
   );
   return response.data.id;
@@ -44,6 +44,6 @@ export async function setAgentRunIdentity(
 ): Promise<void> {
   await getClient(agent.workspace.user).patch(
     `agent/${agent.id}/configuration/`,
-    { run_as_subject_type: "core.Agent", run_as_subject_id: identityId }
+    { run_as_subject_type: "auth.User", run_as_subject_id: identityId }
   );
 }

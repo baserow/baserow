@@ -1,8 +1,8 @@
 import { ConcurrentPriorityTaskQueue } from '@baserow/modules/core/utils/queue'
 
-export const getWorkspaceMembersCount = (workspace, canListAgents) =>
+export const getWorkspaceMembersCount = (workspace, canListIdentities) =>
   (workspace.users?.length || 0) +
-  (canListAgents ? workspace.agents_count || 0 : 0)
+  (canListIdentities ? workspace.identities_count || 0 : 0)
 
 /**
  * Fetches the workspaces and applications of the authenticated user if that hasn't

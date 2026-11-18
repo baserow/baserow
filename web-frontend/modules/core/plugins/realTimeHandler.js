@@ -861,16 +861,16 @@ export class RealTimeHandler {
       })
     })
 
-    this.registerEvent('agent_created', ({ store }, data) => {
-      store.dispatch('agent/forceCreate', data.agent)
+    this.registerEvent('identity_created', ({ store }, data) => {
+      store.dispatch('identity/forceCreate', data.identity)
     })
-    this.registerEvent('agent_updated', ({ store }, data) => {
-      store.dispatch('agent/forceUpdate', data.agent)
+    this.registerEvent('identity_updated', ({ store }, data) => {
+      store.dispatch('identity/forceUpdate', data.identity)
     })
-    this.registerEvent('agent_deleted', ({ store }, data) => {
-      store.dispatch('agent/forceDelete', {
+    this.registerEvent('identity_deleted', ({ store }, data) => {
+      store.dispatch('identity/forceDelete', {
         workspaceId: data.workspace_id,
-        agentId: data.agent_id,
+        identityId: data.identity_id,
       })
     })
 

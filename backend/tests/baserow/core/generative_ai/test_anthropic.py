@@ -14,25 +14,28 @@ from baserow.core.generative_ai.generative_ai_model_types import (
 )
 
 
-def _rate_limit_headers():
-    return [
-        {"retry-after": "300"},
-        {"retry-after-ms": "300000"},
-        {
+@pytest.fixture(params=["seconds", "milliseconds", "http-date"])
+def rate_limit_headers(request):
+    # Build HTTP dates at execution, so collection in a long suite cannot expire them.
+    return {
+        "seconds": {"retry-after": "300"},
+        "milliseconds": {"retry-after-ms": "300000"},
+        "http-date": {
             "retry-after": format_datetime(
                 datetime.now(timezone.utc) + timedelta(minutes=5), usegmt=True
             )
         },
-    ]
+    }[request.param]
 
 
-@pytest.mark.parametrize("headers", _rate_limit_headers())
 @pytest.mark.parametrize("operation", ["upload", "delete"])
-def test_anthropic_file_requests_do_not_wait_for_long_retry_after(headers, operation):
+def test_anthropic_file_requests_do_not_wait_for_long_retry_after(
+    rate_limit_headers, operation
+):
     handler = AnthropicGenerativeAIModelType().file_handler
     response = httpx2.Response(
         429,
-        headers=headers,
+        headers=rate_limit_headers,
         json={
             "type": "error",
             "error": {"type": "rate_limit_error", "message": "Busy"},
@@ -55,14 +58,13 @@ def test_anthropic_file_requests_do_not_wait_for_long_retry_after(headers, opera
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("headers", _rate_limit_headers())
-async def test_anthropic_model_does_not_wait_for_long_retry_after(headers):
+async def test_anthropic_model_does_not_wait_for_long_retry_after(rate_limit_headers):
     model = AnthropicGenerativeAIModelType().get_ai_model(
         "claude-sonnet-4-5", settings_override={"api_key": "test"}
     )
     response = httpx2.Response(
         429,
-        headers=headers,
+        headers=rate_limit_headers,
         json={
             "type": "error",
             "error": {"type": "rate_limit_error", "message": "Busy"},

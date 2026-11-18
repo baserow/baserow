@@ -3,7 +3,7 @@ import { flushPromises } from '@vue/test-utils'
 import { expect, test, vi } from 'vitest'
 
 import SubjectRoleAssignmentRows from '@baserow_enterprise/components/member-roles/SubjectRoleAssignmentRows'
-import { EnterpriseRolesAgentExtensionType } from '@baserow_enterprise/agentExtensionTypes'
+import { EnterpriseRolesIdentityExtensionType } from '@baserow_enterprise/identityExtensionTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import { EnterpriseMembersPagePluginType } from '@baserow_enterprise/membersPagePluginTypes'
 import { getSubjectRoleAssignmentsRowExpansion } from '@baserow_enterprise/utils/subjectRoleAssignments'
@@ -334,7 +334,7 @@ test('reloads the roles when the workspace role of the subject changes', async (
   }
 })
 
-test('members and agents offer their roles as row expansions', () => {
+test('members and identities offer their roles as row expansions', () => {
   const app = {
     $store: { getters: { 'auth/getUserId': 7 } },
     $hasFeature: (feature) => feature === EnterpriseFeatures.RBAC,
@@ -350,15 +350,15 @@ test('members and agents offer their roles as row expansions', () => {
   })
   expect(members.getProps({ id: 2, user_id: 8 }).readOnly).toBe(false)
 
-  const agents = new EnterpriseRolesAgentExtensionType({ app })
-  expect(agents.isActive({ id: 12 })).toBe(true)
-  expect(agents.getRowExpansion().getProps({ id: 5 })).toEqual({
-    subjectType: 'core.Agent',
+  const identities = new EnterpriseRolesIdentityExtensionType({ app })
+  expect(identities.isActive({ id: 12 })).toBe(true)
+  expect(identities.getRowExpansion().getProps({ id: 5 })).toEqual({
+    subjectType: 'auth.User',
     subjectId: 5,
     roleColumnKey: 'role_uid',
     readOnly: false,
   })
-  const withoutRbac = new EnterpriseRolesAgentExtensionType({
+  const withoutRbac = new EnterpriseRolesIdentityExtensionType({
     app: { ...app, $hasFeature: () => false },
   })
   expect(withoutRbac.isActive({ id: 12 })).toBe(false)

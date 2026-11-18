@@ -4,7 +4,6 @@ import AuditLogActorTypeField from '@baserow_enterprise/components/auditLog/Audi
 
 const actorTypeNames = {
   'auth.User': 'User',
-  'core.Agent': 'Agent',
 }
 
 async function mountComponent(type) {
@@ -33,7 +32,6 @@ async function mountComponent(type) {
 describe('AuditLogActorTypeField', () => {
   test.each([
     ['auth.User', 'User'],
-    ['core.Agent', 'Agent'],
     ['custom.Robot', 'custom.Robot'],
   ])('renders the %s actor type', async (type, expected) => {
     const wrapper = await mountComponent(type)

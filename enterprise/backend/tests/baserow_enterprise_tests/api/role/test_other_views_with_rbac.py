@@ -3,7 +3,12 @@ from django.shortcuts import reverse
 from django.test.utils import override_settings
 
 import pytest
-from rest_framework.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_204_NO_CONTENT,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE
@@ -609,3 +614,30 @@ def test_editor_personal_view_default_values_applied_to_new_row(
     )
     assert create_row_response.status_code == HTTP_200_OK
     assert create_row_response.json()[f"field_{text_field.id}"] == "editor default"
+
+
+@pytest.mark.django_db
+def test_team_admin_can_remove_the_last_member_with_a_direct_admin_role(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    direct_admin = data_fixture.create_user()
+    team_admin, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=direct_admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=team_admin, permissions="NO_ROLE_LOW_PRIORITY"
+    )
+    team = enterprise_data_fixture.create_team(
+        workspace=workspace, members=[team_admin]
+    )
+    handler = RoleAssignmentHandler()
+    handler.assign_role(team, workspace, role=handler.get_role_by_uid("ADMIN"))
+
+    response = api_client.delete(
+        reverse(
+            "api:workspaces:users:item",
+            kwargs={"workspace_user_id": workspace.get_workspace_user(direct_admin).id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_204_NO_CONTENT
