@@ -6,18 +6,17 @@ from django.urls import reverse
 
 import pytest
 
+from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
-from baserow.contrib.automation.nodes.signals import automation_node_updated
 from baserow.contrib.automation.tools.nodes import list_nodes, update_nodes
 from baserow.contrib.automation.tools.types import NodeUpdate
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
-from baserow.contrib.database.fields.operations import ListFieldsOperationType
-from baserow.core.handler import CoreHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.tools import ToolContext
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -126,12 +125,11 @@ def test_updating_a_node_hides_the_fields_of_a_table_the_user_cannot_see(
     _assert_hides_the_table(response, response.json())
 
 
-@pytest.mark.django_db
-def test_listing_nodes_checks_each_table_once(api_client, workflow_on_a_secret_table):
-    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
-    table_id = trigger.service.specific.table_id
+def _add_row_nodes(admin, workflow, trigger, table_ids):
+    """A create row node on each of the tables, one after the other."""
+
     previous = trigger
-    for _ in range(3):
+    for table_id in table_ids:
         previous = AutomationNodeService().create_node(
             admin,
             automation_node_type_registry.get("local_baserow_create_row"),
@@ -139,22 +137,79 @@ def test_listing_nodes_checks_each_table_once(api_client, workflow_on_a_secret_t
             reference_node_id=previous.id,
             service={"table_id": table_id},
         )
+    return previous
+
+
+@pytest.mark.django_db
+def test_listing_nodes_costs_the_same_queries_for_more_nodes_on_a_table(
+    api_client,
+    django_assert_num_queries,
+    workflow_on_a_secret_table,
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    table_id = trigger.service.specific.table_id
     url = reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id})
 
-    with patch.object(
-        CoreHandler, "check_permissions", wraps=CoreHandler().check_permissions
-    ) as check:
+    def list_nodes_as_restricted():
         response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {restricted_token}")
+        assert response.status_code == 200
+        assert all(node["service"]["schema"] is None for node in response.json())
+        return response
 
-    assert response.status_code == 200
-    assert len(response.json()) == 4
-    assert all(node["service"]["schema"] is None for node in response.json())
-    table_checks = [
-        call
-        for call in check.call_args_list
-        if call.args[1] == ListFieldsOperationType.type
+    last = _add_row_nodes(admin, workflow, trigger, [table_id])
+    list_nodes_as_restricted()  # Warms the caches.
+    with CaptureQueriesContext(connection) as queries:
+        list_nodes_as_restricted()
+    _add_row_nodes(admin, workflow, last, [table_id] * 3)
+
+    # Each table is checked once, however many nodes use it.
+    with django_assert_num_queries(len(queries)):
+        response = list_nodes_as_restricted()
+    assert len(response.json()) == 5
+
+
+@pytest.mark.django_db
+def test_listing_nodes_costs_a_fixed_number_of_queries_for_each_table(
+    api_client,
+    enterprise_data_fixture,
+    django_assert_num_queries,
+    workflow_on_a_secret_table,
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    url = reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id})
+    workspace = workflow.automation.workspace
+
+    def list_nodes_as_restricted():
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {restricted_token}")
+        assert response.status_code == 200
+        return response
+
+    # The trigger's table is the one table of the workflow.
+    one = _add_row_nodes(admin, workflow, trigger, [trigger.service.specific.table_id])
+    list_nodes_as_restricted()  # Warms the caches.
+    with CaptureQueriesContext(connection) as one_table:
+        list_nodes_as_restricted()
+
+    tables = [
+        enterprise_data_fixture.create_database_table(
+            database=enterprise_data_fixture.create_database_application(
+                workspace=workspace
+            )
+        ).id
+        for _ in range(2)
     ]
-    assert len(table_checks) == 1
+    last = _add_row_nodes(admin, workflow, one, tables)
+    with CaptureQueriesContext(connection) as three_tables:
+        list_nodes_as_restricted()
+
+    # More nodes on those tables cost nothing more.
+    _add_row_nodes(admin, workflow, last, tables)
+    with django_assert_num_queries(len(three_tables)):
+        response = list_nodes_as_restricted()
+    assert len(response.json()) == 6
+    per_table = (len(three_tables) - len(one_table)) / 2
+    assert per_table == int(per_table)
+    assert per_table <= 4
 
 
 # The node events are broadcast with one of these, by whether the node uses a table.
@@ -276,45 +331,6 @@ def test_node_events_cost_the_same_queries_for_more_users(
     more_queries, sent = broadcast()
     assert len(sent) == 5
     assert more_queries == queries
-
-
-@broadcast_node_events
-@pytest.mark.django_db(transaction=True)
-def test_node_events_check_the_table_in_its_own_workspace(
-    django_capture_on_commit_callbacks, enterprise_data_fixture
-):
-    """
-    The table of a node's service is checked in the table's workspace, so an
-    admin of the automation's workspace isn't shown a table of another one.
-    """
-
-    fixture = enterprise_data_fixture
-    admin = fixture.create_user()
-    workspace = fixture.create_workspace(user=admin)
-    workflow = fixture.create_automation_workflow(
-        automation=fixture.create_automation_application(workspace=workspace),
-        trigger_type="local_baserow_rows_created",
-    )
-    elsewhere = fixture.create_database_table(
-        database=fixture.create_database_application(
-            workspace=fixture.create_workspace()
-        )
-    )
-    fixture.create_text_field(table=elsewhere, name="Salary")
-    trigger = workflow.get_trigger()
-    service = trigger.service.specific
-    service.table = elsewhere
-    service.save()
-
-    # Sent directly: the service handlers refuse a table of another workspace.
-    sent = _broadcast_node_events(
-        django_capture_on_commit_callbacks,
-        lambda: automation_node_updated.send(None, user=None, node=trigger),
-    )
-
-    (event,) = sent[admin.id]
-    assert event["node"]["service"]["table_accessible"] is False
-    assert "Salary" not in str(event)
 
 
 def _formula(formula):
@@ -751,42 +767,20 @@ def test_run_result_of_a_trashed_node_is_checked_for_its_table(
     assert response.json()["result"] is None
 
 
-def test_serializer_without_access_shows_no_table():
+@pytest.mark.django_db
+def test_serializer_without_access_shows_no_table(workflow_on_a_secret_table):
     from baserow.contrib.automation.api.nodes.serializers import (
         AutomationServiceSerializer,
     )
 
-    class Service:
-        id = 1
-        table_id = 1
-
-        @property
-        def specific(self):
-            return self
-
+    _, _, trigger, _, _, _ = workflow_on_a_secret_table
+    service = trigger.service.specific
     serializer = AutomationServiceSerializer(context={})
 
-    assert serializer.get_table_accessible(Service()) is False
-
-
-@pytest.mark.django_db
-def test_listing_nodes_reads_the_workflow_once(
-    api_client, workflow_on_a_secret_table, nodes_after_a_secret_trigger
-):
-    _, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
-    url = reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id})
-
-    for token in (admin_token, restricted_token):
-        with patch.object(
-            AutomationNodeHandler,
-            "get_nodes",
-            autospec=True,
-            side_effect=AutomationNodeHandler.get_nodes,
-        ) as get_nodes:
-            response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
-
-        assert response.status_code == 200
-        assert get_nodes.call_count == 1
+    assert serializer.get_table_accessible(service) is False
+    data = serializer.to_representation(service)
+    assert data["sample_data"] is None
+    assert data["schema"] is None
 
 
 @broadcast_node_events
@@ -987,3 +981,381 @@ def test_listing_run_nodes_costs_the_same_queries_for_more_nodes(
 
     # The nodes of the run are read once, whatever their number.
     assert len(many) <= len(few)
+
+
+SECRET_ROWS = {"results": [{"id": 1, "Salary": "Paid 250k"}], "has_next_page": False}
+
+
+def _test_run(fixture, workflow, node, event_payload=None):
+    """
+    Dispatches the nodes up to the given one as a test run until it does, which
+    stores the test run data of the node.
+    """
+
+    run = fixture.create_automation_workflow_history(
+        workflow=workflow,
+        original_workflow=workflow,
+        simulate_until_node=node,
+        event_payload=event_payload or SECRET_ROWS,
+    )
+    for before in sorted(node.get_previous_points(), key=lambda n: n.id):
+        AutomationNodeHandler().dispatch_node(before.id, history_id=run.id)
+    AutomationNodeHandler().dispatch_node(node.id, history_id=run.id)
+    node.service.specific.refresh_from_db()
+    return node
+
+
+def _nodes_as(api_client, workflow, token):
+    response = api_client.get(
+        reverse("api:automation:nodes:list", kwargs={"workflow_id": workflow.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    return response, {node["id"]: node["service"] for node in response.json()}
+
+
+@pytest.fixture
+def test_run_nodes(enterprise_data_fixture, workflow_on_a_secret_table):
+    """
+    The trigger on the secret table, an iterator over its rows and an email that
+    reads one, each with the test run data a real test run stored.
+    """
+
+    admin, workflow, trigger, _, _, _ = workflow_on_a_secret_table
+    fixture = enterprise_data_fixture
+    trigger.service.specific.integration = fixture.create_local_baserow_integration(
+        user=admin, application=workflow.automation
+    )
+    trigger.service.specific.sample_data = None
+    trigger.service.specific.save()
+    iterator = _add_node(
+        admin,
+        workflow,
+        "iterator",
+        trigger,
+        source=_formula(f"get('previous_node.{trigger.id}')"),
+    )
+    email = _add_node(
+        admin,
+        workflow,
+        "smtp_email",
+        iterator,
+        use_instance_smtp_settings=True,
+        from_email=_formula("'from@example.com'"),
+        to_emails=_formula("'to@example.com'"),
+        subject=_formula("'Report'"),
+        body=_formula(f"get('previous_node.{trigger.id}.0.Salary')"),
+    )
+    for node in (trigger, iterator, email):
+        _test_run(fixture, workflow, node)
+    return trigger, iterator, email
+
+
+@pytest.mark.django_db
+def test_test_run_data_remembers_the_tables_it_was_built_from(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    _, _, trigger, _, _, _ = workflow_on_a_secret_table
+    table_id = trigger.service.specific.table_id
+
+    for node in test_run_nodes:
+        assert node.service.specific.sample_data
+        assert node.service.specific.sample_data_table_ids == [table_id]
+
+
+@pytest.mark.django_db
+def test_test_run_data_is_hidden_after_the_formula_reading_the_table_is_edited(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    _, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, email = test_run_nodes
+    _, services = _nodes_as(api_client, workflow, restricted_token)
+    assert services[iterator.id]["sample_data"] is None
+
+    response = api_client.patch(
+        reverse("api:automation:nodes:item", kwargs={"node_id": iterator.id}),
+        {"service": {"source": _formula("'nothing'")}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+    assert response.status_code == 200, response.json()
+    assert "Paid 250k" not in response.content.decode()
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+
+    assert "Paid 250k" not in response.content.decode()
+    assert services[iterator.id]["sample_data"] is None
+    assert services[iterator.id]["schema"] is None
+    # The email read the iterator's rows, whatever the iterator reads now.
+    assert services[email.id]["sample_data"] is None
+    _, services = _nodes_as(api_client, workflow, admin_token)
+    assert "Paid 250k" in str(services[iterator.id]["sample_data"])
+
+
+@pytest.fixture
+def test_run_rows_and_iterator(enterprise_data_fixture, workflow_on_a_secret_table):
+    """
+    A list of the secret table's rows, with a note in the row, and an iterator
+    over them, each with the test run data a real test run stored.
+    """
+
+    admin, workflow, trigger, _, _, _ = workflow_on_a_secret_table
+    fixture = enterprise_data_fixture
+    table = trigger.service.specific.table
+    note = fixture.create_text_field(table=table, name="Note")
+    table.get_model().objects.create(**{f"field_{note.id}": "Paid 250k"})
+    integration = fixture.create_local_baserow_integration(
+        user=admin, application=workflow.automation
+    )
+    rows = _add_node(
+        admin,
+        workflow,
+        "local_baserow_list_rows",
+        trigger,
+        table=table,
+        integration=integration,
+    )
+    iterator = _add_node(
+        admin,
+        workflow,
+        "iterator",
+        rows,
+        source=_formula(f"get('previous_node.{rows.id}')"),
+    )
+    trigger.service.specific.integration = integration
+    trigger.service.specific.save()
+    _test_run(fixture, workflow, iterator)
+    assert "Paid 250k" in str(iterator.service.specific.sample_data)
+    return rows, iterator
+
+
+@pytest.mark.django_db
+def test_test_run_data_is_hidden_after_the_node_between_is_deleted(
+    api_client, workflow_on_a_secret_table, test_run_rows_and_iterator
+):
+    _, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    rows, iterator = test_run_rows_and_iterator
+    _, services = _nodes_as(api_client, workflow, restricted_token)
+    assert services[iterator.id]["sample_data"] is None
+
+    response = api_client.delete(
+        reverse("api:automation:nodes:item", kwargs={"node_id": rows.id}),
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == 204
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+
+    assert "Paid 250k" not in response.content.decode()
+    assert services[iterator.id]["sample_data"] is None
+    assert services[iterator.id]["schema"] is None
+    _, services = _nodes_as(api_client, workflow, admin_token)
+    assert "Paid 250k" in str(services[iterator.id]["sample_data"])
+
+
+@broadcast_node_events
+@pytest.mark.django_db(transaction=True)
+def test_node_events_are_hidden_after_the_node_between_is_deleted(
+    django_capture_on_commit_callbacks,
+    workflow_on_a_secret_table,
+    test_run_rows_and_iterator,
+):
+    admin, _, _, _, _, restricted = workflow_on_a_secret_table
+    rows, iterator = test_run_rows_and_iterator
+    AutomationNodeService().delete_node(admin, rows.id)
+
+    sent = _broadcast_node_events(
+        django_capture_on_commit_callbacks,
+        lambda: AutomationNodeService().update_node(admin, iterator.id, label="New"),
+    )
+
+    (full,) = sent[admin.id]
+    (hidden,) = sent[restricted.id]
+    assert "Paid 250k" in str(full["node"]["service"]["sample_data"])
+    assert "Paid 250k" not in str(hidden)
+    assert hidden["node"]["service"]["sample_data"] is None
+
+
+@pytest.mark.django_db
+def test_test_run_data_is_hidden_after_the_table_is_permanently_deleted(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, email = test_run_nodes
+    table = trigger.service.specific.table
+    TrashHandler.trash(
+        admin,
+        workflow.automation.workspace,
+        table.database,
+        table,
+    )
+    TrashHandler.permanently_delete(table)
+    trigger.service.specific.refresh_from_db()
+    assert trigger.service.specific.table_id is None
+
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+
+    assert "Paid 250k" not in response.content.decode()
+    for node in (trigger, iterator, email):
+        assert services[node.id]["sample_data"] is None
+    assert services[iterator.id]["schema"] is None
+
+
+@pytest.mark.django_db
+def test_run_messages_of_a_failed_node_on_a_secret_table_are_hidden(
+    api_client,
+    enterprise_data_fixture,
+    workflow_on_a_secret_table,
+):
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
+    fixture = enterprise_data_fixture
+    table = trigger.service.specific.table
+    bonus = fixture.create_number_field(table=table, name="Bonus")
+    integration = fixture.create_local_baserow_integration(
+        user=admin, application=workflow.automation
+    )
+    trigger.service.specific.integration = integration
+    trigger.service.specific.save()
+    create_row = _add_node(
+        admin,
+        workflow,
+        "local_baserow_create_row",
+        trigger,
+        table=table,
+        integration=integration,
+    )
+    create_row.service.specific.field_mappings.create(
+        field=bonus, value=_formula("'a lot'"), enabled=True
+    )
+    run = fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow, event_payload=SECRET_ROWS
+    )
+    for node in (trigger, create_row):
+        AutomationNodeHandler().dispatch_node(node.id, history_id=run.id)
+    run.refresh_from_db()
+    assert "Bonus" in run.message
+    url = reverse(
+        "api:automation:workflows:history", kwargs={"workflow_id": workflow.id}
+    )
+
+    def run_message(token):
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+        assert response.status_code == 200, response.json()
+        (entry,) = response.json()["results"]
+        return entry["message"]
+
+    assert run_message(restricted_token) == ""
+    assert "Bonus" in run_message(admin_token)
+
+
+@pytest.mark.django_db
+def test_run_message_of_a_failed_node_the_user_may_see_is_shown(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    unrelated = _add_node(
+        admin,
+        workflow,
+        "smtp_email",
+        trigger,
+        use_instance_smtp_settings=True,
+        from_email=_formula("'from@example.com'"),
+        to_emails=_formula("''"),
+        subject=_formula("'Report'"),
+        body=_formula("'Weekly report'"),
+    )
+    run = enterprise_data_fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow, event_payload=SECRET_ROWS
+    )
+    trigger.service.specific.integration = (
+        enterprise_data_fixture.create_local_baserow_integration(
+            user=admin, application=workflow.automation
+        )
+    )
+    trigger.service.specific.save()
+    for node in (trigger, unrelated):
+        AutomationNodeHandler().dispatch_node(node.id, history_id=run.id)
+    run.refresh_from_db()
+    assert run.message
+
+    response = api_client.get(
+        reverse(
+            "api:automation:workflows:history", kwargs={"workflow_id": workflow.id}
+        ),
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+
+    (entry,) = response.json()["results"]
+    assert entry["message"] == run.message
+
+
+@pytest.mark.django_db
+def test_test_run_data_built_through_another_node_keeps_the_tables_of_both(
+    workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    """
+    The data of a node holds what the nodes it read held, whatever those read
+    when they were run.
+    """
+
+    _, _, trigger, _, _, _ = workflow_on_a_secret_table
+    iterator, email, unrelated = nodes_after_a_secret_trigger
+    table_id = trigger.service.specific.table_id
+    iterator.service.specific.sample_data_table_ids = [table_id]
+    iterator.service.specific.save()
+    # Reads the iterator only, which reads the trigger's table.
+    service = unrelated.service.specific
+    service.body = _formula(f"get('previous_node.{iterator.id}.0.Salary')")
+    service.save()
+
+    assert AutomationNodeAccess(None).sample_table_ids(unrelated) == {table_id}
+    assert AutomationNodeAccess(None).data_table_ids(email) == {table_id}
+
+
+@pytest.mark.django_db
+def test_a_retry_condition_reading_a_secret_table_hides_the_data_of_the_node(
+    api_client, workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    """
+    For test run data stored before the tables it was built from were kept, the
+    formulas of the node decide, its retry condition included.
+    """
+
+    _, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    _, _, unrelated = nodes_after_a_secret_trigger
+    AutomationNode.objects.filter(id=unrelated.id).update(
+        retry_condition=_formula(f"get('previous_node.{trigger.id}.0.Salary')")
+    )
+
+    _, services = _nodes_as(api_client, workflow, restricted_token)
+
+    assert services[unrelated.id]["sample_data"] is None
+
+
+@pytest.mark.django_db
+def test_history_serializers_show_nothing_without_a_node_access(
+    enterprise_data_fixture, workflow_on_a_secret_table, nodes_after_a_secret_trigger
+):
+    from baserow.contrib.automation.api.history.serializers import (
+        AutomationNodeHistorySerializer,
+        AutomationNodeResultSerializer,
+    )
+    from baserow.contrib.automation.api.workflows.serializers import (
+        AutomationWorkflowHistorySerializer,
+    )
+
+    _, workflow, _, _, _, _ = workflow_on_a_secret_table
+    _, _, unrelated = nodes_after_a_secret_trigger
+    run = enterprise_data_fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow, message="Paid 250k"
+    )
+    node_history = enterprise_data_fixture.create_automation_node_history(
+        workflow_history=run, node=unrelated, message="Paid 250k"
+    )
+    result = enterprise_data_fixture.create_automation_node_result(
+        node_history=node_history, result={"body": "Paid 250k"}
+    )
+
+    assert AutomationNodeHistorySerializer(node_history).data["message"] == ""
+    assert AutomationNodeResultSerializer(result).data["result"] is None
+    assert AutomationWorkflowHistorySerializer(run).data["message"] == ""
