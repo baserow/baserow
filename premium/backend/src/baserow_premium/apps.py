@@ -11,9 +11,11 @@ class BaserowPremiumConfig(AppConfig):
         from baserow_premium.mcp.row_comments.tools import (
             CreateRowCommentsMcpTool,
             ListRowCommentsMcpTool,
+            SearchRowCommentsMcpTool,
         )
 
         mcp_tool_registry.register(ListRowCommentsMcpTool())
+        mcp_tool_registry.register(SearchRowCommentsMcpTool())
         mcp_tool_registry.register(CreateRowCommentsMcpTool())
 
         # noinspection PyUnresolvedReferences

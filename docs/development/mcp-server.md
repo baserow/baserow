@@ -110,6 +110,7 @@ OpenAI verifies the domain of a submitted ChatGPT app by fetching `/.well-known/
 | `list_table_rows` | `database_read` | on | no | List rows with optional search and pagination |
 | `list_views` | `database_read` | on | no | List the views of a table (shared with Kuma) |
 | `list_row_comments` | `database_read` | on | no | List a row's comments as plain text. Needs premium (shared with Kuma) |
+| `search_row_comments` | `database_read` | on | no | Find the comments of a database, newest first, by table, mentioned user, author and date. Needs premium |
 | `create_rows` | `database_edit` | on | no | Create one or more rows using field names |
 | `update_rows` | `database_edit` | on | yes | Update rows by ID using field names |
 | `create_database` | `database_edit` | off | no | Create one database (shared with Kuma) |

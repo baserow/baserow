@@ -11,6 +11,14 @@ class ListRowCommentsMcpTool(FunctionMCPTool):
     function = tools.list_row_comments
 
 
+class SearchRowCommentsMcpTool(FunctionMCPTool):
+    type = "search_row_comments"
+    group = GROUP_DATABASE_READ
+    title = "Search row comments"
+    read_only = True
+    function = tools.search_row_comments
+
+
 class CreateRowCommentsMcpTool(FunctionMCPTool):
     type = "create_row_comments"
     group = GROUP_DATABASE_EDIT
