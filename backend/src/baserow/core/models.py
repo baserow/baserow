@@ -54,6 +54,7 @@ from .ai_provider.models import (
 from .chat_runs.models import ChatRun
 from .integrations.models import Integration
 from .last_viewed.models import UserLastViewedItem
+from .managers import NoTrashManager
 from .mixins import (
     CreatedAndUpdatedOnMixin,
     HierarchicalModelMixin,
@@ -75,6 +76,7 @@ __all__ = [
     "WorkspaceInvitation",
     "WorkspaceInvitationLink",
     "Application",
+    "SharedApplication",
     "TemplateCategory",
     "Template",
     "UserLogEntry",
@@ -420,6 +422,21 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
 
         return self.application_set(manager="objects_and_trash")
 
+    def application_set_without_shared(
+        self, include_trash: bool = False
+    ) -> QuerySet["Application"]:
+        """
+        :param include_trash: Whether trashed applications are included too.
+        :return: The applications of this workspace without its shared application,
+            see `Application.objects_without_shared`.
+        """
+
+        if include_trash:
+            return self.application_set_including_trash().exclude(
+                shared_application_filter()
+            )
+        return self.application_set(manager="objects_without_shared").all()
+
     def has_template(self):
         return len(self.get_template_types()) > 0
 
@@ -695,6 +712,37 @@ class WorkspaceInvitationLink(
         ordering = ("id",)
 
 
+def shared_application_filter(prefix: str = "") -> Q:
+    """
+    Matches the shared applications by the natural key of their content type. It
+    joins the content type table instead of looking the content type up, so the
+    number of queries doesn't depend on Django's content type cache.
+
+    :param prefix: The path from the queried model to the application, ending with
+        `__`, when the query doesn't select applications.
+    :return: The filter matching the shared applications.
+    """
+
+    opts = SharedApplication._meta
+    return Q(
+        **{
+            f"{prefix}content_type__app_label": opts.app_label,
+            f"{prefix}content_type__model": opts.model_name,
+        }
+    )
+
+
+class ApplicationWithoutSharedManager(NoTrashManager):
+    """
+    Excludes trashed applications and the shared applications, which own the
+    workspace integrations. Used where they must not travel or be counted, like
+    exports, templates and statistics.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().exclude(shared_application_filter())
+
+
 class Application(
     HierarchicalModelMixin,
     TrashableModelMixin,
@@ -725,6 +773,11 @@ class Application(
         help_text="How many snapshots the application keeps. Empty to follow the "
         "workspace default max snapshots.",
     )
+
+    # Declared again, before the other manager, so that it stays the default one:
+    # Django picks the first manager declared on the model before the inherited ones.
+    objects = NoTrashManager()
+    objects_without_shared = ApplicationWithoutSharedManager()
 
     class Meta:
         ordering = ("order",)
@@ -757,6 +810,14 @@ class Application(
         """
 
         return self.workspace
+
+
+class SharedApplication(Application):
+    """
+    The hidden application of a workspace that owns its workspace integrations, so
+    that they keep the ownership chain of any integration: integration, application,
+    workspace. Baserow keeps one per workspace, see `SharedApplicationType`.
+    """
 
 
 class TemplateCategory(models.Model):

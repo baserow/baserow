@@ -619,9 +619,9 @@ class UserTemplateHandler:
 
         applications = (
             list(
-                Application.objects.filter(workspace_id=revision.workspace_id).order_by(
-                    "order", "id"
-                )
+                Application.objects_without_shared.filter(
+                    workspace_id=revision.workspace_id
+                ).order_by("order", "id")
             )
             if revision.has_content
             else []
@@ -1873,7 +1873,7 @@ class UserTemplateHandler:
 
         if (
             not revision.has_content
-            or not Application.objects.filter(
+            or not Application.objects_without_shared.filter(
                 workspace_id=revision.workspace_id
             ).exists()
         ):

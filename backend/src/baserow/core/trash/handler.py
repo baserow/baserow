@@ -689,8 +689,10 @@ def _get_applications_excluding_perm_deleted(
             "id", flat=True
         ),
     ).values_list("trash_item_id", flat=True)
+    # The workspace integrations are listed under the workspace, so its shared
+    # application, which owns them, is never shown.
     applications = (
-        workspace.application_set_including_trash()
+        workspace.application_set_without_shared(include_trash=True)
         .exclude(id__in=perm_deleted_apps)
         .order_by("order", "id")
     )

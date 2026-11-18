@@ -33,7 +33,14 @@ def stub_filter_queryset(u, o, q, *args, **kwargs):
 
 
 @pytest.mark.django_db()
-@pytest.mark.parametrize("application_type", application_type_registry.get_all())
+@pytest.mark.parametrize(
+    "application_type",
+    [
+        application_type
+        for application_type in application_type_registry.get_all()
+        if application_type.is_user_managed
+    ],
+)
 def test_can_create_different_application_types(
     application_type, api_client, data_fixture
 ):
@@ -327,6 +334,8 @@ def test_list_all_applications_queries_do_not_increase_with_workspaces(
         workflow_1.notification_recipients.add(user)
         workflow_2 = data_fixture.create_automation_workflow(automation=automation)
         AutomationWorkflowHandler().publish(workflow_2)
+
+        data_fixture.create_shared_application(workspace=workspace)
 
         return workspace
 

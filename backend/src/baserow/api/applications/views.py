@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from baserow.api.applications.errors import (
     ERROR_APPLICATION_DOES_NOT_EXIST,
     ERROR_APPLICATION_NOT_IN_GROUP,
+    ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
     ERROR_APPLICATION_TYPE_DOES_NOT_EXIST,
 )
 from baserow.api.decorators import map_exceptions, validate_body
@@ -36,6 +37,7 @@ from baserow.core.ai_provider.resolution import load_ai_provider_state
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
+    ApplicationOperationNotSupported,
     ApplicationTypeDoesNotExist,
     UserNotInWorkspace,
     WorkspaceDoesNotExist,
@@ -214,7 +216,11 @@ class ApplicationsView(APIView):
         responses={
             200: PolymorphicApplicationResponseSerializer,
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
+                ]
             ),
             404: get_error_schema(["ERROR_GROUP_DOES_NOT_EXIST"]),
         },
@@ -225,6 +231,7 @@ class ApplicationsView(APIView):
             WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ApplicationTypeDoesNotExist: ERROR_APPLICATION_TYPE_DOES_NOT_EXIST,
+            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     @validate_body(PolymorphicApplicationCreateSerializer)
@@ -324,7 +331,11 @@ class ApplicationView(RealtimeRecoveryPrimaryReadMixin, APIView):
         responses={
             200: PolymorphicApplicationResponseSerializer,
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
+                ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
@@ -335,6 +346,7 @@ class ApplicationView(RealtimeRecoveryPrimaryReadMixin, APIView):
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ApplicationTypeDoesNotExist: ERROR_APPLICATION_TYPE_DOES_NOT_EXIST,
+            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     def patch(self, request, application_id):
@@ -395,7 +407,11 @@ class ApplicationView(RealtimeRecoveryPrimaryReadMixin, APIView):
         responses={
             204: None,
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM",
+                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
+                ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
         },
@@ -406,6 +422,7 @@ class ApplicationView(RealtimeRecoveryPrimaryReadMixin, APIView):
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
+            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     def delete(self, request, application_id):
@@ -504,6 +521,7 @@ class AsyncDuplicateApplicationView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_APPLICATION_NOT_IN_GROUP",
                     "ERROR_MAX_JOB_COUNT_EXCEEDED",
+                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -515,6 +533,7 @@ class AsyncDuplicateApplicationView(APIView):
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
+            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     def post(self, request: Request, application_id: int) -> Response:

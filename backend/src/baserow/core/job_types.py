@@ -6,7 +6,10 @@ from django.db import OperationalError, transaction
 
 from rest_framework import serializers
 
-from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
+from baserow.api.applications.errors import (
+    ERROR_APPLICATION_DOES_NOT_EXIST,
+    ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
+)
 from baserow.api.applications.serializers import (
     InstallTemplateJobApplicationsSerializer,
     PolymorphicApplicationResponseSerializer,
@@ -48,6 +51,7 @@ from baserow.core.actions import (
 from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
     ApplicationDoesNotExist,
+    ApplicationOperationNotSupported,
     DuplicateApplicationMaxLocksExceededException,
     InstallTemplateMaxLocksExceededException,
     PermissionDenied,
@@ -104,6 +108,7 @@ class DuplicateApplicationJobType(JobType):
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         WorkspaceDoesNotExist: ERROR_GROUP_DOES_NOT_EXIST,
         DuplicateApplicationMaxLocksExceededException: ERROR_MAX_LOCKS_PER_TRANSACTION_EXCEEDED,
+        ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
     }
 
     job_exceptions_map = {
@@ -141,6 +146,10 @@ class DuplicateApplicationJobType(JobType):
         self, values: Dict[str, Any], user: AbstractUser
     ) -> Dict[str, Any]:
         application = CoreService().get_application(user, values["application_id"])
+        # Refused before the job is created, like `CoreHandler.duplicate_application`
+        # would when it runs.
+        if not application.get_type().is_user_managed:
+            raise ApplicationOperationNotSupported()
 
         return {
             "original_application": application,
@@ -478,7 +487,7 @@ class ExportApplicationsJobType(JobType):
             context=workspace,
         )
 
-        applications = Application.objects.filter(
+        applications = Application.objects_without_shared.filter(
             workspace=workspace, workspace__trashed=False
         )
         if application_ids:

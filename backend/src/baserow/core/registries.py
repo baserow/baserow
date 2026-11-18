@@ -467,6 +467,11 @@ class ApplicationType(
 
     supports_user_sources = False
 
+    # False for an application Baserow keeps for its workspace, like the shared
+    # application that owns the workspace integrations: nobody renames, duplicates
+    # or deletes it.
+    is_user_managed = True
+
     # The order in which this application type is imported in
     # `import_applications_to_workspace`. By default, the priority is `0`, the lowest
     # value. If this property is not overridden, then the instance is imported last.

@@ -47,6 +47,11 @@ class CoreConfig(AppConfig):
 
         trash_item_type_registry.register(IdentityTrashableItemType())
 
+        from baserow.core.application_types import SharedApplicationType
+        from baserow.core.registries import application_type_registry
+
+        application_type_registry.register(SharedApplicationType())
+
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
             RuntimeAbs,
