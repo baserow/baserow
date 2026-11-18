@@ -100,6 +100,40 @@ describe('Agent conversations', () => {
     expect(document.activeElement).toBe(composer(wrapper).element)
   })
 
+  test('collapses and reopens the list while keeping the selected conversation and draft', async () => {
+    twoConversations()
+    mockMessages(testApp, 'conversation-b', page([message('m1', 'Hello')]))
+    const wrapper = await mount()
+    await selectConversation(wrapper, 'Conversation B')
+    await composer(wrapper).setValue('Unsent reply')
+    const toggle = wrapper.get('button[aria-controls="agent-conversations"]')
+    const list = wrapper.get('#agent-conversations')
+
+    expect(list.isVisible()).toBe(true)
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(list.isVisible()).toBe(false)
+    expect(messages(wrapper)).toEqual(['Hello'])
+    expect(composer(wrapper).element.value).toBe('Unsent reply')
+
+    await toggle.trigger('click')
+    expect(list.isVisible()).toBe(true)
+    expect(selected(wrapper).text()).toContain('Conversation B')
+    expect(composer(wrapper).element.value).toBe('Unsent reply')
+  })
+
+  test('hides the conversation toggle without conversation read access', async () => {
+    allowed.value = (operation) =>
+      operation !== 'agent_application.read_conversations'
+    const wrapper = await mount()
+
+    expect(wrapper.find('[aria-controls="agent-conversations"]').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('.agent-conversations').exists()).toBe(false)
+  })
+
   test('keeps the Recent section and focused composer when typing the first draft', async () => {
     const wrapper = await mount()
     const input = composer(wrapper)

@@ -114,6 +114,8 @@
     "reasoningEffortHigh": "High",
     "recent": "Recent",
     "filterConversations": "Filter conversations",
+    "hideConversations": "Hide conversations",
+    "showConversations": "Show conversations",
     "allConversations": "All conversations",
     "waitingForApprovalFilter": "Waiting for approval",
     "pinned": "Pinned",

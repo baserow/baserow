@@ -4,6 +4,16 @@
       class="layout__col-2-1 header header--space-between agent-application__header"
     >
       <div class="agent-application__header-title">
+        <ButtonIcon
+          v-if="state.canReadConversations"
+          icon="baserow-icon-sidebar"
+          :active="conversationsOpen"
+          :aria-label="conversationsToggleLabel"
+          :title="conversationsToggleLabel"
+          :aria-expanded="conversationsOpen"
+          aria-controls="agent-conversations"
+          @click="conversationsOpen = !conversationsOpen"
+        />
         <div class="agent-application__header-name">{{ agent.name }}</div>
         <button
           v-if="agent.pending_count > 0 && state.canReadConversations"
@@ -43,6 +53,8 @@
     <div class="layout__col-2-2 agent-application__content">
       <AgentConversationList
         v-if="state.canReadConversations"
+        v-show="conversationsOpen"
+        id="agent-conversations"
         :items="state.conversationItems"
         :filter="state.conversationFilter"
         :selected="state.selectedUuid"
@@ -301,6 +313,14 @@ const state = reactive({
   ...useAgentConversations(agent, configuration),
 })
 const approvalsMenu = ref(null)
+const conversationsOpen = ref(true)
+const conversationsToggleLabel = computed(() =>
+  t(
+    conversationsOpen.value
+      ? 'agent.hideConversations'
+      : 'agent.showConversations'
+  )
+)
 const configurationOpen = ref(true)
 provideNow()
 // Configuration sections read the Agent's workspace from here.
