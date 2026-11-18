@@ -117,6 +117,41 @@ def test_admin_can_see_admin_users_endpoint(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_admin_user_endpoints_exclude_identity_accounts(api_client, data_fixture):
+    admin, token = data_fixture.create_user_and_token(is_staff=True)
+    workspace = data_fixture.create_workspace(user=admin)
+    identity = data_fixture.create_identity(workspace=workspace, name="Automation")
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    response = api_client.get(reverse("api:admin:users:list"), **headers)
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 1
+    assert [user["id"] for user in response.json()["results"]] == [admin.id]
+
+    response = api_client.post(
+        reverse("api:admin:users:impersonate"),
+        {"user": identity.id},
+        format="json",
+        **headers,
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["user"][0].startswith("Invalid pk")
+
+    url = reverse("api:admin:users:edit", kwargs={"user_id": identity.id})
+    response = api_client.patch(url, {"name": "Changed"}, format="json", **headers)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "USER_ADMIN_UNKNOWN_USER"
+    response = api_client.delete(url, **headers)
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "USER_ADMIN_UNKNOWN_USER"
+
+    identity.refresh_from_db()
+    assert identity.first_name == "Automation"
+    assert not identity.profile.to_be_deleted
+    assert not identity.profile.trashed
+
+
+@pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_admin_with_invalid_token_cannot_see_admin_users(api_client, data_fixture):
     data_fixture.create_user_and_token(

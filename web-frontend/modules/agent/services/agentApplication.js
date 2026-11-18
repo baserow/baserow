@@ -16,8 +16,8 @@ export default (client) => ({
       ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
     })
   },
-  getRunAsSubjects(agentId, page = 1, search = '') {
-    return client.get(`/agent/${agentId}/run-as-subjects/`, {
+  getRunAsIdentities(agentId, page = 1, search = '') {
+    return client.get(`/agent/${agentId}/run-as-identities/`, {
       params: { page, search, size: 100 },
       // Opening the picker revalidates choices, including changes missed while
       // disconnected. A lagging replica must not reintroduce a deleted choice.

@@ -161,3 +161,52 @@ def test_dashboard_sharing_fields_give_every_existing_dashboard_its_own_slug(
         assert dashboard.public is False
         assert dashboard.public_password == ""
         assert dashboard.show_logo is True
+
+
+@pytest.mark.once_per_day_in_ci
+def test_text_filter_relational_schema_preserves_existing_widgets(migrator):
+    old = migrator.migrate([("dashboard", "0006_dashboard_sharing")])
+    Workspace = old.apps.get_model("core", "Workspace")
+    Dashboard = old.apps.get_model("dashboard", "Dashboard")
+    Widget = old.apps.get_model("dashboard", "Widget")
+    ContentType = old.apps.get_model("contenttypes", "ContentType")
+    workspace = Workspace.objects.create(name="Workspace")
+    dashboard = Dashboard.objects.create(
+        workspace=workspace,
+        order=1,
+        name="Dashboard",
+        content_type=ContentType.objects.get_for_model(Dashboard),
+    )
+    target = Widget.objects.create(
+        dashboard=dashboard,
+        content_type=ContentType.objects.get_for_model(Widget),
+        title="Existing widget",
+        order=1,
+    )
+    new = migrator.migrate([("dashboard", "0007_textfilterwidget")])
+    Widget = new.apps.get_model("dashboard", "Widget")
+    TextFilter = new.apps.get_model("dashboard", "TextFilterWidget")
+    Target = new.apps.get_model("dashboard", "WidgetFilterTarget")
+    Group = new.apps.get_model("dashboard", "WidgetFilterGroup")
+    Condition = new.apps.get_model("dashboard", "WidgetFilterCondition")
+    ContentType = new.apps.get_model("contenttypes", "ContentType")
+    owner = TextFilter.objects.create(
+        dashboard_id=dashboard.id,
+        content_type=ContentType.objects.get_for_model(TextFilter),
+        title="Filter",
+        order=2,
+    )
+    link = Target.objects.create(widget_id=owner.pk, target_widget_id=target.pk)
+    group = Group.objects.create(target=link)
+    condition = Condition.objects.create(
+        group=group, field_id=123, type="equal", value="France"
+    )
+    condition.refresh_from_db()
+    assert condition.value["formula"] == "France"
+    existing = Widget.objects.get(pk=target.pk)
+    assert existing.title == "Existing widget"
+    existing.delete()
+    assert TextFilter.objects.filter(pk=owner.pk).exists()
+    assert not Target.objects.exists()
+    assert not Group.objects.exists()
+    assert not Condition.objects.exists()

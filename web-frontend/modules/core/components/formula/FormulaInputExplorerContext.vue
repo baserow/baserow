@@ -126,7 +126,8 @@ export default {
       type: String,
       required: false,
       default: 'none',
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
     /**
      * An array of Baserow formula modes which the parent formula input

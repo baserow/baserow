@@ -2131,6 +2131,10 @@ export class CheckboxElementType extends FormElementType {
     return 'checkbox'
   }
 
+  getEvents(element) {
+    return [new ChangeEvent({ app: this.app })]
+  }
+
   get name() {
     return this.app.$i18n.t('elementType.checkbox')
   }
@@ -2719,6 +2723,10 @@ export class FooterElementType extends HeaderElementType {
 export class RatingInputElementType extends FormElementType {
   static getType() {
     return 'rating_input'
+  }
+
+  getEvents(element) {
+    return [new ChangeEvent({ app: this.app })]
   }
 
   get name() {

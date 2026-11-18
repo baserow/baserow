@@ -41,6 +41,10 @@ const state = () => ({
 
 const mutations = {
   ADD_ITEM(state, { builder, page }) {
+    // Kuma's navigation can fetch a page before its `page_created` broadcast.
+    if (builder.pages.some((item) => item.id === page.id)) {
+      return
+    }
     builder.pages.push(populatePage(page))
   },
   UPDATE_ITEM(state, { page, values }) {

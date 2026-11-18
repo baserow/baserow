@@ -1,9 +1,17 @@
+import re
+
+from django.db import connection, transaction
+from django.test.utils import CaptureQueriesContext
+
 import pytest
 
 from baserow.contrib.automation.nodes.constants import ERROR_POLICY_FIELDS
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import LocalBaserowRowsCreatedTriggerNode
+from baserow.contrib.automation.nodes.models import (
+    AutomationNode,
+    LocalBaserowRowsCreatedTriggerNode,
+)
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCreated
 from baserow.core.cache import local_cache
@@ -74,6 +82,34 @@ def test_get_nodes_excludes_trashed_application(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_nodes_does_not_evaluate_the_base_queryset(data_fixture):
+    # Regression test: `not base_queryset` evaluated the given queryset, which
+    # loaded every node it contained before the real, workflow-filtered query.
+    workflow = data_fixture.create_automation_workflow()
+    other_workflow = data_fixture.create_automation_workflow()
+    data_fixture.create_automation_node(workflow=other_workflow)
+
+    with CaptureQueriesContext(connection) as ctx:
+        nodes = list(
+            AutomationNodeHandler().get_nodes(
+                workflow, specific=False, base_queryset=AutomationNode.objects.all()
+            )
+        )
+
+    assert {node.workflow_id for node in nodes} == {workflow.id}
+    node_queries = [
+        q["sql"]
+        for q in ctx.captured_queries
+        if 'FROM "automation_automationnode"' in q["sql"]
+    ]
+    scoped = re.compile(
+        rf'"automation_automationnode"\."workflow_id" = {workflow.id}\b'
+    )
+    assert len(node_queries) == 1
+    assert scoped.search(node_queries[0]), node_queries
+
+
+@pytest.mark.django_db
 def test_get_node(data_fixture):
     node = data_fixture.create_automation_node()
 
@@ -95,6 +131,22 @@ def test_get_node_excludes_trashed_application(data_fixture):
         AutomationNodeHandler().get_node(node.id)
 
     assert str(e.value) == f"The node {node.id} does not exist."
+
+
+@pytest.mark.django_db
+def test_lock_nodes_locks_the_workflow_nodes_in_id_order(data_fixture):
+    first = data_fixture.create_automation_node()
+    second = data_fixture.create_automation_node(workflow=first.workflow)
+    elsewhere = data_fixture.create_automation_node()
+
+    with transaction.atomic(), CaptureQueriesContext(connection) as queries:
+        locked = AutomationNodeHandler().lock_nodes(
+            first.workflow, [elsewhere.id, second.id, first.id]
+        )
+
+    assert locked == [first.id, second.id]
+    assert len(queries) == 1
+    assert "FOR UPDATE" in queries[0]["sql"]
 
 
 @pytest.mark.django_db

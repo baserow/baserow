@@ -81,7 +81,11 @@ class DashboardDataSourceSerializer(ServiceSerializer):
             return None
 
     class Meta(ServiceSerializer.Meta):
-        fields = ServiceSerializer.Meta.fields + ("name", "dashboard_id", "order")
+        fields = ServiceSerializer.Meta.fields + (
+            "name",
+            "dashboard_id",
+            "order",
+        )
         extra_kwargs = {
             **ServiceSerializer.Meta.extra_kwargs,
             "name": {"read_only": True},
@@ -95,3 +99,7 @@ class UpdateDashboardDataSourceSerializer(UpdateServiceSerializer):
 
     class Meta(ServiceSerializer.Meta):
         fields = UpdateServiceSerializer.Meta.fields + ("name",)
+
+
+class DashboardDispatchSerializer(serializers.Serializer):
+    widget_data = serializers.DictField(required=False, default=dict)

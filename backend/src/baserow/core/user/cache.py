@@ -19,15 +19,34 @@ def _cache_key(user_id: int) -> str:
     return f"{_KEY_PREFIX}{user_id}"
 
 
+def has_complete_profile(user: AbstractUser | None) -> bool:
+    """
+    Returns whether a cached user came with its whole profile. A profile cached by
+    the previous release lacks the columns this release added.
+
+    :param user: The user read from a cache.
+    :return: Whether the user can be used without reading its profile again.
+    """
+
+    if user is None or not type(user).profile.is_cached(user):
+        return False
+    profile = getattr(user, "profile", None)
+    return profile is not None and not profile.get_deferred_fields()
+
+
+def _with_complete_profile(user: AbstractUser | None) -> AbstractUser | None:
+    return user if has_complete_profile(user) else None
+
+
 def get_cached_user(user_id: int) -> AbstractUser | None:
     """
     Return a cached User instance (with profile pre-loaded) or ``None`` on
-    cache miss or when caching is disabled.
+    cache miss, an incomplete profile or when caching is disabled.
     """
 
     if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return None
-    return cache.get(_cache_key(user_id))
+    return _with_complete_profile(cache.get(_cache_key(user_id)))
 
 
 async def aget_cached_user(user_id: int) -> AbstractUser | None:
@@ -53,11 +72,7 @@ async def aget_cached_user(user_id: int) -> AbstractUser | None:
         cached = await redis.get(client.make_key(_cache_key(user_id)))
         if cached is None:
             return None
-        user = client.decode(cached)
-        # An unloaded profile would query the database from the event loop.
-        if not type(user).profile.is_cached(user):
-            return None
-        return user
+        return _with_complete_profile(client.decode(cached))
     except Exception:
         logger.opt(exception=True).debug("Reading the async user cache failed.")
         return None

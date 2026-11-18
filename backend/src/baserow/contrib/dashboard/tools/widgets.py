@@ -56,7 +56,7 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import item_error_message
 
 MAX_WIDGET_DATA = 20
@@ -163,6 +163,7 @@ def describe_widget(widget: Widget, service: Service | None = None) -> dict[str,
     return description
 
 
+@tool_execution
 def list_widgets(
     ctx: ToolContext,
     dashboard_id: Annotated[int, Field(description="The dashboard to list.")],
@@ -195,6 +196,7 @@ def list_widgets(
     }
 
 
+@tool_execution
 def get_widget_data(
     ctx: ToolContext,
     widget_ids: Annotated[
@@ -431,6 +433,7 @@ def create_widget(ctx: ToolContext, dashboard_id: int, spec: WidgetCreate) -> Wi
     return widget
 
 
+@tool_execution
 def create_widgets(
     ctx: ToolContext,
     dashboard_id: Annotated[
@@ -540,6 +543,7 @@ def update_widget(ctx: ToolContext, spec: WidgetUpdate) -> bool:
     return data_source_changed or bool(new_data)
 
 
+@tool_execution
 def update_widgets(
     ctx: ToolContext,
     widgets: Annotated[
@@ -586,6 +590,7 @@ def update_widgets(
     return {"updated": updated, "errors": errors}
 
 
+@tool_execution
 def delete_widgets(
     ctx: ToolContext,
     widget_ids: Annotated[

@@ -1,6 +1,9 @@
 import { describe, expect, test } from 'vitest'
 
-import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
+import {
+  TextFilterWidgetType,
+  SummaryWidgetType,
+} from '@baserow/modules/dashboard/widgetTypes'
 
 const app = {
   $i18n: {
@@ -24,3 +27,36 @@ describe('SummaryWidgetType', () => {
     expect(widgetType.showHeaderBorder).toBe(false)
   })
 })
+
+test('filter refresh targets include only enabled links and support the public link graph', () => {
+  const type = new TextFilterWidgetType({ app })
+  expect(
+    type.getTargetWidgetIds({
+      target_filters: [
+        { target_widget_id: 1 },
+        { target_widget_id: 2, enabled: true },
+        { target_widget_id: 3, enabled: false },
+      ],
+    })
+  ).toEqual([1, 2])
+  expect(type.getTargetWidgetIds({ target_widget_ids: [1, 2] })).toEqual([1, 2])
+})
+
+test.each([false, true])(
+  'filter creation follows its feature flag (%s)',
+  (enabled) => {
+    const featureApp = {
+      ...app,
+      $featureFlagIsEnabled: (flag) => flag === 'dashboard-filters' && enabled,
+    }
+    const filter = new TextFilterWidgetType({ app: featureApp })
+    const summary = new SummaryWidgetType({ app: featureApp })
+    expect(filter.variations.map(({ type }) => type.getType())).toEqual(
+      enabled ? ['text_filter'] : []
+    )
+    expect(summary.variations.map(({ type }) => type.getType())).toEqual([
+      'summary',
+    ])
+    expect(filter.component).toBeDefined()
+  }
+)

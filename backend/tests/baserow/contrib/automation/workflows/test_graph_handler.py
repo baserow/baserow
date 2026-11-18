@@ -1023,3 +1023,120 @@ def test_graph_handler_migrate_with_unmapped_root():
     )
 
     assert graph_handler.graph == {"41": {}}
+
+
+def _nodes_with_outputs(outputs_by_id):
+    """Fake nodes whose service has the given outputs, in order."""
+
+    nodes = []
+    for node_id, outputs in outputs_by_id.items():
+        node = FakePoint(node_id)
+        node.service = MagicMock()
+        node.service.get_type.return_value.get_edges.return_value = {
+            output: {"label": output} for output in outputs
+        }
+        nodes.append(node)
+    return nodes
+
+
+def _positions(workflow, nodes):
+    return [
+        (node.id, None if previous is None else previous.id, position, output)
+        for node, previous, position, output in AutomationWorkflowGraphHandler(
+            workflow
+        ).get_positions_in_execution_order(nodes)
+    ]
+
+
+def test_graph_handler_get_positions_in_execution_order():
+    workflow = MagicMock()
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        # A router: the default branch is stored first but followed last.
+        "2": {"next": {"": [5], "b": [4], "a": [3]}},
+        "3": {},
+        "4": {},
+        # A container, with a legacy children list.
+        "5": {"children": [6], "next": {"": [8]}},
+        "6": {"next": {"": [7]}},
+        "7": {},
+        "8": {"next": {"": [9, 11]}},
+        # Not requested: neither it nor what only it reaches is listed.
+        "9": {"next": {"": [10]}},
+        "10": {},
+        # A container with children on several edges, followed in stored order.
+        "11": {"children": {"1": [13], "0": [12]}},
+        "12": {},
+        "13": {},
+    }
+    nodes = _nodes_with_outputs(
+        {
+            node_id: ["a", "b", ""] if node_id == 2 else [""]
+            for node_id in [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
+        }
+    )
+
+    assert _positions(workflow, nodes) == [
+        (1, None, "south", ""),
+        (2, 1, "south", ""),
+        (3, 2, "south", "a"),
+        (4, 2, "south", "b"),
+        (5, 2, "south", ""),
+        (6, 5, "child", ""),
+        (7, 6, "south", ""),
+        (8, 5, "south", ""),
+        (11, 8, "south", ""),
+        (13, 11, "child", "1"),
+        (12, 11, "child", "0"),
+    ]
+
+
+def test_graph_handler_get_positions_in_execution_order_unknown_output():
+    workflow = MagicMock()
+    # "gone" isn't an edge of the router: it sorts with the first edge, "a",
+    # keeping the stored order between them.
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2], "gone": [3], "a": [4]}},
+        "2": {},
+        "3": {},
+        "4": {},
+    }
+    nodes = _nodes_with_outputs({1: ["a", ""], 2: [""], 3: [""], 4: [""]})
+
+    assert _positions(workflow, nodes) == [
+        (1, None, "south", ""),
+        (3, 1, "south", "gone"),
+        (4, 1, "south", "a"),
+        (2, 1, "south", ""),
+    ]
+
+
+def test_graph_handler_get_positions_in_execution_order_stops_on_a_cycle():
+    workflow = MagicMock()
+    workflow.graph = {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [1]}}}
+    nodes = _nodes_with_outputs({1: [""], 2: [""]})
+
+    assert _positions(workflow, nodes) == [
+        (1, None, "south", ""),
+        (2, 1, "south", ""),
+    ]
+
+
+def test_graph_handler_get_positions_in_execution_order_long_chain():
+    workflow = MagicMock()
+    workflow.graph = {
+        "0": 1,
+        **{str(i): {"next": {"": [i + 1]}} for i in range(1, 5000)},
+    }
+    nodes = _nodes_with_outputs({i: [""] for i in range(1, 5001)})
+
+    assert len(_positions(workflow, nodes)) == 5000
+
+
+def test_graph_handler_get_positions_in_execution_order_empty_graph():
+    workflow = MagicMock()
+    workflow.graph = {}
+
+    assert _positions(workflow, _nodes_with_outputs({1: [""]})) == []

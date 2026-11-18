@@ -8,7 +8,7 @@ from .views import (
     AgentConversationsView,
     AgentConversationView,
     AgentMessagesView,
-    AgentRunAsSubjectsView,
+    AgentRunAsIdentitiesView,
     AgentToolApprovalsView,
 )
 
@@ -22,9 +22,9 @@ urlpatterns = [
         name="configuration",
     ),
     path(
-        "<int:agent_id>/run-as-subjects/",
-        AgentRunAsSubjectsView.as_view(),
-        name="run_as_subjects",
+        "<int:agent_id>/run-as-identities/",
+        AgentRunAsIdentitiesView.as_view(),
+        name="run_as_identities",
     ),
     path(
         "<int:agent_id>/conversations/",

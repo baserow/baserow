@@ -73,6 +73,13 @@ export class ViewAggregationType extends Registerable {
     return 50
   }
 
+  /**
+   * Return the value to display for an empty aggregation result.
+   */
+  getEmptyValue() {
+    return null
+  }
+
   formatValue(value, context) {
     if (isNaN(value)) {
       return null
@@ -734,6 +741,10 @@ export class SumViewAggregationType extends ViewAggregationType {
 
   getComponent() {
     return GenericViewAggregation
+  }
+
+  getEmptyValue() {
+    return 0
   }
 
   formatValue(value, { field, fieldType }) {

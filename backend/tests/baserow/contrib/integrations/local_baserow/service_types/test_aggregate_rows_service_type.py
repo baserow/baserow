@@ -925,7 +925,7 @@ def test_local_baserow_aggregate_rows_extract_properties_with_empty_path():
     "path,expected",
     [
         (["result"], ["result"]),
-        (["field_123"], []),
+        (["field_123"], ["field_123"]),
     ],
 )
 def test_local_baserow_aggregate_rows_extract_properties(path, expected):

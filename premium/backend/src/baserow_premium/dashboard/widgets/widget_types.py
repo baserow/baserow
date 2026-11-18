@@ -9,6 +9,7 @@ from baserow.contrib.dashboard.data_sources.handler import DashboardDataSourceHa
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.types import WidgetDict
 from baserow.contrib.dashboard.widgets.exceptions import WidgetImproperlyConfigured
+from baserow.contrib.dashboard.widgets.mixins import DisplayWidgetTypeMixin
 from baserow.contrib.dashboard.widgets.models import Widget
 from baserow.contrib.dashboard.widgets.registries import WidgetType
 from baserow.contrib.dashboard.widgets.types import UpdatedWidget, WidgetGridLayout
@@ -69,7 +70,7 @@ class SeriesConfigMixin:
         ]
 
 
-class ChartWidgetType(SeriesConfigMixin, WidgetType):
+class ChartWidgetType(SeriesConfigMixin, DisplayWidgetTypeMixin, WidgetType):
     type = "chart"
     model_class = ChartWidget
     grid_layout = WidgetGridLayout(
@@ -186,7 +187,7 @@ class ChartWidgetType(SeriesConfigMixin, WidgetType):
             ).delete()
 
             updated_widget.new_values["series_config"] = series_config
-        return updated_widget
+        return super().after_update(updated_widget, **kwargs)
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         if instance is None:
@@ -204,14 +205,6 @@ class ChartWidgetType(SeriesConfigMixin, WidgetType):
             )
             values["data_source"] = data_source
         return values
-
-    def before_trashed(self, instance: Widget):
-        instance.data_source.trashed = True
-        instance.data_source.save()
-
-    def before_restore(self, instance: Widget):
-        instance.data_source.trashed = False
-        instance.data_source.save()
 
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)
@@ -297,7 +290,7 @@ class ChartWidgetType(SeriesConfigMixin, WidgetType):
         )
 
 
-class PieChartWidgetType(SeriesConfigMixin, WidgetType):
+class PieChartWidgetType(SeriesConfigMixin, DisplayWidgetTypeMixin, WidgetType):
     type = "pie_chart"
     model_class = PieChartWidget
     grid_layout = WidgetGridLayout(
@@ -414,7 +407,7 @@ class PieChartWidgetType(SeriesConfigMixin, WidgetType):
             ).delete()
 
             updated_widget.new_values["series_config"] = series_config
-        return updated_widget
+        return super().after_update(updated_widget, **kwargs)
 
     def prepare_value_for_db(self, values: dict, instance: Widget | None = None):
         if instance is None:
@@ -432,14 +425,6 @@ class PieChartWidgetType(SeriesConfigMixin, WidgetType):
             )
             values["data_source"] = data_source
         return values
-
-    def before_trashed(self, instance: Widget):
-        instance.data_source.trashed = True
-        instance.data_source.save()
-
-    def before_restore(self, instance: Widget):
-        instance.data_source.trashed = False
-        instance.data_source.save()
 
     def after_delete(self, instance: Widget):
         DashboardDataSourceHandler().delete_data_source(instance.data_source)

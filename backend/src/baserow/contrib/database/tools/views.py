@@ -50,7 +50,7 @@ from baserow.contrib.database.views.registries import (
 )
 from baserow.core.exceptions import PermissionException
 from baserow.core.handler import CoreHandler
-from baserow.core.tools import ToolContext
+from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import (
     ToolError,
     ToolErrorCode,
@@ -266,6 +266,7 @@ class ViewItem(BaseModel):
         return cls(**kwargs)
 
 
+@tool_execution
 def list_views(
     ctx: ToolContext,
     table_id: Annotated[
@@ -1031,6 +1032,7 @@ def create_view_filter(
 # ---------------------------------------------------------------------------
 
 
+@tool_execution
 def create_views(
     ctx: ToolContext,
     table_id: Annotated[
@@ -1156,6 +1158,7 @@ def create_views(
     )
 
 
+@tool_execution
 def create_view_filters(
     ctx: ToolContext,
     view_filters: Annotated[

@@ -175,8 +175,7 @@ test.describe('Dashboard widget grid', () => {
           response.url().endsWith(`/dashboard/${dashboard.id}/widgets/`)
       )
       await page
-        .locator('.create-widget-card')
-        .filter({ hasText: 'Summary' })
+        .getByRole('button', { name: 'Summary', exact: true })
         .click()
       const createdWidget = await (await creationResponse).json()
       await expect(

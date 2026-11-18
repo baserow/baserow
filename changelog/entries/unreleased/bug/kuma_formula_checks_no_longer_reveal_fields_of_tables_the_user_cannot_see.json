@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Formula and lookup fields can no longer read a table the user can't see through a second link, and Kuma's formula checks no longer reveal its fields",
+    "issue_origin": "github",
+    "issue_number": 6259,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-11-17"
+}

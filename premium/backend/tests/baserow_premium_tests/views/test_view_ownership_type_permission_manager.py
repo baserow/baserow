@@ -7,8 +7,8 @@ from baserow.contrib.database.views.operations import (
     ListViewsOperationType,
     ReadViewOperationType,
 )
-from baserow.core.agents.handler import AgentHandler
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.registries import object_scope_type_registry, operation_type_registry
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.role.operations import (
@@ -92,7 +92,7 @@ def test_non_user_subjects_cannot_access_personal_views(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.view_ownership
-@pytest.mark.parametrize("actor_type", ["anonymous", "token", "agent"])
+@pytest.mark.parametrize("actor_type", ["anonymous", "token", "identity"])
 def test_non_user_subjects_skip_license_check_for_collaborative_views(
     data_fixture, mocker, actor_type
 ):
@@ -110,7 +110,7 @@ def test_non_user_subjects_skip_license_check_for_collaborative_views(
     actor = {
         "anonymous": lambda: AnonymousUser(),
         "token": lambda: data_fixture.create_token(user=owner, workspace=workspace),
-        "agent": lambda: AgentHandler().create_agent(workspace, name="Agent"),
+        "identity": lambda: IdentityHandler().create_identity(workspace, name="Agent"),
     }[actor_type]()
     user_has_feature = mocker.patch(
         "baserow_premium.permission_manager.LicenseHandler.user_has_feature"

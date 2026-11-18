@@ -1,4 +1,4 @@
-from .agent_signals import agent_team_changed, agent_team_membership_changed
+from .identity_signals import identity_team_changed, identity_team_membership_changed
 from .restricted_view.fields.signals import (
     field_created,
     field_deleted,
@@ -12,8 +12,8 @@ from .restricted_view.views.signals import (
 )
 
 __all__ = [
-    "agent_team_changed",
-    "agent_team_membership_changed",
+    "identity_team_changed",
+    "identity_team_membership_changed",
     "restricted_view_filter_created",
     "restricted_view_filter_updated",
     "restricted_view_filter_deleted",

@@ -97,6 +97,10 @@ class LocalCache:
         :param key: The key to delete from the cache.
         """
 
+        deletions = getattr(self._local, "deletions", None)
+        if deletions is not None:
+            deletions.append(key)
+
         if not hasattr(self._local, "cache"):
             return
 
@@ -116,6 +120,10 @@ class LocalCache:
         Clear all data from the cache.
         """
 
+        deletions = getattr(self._local, "deletions", None)
+        if deletions is not None:
+            deletions.append("*")
+
         if hasattr(self._local, "cache"):
             del self._local.cache
 
@@ -132,6 +140,30 @@ class LocalCache:
             yield self
         finally:
             self.clear()
+
+    @contextmanager
+    def isolated(self):
+        """
+        Runs a block that can't read the entries cached before it, then merges the
+        block's changes back: its deletions and clears apply to the earlier entries,
+        and its own entries replace them. Afterwards the cache holds what it would
+        hold without the scope; only reads inside the block start fresh.
+        """
+
+        outer_cache = getattr(self._local, "cache", None)
+        outer_deletions = getattr(self._local, "deletions", None)
+        self._local.cache = {}
+        self._local.deletions = []
+        try:
+            yield self
+        finally:
+            inner_cache = getattr(self._local, "cache", {})
+            deletions = self._local.deletions
+            self._local.deletions = outer_deletions
+            self._local.cache = outer_cache if outer_cache is not None else {}
+            for key in deletions:
+                self.delete(key)
+            self._local.cache.update(inner_cache)
 
 
 local_cache = LocalCache()

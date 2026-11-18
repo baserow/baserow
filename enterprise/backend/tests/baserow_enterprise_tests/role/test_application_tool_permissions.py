@@ -7,8 +7,8 @@ from baserow.contrib.builder.tools.applications import update_builder
 from baserow.contrib.dashboard.tools.dashboards import update_dashboard
 from baserow.contrib.database.tools.databases import update_database
 from baserow.core.action.models import Action
-from baserow.core.agents.service import AgentService
 from baserow.core.exceptions import PermissionException
+from baserow.core.identities.service import IdentityService
 from baserow.core.signals import application_updated
 from baserow.core.tools import ToolContext
 
@@ -48,7 +48,7 @@ def test_application_updates_authorize_unchanged_requests(
     assert Action.objects.count() == action_count
     signal.assert_not_called()
 
-    identity = AgentService().create_agent(
+    identity = IdentityService().create_identity(
         admin, workspace, name="Reader", role_uid="VIEWER"
     )
     ctx = ToolContext(user=identity, workspace=workspace)

@@ -1765,6 +1765,12 @@ def test_element_type_get_event_names(data_fixture):
     assert get_event_names(button) == ["click"]
     assert get_event_names(choice) == ["change"]
     assert get_event_names(record_selector) == ["change"]
+    checkbox = data_fixture.create_builder_checkbox_element(page=page)
+    rating_input = data_fixture.create_builder_element(
+        RatingInputElementType, page=page
+    )
+    assert get_event_names(checkbox) == ["change"]
+    assert get_event_names(rating_input) == ["change"]
     assert get_event_names(form) == ["submit"]
     assert get_event_names(table) == [f"{button_field.uid}_click"]
     assert get_event_names(menu) == [f"{button_item_uid}_click"]

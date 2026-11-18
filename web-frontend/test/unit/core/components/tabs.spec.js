@@ -56,13 +56,14 @@ describe('Tabs', () => {
         Tab,
       },
       slots: {
-        default: '<Tab title="Agents" highlight="tour-target">Content</Tab>',
+        default:
+          '<Tab title="Identities" highlight="tour-target">Content</Tab>',
       },
     })
 
     const tabItem = wrapper.get('.tabs__item')
     expect(tabItem.attributes('data-highlight')).toBe('tour-target')
-    expect(tabItem.get('.tabs__link').text()).toBe('Agents')
+    expect(tabItem.get('.tabs__link').text()).toBe('Identities')
   })
 
   it.each(['', 'badge="New"'])(
@@ -73,7 +74,7 @@ describe('Tabs', () => {
           Tab,
         },
         slots: {
-          default: `<Tab title="Agents" development-stage="beta" ${badge}>Content</Tab>`,
+          default: `<Tab title="Identities" development-stage="beta" ${badge}>Content</Tab>`,
         },
       })
 
@@ -87,14 +88,14 @@ test('shows an optional tab badge without changing its navigation label', async 
   const wrapper = await mountSuspended(Tabs, {
     slots: {
       default:
-        '<Tab title="Members">Members</Tab><Tab title="Agents" badge="New">Agents</Tab>',
+        '<Tab title="Members">Members</Tab><Tab title="Identities" badge="New">Identities</Tab>',
     },
   })
   const links = wrapper.findAll('.tabs__link')
   expect(links[0].find('.badge').exists()).toBe(false)
   expect(links[1].get('.badge').text()).toBe('New')
   await links[1].trigger('click')
-  expect(wrapper.get('.tabs__item--active').text()).toContain('Agents')
+  expect(wrapper.get('.tabs__item--active').text()).toContain('Identities')
   wrapper.unmount()
 })
 
@@ -117,5 +118,35 @@ test('selects a tab without a route with the keyboard', async () => {
 
   expect(wrapper.get('.tabs__item--active').text()).toContain('Agents')
   expect(wrapper.emitted('update:selectedIndex').at(-1)).toEqual([1])
+  wrapper.unmount()
+})
+
+test('updates tab item badges while preserving the selected tab and default color', async () => {
+  const wrapper = await mountSuspended(Tabs, {
+    props: {
+      tabItems: [
+        { title: 'With a value', badge: '0', badgeColor: 'neutral' },
+        { title: 'When empty', badge: '0' },
+      ],
+    },
+  })
+  expect(wrapper.findAll('.badge').map((badge) => badge.text())).toEqual([
+    '0',
+    '0',
+  ])
+  expect(wrapper.findAll('.badge')[0].classes()).toContain('badge--neutral')
+  expect(wrapper.findAll('.badge')[1].classes()).toContain('badge--cyan')
+  await wrapper.findAll('.tabs__link')[1].trigger('click')
+  await wrapper.setProps({
+    tabItems: [
+      { title: 'With a value', badge: '2', badgeColor: 'neutral' },
+      { title: 'When empty', badge: '1' },
+    ],
+  })
+  expect(wrapper.findAll('.badge').map((badge) => badge.text())).toEqual([
+    '2',
+    '1',
+  ])
+  expect(wrapper.get('.tabs__item--active').text()).toContain('When empty')
   wrapper.unmount()
 })

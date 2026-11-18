@@ -97,8 +97,9 @@
       <div class="agent-trigger-card__section">
         <component
           :is="serviceType.formComponent"
+          v-if="typeOptions"
           ref="form"
-          :key="`${trigger.type}-${serviceReverts}`"
+          :key="`${trigger.type}:${typesVersion}:${serviceReverts}`"
           :application="agent"
           :service="trigger.service"
           :service-type="serviceType"
@@ -110,6 +111,26 @@
         <p v-if="serviceError" class="agent-trigger-card__error" role="alert">
           {{ serviceError }}
         </p>
+        <FormGroup
+          v-if="serviceType.returnsList(trigger.service)"
+          class="margin-bottom-2 agent-trigger-card__batch-size"
+          :label="$t('agent.triggerBatchSize')"
+          :helper-text="$t('agent.triggerBatchSizeHelper')"
+          :error-message="batchSizeError"
+          small-label
+          required
+        >
+          <FormInput
+            type="number"
+            :min="1"
+            :max="TRIGGER_MAX_BATCH_SIZE"
+            :model-value="batchSizeText"
+            :error="Boolean(batchSizeError)"
+            :disabled="!editable"
+            @update:model-value="onBatchSizeInput"
+            @blur="onBatchSizeBlur"
+          />
+        </FormGroup>
       </div>
       <div class="agent-trigger-card__section">
         <FormGroup
@@ -201,7 +222,11 @@
             <div class="agent-trigger-card__overlap-option-text">
               <div class="agent-trigger-card__overlap-option-label">
                 {{ $t(option.label) }}
-                <Badge v-if="option.recommended" color="green" size="small">
+                <Badge
+                  v-if="option.value === defaultOnOverlap"
+                  color="green"
+                  size="small"
+                >
                   {{ $t('agent.triggerOnOverlapRecommended') }}
                 </Badge>
               </div>
@@ -252,6 +277,7 @@ import {
   ref,
   toRef,
   useId,
+  watch,
 } from 'vue'
 import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
@@ -267,6 +293,7 @@ import {
 } from '@baserow/modules/agent/utils/triggers'
 import moment from '@baserow/modules/core/moment'
 import {
+  TRIGGER_MAX_BATCH_SIZE,
   TRIGGER_NAME_MAX_LENGTH,
   TRIGGER_OVERLAP_OPTIONS,
   TRIGGER_SKIP_REASON_TEXT,
@@ -291,6 +318,12 @@ const props = defineProps({
   serviceError: { type: String, default: '' },
   /** How often a failed save reverted the service values the form shows. */
   serviceReverts: { type: Number, default: 0 },
+  /** What the run identity offers this trigger's type, or null while it loads. */
+  typeOptions: { type: Object, default: null },
+  /** Changes whenever the type options reload, to remount the hosted form. */
+  typesVersion: { type: Number, default: 0 },
+  /** Whether the Agent acts as a workspace identity that is available. */
+  runAsActive: Boolean,
   /** The trigger types the Agent's configuration offers, to change to. */
   availableTypes: { type: Array, default: () => [] },
 })
@@ -319,27 +352,45 @@ provide(
     },
   })
 )
-// Passed only when set, so a form that takes no hidden fields gets no attribute.
+const formChoices = computed(() => props.typeOptions?.form_choices ?? null)
+/** A form that reads workspace data has nothing to offer without an identity. */
+const needsWorkspaceAccess = computed(
+  () => formChoices.value !== null && !props.runAsActive
+)
+// Passed only when set, so a form that doesn't take a prop gets no attribute.
 const hostedFormProps = computed(() => {
   const hiddenFormFields = agentTriggerTypeOf(
     $registry,
     props.trigger.type
   )?.hiddenFormFields
-  return hiddenFormFields?.length ? { hiddenFormFields } : {}
+  return {
+    ...formChoices.value,
+    ...(hiddenFormFields?.length ? { hiddenFormFields } : {}),
+    ...(needsWorkspaceAccess.value
+      ? { formChoicesError: t('agent.triggerSetWorkspaceAccess') }
+      : {}),
+  }
 })
 const typeName = computed(() => serviceType.value?.name || props.trigger.type)
 const defaultName = computed(
   () =>
-    serviceType.value?.getDefaultName(props.trigger.service) ||
-    props.trigger.type
+    serviceType.value?.getDefaultName(
+      props.trigger.service,
+      formChoices.value || {}
+    ) || props.trigger.type
 )
 const shownName = computed(() => props.trigger.name || defaultName.value)
-const configurationError = computed(
-  () =>
-    serviceType.value?.getErrorMessage({
-      service: props.trigger.service,
-      workspace: props.workspace,
-    }) || ''
+const defaultOnOverlap = computed(
+  () => props.typeOptions?.default_on_overlap ?? null
+)
+/** Why the trigger can't run as it is set up, or ''. */
+const configurationError = computed(() =>
+  needsWorkspaceAccess.value
+    ? t('agent.triggerNeedsWorkspaceAccess')
+    : serviceType.value?.getErrorMessage({
+        service: props.trigger.service,
+        workspace: props.workspace,
+      }) || ''
 )
 const isUnlimited = (cap) => cap !== null && cap <= 0
 /** The hint of an overlap option, worded by the caps it counts; 0 is no limit. */
@@ -385,10 +436,57 @@ const schemaProperties = computed(() => {
   }))
 })
 
+const batchSizeText = ref(String(props.trigger.batch_size ?? ''))
+let batchSizeBeforeEdit = null
+/**
+ * @param {string} text The typed batch size.
+ * @returns {number|null} The batch size, or null when the server would refuse it.
+ */
+const parseBatchSize = (text) => {
+  const size = /^\d+$/.test(text) ? Number(text) : 0
+  return size >= 1 && size <= TRIGGER_MAX_BATCH_SIZE ? size : null
+}
+const batchSizeError = computed(() =>
+  parseBatchSize(batchSizeText.value) === null
+    ? t('agent.triggerBatchSizeInvalid', { max: TRIGGER_MAX_BATCH_SIZE })
+    : ''
+)
+// An invalid entry stays on screen for the user to fix until the input blurs.
+watch(
+  () => props.trigger.batch_size,
+  (size) => {
+    const typed = parseBatchSize(batchSizeText.value)
+    if (typed !== null && typed !== size) batchSizeText.value = String(size)
+  }
+)
+
 function onServiceValuesChanged(values) {
   if (!props.editable) return
   if (form.value?.isFormValid && !form.value.isFormValid()) return
   emit('update', { service: values })
+}
+
+/**
+ * Shows the typed batch size and saves it once it's valid. An invalid one takes
+ * back the sizes typed on the way to it, like 15 on the way to 150.
+ *
+ * @param {string} value The typed value.
+ */
+function onBatchSizeInput(value) {
+  if (batchSizeBeforeEdit === null) {
+    batchSizeBeforeEdit = props.trigger.batch_size
+  }
+  batchSizeText.value = String(value)
+  const size = parseBatchSize(batchSizeText.value) ?? batchSizeBeforeEdit
+  if (size !== props.trigger.batch_size) emit('update', { batch_size: size })
+}
+
+/** Shows the batch size that is kept again when the typed one is invalid. */
+function onBatchSizeBlur() {
+  batchSizeBeforeEdit = null
+  if (parseBatchSize(batchSizeText.value) === null) {
+    batchSizeText.value = String(props.trigger.batch_size)
+  }
 }
 
 function startRename() {

@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from django.test.utils import override_settings
+from django.utils import timezone
 
 import pytest
 
@@ -109,3 +110,47 @@ def test_generate_ai_field_from_scheduled_rows(premium_data_fixture):
             getattr(row, ai_field.db_column)
             == f"Generated with temperature 0.7: row {row.id}"
         )
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow_premium.license.handler.LicenseHandler.user_has_feature", return_value=True
+)
+@override_settings(DEBUG=True)
+def test_identity_auto_update_stores_its_user_and_generates_as_the_identity(
+    has_feature, premium_data_fixture
+):
+    from baserow_premium.fields.models import GenerateAIValuesJob
+    from baserow_premium.fields.tasks import generate_scheduled_ai_field_generation
+
+    premium_data_fixture.register_fake_generate_ai_type()
+    table = premium_data_fixture.create_database_table()
+    identity = premium_data_fixture.create_identity(workspace=table.database.workspace)
+    ai_field = FieldHandler().create_field(
+        identity,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'Describe this row'",
+    )
+    row = RowHandler().create_row(identity, table)
+    ai_field = FieldHandler().update_field(identity, ai_field, ai_auto_update=True)
+    assert ai_field.ai_auto_update_user == identity
+    AIFieldScheduledUpdate.objects.create(
+        field_id=ai_field.id, row_id=row.id, updated_on=timezone.now()
+    )
+
+    generate_scheduled_ai_field_generation(ai_field.id)
+
+    job = GenerateAIValuesJob.objects.get()
+    assert job.finished
+    assert job.user == identity
+    row.refresh_from_db()
+    assert (
+        getattr(row, ai_field.db_column)
+        == "Generated with temperature None: Describe this row"
+    )
+    assert row.last_modified_by_id == identity.id
+    assert has_feature.call_args.args[1] == identity

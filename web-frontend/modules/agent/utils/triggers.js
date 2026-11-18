@@ -19,6 +19,30 @@ export function textThenTriggerData(text, path) {
 }
 
 /**
+ * A message worded as a sentence whose `{name}` placeholders are values of the
+ * trigger's data, built like `textThenTriggerData`, so it opens as text and
+ * data chips.
+ *
+ * @param {string} sentence The sentence, like "{count} rows in {table}".
+ * @returns {object} The message formula object.
+ */
+export function sentenceWithTriggerData(sentence) {
+  const args = sentence
+    .split(/\{(\w+)\}/)
+    .map((part, index) =>
+      index % 2
+        ? `get('trigger.${part}')`
+        : part && toFormulaStringLiteral(part)
+    )
+    .filter(Boolean)
+  return {
+    formula: `concat(${args.join(', ')})`,
+    mode: 'simple',
+    version: '0.1',
+  }
+}
+
+/**
  * The opening message of a new trigger whose type words none of its own: its
  * name and the time it fired, which suits every trigger type.
  *

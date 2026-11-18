@@ -10,7 +10,6 @@ from rest_framework import serializers
 
 from baserow.contrib.database.export.handler import ExportHandler
 from baserow.core.actions import CreateApplicationActionType, CreateWorkspaceActionType
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.subjects import UserSubjectType
@@ -60,12 +59,12 @@ def test_audit_log_export_csv_correctly(
 
     assert data == (
         bom
-        + "Group Name,Group ID,Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
+        + "Group Name,Group ID,Action Type,Description,Timestamp,IP Address,Actor Type,Actor User Type,Actor Name,Actor ID\r\n"
         + f"{workspace_2.name},{workspace_2.id},Create group,"
-        f'"Group ""{workspace_2.name}"" ({workspace_2.id}) created.",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
+        f'"Group ""{workspace_2.name}"" ({workspace_2.id}) created.",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n'
         + f"{workspace_1.name},{workspace_1.id},Create group,"
         f'"Group ""{workspace_1.name}"" ({workspace_1.id}) created.",2023-01-01 '
-        f"12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n"
+        f"12:00:00+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n"
     )
 
     close()
@@ -94,10 +93,10 @@ def test_audit_log_export_csv_correctly(
     assert data == (
         bom + f"{workspace_2.name}|{workspace_2.id}|Create "
         f'group|"Group ""{workspace_2.name}"" ({workspace_2.id}) '
-        f'created."|2023-01-01 12:00:10+00:00||{UserSubjectType.type}|{user.email}|{user.id}\r\n'
+        f'created."|2023-01-01 12:00:10+00:00||{UserSubjectType.type}|human|{user.email}|{user.id}\r\n'
         + f"{workspace_1.name}|{workspace_1.id}|Create "
         f'group|"Group ""{workspace_1.name}"" ({workspace_1.id}) '
-        f'created."|2023-01-01 12:00:00+00:00||{UserSubjectType.type}|{user.email}|{user.id}\r\n'
+        f'created."|2023-01-01 12:00:00+00:00||{UserSubjectType.type}|human|{user.email}|{user.id}\r\n'
     )
 
     close()
@@ -151,7 +150,7 @@ def test_audit_log_export_csv_in_the_user_language(
     assert data == (
         bom
         + f"{workspace_1.name},{workspace_1.id},Crea progetto,"
-        + f'"Progetto ""{workspace_1.name}"" ({workspace_1.id}) creato.",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
+        + f'"Progetto ""{workspace_1.name}"" ({workspace_1.id}) creato.",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n'
     )
 
     close()
@@ -227,26 +226,25 @@ def test_audit_log_export_filters_work_correctly(
     job.refresh_from_db()
     job_type = AuditLogExportJobType()
 
-    agent_entry = AuditLogEntry.objects.first()
-    agent_entry.pk = None
-    agent_entry.actor_type = AgentSubjectType.type
-    agent_entry.save()
+    identity = enterprise_data_fixture.create_identity(workspace=workspace_1)
+    identity_entry = AuditLogEntry.objects.first()
+    identity_entry.pk = None
+    identity_entry.actor_id = identity.id
+    identity_entry.actor_user_type = "identity"
+    identity_entry.save()
 
     assert job.filter_actor_type is None
     assert job_type.get_filtered_queryset(job).count() == 3
 
-    job.filter_actor_id = user.id + 1
+    job.filter_actor_id = identity.id + 10000
     assert job_type.get_filtered_queryset(job).count() == 0
-    job.filter_actor_id = None
-
-    job.filter_actor_id = user.id
-    job.filter_actor_type = AgentSubjectType.type
-    assert job_type.get_filtered_queryset(job).count() == 1
-    job.filter_actor_id = None
-    assert job_type.get_filtered_queryset(job).count() == 1
+    job.filter_actor_id = identity.id
     job.filter_actor_type = UserSubjectType.type
+    assert job_type.get_filtered_queryset(job).count() == 1
+    job.filter_actor_id = user.id
     assert job_type.get_filtered_queryset(job).count() == 2
-    agent_entry.delete()
+    job.filter_actor_id = None
+    identity_entry.delete()
 
     job.filter_workspace_id = workspace_1.id
     assert job_type.get_filtered_queryset(job).count() == 1
@@ -313,11 +311,11 @@ def test_audit_log_export_workspace_csv_correctly(
 
     assert data == (
         bom
-        + "Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
+        + "Action Type,Description,Timestamp,IP Address,Actor Type,Actor User Type,Actor Name,Actor ID\r\n"
         + f'Create application,"""{app_2.name}"" ({app_2.id}) database created '
-        + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
+        + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n'
         + f'Create application,"""{app_1.name}"" ({app_1.id}) database created '
-        + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
+        + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n'
     )
 
     close()
@@ -399,11 +397,11 @@ def test_audit_log_export_workspace_csv_correctly_if_feature_is_enable_for_the_u
 
         assert data == (
             bom
-            + "Action Type,Description,Timestamp,IP Address,Actor Type,Actor Name,Actor ID\r\n"
+            + "Action Type,Description,Timestamp,IP Address,Actor Type,Actor User Type,Actor Name,Actor ID\r\n"
             + f'Create application,"""{app_2.name}"" ({app_2.id}) database created '
-            + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
+            + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:10+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n'
             + f'Create application,"""{app_1.name}"" ({app_1.id}) database created '
-            + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},{user.email},{user.id}\r\n'
+            + f'in group ""{workspace.name}"" ({workspace.id}).",2023-01-01 12:00:00+00:00,,{UserSubjectType.type},human,{user.email},{user.id}\r\n'
         )
 
         close()

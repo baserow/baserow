@@ -5,7 +5,7 @@ import TeamMembersInvitationRoute from '@baserow_enterprise/components/invitatio
 
 /**
  * The share dialog of one object: gives existing workspace members, teams and
- * agents a role on it, invites new people by email with a role on it only, and
+ * identities a role on it, invites new people by email with a role on it only, and
  * lists who has access. Only offered for scope targets with the RBAC feature,
  * since roles on objects need it.
  */
@@ -39,7 +39,7 @@ export class MemberInvitationRouteType extends InvitationRouteType {
 }
 
 /**
- * The members of one team: adds members and agents of the workspace to it and
+ * The members of one team: adds members and identities of the workspace to it and
  * removes them. Only offered for team targets with the teams feature.
  */
 export class TeamMembersInvitationRouteType extends InvitationRouteType {

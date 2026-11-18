@@ -6,6 +6,7 @@
       :databases="databases"
       :service-type="serviceType"
       :display-view-dropdown="enableViewPicker"
+      :form-choices-error="formChoicesError"
     />
     <FormGroup
       v-if="enableRowId"
@@ -92,6 +93,14 @@ export default {
       type: Array,
       required: false,
       default: () => [],
+    },
+    /**
+     * Why there is nothing to choose from, forwarded to the table selector.
+     */
+    formChoicesError: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   emits: ['table-changed'],
