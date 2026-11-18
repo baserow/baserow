@@ -349,6 +349,8 @@ class AgentReplyTranscript(BigAutoFieldMixin, models.Model):
     paused_conversation = models.JSONField(null=True)
     # A provider that refused web search would refuse the resume too.
     paused_web_search = models.BooleanField(default=False, db_default=False)
+    # Its history may hold page fetches, so a resume offers the tool only if it did.
+    paused_web_fetch = models.BooleanField(default=False, db_default=False)
     # Held calls were named and approved as this identity, so they never run as another.
     paused_run_as_subject_type = models.CharField(max_length=255, null=True)
     paused_run_as_subject_id = models.BigIntegerField(null=True)

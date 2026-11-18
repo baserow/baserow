@@ -362,19 +362,6 @@ export class WebFetchToolPresentationType extends WebSearchToolPresentationType 
   getLabel(t) {
     return t('agent.toolWebFetch')
   }
-
-  getActivity({ status, input }, t) {
-    const activity =
-      status === STEP_STATUS.RUNNING
-        ? t('agent.toolWebFetchRunning')
-        : status === STEP_STATUS.DONE
-          ? t('agent.toolWebFetchDone')
-          : t('agent.toolWebFetch')
-    const target = this.getUrl({ input })
-    return target
-      ? t('agent.toolWebSearchTarget', { activity, target })
-      : activity
-  }
 }
 
 const isEmpty = (value) =>

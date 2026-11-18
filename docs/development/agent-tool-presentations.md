@@ -127,6 +127,19 @@ failed step whose `input` is `{"unavailable": true}`. A search is never held for
 approval, even next to a held call. A resumed reply offers search only if its
 paused run did, so a provider that refused it isn't asked again.
 
+## Opening web pages
+
+When "Open web pages" is on, Baserow downloads pages itself, so every model can
+use it. It is a function tool named `web_fetch` with no `AgentToolType`, and its
+step looks like a page web search opened: `input` holds only the `url`. The tool
+refuses a URL the step can't record in full, so the step always names the page
+that was requested. It downloads through the same outbound HTTP stack as the HTTP
+request integration (address checks on every redirect, the response size ceiling
+and one deadline), opens only text pages, and stops after a few pages per reply.
+A failure comes back as a tool error with a message instead of a retry, so broken
+links don't use up the reply's retries. Opening a page is never held for approval.
+A resumed reply offers it only if its paused run did and the setting is still on.
+
 ## Adding a tool
 
 **Backend.** An `AgentToolType` describes its calls with

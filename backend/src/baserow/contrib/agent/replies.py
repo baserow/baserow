@@ -18,7 +18,6 @@ from pydantic_ai import (
     WebSearchTool,
 )
 from pydantic_ai.capabilities import WebSearch
-from pydantic_ai.common_tools.web_fetch import web_fetch_tool
 from pydantic_ai.exceptions import ApprovalRequired, ModelHTTPError
 from pydantic_ai.messages import (
     AgentStreamEvent,
@@ -89,6 +88,7 @@ from .models import AgentMessage
 from .previews import arguments_preview
 from .registries import AgentToolType, agent_tool_type_registry, input_shower
 from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
+from .web_fetch import web_fetch_tool
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -764,6 +764,7 @@ class AgentResponder:
                     self._result.conversation, mode="json"
                 ),
                 web_search=self._web_search_tool is not None,
+                web_fetch=self._web_fetch_tool is not None,
                 run_as=self._request.acting_subject,
             )
             if paused

@@ -205,6 +205,8 @@ class AgentPausedRun:
     """The run, dumped with its messages and held calls."""
     web_search: bool
     """Whether it offered web search."""
+    web_fetch: bool
+    """Whether it offered opening web pages."""
     run_as: Subject | None
     """Who its tools acted as, or None for no workspace access."""
 

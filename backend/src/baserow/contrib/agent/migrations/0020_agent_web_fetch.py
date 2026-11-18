@@ -10,4 +10,9 @@ class Migration(migrations.Migration):
             name="web_fetch_enabled",
             field=models.BooleanField(db_default=False, default=False),
         ),
+        migrations.AddField(
+            model_name="agentreplytranscript",
+            name="paused_web_fetch",
+            field=models.BooleanField(db_default=False, default=False),
+        ),
     ]

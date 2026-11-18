@@ -1,10 +1,11 @@
+import json
 from unittest.mock import Mock
 from uuid import uuid4
 
 from django.contrib.auth.models import AbstractUser
 
-import httpx2
 import pytest
+import requests
 from pydantic_ai import WebSearchTool
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import (
@@ -25,13 +26,20 @@ from baserow.contrib.agent.actions import (
 )
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import (
+    TOOL_RETRIES,
     WEB_FETCH_INSTRUCTIONS,
+    WEB_FETCH_MAX_PER_REPLY,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
+    WEB_SEARCH_STEP_QUERY_MAX_LENGTH,
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentApplication, AgentMessage
+from baserow.contrib.agent.models import (
+    AgentApplication,
+    AgentMessage,
+    AgentReplyTranscript,
+)
 from baserow.contrib.agent.replies import AgentResponder, _web_search_step_input
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.database.table.models import Table
@@ -972,7 +980,7 @@ def test_templates_turn_web_search_off(data_fixture, configured_agent):
 
 
 def fetch(url: str, index: int = 0) -> dict[int, DeltaToolCall]:
-    return {index: DeltaToolCall(name="web_fetch", json_args=f'{{"url": "{url}"}}')}
+    return {index: DeltaToolCall(name="web_fetch", json_args=json.dumps({"url": url}))}
 
 
 @pytest.mark.django_db
@@ -1020,18 +1028,26 @@ def test_reply_offers_web_fetch_to_any_model_only_when_turned_on(
     assert WEB_FETCH_INSTRUCTIONS in instructions
 
 
+def page(
+    body: bytes | str, content_type: str = "text/html", status: int = 200
+) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status
+    response.headers["content-type"] = content_type
+    response._content = body.encode() if isinstance(body, str) else body
+    response.encoding = "utf-8"
+    return response
+
+
 @pytest.mark.django_db
 def test_fetched_page_reaches_the_model_and_appears_as_a_step(
     mocker, data_fixture, configured_agent
 ):
     user = data_fixture.create_user()
     download = mocker.patch(
-        "pydantic_ai.common_tools.web_fetch.safe_download",
-        return_value=httpx2.Response(
-            200,
-            headers={"content-type": "text/html"},
-            text="<html><title>Docs</title><body><h1>Hello page</h1></body></html>",
-            request=httpx2.Request("GET", "https://example.com/docs"),
+        "baserow.contrib.agent.web_fetch._download",
+        return_value=page(
+            "<html><title>Docs</title><body><h1>Hello page</h1></body></html>"
         ),
     )
     returned = []
@@ -1048,8 +1064,7 @@ def test_fetched_page_reaches_the_model_and_appears_as_a_step(
     reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
 
     assert reply.content == "The page says hello."
-    assert download.call_args.args[0] == "https://example.com/docs"
-    assert download.call_args.kwargs["allow_local"] is False
+    download.assert_called_once_with("https://example.com/docs")
     assert returned[0]["title"] == "Docs"
     assert "Hello page" in returned[0]["content"]
     assert "<h1>" not in returned[0]["content"]
@@ -1059,26 +1074,181 @@ def test_fetched_page_reaches_the_model_and_appears_as_a_step(
     assert reply.steps[0]["changes_data"] is False
 
 
-@pytest.mark.django_db
-def test_web_fetch_refuses_internal_addresses(mocker, data_fixture, configured_agent):
-    user = data_fixture.create_user()
-    retries = []
+def fetch_results(mocker, urls: list[str], parallel: bool = False) -> list:
+    """Ask for the pages, one per request or all at once, and collect the results."""
+
+    returned = []
+    calls = iter(
+        [{i: fetch(url, i)[i] for i, url in enumerate(urls)}]
+        if parallel
+        else [fetch(url) for url in urls]
+    )
 
     async def stream(messages, info):
-        if len(messages) == 1:
-            yield fetch("http://127.0.0.1:8000/api/settings/")
-        else:
-            retries.append(messages[-1].parts[0].content)
-            yield "I can't open that page."
+        if len(messages) > 1:
+            returned.extend(
+                part.content
+                for part in messages[-1].parts
+                if getattr(part, "tool_name", None) == "web_fetch"
+            )
+        call = next(calls, None)
+        yield "Done." if call is None else call
 
     use_stream(mocker, stream)
+    return returned
+
+
+@pytest.mark.django_db
+def test_web_fetch_refuses_internal_addresses_with_one_message(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    urls = [
+        "http://127.0.0.1:8000/api/settings/",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://localhost:6379/",
+        "http://does-not-exist.invalid/",
+    ]
+    returned = fetch_results(mocker, urls)
 
     reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
 
     assert reply.status == "completed"
-    assert "private" in retries[0].lower() or "blocked" in retries[0].lower()
-    assert reply.steps[0]["tool"] == "web_fetch"
-    assert reply.steps[0]["status"] == "failed"
+    # The same message whatever the reason, so it can't be used to map a network.
+    assert [result["error"]["message"] for result in returned] == [
+        "The page couldn't be opened."
+    ] * len(urls)
+    assert [(step["tool"], step["status"]) for step in reply.steps] == [
+        ("web_fetch", "failed")
+    ] * len(urls)
+
+
+@pytest.mark.django_db
+def test_failed_pages_dont_end_the_reply_and_say_why(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    mocker.patch(
+        "baserow.contrib.agent.web_fetch._download",
+        return_value=page("Not here", "text/html", 404),
+    )
+    urls = [f"https://example.com/missing-{i}" for i in range(WEB_FETCH_MAX_PER_REPLY)]
+    returned = fetch_results(mocker, urls)
+
+    reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    # More failures in a row than the tool's retry limit.
+    assert len(urls) > TOOL_RETRIES + 1
+    assert (reply.status, reply.content) == ("completed", "Done.")
+    assert [result["error"]["message"] for result in returned] == [
+        "The page answered with status 404."
+    ] * len(urls)
+    assert [step["status"] for step in reply.steps] == ["failed"] * len(urls)
+    # The user sees why, not "The tool received invalid input".
+    assert {(step["error_code"], step["error_message"]) for step in reply.steps} == {
+        ("failed", "The page answered with status 404.")
+    }
+
+
+@pytest.mark.django_db
+def test_web_fetch_opens_only_text_pages(mocker, data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    mocker.patch(
+        "baserow.contrib.agent.web_fetch._download",
+        return_value=page(b"%PDF-1.7 binary", "application/pdf"),
+    )
+    returned = fetch_results(mocker, ["https://example.com/paper.pdf"])
+
+    reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    assert reply.status == "completed"
+    assert returned == [
+        {
+            "error": {
+                "code": "failed",
+                "message": "The page is a file (application/pdf), not text, so "
+                "it can't be opened.",
+            }
+        }
+    ]
+    transcript = AgentReplyTranscript.objects.get(reply=reply)
+    assert "PDF-1.7" not in json.dumps(transcript.model_messages)
+
+
+@pytest.mark.django_db
+def test_a_reply_opens_a_limited_number_of_pages(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    download = mocker.patch(
+        "baserow.contrib.agent.web_fetch._download", return_value=page("Hi")
+    )
+    urls = [f"https://example.com/{i}" for i in range(WEB_FETCH_MAX_PER_REPLY + 2)]
+    returned = fetch_results(mocker, urls, parallel=True)
+
+    reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    assert reply.status == "completed"
+    assert download.call_count == WEB_FETCH_MAX_PER_REPLY
+    assert ["error" in result for result in returned] == [False] * (
+        WEB_FETCH_MAX_PER_REPLY
+    ) + [True, True]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/?d=" + "x" * WEB_SEARCH_STEP_QUERY_MAX_LENGTH,
+        "https://example.com/a\x00b",
+        "https://example.com/a b",
+        "file:///etc/passwd",
+    ],
+)
+def test_web_fetch_opens_only_urls_its_step_records_in_full(
+    mocker, data_fixture, configured_agent, url
+):
+    user = data_fixture.create_user()
+    download = mocker.patch("baserow.contrib.agent.web_fetch._download")
+    returned = fetch_results(mocker, [url])
+
+    reply = answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    assert reply.status == "completed"
+    download.assert_not_called()
+    assert "error" in returned[0]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("still_on", [True, False])
+def test_a_resumed_reply_opens_pages_only_if_its_paused_run_did(
+    mocker, data_fixture, configured_agent, still_on
+):
+    user = data_fixture.create_user()
+    agent, table = ask_first_agent(data_fixture, configured_agent, user)
+    AgentHandler().update_configuration(agent, web_search_enabled=False)
+    seen = []
+
+    async def stream(messages, info):
+        seen.append([tool.name for tool in info.function_tools])
+        yield add_row(table) if len(seen) == 1 else "Done."
+
+    use_stream(mocker, stream)
+
+    # Turned on while the reply waits, which must not add the tool mid-run.
+    reply = answer(user, agent)
+    assert AgentReplyTranscript.objects.get(reply=reply).paused_web_fetch is False
+    AgentHandler().update_configuration(agent, web_fetch_enabled=True)
+    approve_and_resume(user, reply)
+    assert "web_fetch" not in seen[-1]
+
+    # Turned off while it waits, which removes it.
+    seen.clear()
+    reply = answer(user, agent)
+    assert AgentReplyTranscript.objects.get(reply=reply).paused_web_fetch is True
+    AgentHandler().update_configuration(agent, web_fetch_enabled=still_on)
+    approve_and_resume(user, reply)
+    assert ("web_fetch" in seen[-1]) is still_on
 
 
 @pytest.mark.django_db

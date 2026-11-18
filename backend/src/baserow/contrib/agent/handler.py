@@ -1362,13 +1362,18 @@ class AgentHandler:
         prompt, history = (
             (None, []) if resume is not None else self._get_reply_prompt(reply)
         )
+        # Like search, a resumed run keeps opening pages only if it did before it
+        # paused and the setting is still on.
+        web_fetch_enabled = agent.web_fetch_enabled and (
+            transcript is None or transcript.paused_web_fetch
+        )
         web_search_tool = (
             self._get_web_search_tool(
                 agent,
                 bool(tools["allowed_tools"])
                 or bool(mcp_servers)
                 or bool(action_tools)
-                or agent.web_fetch_enabled,
+                or web_fetch_enabled,
             )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
@@ -1395,7 +1400,7 @@ class AgentHandler:
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
             started_by_trigger=conversation.is_shared,
-            web_fetch_enabled=agent.web_fetch_enabled,
+            web_fetch_enabled=web_fetch_enabled,
         )
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:
@@ -1486,6 +1491,7 @@ class AgentHandler:
             .only(
                 "paused_conversation",
                 "paused_web_search",
+                "paused_web_fetch",
                 "paused_run_as_subject_type",
                 "paused_run_as_subject_id",
             )
@@ -1739,6 +1745,7 @@ class AgentHandler:
             return {
                 "paused_conversation": None,
                 "paused_web_search": False,
+                "paused_web_fetch": False,
                 "paused_run_as_subject_type": None,
                 "paused_run_as_subject_id": None,
             }
@@ -1748,6 +1755,7 @@ class AgentHandler:
                 paused_run.conversation
             ),
             "paused_web_search": paused_run.web_search,
+            "paused_web_fetch": paused_run.web_fetch,
             "paused_run_as_subject_type": None
             if run_as is None
             else subject_type_registry.get_by_model(run_as).type,

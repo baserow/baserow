@@ -1373,6 +1373,35 @@ describe('Agent configuration', () => {
     )
   })
 
+  describe('opening web pages', () => {
+    const setting = (wrapper) =>
+      wrapper.findComponent({ name: 'AgentWebFetchSetting' })
+    const webFetch = (extra = {}) =>
+      completeConfiguration({ web_fetch_enabled: false, ...extra })
+
+    test('is off by default, saves when turned on and then warns', async () => {
+      mockConfiguration(testApp, webFetch())
+      mockSaves(testApp, webFetch({ web_fetch_enabled: true }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('modelValue')).toBe(false)
+      expect(setting(wrapper).find('.alert').exists()).toBe(false)
+
+      input.vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_fetch_enabled: true }])
+      expect(input.props('modelValue')).toBe(true)
+      // Even without workspace tools the conversation and trigger data can leak
+      // through the URLs it opens.
+      expect(setting(wrapper).get('.alert').text()).toBe(
+        'agent.webFetchWarning'
+      )
+    })
+  })
+
   const withTools = (
     allowedTools,
     { askFirstTools = [], runAs = investor } = {}

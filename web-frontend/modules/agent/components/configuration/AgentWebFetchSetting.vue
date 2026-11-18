@@ -18,25 +18,20 @@
         />
       </div>
     </div>
-    <Alert v-if="reachesWorkspace" type="warning" class="margin-top-1">
-      {{ $t('agent.webFetchWorkspaceWarning') }}
+    <Alert
+      v-if="configuration.web_fetch_enabled"
+      type="warning"
+      class="margin-top-1"
+    >
+      {{ $t('agent.webFetchWarning') }}
     </Alert>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-
-const props = defineProps({
+defineProps({
   configuration: { type: Object, required: true },
   editable: Boolean,
 })
 defineEmits(['change'])
-
-const reachesWorkspace = computed(
-  () =>
-    props.configuration.web_fetch_enabled &&
-    Boolean(props.configuration.run_as) &&
-    props.configuration.allowed_tools.length > 0
-)
 </script>
