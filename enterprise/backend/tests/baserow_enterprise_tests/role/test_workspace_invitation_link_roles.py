@@ -184,3 +184,30 @@ def test_public_invitation_link_upgrade_resolves_member_role(api_client, data_fi
         "current_permissions": "VIEWER",
         "permissions": "BUILDER",
     }
+
+
+@pytest.mark.django_db
+def test_public_invitation_link_upgrade_resolves_member_current_role(
+    api_client, data_fixture
+):
+    """The confirmation page also receives the effective role of legacy members."""
+
+    admin = data_fixture.create_user()
+    member, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    link = data_fixture.create_workspace_invitation_link(
+        workspace=workspace, created_by=admin, permissions="ADMIN"
+    )
+    response = api_client.get(
+        reverse("api:workspaces:invitation_links:slug", kwargs={"slug": link.slug}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    assert response.json()["role_upgrade"] == {
+        "current_permissions": "BUILDER",
+        "permissions": "ADMIN",
+    }
+    assert WorkspaceUser.objects.get(user=member).permissions == "MEMBER"

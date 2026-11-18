@@ -172,6 +172,10 @@ class PublicWorkspaceInvitationLinkSerializer(serializers.ModelSerializer):
         )
         if current_permissions is None:
             return None
+        if object.scope_type_id is None:
+            current_permissions = CoreHandler().get_workspace_role_uid(
+                current_permissions, object.workspace
+            )
         return {
             "current_permissions": current_permissions,
             "permissions": CoreHandler().get_workspace_role_uid(
