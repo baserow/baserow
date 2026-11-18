@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db.models import Prefetch, Q, QuerySet
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
@@ -53,6 +54,11 @@ from baserow_premium.row_comments.signals import (
     row_comment_deleted,
     row_comment_updated,
     row_comments_notification_mode_updated,
+)
+
+ROW_COMMENT_SEARCH_OPERATIONS = (
+    ReadRowCommentsOperationType.type,
+    ReadDatabaseRowOperationType.type,
 )
 
 
@@ -216,8 +222,7 @@ class RowCommentHandler:
         :param limit: The most comments to return.
         :param offset: How many of the newest matching comments to skip.
         :return: The comments, newest first, with their author and mentions, and
-            whether older ones match. The comments on trashed rows are left out
-            after the page is read, so a page can hold fewer than ``limit``.
+            whether more candidates matched before checking which rows still exist.
         :raises FeaturesNotAvailableError: If the user doesn't have the premium
             feature in the workspace.
         :raises PermissionException: If the user may not read the comments of one
@@ -229,10 +234,9 @@ class RowCommentHandler:
         )
         CoreHandler().check_multiple_permissions(
             [
-                PermissionCheck(
-                    requesting_user, ReadRowCommentsOperationType.type, table
-                )
+                PermissionCheck(requesting_user, operation, table)
                 for table in tables
+                for operation in ROW_COMMENT_SEARCH_OPERATIONS
             ],
             workspace=workspace,
             raise_exception=True,
@@ -273,15 +277,14 @@ class RowCommentHandler:
                 )
         comment_ids = [comment["id"] for comment in newest[offset : offset + limit + 1]]
 
-        found = {
-            comment.id: comment
-            for comment in RowComment.objects.filter(id__in=comment_ids[:limit])
+        comments = list(
+            RowComment.objects.filter(id__in=comment_ids[:limit])
+            .order_by("-created_on", "-id")
             .select_related("user")
             .prefetch_related(
                 Prefetch("mentions", queryset=User.objects_and_identities.all())
             )
-        }
-        comments = [found[comment_id] for comment_id in comment_ids[:limit]]
+        )
         return RowCommentSearchResult(
             cls._on_existing_rows(tables, comments), len(comment_ids) > limit
         )

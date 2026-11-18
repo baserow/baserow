@@ -129,6 +129,36 @@ def test_search_skips_trashed_comments_and_comments_on_trashed_rows(scenario):
 
 
 @pytest.mark.django_db
+def test_has_more_can_lead_to_an_empty_page(scenario):
+    for row in scenario.project_rows:
+        RowHandler().delete_row_by_id(scenario.ctx.user, scenario.projects, row.id)
+
+    first = search_row_comments(scenario.ctx, scenario.database.id, size=2)
+    assert [comment["id"] for comment in first["comments"]] == [
+        scenario.comments[3].id,
+        scenario.comments[2].id,
+    ]
+    assert first["has_more"] is True
+    assert search_row_comments(scenario.ctx, scenario.database.id, size=2, page=2) == {
+        "comments": [],
+        "has_more": False,
+    }
+
+
+@pytest.mark.django_db
+def test_search_skips_a_comment_removed_after_page_selection(scenario, mocker):
+    filter_comments = RowComment.objects.filter
+
+    def filter_after_removal(*args, **kwargs):
+        if "id__in" in kwargs:
+            filter_comments(id=scenario.comments[2].id).update(trashed=True)
+        return filter_comments(*args, **kwargs)
+
+    mocker.patch.object(RowComment.objects, "filter", side_effect=filter_after_removal)
+    assert found_comments(scenario) == [4, 2, 1]
+
+
+@pytest.mark.django_db
 def test_search_only_reaches_the_tables_of_the_database(scenario, premium_data_fixture):
     other = create_comment_scenario(
         premium_data_fixture, has_active_premium_license=True
@@ -152,11 +182,13 @@ def test_search_only_reaches_the_tables_of_the_database(scenario, premium_data_f
 
 
 @pytest.mark.django_db
-def test_search_needs_premium(premium_data_fixture):
+def test_search_needs_premium_before_resolving_tables_or_authors(premium_data_fixture):
     scenario = create_comment_scenario(premium_data_fixture)
 
     with pytest.raises(FeaturesNotAvailableError):
-        search_row_comments(scenario.ctx, scenario.database.id)
+        search_row_comments(scenario.ctx, scenario.database.id, authors=["Unknown"])
+    with pytest.raises(FeaturesNotAvailableError):
+        search_row_comments(scenario.ctx, scenario.database.id, table_ids=[-1])
 
 
 @pytest.mark.django_db

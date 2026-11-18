@@ -30,10 +30,14 @@ from baserow.core.prosemirror.utils import (
 from baserow.core.tools import ToolContext, tool_execution
 from baserow.core.tools.errors import ToolInputError, item_error_message
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.row_comments.actions import CreateRowCommentActionType
-from baserow_premium.row_comments.handler import RowCommentHandler
+from baserow_premium.row_comments.handler import (
+    ROW_COMMENT_SEARCH_OPERATIONS,
+    RowCommentHandler,
+)
 from baserow_premium.row_comments.models import RowComment
-from baserow_premium.row_comments.operations import ReadRowCommentsOperationType
 
 MAX_PAGE_SIZE = 100
 # A comment costs about nine queries and its own transaction, and can notify people.
@@ -53,8 +57,8 @@ SearchedTableIds = Annotated[
     list[int] | None,
     Field(
         max_length=MAX_SEARCHED_TABLES,
-        description="Only search these tables of the database. Every table when "
-        "omitted or empty.",
+        description="Only search these tables of the database. Omit or leave empty "
+        "to search every table whose rows and comments you can read.",
     ),
 ]
 MentionedUsers = Annotated[
@@ -206,7 +210,9 @@ def _searched_tables(
         .filter(database=get_database(ctx, database_id))
     )
     if not table_ids:
-        searched = permitted_tables(ctx, tables, ReadRowCommentsOperationType.type)
+        searched = list(tables)
+        for operation in ROW_COMMENT_SEARCH_OPERATIONS:
+            searched = permitted_tables(ctx, searched, operation)
     else:
         found = tables.in_bulk(table_ids)
         missing = [table_id for table_id in table_ids if table_id not in found]
@@ -289,9 +295,11 @@ def search_row_comments(
     """
     Find the comments on the rows of a database, newest first, each with its table
     and row. Narrow them down by table, by who they mention, by who wrote them and
-    by when they were written. has_more tells whether a next page exists.
+    by when they were written. has_more means there are more candidates. Pages can
+    be short or empty if comments or their rows were removed.
     """
 
+    LicenseHandler.raise_if_user_doesnt_have_feature(PREMIUM, ctx.user, ctx.workspace)
     tables = {
         table.id: table for table in _searched_tables(ctx, database_id, table_ids)
     }

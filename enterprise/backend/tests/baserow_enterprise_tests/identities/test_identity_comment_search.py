@@ -5,6 +5,7 @@ from baserow_premium_tests.row_comments.utils import (
     found_comments,
 )
 
+from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.core.exceptions import PermissionDenied
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -36,16 +37,25 @@ def test_search_as_an_identity_finds_the_comments_mentioning_it(
 
 
 @pytest.mark.django_db
-def test_search_leaves_out_the_tables_whose_comments_the_user_may_not_read(
-    enterprise_data_fixture, synced_roles, enable_enterprise
+@pytest.mark.parametrize("without_row_read", [False, True])
+def test_search_requires_both_row_and_comment_read_permissions(
+    enterprise_data_fixture, synced_roles, enable_enterprise, without_row_read
 ):
     scenario = create_comment_scenario(enterprise_data_fixture)
     workspace = scenario.ctx.workspace
-    # A viewer lists a table's rows but doesn't read their comments.
-    for uid, scope in (("BUILDER", workspace), ("VIEWER", scenario.tasks)):
-        RoleAssignmentHandler().assign_role(
-            scenario.bob, workspace, role=Role.objects.get(uid=uid), scope=scope
+    builder = Role.objects.get(uid="BUILDER")
+    if without_row_read:
+        table_role = Role.objects.create(
+            uid="no_row_read", name="No row read", workspace=workspace
         )
+        table_role.operations.set(
+            builder.operations.exclude(name=ReadDatabaseRowOperationType.type)
+        )
+    else:
+        table_role = Role.objects.get(uid="VIEWER")
+    roles = RoleAssignmentHandler()
+    roles.assign_role(scenario.bob, workspace, role=builder)
+    roles.assign_role(scenario.bob, workspace, role=table_role, scope=scenario.tasks)
     scenario.ctx.user = scenario.bob
 
     assert found_comments(scenario) == [2, 1]

@@ -223,7 +223,7 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
-            **AgentHandler().get_tool_configuration(application),
+            **AgentHandler().get_stored_tool_configuration(application),
             integrations=[
                 IntegrationHandler().export_integration(
                     integration,

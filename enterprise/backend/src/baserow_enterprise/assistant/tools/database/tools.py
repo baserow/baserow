@@ -1460,8 +1460,8 @@ def search_row_comments(
 
     WHEN to use: User asks which comments mention them or someone else, what a person commented, or what was commented lately, without naming one row.
     WHAT it does: Returns comments newest first, each with its table and row. The filters combine: tables, mentioned users, authors and creation time.
-    HOW: "Comments that mention me" is mentioned_users=[0]. Leave table_ids out to search every table of the database.
-    RETURNS: comments with id, table_id, table, row_id, row, user_id, user_name, text, mentions, created_on, edited, and has_more.
+    HOW: "Comments that mention me" is mentioned_users=[0]. Leave table_ids out to search every table whose rows and comments you can read.
+    RETURNS: comments with id, table_id, table, row_id, row, user_id, user_name, text, mentions, created_on, edited, and has_more. When has_more is true, the next page can still be empty if comments or their rows were removed.
     DO NOT USE when: User names one row; use list_row_comments.
     """
 

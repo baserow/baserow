@@ -10,8 +10,11 @@ from rest_framework.status import HTTP_402_PAYMENT_REQUIRED
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.replies import AgentResponder
+from baserow.contrib.agent.service import AgentService
 from baserow.core.chat_runs.steps import ToolCallInputEvent
+from baserow.core.handler import CoreHandler
 from baserow.core.tools import ToolContext
+from baserow_premium.license.cache import invalidate_cached_instance_wide_licenses
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 
@@ -177,3 +180,43 @@ def test_row_comment_tools_are_locked_without_a_workspace_licence(
     # An Agent that was never allowed a locked tool isn't told about them.
     AgentHandler().set_allowed_tools(agent, ["list_tables"])
     assert AgentHandler().get_reply_request(reply).unavailable_tool_messages == []
+
+
+@pytest.mark.django_db
+def test_tool_grants_can_be_copied_and_revoked_during_a_licence_lapse(
+    enterprise_data_fixture, enable_enterprise, synced_roles
+):
+    user = enterprise_data_fixture.create_user()
+    agent = enterprise_data_fixture.create_agent_application(user=user)
+    identity = enterprise_data_fixture.create_identity(workspace=agent.workspace)
+    service = AgentService()
+    grants = {
+        "allowed_tools": ["list_row_comments", "create_row_comments"],
+        "ask_first_tools": ["list_row_comments"],
+    }
+    service.update_configuration(
+        user,
+        agent.id,
+        run_as_subject_type="auth.User",
+        run_as_subject_id=identity.id,
+        **grants,
+    )
+    enterprise_data_fixture.delete_all_licenses()
+    invalidate_cached_instance_wide_licenses()
+
+    edited = service.update_configuration(
+        user, agent.id, instructions="New instructions"
+    )
+    assert edited.configuration.allowed_tools == []
+    for field, expected in grants.items():
+        assert edited.original_values[field] == edited.new_values[field] == expected
+    duplicate = CoreHandler().duplicate_application(user, edited.agent).specific
+    assert service.get_configuration(user, duplicate.id).allowed_tools == []
+
+    cleared = service.update_configuration(user, agent.id, allowed_tools=[])
+    assert cleared.original_values["allowed_tools"] == grants["allowed_tools"]
+    assert cleared.new_values["allowed_tools"] == []
+    enterprise_data_fixture.enable_enterprise()
+    invalidate_cached_instance_wide_licenses()
+    assert service.get_configuration(user, agent.id).allowed_tools == []
+    assert AgentHandler().get_tool_configuration(duplicate) == grants

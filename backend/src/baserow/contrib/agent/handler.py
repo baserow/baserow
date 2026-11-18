@@ -316,34 +316,39 @@ class AgentHandler:
             if tool_type.is_deactivated(agent.workspace)
         ]
 
-    def get_tool_configuration(
-        self, agent: AgentApplication, deactivated: list[str] | None = None
+    def get_stored_tool_configuration(
+        self, agent: AgentApplication
     ) -> AgentToolConfiguration:
-        """
-        Return the tools the Agent may call and those that wait for the owner's
-        approval, leaving out tools no longer registered or deactivated in the
-        Agent's workspace.
-
-        :param agent: The Agent to read.
-        :param deactivated: Tools already checked for this workspace, if available.
-        :return: The allowed tool names and the ask first tool names, in registry
-            order. An unavailable selected identity retains its settings, but no
-            selected identity means tools are off.
-        """
+        """Read the Agent's saved grants, including temporarily locked tools."""
 
         if not agent.run_as_subject_type or not agent.run_as_subject_id:
             return {"allowed_tools": [], "ask_first_tools": []}
         ask_first = dict(agent.allowed_tools.values_list("name", "ask_first"))
-        if deactivated is None:
-            deactivated = self.get_deactivated_tools(agent)
         allowed_tools = [
-            name
-            for name in agent_tool_type_registry.get_types()
-            if name in ask_first and name not in deactivated
+            name for name in agent_tool_type_registry.get_types() if name in ask_first
         ]
         return {
             "allowed_tools": allowed_tools,
             "ask_first_tools": [name for name in allowed_tools if ask_first[name]],
+        }
+
+    def get_tool_configuration(
+        self, agent: AgentApplication, deactivated: list[str] | None = None
+    ) -> AgentToolConfiguration:
+        """Return only the saved grants available under the workspace licence."""
+
+        stored = self.get_stored_tool_configuration(agent)
+        if not stored["allowed_tools"]:
+            return stored
+        if deactivated is None:
+            deactivated = self.get_deactivated_tools(agent)
+        return {
+            "allowed_tools": [
+                name for name in stored["allowed_tools"] if name not in deactivated
+            ],
+            "ask_first_tools": [
+                name for name in stored["ask_first_tools"] if name not in deactivated
+            ],
         }
 
     def set_allowed_tools(
@@ -540,9 +545,10 @@ class AgentHandler:
         run_as = [values.get(field) for field in self.run_as_fields]
         if any(run_as) and not self.get_usable_run_as_subject(*run_as, agent.workspace):
             raise AgentRunAsSubjectDoesNotExist()
+        stored_tools = self.get_stored_tool_configuration(agent)
         original_values = {
             **{field: getattr(agent, field) for field in allowed_fields},
-            **self.get_tool_configuration(agent),
+            **stored_tools,
         }
         changed_fields = []
         for field, value in values.items():
@@ -567,14 +573,14 @@ class AgentHandler:
             agent.save(update_fields=[*changed_fields, "updated_on"])
         if tools_changed or not has_run_as or not had_run_as:
             self.set_allowed_tools(agent, allowed_tools, ask_first_tools)
+            stored_tools = self.get_stored_tool_configuration(agent)
         configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(
             agent=agent,
             original_values=original_values,
             new_values={
                 **{field: getattr(agent, field) for field in allowed_fields},
-                "allowed_tools": configuration.allowed_tools,
-                "ask_first_tools": configuration.ask_first_tools,
+                **stored_tools,
             },
             configuration=configuration,
         )
