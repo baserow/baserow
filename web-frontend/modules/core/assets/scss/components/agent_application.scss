@@ -949,6 +949,20 @@
   color: $palette-neutral-900;
 }
 
+.agent-tool-permissions__locked {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  line-height: 1;
+  color: $palette-neutral-700;
+  cursor: pointer;
+
+  &:hover {
+    color: $palette-neutral-1200;
+  }
+}
+
 .agent-tool-permissions__columns {
   display: grid;
   flex-shrink: 0;

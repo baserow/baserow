@@ -7,10 +7,12 @@ const GROUPS = {
  * their translated labels. A group without a label here, or a tool without a
  * registered presenter, shows its name.
  *
- * @param {Array} availableTools Each tool's name, group and changes_data.
+ * @param {Array} availableTools Each tool's name, group, changes_data and
+ *   whether the workspace can't use it.
  * @param {Object} registry The registry containing shared tool presentations.
  * @param {Function} t The translation function.
- * @returns {Array} The groups, each with its type, label, icon and tools.
+ * @returns {Array} The groups, each with its type, label, icon and tools. A
+ *   deactivated tool carries the modal that says why it is locked.
  */
 export function groupAgentTools(availableTools, registry, t) {
   const groups = new Map()
@@ -30,9 +32,21 @@ export function groupAgentTools(availableTools, registry, t) {
       changesData: tool.changes_data,
       label: agentToolLabel(tool.name, registry, t),
       description: presenter ? presenter.getDescription(t) : '',
+      deactivated: Boolean(tool.deactivated),
+      deactivatedClickModal: tool.deactivated
+        ? (presenter?.getDeactivatedClickModal() ?? null)
+        : null,
     })
   }
   return [...groups.values()]
+}
+
+/**
+ * @param {Array} availableTools Each tool's name and whether it is deactivated.
+ * @returns {Array} The tools the Agent's workspace can use.
+ */
+export function usableAgentTools(availableTools) {
+  return availableTools.filter((tool) => !tool.deactivated)
 }
 
 function toolPresenter(name, registry) {

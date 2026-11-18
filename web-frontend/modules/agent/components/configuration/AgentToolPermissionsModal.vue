@@ -18,7 +18,7 @@
           {{
             $t('agent.toolsAskFirstSummary', {
               on: group.tools.filter((tool) => picked.has(tool.name)).length,
-              total: group.tools.length,
+              total: group.tools.filter((tool) => !tool.deactivated).length,
               count: group.tools.filter((tool) => askFirst.has(tool.name))
                 .length,
             })
@@ -53,7 +53,17 @@
               </div>
             </div>
             <div class="agent-tool-permissions__columns">
+              <button
+                v-if="tool.deactivated"
+                type="button"
+                class="agent-tool-permissions__locked"
+                :aria-label="$t('agent.toolLocked', { name: tool.label })"
+                @click="deactivatedModals[tool.name]?.show()"
+              >
+                <i class="iconoir-lock" aria-hidden="true"></i>
+              </button>
               <Checkbox
+                v-else
                 class="agent-tool-permissions__allow"
                 :model-value="picked.has(tool.name)"
                 :disabled="!editable"
@@ -70,6 +80,13 @@
                 }}</Checkbox
               >
             </div>
+            <component
+              :is="tool.deactivatedClickModal[0]"
+              v-if="tool.deactivatedClickModal"
+              :ref="(modal) => (deactivatedModals[tool.name] = modal)"
+              :workspace="workspace"
+              v-bind="tool.deactivatedClickModal[1]"
+            />
           </div>
         </div>
       </div>
@@ -101,6 +118,8 @@ const props = defineProps({
   askFirstTools: { type: Array, required: true },
   agentName: { type: String, required: true },
   editable: { type: Boolean, required: true },
+  /** The Agent's workspace, for the modal of a tool it can't use. */
+  workspace: { type: Object, default: null },
 })
 const emit = defineEmits(['save'])
 const { t } = useI18n()
@@ -109,6 +128,7 @@ const { $registry } = useNuxtApp()
 const modal = ref(null)
 const picked = ref(new Set())
 const askFirst = ref(new Set())
+const deactivatedModals = {}
 const groups = computed(() =>
   groupAgentTools(props.availableTools, $registry, t)
 )
