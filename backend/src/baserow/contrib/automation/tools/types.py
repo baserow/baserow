@@ -337,8 +337,14 @@ class NodeRefs:
                 if matches
                 else f"is not a branch of node '{ref}'"
             )
+            default_hint = (
+                ", or leave router_edge_label out for the default branch"
+                if matches and edge_label.lower() == DEFAULT_BRANCH
+                else ""
+            )
             raise DjangoValidationError(
-                f"router_edge_label '{edge_label}' {reason}. Its branches: {labels}."
+                f"router_edge_label '{edge_label}' {reason}{default_hint}. "
+                f"Its branches: {labels}."
             )
         return node_id, uid
 

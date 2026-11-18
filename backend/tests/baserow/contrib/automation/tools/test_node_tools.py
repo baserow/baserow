@@ -1361,7 +1361,15 @@ def test_node_refs_refuses_default_when_two_branches_match_it():
     refs.add("router", 1, {"Default": "uid1", "DEFAULT": "uid2"})
 
     assert refs.resolve("router", "Default") == (1, "uid1")
-    with pytest.raises(DjangoValidationError, match="matches several branches"):
+    with pytest.raises(
+        DjangoValidationError,
+        match="matches several branches.*or leave router_edge_label out",
+    ):
         refs.resolve("router", "default")
+    refs.add("yes", 3, {"Yes": "uid4", "YES": "uid5"})
+    with pytest.raises(DjangoValidationError) as error:
+        refs.resolve("yes", "yes")
+    assert "matches several branches" in str(error.value)
+    assert "leave router_edge_label out" not in str(error.value)
     refs.add("plain", 2, {"Big": "uid3"})
     assert refs.resolve("plain", "default") == (2, "")
