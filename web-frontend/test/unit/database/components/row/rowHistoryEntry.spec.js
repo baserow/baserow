@@ -76,6 +76,30 @@ describe('RowHistoryEntry', () => {
     ).toBe(true)
   })
 
+  test('shows the stored name of an actor whose type is not registered', async () => {
+    const wrapper = await testApp.mount(RowHistoryEntry, {
+      propsData: {
+        workspaceId: 1,
+        fields: [],
+        entry: {
+          action_type: 'update_row',
+          action_command_type: 'DO',
+          timestamp: '2026-08-05T12:00:00Z',
+          user: { id: 1, name: 'Import token' },
+          actor: { id: 1, type: 'core.Token', name: 'Import token' },
+          before: {},
+          after: {},
+          fields_metadata: {},
+        },
+      },
+    })
+
+    expect(wrapper.find('.row-history-entry__name').text()).toContain(
+      'Import token'
+    )
+    expect(wrapper.find('.row-history-entry__initials').text()).toBe('I')
+  })
+
   test('translates an Anonymous User actor when rendering', async () => {
     const wrapper = await testApp.mount(RowHistoryEntry, {
       propsData: {
