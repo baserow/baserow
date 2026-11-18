@@ -18,6 +18,7 @@ from baserow.contrib.agent.operations import (
 )
 from baserow.contrib.agent.registries import (
     agent_data_provider_type_registry,
+    agent_tool_type_registry,
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
@@ -390,8 +391,20 @@ class AgentApplicationType(ApplicationType):
                 application, tools["allowed_tools"], tools["ask_first_tools"]
             )
         elif tools["allowed_tools"]:
-            # Without an identity tools are off. They wait for the first one.
-            application.pending_tool_choices = tools
+            # Without an identity tools are off. They wait for the first one, and
+            # those that change data ask first: whoever picks the identity didn't
+            # choose to let them run unattended.
+            application.pending_tool_choices = handler.filter_tool_choices(
+                tools["allowed_tools"],
+                [
+                    *tools["ask_first_tools"],
+                    *(
+                        name
+                        for name in tools["allowed_tools"]
+                        if agent_tool_type_registry.get(name).changes_data
+                    ),
+                ],
+            )
             application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(

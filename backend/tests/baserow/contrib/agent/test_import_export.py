@@ -1273,3 +1273,19 @@ def test_a_template_synced_with_the_flag_off_gets_its_agent_once_it_is_on(
     template = Template.objects.get(slug="agent-check")
     synced = AgentApplication.objects.get(workspace=template.workspace)
     assert template.open_application == synced.id
+
+
+@pytest.mark.django_db
+def test_installed_tools_that_change_data_ask_first(data_fixture, configured_agent):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+    AgentHandler().set_allowed_tools(
+        agent, ["list_tables", "create_rows"], ask_first_names=[]
+    )
+
+    installed = install_as_template(data_fixture, agent, user)
+
+    assert installed.pending_tool_choices == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["create_rows"],
+    }
