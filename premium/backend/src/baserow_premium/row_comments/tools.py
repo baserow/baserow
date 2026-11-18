@@ -54,7 +54,7 @@ SearchedTableIds = Annotated[
     Field(
         max_length=MAX_SEARCHED_TABLES,
         description="Only search these tables of the database. Every table when "
-        "omitted.",
+        "omitted or empty.",
     ),
 ]
 MentionedUsers = Annotated[
@@ -166,7 +166,7 @@ def _user_ids(ctx: ToolContext, users: list[int | str] | None) -> list[int] | No
     user_ids = set()
     for user in users:
         reference = str(user).strip()
-        if reference.isdigit():
+        if reference.isdecimal():
             user_id = int(reference)
             user_ids.add(ctx.user.id if user_id == ACTING_USER else user_id)
             continue
@@ -205,7 +205,7 @@ def _searched_tables(
         .list_workspace_tables(ctx.user, ctx.workspace)
         .filter(database=get_database(ctx, database_id))
     )
-    if table_ids is None:
+    if not table_ids:
         searched = permitted_tables(ctx, tables, ReadRowCommentsOperationType.type)
     else:
         found = tables.in_bulk(table_ids)

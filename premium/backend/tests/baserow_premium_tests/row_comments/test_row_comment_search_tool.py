@@ -71,8 +71,10 @@ def test_search_finds_comments_by_who_they_mention(scenario):
     # 0 is the user the tools act as, and a comment mentioning both is found once.
     assert found_comments(scenario, mentioned_users=[0]) == [4, 2]
     assert found_comments(scenario, mentioned_users=[0, "Bob"]) == [4, 2, 1]
-    with pytest.raises(ToolInputError):
-        found_comments(scenario, mentioned_users=["Carl"])
+    # "²" is a digit that isn't a number, so it is read as a name.
+    for nobody in ("Carl", "²"):
+        with pytest.raises(ToolInputError):
+            found_comments(scenario, mentioned_users=[nobody])
 
 
 @pytest.mark.django_db
@@ -112,6 +114,8 @@ def test_search_limits_to_the_given_tables_and_pages(scenario):
     assert first["has_more"] is True
     assert found_comments(scenario, page=2, **arguments) == [3]
     assert found_comments(scenario, page=3, **arguments) == []
+    # An empty list filters nothing, like the lists of users.
+    assert found_comments(scenario, table_ids=[]) == [4, 3, 2, 1]
 
 
 @pytest.mark.django_db
