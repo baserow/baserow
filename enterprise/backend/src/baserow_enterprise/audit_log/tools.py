@@ -65,11 +65,7 @@ def _page(
             {
                 "id": entry.id,
                 "timestamp": entry.action_timestamp.astimezone(timezone).isoformat(),
-                "actor": {
-                    "id": entry.actor_id,
-                    "type": entry.actor_type,
-                    "name": entry.actor_name,
-                },
+                "actor": entry.actor,
                 "action_type": entry.action_type,
                 "description": str(entry.description),
             }

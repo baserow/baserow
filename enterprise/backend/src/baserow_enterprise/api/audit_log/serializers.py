@@ -84,12 +84,7 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(AuditLogActorSerializer)
     def get_actor(self, instance):
-        return {
-            "id": instance.actor_id,
-            "type": instance.actor_type,
-            "name": instance.actor_name,
-            "user_type": instance.actor_user_type,
-        }
+        return instance.actor
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):

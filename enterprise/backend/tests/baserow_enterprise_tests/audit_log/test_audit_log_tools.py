@@ -76,7 +76,9 @@ def admin_ctx(enterprise_data_fixture, enable_enterprise, synced_roles):
 @pytest.mark.django_db
 def test_list_audit_log_returns_workspace_entries_newest_first(admin_ctx):
     older = _entry(admin_ctx.workspace, admin_ctx.user, days_ago=2)
-    newer = _entry(admin_ctx.workspace, admin_ctx.user, days_ago=1)
+    newer = _entry(
+        admin_ctx.workspace, admin_ctx.user, days_ago=1, actor_user_type="human"
+    )
 
     result = list_audit_log(admin_ctx)
 
@@ -89,6 +91,7 @@ def test_list_audit_log_returns_workspace_entries_newest_first(admin_ctx):
             "id": admin_ctx.user.id,
             "type": UserSubjectType.type,
             "name": "anna@example.com",
+            "user_type": "human",
         },
         "action_type": "create_table",
         "description": newer.description,

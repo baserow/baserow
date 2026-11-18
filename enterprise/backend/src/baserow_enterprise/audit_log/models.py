@@ -74,6 +74,17 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
         return self.actor_id
 
     @property
+    def actor(self) -> dict[str, int | str | None]:
+        """The actor of the entry, with the kind of user it was."""
+
+        return {
+            "id": self.actor_id,
+            "type": self.actor_type,
+            "name": self.actor_name,
+            "user_type": self.actor_user_type,
+        }
+
+    @property
     def actor_display(self):
         if not self.actor_id:
             return ""
