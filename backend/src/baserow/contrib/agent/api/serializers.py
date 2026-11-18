@@ -142,6 +142,9 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="Whether the agent's model can search the web, but not while the "
         "agent uses workspace tools."
     )
+    web_fetch_enabled = serializers.BooleanField(
+        help_text="Whether the agent may open web pages, which Baserow fetches."
+    )
     available_trigger_types = serializers.ListField(
         child=serializers.CharField(),
         help_text="The trigger types that can be added to the agent on this "
@@ -259,6 +262,7 @@ class AgentConfigurationUpdateSerializer(
             "run_as_subject_id",
             "allowed_tools",
             "web_search_enabled",
+            "web_fetch_enabled",
             "ask_first_tools",
         )
         extra_kwargs = {

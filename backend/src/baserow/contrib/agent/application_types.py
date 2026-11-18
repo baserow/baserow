@@ -236,6 +236,7 @@ class AgentApplicationType(ApplicationType):
                 )
             ],
             web_search_enabled=application.web_search_enabled,
+            web_fetch_enabled=application.web_fetch_enabled,
             actions=AgentActionHandler().export_actions(
                 application, import_export_config, files_zip, storage
             ),
@@ -304,11 +305,16 @@ class AgentApplicationType(ApplicationType):
         application.run_as_subject_type, application.run_as_subject_id = (
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )
-        # Searching is paid and sends data out, so outside copies must opt in again.
-        application.web_search_enabled = (
-            import_export_config.is_duplicate
-            and not import_export_config.is_template
-            and serialized_values.get("web_search_enabled", False)
+        # Searching is paid, and both send data out, so outside copies must opt in
+        # again.
+        internal_copy = (
+            import_export_config.is_duplicate and not import_export_config.is_template
+        )
+        application.web_search_enabled = internal_copy and serialized_values.get(
+            "web_search_enabled", False
+        )
+        application.web_fetch_enabled = internal_copy and serialized_values.get(
+            "web_fetch_enabled", False
         )
         application.save()
         registered = agent_tool_type_registry.get_types()

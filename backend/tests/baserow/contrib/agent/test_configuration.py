@@ -150,6 +150,7 @@ def test_configuration_update_records_full_snapshots_and_ignores_noop_drafts(
         "run_as_subject_id": None,
         "allowed_tools": [],
         "web_search_enabled": False,
+        "web_fetch_enabled": False,
         "ask_first_tools": [],
     }
     params = registered.call_args.args[1]
@@ -186,6 +187,7 @@ def test_configuration_audit_snapshots_record_normalized_values(
         "run_as_subject_id": None,
         "allowed_tools": [],
         "web_search_enabled": False,
+        "web_fetch_enabled": False,
         "ask_first_tools": [],
     }
 
@@ -250,6 +252,7 @@ def test_configuration_audit_snapshots_record_identity_assignment_replacement_an
             "run_as_subject_id": None,
             "allowed_tools": [],
             "web_search_enabled": False,
+            "web_fetch_enabled": False,
             "ask_first_tools": [],
         }
     ]
@@ -1018,6 +1021,7 @@ def test_configuration_is_served_only_by_the_agent_endpoints(
         "web_search_enabled": False,
         "web_search_available": True,
         "web_search_blocked_by_tools": False,
+        "web_fetch_enabled": False,
         "available_trigger_types": [
             "local_baserow_rows_created",
             "local_baserow_rows_updated",

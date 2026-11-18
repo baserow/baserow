@@ -1234,7 +1234,8 @@ describe('Agent configuration', () => {
   )
 
   describe('web search', () => {
-    const setting = (wrapper) => wrapper.get('.agent-web-search')
+    const setting = (wrapper) =>
+      wrapper.findComponent({ name: 'AgentWebSearchSetting' })
     const webSearch = (extra = {}) =>
       completeConfiguration({
         web_search_enabled: false,
@@ -1269,7 +1270,7 @@ describe('Agent configuration', () => {
       expect(input.props('disabled')).toBe(true)
       expect(input.props('modelValue')).toBe(false)
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchUnavailable')
     })
 
@@ -1289,7 +1290,7 @@ describe('Agent configuration', () => {
       const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
       expect(input.props('disabled')).toBe(true)
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchBlockedByTools')
     })
 
@@ -1311,7 +1312,7 @@ describe('Agent configuration', () => {
         await openSection(wrapper, 'agent.agentSettings')
 
         expect(
-          setting(wrapper).find('.agent-web-search__unavailable').exists()
+          setting(wrapper).find('.agent-web-setting__unavailable').exists()
         ).toBe(false)
         expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
           false
@@ -1338,10 +1339,10 @@ describe('Agent configuration', () => {
         'agent.webSearchUnavailableBadge'
       )
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').classes()
+        setting(wrapper).get('.agent-web-setting__unavailable').classes()
       ).toContain('alert--warning')
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchUnavailableWhileOn')
 
       expect(input.props('modelValue')).toBe(true)
@@ -1378,6 +1379,35 @@ describe('Agent configuration', () => {
         expect(setting(wrapper).find('.alert').exists()).toBe(warned)
       }
     )
+  })
+
+  describe('opening web pages', () => {
+    const setting = (wrapper) =>
+      wrapper.findComponent({ name: 'AgentWebFetchSetting' })
+    const webFetch = (extra = {}) =>
+      completeConfiguration({ web_fetch_enabled: false, ...extra })
+
+    test('is off by default, saves when turned on and then warns', async () => {
+      mockConfiguration(testApp, webFetch())
+      mockSaves(testApp, webFetch({ web_fetch_enabled: true }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('modelValue')).toBe(false)
+      expect(setting(wrapper).find('.alert').exists()).toBe(false)
+
+      input.vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_fetch_enabled: true }])
+      expect(input.props('modelValue')).toBe(true)
+      // Even without workspace tools the conversation and trigger data can leak
+      // through the URLs it opens.
+      expect(setting(wrapper).get('.alert').text()).toBe(
+        'agent.webFetchWarning'
+      )
+    })
   })
 
   const withTools = (

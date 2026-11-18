@@ -107,6 +107,12 @@
     :editable="editable"
     @change="changeWebSearch"
   />
+  <AgentWebFetchSetting
+    class="margin-top-3"
+    :configuration="configuration"
+    :editable="editable"
+    @change="changeWebFetch"
+  />
 </template>
 
 <script setup>
@@ -114,6 +120,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { REASONING_EFFORTS } from '@baserow/modules/agent/constants'
 import AgentWebSearchSetting from '@baserow/modules/agent/components/configuration/AgentWebSearchSetting'
+import AgentWebFetchSetting from '@baserow/modules/agent/components/configuration/AgentWebFetchSetting'
 
 const props = defineProps({
   name: { type: String, required: true },
@@ -207,6 +214,11 @@ function changeReasoningEffort(effort) {
 
 function changeWebSearch(enabled) {
   emit('change', { web_search_enabled: enabled })
+  emit('flush')
+}
+
+function changeWebFetch(enabled) {
+  emit('change', { web_fetch_enabled: enabled })
   emit('flush')
 }
 
