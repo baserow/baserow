@@ -96,7 +96,7 @@ def load_test_data():
 def load_test_ai_provider():
     """Create an instance OpenAI provider once, without discovering or testing models."""
 
-    key_file = settings.BASEROW_POPULATE_OPENAI_API_KEY_FILE
+    key_file = getattr(settings, "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE", "")
     if (
         not key_file
         or AIProviderConfig.objects.filter(
@@ -109,9 +109,11 @@ def load_test_ai_provider():
         api_key = Path(key_file).read_text(encoding="utf-8").strip()
     except (OSError, UnicodeError):
         raise CommandError(
-            "Cannot read BASEROW_POPULATE_OPENAI_API_KEY_FILE."
+            "Cannot read BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE."
         ) from None
     if not api_key:
-        raise CommandError("BASEROW_POPULATE_OPENAI_API_KEY_FILE must not be empty.")
+        raise CommandError(
+            "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE must not be empty."
+        )
 
     AIProviderHandler.create_provider("openai", api_key=api_key)

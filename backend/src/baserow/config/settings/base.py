@@ -1976,11 +1976,6 @@ else:
 # Deprecated provider connection/model environment variables. Manage providers and
 # models under AI providers instead. Keep these settings for compatibility and the
 # migrate_ai_provider_settings import command; runtime fallback remains supported.
-# Development test-data population only; the file is read by core.populate.
-BASEROW_POPULATE_OPENAI_API_KEY_FILE = os.getenv(
-    "BASEROW_POPULATE_OPENAI_API_KEY_FILE", ""
-)
-
 BASEROW_OPENAI_API_KEY = os.getenv("BASEROW_OPENAI_API_KEY", None)
 BASEROW_OPENAI_ORGANIZATION = os.getenv("BASEROW_OPENAI_ORGANIZATION", "") or None
 BASEROW_OPENAI_BASE_URL = os.getenv("BASEROW_OPENAI_BASE_URL", None) or None

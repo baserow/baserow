@@ -18,6 +18,15 @@ BUILDER_PREVIEW_HANDOFF_TTL_SECONDS = 5 * 60
 BASEROW_WEBHOOKS_MAX_CONSECUTIVE_TRIGGER_FAILURES = 4
 BASEROW_WEBHOOKS_MAX_RETRIES_PER_CALL = 4
 
+# Optional development-only OpenAI provider creation during populate_test_data.
+# Set this to an absolute path to an untracked UTF-8 API key file (chmod 600).
+# Example: BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE=/path/to/openai-api-key
+# Unset/empty means opt out. Existing instance providers are preserved; otherwise
+# unreadable/empty files fail population. No models are added or network calls made.
+BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = os.getenv(
+    "BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE", ""
+)
+
 INSTALLED_APPS.insert(0, "daphne")  # noqa: F405
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 

@@ -11,7 +11,7 @@ from baserow.core.populate import load_test_ai_provider, load_test_data
 
 @pytest.mark.django_db
 def test_populate_without_opt_in(settings):
-    settings.BASEROW_POPULATE_OPENAI_API_KEY_FILE = ""
+    settings.BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = ""
     settings.BASEROW_OPENAI_API_KEY = "legacy-key"
     load_test_ai_provider()
     assert not AIProviderConfig.objects.exists()
@@ -23,7 +23,7 @@ def test_populate_openai_from_file(settings, tmp_path, data_fixture, capsys):
 
     key_file = tmp_path / "key"
     key_file.write_text("  test-secret\n")
-    settings.BASEROW_POPULATE_OPENAI_API_KEY_FILE = str(key_file)
+    settings.BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = str(key_file)
     settings.DEBUG = True
     workspace = data_fixture.create_workspace()
     with (
@@ -56,7 +56,7 @@ def test_populate_preserves_existing_provider(settings):
         "openai", api_key="existing", models_data=[{"model_identifier": "custom-model"}]
     )
     AIProviderHandler.update_provider(provider, is_active=False)
-    settings.BASEROW_POPULATE_OPENAI_API_KEY_FILE = "/missing/key"
+    settings.BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = "/missing/key"
     load_test_ai_provider()
     provider.refresh_from_db()
     assert provider.api_key == "existing"
@@ -74,8 +74,8 @@ def test_populate_rejects_invalid_key_file(settings, tmp_path, contents):
         key_file.write_bytes(contents)
     elif contents is not None:
         key_file.write_text(contents)
-    settings.BASEROW_POPULATE_OPENAI_API_KEY_FILE = str(key_file)
-    with pytest.raises(CommandError, match="BASEROW_POPULATE_OPENAI_API_KEY_FILE"):
+    settings.BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = str(key_file)
+    with pytest.raises(CommandError, match="BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE"):
         load_test_ai_provider()
     assert not AIProviderConfig.objects.exists()
 
@@ -89,7 +89,7 @@ def test_populate_keeps_workspace_provider(settings, tmp_path, data_fixture):
     )
     key_file = tmp_path / "key"
     key_file.write_text("instance-secret")
-    settings.BASEROW_POPULATE_OPENAI_API_KEY_FILE = str(key_file)
+    settings.BASEROW_DEV_POPULATE_OPENAI_API_KEY_FILE = str(key_file)
     load_test_ai_provider()
     owned.refresh_from_db()
     assert owned.api_key == "workspace-secret"
