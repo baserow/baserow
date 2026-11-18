@@ -1,9 +1,16 @@
 <template>
   <Modal ref="modal" wide @hidden="modalOpen = false">
     <div v-if="modalOpen" class="dashboard-widget-filters">
-      <h2 class="box__title">
-        {{ $t('textFilterWidget.filterTarget', { widget: target.title }) }}
-      </h2>
+      <div class="dashboard-widget-filters__header">
+        <h2 class="box__title">
+          {{ $t('textFilterWidget.conditionsFor', { widget: target.title }) }}
+        </h2>
+        <p class="dashboard-widget-filters__subtitle">
+          {{
+            $t('textFilterWidget.conditionsSubtitle', { filter: widget.title })
+          }}
+        </p>
+      </div>
       <Alert v-if="unavailableReason" type="warning">{{
         unavailableReason
       }}</Alert>
@@ -21,70 +28,67 @@
           class="margin-bottom-2"
           >{{ $t('textFilterWidget.incompatibleConditions') }}</Alert
         >
-        <Tabs
-          v-model:selected-index="selectedCase"
-          class="dashboard-widget-filters__cases"
-          header-no-padding
-          :tab-items="[
-            {
-              title: $t('textFilterWidget.withValue'),
-              badge: String(link.group?.filters?.length || 0),
-              badgeColor: 'neutral',
-            },
-            {
-              title: $t('textFilterWidget.whenEmpty'),
-              badge: String(
-                link.empty_behavior === 'apply_alternative'
-                  ? link.alternative_group?.filters?.length || 0
-                  : 0
-              ),
-              badgeColor: 'neutral',
-            },
-          ]"
-        />
-        <TargetFilterGroup
-          v-if="selectedCase === 0"
-          :key="`${target.id}-normal`"
-          :group="link.group"
-          :fields="fields"
-          :dashboard="dashboard"
-          :owner="widget"
-          @update="$emit('update', { ...link, group: $event })"
-        />
-        <template v-else>
-          <Dropdown
-            class="dashboard-widget-filters__empty-behavior"
-            :aria-label="$t('textFilterWidget.emptyBehavior')"
-            :model-value="link.empty_behavior"
-            @update:model-value="updateEmptyBehavior"
-          >
-            <DropdownItem
-              v-for="policy in ['apply_nothing', 'apply_alternative']"
-              :key="policy"
-              :name="$t(`textFilterWidget.${policy}`)"
-              :value="policy"
-            />
-          </Dropdown>
-          <div
-            v-if="link.empty_behavior === 'apply_alternative'"
-            class="dashboard-widget-filters__alternative"
-          >
-            <TargetFilterGroup
-              :key="`${target.id}-alternative`"
-              :group="link.alternative_group || emptyGroup()"
-              :fields="fields"
-              :dashboard="dashboard"
-              :owner="widget"
-              @update="$emit('update', { ...link, alternative_group: $event })"
-            />
+        <section class="dashboard-widget-filters__case">
+          <h3 class="dashboard-widget-filters__case-title">
+            {{ $t('textFilterWidget.withValueTitle') }}
+          </h3>
+          <p class="dashboard-widget-filters__case-help margin-bottom-2">
+            {{ $t('textFilterWidget.withValueHelp') }}
+          </p>
+          <TargetFilterGroup
+            :key="`${target.id}-normal`"
+            :group="link.group"
+            :fields="fields"
+            :dashboard="dashboard"
+            :owner="widget"
+            @update="$emit('update', { ...link, group: $event })"
+          />
+        </section>
+        <section class="dashboard-widget-filters__case">
+          <div class="dashboard-widget-filters__case-header">
+            <div>
+              <h3 class="dashboard-widget-filters__case-title">
+                {{ $t('textFilterWidget.whenEmptyTitle') }}
+              </h3>
+              <p class="dashboard-widget-filters__case-help">
+                {{
+                  link.empty_behavior === 'apply_alternative'
+                    ? $t('textFilterWidget.whenEmptyAlternativeHelp')
+                    : $t('textFilterWidget.whenEmptyNothingHelp')
+                }}
+              </p>
+            </div>
+            <Dropdown
+              class="dashboard-widget-filters__empty-behavior"
+              :aria-label="$t('textFilterWidget.emptyBehavior')"
+              :model-value="link.empty_behavior"
+              @update:model-value="updateEmptyBehavior"
+            >
+              <DropdownItem
+                v-for="policy in ['apply_nothing', 'apply_alternative']"
+                :key="policy"
+                :name="$t(`textFilterWidget.${policy}`)"
+                :value="policy"
+              />
+            </Dropdown>
           </div>
-        </template>
+          <TargetFilterGroup
+            v-if="link.empty_behavior === 'apply_alternative'"
+            :key="`${target.id}-alternative`"
+            :group="link.alternative_group || emptyGroup()"
+            :fields="fields"
+            :dashboard="dashboard"
+            :owner="widget"
+            @update="$emit('update', { ...link, alternative_group: $event })"
+          />
+        </section>
         <WidgetFilterGroups
           :groups="readonlyGroups"
           :dashboard="dashboard"
           :fields="fields"
           :filter-type="source?.filter_type || 'AND'"
           :title="$t('textFilterWidget.otherConditions')"
+          :show-edit-links="false"
         />
       </template>
       <div class="dashboard-widget-filters__footer">
@@ -115,7 +119,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['update', 'retry'])
 
-const selectedCase = ref(0)
 const modal = ref(null)
 const modalOpen = ref(false)
 const emptyGroup = () => ({
@@ -132,7 +135,6 @@ const updateEmptyBehavior = (empty_behavior) =>
       : {}),
   })
 const show = () => {
-  selectedCase.value = 0
   modalOpen.value = true
   modal.value.show()
 }

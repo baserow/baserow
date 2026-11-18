@@ -8,7 +8,7 @@
     }"
     :disabled="disabled || loading"
     :aria-disabled="disabled || loading || unavailable"
-    :aria-label="name"
+    :aria-label="description ? `${name}. ${description}` : name"
     :aria-busy="loading || undefined"
     @click.stop="select"
   >
@@ -26,6 +26,9 @@
         />
       </template>
     </span>
+    <span v-if="description" class="item-picker-card__description">{{
+      description
+    }}</span>
     <slot />
   </button>
 </template>
@@ -33,6 +36,7 @@
 <script setup>
 const props = defineProps({
   name: { type: String, required: true },
+  description: { type: String, default: null },
   image: { type: String, required: true },
   loading: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },

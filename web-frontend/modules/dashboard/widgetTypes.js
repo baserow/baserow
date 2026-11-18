@@ -30,6 +30,11 @@ export class WidgetType extends Registerable {
     return null
   }
 
+  /** A short explanation shown when choosing a widget to add. */
+  get description() {
+    return null
+  }
+
   get createWidgetImage() {
     return null
   }
@@ -51,6 +56,7 @@ export class WidgetType extends Registerable {
     return [
       {
         name: this.name,
+        description: this.description,
         createWidgetImage: this.createWidgetImage,
         type: this,
         params: {},
@@ -95,6 +101,15 @@ export class WidgetType extends Registerable {
     return false
   }
 
+  /**
+   * Whether the widget shows controls that viewers use, like a filter's input.
+   * While the dashboard is edited, they can't be used or focused: a click
+   * selects the widget like any other. See `DashboardWidget`.
+   */
+  get hasControls() {
+    return false
+  }
+
   /** Widget lifecycle hooks receive the local Vuex context and widget registry. */
   afterCreate(widget, context) {}
 
@@ -120,6 +135,18 @@ export class DataSourceWidgetType extends WidgetType {
   getDataSourceId(widget) {
     return widget.data_source_id
   }
+
+  /**
+   * The data source values that make a new widget show the table, as if it was
+   * chosen in the widget's settings.
+   *
+   * @param {number} tableId The table the widget shows.
+   * @param {Array} fields The table's fields, in the order the API lists them.
+   */
+  getDataSourceValuesForTable(tableId, fields) {
+    return { table_id: tableId }
+  }
+
   afterCreate(widget, context) {
     if (
       context.state.dataSources.some(
@@ -179,6 +206,29 @@ export class SummaryWidgetType extends DataSourceWidgetType {
   get showHeaderBorder() {
     return false
   }
+
+  getDataSourceValuesForTable(tableId, fields) {
+    // Like choosing the table in the settings: the summary shows the first
+    // field, with the first aggregation that supports it.
+    const values = super.getDataSourceValuesForTable(tableId, fields)
+    const field = fields[0]
+    if (!field) return values
+    const unsupported = this.app.$registry.get(
+      'service',
+      'local_baserow_aggregate_rows'
+    ).unsupportedAggregationTypes
+    const aggregation = this.app.$registry
+      .getOrderedList('viewAggregation')
+      .find(
+        (type) =>
+          !unsupported.includes(type.getType()) && type.fieldIsCompatible(field)
+      )
+    return {
+      ...values,
+      field_id: field.id,
+      aggregation_type: aggregation ? aggregation.getType() : '',
+    }
+  }
 }
 
 export class FilterWidgetType extends WidgetType {
@@ -193,6 +243,10 @@ export class FilterWidgetType extends WidgetType {
   }
 
   get isFilterWidget() {
+    return true
+  }
+
+  get hasControls() {
     return true
   }
 
@@ -329,6 +383,10 @@ export class TextFilterWidgetType extends FilterWidgetType {
 
   get name() {
     return this.app.$i18n.t('textFilterWidget.name')
+  }
+
+  get description() {
+    return this.app.$i18n.t('textFilterWidget.description')
   }
 
   get createWidgetImage() {

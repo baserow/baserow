@@ -254,3 +254,68 @@ describe('TextFilterWidget', () => {
     store.commit('dashboardApplication/RESET')
   })
 })
+
+describe('TextFilterWidget input', () => {
+  test('an input without its own placeholder gets a default one', async () => {
+    const input = { ...widget, mode: 'input', placeholder: '' }
+    await testApp.store.dispatch('dashboardApplication/forceSetWidgets', [
+      input,
+    ])
+    wrapper = await testApp.mount(TextFilterWidget, {
+      props: { widget: input },
+    })
+
+    expect(wrapper.get('input').attributes('placeholder')).toBe(
+      'textFilterWidget.inputDefaultPlaceholder'
+    )
+    testApp.store.commit('dashboardApplication/RESET')
+  })
+})
+
+const condition = { id: 'c', field: 5, type: 'contains', value: '' }
+const emptyGroup = { filter_type: 'AND', filters: [], filter_groups: [] }
+test.each([
+  ['no link', [], true],
+  ['a link without conditions', [{ group: emptyGroup }], true],
+  [
+    'a disabled link',
+    [{ enabled: false, group: { ...emptyGroup, filters: [condition] } }],
+    true,
+  ],
+  [
+    'a link with a condition',
+    [{ group: { ...emptyGroup, filters: [condition] } }],
+    false,
+  ],
+  [
+    'a link with only an alternative',
+    [
+      {
+        group: emptyGroup,
+        empty_behavior: 'apply_alternative',
+        alternative_group: { ...emptyGroup, filters: [condition] },
+      },
+    ],
+    false,
+  ],
+])('editors see "Not applied" with %s', async (_, links, notApplied) => {
+  const filter = {
+    ...widget,
+    mode: 'input',
+    target_filters: links.map((link) => ({
+      target_widget_id: 9,
+      enabled: true,
+      empty_behavior: 'apply_nothing',
+      ...link,
+    })),
+  }
+  const store = testApp.store
+  await store.dispatch('dashboardApplication/forceSetWidgets', [filter])
+  await store.dispatch('dashboardApplication/enterEditMode')
+  wrapper = await testApp.mount(TextFilterWidget, { props: { widget: filter } })
+
+  expect(wrapper.text().includes('textFilterWidget.notApplied')).toBe(
+    notApplied
+  )
+  store.commit('dashboardApplication/RESET')
+})

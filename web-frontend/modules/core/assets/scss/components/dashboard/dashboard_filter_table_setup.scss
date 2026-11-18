@@ -1,0 +1,53 @@
+.text-filter-widget-settings__section {
+  padding-bottom: 20px;
+
+  & + & {
+    padding-top: 20px;
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+.text-filter-widget-settings__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.text-filter-widget-settings__title {
+  margin: 0;
+  color: $palette-neutral-1200;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.filter-table-setup__help {
+  margin: 0 0 12px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.dashboard-widget-filter-targets__apply-new {
+  align-items: flex-start;
+  margin-top: 14px;
+
+  // The label names the table and how new widgets are filtered: it wraps
+  // rather than being cut off.
+  .checkbox__label {
+    overflow: visible;
+    white-space: normal;
+    line-height: 20px;
+  }
+
+  .checkbox__button {
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+}
+
+.dashboard-widget-filter-targets__empty > p {
+  margin: 0;
+}

@@ -33,7 +33,26 @@
                 @click.stop="toggle"
                 >{{ context.title }}</ButtonText
               >
+              <span
+                v-if="context.owner"
+                class="dashboard-widget-filters__source-summary"
+                >{{ conditionSummary(context) }}</span
+              >
+              <a
+                v-if="context.owner && showEditLinks"
+                class="dashboard-widget-filters__source-edit"
+                role="button"
+                tabindex="0"
+                @click.stop="editOwner(context.owner)"
+                @keydown.enter.stop.prevent="editOwner(context.owner)"
+                >{{
+                  $t('textFilterWidget.editInFilter', {
+                    filter: context.title,
+                  })
+                }}</a
+              >
               <HelpIcon
+                v-else
                 icon="iconoir-lock"
                 class="dashboard-widget-filters__source-lock"
                 :tooltip="
@@ -51,7 +70,9 @@
             <FormGroup
               v-if="context.group?.filters?.length"
               small-label
-              :label="context.owner ? $t('textFilterWidget.withValue') : null"
+              :label="
+                context.owner ? $t('textFilterWidget.withValueTitle') : null
+              "
               required
             >
               <TargetFilterGroup
@@ -65,7 +86,7 @@
             <FormGroup
               v-if="context.alternativeGroup"
               small-label
-              :label="$t('textFilterWidget.whenEmpty')"
+              :label="$t('textFilterWidget.whenEmptyTitle')"
               class="margin-top-2"
               required
             >
@@ -88,6 +109,8 @@
 import TargetFilterGroup from '@baserow/modules/dashboard/components/widget/TargetFilterGroup'
 import { countFilterGroupConditions } from '@baserow/modules/dashboard/utils/widgetFilters'
 
+const { $store, $i18n } = useNuxtApp()
+const storePrefix = inject('storePrefix', ref(''))
 const props = defineProps({
   groups: { type: Array, required: true },
   dashboard: { type: Object, required: true },
@@ -95,7 +118,52 @@ const props = defineProps({
   filterType: { type: String, default: 'AND' },
   title: { type: String, required: true },
   showLeadingOperator: { type: Boolean, default: true },
+  /** Link each filter to its settings, where its conditions are edited. */
+  showEditLinks: { type: Boolean, default: true },
 })
+
+/**
+ * "4 conditions, any can match · 1 when empty": the conditions applied with a
+ * value, and apart from them those applied when the filter is empty.
+ */
+const conditionSummary = ({ group, alternativeGroup }) => {
+  const count = group?.filters?.length || 0
+  const emptyCount = alternativeGroup?.filters?.length || 0
+  const parts = []
+  if (count || !emptyCount) {
+    const conditions = $i18n.t(
+      'textFilterWidget.conditionCount',
+      { count },
+      count
+    )
+    parts.push(
+      count < 2
+        ? conditions
+        : $i18n.t('textFilterWidget.conditionSummary', {
+            conditions,
+            match:
+              group?.filter_type === 'OR'
+                ? $i18n.t('textFilterWidget.anyCanMatch')
+                : $i18n.t('textFilterWidget.allMustMatch'),
+          })
+    )
+  }
+  if (emptyCount) {
+    parts.push(
+      $i18n.t(
+        'textFilterWidget.whenEmptyCount',
+        { count: emptyCount },
+        emptyCount
+      )
+    )
+  }
+  return parts.join(' · ')
+}
+const editOwner = (owner) =>
+  $store.dispatch(
+    `${storePrefix.value ?? ''}dashboardApplication/selectWidget`,
+    owner.id
+  )
 
 const conditionCount = computed(() => countFilterGroupConditions(props.groups))
 </script>
