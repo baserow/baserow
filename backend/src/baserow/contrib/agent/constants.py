@@ -114,9 +114,12 @@ WEB_SEARCH_FAILED_INSTRUCTIONS = (
 )
 WEB_FETCH_TOOL_NAME = "web_fetch"
 # Pages one reply may open, and the text kept of each, so a reply's pages fit in
-# the context of small models too.
+# the context of small models too: about 12,500 tokens for five.
 WEB_FETCH_MAX_PER_REPLY = 5
-WEB_FETCH_MAX_CHARACTERS = 30_000
+WEB_FETCH_MAX_CHARACTERS = 10_000
+# The text of a page that is converted at most, which bounds the time and memory
+# converting takes.
+WEB_FETCH_MAX_CONVERTED_CHARACTERS = 2_000_000
 # Seconds a page may take, redirects and body included.
 WEB_FETCH_TIMEOUT = 20
 WEB_FETCH_INSTRUCTIONS = (

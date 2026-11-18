@@ -472,6 +472,7 @@ class _DeadlineMixin:
 
     request_deadline: _RequestDeadline
     operation_timeout: Optional[float] = None
+    send_netrc_credentials: bool = True
     watched_pool_classes: dict
 
     def __init__(self, *args, **kwargs):
@@ -481,6 +482,17 @@ class _DeadlineMixin:
             # `ValidatingPoolManager`: this leaves advocate's mount lock, which
             # only guards `session.mount()`, untouched.
             adapter.poolmanager.pool_classes_by_scheme = self.watched_pool_classes
+
+    def rebuild_auth(self, prepared_request, response):
+        if self.send_netrc_credentials:
+            return super().rebuild_auth(prepared_request, response)
+        # What Requests does on a redirect, without adding the new host's
+        # `.netrc` credentials.
+        headers = prepared_request.headers
+        if "Authorization" in headers and self.should_strip_auth(
+            response.request.url, prepared_request.url
+        ):
+            del headers["Authorization"]
 
     def send(self, request, **kwargs):
         remaining = self.request_deadline.deadline - time.monotonic()
@@ -581,6 +593,10 @@ def _check_redirect_stays_on_host(response: requests.Response) -> None:
         )
 
 
+def _no_auth(request):
+    return request
+
+
 def send_http_request(
     method: str,
     url: str,
@@ -588,6 +604,7 @@ def send_http_request(
     operation_timeout: Optional[float] = None,
     redirects_stay_on_host: bool = False,
     refuse_private_addresses: bool = False,
+    send_netrc_credentials: bool = True,
     **kwargs,
 ) -> requests.Response:
     """
@@ -603,6 +620,8 @@ def send_http_request(
         and never from https to http.
     :param refuse_private_addresses: Check every hop's address even when
         `INTEGRATIONS_ALLOW_PRIVATE_ADDRESS` is on, for URLs a model picks.
+    :param send_netrc_credentials: Whether Requests may add the credentials of
+        the worker's `.netrc` for a matching host, redirects included.
     :param kwargs: Anything else `requests.Session.request` accepts, except
         `timeout`, `stream` and `hooks`, which this function sets itself and
         must not be passed in.
@@ -644,6 +663,10 @@ def send_http_request(
             session.request_deadline = request_deadline
             session.operation_timeout = operation_timeout
             session.max_redirects = MAX_REDIRECTS
+            if not send_netrc_credentials:
+                session.send_netrc_credentials = False
+                # Requests only looks in `.netrc` when no auth is set.
+                session.auth = _no_auth
             response = session.request(
                 method=method,
                 url=url,
