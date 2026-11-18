@@ -108,6 +108,8 @@ class BaserowMCPServer:
     async def call_tool(self, name: str, arguments):
         from mcp.types import CallToolResult, TextContent
 
+        # Imported here: asgi.py imports this module before Django is set up, and
+        # the action context loads the auth models.
         from baserow.core.action.context import undo_redo_session
         from baserow.core.mcp.registries import mcp_tool_registry
 
