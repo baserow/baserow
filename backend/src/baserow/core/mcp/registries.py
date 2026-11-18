@@ -2,6 +2,7 @@ import inspect
 import json
 from contextlib import contextmanager
 from functools import cached_property
+from time import monotonic, sleep
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -22,11 +23,15 @@ from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 
 from baserow.core.mcp.constants import (
     ENDPOINT_CHANGES_LOCK_NAMESPACE,
+    ENDPOINT_CHANGES_LOCK_RETRY_SECONDS,
+    ENDPOINT_CHANGES_LOCK_WAIT_SECONDS,
     LEGACY_DEFAULT_TOOLS,
+    LOCKED_MESSAGE,
 )
 from baserow.core.mcp.exceptions import MCPToolInputError, format_validation_error
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.registry import Instance, Registry
+from baserow.core.tools.errors import ToolFailedError
 
 if TYPE_CHECKING:
     from mcp import Tool
@@ -39,13 +44,22 @@ def endpoint_changes_lock(endpoint: MCPEndpoint, exclusive: bool):
     Holds a lock on the changes made through the endpoint. Calls that change data
     share it, so they still run side by side, while undo and redo hold it alone,
     so no other call adds a change while they take one call back in parts.
-    Session level, because a tool call isn't one transaction.
+    Session level, because a tool call isn't one transaction. A call that can't
+    take it within ``ENDPOINT_CHANGES_LOCK_WAIT_SECONDS`` is asked to try again,
+    because waiting blocks the thread that runs the other MCP calls of the worker.
     """
 
     suffix = "" if exclusive else "_shared"
     key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
+    deadline = monotonic() + ENDPOINT_CHANGES_LOCK_WAIT_SECONDS
     with connection.cursor() as cursor:
-        cursor.execute(f"SELECT pg_advisory_lock{suffix}(%s, %s)", key)
+        while True:
+            cursor.execute(f"SELECT pg_try_advisory_lock{suffix}(%s, %s)", key)
+            if cursor.fetchone()[0]:
+                break
+            if monotonic() >= deadline:
+                raise ToolFailedError(LOCKED_MESSAGE)
+            sleep(ENDPOINT_CHANGES_LOCK_RETRY_SECONDS)
     try:
         yield
     finally:
@@ -167,7 +181,8 @@ class MCPTool(Instance):
         already a string), and wraps exceptions in an error message.
 
         Override ``_sync_call`` for the common case.  Override ``call``
-        directly only when you need full async control.
+        directly only when you need full async control. An override of a tool
+        that changes data must take ``endpoint_changes_lock`` itself.
         """
         from mcp.types import TextContent
 

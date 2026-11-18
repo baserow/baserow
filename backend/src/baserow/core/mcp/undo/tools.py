@@ -7,13 +7,17 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import LockConflict
+from baserow.core.mcp.constants import LOCKED_MESSAGE
 from baserow.core.mcp.groups import GROUP_WORKSPACE_UNDO
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.mcp.registries import MCPTool
 from baserow.core.tools.errors import ToolFailedError
 from baserow.core.tools.types import BaseModel
 
-LOCKED_MESSAGE = "Something else is changing the same data. Try again in a moment."
+PARTLY_UNDONE_MESSAGE = (
+    "Part of the latest tool call couldn't be undone, so the call is only partly "
+    "undone and can't be undone further. Use `redo` to restore what was undone."
+)
 
 
 class NoInput(BaseModel):
@@ -81,13 +85,29 @@ class UndoMcpTool(MCPTool):
     input_schema = NoInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: NoInput) -> list[dict]:
-        return _replay(
-            endpoint,
-            ActionHandler.undo,
-            lambda: Action.objects.filter(undone_at__isnull=True).order_by(
+        user, session = endpoint.user, endpoint.undo_session_id
+
+        def next_in_line():
+            return Action.objects.filter(undone_at__isnull=True).order_by(
                 "-created_on", "-id"
-            ),
-        )
+            )
+
+        # A part whose undo failed is marked as undone, so `ActionHandler` would
+        # go on with the older parts of the same call and leave it in pieces.
+        latest = next_in_line().filter(user=user, session=session).first()
+        if (
+            latest is not None
+            and latest.action_group is not None
+            and Action.objects.filter(
+                user=user,
+                session=session,
+                action_group=latest.action_group,
+                undone_at__isnull=False,
+                error__isnull=False,
+            ).exists()
+        ):
+            raise ToolFailedError(PARTLY_UNDONE_MESSAGE)
+        return _replay(endpoint, ActionHandler.undo, next_in_line)
 
 
 class RedoMcpTool(MCPTool):

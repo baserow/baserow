@@ -19,7 +19,8 @@ from baserow.contrib.database.fields.actions import CreateFieldActionType
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.exceptions import LockConflict
-from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow.core.mcp import BaserowMCPServer, current_key, registries
+from baserow.core.mcp.constants import ENDPOINT_CHANGES_LOCK_NAMESPACE
 from baserow.core.mcp.groups import GROUP_WORKSPACE_UNDO
 from baserow.core.mcp.handler import MCPEndpointHandler
 from baserow.core.mcp.registries import mcp_tool_registry
@@ -137,7 +138,7 @@ def test_undo_takes_back_a_call_with_more_actions_than_a_group_limit(setup):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize("tool", ["undo", "redo"])
 @override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
-def test_another_call_waits_until_a_call_is_fully_undone_or_redone(
+def test_another_call_retries_until_a_call_is_fully_undone_or_redone(
     data_fixture, setup, tool
 ):
     endpoint, table = setup
@@ -165,34 +166,34 @@ def test_another_call_waits_until_a_call_is_fully_undone_or_redone(
         finally:
             connection.close()
 
-    def other_call_is_waiting():
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' "
-                "AND objid = %s AND NOT granted)",
-                [endpoint.id],
-            )
-            return cursor.fetchone()[0]
-
     # Another call of the same endpoint starts right after the first part is
-    # replayed, and the next part waits until that call finished or is waiting.
+    # replayed, and the next part runs once that call found the lock taken. The
+    # call keeps trying, and gets the lock once the whole call is replayed.
     replay = getattr(ActionHandler, tool)
     other = threading.Thread(target=other_call)
+    found_it_locked = threading.Event()
+    other_call_was_held_back = []
+
+    def note_the_retry(seconds):
+        found_it_locked.set()
+        time.sleep(seconds)
 
     def first_part_then_other_call(*args):
         actions = replay(*args)
         if other.ident is None:
             other.start()
-            deadline = time.monotonic() + 10
-            while other.is_alive() and not other_call_is_waiting():
-                assert time.monotonic() < deadline
-                time.sleep(0.05)
+            other_call_was_held_back.append(found_it_locked.wait(timeout=10))
         return actions
 
-    with patch.object(ActionHandler, tool, side_effect=first_part_then_other_call):
+    with (
+        patch(f"{registries.__name__}.sleep", side_effect=note_the_retry),
+        patch(f"{registries.__name__}.ENDPOINT_CHANGES_LOCK_WAIT_SECONDS", 20),
+        patch.object(ActionHandler, tool, side_effect=first_part_then_other_call),
+    ):
         replayed = _call(endpoint, tool)
-    other.join(timeout=10)
+        other.join(timeout=20)
 
+    assert other_call_was_held_back == [True], "The other call never found it locked."
     assert len(replayed) == 2
     expected = {"Name"} if tool == "undo" else {"Name", "X", "Y"}
     assert {f.name for f in table.field_set.all()} == expected
@@ -216,6 +217,45 @@ def test_undo_stops_at_a_part_of_the_call_that_failed(setup):
         undone = _call(endpoint, "undo")
 
     assert undone == [{"action": "Create field", "failed": True}]
+    assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y"}
+
+
+@pytest.mark.django_db
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
+def test_undo_refuses_to_go_on_into_a_call_that_was_partly_undone(setup):
+    endpoint, table = setup
+    _call(
+        endpoint,
+        "create_fields",
+        {
+            "table_id": table.id,
+            "fields": [
+                {"name": "X", "type": "text"},
+                {"name": "Y", "type": "text"},
+                {"name": "Z", "type": "text"},
+            ],
+        },
+    )
+    undo_field = CreateFieldActionType.undo
+    calls = []
+
+    def fail_on_the_middle_field(*args):
+        calls.append(args)
+        if len(calls) == 2:
+            raise Exception("boom")
+        return undo_field(*args)
+
+    with patch.object(
+        CreateFieldActionType, "undo", side_effect=fail_on_the_middle_field
+    ):
+        undone = _call(endpoint, "undo")
+        text = _call(endpoint, "undo", expect_error=True)
+
+    assert undone == [
+        {"action": "Create field", "failed": False},
+        {"action": "Create field", "failed": True},
+    ]
+    assert "partly undone" in text
     assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y"}
 
 
@@ -311,3 +351,41 @@ def test_another_user_cannot_undo_mcp_changes_with_the_session_header(
     assert response.status_code == 200, response.json()
     assert response.json()["actions"] == []
     assert _names(table) == ["A"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_call_gives_up_when_the_endpoint_stays_locked(setup):
+    endpoint, table = setup
+    result = {}
+
+    def call():
+        try:
+            started = time.monotonic()
+            result["text"] = _call(
+                endpoint,
+                "create_rows",
+                {"table_id": table.id, "rows": [{"Name": "A"}]},
+                expect_error=True,
+            )
+            result["seconds"] = time.monotonic() - started
+        finally:
+            connection.close()
+
+    key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(%s, %s)", key)
+    other = threading.Thread(target=call)
+    try:
+        with patch(f"{registries.__name__}.ENDPOINT_CHANGES_LOCK_WAIT_SECONDS", 0.5):
+            other.start()
+            other.join(timeout=5)
+            still_waiting = other.is_alive()
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_unlock(%s, %s)", key)
+        other.join(timeout=10)
+
+    assert not still_waiting, "The call kept waiting for the lock."
+    assert "Try again" in result["text"]
+    assert result["seconds"] < 3
+    assert _names(table) == []
