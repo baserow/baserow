@@ -638,3 +638,55 @@ def test_a_call_cancelled_while_it_waits_for_the_lock_leaves_no_lock(setup):
     assert result["cancelled"] is True
     assert result["locks"] == 1  # Only the one this test holds.
     assert _names(table) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_cancelled_call_keeps_its_undo_session_until_its_body_ends(setup):
+    endpoint, table = setup
+    tool_class = type(mcp_tool_registry.get("create_fields"))
+    original = tool_class._sync_call
+    cancelled = threading.Event()
+
+    def body(endpoint, args):
+        first = args.model_copy(update={"fields": args.fields[:1]})
+        rest = args.model_copy(update={"fields": args.fields[1:]})
+        original(mcp_tool_registry.get("create_fields"), endpoint, first)
+        # The client gives up here and the server stops waiting, but this
+        # body still runs to the end on the thread.
+        cancelled.wait(timeout=10)
+        return original(mcp_tool_registry.get("create_fields"), endpoint, rest)
+
+    arguments = {
+        "table_id": table.id,
+        "fields": [{"name": "X", "type": "text"}, {"name": "Y", "type": "text"}],
+    }
+
+    async def cancelled_call():
+        token = current_key.set(endpoint.key)
+        try:
+            with anyio.move_on_after(0.5):
+                await BaserowMCPServer().call_tool("create_fields", arguments)
+        finally:
+            current_key.reset(token)
+            cancelled.set()
+
+    def run():
+        try:
+            async_to_sync(cancelled_call)()
+        finally:
+            connection.close()
+
+    with patch.object(tool_class, "_sync_call", side_effect=body):
+        thread = threading.Thread(target=run)
+        thread.start()
+        thread.join(timeout=20)
+    assert not thread.is_alive(), "The cancelled call never finished."
+
+    actions = list(Action.objects.filter(user=endpoint.user).order_by("id"))
+    assert len(actions) == 2
+    assert {a.session for a in actions} == {endpoint.undo_session_id}
+    groups = {a.action_group for a in actions}
+    assert len(groups) == 1 and None not in groups
+
+    assert len(_call(endpoint, "undo")) == 2
+    assert {f.name for f in table.field_set.all()} == {"Name"}

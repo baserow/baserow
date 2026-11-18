@@ -14,6 +14,7 @@ from typing import (
     Union,
     get_type_hints,
 )
+from uuid import uuid4
 
 from django.core.exceptions import ImproperlyConfigured
 from django.db import Error, connection
@@ -21,6 +22,7 @@ from django.db import Error, connection
 from asgiref.sync import sync_to_async
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 
+from baserow.core.action.context import undo_redo_session
 from baserow.core.mcp.constants import (
     ENDPOINT_CHANGES_LOCK_NAMESPACE,
     ENDPOINT_CHANGES_LOCK_RETRY_SECONDS,
@@ -55,6 +57,15 @@ def _call_holding_lock(key: list, suffix: str, function: Callable, *args) -> Any
         except Error:
             # Closing the connection is then the only way to release the lock.
             connection.close()
+
+
+def _call_in_undo_session(
+    endpoint: MCPEndpoint, action_group_id: str, function: Callable, *args
+) -> Any:
+    # Set on the thread that runs the call, because a cancelled call still runs
+    # to the end there after the async side has stopped waiting for it.
+    with undo_redo_session(endpoint.user, endpoint.undo_session_id, action_group_id):
+        return function(*args)
 
 
 async def call_with_endpoint_changes_lock(
@@ -210,11 +221,14 @@ class MCPTool(Instance):
                 raise MCPToolInputError(format_validation_error(exc)) from exc
         else:
             args = call_arguments
+        # Like a browser tab, so the `undo` tool can find what the call
+        # changed. Each call is its own group, so one undo takes it all back.
+        call = [endpoint, str(uuid4()), self._sync_call, endpoint, args]
         if self.read_only:
-            result = await sync_to_async(self._sync_call)(endpoint, args)
+            result = await sync_to_async(_call_in_undo_session)(*call)
         else:
             result = await call_with_endpoint_changes_lock(
-                endpoint, self.replays_changes, self._sync_call, endpoint, args
+                endpoint, self.replays_changes, _call_in_undo_session, *call
             )
         text = result if isinstance(result, str) else json.dumps(result)
         return [TextContent(type="text", text=text)]
