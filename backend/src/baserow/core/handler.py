@@ -3212,6 +3212,15 @@ class CoreHandler:
         if files_buffer:
             files_buffer.close()
 
+        if not applications and parsed_json["export"]:
+            from baserow.core.user_templates.exceptions import TemplateHasNoContent
+
+            # Every application was left out, for example Agents behind a
+            # disabled feature flag. Reporting that as installed would be wrong.
+            raise TemplateHasNoContent(
+                "No application of the template can be installed."
+            )
+
         self.mark_applications_installed_from_template(user, applications, template)
 
         return applications, id_mapping

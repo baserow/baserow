@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
 
+from django.db import transaction
+
 import pytest
 from freezegun import freeze_time
 from mcp.server.fastmcp import FastMCP
@@ -36,6 +38,7 @@ from baserow.core.models import Template, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.user_templates.exceptions import TemplateHasNoContent
 from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import Progress
 
@@ -1327,3 +1330,52 @@ def test_duplicate_without_its_identity_keeps_tools_pending(
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["create_rows"],
     }
+
+
+@pytest.mark.django_db
+def test_installing_a_template_of_only_agents_with_the_flag_off_fails(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    (tmp_path / "agent-only.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent only",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": export_for_template([agent]),
+            }
+        )
+    )
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    CoreHandler().sync_templates(pattern="agent-only")
+    template = Template.objects.get(slug="agent-only")
+    settings.FEATURE_FLAGS = []
+    workspace = data_fixture.create_workspace(user=user)
+
+    with pytest.raises(TemplateHasNoContent):
+        CoreHandler().install_template(user, workspace, template)
+
+    assert not workspace.application_set.exists()
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_installing_a_user_template_of_only_agents_with_the_flag_off_fails(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    copy = UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+    revision = data_fixture.create_template(workspace=copy)
+    content = UserTemplateHandler().serialize_template_content(revision)
+    settings.FEATURE_FLAGS = []
+    target = data_fixture.create_workspace(user=owner)
+
+    with pytest.raises(TemplateHasNoContent), transaction.atomic():
+        UserTemplateHandler().install_template_content(owner, target, revision, content)
+
+    assert not target.application_set.exists()

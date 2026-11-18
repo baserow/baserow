@@ -670,6 +670,8 @@ class UserTemplateHandler:
         :param content: The content returned by `serialize_template_content`.
         :param progress_builder: A progress builder that allows for publishing
             progress.
+        :raises TemplateHasNoContent: If none of its applications can be
+            installed here.
         :return: The installed applications.
         """
 
@@ -686,6 +688,12 @@ class UserTemplateHandler:
             storage=content.files.storage,
             progress_builder=progress_builder,
         )
+        if not applications and content.applications:
+            # Every application was left out, for example Agents behind a
+            # disabled feature flag, so there is no install to count.
+            raise TemplateHasNoContent(
+                "No application of the template can be installed."
+            )
 
         CoreHandler().mark_applications_installed_from_template(
             user, applications, revision
