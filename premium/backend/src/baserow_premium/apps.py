@@ -7,13 +7,7 @@ class BaserowPremiumConfig(AppConfig):
     name = "baserow_premium"
 
     def ready(self):
-        from baserow.contrib.agent.registries import agent_tool_type_registry
         from baserow.core.mcp.registries import mcp_tool_registry
-        from baserow_premium.agent.tool_types import (
-            CreateRowCommentsAgentToolType,
-            ListRowCommentsAgentToolType,
-            SearchRowCommentsAgentToolType,
-        )
         from baserow_premium.mcp.row_comments.tools import (
             CreateRowCommentsMcpTool,
             ListRowCommentsMcpTool,
@@ -23,9 +17,6 @@ class BaserowPremiumConfig(AppConfig):
         mcp_tool_registry.register(ListRowCommentsMcpTool())
         mcp_tool_registry.register(SearchRowCommentsMcpTool())
         mcp_tool_registry.register(CreateRowCommentsMcpTool())
-        agent_tool_type_registry.register(ListRowCommentsAgentToolType())
-        agent_tool_type_registry.register(SearchRowCommentsAgentToolType())
-        agent_tool_type_registry.register(CreateRowCommentsAgentToolType())
 
         # noinspection PyUnresolvedReferences
         import baserow_premium.fields.receivers  # noqa: F401

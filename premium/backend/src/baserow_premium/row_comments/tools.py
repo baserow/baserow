@@ -134,7 +134,7 @@ def list_row_comments(
     ] = 20,
 ) -> dict[str, Any]:
     """
-    List the comments of a row as plain text, newest first. Needs a premium licence.
+    List the comments of a row as plain text, newest first.
     """
 
     table = _get_table(ctx, table_id)
@@ -289,8 +289,7 @@ def search_row_comments(
     """
     Find the comments on the rows of a database, newest first, each with its table
     and row. Narrow them down by table, by who they mention, by who wrote them and
-    by when they were written. has_more tells whether a next page exists. Needs a
-    premium licence.
+    by when they were written. has_more tells whether a next page exists.
     """
 
     tables = {
@@ -338,8 +337,7 @@ def create_row_comments(
 ) -> dict[str, Any]:
     """
     Post plain text comments on rows of a table. Mentions aren't supported. A comment
-    that fails is reported in errors and the others are still posted. Needs a premium
-    licence.
+    that fails is reported in errors and the others are still posted.
     """
 
     if not comments:

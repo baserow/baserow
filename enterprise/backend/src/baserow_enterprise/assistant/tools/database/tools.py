@@ -54,6 +54,7 @@ from baserow_enterprise.assistant.tools.toolset import (
     inline_refs,
 )
 from baserow_enterprise.assistant.types import TableNavigationType, ViewNavigationType
+from baserow_enterprise.license.row_comment_tools import RowCommentToolLicense
 from baserow_premium.prompts import get_formula_docs
 from baserow_premium.row_comments import tools as shared_row_comments
 
@@ -1425,6 +1426,7 @@ def list_row_comments(
     DO NOT USE when: You want the row's field values; use list_rows.
     """
 
+    RowCommentToolLicense.raise_if_deactivated(ctx.deps.workspace)
     ctx.deps.tool_helpers.update_status(_("Reading the comments..."))
 
     return shared_row_comments.list_row_comments(
@@ -1463,6 +1465,7 @@ def search_row_comments(
     DO NOT USE when: User names one row; use list_row_comments.
     """
 
+    RowCommentToolLicense.raise_if_deactivated(ctx.deps.workspace)
     ctx.deps.tool_helpers.update_status(_("Searching the comments..."))
 
     return shared_row_comments.search_row_comments(
@@ -1501,6 +1504,7 @@ def create_row_comments(
     DO NOT USE when: User wants a value stored in a field of the row; update the row instead.
     """
 
+    RowCommentToolLicense.raise_if_deactivated(ctx.deps.workspace)
     require_payload("create_row_comments", "comments", comments)
     ctx.deps.tool_helpers.update_status(_("Posting the comments..."))
 
@@ -1654,9 +1658,6 @@ TOOL_FUNCTIONS = [
     get_tables_schema,
     list_rows,
     list_views,
-    list_row_comments,
-    search_row_comments,
-    create_row_comments,
     create_tables,
     create_fields,
     update_fields,
@@ -1673,3 +1674,6 @@ TOOL_FUNCTIONS = [
     load_row_tools,
 ]
 database_toolset = AssistantFunctionToolset(TOOL_FUNCTIONS, max_retries=3)
+
+ROW_COMMENT_FUNCTIONS = [list_row_comments, search_row_comments, create_row_comments]
+row_comment_toolset = AssistantFunctionToolset(ROW_COMMENT_FUNCTIONS, max_retries=3)

@@ -1472,8 +1472,7 @@ PROMPT_FINDS_COMMENTS_MENTIONING_ME = "Which comments in the Sales database ment
 
 def _grant_premium(user: AbstractUser) -> None:
     """
-    Give the user the premium licence of the premium tests. Row comments and row colours
-    need it.
+    Give the user the premium licence of the premium tests for row colours.
     The eval database is disposable and runs with the debug licence key, which that
     licence is signed for, on instance id "1".
     """
@@ -1492,10 +1491,12 @@ def _grant_premium(user: AbstractUser) -> None:
 
 @register_scenario("database-row-comments")
 def _row_comments_scenario(fx: Fixtures) -> EvalScenario:
+    from baserow_enterprise_tests.enterprise_fixtures import EnterpriseFixtures
+
     from baserow_premium.row_comments.models import RowComment
 
+    EnterpriseFixtures().enable_enterprise()
     user = fx.create_user(first_name="Anna")
-    _grant_premium(user)
     bob = fx.create_user(first_name="Bob")
     workspace = fx.create_workspace(users=[user, bob])
     database = fx.create_database_application(workspace=workspace, name="Sales")

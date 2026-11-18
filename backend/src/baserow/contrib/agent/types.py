@@ -186,6 +186,8 @@ class AgentReplyRequest:
     """Who the tools act as, or None for no workspace access."""
     allowed_tool_names: list[str] = field(default_factory=list)
     """The tools the reply may call, none without an identity to act as."""
+    unavailable_tool_messages: list[str] = field(default_factory=list)
+    """Model instructions explaining which workspace tools are deactivated and why."""
     ask_first_tool_names: list[str] = field(default_factory=list)
     """The allowed tools whose calls wait for the owner's approval."""
     action_tools: list["BoundActionTool"] = field(default_factory=list)

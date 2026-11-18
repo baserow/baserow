@@ -8,10 +8,8 @@ from baserow.contrib.agent.database_previews import (
 )
 from baserow.contrib.agent.previews import StepPreview
 from baserow.contrib.agent.tool_types import DatabaseAgentToolType
-from baserow.core.models import Workspace
 from baserow.core.tools import ToolContext
-from baserow_premium.license.features import PREMIUM
-from baserow_premium.license.handler import LicenseHandler
+from baserow_enterprise.license.row_comment_tools import RowCommentToolLicense
 from baserow_premium.row_comments import tools
 
 
@@ -25,14 +23,8 @@ def _row_reference(row_id: int, names: dict[int, str]) -> dict[str, Any]:
     return {"row": names[row_id]} if row_id in names else {"row_id": row_id}
 
 
-class RowCommentAgentToolType(DatabaseAgentToolType):
-    """A row comment tool, which a workspace needs the premium licence for."""
-
-    def is_deactivated(self, workspace: Workspace) -> bool:
-        return not LicenseHandler.workspace_has_feature(PREMIUM, workspace)
-
-    def raise_if_deactivated(self, workspace: Workspace) -> None:
-        LicenseHandler.raise_if_workspace_doesnt_have_feature(PREMIUM, workspace)
+class RowCommentAgentToolType(RowCommentToolLicense, DatabaseAgentToolType):
+    """Row comment tools available to Agents in Advanced workspaces."""
 
 
 class ListRowCommentsAgentToolType(RowCommentAgentToolType):

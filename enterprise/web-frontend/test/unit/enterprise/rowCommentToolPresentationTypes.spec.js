@@ -1,7 +1,7 @@
-import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
+import { TestApp } from '@baserow/test/helpers/testApp'
 import { groupAgentTools } from '@baserow/modules/agent/agentTools'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
-import en from '@baserow_premium/locales/en.json'
+import en from '@baserow_enterprise/locales/en.json'
 
 /** Translates to the key itself, failing on a tool key English lacks. */
 const t = (key) => {
@@ -17,7 +17,7 @@ describe('Row comment tool presentations', () => {
   let registry
 
   beforeEach(() => {
-    testApp = new PremiumTestApp()
+    testApp = new TestApp()
     registry = testApp.getRegistry()
   })
 
@@ -29,7 +29,7 @@ describe('Row comment tool presentations', () => {
       .getActivity({ status, input, facts }, t)
   const inTasks = { values: { table: 'Tasks' } }
 
-  test('a locked row comment tool opens the row comments paid feature', () => {
+  test('a locked row comment tool opens the Advanced RBAC paid feature', () => {
     const [group] = groupAgentTools(
       [
         {
@@ -53,7 +53,7 @@ describe('Row comment tool presentations', () => {
     )
     expect(group.tools[0].deactivatedClickModal).toEqual([
       PaidFeaturesModal,
-      { 'initial-selected-type': 'row_comments' },
+      { 'initial-selected-type': 'rbac' },
     ])
     expect(group.tools[1].deactivatedClickModal).toBeNull()
   })

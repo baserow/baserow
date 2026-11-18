@@ -468,8 +468,9 @@ def test_the_model_gets_the_instructions_and_recent_history(
         ("ModelRequest", "Now?"),
     ]
     # The owner is named on one line, whatever their name holds.
-    assert seen[-1].instructions == "Be brief.\n\n" + (
-        CONVERSATION_USER_INSTRUCTIONS.format(name="Ada Lovelace", user_id=user.id)
+    assert seen[-1].instructions.startswith(
+        "Be brief.\n\n"
+        + CONVERSATION_USER_INSTRUCTIONS.format(name="Ada Lovelace", user_id=user.id)
     )
 
 
@@ -586,8 +587,10 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     run_reply(ChatRun.objects.get(id=next_reply.run_id))
 
     assert "workspace access is no longer available" in seen[0]
-    assert seen[1] == "Be brief.\n\n" + CONVERSATION_USER_INSTRUCTIONS.format(
-        name=user.first_name, user_id=user.id
+    assert "workspace access is no longer available" not in seen[1]
+    assert seen[1].startswith(
+        "Be brief.\n\n"
+        + CONVERSATION_USER_INSTRUCTIONS.format(name=user.first_name, user_id=user.id)
     )
 
 

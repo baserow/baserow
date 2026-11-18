@@ -423,7 +423,9 @@ class AgentResponder:
             instructions += f"\n\n{WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS}"
         if self._web_fetch_tool is not None:
             instructions += f"\n\n{WEB_FETCH_INSTRUCTIONS}"
-        return instructions
+        return "\n\n".join(
+            filter(None, [instructions, *request.unavailable_tool_messages])
+        )
 
     def _search_unavailable(self) -> None:
         """

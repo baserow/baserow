@@ -39,9 +39,10 @@ def _setup(data_fixture, **user_kwargs):
 
 
 @pytest.mark.django_db
-def test_kuma_posts_and_reads_a_row_comment(premium_data_fixture, settings):
-    settings.DEBUG = True
-    ctx, table, row = _setup(premium_data_fixture, has_active_premium_license=True)
+def test_kuma_posts_and_reads_a_row_comment(
+    data_fixture, enable_enterprise, synced_roles
+):
+    ctx, table, row = _setup(data_fixture)
 
     created = create_row_comments(
         ctx,
@@ -56,11 +57,10 @@ def test_kuma_posts_and_reads_a_row_comment(premium_data_fixture, settings):
 
 
 @pytest.mark.django_db
-def test_kuma_finds_the_comments_that_mention_its_user(premium_data_fixture, settings):
-    settings.DEBUG = True
-    scenario = create_comment_scenario(
-        premium_data_fixture, has_active_premium_license=True
-    )
+def test_kuma_finds_the_comments_that_mention_its_user(
+    data_fixture, enable_enterprise, synced_roles
+):
+    scenario = create_comment_scenario(data_fixture)
     ctx = make_test_ctx(scenario.ctx.user, scenario.ctx.workspace)
 
     found = search_row_comments(
@@ -75,13 +75,23 @@ def test_kuma_finds_the_comments_that_mention_its_user(premium_data_fixture, set
 
 
 @pytest.mark.django_db
-def test_kuma_row_comments_need_premium(data_fixture):
-    ctx, table, row = _setup(data_fixture)
+def test_kuma_row_comment_calls_require_a_workspace_licence(
+    premium_data_fixture, settings
+):
+    settings.DEBUG = True
+    ctx, table, row = _setup(premium_data_fixture, has_active_premium_license=True)
 
     with pytest.raises(FeaturesNotAvailableError):
         list_row_comments(ctx, table.id, row.id, thought="read")
     with pytest.raises(FeaturesNotAvailableError):
         search_row_comments(ctx, table.database_id, thought="search")
+    with pytest.raises(FeaturesNotAvailableError):
+        create_row_comments(
+            ctx,
+            table.id,
+            [RowCommentCreate(row_id=row.id, text="Hello")],
+            thought="post",
+        )
 
 
 def _evidence_of(result):
@@ -103,11 +113,10 @@ def _evidence_of(result):
 
 @pytest.mark.django_db
 def test_kuma_counts_a_posted_comment_as_a_completed_change(
-    premium_data_fixture, settings
+    data_fixture, enable_enterprise, synced_roles
 ):
     # Kuma only lets the model claim a change when the result shows one.
-    settings.DEBUG = True
-    ctx, table, row = _setup(premium_data_fixture, has_active_premium_license=True)
+    ctx, table, row = _setup(data_fixture)
 
     posted = create_row_comments(
         ctx, table.id, [RowCommentCreate(row_id=row.id, text="x")], thought="x"

@@ -289,7 +289,7 @@ def _seed_dashboard(
 
 
 @pytest.fixture
-def seed(premium_data_fixture: Any) -> SeededWorkspace:
+def seed(premium_data_fixture: Any, enable_enterprise, synced_roles) -> SeededWorkspace:
     fx = premium_data_fixture
     user = fx.create_user()
     workspace = fx.create_workspace(user=user)
@@ -370,11 +370,7 @@ def _with_a_new_comment(seed: SeededWorkspace, read: Callable[[int], Any]) -> An
         user=seed.user,
         message=prosemirror_doc_from_plain_text("Called them"),
     )
-    with patch(
-        "baserow_premium.row_comments.handler.LicenseHandler"
-        ".raise_if_user_doesnt_have_feature"
-    ):
-        return read(row_id)
+    return read(row_id)
 
 
 _COMMENT_KEYS = {

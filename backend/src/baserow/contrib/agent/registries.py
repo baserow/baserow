@@ -108,6 +108,7 @@ def _call_tool(
     function = type(tool_type).function
     try:
         with local_cache.context():
+            tool_type.raise_if_deactivated(ctx.workspace)
             ctx = act_as_identity(ctx)
             if preview := tool_type.get_step_preview_input(ctx, arguments):
                 show_input(preview)
@@ -157,6 +158,7 @@ def hold_call(
 
     try:
         with local_cache.context():
+            tool_type.raise_if_deactivated(ctx.workspace)
             ctx = act_as_identity(ctx)
             if preview := tool_type.get_step_preview_input(ctx, arguments):
                 show_input(preview)
@@ -217,6 +219,9 @@ class AgentToolType(Instance):
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
+
+    unavailable_message: str = ""
+    """Optional model instruction explaining why a deactivated tool is unavailable."""
 
     def is_deactivated(self, workspace: Workspace) -> bool:
         """

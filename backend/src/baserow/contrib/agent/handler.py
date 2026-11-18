@@ -174,7 +174,8 @@ class AgentHandler:
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
-        tools = self.get_tool_configuration(agent)
+        deactivated = self.get_deactivated_tools(agent)
+        tools = self.get_tool_configuration(agent, deactivated)
         with_tools = (
             (run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"]))
             or self.has_mcp_tools(agent)
@@ -193,7 +194,7 @@ class AgentHandler:
             ),
             run_as=run_as,
             **tools,
-            deactivated_tools=self.get_deactivated_tools(agent),
+            deactivated_tools=deactivated,
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
             web_search_blocked_by_tools=web_search_tool is None
@@ -314,13 +315,16 @@ class AgentHandler:
             if tool_type.is_deactivated(agent.workspace)
         ]
 
-    def get_tool_configuration(self, agent: AgentApplication) -> AgentToolConfiguration:
+    def get_tool_configuration(
+        self, agent: AgentApplication, deactivated: list[str] | None = None
+    ) -> AgentToolConfiguration:
         """
         Return the tools the Agent may call and those that wait for the owner's
         approval, leaving out tools no longer registered or deactivated in the
         Agent's workspace.
 
         :param agent: The Agent to read.
+        :param deactivated: Tools already checked for this workspace, if available.
         :return: The allowed tool names and the ask first tool names, in registry
             order. An unavailable selected identity retains its settings, but no
             selected identity means tools are off.
@@ -329,7 +333,8 @@ class AgentHandler:
         if not agent.run_as_subject_type or not agent.run_as_subject_id:
             return {"allowed_tools": [], "ask_first_tools": []}
         ask_first = dict(agent.allowed_tools.values_list("name", "ask_first"))
-        deactivated = set(self.get_deactivated_tools(agent))
+        if deactivated is None:
+            deactivated = self.get_deactivated_tools(agent)
         allowed_tools = [
             name
             for name in agent_tool_type_registry.get_types()
@@ -1352,8 +1357,9 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
+        deactivated = self.get_deactivated_tools(agent)
         tools: AgentToolConfiguration = (
-            self.get_tool_configuration(agent)
+            self.get_tool_configuration(agent, deactivated)
             if acting_subject
             else {"allowed_tools": [], "ask_first_tools": []}
         )
@@ -1399,10 +1405,15 @@ class AgentHandler:
             and (transcript is None or transcript.paused_web_search)
             else None
         )
+        unavailable_messages = {
+            agent_tool_type_registry.get(name).unavailable_message
+            for name in deactivated
+        }
         return AgentReplyRequest(
             reply_id=reply.id,
             workspace=agent.workspace,
             instructions=agent.instructions,
+            unavailable_tool_messages=sorted(unavailable_messages - {""}),
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
             prompt=prompt,

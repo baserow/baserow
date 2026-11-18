@@ -116,8 +116,14 @@ class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
     def ready(self):
+        from baserow.contrib.agent.registries import agent_tool_type_registry
         from baserow.core.identities.registries import identity_extension_type_registry
         from baserow.core.jobs.registries import job_type_registry
+        from baserow_enterprise.agent.tool_types import (
+            CreateRowCommentsAgentToolType,
+            ListRowCommentsAgentToolType,
+            SearchRowCommentsAgentToolType,
+        )
         from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
@@ -128,6 +134,10 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.identities.identity_extension_types import (
             EnterpriseIdentityExtensionType,
         )
+
+        agent_tool_type_registry.register(ListRowCommentsAgentToolType())
+        agent_tool_type_registry.register(SearchRowCommentsAgentToolType())
+        agent_tool_type_registry.register(CreateRowCommentsAgentToolType())
 
         job_type_registry.register(AuditLogExportJobType())
 
@@ -556,6 +566,7 @@ class BaserowEnterpriseConfig(AppConfig):
         )
         from baserow_enterprise.assistant.tools.database.tool_types import (
             DatabaseToolType,
+            RowCommentToolType,
         )
         from baserow_enterprise.assistant.tools.navigation.tool_types import (
             NavigationToolType,
@@ -581,6 +592,7 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(NavigationToolType())
         assistant_tool_registry.register(CoreToolType())
         assistant_tool_registry.register(DatabaseToolType())
+        assistant_tool_registry.register(RowCommentToolType())
         assistant_tool_registry.register(AutomationToolType())
         assistant_tool_registry.register(DashboardToolType())
         assistant_tool_registry.register(BuilderToolType())

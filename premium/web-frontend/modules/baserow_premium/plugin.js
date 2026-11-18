@@ -91,11 +91,6 @@ import {
   TimelineViewPaidFeature,
   ChartPaidFeature,
 } from '@baserow_premium/paidFeatures'
-import {
-  CreateRowCommentsToolPresentationType,
-  ListRowCommentsToolPresentationType,
-  SearchRowCommentsToolPresentationType,
-} from '@baserow_premium/agent/toolPresentationTypes'
 
 export default defineNuxtPlugin({
   name: 'premium',
@@ -310,19 +305,6 @@ export default defineNuxtPlugin({
     $registry.register(
       'service',
       new LocalBaserowGroupedAggregateRowsServiceType(context)
-    )
-
-    $registry.register(
-      'toolPresentation',
-      new ListRowCommentsToolPresentationType(context)
-    )
-    $registry.register(
-      'toolPresentation',
-      new SearchRowCommentsToolPresentationType(context)
-    )
-    $registry.register(
-      'toolPresentation',
-      new CreateRowCommentsToolPresentationType(context)
     )
 
     $registry.register('paidFeature', new KanbanViewPaidFeature(context))
