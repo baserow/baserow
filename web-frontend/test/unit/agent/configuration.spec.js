@@ -1227,7 +1227,8 @@ describe('Agent configuration', () => {
   )
 
   describe('web search', () => {
-    const setting = (wrapper) => wrapper.get('.agent-web-search')
+    const setting = (wrapper) =>
+      wrapper.findComponent({ name: 'AgentWebSearchSetting' })
     const webSearch = (extra = {}) =>
       completeConfiguration({
         web_search_enabled: false,
@@ -1262,7 +1263,7 @@ describe('Agent configuration', () => {
       expect(input.props('disabled')).toBe(true)
       expect(input.props('modelValue')).toBe(false)
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchUnavailable')
     })
 
@@ -1282,7 +1283,7 @@ describe('Agent configuration', () => {
       const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
       expect(input.props('disabled')).toBe(true)
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchBlockedByTools')
     })
 
@@ -1304,7 +1305,7 @@ describe('Agent configuration', () => {
         await openSection(wrapper, 'agent.agentSettings')
 
         expect(
-          setting(wrapper).find('.agent-web-search__unavailable').exists()
+          setting(wrapper).find('.agent-web-setting__unavailable').exists()
         ).toBe(false)
         expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
           false
@@ -1331,10 +1332,10 @@ describe('Agent configuration', () => {
         'agent.webSearchUnavailableBadge'
       )
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').classes()
+        setting(wrapper).get('.agent-web-setting__unavailable').classes()
       ).toContain('alert--warning')
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchUnavailableWhileOn')
 
       expect(input.props('modelValue')).toBe(true)

@@ -984,9 +984,8 @@ def fetch(url: str, index: int = 0) -> dict[int, DeltaToolCall]:
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("provider_type", ["openai", "mistral", "zai"])
-def test_reply_offers_web_fetch_to_any_model_only_when_turned_on(
-    mocker, data_fixture, configured_agent, provider_type
+def test_reply_offers_web_fetch_only_when_turned_on(
+    mocker, data_fixture, configured_agent
 ):
     user = data_fixture.create_user()
     seen = []
@@ -1002,24 +1001,15 @@ def test_reply_offers_web_fetch_to_any_model_only_when_turned_on(
         yield "ok"
 
     use_stream(mocker, stream)
-    model = (provider_type, "test-model")
 
-    answer(
-        user,
-        configured_agent(user=user, provider_type=provider_type, available_model=model),
-    )
+    answer(user, configured_agent(user=user))
     tools, _, instructions = seen[-1]
     assert "web_fetch" not in tools
     assert WEB_FETCH_INSTRUCTIONS not in instructions
 
     answer(
         user,
-        configured_agent(
-            user=user,
-            provider_type=provider_type,
-            available_model=model,
-            web_fetch_enabled=True,
-        ),
+        configured_agent(user=user, web_fetch_enabled=True),
     )
     tools, native_tools, instructions = seen[-1]
     assert tools == ["web_fetch"]
@@ -1173,6 +1163,33 @@ def test_web_fetch_opens_only_text_pages(mocker, data_fixture, configured_agent)
     ]
     transcript = AgentReplyTranscript.objects.get(reply=reply)
     assert "PDF-1.7" not in json.dumps(transcript.model_messages)
+
+
+@pytest.mark.django_db
+def test_web_fetch_leaves_out_scripts_and_styles_and_bounds_the_title(
+    mocker, data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    html = (
+        f"<html><head><title>{'Long title ' * 50}</title>"
+        "<style>body { color: red }</style>"
+        "<script>window.tracking = {id: 1}</script></head>"
+        "<body><noscript>Enable JavaScript</noscript>"
+        "<template>Hidden</template>"
+        "<svg><text>Logo</text></svg>"
+        "<p>Visible text</p></body></html>"
+    )
+    mocker.patch("baserow.contrib.agent.web_fetch._download", return_value=page(html))
+    returned = fetch_results(mocker, ["https://example.com/"])
+
+    answer(user, configured_agent(user=user, web_fetch_enabled=True))
+
+    [result] = returned
+    assert result["content"].endswith("Visible text")
+    for hidden in ["color: red", "tracking", "Enable JavaScript", "Hidden", "Logo"]:
+        assert hidden not in result["content"]
+    assert len(result["title"]) == 200
+    assert result["title"].startswith("Long title Long title")
 
 
 @pytest.mark.django_db

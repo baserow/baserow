@@ -36,6 +36,8 @@ TEXT_MEDIA_TYPES = {
 }
 HTML_MEDIA_TYPES = {"text/html", "application/xhtml+xml"}
 MARKDOWN_MEDIA_TYPES = {"text/markdown", "text/x-markdown"}
+NON_TEXT_TAGS = ["script", "style", "noscript", "template", "svg"]
+TITLE_MAX_CHARACTERS = 200
 
 
 def _failed(message: str) -> dict:
@@ -110,9 +112,15 @@ def _to_text(media_type: str, text: str) -> tuple[str, str]:
         # Imported here: it needs the optional `markdownify` package, which only
         # replies that open pages should depend on. Its converter bounds the work a
         # crafted page can cause.
+        from bs4 import BeautifulSoup
         from pydantic_ai.common_tools.web_fetch import _convert_html
 
-        return _convert_html(text)
+        # The converter drops these tags but keeps their text, which on most
+        # pages is mostly script.
+        soup = BeautifulSoup(text, "html.parser")
+        for tag in soup.find_all(NON_TEXT_TAGS):
+            tag.decompose()
+        return _convert_html(str(soup))
     if media_type == "application/json":
         try:
             return "", f"```json\n{json.dumps(json.loads(text), indent=2)}\n```"
@@ -183,7 +191,8 @@ def _read_page(url: str) -> dict:
     content = content.strip()
     if len(content) > WEB_FETCH_MAX_CHARACTERS:
         content = content[:WEB_FETCH_MAX_CHARACTERS] + "\n\n[Content truncated]"
-    return {"url": url, "title": title.strip(), "content": content}
+    title = " ".join(title.split())[:TITLE_MAX_CHARACTERS]
+    return {"url": url, "title": title, "content": content}
 
 
 async def web_fetch(ctx: RunContext[None], url: str) -> dict[str, Any]:

@@ -1,15 +1,15 @@
 <template>
-  <div class="agent-web-search">
-    <div class="agent-web-search__head">
+  <div class="agent-web-setting">
+    <div class="agent-web-setting__head">
       <div>
-        <div class="agent-web-search__title">{{ $t('agent.webFetch') }}</div>
-        <div class="agent-web-search__description">
+        <div class="agent-web-setting__title">{{ $t('agent.webFetch') }}</div>
+        <div class="agent-web-setting__description">
           {{ $t('agent.webFetchDescription') }}
         </div>
       </div>
-      <div class="agent-web-search__controls">
+      <div class="agent-web-setting__controls">
         <SwitchInput
-          class="agent-web-search__switch"
+          class="agent-web-setting__switch"
           small
           :model-value="configuration.web_fetch_enabled"
           :disabled="!editable"
