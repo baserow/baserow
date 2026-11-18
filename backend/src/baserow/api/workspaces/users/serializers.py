@@ -174,8 +174,6 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         workspace = workspace_user.workspace
         memberships = getattr(workspace, "collaborator_identity_memberships", None)
         if memberships is None:
-            from baserow.core.handler import CoreHandler
-
             identities = (
                 CoreHandler()
                 .get_workspace_collaborators(workspace, include_identities=True)
