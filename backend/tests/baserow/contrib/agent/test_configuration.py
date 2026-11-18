@@ -769,7 +769,10 @@ def test_a_deactivated_tool_stays_listed_and_is_no_longer_allowed(
         return_value=True,
     )
 
-    configuration = api_client.get(agent_url(agent, "configuration")).json()
+    url = agent_url(agent, "configuration")
+
+    configuration = api_client.get(url).json()
+    response = api_client.patch(url, {"allowed_tools": ["list_views"]})
 
     assert {
         "name": "list_views",
@@ -778,6 +781,7 @@ def test_a_deactivated_tool_stays_listed_and_is_no_longer_allowed(
         "deactivated": True,
     } in configuration["available_tools"]
     assert configuration["allowed_tools"] == ["list_tables"]
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db

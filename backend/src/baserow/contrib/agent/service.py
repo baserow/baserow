@@ -142,8 +142,9 @@ class AgentService:
             its configuration, or may not bind it to a different identity.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
-        :raises Exception: The tool type's own error when an allowed tool is
-            deactivated in the Agent's workspace.
+        :raises rest_framework.exceptions.PermissionDenied: When an allowed tool is
+            deactivated in the Agent's workspace, unless its type raises its own
+            error.
         :return: The Agent, its original and new configuration values, and the
             resolved resulting configuration.
         """

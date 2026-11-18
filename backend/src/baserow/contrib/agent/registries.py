@@ -8,6 +8,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from loguru import logger
 from pydantic_ai import RunContext, Tool, ToolReturn
 from pydantic_ai.exceptions import ApprovalRequired
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 
 from baserow.core.cache import local_cache
 from baserow.core.chat_runs.steps import ToolCallInputEvent
@@ -237,8 +238,12 @@ class AgentToolType(Instance):
     def raise_if_deactivated(self, workspace: Workspace) -> None:
         """
         :param workspace: The workspace of the Agent.
-        :raises Exception: The type's own error when the tool is deactivated there.
+        :raises PermissionDenied: When the tool is deactivated there. A type can
+            raise its own error instead, like the one for a missing licence.
         """
+
+        if self.is_deactivated(workspace):
+            raise DRFPermissionDenied("This tool is deactivated.")
 
     def hold_call(
         self,
