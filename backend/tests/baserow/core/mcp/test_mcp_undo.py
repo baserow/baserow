@@ -1,5 +1,6 @@
 import json
 import threading
+import time
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -164,8 +165,17 @@ def test_another_call_waits_until_a_call_is_fully_undone_or_redone(
         finally:
             connection.close()
 
+    def other_call_is_waiting():
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' "
+                "AND objid = %s AND NOT granted)",
+                [endpoint.id],
+            )
+            return cursor.fetchone()[0]
+
     # Another call of the same endpoint starts right after the first part is
-    # replayed, and gets the time to finish before the next part.
+    # replayed, and the next part waits until that call finished or is waiting.
     replay = getattr(ActionHandler, tool)
     other = threading.Thread(target=other_call)
 
@@ -173,7 +183,10 @@ def test_another_call_waits_until_a_call_is_fully_undone_or_redone(
         actions = replay(*args)
         if other.ident is None:
             other.start()
-            other.join(timeout=2)
+            deadline = time.monotonic() + 10
+            while other.is_alive() and not other_call_is_waiting():
+                assert time.monotonic() < deadline
+                time.sleep(0.05)
         return actions
 
     with patch.object(ActionHandler, tool, side_effect=first_part_then_other_call):

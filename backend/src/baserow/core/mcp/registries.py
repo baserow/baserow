@@ -15,7 +15,7 @@ from typing import (
 )
 
 from django.core.exceptions import ImproperlyConfigured
-from django.db import DatabaseError, connection
+from django.db import Error, connection
 
 from asgiref.sync import sync_to_async
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
@@ -52,7 +52,7 @@ def endpoint_changes_lock(endpoint: MCPEndpoint, exclusive: bool):
         try:
             with connection.cursor() as cursor:
                 cursor.execute(f"SELECT pg_advisory_unlock{suffix}(%s, %s)", key)
-        except DatabaseError:
+        except Error:
             # Closing the connection is then the only way to release the lock.
             connection.close()
 
