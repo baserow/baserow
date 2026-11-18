@@ -25,6 +25,23 @@ class GenerativeAIPromptError(Exception):
     """Raised when an error occurs while prompting the model."""
 
 
+def get_provider_api_error_types() -> tuple[type[Exception], ...]:
+    """
+    The errors the provider SDKs raise when a request fails at the provider, like
+    an unreachable host, a timeout, an invalid key, a rate limit or an error
+    status. They're caused by the provider settings or by the provider itself, not
+    by Baserow.
+
+    :return: The base API error class of each provider SDK.
+    """
+
+    from anthropic import APIError as AnthropicAPIError
+    from google.genai.errors import APIError as GoogleAPIError
+    from openai import APIError as OpenAIAPIError
+
+    return (OpenAIAPIError, AnthropicAPIError, GoogleAPIError)
+
+
 def get_user_friendly_error_message(exc: Exception) -> str:
     """
     Extract a concise, user-facing message from a provider SDK exception.

@@ -10,9 +10,13 @@ from baserow.core.generative_ai.capabilities import (
     ModelToolCallingNotSupportedError,
     test_model_text_and_tool_calling,
 )
-from baserow.core.generative_ai.exceptions import get_user_friendly_error_message
+from baserow.core.generative_ai.exceptions import (
+    get_provider_api_error_types,
+    get_user_friendly_error_message,
+)
 from baserow.core.models import Workspace
 from baserow.core.psycopg import is_unique_violation_error
+from baserow.core.sentry import ignore_sentry_exceptions
 
 from .constants import (
     AI_PROVIDER_FEATURE_AI_AGENT,
@@ -1110,14 +1114,17 @@ class AIProviderHandler:
                 configured_model.model_identifier
                 for configured_model in provider.models.all()
             ]
-            result = cls._test_model(
-                provider.provider_type,
-                model.model_identifier,
-                settings_override,
-                cls.secret_values(provider.api_key, provider.extra_settings),
-                model.id,
-                model.feature_types,
-            )
+            # A provider error is a test result shown to the user, not a server
+            # error, so it isn't reported to Sentry. Other errors still are.
+            with ignore_sentry_exceptions(get_provider_api_error_types()):
+                result = cls._test_model(
+                    provider.provider_type,
+                    model.model_identifier,
+                    settings_override,
+                    cls.secret_values(provider.api_key, provider.extra_settings),
+                    model.id,
+                    model.feature_types,
+                )
             model.last_test_at = result["tested_at"]
             model.last_test_status = result["status"]
             model.last_test_error = result["error"]

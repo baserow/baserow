@@ -1,6 +1,7 @@
 import logging
 import re
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Iterator
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -152,3 +153,36 @@ def patch_user_model_str():
 
     User = get_user_model()
     User.__str__ = lambda self: str(self.id)
+
+
+@contextmanager
+def ignore_sentry_exceptions(
+    exception_types: tuple[type[BaseException], ...],
+) -> Iterator[None]:
+    """
+    Drops the Sentry events of the given exception types that are captured inside
+    the block. Other exceptions, messages and transactions are still sent. Use it
+    around code that reports these errors back to the user, like a connection test
+    of an AI provider, because the AI client integrations of Sentry capture every
+    client error before the calling code can handle it.
+
+    :param exception_types: The exceptions, including their subclasses, to drop.
+    """
+
+    if not settings.SENTRY_DSN:
+        yield
+        return
+
+    import sentry_sdk
+
+    def drop_ignored_exceptions(
+        event: dict[str, Any], hint: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        exc_info = hint.get("exc_info")
+        if exc_info and isinstance(exc_info[1], exception_types):
+            return None
+        return event
+
+    with sentry_sdk.new_scope() as scope:
+        scope.add_event_processor(drop_ignored_exceptions)
+        yield

@@ -6,11 +6,15 @@ import sys
 from unittest.mock import patch
 
 import pytest
+import sentry_sdk
+from asgiref.sync import async_to_sync
 from sentry_sdk.envelope import Envelope
+from sentry_sdk.transport import Transport
 
 from baserow.core.sentry import (
     before_send,
     drop_expected_asyncio_disconnect_events,
+    ignore_sentry_exceptions,
     log_sentry_event_to_console,
 )
 from baserow.core.sentry_transport import ConsoleSentryTransport
@@ -244,3 +248,104 @@ def test_sentry_hooks_redact_private_link_tokens():
         "Referer": "http://localhost:3000/template/slug/private-link/[Filtered]",
         "X-Link": "next=%2Flogin%3Foriginal%3D%252Fprivate-link%252F[Filtered]",
     }
+
+
+class _CollectingTransport(Transport):
+    def __init__(self, options=None):
+        super().__init__(options)
+        self.events = []
+
+    def capture_envelope(self, envelope):
+        self.events.extend(
+            item.payload.json for item in envelope.items if item.type == "event"
+        )
+
+
+@pytest.fixture
+def sentry_events(settings):
+    settings.SENTRY_DSN = "https://public@example.invalid/1"
+    transport = _CollectingTransport()
+    client = sentry_sdk.Client(
+        dsn=settings.SENTRY_DSN, transport=transport, default_integrations=False
+    )
+    with sentry_sdk.isolation_scope() as scope:
+        scope.set_client(client)
+        yield transport.events
+    client.close()
+
+
+class _ProviderError(Exception):
+    pass
+
+
+class _ProviderConnectionError(_ProviderError):
+    pass
+
+
+def _sent(events):
+    return [
+        event.get("message") or event["exception"]["values"][-1]["value"]
+        for event in events
+    ]
+
+
+def test_ignore_sentry_exceptions_drops_only_the_given_types_inside_the_block(
+    sentry_events,
+):
+    with ignore_sentry_exceptions((_ProviderError,)):
+        sentry_sdk.capture_exception(_ProviderConnectionError("dropped subclass"))
+        sentry_sdk.capture_exception(ValueError("kept other type"))
+        sentry_sdk.capture_message("kept message")
+
+    sentry_sdk.capture_exception(_ProviderError("kept outside"))
+
+    assert _sent(sentry_events) == ["kept other type", "kept message", "kept outside"]
+
+
+def test_ignore_sentry_exceptions_drops_logged_exceptions_of_the_given_types(
+    settings,
+):
+    from sentry_sdk.integrations.logging import LoggingIntegration
+
+    settings.SENTRY_DSN = "https://public@example.invalid/1"
+    transport = _CollectingTransport()
+    client = sentry_sdk.Client(
+        dsn=settings.SENTRY_DSN,
+        transport=transport,
+        default_integrations=False,
+        integrations=[LoggingIntegration(event_level=logging.ERROR)],
+    )
+    log = logging.getLogger("baserow.test_ignore_sentry_exceptions")
+    with sentry_sdk.isolation_scope() as scope:
+        scope.set_client(client)
+        with ignore_sentry_exceptions((_ProviderError,)):
+            for error in (_ProviderError("dropped"), ValueError("kept")):
+                try:
+                    raise error
+                except Exception:
+                    log.exception("Probe failed")
+    client.close()
+
+    assert [
+        event["exception"]["values"][-1]["value"] for event in transport.events
+    ] == ["kept"]
+
+
+def test_ignore_sentry_exceptions_reaches_async_to_sync_probes(sentry_events):
+    async def probe():
+        # The AI provider probes run their client calls through async_to_sync,
+        # in another thread.
+        sentry_sdk.capture_exception(_ProviderError("dropped"))
+        sentry_sdk.capture_exception(ValueError("kept"))
+
+    with ignore_sentry_exceptions((_ProviderError,)):
+        async_to_sync(probe)()
+
+    assert _sent(sentry_events) == ["kept"]
+
+
+def test_ignore_sentry_exceptions_without_sentry(settings):
+    settings.SENTRY_DSN = ""
+
+    with ignore_sentry_exceptions((_ProviderError,)):
+        pass
