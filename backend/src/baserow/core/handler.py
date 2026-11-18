@@ -3025,6 +3025,19 @@ class CoreHandler:
             (t for t in installed_templates if t.slug == slug), None
         )
         hash_json = json.dumps(parsed_json["export"])
+        # A template synced without some of its applications, like ones behind a
+        # disabled feature flag, must be synced again once they can be imported.
+        left_out_types = sorted(
+            {
+                application["type"]
+                for application in parsed_json["export"]
+                if not application_type_registry.get(application["type"]).can_import(
+                    config
+                )
+            }
+        )
+        if left_out_types:
+            hash_json += json.dumps(left_out_types)
         export_hash = hashlib.sha256(hash_json.encode("utf-8")).hexdigest()
         keywords = (
             ",".join(parsed_json["keywords"]) if "keywords" in parsed_json else ""

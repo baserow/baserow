@@ -26,6 +26,7 @@ from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.feature_flags import FF_AGENT_BUILDER
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
@@ -1240,3 +1241,35 @@ def test_user_template_requires_reading_the_agent_configuration(
         UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
 
     assert not AgentApplication.objects.exclude(id=agent.id).exists()
+
+
+@pytest.mark.django_db
+def test_a_template_synced_with_the_flag_off_gets_its_agent_once_it_is_on(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    (tmp_path / "agent-check.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent check",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": export_for_template([database, agent]),
+                "open_application": agent.id,
+            }
+        )
+    )
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    settings.FEATURE_FLAGS = []
+    CoreHandler().sync_templates(pattern="agent-check")
+
+    settings.FEATURE_FLAGS = [FF_AGENT_BUILDER]
+    CoreHandler().sync_templates(pattern="agent-check")
+
+    template = Template.objects.get(slug="agent-check")
+    synced = AgentApplication.objects.get(workspace=template.workspace)
+    assert template.open_application == synced.id
