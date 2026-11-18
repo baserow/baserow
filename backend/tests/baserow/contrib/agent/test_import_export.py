@@ -1289,3 +1289,41 @@ def test_installed_tools_that_change_data_ask_first(data_fixture, configured_age
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["create_rows"],
     }
+
+
+@pytest.mark.django_db
+def test_import_fills_a_blank_author_model_with_an_enabled_one(
+    data_fixture, configured_agent, mocker
+):
+    agent = configured_agent(provider_type=None, model_identifier=None)
+
+    assert import_agent_with_models(
+        data_fixture,
+        agent,
+        TEMPLATE_INSTALL_CONFIG,
+        {"anthropic": ["claude-y"]},
+        mocker,
+    ) == ("anthropic", "claude-y")
+
+
+@pytest.mark.django_db
+def test_duplicate_without_its_identity_keeps_tools_pending(
+    data_fixture, configured_agent
+):
+    user = data_fixture.create_user()
+    agent = agent_with_tools(data_fixture, configured_agent, user)
+    AgentHandler().set_allowed_tools(
+        agent, ["list_tables", "create_rows"], ask_first_names=[]
+    )
+    # The identity is gone, so the duplicate can't act as it.
+    agent.run_as_subject_id = 999999
+    agent.save()
+
+    duplicate = CoreHandler().duplicate_application(user, agent).specific
+
+    assert (duplicate.run_as_subject_type, duplicate.run_as_subject_id) == (None, None)
+    assert not duplicate.allowed_tools.exists()
+    assert duplicate.pending_tool_choices == {
+        "allowed_tools": ["list_tables", "create_rows"],
+        "ask_first_tools": ["create_rows"],
+    }

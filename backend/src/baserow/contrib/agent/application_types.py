@@ -222,8 +222,8 @@ class AgentApplicationType(ApplicationType):
         init_with_data: bool = False,
         **kwargs,
     ) -> AgentApplication:
-        # Match AI Agent service defaults, only when creating a new application.
-        # Reading or importing an Agent must preserve deliberately blank settings.
+        # Match AI Agent service defaults when no model is given. An import picks
+        # its model in `_imported_model`, which also fills a blank one.
         if not {"provider_type", "model_identifier"}.intersection(kwargs):
             provider_type, model_identifier = self._default_model(
                 self._enabled_models(workspace)
