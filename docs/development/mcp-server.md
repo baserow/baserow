@@ -199,6 +199,8 @@ The application builder tools are registered by the builder app (`baserow.contri
 
 Every tool call runs with the undo session `mcp-<endpoint id>`, the same for each request because Streamable HTTP keeps no connection, and with a new action group, so the `undo` tool takes back everything one call changed. It only finds changes made through the same endpoint key or OAuth grant, never the browser's, and every client and chat on that key or grant shares one undo history: Ctrl+Z in Baserow doesn't undo MCP writes, and `undo` doesn't undo changes made in the web app. The undo API (`/api/user/undo/`) reaches them too when it's sent the `ClientSessionId: mcp-<endpoint id>` header by the endpoint's user. It undoes at most `MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP` actions of a call per request, and it doesn't wait for or hold back the endpoint's running MCP calls.
 
+While `undo` or `redo` runs, the other calls of the endpoint that change data wait up to 3 seconds and then fail with "Something else is changing the same data. Try again in a moment." `undo` and `redo` fail the same way while such a call runs, so a steady stream of writes can keep them failing. When part of a call couldn't be undone, `undo` refuses to go on into the rest of that call while `redo` can still restore it; one `redo` then restores the whole call. Once another change was made through the endpoint, `redo` can't restore it and `undo` goes on with the older parts.
+
 The audit log tools are in their own group (`audit_log_read`), registered by the enterprise app. They are off in the "Read only" preset and on new endpoint keys (`off_by_default`), so a user has to turn them on. They only read the audit log of the endpoint's workspace, not the instance-wide log.
 
 ## Adding a new tool
