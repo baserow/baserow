@@ -646,11 +646,13 @@ def test_a_cancelled_call_keeps_its_undo_session_until_its_body_ends(setup):
     tool_class = type(mcp_tool_registry.get("create_fields"))
     original = tool_class._sync_call
     cancelled = threading.Event()
+    first_done = threading.Event()
 
     def body(endpoint, args):
         first = args.model_copy(update={"fields": args.fields[:1]})
         rest = args.model_copy(update={"fields": args.fields[1:]})
         original(mcp_tool_registry.get("create_fields"), endpoint, first)
+        first_done.set()
         # The client gives up here and the server stops waiting, but this
         # body still runs to the end on the thread.
         cancelled.wait(timeout=10)
@@ -664,7 +666,14 @@ def test_a_cancelled_call_keeps_its_undo_session_until_its_body_ends(setup):
     async def cancelled_call():
         token = current_key.set(endpoint.key)
         try:
-            with anyio.move_on_after(0.5):
+            async with anyio.create_task_group() as group:
+
+                async def cancel_after_first_field():
+                    while not first_done.is_set():
+                        await anyio.sleep(0.01)
+                    group.cancel_scope.cancel()
+
+                group.start_soon(cancel_after_first_field)
                 await BaserowMCPServer().call_tool("create_fields", arguments)
         finally:
             current_key.reset(token)
