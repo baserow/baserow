@@ -17,7 +17,7 @@ User = get_user_model()
 
 @transaction.atomic
 def load_test_data():
-    """Populate development users, workspaces, and the optional instance provider."""
+    """Populate development users, workspaces, and optional instance AI providers."""
 
     load_test_ai_providers()
     print("Add basic users...")
