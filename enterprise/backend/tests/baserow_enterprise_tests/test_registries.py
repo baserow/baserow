@@ -3,6 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 import pytest
 
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.utils import Progress
@@ -231,3 +232,58 @@ def test_import_serialized_structure_on_table(enterprise_data_fixture):
     assert (
         role_assignment.subject_type.id == serialized_role_assignment["subject_type_id"]
     )
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("subject_kind", ["human", "identity"])
+def test_duplicating_a_database_keeps_the_role_of_a_human_and_of_an_identity(
+    enterprise_data_fixture, subject_kind
+):
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    create_subject = {
+        "human": enterprise_data_fixture.create_user,
+        "identity": enterprise_data_fixture.create_identity,
+    }[subject_kind]
+    subject = create_subject(workspace=workspace)
+    RoleAssignmentHandler().assign_role(
+        subject, workspace, Role.objects.get(uid="EDITOR"), database.application_ptr
+    )
+
+    duplicate = CoreHandler().duplicate_application(user, database)
+
+    assignments = RoleAssignmentHandler().get_role_assignments(
+        workspace, duplicate.application_ptr
+    )
+    assert [assignment.subject_id for assignment in assignments] == [subject.id]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_import_skips_the_role_of_a_subject_that_no_longer_exists(
+    enterprise_data_fixture,
+):
+    enterprise_structure = RoleAssignmentSerializationProcessorType()
+    user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    member = enterprise_data_fixture.create_user(workspace=workspace)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    application = database.application_ptr
+    RoleAssignmentHandler().assign_role(
+        member, workspace, Role.objects.get(uid="EDITOR"), application
+    )
+    config = ImportExportConfig(include_permission_data=True)
+    serialized_structure = enterprise_structure.export_serialized(
+        workspace, application, config
+    )
+    assert len(serialized_structure["role_assignments"]) == 1
+    member.delete()
+    new_application = enterprise_data_fixture.create_database_application(
+        workspace=workspace
+    ).application_ptr
+
+    enterprise_structure.import_serialized(
+        workspace, new_application, serialized_structure, config
+    )
+
+    assert not RoleAssignment.objects.filter(scope_id=new_application.id).exists()

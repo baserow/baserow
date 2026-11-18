@@ -8,11 +8,9 @@ from django.db.models import Count, OuterRef, QuerySet, Subquery
 from django.db.models.expressions import RawSQL
 from django.db.models.functions import Coalesce
 
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.exceptions import WorkspaceInvitationLinkSignupsDisabled
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
-from baserow.core.mixins import TrashableModelMixin
 from baserow.core.models import (
     Workspace,
     WorkspaceInvitation,
@@ -22,7 +20,7 @@ from baserow.core.operations import (
     CreateInvitationLinkWorkspaceOperationType,
     ListInvitationsWorkspaceOperationType,
 )
-from baserow.core.registries import subject_type_registry
+from baserow.core.registries import SubjectType, subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.utils import normalize_email_address
@@ -64,21 +62,15 @@ from ..features import TEAMS
 TeamForUpdate = NewType("TeamForUpdate", Team)
 TeamSubjectForUpdate = NewType("TeamSubjectForUpdate", TeamSubject)
 
-SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type, AgentSubjectType.type)
+SUPPORTED_SUBJECT_TYPES = (UserSubjectType.type,)
 
 
 class TeamHandler:
     def get_team_subjects_queryset(self) -> QuerySet:
         """Hide trashed subjects while retaining memberships for their restoration."""
-        queryset = TeamSubject.objects.all()
-        for subject_type in subject_type_registry.get_all():
-            if issubclass(subject_type.model_class, TrashableModelMixin):
-                # IDs can overlap across subject types, so filter by both fields.
-                queryset = queryset.exclude(
-                    subject_type=subject_type.get_content_type(),
-                    subject_id__in=subject_type.model_class.trash.values("id"),
-                )
-        return queryset
+        return TeamSubject.objects.exclude(
+            subject_type_registry.get_trashed_subjects_q()
+        )
 
     def get_teams_queryset(self) -> QuerySet:
         """
@@ -180,6 +172,10 @@ class TeamHandler:
                 SELECT
                     sub.id AS team_subject_id,
                     sub.subject_id,
+                    CASE WHEN ct.app_label = 'auth' AND ct.model = 'user' THEN (
+                        SELECT profile.user_type FROM core_userprofile profile
+                        WHERE profile.user_id = sub.subject_id
+                    ) END AS user_type,
                     CONCAT(ct.app_label, '.', INITCAP(ct.model)) AS subject_type,
                     CASE
                         {" ".join(subject_label_cases)}
@@ -442,9 +438,6 @@ class TeamHandler:
             # Build a list of unique subject IDs, of this type.
             subject_ids_of_type = []
 
-            # Find the model class for this `subject_type`.
-            model_class = subject_type_registry.get(unique_subject_type).model_class
-
             # Find the subjects we've been given for this `subject_type`...
             subjects_of_type = filter(
                 lambda s: s["subject_type"] == unique_subject_type, subjects
@@ -459,11 +452,19 @@ class TeamHandler:
                 if pk_override:
                     pk_overrides[unique_subject_type][subject_id] = pk_override
 
-            # TODO: if we support a subject type that doesn't have a `workspace`
-            #   relation on its model, then this filter need to be modified.
-            type_subject_models = model_class.objects.filter(
-                pk__in=subject_ids_of_type, workspace=team.workspace_id
+            subject_type = subject_type_registry.get(unique_subject_type)
+            candidates = list(
+                subject_type.get_queryset().filter(pk__in=subject_ids_of_type)
             )
+            type_subject_models = [
+                subject
+                for subject, belongs in zip(
+                    candidates,
+                    subject_type.are_in_workspace(candidates, team.workspace),
+                    strict=True,
+                )
+                if belongs
+            ]
 
             # If the subjects we found don't match those in `subject_ids_of_type`,
             # and we want to raise an exception if a subject isn't found, work out
@@ -499,6 +500,27 @@ class TeamHandler:
 
         return TeamSubject.objects.bulk_create(bulk_teamsubjects)
 
+    def _check_subject_lookups(
+        self, subject_type: SubjectType, subject_lookup: Dict[str, Union[str, int]]
+    ) -> None:
+        """
+        Refuses the lookups that the subject type doesn't support.
+
+        :param subject_type: The subject type that the lookup is for.
+        :param subject_lookup: The lookup that selects the subject.
+        :raises TeamSubjectBadRequest: When a lookup is not supported.
+        """
+
+        unexpected_lookups = [
+            lookup
+            for lookup in subject_lookup
+            if not subject_type.supports_lookup_field(lookup)
+        ]
+        if unexpected_lookups:
+            raise TeamSubjectBadRequest(
+                f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
+            )
+
     def create_subject(
         self,
         user: AbstractUser,
@@ -519,27 +541,23 @@ class TeamHandler:
             )
 
         subject_type = subject_type_registry.get(subject_natural_key)
-        unexpected_lookups = [
-            lookup
-            for lookup in subject_lookup
-            if not subject_type.supports_lookup_field(lookup)
-        ]
-        if unexpected_lookups:
-            raise TeamSubjectBadRequest(
-                f"A subject cannot be created with lookups {', '.join(unexpected_lookups)}."
-            )
+        self._check_subject_lookups(subject_type, subject_lookup)
 
         # Get the model for this `subject_natural_key`.
         model_class = subject_type.model_class
 
         try:
-            subject = model_class.objects.get(**subject_lookup)
+            subject = subject_type.get_queryset().get(**subject_lookup)
         except model_class.DoesNotExist:
             lookup_str = ", ".join([f"{k}={v}" for k, v in subject_lookup.items()])
             raise TeamSubjectDoesNotExist(
                 f"The subject with {lookup_str} and type={subject_natural_key} does not exist."
             )
 
+        # The specific type can refuse a lookup that its stored type accepts.
+        self._check_subject_lookups(
+            subject_type_registry.get_specific_type(subject), subject_lookup
+        )
         if not subject_type.is_in_workspace(subject, team.workspace):
             raise TeamSubjectNotInGroup()
 

@@ -1,22 +1,13 @@
 <template>
-  <a
-    class="create-widget-card"
-    :class="{
-      'create-widget-card--available': isWidgetAvailable,
-      'create-widget-card--disabled': disabled,
-    }"
-    :aria-disabled="disabled"
+  <ItemPickerCard
+    :name="variation.name"
+    :image="variation.createWidgetImage"
+    :disabled="disabled"
+    :unavailable="!isWidgetAvailable"
+    :locked="!isWidgetAvailable"
+    framed
     @click="widgetVariationSelected"
   >
-    <div class="create-widget-card__img-container">
-      <img :src="variation.createWidgetImage" />
-    </div>
-    <div class="create-widget-card__name">
-      <span>{{ variation.name }}</span>
-      <span v-if="!isWidgetAvailable">
-        <i class="iconoir-lock create-widget-card__name-locked"></i>
-      </span>
-    </div>
     <component
       :is="deactivatedModal[0]"
       v-if="deactivatedModal != null"
@@ -25,12 +16,15 @@
       :name="widgetType.name"
       :workspace="dashboard.workspace"
     ></component>
-  </a>
+  </ItemPickerCard>
 </template>
 
 <script>
+import ItemPickerCard from '@baserow/modules/core/components/ItemPickerCard'
+
 export default {
   name: 'CreateWidgetCard',
+  components: { ItemPickerCard },
   props: {
     dashboard: {
       type: Object,

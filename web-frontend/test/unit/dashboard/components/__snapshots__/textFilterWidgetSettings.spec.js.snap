@@ -1,0 +1,114 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TextFilterWidgetSettings > renders literal settings and saves clearing through the widget store 1`] = `
+"<div class="form-section">
+  <div class="form-section__title-container">
+    <!--v-if-->
+    <div></div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-0" class="control__label control__label--small"><span>textFilterWidget.placeholder</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-0" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Type here">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-1" class="control__label control__label--small"><span>textFilterWidget.filterType</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="segment-control"><button class="segment-control__button--active segment-control__button" title="textFilterWidget.input">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.input</span>
+            </button><button class="segment-control__button" title="textFilterWidget.dropdown">
+              <!--v-if--><span class="segment-control__button-label">textFilterWidget.dropdown</span>
+            </button></div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <!--v-if-->
+  <!--v-if-->
+  <div data-form-error="false" class="control margin-bottom-2"><label for="v-0-0-2" class="control__label control__label--small"><span>textFilterWidget.defaultValue</span>
+      <!--v-if-->
+      <!--v-if-->
+      <!--v-if-->
+    </label>
+    <div class="control__wrapper">
+      <div class="control__elements">
+        <div class="control__elements-wrapper">
+          <div class="form-input">
+            <!--v-if-->
+            <div class="form-input__wrapper"><input id="v-0-0-2" class="form-input__input" type="text" min="false" max="false" step="false" placeholder="" autocomplete="" value="Initial">
+              <!--v-if-->
+              <!--v-if-->
+            </div>
+            <!--v-if-->
+          </div>
+        </div>
+        <!--v-if-->
+      </div>
+      <!--v-if-->
+    </div>
+  </div>
+  <div data-form-error="false" class="control"><span class="control__label control__label--small">textFilterWidget.targets<span class="control__after-label"><div class="badge badge--neutral badge--small"><!--v-if--><span class="badge__label">0</span></div></span></span>
+  <div class="control__wrapper">
+    <div class="control__elements">
+      <div class="control__elements-wrapper">
+        <p class="dashboard-widget-filter-targets__help">textFilterWidget.targetsHelp</p>
+        <div class="dashboard-widget-filter-targets__list">
+          <p class="dashboard-widget-filter-targets__empty">textFilterWidget.noTargets</p>
+        </div><button class="button button--regular button--secondary button--full-width margin-top-1"><i class="button__icon iconoir-plus"></i><span class="button__label">textFilterWidget.addWidgets</span>
+          <!--v-if-->
+        </button>
+        <div id="v-0-0-3" class="dropdown dropdown--floating" tabindex="-1" role="list">
+          <!--v-if-->
+          <div class="dropdown__items hidden dropdown__items--fixed">
+            <div class="select__search"><i class="select__search-icon iconoir-search"></i><input type="text" class="select__search-input" placeholder="action.search" tabindex="0"></div>
+            <ul class="select__items select__items--no-max-height" tabindex="-1" style="display: none;"></ul>
+            <div class="select__items--empty">textFilterWidget.noAvailableTargets</div>
+            <div class="select__footer">
+              <div class="dashboard-widget-filter-targets__actions"><button class="button button--small button--secondary">
+                  <!--v-if--><span class="button__label">action.cancel</span>
+                  <!--v-if-->
+                </button><button class="button button--small" disabled="">
+                  <!--v-if--><span class="button__label">action.add</span>
+                  <!--v-if-->
+                </button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--v-if-->
+    </div>
+    <!--v-if-->
+  </div>
+</div>
+<teleport-stub to="body">
+  <div class="context visibility-hidden">
+    <!--v-if-->
+  </div>
+</teleport-stub>
+<!--v-if-->
+</div>"
+`;

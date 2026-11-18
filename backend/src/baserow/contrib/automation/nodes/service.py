@@ -92,7 +92,7 @@ class AutomationNodeService:
         user_nodes = CoreHandler().filter_queryset(
             user,
             ListAutomationNodeOperationType.type,
-            AutomationNode.objects.all(),
+            AutomationNode.objects.filter(workflow=workflow),
             workspace=workflow.automation.workspace,
         )
 

@@ -24,7 +24,6 @@ from baserow.api.mixins import RealtimeRecoveryPrimaryReadMixin
 from baserow.api.pagination import PageNumberPagination, encode_keyset_cursor
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
-from baserow.api.subjects.serializers import SubjectOptionSerializer
 from baserow.contrib.agent.actions import (
     CreateAgentConversationActionType,
     CreateAgentMessageActionType,
@@ -75,7 +74,8 @@ from .serializers import (
     AgentMessageCreateSerializer,
     AgentMessagePagination,
     AgentMessageSerializer,
-    AgentRunAsSubjectsQueryParamsSerializer,
+    AgentRunAsIdentitiesQueryParamsSerializer,
+    AgentRunAsOptionSerializer,
     AgentToolDecisionsSerializer,
 )
 
@@ -272,32 +272,32 @@ class AgentConfigurationView(RealtimeRecoveryPrimaryReadMixin, APIView):
         return Response(AgentConfigurationSerializer(configuration).data)
 
 
-class AgentRunAsSubjectsView(RealtimeRecoveryPrimaryReadMixin, APIView):
+class AgentRunAsIdentitiesView(RealtimeRecoveryPrimaryReadMixin, APIView):
     @extend_schema(
-        parameters=[AGENT_ID_PATH_PARAMETER, AgentRunAsSubjectsQueryParamsSerializer],
+        parameters=[AGENT_ID_PATH_PARAMETER, AgentRunAsIdentitiesQueryParamsSerializer],
         tags=["Agent applications"],
-        operation_id="list_agent_run_as_subjects",
+        operation_id="list_agent_run_as_identities",
         description="Lists active workspace identities selectable for this Agent. "
         "Requires permission to read and update its configuration.",
         responses={
-            200: get_example_pagination_serializer_class(SubjectOptionSerializer),
+            200: get_example_pagination_serializer_class(AgentRunAsOptionSerializer),
             **READ_ERRORS,
         },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
     @validate_query_parameters(
-        AgentRunAsSubjectsQueryParamsSerializer, return_validated=True
+        AgentRunAsIdentitiesQueryParamsSerializer, return_validated=True
     )
     def get(self, request: Request, agent_id: int, query_params: dict) -> Response:
         """Return paginated choices authorized in this Agent's application scope."""
 
-        options = AgentService().get_run_as_subject_options(
+        options = AgentService().get_run_as_identities(
             request.user, agent_id, search=query_params["search"]
         )
         paginator = PageNumberPagination(limit_page_size=100)
         page = paginator.paginate_queryset(options, request, view=self)
         return paginator.get_paginated_response(
-            SubjectOptionSerializer(page, many=True).data
+            AgentRunAsOptionSerializer(page, many=True).data
         )
 
 

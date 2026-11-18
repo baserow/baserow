@@ -89,6 +89,7 @@ def test_local_baserow_table_service_filterable_mixin_get_table_queryset(
 
     # Adhoc filter ensures that we also filter on "Alexa", which matches Alexandra.
     dispatch_context = Mock()
+    dispatch_context.get_runtime_filters.return_value = []
     dispatch_context.filters.return_value = json.dumps(
         {
             "groups": [],

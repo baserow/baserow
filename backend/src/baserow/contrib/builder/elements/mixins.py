@@ -1,8 +1,20 @@
 from contextlib import ExitStack, contextmanager
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type
+from copy import deepcopy
+from functools import cache
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Generator,
+    List,
+    Optional,
+    Tuple,
+    Type,
+)
 
 from django.db import IntegrityError
-from django.db.models import Q
+from django.db.models import Model, Q
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -43,6 +55,42 @@ from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import merge_dicts_no_duplicates
+
+
+@cache
+def get_value_names(model: Type[Model], excluded: FrozenSet[str]) -> Tuple[str, ...]:
+    """
+    Return the attribute names of a model's concrete fields, which the model takes
+    as keyword arguments.
+
+    :param model: The model.
+    :param excluded: The names of the fields to leave out.
+    :return: The attribute names, in field order.
+    """
+
+    return tuple(
+        model_field.attname
+        for model_field in model._meta.concrete_fields
+        if model_field.name not in excluded
+    )
+
+
+def get_saved_values(instance: Model, excluded: FrozenSet[str]) -> Dict[str, Any]:
+    """
+    Return the values of a model instance that recreate it when they're passed to
+    the model, such as an element's fields or menu items, which an update deletes
+    and creates again. Every concrete field is included, so a new one is kept too.
+
+    :param instance: The saved instance.
+    :param excluded: The names of the fields to leave out, like the id.
+    :return: The values by attribute name, the uid as a string and JSON values as
+        copies, so changing them doesn't change the instance.
+    """
+
+    return {
+        name: str(instance.uid) if name == "uid" else deepcopy(getattr(instance, name))
+        for name in get_value_names(type(instance), excluded)
+    }
 
 
 class ContainerElementTypeMixin:
@@ -717,6 +765,23 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
             for field in instance.fields.all()
             for event_name in collection_field_type_registry.get(field.type).event_names
         ]
+
+    def get_field_values(
+        self, instance: CollectionElementSubClass
+    ) -> List[Dict[str, Any]]:
+        """
+        Return the element's fields in display order, keyed like the items of the
+        ``fields`` value an update takes. An update replaces every field, so sending
+        these back keeps each field as it is, with its uid and so its workflow
+        actions.
+
+        :param instance: The element. Its fields are read with ``fields.all()``, so
+            fetch it fresh when it may have been prefetched before a change.
+        :return: One dict of values per field.
+        """
+
+        excluded = frozenset({"id", "order"})
+        return [get_saved_values(field, excluded) for field in instance.fields.all()]
 
     def serialize_property(
         self,

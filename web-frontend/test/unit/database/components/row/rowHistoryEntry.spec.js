@@ -1,5 +1,6 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import RowHistoryEntry from '@baserow/modules/database/components/row/RowHistoryEntry'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 describe('RowHistoryEntry', () => {
   let testApp = null
@@ -12,10 +13,11 @@ describe('RowHistoryEntry', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
-  test('renders an Agent actor without resolving it as a colliding user', async () => {
+  test('renders a deleted Identity from its recorded identity metadata', async () => {
     const wrapper = await testApp.mount(RowHistoryEntry, {
       propsData: {
         workspaceId: 1,
@@ -25,7 +27,12 @@ describe('RowHistoryEntry', () => {
           action_command_type: 'DO',
           timestamp: '2026-08-05T12:00:00Z',
           user: { id: 1, name: 'Current user' },
-          actor: { id: 1, type: 'core.Agent', name: 'Row writer' },
+          actor: {
+            id: 42,
+            type: 'auth.User',
+            user_type: 'identity',
+            name: 'Row writer',
+          },
           before: {},
           after: {},
           fields_metadata: {},
@@ -34,6 +41,63 @@ describe('RowHistoryEntry', () => {
     })
 
     expect(wrapper.html()).toMatchSnapshot()
+  })
+
+  test('shows an identity actor with the identity avatar of its subject type', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
+    const wrapper = await testApp.mount(RowHistoryEntry, {
+      propsData: {
+        workspaceId: 1,
+        fields: [],
+        entry: {
+          action_type: 'update_row',
+          action_command_type: 'DO',
+          timestamp: '2026-08-05T12:00:00Z',
+          user: { id: 42, name: 'Row writer' },
+          actor: {
+            id: 42,
+            type: 'auth.User',
+            user_type: 'identity',
+            name: 'Row writer',
+          },
+          before: {},
+          after: {},
+          fields_metadata: {},
+        },
+      },
+    })
+
+    expect(
+      wrapper.find('.identity-avatar .iconoir-identity-test').exists()
+    ).toBe(true)
+  })
+
+  test('shows the stored name of an actor whose type is not registered', async () => {
+    const wrapper = await testApp.mount(RowHistoryEntry, {
+      propsData: {
+        workspaceId: 1,
+        fields: [],
+        entry: {
+          action_type: 'update_row',
+          action_command_type: 'DO',
+          timestamp: '2026-08-05T12:00:00Z',
+          user: { id: 1, name: 'Import token' },
+          actor: { id: 1, type: 'core.Token', name: 'Import token' },
+          before: {},
+          after: {},
+          fields_metadata: {},
+        },
+      },
+    })
+
+    expect(wrapper.find('.row-history-entry__name').text()).toContain(
+      'Import token'
+    )
+    expect(wrapper.find('.row-history-entry__initials').text()).toBe('I')
   })
 
   test('translates an Anonymous User actor when rendering', async () => {

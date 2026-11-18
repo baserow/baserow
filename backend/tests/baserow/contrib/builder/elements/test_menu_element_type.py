@@ -536,3 +536,88 @@ def test_delete_duplicated_menu_doesnt_affect_initial_element(
     # We want to make sure that deleting the clone doesn't delete the initial event
     assert NotificationWorkflowAction.objects.count() == 1
     assert NotificationWorkflowAction.objects.first().event == workflow_action.event
+
+
+@pytest.mark.django_db
+def test_new_menu_item_values_get_the_model_defaults(menu_element_fixture):
+    menu_element = menu_element_fixture["menu_element"]
+    page_b = menu_element_fixture["page_b"]
+    menu_type = menu_element.get_type()
+
+    values = menu_type.get_new_menu_item_values(
+        name="Page B", navigate_to_page_id=page_b.id
+    )
+
+    assert values == {
+        "uid": values["uid"],
+        "name": "Page B",
+        "navigate_to_page_id": page_b.id,
+    }
+    assert values["uid"] != menu_type.get_new_menu_item_values(name="Other")["uid"]
+    for key in ("children", "uid"):
+        with pytest.raises(ValueError):
+            menu_type.get_new_menu_item_values(name="Other", **{key: []})
+
+    ElementHandler().update_element(menu_element, menu_items=[dict(values)])
+
+    [item] = menu_element.menu_items.all()
+    assert menu_type.get_menu_item_values(item) == {
+        **values,
+        "type": "link",
+        "variant": "link",
+        "navigation_type": "page",
+        "navigate_to_url": {
+            "formula": "",
+            "mode": BASEROW_FORMULA_MODE_SIMPLE,
+            "version": BASEROW_FORMULA_VERSION_INITIAL,
+        },
+        "page_parameters": [],
+        "query_parameters": [],
+        "target": "self",
+    }
+
+
+@pytest.mark.django_db
+def test_menu_item_values_save_the_items_unchanged(menu_element_fixture):
+    menu_element = menu_element_fixture["menu_element"]
+    page_b = menu_element_fixture["page_b"]
+    menu_type = menu_element.get_type()
+    ElementHandler().update_element(
+        menu_element,
+        menu_items=[
+            {
+                **menu_type.get_new_menu_item_values(name="Parent"),
+                "children": [
+                    menu_type.get_new_menu_item_values(
+                        name="Child", navigate_to_page_id=page_b.id
+                    )
+                ],
+            },
+            menu_type.get_new_menu_item_values(
+                name="Button", type=MenuItemElement.TYPES.BUTTON
+            ),
+        ],
+    )
+
+    def saved_tree():
+        items = list(menu_element.menu_items.all())
+        return [
+            {
+                **menu_type.get_menu_item_values(item),
+                "children": [
+                    menu_type.get_menu_item_values(child)
+                    for child in items
+                    if child.parent_menu_item_id == item.id
+                ],
+            }
+            for item in items
+            if item.parent_menu_item_id is None
+        ]
+
+    saved = saved_tree()
+    assert [item["name"] for item in saved] == ["Parent", "Button"]
+    assert [child["name"] for child in saved[0]["children"]] == ["Child"]
+
+    ElementHandler().update_element(menu_element, menu_items=deepcopy(saved))
+
+    assert saved_tree() == saved

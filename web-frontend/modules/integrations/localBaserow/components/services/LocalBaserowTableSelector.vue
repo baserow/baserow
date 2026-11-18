@@ -1,49 +1,36 @@
 <template>
   <FormRow class="margin-bottom-2">
     <FormGroup
-      :label="$t('localBaserowTableSelector.databaseFieldLabel')"
-      small-label
-      required
-    >
-      <Dropdown
-        v-model="databaseSelectedId"
-        :show-search="false"
-        fixed-items
-        :size="dropdownSize"
-      >
-        <DropdownItem
-          v-for="database in databases"
-          :key="database.id"
-          :name="database.name"
-          :value="database.id"
-        >
-          {{ database.name }}
-        </DropdownItem>
-      </Dropdown>
-    </FormGroup>
-
-    <FormGroup
       :label="$t('localBaserowTableSelector.tableFieldLabel')"
+      :error-message="formChoicesError"
+      :horizontal="horizontal"
+      :horizontal-narrow="horizontal"
       small-label
       required
     >
       <Dropdown
         :model-value="modelValue"
-        :show-search="false"
-        :disabled="databaseSelectedId === null"
+        show-search
         fixed-items
         :size="dropdownSize"
+        :error="error || Boolean(formChoicesError)"
         @update:model-value="onTableSelect"
       >
-        <DropdownItem
-          v-for="table in supportedServiceTables"
-          :key="table.id"
-          :name="table.name"
-          :value="table.id"
-          :description="getTableDescription(table)"
+        <DropdownSection
+          v-for="database in databases"
+          :key="database.id"
+          :title="`${database.name} (${database.id})`"
         >
-          {{ table.name }}
-        </DropdownItem>
+          <DropdownItem
+            v-for="table in serviceType.supportedTables(database.tables)"
+            :key="table.id"
+            :name="table.name"
+            :value="table.id"
+            :description="getTableDescription(table)"
+            indented
+            >{{ table.name }}</DropdownItem
+          >
+        </DropdownSection>
       </Dropdown>
     </FormGroup>
     <FormGroup
@@ -87,6 +74,14 @@ export default {
       required: false,
       default: null,
     },
+    horizontal: {
+      type: Boolean,
+      default: false,
+    },
+    error: {
+      type: Boolean,
+      default: false,
+    },
     viewId: {
       type: Number,
       required: false,
@@ -112,24 +107,21 @@ export default {
       },
       default: 'regular',
     },
+    /**
+     * Why there is nothing to choose from, shown as the error of the table dropdown.
+     */
+    formChoicesError: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   emits: ['update:modelValue', 'update:view-id'],
-  data() {
-    return {
-      databaseSelectedId: null,
-    }
-  },
   computed: {
     databaseSelected() {
-      return this.databases.find(
-        (database) => database.id === this.databaseSelectedId
+      return this.databases.find((database) =>
+        database.tables.some((table) => table.id === this.modelValue)
       )
-    },
-    tables() {
-      return this.databaseSelected?.tables || []
-    },
-    supportedServiceTables() {
-      return this.serviceType.supportedTables(this.tables)
     },
     views() {
       return (
@@ -137,21 +129,6 @@ export default {
           (view) => view.table_id === this.modelValue
         ) || []
       )
-    },
-  },
-  watch: {
-    modelValue: {
-      handler(tableId) {
-        if (tableId !== null) {
-          const databaseOfTableId = this.databases.find((database) =>
-            database.tables.some((table) => table.id === tableId)
-          )
-          if (databaseOfTableId) {
-            this.databaseSelectedId = databaseOfTableId.id
-          }
-        }
-      },
-      immediate: true,
     },
   },
   methods: {

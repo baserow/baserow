@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 from django.core.cache import cache
 
+from baserow.core.user.cache import has_complete_profile
+
 if TYPE_CHECKING:
     from baserow.contrib.database.tokens.models import Token
 
@@ -23,9 +25,12 @@ def get_cached_token(token_key: str) -> Token | None:
         return None
 
     token = cache.get(_cache_key(token_key))
-    if token is not None:
-        # The key is not stored for security reasons, so we set it here.
-        token.key = token_key
+    if token is None or not type(token).user.is_cached(token):
+        return None
+    if not has_complete_profile(token.user):
+        return None
+    # The key is not stored for security reasons, so we set it here.
+    token.key = token_key
     return token
 
 

@@ -211,7 +211,7 @@ export function extractEmails(text) {
 /**
  * The input of the invite modal: one field that takes email addresses, typed
  * or pasted in bulk, and searches a list of `options`, grouped by `tabs`, such
- * as the members, teams and agents of the workspace. Every pick is shown as a
+ * as the members, teams and identities of the workspace. Every pick is shown as a
  * chip. Submitting emits `add` with the picked items and the chosen role uid;
  * the parent calls `remove()` or `reset()` once they were added.
  *
@@ -228,7 +228,7 @@ export function extractEmails(text) {
  * but makes no sense as an invitation. Malformed email addresses are also
  * marked as errors, but block the whole batch until corrected or removed.
  * The parent decides what is disabled and
- * why, so the input needs to know nothing about members, agents or invitations.
+ * why, so the input needs to know nothing about members, identities or invitations.
  *
  * Without `roles` there is no role to choose, for picks that don't come with
  * one, like the members of a team, and `add` is emitted with a null role uid.

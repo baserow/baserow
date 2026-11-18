@@ -9,15 +9,16 @@ from pytest_unordered import unordered
 
 from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.core import signals
-from baserow.core.agents.service import AgentService
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.service import AIProviderService
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.last_viewed.handler import LastViewedHandler
 from baserow.core.models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
+    WorkspaceUser,
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.user.handler import UserHandler
@@ -28,57 +29,57 @@ from baserow.test_utils.helpers import AnyInt
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_to_permitted_users")
 @pytest.mark.websockets
-def test_agent_crud_events(mock_broadcast_to_permitted_users, data_fixture):
-    """Agent events preserve their payload and use workspace list permission."""
+def test_identity_crud_events(mock_broadcast_to_permitted_users, data_fixture):
+    """Identity events preserve their payload and use workspace list permission."""
 
     user = data_fixture.create_user()
     user.web_socket_id = "test"
     workspace = data_fixture.create_workspace(user=user)
 
-    agent = AgentService().create_agent(user, workspace, name="Writer")
+    identity = IdentityService().create_identity(user, workspace, name="Writer")
 
     args = mock_broadcast_to_permitted_users.delay.call_args[0]
     assert args[:4] == (
         workspace.id,
-        "workspace.list_agents",
+        "workspace.list_identities",
         "workspace",
         workspace.id,
     )
-    assert args[4]["type"] == "agent_created"
+    assert args[4]["type"] == "identity_created"
     assert args[4]["workspace_id"] == workspace.id
-    assert args[4]["agent"]["id"] == agent.id
-    assert args[4]["agent"]["name"] == "Writer"
+    assert args[4]["identity"]["id"] == identity.id
+    assert args[4]["identity"]["name"] == "Writer"
     assert args[5] == "test"
 
     mock_broadcast_to_permitted_users.reset_mock()
-    AgentService().update_agent(user, agent, name="Editor")
+    IdentityService().update_identity(user, identity, name="Editor")
 
     args = mock_broadcast_to_permitted_users.delay.call_args[0]
     assert args[:4] == (
         workspace.id,
-        "workspace.list_agents",
+        "workspace.list_identities",
         "workspace",
         workspace.id,
     )
-    assert args[4]["type"] == "agent_updated"
+    assert args[4]["type"] == "identity_updated"
     assert args[4]["workspace_id"] == workspace.id
-    assert args[4]["agent"]["id"] == agent.id
-    assert args[4]["agent"]["name"] == "Editor"
+    assert args[4]["identity"]["id"] == identity.id
+    assert args[4]["identity"]["name"] == "Editor"
     assert args[5] == "test"
 
     mock_broadcast_to_permitted_users.reset_mock()
-    AgentService().delete_agent(user, agent)
+    IdentityService().delete_identity(user, identity)
 
     args = mock_broadcast_to_permitted_users.delay.call_args[0]
     assert args == (
         workspace.id,
-        "workspace.list_agents",
+        "workspace.list_identities",
         "workspace",
         workspace.id,
         {
-            "type": "agent_deleted",
+            "type": "identity_deleted",
             "workspace_id": workspace.id,
-            "agent_id": agent.id,
+            "identity_id": identity.id,
         },
         "test",
     )
@@ -87,28 +88,28 @@ def test_agent_crud_events(mock_broadcast_to_permitted_users, data_fixture):
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.ws.signals.broadcast_to_permitted_users")
 @pytest.mark.websockets
-def test_agent_restore_emits_created_event(
+def test_identity_restore_emits_created_event(
     mock_broadcast_to_permitted_users, data_fixture
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    agent = AgentService().create_agent(user, workspace, name="Writer")
-    AgentService().delete_agent(user, agent)
+    identity = IdentityService().create_identity(user, workspace, name="Writer")
+    IdentityService().delete_identity(user, identity)
     mock_broadcast_to_permitted_users.reset_mock()
 
-    TrashHandler.restore_item(user, "agent", agent.id)
+    TrashHandler.restore_item(user, "identity", identity.profile.id)
 
     args = mock_broadcast_to_permitted_users.delay.call_args[0]
     assert args[:4] == (
         workspace.id,
-        "workspace.list_agents",
+        "workspace.list_identities",
         "workspace",
         workspace.id,
     )
-    assert args[4]["type"] == "agent_created"
+    assert args[4]["type"] == "identity_created"
     assert args[4]["workspace_id"] == workspace.id
-    assert args[4]["agent"]["id"] == agent.id
-    assert args[4]["agent"]["name"] == "Writer"
+    assert args[4]["identity"]["id"] == identity.id
+    assert args[4]["identity"]["name"] == "Writer"
     assert args[5] is None
 
 
@@ -234,12 +235,19 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
         workspace=workspace,
         permissions=WORKSPACE_USER_PERMISSION_MEMBER,
     )
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
     database = data_fixture.create_database_application(
         user=admin_user, workspace=workspace
     )
     TrashHandler.trash(admin_user, workspace, None, workspace)
 
     TrashHandler.restore_item(admin_user, "workspace", workspace.id)
+
+    workspace.refresh_from_db()
+    assert not workspace.trashed
+    assert WorkspaceUser.objects_and_identities.filter(
+        workspace=workspace, user=identity
+    ).exists()
 
     args = mock_broadcast_to_users.delay.call_args_list
     expected_database_json = {

@@ -213,6 +213,54 @@ def test_cant_create_lookup_at_table_where_not_viewer_or_higher(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "field_kwargs",
+    [
+        {"type_name": "formula", "formula": "lookup('Middle link', 'Hidden link')"},
+        {
+            "type_name": "lookup",
+            "through_field_name": "Middle link",
+            "target_field_name": "Hidden link",
+        },
+    ],
+)
+def test_cant_look_up_a_link_into_a_table_where_not_viewer_or_higher(
+    data_fixture, field_kwargs
+):
+    member = data_fixture.create_user()
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    middle = data_fixture.create_database_table(database=database)
+    hidden = data_fixture.create_database_table(database=database)
+    data_fixture.create_text_field(table=middle, name="Code", primary=True)
+    data_fixture.create_text_field(table=hidden, name="Secret name", primary=True)
+    data_fixture.create_link_row_field(
+        table=table, name="Middle link", link_row_table=middle
+    )
+    data_fixture.create_link_row_field(
+        table=middle, name="Hidden link", link_row_table=hidden
+    )
+    RoleAssignmentHandler().assign_role(
+        member, workspace, role=Role.objects.get(uid="NO_ACCESS"), scope=hidden
+    )
+
+    # The looked-up link reads the hidden table's primary field. The error names
+    # the link, not the field the member may not see.
+    with pytest.raises(InvalidFormulaType) as exc_info:
+        FieldHandler().create_field(
+            user=member, table=table, name="Two hops", **field_kwargs
+        )
+    assert "Hidden link" in str(exc_info.value)
+    assert "Secret name" not in str(exc_info.value)
+
+    FieldHandler().create_field(
+        user=admin, table=table, name="Admin two hops", **field_kwargs
+    )
+
+
+@pytest.mark.django_db
 def test_cant_update_target_lookup_point_at_table_where_not_viewer_or_higher(
     data_fixture,
 ):

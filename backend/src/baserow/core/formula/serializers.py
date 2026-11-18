@@ -86,15 +86,20 @@ class FormulaSerializerField(serializers.JSONField):
     optional `format`, which says how the surface showing the resolved value
     renders it (plain text or Markdown). A field only accepts the formats listed
     in its `allowed_formats`, plain alone by default. A plain format is never
-    kept on the object: a missing `format` means plain.
+    kept on the object: a missing `format` means plain. An optional
+    `validation_context` is passed to providers to check where paths can be read.
     """
 
     def __init__(
         self,
         *args,
         allowed_formats: Optional[List[BaserowFormulaFormat]] = None,
+        data_provider_type_registry=None,
+        validation_context=None,
         **kwargs,
     ):
+        self.validation_context = validation_context
+        self.data_provider_type_registry = data_provider_type_registry
         self.allowed_formats = list(allowed_formats or [BASEROW_FORMULA_FORMAT_PLAIN])
         if len(self.allowed_formats) > 1:
             # Only the fields that accept a format mention it in the API docs.
@@ -167,7 +172,10 @@ class FormulaSerializerField(serializers.JSONField):
         # determine what this application type's data provider registry is,
         # so we can validate the formula
         context = self.context or {}
-        if context.get("application_type") is None:
+        if (
+            self.data_provider_type_registry is None
+            and context.get("application_type") is None
+        ):
             raise ValidationError(
                 "The formula serializer field requires an application type "
                 "context to validate the formula arguments.",
@@ -179,9 +187,12 @@ class FormulaSerializerField(serializers.JSONField):
             try:
                 BaserowFormulaValidationVisitor(
                     formula_runtime_function_registry,
-                    data_provider_type_registry=self.context.get(
-                        "application_type"
-                    )().data_provider_type_registry,
+                    validation_context=self.validation_context,
+                    data_provider_type_registry=(
+                        self.data_provider_type_registry
+                        if self.data_provider_type_registry is not None
+                        else context["application_type"]().data_provider_type_registry
+                    ),
                 ).visit(tree)
             except (
                 BaserowFormulaSyntaxError,

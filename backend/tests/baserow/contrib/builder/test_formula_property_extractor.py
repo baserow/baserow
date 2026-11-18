@@ -24,7 +24,6 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     OpenPageWorkflowActionType,
     UpdateRowWorkflowActionType,
 )
-from baserow.core.formula import BaserowFormula
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
 from baserow.core.formula.parser.exceptions import BaserowFormulaSyntaxError
 from baserow.core.formula.registries import DataProviderType
@@ -974,18 +973,10 @@ def test_formula_property_visitor_visit_function_call_handles_formula_error(
     mock_data_provider_type.extract_properties.side_effect = InvalidRuntimeFormula()
     mock_data_provider_registry.get.return_value = mock_data_provider_type
 
-    mock_expression = MagicMock(spec=BaserowFormula.StringLiteralContext)
-    mock_expression.accept.return_value = "'current_record.field_999'"
-
-    mock_func = MagicMock()
-    mock_func.accept.return_value = "get"
-
-    context = MagicMock()
-    context.func_name.return_value = mock_func
-    context.expr.return_value = [mock_expression]
+    from baserow.core.formula import get_parse_tree_for_formula
 
     visitor = FormulaFieldVisitor()
-    visitor.visitFunctionCall(context)
+    visitor.visit(get_parse_tree_for_formula("get('current_record.field_999')"))
 
     assert visitor.results == {}
     mock_data_provider_type.extract_properties.assert_called_once_with(["field_999"])

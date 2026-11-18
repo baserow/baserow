@@ -22,6 +22,11 @@
         />
       </div>
       <div v-if="triggeredByName" class="workflow-history__started-by">
+        <i
+          v-if="item.triggered_by?.user_type === 'identity'"
+          :class="identityIconClass"
+          aria-hidden="true"
+        ></i>
         {{ $t('historySidePanel.startedBy', { name: triggeredByName }) }}
       </div>
     </template>
@@ -93,9 +98,15 @@ import historyFailedIcon from '@baserow/modules/core/assets/images/history-faile
 import historyDisabledIcon from '@baserow/modules/core/assets/images/history-disabled.svg?url'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
 import { getCollaboratorName } from '@baserow/modules/core/utils/collaborator'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 const app = useNuxtApp()
 const store = useStore()
+
+const identityIconClass = computed(
+  () =>
+    app.$registry.get('subject', UserSubjectType.getType()).identityIconClass
+)
 
 const workspace = inject('workspace')
 const workflow = inject('workflow')

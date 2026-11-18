@@ -23,15 +23,18 @@ from baserow.core.action.registries import (
     action_type_registry,
 )
 from baserow.core.actions import CreateWorkspaceActionType
-from baserow.core.agents.subjects import AgentSubjectType
-from baserow.core.models import Agent
 from baserow.core.subjects import UserSubjectType
 from baserow.test_utils.helpers import AnyInt
 from baserow_enterprise.audit_log.models import AuditLogEntry
 
 
 def expected_user_actor(user):
-    return {"id": user.id, "type": UserSubjectType.type, "name": user.email}
+    return {
+        "id": user.id,
+        "type": UserSubjectType.type,
+        "name": user.email,
+        "user_type": "human",
+    }
 
 
 @pytest.mark.django_db
@@ -93,14 +96,16 @@ def test_non_admins_cannot_export_audit_log_to_csv(api_client, enterprise_data_f
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_audit_log_actor_filter_returns_users_and_agents_in_separate_types(
+def test_audit_log_actor_filter_distinguishes_user_identity_kinds(
     api_client, enterprise_data_fixture
 ):
     admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
         email="admin@test.com"
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
-    agent = Agent.objects.create(workspace=workspace, name="Audit robot")
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Audit robot"
+    )
 
     response = api_client.get(
         reverse("api:enterprise:audit_log:actors"),
@@ -119,12 +124,14 @@ def test_audit_log_actor_filter_returns_users_and_agents_in_separate_types(
                 "actor_id": admin.id,
                 "actor_type": UserSubjectType.type,
                 "value": admin.email,
+                "user_type": "human",
             },
             {
-                "id": f"{AgentSubjectType.type}:{agent.id}",
-                "actor_id": agent.id,
-                "actor_type": AgentSubjectType.type,
-                "value": agent.name,
+                "id": f"{UserSubjectType.type}:{identity.id}",
+                "actor_id": identity.id,
+                "actor_type": UserSubjectType.type,
+                "value": identity.first_name,
+                "user_type": "identity",
             },
         ],
     }
@@ -132,7 +139,7 @@ def test_audit_log_actor_filter_returns_users_and_agents_in_separate_types(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_audit_log_actor_filter_searches_users_and_agents(
+def test_audit_log_actor_filter_searches_users_and_identities(
     api_client, enterprise_data_fixture
 ):
     admin, token = enterprise_data_fixture.create_enterprise_admin_user_and_token(
@@ -140,8 +147,10 @@ def test_audit_log_actor_filter_searches_users_and_agents(
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     matching_user = enterprise_data_fixture.create_user(email="matching@test.com")
-    matching_agent = Agent.objects.create(workspace=workspace, name="Matching robot")
-    Agent.objects.create(workspace=workspace, name="Other robot")
+    matching_identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Matching robot"
+    )
+    enterprise_data_fixture.create_identity(workspace=workspace, name="Other robot")
 
     response = api_client.get(
         reverse("api:enterprise:audit_log:actors") + "?search=matching",
@@ -155,7 +164,7 @@ def test_audit_log_actor_filter_searches_users_and_agents(
         for result in response.json()["results"]
     } == {
         (UserSubjectType.type, matching_user.id),
-        (AgentSubjectType.type, matching_agent.id),
+        (UserSubjectType.type, matching_identity.id),
     }
 
 
@@ -169,7 +178,9 @@ def test_audit_log_actor_filter_returns_pagination_links(
     )
     workspace = enterprise_data_fixture.create_workspace(user=admin)
     other_user = enterprise_data_fixture.create_user(email="other@test.com")
-    agent = Agent.objects.create(workspace=workspace, name="Audit robot")
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Audit robot"
+    )
     url = reverse("api:enterprise:audit_log:actors")
 
     response = api_client.get(
@@ -194,10 +205,11 @@ def test_audit_log_actor_filter_returns_pagination_links(
     assert response.json()["previous"].endswith(f"{url}?size=1")
     assert response.json()["results"] == [
         {
-            "id": f"{AgentSubjectType.type}:{agent.id}",
-            "actor_id": agent.id,
-            "actor_type": AgentSubjectType.type,
-            "value": agent.name,
+            "id": f"{UserSubjectType.type}:{identity.id}",
+            "actor_id": identity.id,
+            "actor_type": UserSubjectType.type,
+            "value": identity.first_name,
+            "user_type": "identity",
         }
     ]
 
@@ -216,6 +228,7 @@ def test_audit_log_actor_filter_returns_pagination_links(
             "actor_id": other_user.id,
             "actor_type": UserSubjectType.type,
             "value": other_user.email,
+            "user_type": "human",
         }
     ]
 
@@ -497,14 +510,14 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
         "actor": expected_user_actor(user),
     }
 
-    # An Agent can have the same numeric ID as a user because they use different
-    # tables. The user filter must include the SubjectType to avoid mixing them.
-    agent_entry = AuditLogEntry.objects.get(actor_id=admin_user.id)
-    agent_entry.pk = None
-    agent_entry.actor_id = user.id
-    agent_entry.actor_type = AgentSubjectType.type
-    agent_entry.actor_name = "Agent with colliding ID"
-    agent_entry.save()
+    # Token and User IDs can still overlap.
+    token_entry = AuditLogEntry.objects.get(actor_id=admin_user.id)
+    token_entry.pk = None
+    token_entry.actor_id = user.id
+    token_entry.actor_type = "core.Token"
+    token_entry.actor_user_type = None
+    token_entry.actor_name = "Token with colliding ID"
+    token_entry.save()
 
     # by user_id
     response = api_client.get(
@@ -523,7 +536,7 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
     # by actor type and id
     response = api_client.get(
         reverse("api:enterprise:audit_log:list")
-        + f"?actor_id={user.id}&actor_type={AgentSubjectType.type}",
+        + f"?actor_id={user.id}&actor_type=core.Token",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
@@ -531,8 +544,9 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
     assert response.json()["count"] == 1
     assert response.json()["results"][0]["actor"] == {
         "id": user.id,
-        "type": AgentSubjectType.type,
-        "name": "Agent with colliding ID",
+        "type": "core.Token",
+        "user_type": None,
+        "name": "Token with colliding ID",
     }
 
     # actor_id is ambiguous without its polymorphic actor type
@@ -551,15 +565,14 @@ def test_audit_log_entries_can_be_filtered(api_client, enterprise_data_fixture):
 
     # actor_type remains independently filterable
     response = api_client.get(
-        reverse("api:enterprise:audit_log:list")
-        + f"?actor_type={AgentSubjectType.type}",
+        reverse("api:enterprise:audit_log:list") + "?actor_type=core.Token",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["count"] == 1
-    assert response.json()["results"][0]["actor"]["type"] == AgentSubjectType.type
-    agent_entry.delete()
+    assert response.json()["results"][0]["actor"]["type"] == "core.Token"
+    token_entry.delete()
 
     # by workspace_id
     response = api_client.get(

@@ -62,6 +62,32 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
     def get_name(self, instance):
         return self.context["data_source"].name
 
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_schema(self, instance):
+        # Display widgets render their source's whole result, so the schema is
+        # never narrowed by the option formulas of the filter widgets.
+        return instance.get_type().generate_public_schema(instance.specific)
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_context_data(self, instance):
+        """
+        Keep the context the display widgets need to format the result, but only
+        publish the options of a source field when a filter widget's options
+        formula references that field.
+        """
+
+        service_type = instance.get_type()
+        context_data = service_type.get_public_context_data(instance.specific)
+        if not context_data:
+            return context_data
+        option_names = service_type.get_context_option_names(instance.specific)
+        referenced = set(self.context.get("referenced_option_fields") or [])
+        return {
+            name: value
+            for name, value in context_data.items()
+            if name not in option_names or name in referenced
+        }
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # The table service types expose the id of their table, which is part of
@@ -72,25 +98,35 @@ class PublicDashboardDataSourceSerializer(PublicServiceSerializer):
         return data
 
     class Meta(PublicServiceSerializer.Meta):
-        fields = PublicServiceSerializer.Meta.fields + ("name", "context_data")
+        fields = PublicServiceSerializer.Meta.fields + (
+            "name",
+            "context_data",
+        )
         extra_kwargs = {
             **PublicServiceSerializer.Meta.extra_kwargs,
             "name": {"read_only": True},
         }
 
 
-def serialize_public_data_source(data_source: DashboardDataSource) -> dict:
+def serialize_public_data_source(
+    data_source: DashboardDataSource, referenced_option_fields=None
+) -> dict:
     """
     Serializes a data source with the public serializer of its service type.
 
     :param data_source: The data source to serialize. It must have a service.
+    :param referenced_option_fields: The context option entries of the service
+        referenced by widget formulas. Only those options are published.
     :return: The serialized data source.
     """
 
     return service_type_registry.get_serializer(
         data_source.service,
         PublicDashboardDataSourceSerializer,
-        context={"data_source": data_source},
+        context={
+            "data_source": data_source,
+            "referenced_option_fields": referenced_option_fields,
+        },
         extra_params={"public": True},
     ).data
 
@@ -111,12 +147,17 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
 
     @extend_schema_field(
         DiscriminatorCustomFieldsMappingSerializer(
-            widget_type_registry, WidgetSerializer, many=True
+            widget_type_registry,
+            WidgetSerializer,
+            many=True,
+            extra_params={"public": True},
         )
     )
     def get_widgets(self, instance):
         return [
-            widget_type_registry.get_serializer(widget, WidgetSerializer).data
+            widget.get_type()
+            .get_serializer(widget, WidgetSerializer, extra_params={"public": True})
+            .data
             for widget in self.context["widgets"]
         ]
 
@@ -126,9 +167,17 @@ class PublicDashboardInfoSerializer(serializers.Serializer):
         )
     )
     def get_data_sources(self, instance):
+        from baserow.contrib.dashboard.formula_property_extractor import (
+            get_dashboard_used_property_names,
+        )
+
+        data_sources = list(self.context["data_sources"])
+        fields = get_dashboard_used_property_names(self.context["widgets"])
         return [
-            serialize_public_data_source(data_source)
-            for data_source in self.context["data_sources"]
+            serialize_public_data_source(
+                data_source, fields.get(data_source.service_id)
+            )
+            for data_source in data_sources
             if data_source.service_id
         ]
 

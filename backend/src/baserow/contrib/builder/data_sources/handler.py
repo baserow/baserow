@@ -59,7 +59,7 @@ class DataSourceHandler:
         :return: The data_source instance.
         """
 
-        if with_cache and not base_queryset:
+        if with_cache and base_queryset is None:
             return local_cache.get(
                 f"ab_data_source_{data_source_id}_{specific}",
                 lambda: self._get_data_source(

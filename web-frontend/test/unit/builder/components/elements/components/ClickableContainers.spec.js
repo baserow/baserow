@@ -333,6 +333,28 @@ describe('Clickable containers', () => {
       expect(notifications()).toHaveLength(0)
     })
 
+    test('toggles a child checkbox without triggering a parent action', async () => {
+      const { wrapper } = await mountTree({
+        outerType,
+        innerType,
+        childType: 'checkbox',
+        actionIds: [10, 11],
+        elementValues: { default_value: { mode: 'raw', formula: 'false' } },
+      })
+      const checkbox = getElement(wrapper, 12)
+      const input = checkbox.get('.ab-checkbox input')
+
+      await input.trigger('click')
+      await flushPromises()
+      expect(input.element.checked).toBe(true)
+
+      await checkbox.get('.ab-checkbox__label').trigger('click')
+      await flushPromises()
+      expect(input.element.checked).toBe(false)
+
+      expect(notifications()).toHaveLength(0)
+    })
+
     test('treats a read-only rating as noninteractive child content', async () => {
       const { wrapper } = await mountTree({
         outerType,

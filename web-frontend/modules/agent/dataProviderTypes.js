@@ -1,13 +1,16 @@
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 
 export const TRIGGER_FIRED_AT_PATH = 'fired_at'
+export const TRIGGER_ROWS_PATH = 'rows'
 
 /**
  * The payload a trigger service delivers when it fires, offered to the
  * trigger's opening-message formula as `trigger.<property>`. The schema comes
- * from the trigger's service type, so no trigger type is special-cased here.
- * Every trigger also offers `trigger.fired_at`, which the agent computes and
- * which wins over a service property of that name.
+ * from the trigger's service type, so no trigger type is special-cased here. A
+ * list payload is offered as `trigger.rows`, next to the values its service
+ * type describes the event with, like `trigger.count`. Every trigger also
+ * offers `trigger.fired_at`, which the agent computes and which wins over a
+ * service property of that name.
  */
 export class TriggerDataProviderType extends DataProviderType {
   static getType() {
@@ -18,21 +21,34 @@ export class TriggerDataProviderType extends DataProviderType {
     return this.app.$i18n.t('agent.triggerData')
   }
 
+  /**
+   * @param {object} applicationContext Holds the trigger the message opens.
+   * @returns {object|null} The schema of the trigger's data, or null when its
+   *   type isn't registered.
+   */
   getDataSchema(applicationContext) {
     const service = applicationContext?.trigger?.service
     if (!service?.type || !this.app.$registry.exists('service', service.type)) {
       return null
     }
-    const schema = this.app.$registry
-      .get('service', service.type)
-      .getDataSchema(service) || { type: 'object', properties: {} }
-    // A list payload is addressed by row index, so it has no place for a sibling.
-    if (schema.type !== 'object') return { ...schema, title: this.name }
+    const serviceType = this.app.$registry.get('service', service.type)
+    const schema = serviceType.getDataSchema(service)
+    const properties = serviceType.returnsList(service)
+      ? {
+          [TRIGGER_ROWS_PATH]: {
+            type: 'array',
+            items: { type: 'object', properties: {} },
+            ...schema,
+            title: this.app.$i18n.t('agent.triggerRows'),
+          },
+          ...serviceType.getEventContextSchema(service),
+        }
+      : schema?.properties
     return {
-      ...schema,
+      type: 'object',
       title: this.name,
       properties: {
-        ...schema.properties,
+        ...properties,
         [TRIGGER_FIRED_AT_PATH]: {
           type: 'string',
           title: this.app.$i18n.t('agent.triggerFiredAt'),

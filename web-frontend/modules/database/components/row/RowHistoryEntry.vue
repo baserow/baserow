@@ -1,7 +1,13 @@
 <template>
   <div class="row-history-entry">
     <div class="row-history-entry__header">
-      <span class="row-history-entry__initials">{{ initials }}</span>
+      <component
+        :is="identityAvatar"
+        v-if="identityAvatar"
+        :subject="entry.actor"
+        size="medium"
+      />
+      <span v-else class="row-history-entry__initials">{{ initials }}</span>
       <span class="row-history-entry__name">{{ name }} {{ actionName }}</span>
       <span class="row-history-entry__timestamp" :title="timestampTooltip">{{
         formattedTimestamp
@@ -90,6 +96,12 @@ export default {
     },
     initials() {
       return this.name.slice(0, 1).toUpperCase()
+    },
+    identityAvatar() {
+      const actor = this.entry.actor
+      return actor?.user_type === 'identity'
+        ? this.$registry.get('subject', actor.type).avatarComponent
+        : null
     },
     timestampTooltip() {
       return this.getLocalizedMoment(this.entry.timestamp).format('L LT')

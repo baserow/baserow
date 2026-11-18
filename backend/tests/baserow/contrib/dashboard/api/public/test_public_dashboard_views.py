@@ -606,3 +606,66 @@ def test_dispatch_public_dashboard_data_source_password_protected(
     )
     assert response.status_code == HTTP_200_OK
     assert response.json() == {"result": "60"}
+
+
+def add_select_field(data_fixture, data_source, name, labels):
+    table = data_source.service.specific.table
+    field = data_fixture.create_single_select_field(table=table, name=name)
+    for label in labels:
+        data_fixture.create_select_option(field=field, value=label)
+    return field
+
+
+@pytest.mark.django_db
+def test_get_public_dashboard_info_never_exposes_unreferenced_field_options(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    dashboard, data_source, _ = create_shared_dashboard(data_fixture, user, public=True)
+    hidden = add_select_field(
+        data_fixture, data_source, "Hidden", ["Project Falcon", "Layoffs Q3"]
+    )
+
+    response = api_client.get(public_info_url(dashboard.slug), format="json")
+
+    assert response.status_code == HTTP_200_OK
+    context_data = response.json()["data_sources"][0]["context_data"]
+    assert hidden.db_column not in context_data
+    assert context_data["field"]["name"] == "Amount"
+
+
+@pytest.mark.django_db
+def test_get_public_dashboard_info_keeps_the_result_when_a_filter_uses_its_options(
+    api_client, data_fixture
+):
+    from baserow.contrib.dashboard.widgets.service import WidgetService
+    from baserow.core.formula import BaserowFormulaObject
+
+    user = data_fixture.create_user()
+    dashboard, data_source, _ = create_shared_dashboard(data_fixture, user, public=True)
+    region = add_select_field(data_fixture, data_source, "Region", ["Europe"])
+    hidden = add_select_field(data_fixture, data_source, "Hidden", ["Secret"])
+    WidgetService().create_widget(
+        user,
+        "text_filter",
+        dashboard.id,
+        title="Region",
+        mode="dropdown",
+        options=BaserowFormulaObject.create(
+            f"get('data_source_context.{data_source.id}.{region.db_column}')"
+        ),
+    )
+
+    response = api_client.get(public_info_url(dashboard.slug), format="json")
+
+    assert response.status_code == HTTP_200_OK
+    public_data_source = response.json()["data_sources"][0]
+    # The summary widget still renders and formats its result.
+    assert "result" in public_data_source["schema"]["properties"]
+    assert public_data_source["context_data"]["field"]["name"] == "Amount"
+    # Only the referenced options are published.
+    assert [
+        option["value"]
+        for option in public_data_source["context_data"][region.db_column]
+    ] == ["Europe"]
+    assert hidden.db_column not in public_data_source["context_data"]

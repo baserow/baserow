@@ -2,10 +2,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { flushPromises } from '@vue/test-utils'
 import { expect, test, vi } from 'vitest'
 
-import {
-  AgentSubjectType,
-  UserSubjectType,
-} from '@baserow/modules/core/subjectTypes'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import TeamMembersInvitationRoute from '@baserow_enterprise/components/invitation/TeamMembersInvitationRoute'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes'
 
@@ -23,7 +20,7 @@ const team = { id: 3, name: 'Sales', default_role: 'EDITOR' }
 const target = { type: 'team', team }
 const teamSubjects = [
   { id: 50, subject_id: 8, subject_type: 'auth.User', team: 3 },
-  { id: 51, subject_id: 99, subject_type: 'core.Agent', team: 3 },
+  { id: 51, subject_id: 99, subject_type: 'auth.User', team: 3 },
 ]
 const teamInvitations = [
   { id: 70, invitation_id: 5, email: 'new@x.com', team_id: 3 },
@@ -33,7 +30,7 @@ const emailPick = (email) => ({ key: `email:${email}`, type: 'email', email })
 const MEMBER_PERMISSIONS = [
   'enterprise.teams.create_subject',
   'enterprise.teams.delete_subject',
-  'workspace.list_agents',
+  'workspace.list_identities',
 ]
 const ALL_PERMISSIONS = [
   ...MEMBER_PERMISSIONS,
@@ -47,7 +44,6 @@ function createRegistry(app) {
   const subjectTypes = [
     new UserSubjectType({ app }),
     new TeamSubjectType({ app }),
-    new AgentSubjectType({ app }),
   ]
   return {
     get: (namespace, type) => subjectTypes.find((s) => s.type === type),
@@ -81,9 +77,15 @@ function createClient() {
           })),
         })
       }
-      if (url === '/agents/workspace/12/') {
+      if (url === '/identities/workspace/12/') {
         return Promise.resolve({
-          data: { results: [{ id: 4, name: 'Smith' }], next: null },
+          data: {
+            results: [
+              { id: 4, name: 'Smith', user_type: 'identity' },
+              { id: 99, name: 'Writer', user_type: 'identity' },
+            ],
+            next: null,
+          },
         })
       }
       return Promise.resolve({ data: [] })
@@ -96,7 +98,7 @@ function createClient() {
 async function mountRoute(
   client,
   {
-    agentsEnabled = true,
+    identitiesEnabled = true,
     permissions = ALL_PERMISSIONS,
     targetType = {},
     routeTarget = target,
@@ -109,7 +111,8 @@ async function mountRoute(
   const app = {
     $client: client,
     $hasPermission: hasPermission,
-    $i18n: { t: (key) => ({ 'subjectType.identity': 'Identity' })[key] ?? key },
+    $featureFlagIsEnabled: () => identitiesEnabled,
+    $i18n: { t: (key) => ({ 'subjectType.user': 'User' })[key] ?? key },
   }
   const wrapper = await mountSuspended(TeamMembersInvitationRoute, {
     props: { workspace, target: routeTarget, targetType },
@@ -118,7 +121,7 @@ async function mountRoute(
         $client: client,
         $bus: bus,
         $hasPermission: hasPermission,
-        $featureFlagIsEnabled: () => agentsEnabled,
+        $featureFlagIsEnabled: () => identitiesEnabled,
         $registry: createRegistry(app),
       },
       stubs: {
@@ -187,14 +190,11 @@ test('lists the members and offers the workspace members who are not in the team
 
   expect(client.get).toHaveBeenCalledWith('/teams/3/subjects/')
   expect(client.get).toHaveBeenCalledWith('/teams/3/invitations/')
-  expect(memberNames(wrapper)).toEqual([
-    'new@x.com',
-    'Mark Delgado',
-    'Identity (99)',
-  ])
+  expect(memberNames(wrapper)).toEqual(['new@x.com', 'Mark Delgado', 'Writer'])
   // A pending address isn't offered to be invited again.
   expect(wrapper.findAll('.taken').map((o) => o.text())).toEqual([
     'Mark Delgado',
+    'Writer',
     'new@x.com',
   ])
   expect(wrapper.findAll('.offered').map((o) => o.text())).toEqual([
@@ -202,7 +202,7 @@ test('lists the members and offers the workspace members who are not in the team
     'Olga Kim',
     'Smith',
   ])
-  expect(wrapper.get('.tabs').text()).toBe('auth.User,core.Agent')
+  expect(wrapper.get('.tabs').text()).toBe('auth.User')
   expect(wrapper.get('.picker').attributes('data-roles')).toBe('0')
   expect(wrapper.get('.email-reason').text()).toBe('')
   expect(wrapper.find('.captcha').exists()).toBe(true)
@@ -230,28 +230,27 @@ test('hides email invitations from who can not send or list them', async () => {
   })
 
   expect(client.get).not.toHaveBeenCalledWith('/teams/3/invitations/')
-  expect(memberNames(wrapper)).toEqual(['Mark Delgado', 'Identity (99)'])
+  expect(memberNames(wrapper)).toEqual(['Mark Delgado', 'Writer'])
   expect(wrapper.get('.email-reason').text()).toBe(
     'teamMembersRoute.emailRequiresInvitePermission'
   )
   expect(wrapper.find('.captcha').exists()).toBe(false)
 })
 
-test('leaves the agents out while agents are off', async () => {
+test('leaves the identities out while identities are off', async () => {
   const client = createClient()
-  const { wrapper } = await mountRoute(client, { agentsEnabled: false })
+  const { wrapper } = await mountRoute(client, { identitiesEnabled: false })
 
   expect(client.get).not.toHaveBeenCalledWith(
-    '/agents/workspace/12/',
+    '/identities/workspace/12/',
     expect.anything()
   )
-  expect(wrapper.get('.tabs').text()).toBe('auth.User')
   expect(wrapper.findAll('.offered').map((o) => o.text())).toEqual([
     'Jane Roe',
     'Olga Kim',
   ])
   // A member who isn't listed can still be removed.
-  expect(memberNames(wrapper)).toContain('Identity (99)')
+  expect(memberNames(wrapper)).toContain('User (99)')
 })
 
 test('adds the picks one after the other and keeps what failed picked', async () => {
@@ -265,12 +264,12 @@ test('adds the picks one after the other and keeps what failed picked', async ()
 
   wrapper
     .findComponent({ name: 'InviteInput' })
-    .vm.$emit('add', [pick('auth.User', 9), pick('core.Agent', 4)], null)
+    .vm.$emit('add', [pick('auth.User', 9), pick('auth.User', 4)], null)
   await flushPromises()
 
   expect(client.post.mock.calls).toEqual([
     ['/teams/3/subjects/', { subject_id: 9, subject_type: 'auth.User' }],
-    ['/teams/3/subjects/', { subject_id: 4, subject_type: 'core.Agent' }],
+    ['/teams/3/subjects/', { subject_id: 4, subject_type: 'auth.User' }],
   ])
   expect(picker.removed).toEqual(['auth.User:9'])
   expect(picker.resets).toBe(0)
@@ -327,7 +326,7 @@ test('invites the typed addresses after adding the members', async () => {
     'new@x.com',
     'a@x.com',
     'Mark Delgado',
-    'Identity (99)',
+    'Writer',
     'Jane Roe',
   ])
 })
@@ -339,7 +338,7 @@ test('revokes a pending invitation right away', async () => {
   await clickMember(wrapper, 'new@x.com')
 
   expect(client.delete).toHaveBeenCalledWith('/teams/3/invitations/70/')
-  expect(memberNames(wrapper)).toEqual(['Mark Delgado', 'Identity (99)'])
+  expect(memberNames(wrapper)).toEqual(['Mark Delgado', 'Writer'])
   expect(bus.$emit).not.toHaveBeenCalled()
 })
 
@@ -350,11 +349,7 @@ test('puts a pending invitation back when revoking it fails', async () => {
 
   await clickMember(wrapper, 'new@x.com')
 
-  expect(memberNames(wrapper)).toEqual([
-    'new@x.com',
-    'Mark Delgado',
-    'Identity (99)',
-  ])
+  expect(memberNames(wrapper)).toEqual(['new@x.com', 'Mark Delgado', 'Writer'])
 })
 
 test('clears the input once every pick was added', async () => {
@@ -381,7 +376,7 @@ test('removes a member right away', async () => {
   await clickMember(wrapper, 'Mark Delgado')
 
   expect(client.delete).toHaveBeenCalledWith('/teams/3/subjects/50/')
-  expect(memberNames(wrapper)).toEqual(['new@x.com', 'Identity (99)'])
+  expect(memberNames(wrapper)).toEqual(['new@x.com', 'Writer'])
   expect(bus.$emit).toHaveBeenCalledWith('team-members-updated', 3)
 })
 
@@ -392,10 +387,6 @@ test('puts a member back when removing them fails', async () => {
 
   await clickMember(wrapper, 'Mark Delgado')
 
-  expect(memberNames(wrapper)).toEqual([
-    'new@x.com',
-    'Mark Delgado',
-    'Identity (99)',
-  ])
+  expect(memberNames(wrapper)).toEqual(['new@x.com', 'Mark Delgado', 'Writer'])
   expect(bus.$emit).not.toHaveBeenCalled()
 })

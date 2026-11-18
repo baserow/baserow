@@ -19,7 +19,7 @@
 import modal from '@baserow/modules/core/mixins/modal'
 
 /**
- * Asks before giving members, teams or agents no access on an object, as that
+ * Asks before giving members, teams or identities no access on an object, as that
  * takes the object away from them whatever role they have above it.
  */
 export default {

@@ -1,19 +1,12 @@
 <template>
-  <div
-    :key="elementType.name"
+  <ItemPickerCard
     v-tooltip="disabled ? isDisallowedReason : elementType.description"
-    class="add-element-card"
-    :class="{ 'add-element-card--disabled': disabled }"
+    :name="elementType.name"
+    :image="elementType.image"
+    :unavailable="disabled"
+    :loading="loading"
     @click.stop="onClick"
   >
-    <div class="add-element-card__element-type">
-      <img
-        class="add-element-card__element-type-icon"
-        :src="elementType.image"
-      />
-    </div>
-    <div v-if="loading" class="loading"></div>
-    <span v-else class="add-element-card__label">{{ elementType.name }}</span>
     <component
       :is="disallowedClickModal[0]"
       v-if="disallowedClickModal !== null"
@@ -22,12 +15,15 @@
       :name="elementType.name"
       :workspace="workspace"
     ></component>
-  </div>
+  </ItemPickerCard>
 </template>
 
 <script>
+import ItemPickerCard from '@baserow/modules/core/components/ItemPickerCard'
+
 export default {
   name: 'AddElementCard',
+  components: { ItemPickerCard },
   props: {
     elementType: {
       type: Object,

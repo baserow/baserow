@@ -23,6 +23,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import BlacklistedToken, UserLogEntry, Workspace, WorkspaceUser
 from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import (
+    ChangeEmailNotAllowed,
     DisabledSignupError,
     EmailAlreadyVerified,
     InvalidPassword,
@@ -702,6 +703,25 @@ def test_delete_expired_users_and_related_workspaces_if_last_admin(
 
 
 @pytest.mark.django_db
+def test_expired_last_human_admin_deletes_workspace_with_identity_admin(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+    user.profile.to_be_deleted = True
+    user.profile.save(update_fields=["to_be_deleted"])
+    user.last_login = datetime.now(tz=timezone.utc) - timedelta(days=10)
+    user.save(update_fields=["last_login"])
+
+    UserHandler().delete_expired_users_and_related_workspaces_if_last_admin(
+        grace_delay=timedelta(days=3)
+    )
+
+    assert not User.objects.filter(id=user.id).exists()
+    assert not Workspace.objects_and_trash.filter(id=workspace.id).exists()
+    assert not User.objects_and_identities.filter(id=identity.id).exists()
+
+
+@pytest.mark.django_db
 def test_active_users_qs_excludes_deactivated_users(data_fixture):
     deactivated_user = data_fixture.create_user(
         email="test1@localhost", is_active=False
@@ -1148,3 +1168,27 @@ def test_change_email_already_exists(data_fixture):
     # Verify the user's email was not changed
     user.refresh_from_db()
     assert user.email == "test@localhost"
+
+
+@pytest.mark.django_db
+def test_human_account_uniqueness_includes_identity_identities(data_fixture):
+    identity = data_fixture.create_identity()
+    with pytest.raises(UserAlreadyExist):
+        UserHandler().force_create_user(identity.email, "Person", "password")
+
+
+@pytest.mark.django_db
+def test_loaded_identity_cannot_use_human_password_and_email_flows(
+    data_fixture, mailoutbox
+):
+    identity = data_fixture.create_identity()
+    handler = UserHandler()
+    assert not handler.send_reset_password_email(identity)
+    assert not handler.send_email_pending_verification(identity)
+    with pytest.raises(InvalidPassword):
+        handler.change_password(identity, "password", "new-password")
+    with pytest.raises(ChangeEmailNotAllowed):
+        handler.send_change_email_confirmation(
+            identity, "person@example.com", "password"
+        )
+    assert not mailoutbox

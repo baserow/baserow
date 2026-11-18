@@ -11,7 +11,7 @@ const roles = [
 const workspace = { id: 12, name: 'Widelab', _: { roles } }
 const users = [{ user_id: 8, name: 'Mark Delgado', email: 'mark@x.com' }]
 const teams = [{ id: 3, name: 'Management', subject_count: 2 }]
-const agents = [{ id: 4, name: 'Smith' }]
+const identities = [{ id: 4, name: 'Smith', user_type: 'identity' }]
 
 async function mountInput(props = {}) {
   return await mountSuspended(ShareScopeInput, {
@@ -150,7 +150,7 @@ test('lists an invited address and an assigned subject with a hint', async () =>
     ).toBeDefined()
 
     // A team that already holds a role on the object is listed the same way,
-    // and so would a member or an agent be.
+    // and so would a member or an identity be.
     await input.setValue('manage')
     expect(itemTitles(wrapper)).toEqual(['Management'])
     expect(wrapper.find('.invite-input__item').classes()).toContain(
@@ -195,60 +195,61 @@ test('lists an admin of a level above with the reason instead of offering them',
 })
 
 test('only mentions and offers the subject types it is given', async () => {
-  const withoutAgents = await mountInput()
+  const withoutIdentities = await mountInput()
   try {
-    const input = withoutAgents.find('input')
+    const input = withoutIdentities.find('input')
     expect(input.attributes('placeholder')).toBe(
       'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams'
     )
     await input.trigger('focus')
-    expect(tabLabels(withoutAgents)).toEqual([
+    expect(tabLabels(withoutIdentities)).toEqual([
       'inviteInput.tabAll',
       'subjectType.members',
       'subjectType.teams',
     ])
-    expect(itemTitles(withoutAgents)).toEqual(['Mark Delgado', 'Management'])
+    expect(itemTitles(withoutIdentities)).toEqual([
+      'Mark Delgado',
+      'Management',
+    ])
 
     await input.setValue('smith')
-    expect(itemTitles(withoutAgents)).toEqual([])
-    expect(withoutAgents.find('.invite-input__empty').text()).toBe(
+    expect(itemTitles(withoutIdentities)).toEqual([])
+    expect(withoutIdentities.find('.invite-input__empty').text()).toBe(
       'shareScope.noResults: subjecttype.members or subjecttype.teams'
     )
   } finally {
-    withoutAgents.unmount()
+    withoutIdentities.unmount()
   }
 
-  const withAgents = await mountInput({
+  const withIdentities = await mountInput({
     subjects: {
-      'auth.User': users,
+      'auth.User': [...users, ...identities],
       'baserow_enterprise.Team': teams,
-      'core.Agent': agents,
     },
   })
   try {
-    const input = withAgents.find('input')
+    const input = withIdentities.find('input')
     expect(input.attributes('placeholder')).toBe(
-      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams, subjecttype.identities'
+      'shareScope.searchPlaceholder: subjecttype.members, subjecttype.teams'
     )
     await input.trigger('focus')
-    expect(tabLabels(withAgents)).toEqual([
+    expect(tabLabels(withIdentities)).toEqual([
       'inviteInput.tabAll',
       'subjectType.members',
       'subjectType.teams',
-      'subjectType.identities',
     ])
-    expect(itemTitles(withAgents)).toEqual([
+    expect(itemTitles(withIdentities)).toEqual([
       'Mark Delgado',
-      'Management',
       'Smith',
+      'Management',
     ])
 
     await input.setValue('nobody')
-    expect(withAgents.find('.invite-input__empty').text()).toBe(
-      'shareScope.noResults: subjecttype.members, subjecttype.teams, or subjecttype.identities'
+    expect(withIdentities.find('.invite-input__empty').text()).toBe(
+      'shareScope.noResults: subjecttype.members or subjecttype.teams'
     )
   } finally {
-    withAgents.unmount()
+    withIdentities.unmount()
   }
 })
 

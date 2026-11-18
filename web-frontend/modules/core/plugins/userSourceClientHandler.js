@@ -2,9 +2,15 @@ import { makeRefreshAuthInterceptor } from '@baserow/modules/core/plugins/client
 
 /**
  * Adds the current user source token without overriding the authentication
- * required by the request context.
+ * required by the request context. Requests to endpoints that don't accept user
+ * source tokens, like the instance settings, opt out with
+ * `skipUserSourceAuthorization`.
  */
 export const prepareUserSourceRequestHeaders = (store) => (config) => {
+  if (config.skipUserSourceAuthorization) {
+    return config
+  }
+
   const application = store.getters['userSourceUser/getCurrentApplication']
   const isAuthenticated =
     store.getters['userSourceUser/isAuthenticated'](application)
