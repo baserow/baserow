@@ -84,3 +84,32 @@ def test_allowed_operations_on_templates_include_agent_configuration(data_fixtur
         "agent_application.read_conversations"
         not in allow_if_template["permissions"]["allowed_operations_on_templates"]
     )
+
+
+@pytest.mark.django_db
+def test_signed_out_visitor_reads_the_setup_of_a_template_agent(
+    api_client, template_agent
+):
+    urls = [
+        agent_url(template_agent, "configuration"),
+        reverse("api:agent:triggers:list", kwargs={"agent_id": template_agent.id}),
+        reverse("api:agent:actions:list", kwargs={"agent_id": template_agent.id}),
+    ]
+
+    assert [api_client.get(url).status_code for url in urls] == [200, 200, 200]
+    assert api_client.get(agent_url(template_agent, "conversations")).status_code in (
+        401,
+        403,
+    )
+
+
+@pytest.mark.django_db
+def test_signed_out_visitor_cannot_read_an_agent_outside_a_template(
+    data_fixture, api_client, configured_agent
+):
+    agent = configured_agent(user=data_fixture.create_user())
+
+    response = api_client.get(agent_url(agent, "configuration"))
+
+    assert response.status_code in (401, 403)
+    assert "instructions" not in response.json()
