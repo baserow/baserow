@@ -1,8 +1,10 @@
+import asyncio
 import inspect
 import json
-from contextlib import contextmanager
+from asyncio import sleep
+from contextlib import asynccontextmanager
 from functools import cached_property
-from time import monotonic, sleep
+from time import monotonic
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,37 +40,57 @@ if TYPE_CHECKING:
     from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 
-@contextmanager
-def endpoint_changes_lock(endpoint: MCPEndpoint, exclusive: bool):
+def _try_lock(key: list, suffix: str) -> bool:
+    with connection.cursor() as cursor:
+        cursor.execute(f"SELECT pg_try_advisory_lock{suffix}(%s, %s)", key)
+        return cursor.fetchone()[0]
+
+
+def _unlock(key: list, suffix: str) -> None:
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(f"SELECT pg_advisory_unlock{suffix}(%s, %s)", key)
+    except Error:
+        # Closing the connection is then the only way to release the lock.
+        connection.close()
+
+
+@asynccontextmanager
+async def endpoint_changes_lock(endpoint: MCPEndpoint, exclusive: bool):
     """
     Holds a lock on the changes made through the endpoint. Calls that change data
     share it, so they still run side by side, while undo and redo hold it alone,
     so no other call adds a change while they take one call back in parts.
     Session level, because a tool call isn't one transaction. A call that can't
-    take it within ``ENDPOINT_CHANGES_LOCK_WAIT_SECONDS`` is asked to try again,
-    because waiting blocks the thread that runs the other MCP calls of the worker.
+    take it within ``ENDPOINT_CHANGES_LOCK_WAIT_SECONDS`` is asked to try again.
+    Nothing queues, so a steady stream of writes can keep undo and redo asking
+    the client to try again. The tries and the waits between them are separate
+    steps, so the thread that runs the worker's MCP calls is free in between.
+    Every step runs on that thread (``sync_to_async`` is thread sensitive), so
+    the body and the unlock use the connection that took the lock.
     """
 
     suffix = "" if exclusive else "_shared"
     key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
     deadline = monotonic() + ENDPOINT_CHANGES_LOCK_WAIT_SECONDS
-    with connection.cursor() as cursor:
-        while True:
-            cursor.execute(f"SELECT pg_try_advisory_lock{suffix}(%s, %s)", key)
-            if cursor.fetchone()[0]:
-                break
-            if monotonic() >= deadline:
-                raise ToolFailedError(LOCKED_MESSAGE)
-            sleep(ENDPOINT_CHANGES_LOCK_RETRY_SECONDS)
+    while True:
+        attempt = asyncio.ensure_future(sync_to_async(_try_lock)(key, suffix))
+        try:
+            taken = await asyncio.shield(attempt)
+        except asyncio.CancelledError:
+            # The try still runs on the thread, and may take the lock.
+            if await attempt:
+                await sync_to_async(_unlock)(key, suffix)
+            raise
+        if taken:
+            break
+        if monotonic() >= deadline:
+            raise ToolFailedError(LOCKED_MESSAGE)
+        await sleep(ENDPOINT_CHANGES_LOCK_RETRY_SECONDS)
     try:
         yield
     finally:
-        try:
-            with connection.cursor() as cursor:
-                cursor.execute(f"SELECT pg_advisory_unlock{suffix}(%s, %s)", key)
-        except Error:
-            # Closing the connection is then the only way to release the lock.
-            connection.close()
+        await sync_to_async(_unlock)(key, suffix)
 
 
 class MCPTool(Instance):
@@ -193,17 +215,13 @@ class MCPTool(Instance):
                 raise MCPToolInputError(format_validation_error(exc)) from exc
         else:
             args = call_arguments
-        result = await sync_to_async(self._locked_sync_call)(endpoint, args)
+        if self.read_only:
+            result = await sync_to_async(self._sync_call)(endpoint, args)
+        else:
+            async with endpoint_changes_lock(endpoint, self.replays_changes):
+                result = await sync_to_async(self._sync_call)(endpoint, args)
         text = result if isinstance(result, str) else json.dumps(result)
         return [TextContent(type="text", text=text)]
-
-    def _locked_sync_call(self, endpoint: MCPEndpoint, args: Any) -> Any:
-        # In the same thread as the call, so the lock is released on the
-        # connection that took it.
-        if self.read_only:
-            return self._sync_call(endpoint, args)
-        with endpoint_changes_lock(endpoint, exclusive=self.replays_changes):
-            return self._sync_call(endpoint, args)
 
     def _sync_call(self, endpoint: MCPEndpoint, args: Any) -> Any:
         """

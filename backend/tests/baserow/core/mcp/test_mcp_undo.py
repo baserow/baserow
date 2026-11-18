@@ -1,6 +1,8 @@
+import asyncio
 import json
 import threading
 import time
+from asyncio import sleep as asyncio_sleep
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -174,9 +176,9 @@ def test_another_call_retries_until_a_call_is_fully_undone_or_redone(
     found_it_locked = threading.Event()
     other_call_was_held_back = []
 
-    def note_the_retry(seconds):
+    async def note_the_retry(seconds):
         found_it_locked.set()
-        time.sleep(seconds)
+        await asyncio_sleep(seconds)
 
     def first_part_then_other_call(*args):
         actions = replay(*args)
@@ -389,3 +391,118 @@ def test_a_call_gives_up_when_the_endpoint_stays_locked(setup):
     assert "Try again" in result["text"]
     assert result["seconds"] < 3
     assert _names(table) == []
+
+
+def _create_xyz_and_fail_on_y(endpoint, table):
+    _call(
+        endpoint,
+        "create_fields",
+        {
+            "table_id": table.id,
+            "fields": [
+                {"name": "X", "type": "text"},
+                {"name": "Y", "type": "text"},
+                {"name": "Z", "type": "text"},
+            ],
+        },
+    )
+    undo_field = CreateFieldActionType.undo
+    calls = []
+
+    def fail_on_the_middle_field(*args):
+        calls.append(args)
+        if len(calls) == 2:
+            raise Exception("boom")
+        return undo_field(*args)
+
+    with patch.object(
+        CreateFieldActionType, "undo", side_effect=fail_on_the_middle_field
+    ):
+        _call(endpoint, "undo")
+    assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y"}
+
+
+@pytest.mark.django_db
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
+def test_one_redo_restores_a_call_that_was_partly_undone(setup):
+    endpoint, table = setup
+    _create_xyz_and_fail_on_y(endpoint, table)
+
+    redone = _call(endpoint, "redo")
+
+    assert redone == [
+        {"action": "Create field", "failed": True},
+        {"action": "Create field", "failed": False},
+    ]
+    assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y", "Z"}
+    assert _call(endpoint, "redo") == []
+
+
+@pytest.mark.django_db
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
+def test_undo_goes_on_into_a_partly_undone_call_once_redo_cant_restore_it(setup):
+    endpoint, table = setup
+    _call(endpoint, "create_rows", {"table_id": table.id, "rows": [{"Name": "OLD"}]})
+    _create_xyz_and_fail_on_y(endpoint, table)
+    _call(endpoint, "create_rows", {"table_id": table.id, "rows": [{"Name": "NEW"}]})
+    assert _call(endpoint, "redo") == []
+
+    assert _call(endpoint, "undo") == [{"action": "Create rows", "failed": False}]
+    assert _names(table) == ["OLD"]
+
+    assert _call(endpoint, "undo") == [{"action": "Create field", "failed": False}]
+    assert {f.name for f in table.field_set.all()} == {"Name", "Y"}
+    assert _call(endpoint, "undo") == [{"action": "Create rows", "failed": False}]
+    assert _names(table) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_call_waiting_for_the_lock_doesnt_hold_up_other_calls(setup):
+    endpoint, table = setup
+    endpoint.allowed_tools = [*TOOLS, "list_databases"]
+    endpoint.save()
+    result = {}
+
+    async def timed(name, arguments):
+        server = BaserowMCPServer()
+        current_key.set(endpoint.key)
+        started = time.monotonic()
+        async with client_session(server._mcp_server) as client:
+            response = await client.call_tool(name, arguments)
+        return response, time.monotonic() - started
+
+    async def both():
+        waiting = asyncio.ensure_future(
+            timed(
+                "create_rows",
+                {"table_id": table.id, "rows": [{"Name": "A"}]},
+            )
+        )
+        await asyncio.sleep(0.2)
+        result["read"] = await timed("list_databases", {})
+        result["write"] = await waiting
+
+    def run():
+        try:
+            async_to_sync(both)()
+        finally:
+            connection.close()
+
+    key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(%s, %s)", key)
+    other = threading.Thread(target=run)
+    try:
+        with patch(f"{registries.__name__}.ENDPOINT_CHANGES_LOCK_WAIT_SECONDS", 2):
+            other.start()
+            other.join(timeout=10)
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_unlock(%s, %s)", key)
+        other.join(timeout=10)
+
+    read, read_seconds = result["read"]
+    write, _ = result["write"]
+    assert not read.isError, read.content[0].text
+    assert read_seconds < 1
+    assert write.isError and "Try again" in write.content[0].text

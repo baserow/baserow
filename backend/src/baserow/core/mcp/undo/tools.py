@@ -35,7 +35,10 @@ def _describe(actions: List[Action]) -> list[dict]:
 
 
 def _replay(
-    endpoint: MCPEndpoint, replay: Callable, next_in_line: Callable[[], QuerySet]
+    endpoint: MCPEndpoint,
+    replay: Callable,
+    next_in_line: Callable[[], QuerySet],
+    redo: bool = False,
 ) -> list[dict]:
     """
     Undoes or redoes the latest tool call of the endpoint. `ActionHandler` takes at
@@ -53,10 +56,22 @@ def _replay(
     try:
         with transaction.atomic():
             while True:
+                # A redo of a part whose undo failed only marks it as not undone
+                # again, so the redo goes on with the parts after it.
+                failed_before = set(
+                    next_in_line()
+                    .filter(user=user, session=session, error__isnull=False)
+                    .values_list("id", flat=True)
+                    if redo
+                    else []
+                )
                 actions = replay(user, [], session)
                 replayed.extend(actions)
                 group = actions[0].action_group if actions else None
-                if group is None or any(a.error is not None for a in actions):
+                failed = [a for a in actions if a.error is not None]
+                if group is None or (
+                    failed and not any(a.id in failed_before for a in failed)
+                ):
                     break
                 following = next_in_line().filter(user=user, session=session).first()
                 if following is None or following.action_group != group:
@@ -94,19 +109,28 @@ class UndoMcpTool(MCPTool):
 
         # A part whose undo failed is marked as undone, so `ActionHandler` would
         # go on with the older parts of the same call and leave it in pieces.
+        # That's refused while `redo` can still restore the call.
         latest = next_in_line().filter(user=user, session=session).first()
-        if (
-            latest is not None
-            and latest.action_group is not None
-            and Action.objects.filter(
-                user=user,
-                session=session,
-                action_group=latest.action_group,
-                undone_at__isnull=False,
-                error__isnull=False,
-            ).exists()
-        ):
-            raise ToolFailedError(PARTLY_UNDONE_MESSAGE)
+        if latest is not None and latest.action_group is not None:
+            to_redo = (
+                Action.objects.filter(
+                    user=user, session=session, undone_at__isnull=False
+                )
+                .order_by("-undone_at", "-created_on", "-id")
+                .first()
+            )
+            if (
+                to_redo is not None
+                and to_redo.action_group == latest.action_group
+                and to_redo.error is not None
+                and not Action.objects.filter(
+                    user=user,
+                    session=session,
+                    undone_at__isnull=True,
+                    created_on__gt=to_redo.undone_at,
+                ).exists()
+            ):
+                raise ToolFailedError(PARTLY_UNDONE_MESSAGE)
         return _replay(endpoint, ActionHandler.undo, next_in_line)
 
 
@@ -133,4 +157,5 @@ class RedoMcpTool(MCPTool):
             lambda: Action.objects.filter(undone_at__isnull=False).order_by(
                 "-undone_at", "-created_on", "-id"
             ),
+            redo=True,
         )
