@@ -47,7 +47,9 @@ def test_create_update_and_delete_identity_team_memberships(
         {"id": first.id, "name": "First"}
     ]
 
-    identity = IdentityService().update_identity(user, identity, team_ids=[second.id])
+    identity = (
+        IdentityService().update_identity(user, identity, team_ids=[second.id]).identity
+    )
     assert IdentitySerializer(identity).data["teams"] == [
         {"id": second.id, "name": "Second"}
     ]

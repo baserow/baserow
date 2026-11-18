@@ -109,24 +109,22 @@ class UpdateIdentityActionType(ActionType):
         """
 
         workspace = IdentityHandler.get_workspace(identity)
-        original_name = identity.first_name
-        original_role_uid = IdentityHandler.get_role_uid(identity)
-        identity = IdentityService().update_identity(user, identity, **values)
+        updated = IdentityService().update_identity(user, identity, **values)
         cls.register_action(
             user=user,
             params=cls.Params(
                 workspace.id,
                 workspace.name,
-                identity.id,
-                identity.first_name,
-                IdentityHandler.get_role_uid(identity),
-                original_name,
-                original_role_uid,
+                updated.identity.id,
+                updated.new_values["name"],
+                updated.new_values["role_uid"],
+                updated.original_values["name"],
+                updated.original_values["role_uid"],
             ),
             scope=cls.scope(workspace.id),
             workspace=workspace,
         )
-        return identity
+        return updated.identity
 
     @classmethod
     def scope(cls, workspace_id: int) -> ActionScopeStr:
