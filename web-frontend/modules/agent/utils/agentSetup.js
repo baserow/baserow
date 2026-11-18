@@ -8,6 +8,7 @@ import {
   serviceTypeOf,
 } from '@baserow/modules/agent/utils/triggers'
 import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
+import { getEnabledModelsForAIProviderFeature } from '@baserow/modules/core/aiProviderModelFeatureTypes'
 
 export const SCHEDULE_TRIGGER_TYPE = 'periodic'
 export const SETUP_START = Object.freeze({ CHAT: 'chat', SCHEDULE: 'schedule' })
@@ -20,15 +21,25 @@ export const SETUP_PERMISSIONS = Object.freeze({
   READ: 'read',
   ASK: 'ask',
   CHANGE: 'change',
+  CUSTOM: 'custom',
 })
+const AI_AGENT_FEATURE = 'ai_agent'
 
 /**
  * @typedef {object} AgentSetup
  * @property {string} name
  * @property {string} instructions
  * @property {'chat'|'schedule'} start
+ * @property {object|null} schedule What differs from the default schedule,
+ *   used while it starts on a schedule.
  * @property {{kind: 'new', roleUid: string}|{kind: 'existing', id: number, name: string}|{kind: 'none'}} actsAs
- * @property {'read'|'ask'|'change'} permissions
+ * @property {'read'|'ask'|'change'|'custom'} permissions
+ * @property {{allowed_tools: string[], ask_first_tools: string[]}|null} customTools
+ *   The tools picked one by one, used while the permissions are custom.
+ * @property {string|null} providerType
+ * @property {string|null} modelIdentifier
+ * @property {'off'|'low'|'medium'|'high'|null} reasoningEffort Null is the
+ *   model's default.
  * @property {boolean} webSearch
  * @property {string[]} actionTypes Service type names of the actions to add.
  */
@@ -39,18 +50,52 @@ export const SETUP_SUGGESTIONS = Object.freeze([
     labelKey: 'agent.setupSuggestionInvest',
     nameKey: 'agent.setupSuggestionInvestName',
     instructionsKey: 'agent.setupSuggestionInvestInstructions',
+    setup: {
+      start: SETUP_START.SCHEDULE,
+      schedule: null,
+      permissions: SETUP_PERMISSIONS.ASK,
+      webSearch: true,
+      actionTypes: [],
+    },
   },
   {
     icon: 'iconoir-mail',
     labelKey: 'agent.setupSuggestionOutreach',
     nameKey: 'agent.setupSuggestionOutreachName',
     instructionsKey: 'agent.setupSuggestionOutreachInstructions',
+    setup: {
+      start: SETUP_START.CHAT,
+      schedule: null,
+      permissions: SETUP_PERMISSIONS.READ,
+      webSearch: true,
+      actionTypes: ['smtp_email'],
+    },
   },
   {
     icon: 'iconoir-table',
     labelKey: 'agent.setupSuggestionTriage',
     nameKey: 'agent.setupSuggestionTriageName',
     instructionsKey: 'agent.setupSuggestionTriageInstructions',
+    setup: {
+      start: SETUP_START.CHAT,
+      schedule: null,
+      permissions: SETUP_PERMISSIONS.ASK,
+      webSearch: false,
+      actionTypes: [],
+    },
+  },
+  {
+    icon: 'iconoir-calendar',
+    labelKey: 'agent.setupSuggestionSummary',
+    nameKey: 'agent.setupSuggestionSummaryName',
+    instructionsKey: 'agent.setupSuggestionSummaryInstructions',
+    setup: {
+      start: SETUP_START.SCHEDULE,
+      schedule: { interval: 'WEEK', day_of_week: 0 },
+      permissions: SETUP_PERMISSIONS.READ,
+      webSearch: false,
+      actionTypes: [],
+    },
   },
 ])
 
@@ -90,17 +135,66 @@ export function newIdentityRoleUid(workspace) {
  * @returns {AgentSetup} The choices the wizard starts with.
  */
 export function emptyAgentSetup(name, workspace, canCreateIdentity) {
+  const [providerType = null, models = []] =
+    Object.entries(setupEnabledModels(workspace)).find(
+      ([, identifiers]) => identifiers.length > 0
+    ) ?? []
   return {
     name,
     instructions: '',
     start: SETUP_START.CHAT,
+    schedule: null,
     actsAs: canCreateIdentity
       ? { kind: SETUP_ACTS_AS.NEW, roleUid: newIdentityRoleUid(workspace) }
       : { kind: SETUP_ACTS_AS.NONE },
     permissions: SETUP_PERMISSIONS.ASK,
+    customTools: null,
+    providerType,
+    modelIdentifier: models[0] ?? null,
+    reasoningEffort: null,
     webSearch: false,
     actionTypes: [],
   }
+}
+
+/**
+ * @param {object} suggestion One of `SETUP_SUGGESTIONS`.
+ * @param {Function} t The translate function.
+ * @param {string[]} offeredActionTypes The action types the wizard offers.
+ * @returns {object} The choices the suggestion fills in: its name, its
+ *   instructions and the setup they describe.
+ */
+export function suggestionSetup(suggestion, t, offeredActionTypes) {
+  return {
+    name: t(suggestion.nameKey),
+    instructions: t(suggestion.instructionsKey),
+    ...suggestion.setup,
+    actionTypes: suggestion.setup.actionTypes.filter((type) =>
+      offeredActionTypes.includes(type)
+    ),
+  }
+}
+
+/**
+ * @param {object} registry The app registry.
+ * @param {object|null} schedule What differs from the default schedule.
+ * @returns {object} The service values of the schedule's trigger.
+ */
+export function scheduleValues(registry, schedule) {
+  return {
+    ...registry
+      .get('service', SCHEDULE_TRIGGER_TYPE)
+      .getDefaultValues(null, {}),
+    ...schedule,
+  }
+}
+
+/**
+ * @param {object} workspace The workspace the agent is created in.
+ * @returns {Object<string, string[]>} The models an agent can use, by provider.
+ */
+export function setupEnabledModels(workspace) {
+  return getEnabledModelsForAIProviderFeature(workspace, AI_AGENT_FEATURE)
 }
 
 /**
@@ -122,6 +216,19 @@ export function toolsForPermissions(availableTools, permissions) {
         ? allowed.filter((tool) => tool.changes_data).map((tool) => tool.name)
         : [],
   }
+}
+
+/**
+ * @param {AgentSetup} setup The wizard's choices.
+ * @param {Array<{name: string, changes_data: boolean}>} availableTools The
+ *   tools the agent can be given.
+ * @returns {{allowed_tools: string[], ask_first_tools: string[]}} The tools the
+ *   choices allow and those that ask first.
+ */
+export function setupTools(setup, availableTools) {
+  return setup.permissions === SETUP_PERMISSIONS.CUSTOM
+    ? setup.customTools
+    : toolsForPermissions(availableTools, setup.permissions)
 }
 
 /**
@@ -168,25 +275,26 @@ async function resolveIdentity({ store }, workspace, setup) {
  * @param {AgentSetup} setup The wizard's choices.
  * @param {string[]} notApplied Collects what can't be applied.
  * @param {Function} t The translate function.
- * @returns {object} The configuration values to save.
+ * @returns {object} The configuration values to save, without web search.
  */
 function configurationValues(configuration, runAs, setup, notApplied, t) {
   const values = {}
   if (setup.instructions.trim()) values.instructions = setup.instructions
+  if (setup.providerType && setup.modelIdentifier) {
+    values.provider_type = setup.providerType
+    values.model_identifier = setup.modelIdentifier
+  }
+  if (setup.reasoningEffort) values.reasoning_effort = setup.reasoningEffort
   if (runAs) {
     values.run_as = runAs
-    if (configuration) {
+    if (configuration || setup.permissions === SETUP_PERMISSIONS.CUSTOM) {
       Object.assign(
         values,
-        toolsForPermissions(configuration.available_tools, setup.permissions)
+        setupTools(setup, configuration?.available_tools ?? [])
       )
     } else {
       notApplied.push(t('agent.setupPermissions'))
     }
-  }
-  if (setup.webSearch) {
-    if (configuration?.web_search_available) values.web_search_enabled = true
-    else notApplied.push(t('agent.webSearch'))
   }
   return values
 }
@@ -197,6 +305,26 @@ async function readConfiguration(agentService, agentId) {
     return data
   } catch {
     return null
+  }
+}
+
+/**
+ * @param {object} agentService The agent application service.
+ * @param {number} agentId The id of the new agent.
+ * @param {object|null} configuration The configuration the agent has now, null
+ *   when it is unknown.
+ * @returns {Promise<boolean>} Whether web search was turned on. It is only
+ *   tried when the agent's model can search.
+ */
+async function enableWebSearch(agentService, agentId, configuration) {
+  if (!configuration?.web_search_available) return false
+  try {
+    await agentService.updateConfiguration(agentId, {
+      web_search_enabled: true,
+    })
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -231,26 +359,30 @@ export async function applyAgentSetup(context, workspace, setup) {
   }
 
   const values = configurationValues(configuration, runAs, setup, notApplied, t)
+  let saved = configuration
   if (Object.keys(values).length) {
     try {
-      const { data } = await agentService.updateConfiguration(
-        application.id,
-        values
-      )
-      if (values.web_search_enabled && data.web_search_blocked_by_tools) {
-        notApplied.push(t('agent.webSearch'))
-      }
+      saved = (await agentService.updateConfiguration(application.id, values))
+        .data
     } catch {
+      saved = null
       notApplied.push(t('agent.setupConfiguration'))
     }
   }
 
+  if (
+    setup.webSearch &&
+    !(await enableWebSearch(agentService, application.id, saved))
+  ) {
+    notApplied.push(t('agent.webSearch'))
+  }
+
   if (setup.start === SETUP_START.SCHEDULE) {
     try {
-      await AgentTriggerService(client).create(
-        application.id,
-        newTriggerValues(registry, t, SCHEDULE_TRIGGER_TYPE)
-      )
+      await AgentTriggerService(client).create(application.id, {
+        ...newTriggerValues(registry, t, SCHEDULE_TRIGGER_TYPE),
+        service: scheduleValues(registry, setup.schedule),
+      })
     } catch {
       notApplied.push(t('agent.setupStartSchedule'))
     }

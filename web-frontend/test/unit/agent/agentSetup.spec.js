@@ -5,8 +5,12 @@ import {
   SETUP_ACTS_AS,
   SETUP_PERMISSIONS,
   SETUP_START,
+  SETUP_SUGGESTIONS,
   applyAgentSetup,
+  emptyAgentSetup,
   newIdentityRoleUid,
+  setupTools,
+  suggestionSetup,
   toolsForPermissions,
 } from '@baserow/modules/agent/utils/agentSetup'
 import { workspace as workspaceData } from './helpers'
@@ -25,6 +29,85 @@ describe('toolsForPermissions', () => {
     expect(toolsForPermissions(tools, permissions)).toEqual({
       allowed_tools: allowed,
       ask_first_tools: askFirst,
+    })
+  })
+})
+
+describe('setupTools', () => {
+  const custom = { allowed_tools: ['create_rows'], ask_first_tools: [] }
+
+  test.each([
+    [SETUP_PERMISSIONS.CUSTOM, custom],
+    [
+      SETUP_PERMISSIONS.READ,
+      { allowed_tools: ['list_tables'], ask_first_tools: [] },
+    ],
+  ])('%s', (permissions, expected) => {
+    expect(setupTools({ permissions, customTools: custom }, tools)).toEqual(
+      expected
+    )
+  })
+})
+
+describe('suggestionSetup', () => {
+  const WEEKLY = { interval: 'WEEK', day_of_week: 0 }
+  const { CHAT, SCHEDULE } = SETUP_START
+  const { READ, ASK } = SETUP_PERMISSIONS
+
+  test.each([
+    ['Invest', SCHEDULE, null, ASK, true, []],
+    ['Outreach', CHAT, null, READ, true, ['smtp_email']],
+    ['Triage', CHAT, null, ASK, false, []],
+    ['Summary', SCHEDULE, WEEKLY, READ, false, []],
+  ])(
+    '%s fills the whole setup',
+    (key, start, schedule, permissions, webSearch, actionTypes) => {
+      const suggestion = SETUP_SUGGESTIONS.find(
+        ({ labelKey }) => labelKey === `agent.setupSuggestion${key}`
+      )
+
+      expect(
+        suggestionSetup(suggestion, (text) => text, ['smtp_email'])
+      ).toEqual({
+        name: `agent.setupSuggestion${key}Name`,
+        instructions: `agent.setupSuggestion${key}Instructions`,
+        start,
+        schedule,
+        permissions,
+        webSearch,
+        actionTypes,
+      })
+    }
+  )
+
+  test('leaves out an action the wizard does not offer', () => {
+    const outreach = SETUP_SUGGESTIONS.find(
+      ({ setup }) => setup.actionTypes.length
+    )
+
+    expect(suggestionSetup(outreach, (text) => text, []).actionTypes).toEqual(
+      []
+    )
+  })
+})
+
+describe('emptyAgentSetup', () => {
+  test.each([
+    [
+      'the first enabled model',
+      { anthropic: [], openai: ['model-one', 'model-two'] },
+      { providerType: 'openai', modelIdentifier: 'model-one' },
+    ],
+    ['no model', {}, { providerType: null, modelIdentifier: null }],
+  ])('starts with %s', (_, models, expected) => {
+    const workspace = { ai_features: { ai_agent: { models } } }
+
+    expect(emptyAgentSetup('Deal scout', workspace, false)).toMatchObject({
+      ...expected,
+      reasoningEffort: null,
+      permissions: SETUP_PERMISSIONS.ASK,
+      customTools: null,
+      webSearch: false,
     })
   })
 })
@@ -71,8 +154,13 @@ describe('applyAgentSetup', () => {
     name: 'Deal scout',
     instructions: 'Find companies.',
     start: SETUP_START.CHAT,
+    schedule: null,
     actsAs: { kind: SETUP_ACTS_AS.NONE },
     permissions: SETUP_PERMISSIONS.ASK,
+    customTools: null,
+    providerType: null,
+    modelIdentifier: null,
+    reasoningEffort: null,
     webSearch: false,
     actionTypes: [],
     ...extra,
@@ -80,7 +168,11 @@ describe('applyAgentSetup', () => {
 
   const full = setup({
     start: SETUP_START.SCHEDULE,
+    schedule: { interval: 'WEEK', day_of_week: 0 },
     actsAs: { kind: SETUP_ACTS_AS.NEW, roleUid: 'BUILDER' },
+    providerType: 'openai',
+    modelIdentifier: 'model-two',
+    reasoningEffort: 'low',
     webSearch: true,
     actionTypes: ['smtp_email'],
   })
@@ -99,8 +191,9 @@ describe('applyAgentSetup', () => {
   function mockAll({
     applicationStatus = 200,
     identityStatus = 200,
+    configurationStatus = 200,
     configurationData = configuration(),
-    savedConfiguration = {},
+    savedConfiguration = { web_search_available: true },
   } = {}) {
     reply('onPost', '/applications/workspace/1/', applicationStatus, {
       id: 10,
@@ -108,7 +201,12 @@ describe('applyAgentSetup', () => {
       type: 'agent',
       workspace: { id: 1 },
     })
-    reply('onGet', '/agent/10/configuration/', 200, configurationData)
+    reply(
+      'onGet',
+      '/agent/10/configuration/',
+      configurationStatus,
+      configurationData
+    )
     reply('onPost', '/identities/workspace/1/', identityStatus, {
       id: 7,
       name: 'Deal scout',
@@ -167,13 +265,16 @@ describe('applyAgentSetup', () => {
         '/agent/10/configuration/',
         {
           instructions: 'Find companies.',
+          provider_type: 'openai',
+          model_identifier: 'model-two',
+          reasoning_effort: 'low',
           run_as_subject_type: 'auth.User',
           run_as_subject_id: 7,
           allowed_tools: ['list_tables', 'create_rows'],
           ask_first_tools: ['create_rows'],
-          web_search_enabled: true,
         },
       ],
+      ['PATCH', '/agent/10/configuration/', { web_search_enabled: true }],
       [
         'POST',
         '/agent/10/triggers/',
@@ -181,7 +282,8 @@ describe('applyAgentSetup', () => {
           type: 'periodic',
           message: expect.objectContaining({ mode: 'simple' }),
           service: expect.objectContaining({
-            interval: 'DAY',
+            interval: 'WEEK',
+            day_of_week: 0,
             hour: 9,
             minute: 0,
           }),
@@ -224,21 +326,47 @@ describe('applyAgentSetup', () => {
       'GET /agent/10/configuration/',
       'POST /identities/workspace/1/',
       'PATCH /agent/10/configuration/',
+      'PATCH /agent/10/configuration/',
       'POST /agent/10/triggers/',
       'POST /agent/10/actions/',
     ])
     expect(requests[3][2]).toEqual({
       instructions: 'Find companies.',
-      web_search_enabled: true,
+      provider_type: 'openai',
+      model_identifier: 'model-two',
+      reasoning_effort: 'low',
+    })
+  })
+
+  test('sends custom tools as chosen without the configuration', async () => {
+    testApp.dontFailOnErrorResponses()
+    mockAll({ configurationStatus: 500 })
+    const customTools = {
+      allowed_tools: ['create_rows'],
+      ask_first_tools: [],
+    }
+
+    const { notApplied } = await apply(
+      setup({
+        actsAs: { kind: SETUP_ACTS_AS.EXISTING, id: 7, name: 'Investor' },
+        permissions: SETUP_PERMISSIONS.CUSTOM,
+        customTools,
+      })
+    )
+
+    expect(notApplied).toEqual([])
+    expect(requests[2][2]).toEqual({
+      instructions: 'Find companies.',
+      run_as_subject_type: 'auth.User',
+      run_as_subject_id: 7,
+      ...customTools,
     })
   })
 
   test('skips and reports the extras the agent cannot have', async () => {
     mockAll({
-      configurationData: configuration({
-        web_search_available: false,
-        available_action_types: [],
-      }),
+      configurationData: configuration({ available_action_types: [] }),
+      savedConfiguration: { web_search_available: false },
     })
 
     const { notApplied } = await apply(
@@ -254,13 +382,25 @@ describe('applyAgentSetup', () => {
     expect(requests[2][2]).toEqual({ instructions: 'Find companies.' })
   })
 
-  test('reports a web search the chosen tools block', async () => {
-    mockAll({ savedConfiguration: { web_search_blocked_by_tools: true } })
+  test.each([
+    ['turns on', true, [], [{ web_search_enabled: true }]],
+    ['reports', false, ['agent.webSearch'], []],
+  ])(
+    '%s web search from the read configuration when nothing else is saved',
+    async (_, available, expected, saves) => {
+      mockAll({
+        configurationData: configuration({ web_search_available: available }),
+        savedConfiguration: { web_search_available: !available },
+      })
 
-    const { notApplied } = await apply(full)
+      const { notApplied } = await apply(
+        setup({ instructions: '', webSearch: true })
+      )
 
-    expect(notApplied).toEqual(['agent.webSearch'])
-  })
+      expect(notApplied).toEqual(expected)
+      expect(requests.slice(2).map(([, , body]) => body)).toEqual(saves)
+    }
+  )
 
   test('rejects without other requests when the agent is not created', async () => {
     testApp.dontFailOnErrorResponses()

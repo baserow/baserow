@@ -16,6 +16,9 @@ export default (client) => ({
       ...(realtimeRecovery ? getRealtimeRecoveryRequestConfig() : {}),
     })
   },
+  getWorkspaceTools(workspaceId) {
+    return client.get(`/agent/tools/workspace/${workspaceId}/`)
+  },
   getRunAsIdentities(agentId, page = 1, search = '') {
     return client.get(`/agent/${agentId}/run-as-identities/`, {
       params: { page, search, size: 100 },

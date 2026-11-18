@@ -26,12 +26,7 @@
       :key="suggestion.labelKey"
       type="button"
       class="agent-create__suggestion"
-      @click="
-        update({
-          name: $t(suggestion.nameKey),
-          instructions: $t(suggestion.instructionsKey),
-        })
-      "
+      @click="update(suggestionSetup(suggestion, t, offeredActionTypes))"
     >
       <i class="agent-create__suggestion-icon" :class="suggestion.icon"></i>
       {{ $t(suggestion.labelKey) }}
@@ -40,14 +35,25 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, ref } from 'vue'
-import { SETUP_SUGGESTIONS } from '@baserow/modules/agent/utils/agentSetup'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import {
+  SETUP_SUGGESTIONS,
+  setupActionTypes,
+  suggestionSetup,
+} from '@baserow/modules/agent/utils/agentSetup'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
+  workspace: { type: Object, required: true },
 })
 const emit = defineEmits(['update:modelValue'])
+const { t } = useI18n()
+const { $registry } = useNuxtApp()
 const nameInput = ref(null)
+const offeredActionTypes = computed(() =>
+  setupActionTypes($registry, props.workspace).map((type) => type.getType())
+)
 
 function update(values) {
   emit('update:modelValue', { ...props.modelValue, ...values })

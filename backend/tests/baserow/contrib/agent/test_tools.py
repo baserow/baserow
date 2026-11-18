@@ -22,12 +22,15 @@ from baserow.contrib.database.views.models import FormView
 from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.chat_runs.tool_input import MAX_INPUT_PREVIEW_SIZE
 from baserow.core.identities.handler import IdentityHandler
+from baserow.core.models import Workspace
 from baserow.core.notifications.models import NotificationRecipient
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import (
     ToolErrorCode,
     ToolInputError,
 )
+
+from .utils import agent_url
 
 # Whether each tool changes data, and arguments it succeeds with on workspace_data.
 TOOLS = {
@@ -1091,3 +1094,32 @@ def test_a_stop_waits_for_the_running_tool(workspace_data):
         return still_running
 
     assert async_to_sync(stop_during_the_call)()
+
+
+@pytest.mark.django_db
+def test_workspace_tools_endpoint_lists_the_registered_tools(
+    configured_agent, data_fixture, api_client, api_user
+):
+    agent = configured_agent(user=api_user)
+
+    def tools_url(workspace: Workspace) -> str:
+        return reverse("api:agent:tools", kwargs={"workspace_id": workspace.id})
+
+    response = api_client.get(tools_url(agent.workspace))
+
+    assert response.status_code == 200
+    assert response.json() == [
+        {
+            "name": tool.type,
+            "group": tool.group,
+            "changes_data": tool.changes_data,
+            "deactivated": tool.is_deactivated(agent.workspace),
+        }
+        for tool in agent_tool_type_registry.get_all()
+    ]
+    configuration = api_client.get(agent_url(agent, "configuration")).json()
+    assert response.json() == configuration["available_tools"]
+
+    response = api_client.get(tools_url(data_fixture.create_workspace()))
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"

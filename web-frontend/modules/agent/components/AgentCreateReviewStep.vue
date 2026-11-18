@@ -87,6 +87,12 @@
         :description="$t('agent.setupNoWorkspaceAccessDescription')"
         icon="iconoir-prohibition"
       />
+      <DropdownItem
+        v-if="canCreateIdentity"
+        :value="CREATE_IDENTITY"
+        :name="$t('agent.runAsCreateIdentity')"
+        icon="iconoir-plus"
+      />
     </Dropdown>
   </FormGroup>
   <FormGroup
@@ -106,8 +112,12 @@
       :disabled="!hasIdentity"
       :show-search="false"
       fixed-items
-      @update:model-value="update({ permissions: $event })"
+      @update:model-value="choosePermissions"
     >
+      <template v-if="isCustom" #selectedValue>
+        <i class="dropdown__selected-icon" :class="CUSTOM_ICON"></i>
+        <span class="dropdown__selected-text">{{ customSummary }}</span>
+      </template>
       <DropdownItem
         v-for="preset in PERMISSION_PRESETS"
         :key="preset.value"
@@ -115,32 +125,22 @@
         :name="$t(preset.label)"
         :icon="preset.icon"
       />
+      <DropdownItem
+        v-if="availableTools.length"
+        :value="SETUP_PERMISSIONS.CUSTOM"
+        :name="$t('agent.setupPermissionsCustom')"
+        :icon="CUSTOM_ICON"
+      />
     </Dropdown>
   </FormGroup>
   <FormGroup
+    v-if="actionTypes.length"
     class="agent-create__section"
     :label="$t('agent.setupExtras')"
     small-label
     required
   >
     <ul class="agent-create__extras">
-      <li class="agent-create__extra">
-        <i class="agent-create__extra-icon iconoir-globe"></i>
-        <div class="agent-create__extra-text">
-          <div class="agent-create__extra-name">
-            {{ $t('agent.webSearch') }}
-          </div>
-          <div class="agent-create__extra-description">
-            {{ $t('agent.setupWebSearchDescription') }}
-          </div>
-        </div>
-        <SwitchInput
-          small
-          :model-value="modelValue.webSearch"
-          :aria-label="$t('agent.webSearch')"
-          @update:model-value="update({ webSearch: $event })"
-        />
-      </li>
       <li
         v-for="serviceType in actionTypes"
         :key="serviceType.getType()"
@@ -162,19 +162,40 @@
       </li>
     </ul>
   </FormGroup>
+  <ManageIdentityModal
+    v-if="canCreateIdentity"
+    ref="createIdentityModal"
+    :workspace="workspace"
+    @saved="selectCreatedIdentity"
+  />
+  <AgentToolPermissionsModal
+    ref="toolPermissionsModal"
+    :available-tools="availableTools"
+    :allowed-tools="customToolsSeed.allowed_tools"
+    :ask-first-tools="customToolsSeed.ask_first_tools"
+    :agent-name="modelValue.name"
+    editable
+    @save="
+      update({ permissions: SETUP_PERMISSIONS.CUSTOM, customTools: $event })
+    "
+  />
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import IdentityService from '@baserow/modules/core/services/identity'
+import ManageIdentityModal from '@baserow/modules/core/components/settings/identities/ManageIdentityModal'
+import AgentToolPermissionsModal from '@baserow/modules/agent/components/configuration/AgentToolPermissionsModal'
 import {
   SCHEDULE_TRIGGER_TYPE,
   SETUP_ACTS_AS,
   SETUP_PERMISSIONS,
   SETUP_START,
   newIdentityRoleUid,
+  scheduleValues,
   setupActionTypes,
+  toolsForPermissions,
 } from '@baserow/modules/agent/utils/agentSetup'
 
 const START_OPTIONS = [SETUP_START.CHAT, SETUP_START.SCHEDULE]
@@ -195,11 +216,14 @@ const PERMISSION_PRESETS = [
     icon: 'iconoir-edit-pencil',
   },
 ]
+const CUSTOM_ICON = 'iconoir-settings'
 const EXISTING_PREFIX = `${SETUP_ACTS_AS.EXISTING}:`
+const CREATE_IDENTITY = 'create'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
   workspace: { type: Object, required: true },
+  availableTools: { type: Array, required: true },
   canCreateIdentity: Boolean,
 })
 const emit = defineEmits(['update:modelValue'])
@@ -207,10 +231,14 @@ const { t } = useI18n()
 const { $client, $registry } = useNuxtApp()
 
 const identities = ref([])
+const createIdentityModal = ref(null)
+const toolPermissionsModal = ref(null)
 const actionTypes = computed(() => setupActionTypes($registry, props.workspace))
 const periodicType = $registry.get('service', SCHEDULE_TRIGGER_TYPE)
 const scheduleName = computed(() =>
-  periodicType.getDefaultName(periodicType.getDefaultValues(null, {}))
+  periodicType.getDefaultName(
+    scheduleValues($registry, props.modelValue.schedule)
+  )
 )
 const startSegments = computed(() => [
   { label: t('agent.setupStartChat') },
@@ -257,12 +285,46 @@ const actsAsRole = computed(() => {
   return null
 })
 
+const isCustom = computed(
+  () => props.modelValue.permissions === SETUP_PERMISSIONS.CUSTOM
+)
+const customToolsSeed = computed(
+  () =>
+    props.modelValue.customTools ??
+    toolsForPermissions(props.availableTools, props.modelValue.permissions)
+)
+const customSummary = computed(() =>
+  t('agent.setupPermissionsCustomSummary', {
+    on: props.modelValue.customTools.allowed_tools.length,
+    total: props.availableTools.length,
+    count: props.modelValue.customTools.ask_first_tools.length,
+  })
+)
+
 function update(values) {
   emit('update:modelValue', { ...props.modelValue, ...values })
 }
 
+function choosePermissions(value) {
+  if (value === SETUP_PERMISSIONS.CUSTOM) toolPermissionsModal.value.show()
+  else update({ permissions: value })
+}
+
+function selectCreatedIdentity(identity) {
+  identities.value = [...identities.value, identity]
+  update({
+    actsAs: {
+      kind: SETUP_ACTS_AS.EXISTING,
+      id: identity.id,
+      name: identity.name,
+    },
+  })
+}
+
 function chooseActsAs(value) {
-  if (value === SETUP_ACTS_AS.NEW) {
+  if (value === CREATE_IDENTITY) {
+    createIdentityModal.value.show()
+  } else if (value === SETUP_ACTS_AS.NEW) {
     update({
       actsAs: {
         kind: SETUP_ACTS_AS.NEW,

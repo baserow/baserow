@@ -6,37 +6,42 @@
     :can-close="!loading"
     @show="reset"
   >
-    <form class="agent-create" @submit.prevent="next">
+    <form class="agent-create" @submit.self.prevent="next">
       <div class="agent-create__head">
         <ButtonText
-          v-if="step === 2"
+          v-if="step > STEP.DESCRIBE"
           type="secondary"
           button-type="button"
           icon="iconoir-nav-arrow-left"
           :aria-label="$t('action.back')"
           :disabled="loading"
-          @click="step = 1"
+          @click="step--"
         />
-        <h2 class="agent-create__title">
-          {{
-            step === 1
-              ? $t('agent.createApplication')
-              : $t('agent.setupReviewTitle')
-          }}
-        </h2>
+        <h2 class="agent-create__title">{{ $t(TITLES[step]) }}</h2>
       </div>
       <div class="agent-create__body">
         <Error :error="error" />
-        <AgentCreateDescribeStep v-if="step === 1" v-model="setup" />
+        <AgentCreateDescribeStep
+          v-if="step === STEP.DESCRIBE"
+          v-model="setup"
+          :workspace="workspace"
+        />
         <AgentCreateReviewStep
+          v-else-if="step === STEP.REVIEW"
+          v-model="setup"
+          :workspace="workspace"
+          :available-tools="availableTools"
+          :can-create-identity="canCreateIdentity"
+        />
+        <AgentCreateModelStep
           v-else
           v-model="setup"
           :workspace="workspace"
-          :can-create-identity="canCreateIdentity"
+          :available-tools="availableTools"
         />
       </div>
       <div class="agent-create__foot">
-        <span v-if="step === 2" class="agent-create__note">
+        <span v-if="step > STEP.DESCRIBE" class="agent-create__note">
           {{ $t('agent.setupLaterNote') }}
         </span>
         <Button
@@ -48,7 +53,7 @@
           {{ $t('action.cancel') }}
         </Button>
         <Button
-          v-if="step === 1"
+          v-if="step < STEP.MODEL"
           type="primary"
           button-type="submit"
           :disabled="!hasName"
@@ -60,7 +65,7 @@
           type="primary"
           button-type="button"
           :loading="loading"
-          :disabled="loading || !hasName"
+          :disabled="loading || !canCreate"
           @click="create"
         >
           {{ $t('agent.createApplication') }}
@@ -78,6 +83,8 @@ import Modal from '@baserow/modules/core/components/Modal'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import AgentCreateDescribeStep from '@baserow/modules/agent/components/AgentCreateDescribeStep'
 import AgentCreateReviewStep from '@baserow/modules/agent/components/AgentCreateReviewStep'
+import AgentCreateModelStep from '@baserow/modules/agent/components/AgentCreateModelStep'
+import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
 import { FF_IDENTITIES } from '@baserow/modules/core/plugins/featureFlags'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -85,6 +92,13 @@ import {
   applyAgentSetup,
   emptyAgentSetup,
 } from '@baserow/modules/agent/utils/agentSetup'
+
+const STEP = Object.freeze({ DESCRIBE: 1, REVIEW: 2, MODEL: 3 })
+const TITLES = {
+  [STEP.DESCRIBE]: 'agent.createApplication',
+  [STEP.REVIEW]: 'agent.setupReviewTitle',
+  [STEP.MODEL]: 'agent.setupModelTitle',
+}
 
 const props = defineProps({
   applicationType: { type: Object, required: true },
@@ -97,7 +111,7 @@ const { $client, $registry, $featureFlagIsEnabled, $hasPermission } =
   useNuxtApp()
 
 const modal = ref(null)
-const step = ref(1)
+const step = ref(STEP.DESCRIBE)
 const loading = ref(false)
 const error = reactive({ visible: false, title: '', message: '' })
 const canCreateIdentity = computed(
@@ -106,7 +120,13 @@ const canCreateIdentity = computed(
     $hasPermission('identity.create', props.workspace, props.workspace.id)
 )
 const setup = ref(emptyAgentSetup('', props.workspace, false))
+const availableTools = ref([])
 const hasName = computed(() => setup.value.name.trim().length > 0)
+const canCreate = computed(
+  () =>
+    hasName.value &&
+    (!setup.value.providerType || Boolean(setup.value.modelIdentifier))
+)
 
 function defaultName() {
   const excludeNames = store.getters['application/getAllOfWorkspace'](
@@ -118,8 +138,19 @@ function defaultName() {
   )
 }
 
+async function loadAvailableTools() {
+  try {
+    const { data } = await AgentApplicationService($client).getWorkspaceTools(
+      props.workspace.id
+    )
+    availableTools.value = data
+  } catch {
+    availableTools.value = []
+  }
+}
+
 function reset() {
-  step.value = 1
+  step.value = STEP.DESCRIBE
   loading.value = false
   error.visible = false
   setup.value = emptyAgentSetup(
@@ -127,10 +158,11 @@ function reset() {
     props.workspace,
     canCreateIdentity.value
   )
+  loadAvailableTools()
 }
 
 function next() {
-  if (step.value === 1 && hasName.value) step.value = 2
+  if (step.value < STEP.MODEL && hasName.value) step.value++
 }
 
 function showError(caught) {
@@ -143,7 +175,7 @@ function showError(caught) {
 }
 
 async function create() {
-  if (loading.value || !hasName.value) return
+  if (loading.value || !canCreate.value) return
   loading.value = true
   error.visible = false
   let created
