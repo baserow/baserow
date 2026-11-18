@@ -71,11 +71,13 @@ class AutomationWorkflowGraphHandler(BaseGraphHandler):
                 for edge, child_ids in self._get_children_dict(info).items()
                 for child_id in child_ids
             ]
-            order = list(node.service.get_type().get_edges(node.service.specific))
-            next_outputs = sorted(
-                info.get("next", {}).items(),
-                key=lambda item: order.index(item[0]) if item[0] in order else 0,
-            )
+            next_outputs = list(info.get("next", {}).items())
+            # Only a node with several outputs needs its service to order them.
+            if len(next_outputs) > 1:
+                order = list(node.service.get_type().get_edges(node.service.specific))
+                next_outputs.sort(
+                    key=lambda item: order.index(item[0]) if item[0] in order else 0
+                )
             following += [
                 (next_id, node, GraphPointPosition.SOUTH, next_output)
                 for next_output, next_ids in next_outputs

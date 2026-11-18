@@ -1061,15 +1061,19 @@ def test_graph_handler_get_positions_in_execution_order():
         "5": {"children": [6], "next": {"": [8]}},
         "6": {"next": {"": [7]}},
         "7": {},
-        "8": {"next": {"": [9]}},
+        "8": {"next": {"": [9, 11]}},
         # Not requested: neither it nor what only it reaches is listed.
         "9": {"next": {"": [10]}},
         "10": {},
+        # A container with children on several edges, followed in stored order.
+        "11": {"children": {"1": [13], "0": [12]}},
+        "12": {},
+        "13": {},
     }
     nodes = _nodes_with_outputs(
         {
             node_id: ["a", "b", ""] if node_id == 2 else [""]
-            for node_id in [1, 2, 3, 4, 5, 6, 7, 8, 10]
+            for node_id in [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13]
         }
     )
 
@@ -1082,6 +1086,9 @@ def test_graph_handler_get_positions_in_execution_order():
         (6, 5, "child", ""),
         (7, 6, "south", ""),
         (8, 5, "south", ""),
+        (11, 8, "south", ""),
+        (13, 11, "child", "1"),
+        (12, 11, "child", "0"),
     ]
 
 
