@@ -234,6 +234,7 @@ from baserow.contrib.database.workflow_actions.operations import (
     DispatchDatabaseWorkflowActionOperationType,
 )
 from baserow.core.identities.operations import (
+    BindIdentityOperationType,
     CreateIdentityOperationType,
     DeleteIdentityOperationType,
     ListIdentitiesWorkspaceOperationType,
@@ -501,6 +502,7 @@ default_roles[BUILDER_ROLE_UID].extend(
     + [
         ReadAgentConfigurationOperationType,
         ListIdentitiesWorkspaceOperationType,
+        BindIdentityOperationType,
         CreatePageOperationType,
         DeletePageOperationType,
         UpdatePageOperationType,
