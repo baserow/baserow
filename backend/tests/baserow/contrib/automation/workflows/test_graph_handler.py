@@ -1025,6 +1025,29 @@ def test_graph_handler_migrate_with_unmapped_root():
     assert graph_handler.graph == {"41": {}}
 
 
+def _nodes_with_outputs(outputs_by_id):
+    """Fake nodes whose service has the given outputs, in order."""
+
+    nodes = []
+    for node_id, outputs in outputs_by_id.items():
+        node = FakePoint(node_id)
+        node.service = MagicMock()
+        node.service.get_type.return_value.get_edges.return_value = {
+            output: {"label": output} for output in outputs
+        }
+        nodes.append(node)
+    return nodes
+
+
+def _positions(workflow, nodes):
+    return [
+        (node.id, None if previous is None else previous.id, position, output)
+        for node, previous, position, output in AutomationWorkflowGraphHandler(
+            workflow
+        ).get_positions_in_execution_order(nodes)
+    ]
+
+
 def test_graph_handler_get_positions_in_execution_order():
     workflow = MagicMock()
     workflow.graph = {
@@ -1043,14 +1066,14 @@ def test_graph_handler_get_positions_in_execution_order():
         "9": {"next": {"": [10]}},
         "10": {},
     }
-    graph_handler = AutomationWorkflowGraphHandler(workflow)
-
-    positions = graph_handler.get_positions_in_execution_order(
-        {1, 2, 3, 4, 5, 6, 7, 8, 10},
-        lambda node_id: ["a", "b", ""] if node_id == 2 else [""],
+    nodes = _nodes_with_outputs(
+        {
+            node_id: ["a", "b", ""] if node_id == 2 else [""]
+            for node_id in [1, 2, 3, 4, 5, 6, 7, 8, 10]
+        }
     )
 
-    assert positions == [
+    assert _positions(workflow, nodes) == [
         (1, None, "south", ""),
         (2, 1, "south", ""),
         (3, 2, "south", "a"),
@@ -1062,12 +1085,33 @@ def test_graph_handler_get_positions_in_execution_order():
     ]
 
 
+def test_graph_handler_get_positions_in_execution_order_unknown_output():
+    workflow = MagicMock()
+    # "gone" isn't an edge of the router: it sorts with the first edge, "a",
+    # keeping the stored order between them.
+    workflow.graph = {
+        "0": 1,
+        "1": {"next": {"": [2], "gone": [3], "a": [4]}},
+        "2": {},
+        "3": {},
+        "4": {},
+    }
+    nodes = _nodes_with_outputs({1: ["a", ""], 2: [""], 3: [""], 4: [""]})
+
+    assert _positions(workflow, nodes) == [
+        (1, None, "south", ""),
+        (3, 1, "south", "gone"),
+        (4, 1, "south", "a"),
+        (2, 1, "south", ""),
+    ]
+
+
 def test_graph_handler_get_positions_in_execution_order_stops_on_a_cycle():
     workflow = MagicMock()
     workflow.graph = {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [1]}}}
-    graph_handler = AutomationWorkflowGraphHandler(workflow)
+    nodes = _nodes_with_outputs({1: [""], 2: [""]})
 
-    assert graph_handler.get_positions_in_execution_order({1, 2}, lambda _: [""]) == [
+    assert _positions(workflow, nodes) == [
         (1, None, "south", ""),
         (2, 1, "south", ""),
     ]
@@ -1079,18 +1123,13 @@ def test_graph_handler_get_positions_in_execution_order_long_chain():
         "0": 1,
         **{str(i): {"next": {"": [i + 1]}} for i in range(1, 5000)},
     }
-    graph_handler = AutomationWorkflowGraphHandler(workflow)
+    nodes = _nodes_with_outputs({i: [""] for i in range(1, 5001)})
 
-    positions = graph_handler.get_positions_in_execution_order(
-        set(range(1, 5001)), lambda _: [""]
-    )
-
-    assert len(positions) == 5000
+    assert len(_positions(workflow, nodes)) == 5000
 
 
 def test_graph_handler_get_positions_in_execution_order_empty_graph():
     workflow = MagicMock()
     workflow.graph = {}
-    graph_handler = AutomationWorkflowGraphHandler(workflow)
 
-    assert graph_handler.get_positions_in_execution_order({1}, lambda _: [""]) == []
+    assert _positions(workflow, _nodes_with_outputs({1: [""]})) == []

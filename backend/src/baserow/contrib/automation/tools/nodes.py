@@ -92,22 +92,14 @@ def nodes_in_order(
 
     if nodes is None:
         nodes = AutomationNodeService().get_nodes(user, workflow)
-    nodes = {node.id: node for node in nodes}
     return [
         (
-            nodes[node_id],
-            None if previous_id is None else nodes[previous_id],
+            node,
+            previous,
             CHILD_OUTPUT if position == GraphPointPosition.CHILD else output,
         )
-        for node_id, previous_id, position, output in (
-            workflow.get_graph().get_positions_in_execution_order(
-                nodes,
-                # A router's branches in their order, the default one last, as
-                # the editor shows them.
-                lambda node_id: (
-                    [edge["uid"] for edge in router_edges(nodes[node_id])] + [""]
-                ),
-            )
+        for node, previous, position, output in (
+            workflow.get_graph().get_positions_in_execution_order(nodes)
         )
     ]
 
