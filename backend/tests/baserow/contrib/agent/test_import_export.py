@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone
 from io import BytesIO
+from unittest.mock import patch
 
 import pytest
 from freezegun import freeze_time
@@ -16,6 +17,7 @@ from baserow.contrib.agent.models import (
     AgentReplyTranscript,
     AgentTrigger,
 )
+from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.integrations.core.constants import PERIODIC_INTERVAL_DAY
@@ -23,6 +25,7 @@ from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
@@ -32,6 +35,7 @@ from baserow.core.models import Template, WorkspaceUser
 from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.user_templates.handler import UserTemplateHandler
 from baserow.core.utils import Progress
 
 from ..integrations.mcp.utils import serve
@@ -1213,3 +1217,26 @@ def test_reexport_of_an_installed_agent_keeps_pending_choices(
 
     assert serialized["allowed_tools"] == ["list_tables", "create_rows"]
     assert serialized["ask_first_tools"] == ["create_rows"]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_user_template_requires_reading_the_agent_configuration(
+    data_fixture, configured_agent
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    check_permissions = CoreHandler.check_permissions
+
+    def deny_reading_the_configuration(self, actor, operation_name, *args, **kwargs):
+        if operation_name == ReadAgentConfigurationOperationType.type:
+            raise PermissionDenied()
+        return check_permissions(self, actor, operation_name, *args, **kwargs)
+
+    with (
+        patch.object(CoreHandler, "check_permissions", deny_reading_the_configuration),
+        pytest.raises(PermissionDenied),
+    ):
+        UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+
+    assert not AgentApplication.objects.exclude(id=agent.id).exists()
