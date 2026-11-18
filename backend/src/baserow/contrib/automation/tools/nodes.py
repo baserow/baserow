@@ -517,11 +517,8 @@ def add_nodes(
     try:
         with transaction.atomic():
             # Read the nodes under the graph lock, so a concurrent change can't
-            # make shifted_nodes report a node this call didn't move. The graph is
-            # read again first: a handler cached by an earlier call in the same
-            # run holds a stale graph and skips the lock.
-            _reload_graph(workflow)
-            workflow.get_graph().lock_for_update()
+            # make shifted_nodes report a node this call didn't move.
+            AutomationNodeHandler().lock_graph(workflow)
             existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
             refs = node_refs(existing)
             check_node_refs(refs.copy(), nodes)
@@ -533,7 +530,7 @@ def add_nodes(
             shifted = shifted_nodes(ctx.user, workflow, existing, positions, creation)
     except Exception:
         # The cached graph still holds the inserts the rollback undid.
-        _reload_graph(workflow)
+        AutomationNodeHandler().reload_graph(workflow)
         raise
 
     result: dict[str, Any] = {"created_nodes": creation.describe()}
@@ -595,17 +592,6 @@ def update_node(
     return node, values, bool(data)
 
 
-def _reload_graph(workflow: AutomationWorkflow) -> None:
-    """
-    Read a workflow's graph again after a savepoint rolled back. The request's
-    cached graph still holds the changes the savepoint undid, and the next node
-    change would save them.
-    """
-
-    workflow.reload_graph()
-    AutomationNodeHandler().invalidate_node_cache(workflow)
-
-
 @tool_execution
 def update_nodes(
     ctx: ToolContext,
@@ -662,7 +648,7 @@ def update_nodes(
             except PermissionException:
                 raise
             except Exception as exc:
-                _reload_graph(workflow)
+                AutomationNodeHandler().reload_graph(workflow)
                 errors.append(
                     f"Error updating node {node_update.node_id}: "
                     f"{item_error_message(exc)}"
@@ -716,7 +702,7 @@ def delete_nodes(
                     with transaction.atomic():
                         DeleteAutomationNodeActionType.do(ctx.user, node_id)
                 except Exception:
-                    _reload_graph(node.workflow)
+                    AutomationNodeHandler().reload_graph(node.workflow)
                     raise
             except PermissionException:
                 errors.append(

@@ -1414,3 +1414,40 @@ def test_move_next_points_with_nothing_to_move_changes_nothing():
     model.get_graph().move_next_points(model.points[1], "uid1", "")
 
     assert model.graph == graph_dict
+
+
+def test_join_next_points_keeps_the_points_on_the_target_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"uid1": [2], "": [4]}},
+            "2": {"next": {"": [3]}},
+            "3": {},
+            "4": {},
+        }
+    )
+
+    model.get_graph().join_next_points(model.points[1], "uid1", "")
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {"next": {"": [4]}},
+        "4": {},
+    }
+
+
+def test_join_next_points_moves_like_move_next_points_when_target_is_empty():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+
+    model.get_graph().join_next_points(model.points[1], "", "uid1")
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }

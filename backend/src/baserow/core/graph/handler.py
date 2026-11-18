@@ -1084,6 +1084,32 @@ class BaseGraphHandler(ABC):
         self.get_info(point)["next"] = {**next_points, to_output: moved}
         self._update_graph()
 
+    def join_next_points(
+        self, point: GraphPoint, from_output: str, to_output: str
+    ) -> None:
+        """
+        Like `move_next_points`, but when points already follow the point on
+        `to_output` they are kept: they come after the moved points, at the end of
+        their chain.
+
+        :param point: The point whose outputs to change.
+        :param from_output: The output whose points move.
+        :param to_output: The output the points move to.
+        """
+
+        self._lock_instance_for_update()
+        next_points = self.get_info(point).get("next", {})
+        if not next_points.get(from_output):
+            return
+        existing = next_points.get(to_output)
+        if existing:
+            tail_id = self._get_chain_tail_id(next_points[from_output][0])
+            self.get_info(tail_id).setdefault("next", {})[""] = list(existing)
+        next_points = {k: v for k, v in next_points.items() if k != to_output}
+        next_points[to_output] = next_points.pop(from_output)
+        self.get_info(point)["next"] = next_points
+        self._update_graph()
+
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False
     ) -> GraphPointRemoved:

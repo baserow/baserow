@@ -210,6 +210,103 @@ def test_add_nodes_router_before_a_node_moves_it_onto_the_named_branch(
 
 
 @pytest.mark.django_db
+def test_undo_router_insert_keeps_a_node_added_on_its_default_output(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (after,) = add_nodes(
+        ctx, workflow.id, [_email(ref="after", previous=str(email["id"]))]
+    )["created_nodes"]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    # Another session adds a node on the router's default output.
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    graph = workflow.get_graph().graph
+    assert graph[str(router["id"])]["next"][""] == [other.id]
+
+    ActionHandler.undo(ctx.user, scope, session)
+
+    workflow.reload_graph()
+    graph = workflow.graph
+    assert str(router["id"]) not in graph
+    assert graph["0"] == trigger.id
+    assert graph[str(trigger.id)]["next"] == {"": [email["id"]]}
+    assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
+    assert graph[str(after["id"])]["next"] == {"": [other.id]}
+    assert not Action.objects.filter(error__isnull=False).exists()
+
+    ActionHandler.redo(ctx.user, scope, session)
+
+    workflow.reload_graph()
+    graph = workflow.graph
+    assert list(graph[str(router["id"])]["next"].values()) == [[email["id"]]]
+    assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
+    assert graph[str(after["id"])]["next"] == {"": [other.id]}
+
+
+@pytest.mark.django_db
+def test_redo_router_insert_broadcasts_the_final_graph_once(
+    automation_ctx, django_capture_on_commit_callbacks
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+
+    with patch(
+        "baserow.contrib.automation.workflows.ws.signals.broadcast_to_permitted_users"
+    ) as broadcast:
+        with django_capture_on_commit_callbacks(execute=True):
+            ActionHandler.redo(ctx.user, scope, session)
+
+    updates = [
+        call.args[4]["workflow"]
+        for call in broadcast.delay.call_args_list
+        if call.args[4]["type"] == "automation_workflow_updated"
+    ]
+    (update,) = updates
+    assert list(update["graph"][str(router["id"])]["next"].values()) == [[email["id"]]]
+
+
+@pytest.mark.django_db
 def test_add_nodes_router_at_the_end_keeps_no_branch_for_undo(automation_ctx):
     ctx, automation, table, _ = automation_ctx
     workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
