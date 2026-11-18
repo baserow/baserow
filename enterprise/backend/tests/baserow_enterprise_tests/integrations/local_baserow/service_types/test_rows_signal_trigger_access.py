@@ -1,7 +1,6 @@
 import pytest
 
 from baserow.contrib.database.views.models import View
-from baserow.core.models import Agent as Identity
 from baserow.core.services.registries import service_type_registry
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -25,7 +24,7 @@ def test_rows_triggers_need_a_role_that_lists_the_rows_of_the_table(
     restricted = enterprise_data_fixture.create_grid_view(
         table=invoices, ownership_type=RestrictedViewOwnershipType.type
     )
-    identity = Identity.objects.create(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Reader", role_uid="NO_ACCESS"
     )
     roles = RoleAssignmentHandler()

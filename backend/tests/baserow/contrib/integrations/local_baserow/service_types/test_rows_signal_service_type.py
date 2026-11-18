@@ -1,5 +1,6 @@
 from unittest.mock import Mock
 
+from django.contrib.auth.models import AbstractUser
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 
@@ -11,7 +12,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsDeletedTriggerServiceType,
     LocalBaserowRowsUpdatedTriggerServiceType,
 )
-from baserow.core.models import Agent as Identity
 from baserow.core.services.registries import service_type_registry
 
 ROWS_TRIGGER_TYPES = [
@@ -87,7 +87,7 @@ def test_local_baserow_rows_signal_service_type_skips_table_of_another_workspace
     assert all(service.table is table for service in services)
 
 
-def identity_with_table(data_fixture) -> tuple[Identity, Table]:
+def identity_with_table(data_fixture) -> tuple[AbstractUser, Table]:
     """An identity with the default member role and an Orders table it reads."""
 
     workspace = data_fixture.create_workspace(user=data_fixture.create_user())
@@ -95,7 +95,7 @@ def identity_with_table(data_fixture) -> tuple[Identity, Table]:
         workspace=workspace, name="Sales"
     )
     table = data_fixture.create_database_table(database=database, name="Orders")
-    return Identity.objects.create(workspace=workspace, name="Reader"), table
+    return data_fixture.create_identity(workspace=workspace, name="Reader"), table
 
 
 @pytest.mark.parametrize("service_type_class", ROWS_TRIGGER_TYPES)
@@ -151,7 +151,9 @@ def test_rows_events_are_read_from_a_live_table_of_the_workspace(data_fixture):
         LocalBaserowRowsCreatedTriggerServiceType.type
     )
 
-    def can_read(on_table: Table | None, subject: Identity | None = identity) -> bool:
+    def can_read(
+        on_table: Table | None, subject: AbstractUser | None = identity
+    ) -> bool:
         service = data_fixture.create_local_baserow_rows_created_service(
             table=on_table, integration=None
         )
