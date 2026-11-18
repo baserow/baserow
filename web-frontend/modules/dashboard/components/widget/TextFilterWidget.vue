@@ -5,6 +5,15 @@
     small-label
     required
   >
+    <template v-if="isNotApplied" #after-label>
+      <Badge
+        v-tooltip="$t('textFilterWidget.notAppliedHelp')"
+        color="yellow"
+        size="small"
+        class="dashboard-text-filter-widget__not-applied"
+        >{{ $t('textFilterWidget.notApplied') }}</Badge
+      >
+    </template>
     <div
       v-if="widget.mode === 'dropdown'"
       class="dashboard-text-filter-widget__dropdown-wrapper"
@@ -74,7 +83,9 @@
       class="dashboard-text-filter-widget__input"
       :class="{ 'dashboard-text-filter-widget__input--active': value !== '' }"
       icon-left="iconoir-filter"
-      :placeholder="widget.placeholder"
+      :placeholder="
+        widget.placeholder || $t('textFilterWidget.inputDefaultPlaceholder')
+      "
       :maxlength="TEXT_FILTER_MAX_VALUE_LENGTH"
       @pointerdown.stop
       @mousedown.stop
@@ -94,6 +105,7 @@ import {
 } from '@baserow/modules/dashboard/utils/widgetFilters'
 import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
 import { useStore } from 'vuex'
+import { useNuxtApp } from '#app'
 import FormGroup from '@baserow/modules/core/components/FormGroup'
 import FormInput from '@baserow/modules/core/components/FormInput'
 
@@ -104,6 +116,32 @@ const props = defineProps({
 })
 
 const store = useStore()
+const { $registry } = useNuxtApp()
+const isEditMode = computed(
+  () => store.getters[`${props.storePrefix}dashboardApplication/isEditMode`]
+)
+const hasConditions = (group) =>
+  Boolean(group?.filters?.length || group?.filter_groups?.length)
+/**
+ * Editors see when the filter changes nothing on the dashboard: it links no
+ * widget, or only links without any condition.
+ */
+const isNotApplied = computed(() => {
+  if (!isEditMode.value) return false
+  const links = props.widget.target_filters
+  if (!links) {
+    return !$registry
+      .get('dashboardWidget', props.widget.type)
+      .getTargetWidgetIds(props.widget).length
+  }
+  return !links.some(
+    (link) =>
+      link.enabled !== false &&
+      (hasConditions(link.group) ||
+        (link.empty_behavior === 'apply_alternative' &&
+          hasConditions(link.alternative_group)))
+  )
+})
 const multiple = computed(
   () => props.widget.mode === 'dropdown' && props.widget.multiple === true
 )

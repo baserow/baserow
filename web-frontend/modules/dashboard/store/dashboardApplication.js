@@ -1007,7 +1007,14 @@ export const actions = {
     }
     return dataSourcesData
   },
-  async createWidget({ state, dispatch }, { dashboard, widget }) {
+  /**
+   * Create a widget and select it, unless `select` is false: an editor adding
+   * a widget from another widget's settings keeps working on that one.
+   */
+  async createWidget(
+    { state, dispatch },
+    { dashboard, widget, select = true }
+  ) {
     const { $client } = this
     const request = {
       dashboardId: dashboard.id,
@@ -1024,7 +1031,7 @@ export const actions = {
     if (!isDashboardRequestCurrent(state, request)) {
       return createdWidget
     }
-    dispatch('selectWidget', createdWidget.id)
+    if (select) dispatch('selectWidget', createdWidget.id)
     // The POST above is the creation boundary. Refreshing related client state must
     // never turn a persisted widget into an apparent creation failure.
     await refreshAfterWidgetCreation(dispatch, dashboard)

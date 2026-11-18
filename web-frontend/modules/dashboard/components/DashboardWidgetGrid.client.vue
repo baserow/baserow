@@ -47,6 +47,9 @@
           'dashboard-widget-grid__item--compact': layoutItem.h === 2,
           'dashboard-widget-grid__item--snap-resizing':
             isResizingWidget(layoutItem),
+          'dashboard-widget-grid__item--placing': placingItemIds.includes(
+            String(layoutItem.i)
+          ),
         }"
         :style="getGridItemResizeStyle(layoutItem)"
         :data-testid="`dashboard-widget-grid-item-${layoutItem.i}`"
@@ -118,6 +121,9 @@ export default {
       isLayoutReady: false,
       layoutReadyFrame: null,
       layout: [],
+      // Widgets added after the first layout, until the grid placed them.
+      placingItemIds: [],
+      placingFrames: [],
       resizeState: null,
       DASHBOARD_GRID_COLUMNS,
       gridGap: GRID_GAP,
@@ -186,6 +192,7 @@ export default {
     if (this.layoutReadyFrame !== null) {
       cancelAnimationFrame(this.layoutReadyFrame)
     }
+    this.placingFrames.forEach((frame) => cancelAnimationFrame(frame))
     this.clearResizeState()
     window.removeEventListener('pointerup', this.clearResizeState, true)
     window.removeEventListener('pointercancel', this.clearResizeState, true)
@@ -241,7 +248,39 @@ export default {
       )
     },
     syncLayoutFromWidgets() {
+      const previousIds = new Set(this.layout.map((item) => String(item.i)))
       this.layout = createWidgetGridLayout(this.widgets, this.columns)
+      if (this.isLayoutReady) {
+        this.markPlacing(
+          this.layout
+            .map((item) => String(item.i))
+            .filter((id) => !previousIds.has(id))
+        )
+      }
+    },
+    /**
+     * A grid item mounts at the grid's origin and gets its position a tick
+     * later, which its position transition would animate as a slide. Turn the
+     * transition off until that first position is painted.
+     */
+    markPlacing(ids) {
+      if (!ids.length) return
+      this.placingItemIds = [...this.placingItemIds, ...ids]
+      const first = requestAnimationFrame(() => {
+        const second = requestAnimationFrame(() => {
+          this.placingItemIds = this.placingItemIds.filter(
+            (id) => !ids.includes(id)
+          )
+          this.placingFrames = this.placingFrames.filter(
+            (frame) => frame !== second
+          )
+        })
+        this.placingFrames = [
+          ...this.placingFrames.filter((frame) => frame !== first),
+          second,
+        ]
+      })
+      this.placingFrames = [...this.placingFrames, first]
     },
     markLayoutReady() {
       if (this.layoutReadyFrame !== null) {

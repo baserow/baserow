@@ -179,17 +179,6 @@ $dashboard-resources-row-min-width: 1044px;
   color: $palette-neutral-1200;
 }
 
-.dashboard-widget-filters__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-
-  &--empty {
-    margin-top: 0;
-  }
-}
-
 .dashboard-widget-filters__title {
   margin: 0 0 16px;
   font-size: 14px;
@@ -198,16 +187,66 @@ $dashboard-resources-row-min-width: 1044px;
   overflow-wrap: anywhere;
 }
 
-.dashboard-widget-filters__cases {
+// The subtitle belongs to the title, above the divider the title usually draws.
+.dashboard-widget-filters__header {
   margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid $palette-neutral-200;
+
+  .box__title {
+    margin-bottom: 4px;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}
+
+.dashboard-widget-filters__subtitle {
+  margin: 0;
+  color: $palette-neutral-900;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.dashboard-widget-filters__case {
+  & + & {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid $palette-neutral-200;
+  }
+}
+
+// Same distance from the conditions as in the builder's data source forms.
+.dashboard-widget-filters__case .filters__add {
+  margin-top: 12px;
+}
+
+.dashboard-widget-filters__case-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.dashboard-widget-filters__case-title {
+  margin: 0 0 4px;
+  color: $palette-neutral-1200;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.dashboard-widget-filters__case-help {
+  margin: 0;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
 }
 
 .dashboard-widget-filters__empty-behavior {
-  max-width: 320px;
-}
-
-.dashboard-widget-filters__alternative {
-  margin-top: 16px;
+  width: 240px;
+  max-width: 100%;
 }
 
 .dashboard-widget-filters__other-header {
@@ -233,6 +272,27 @@ $dashboard-resources-row-min-width: 1044px;
 
 .dashboard-widget-filters__source-toggle {
   min-width: 0;
+}
+
+.dashboard-widget-filters__source-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-widget-filters__source-edit {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  text-decoration: underline;
+
+  &:hover {
+    color: $palette-neutral-1200;
+  }
 }
 
 .dashboard-widget-filters__source-lock {
@@ -278,16 +338,56 @@ $dashboard-resources-row-min-width: 1044px;
     margin: 8px 0;
   }
 
+  // Room between the card and the read-only conditions inside it.
   .expandable__header--card {
-    padding: 8px 12px;
+    padding: 12px 20px;
+    background-color: $palette-neutral-0;
   }
 
   .expandable__content--card {
-    padding: 12px;
+    padding: 20px;
   }
 
   .filters__items {
-    gap: 8px;
+    gap: 10px;
+  }
+
+  .dashboard-widget-filters__other {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid $palette-neutral-200;
+  }
+
+  .dashboard-widget-filters__title {
+    font-weight: 600;
+  }
+
+  .dashboard-widget-filters__source-toggle {
+    color: $palette-neutral-1200;
+    font-weight: 500;
+  }
+
+  // Read-only conditions: the case as a small label, "or" as a quiet joiner
+  // and the value on white, so its light grey chip stands out.
+  .dashboard-widget-filters__source-detail {
+    .control__label {
+      color: $palette-neutral-900;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .filters__operator-where,
+    .filters__operator-text {
+      color: $palette-neutral-900;
+    }
+
+    .filters__operator-text {
+      text-transform: lowercase;
+    }
+
+    .filters__value .form-input--disabled {
+      background-color: $palette-neutral-0;
+    }
   }
 }
 
@@ -322,6 +422,11 @@ $dashboard-resources-row-min-width: 1044px;
 
   // The shared dropdown footer already adds 4px above this row.
   padding: 4px 0 8px;
+}
+
+// Creating a widget is the alternative to picking one: it sits apart, left.
+.dashboard-widget-filter-targets__create {
+  margin-right: auto;
 }
 
 .dashboard-widget-filter-target {
