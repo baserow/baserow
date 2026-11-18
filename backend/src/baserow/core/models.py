@@ -444,7 +444,7 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         if Template.Type.OFFICIAL in template_types:
             return True
         if Template.Type.USER not in template_types or not feature_flag_is_enabled(
-            FF_USER_TEMPLATES
+            FF_USER_TEMPLATES, user=actor
         ):
             return False
         # Not cached, because the state of a user template changes. The roots of the
@@ -1061,7 +1061,7 @@ class TemplateQuerySet(QuerySet):
         """
 
         official = _official_template_q()
-        if not feature_flag_is_enabled(FF_USER_TEMPLATES):
+        if not feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor):
             return self.filter(official)
 
         visible = _root_q(
@@ -1421,7 +1421,7 @@ class Template(models.Model):
             return True
         root = self.get_root()
         if root.marked_for_deletion_at is not None or not feature_flag_is_enabled(
-            FF_USER_TEMPLATES
+            FF_USER_TEMPLATES, user=actor
         ):
             return False
         if root.public_revision_id == self.id and root.blocked_at is None:

@@ -276,6 +276,18 @@ class Plugin(APIUrlsInstanceMixin, Instance):
         :type user: User
         """
 
+    def get_user_feature_flags(self, user: "AbstractUser") -> set[str]:
+        """
+        The feature flags granted to the signed in user. It's called for many checks
+        per request, so it must answer from data already on the user instance or
+        cached with it.
+
+        :param user: The signed in user.
+        :return: The names of the granted feature flags.
+        """
+
+        return set()
+
     def enhance_workspace_queryset(
         self, queryset: QuerySet["Workspace"]
     ) -> QuerySet["Workspace"]:

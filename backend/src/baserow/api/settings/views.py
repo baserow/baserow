@@ -84,7 +84,9 @@ class UpdateSettingsView(APIView):
         """
 
         if "user_templates_require_approval" in data:
-            feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
+            feature_flag_is_enabled(
+                FF_USER_TEMPLATES, user=request.user, raise_if_disabled=True
+            )
         settings = action_type_registry.get_by_type(UpdateAdminSettingsActionType).do(
             request.user, **data
         )
