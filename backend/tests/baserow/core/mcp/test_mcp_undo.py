@@ -1,8 +1,9 @@
 import json
+import threading
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import connection, transaction
 from django.shortcuts import reverse
 from django.test import override_settings
 
@@ -130,6 +131,59 @@ def test_undo_takes_back_a_call_with_more_actions_than_a_group_limit(setup):
 
     assert len(_call(endpoint, "redo")) == 2
     assert {f.name for f in table.field_set.all()} == {"Name", "X", "Y"}
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("tool", ["undo", "redo"])
+@override_settings(MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP=1)
+def test_another_call_waits_until_a_call_is_fully_undone_or_redone(
+    data_fixture, setup, tool
+):
+    endpoint, table = setup
+    # Another table, so the other call isn't held up by the fields being replayed.
+    other_table = data_fixture.create_database_table(database=table.database)
+    data_fixture.create_text_field(table=other_table, name="Name", primary=True)
+    _call(
+        endpoint,
+        "create_fields",
+        {
+            "table_id": table.id,
+            "fields": [{"name": "X", "type": "text"}, {"name": "Y", "type": "text"}],
+        },
+    )
+    if tool == "redo":
+        _call(endpoint, "undo")
+
+    def other_call():
+        try:
+            _call(
+                endpoint,
+                "create_rows",
+                {"table_id": other_table.id, "rows": [{"Name": "A"}]},
+            )
+        finally:
+            connection.close()
+
+    # Another call of the same endpoint starts right after the first part is
+    # replayed, and gets the time to finish before the next part.
+    replay = getattr(ActionHandler, tool)
+    other = threading.Thread(target=other_call)
+
+    def first_part_then_other_call(*args):
+        actions = replay(*args)
+        if other.ident is None:
+            other.start()
+            other.join(timeout=2)
+        return actions
+
+    with patch.object(ActionHandler, tool, side_effect=first_part_then_other_call):
+        replayed = _call(endpoint, tool)
+    other.join(timeout=10)
+
+    assert len(replayed) == 2
+    expected = {"Name"} if tool == "undo" else {"Name", "X", "Y"}
+    assert {f.name for f in table.field_set.all()} == expected
+    assert _names(other_table) == ["A"]
 
 
 @pytest.mark.django_db

@@ -10,3 +10,6 @@ LEGACY_DEFAULT_TOOLS = [
     "update_rows",
     "delete_rows",
 ]
+
+# Keys pg_advisory_lock(namespace, endpoint id), see ``MCPTool.call``.
+ENDPOINT_CHANGES_LOCK_NAMESPACE = 6753

@@ -1,5 +1,6 @@
 import inspect
 import json
+from contextlib import contextmanager
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
@@ -14,11 +15,15 @@ from typing import (
 )
 
 from django.core.exceptions import ImproperlyConfigured
+from django.db import DatabaseError, connection
 
 from asgiref.sync import sync_to_async
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 
-from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
+from baserow.core.mcp.constants import (
+    ENDPOINT_CHANGES_LOCK_NAMESPACE,
+    LEGACY_DEFAULT_TOOLS,
+)
 from baserow.core.mcp.exceptions import MCPToolInputError, format_validation_error
 from baserow.core.mcp.models import MCPEndpoint
 from baserow.core.registry import Instance, Registry
@@ -26,6 +31,30 @@ from baserow.core.registry import Instance, Registry
 if TYPE_CHECKING:
     from mcp import Tool
     from mcp.types import EmbeddedResource, ImageContent, TextContent
+
+
+@contextmanager
+def endpoint_changes_lock(endpoint: MCPEndpoint, exclusive: bool):
+    """
+    Holds a lock on the changes made through the endpoint. Calls that change data
+    share it, so they still run side by side, while undo and redo hold it alone,
+    so no other call adds a change while they take one call back in parts.
+    Session level, because a tool call isn't one transaction.
+    """
+
+    suffix = "" if exclusive else "_shared"
+    key = [ENDPOINT_CHANGES_LOCK_NAMESPACE, endpoint.id]
+    with connection.cursor() as cursor:
+        cursor.execute(f"SELECT pg_advisory_lock{suffix}(%s, %s)", key)
+    try:
+        yield
+    finally:
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(f"SELECT pg_advisory_unlock{suffix}(%s, %s)", key)
+        except DatabaseError:
+            # Closing the connection is then the only way to release the lock.
+            connection.close()
 
 
 class MCPTool(Instance):
@@ -68,6 +97,10 @@ class MCPTool(Instance):
     off_by_default: bool = False
     """True to leave a read-only tool off new endpoint keys, because what it reads
     needs a deliberate choice. The user can turn it on."""
+
+    replays_changes: bool = False
+    """True for undo and redo: they wait for the other calls of the endpoint that
+    change data, and those wait for them, see ``endpoint_changes_lock``."""
 
     @property
     def name(self) -> str:
@@ -145,9 +178,17 @@ class MCPTool(Instance):
                 raise MCPToolInputError(format_validation_error(exc)) from exc
         else:
             args = call_arguments
-        result = await sync_to_async(self._sync_call)(endpoint, args)
+        result = await sync_to_async(self._locked_sync_call)(endpoint, args)
         text = result if isinstance(result, str) else json.dumps(result)
         return [TextContent(type="text", text=text)]
+
+    def _locked_sync_call(self, endpoint: MCPEndpoint, args: Any) -> Any:
+        # In the same thread as the call, so the lock is released on the
+        # connection that took it.
+        if self.read_only:
+            return self._sync_call(endpoint, args)
+        with endpoint_changes_lock(endpoint, exclusive=self.replays_changes):
+            return self._sync_call(endpoint, args)
 
     def _sync_call(self, endpoint: MCPEndpoint, args: Any) -> Any:
         """
