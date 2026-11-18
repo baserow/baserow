@@ -64,7 +64,7 @@ export default {
                 type: type.type,
                 userType: 'identity',
                 label: this.$t('subjectType.identities'),
-                icon: 'iconoir-lock',
+                icon: type.identityIconClass,
               },
             ]
           : [group]

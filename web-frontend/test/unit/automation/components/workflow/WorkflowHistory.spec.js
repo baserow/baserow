@@ -1,5 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import WorkflowHistory from '@baserow/modules/automation/components/workflow/sidePanels/WorkflowHistory.vue'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 // WorkflowHistory reads the node histories from the automationHistory store
 // and dispatches fetches on toggle; neither matters for the header, so the
@@ -40,6 +41,7 @@ const baseItem = {
 
 describe('WorkflowHistory', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     storeHolder.store = null
   })
 
@@ -75,6 +77,11 @@ describe('WorkflowHistory', () => {
   })
 
   test('retains a deleted Identity identity in the run header', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
     const wrapper = await mountHistory({
       ...baseItem,
       triggered_by: {
@@ -87,7 +94,7 @@ describe('WorkflowHistory', () => {
     expect(wrapper.find('.workflow-history__started-by').text()).toBe(
       'historySidePanel.startedBy:Writer'
     )
-    expect(wrapper.find('.iconoir-lock').exists()).toBe(true)
+    expect(wrapper.find('.iconoir-identity-test').exists()).toBe(true)
   })
 
   test('shows nothing when nobody is recorded', async () => {

@@ -3,6 +3,7 @@ import flushPromises from 'flush-promises'
 
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import AuditLogActorDropdown from '@baserow_enterprise/components/auditLog/AuditLogActorDropdown'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 const actors = [
   {
@@ -42,6 +43,10 @@ async function mountComponent(fetchPage = null) {
 }
 
 describe('AuditLogActorDropdown', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   test('renders users and identities in separate sections and selects an identity', async () => {
     const wrapper = await mountComponent()
     await wrapper.findComponent(PaginatedDropdown).vm.fetch()
@@ -52,6 +57,19 @@ describe('AuditLogActorDropdown', () => {
     await wrapper.findAll('.select__item-link')[2].trigger('click')
 
     expect(wrapper.emitted('input')).toEqual([[{ id: 2, type: 'auth.User' }]])
+  })
+
+  test('shows identities with the icon of the user subject type', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
+    const wrapper = await mountComponent()
+    await wrapper.findComponent(PaginatedDropdown).vm.fetch()
+    await flushPromises()
+
+    expect(wrapper.find('.iconoir-identity-test').exists()).toBe(true)
   })
 
   test('forwards the search query to the actor endpoint', async () => {

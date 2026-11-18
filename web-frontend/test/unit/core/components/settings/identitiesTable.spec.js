@@ -2,6 +2,7 @@ import flushPromises from 'flush-promises'
 
 import IdentitiesTable from '@baserow/modules/core/components/settings/identities/IdentitiesTable'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 describe('IdentitiesTable', () => {
   let testApp = null
@@ -11,7 +12,29 @@ describe('IdentitiesTable', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
+  })
+
+  test('shows the identity icon of the user subject type when empty', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
+    testApp.mock
+      .onGet('/identities/workspace/1/')
+      .replyOnce(200, { count: 0, results: [] })
+    const wrapper = await testApp.mount(IdentitiesTable, {
+      props: {
+        workspace: { id: 1, name: 'Workspace', _: { roles: [] } },
+      },
+    })
+    await flushPromises()
+
+    expect(
+      wrapper.find('.placeholder__icon .iconoir-identity-test').exists()
+    ).toBe(true)
   })
 
   test('refreshes when an identity is restored in its workspace', async () => {

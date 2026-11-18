@@ -27,7 +27,7 @@
     <template #empty>
       <div class="placeholder">
         <div class="placeholder__icon">
-          <i class="iconoir-lock" aria-hidden="true"></i>
+          <i :class="identityIconClass" aria-hidden="true"></i>
         </div>
         <h2 class="placeholder__header">{{ $t('identities.emptyTitle') }}</h2>
         <p class="placeholder__content">
@@ -86,6 +86,9 @@ export default {
     return { focusedIdentityId: null }
   },
   computed: {
+    identityIconClass() {
+      return this.$registry.get('subject', 'auth.User').identityIconClass
+    },
     tableLayout() {
       const layout = getManagementTableLayout(this.columns, 'role_uid')
       layout.columnWidths.name = 'max(200px, 40cqw)'
