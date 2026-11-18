@@ -4,10 +4,11 @@
     :style="getStyleOverride('input')"
   >
     <ABCheckbox
-      v-model="inputValue"
+      :model-value="inputValue"
       :required="element.required"
       :read-only="isEditMode"
-      @update:model-value="handleFormElementChange"
+      :disabled="workflowActionsInProgress"
+      @update:model-value="onSelectionChange"
     >
       <ABFormattedText
         :value="resolvedLabel"
@@ -25,12 +26,12 @@
 </template>
 
 <script>
-import formElement from '@baserow/modules/builder/mixins/formElement'
+import changeableFormElement from '@baserow/modules/builder/mixins/changeableFormElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 
 export default {
   name: 'CheckboxElement',
-  mixins: [formElement],
+  mixins: [changeableFormElement],
   computed: {
     resolvedLabel() {
       return ensureString(this.resolveFormula(this.element.label))

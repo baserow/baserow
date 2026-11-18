@@ -43,6 +43,8 @@ from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
         ("simple_container", EventTypes.CLICK),
         ("choice", EventTypes.CHANGE),
         ("record_selector", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CHANGE),
+        ("rating_input", EventTypes.CHANGE),
     ],
 )
 def test_create_workflow_action(data_fixture, element_type, event):
@@ -117,6 +119,8 @@ def test_delete_workflow_action_no_permissions(data_fixture):
         ("button", EventTypes.CLICK),
         ("choice", EventTypes.CHANGE),
         ("record_selector", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CHANGE),
+        ("rating_input", EventTypes.CHANGE),
     ],
 )
 def test_update_workflow_action(data_fixture, element_type, event):
@@ -395,6 +399,8 @@ def test_dispatch_workflow_action_no_permissions(data_fixture):
         ("simple_container", EventTypes.CLICK),
         ("choice", EventTypes.CHANGE),
         ("record_selector", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CHANGE),
+        ("rating_input", EventTypes.CHANGE),
     ],
 )
 def test_create_workflow_action_with_invalid_event(
@@ -481,6 +487,8 @@ def test_create_workflow_action_without_element_only_accepts_static_events(
         ("simple_container", EventTypes.CLICK),
         ("choice", EventTypes.CHANGE),
         ("record_selector", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CHANGE),
+        ("rating_input", EventTypes.CHANGE),
     ],
 )
 def test_update_workflow_action_with_invalid_event(
