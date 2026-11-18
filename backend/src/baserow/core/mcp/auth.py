@@ -5,6 +5,7 @@ from django.conf import settings
 from asgiref.sync import sync_to_async
 
 from baserow.core.mcp.models import MCPEndpoint
+from baserow.core.user.identity import is_human
 
 INVALID_TOKEN = "invalid_token"
 INSUFFICIENT_SCOPE = "insufficient_scope"
@@ -36,7 +37,7 @@ def www_authenticate(error: str | None = None) -> str:
 def _load_member_endpoint(**lookup) -> MCPEndpoint | None:
     """
     The endpoint with its user and workspace loaded, or None when it doesn't exist
-    or its user is no longer an active member of its workspace.
+    or its user is not a person who is still an active member of its workspace.
     """
 
     from baserow.core.subjects import UserSubjectType
@@ -46,7 +47,7 @@ def _load_member_endpoint(**lookup) -> MCPEndpoint | None:
         .filter(**lookup)
         .first()
     )
-    if endpoint is None:
+    if endpoint is None or not is_human(endpoint.user):
         return None
     if not UserSubjectType().is_in_workspace(endpoint.user, endpoint.workspace):
         return None

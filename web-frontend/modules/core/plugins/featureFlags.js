@@ -1,7 +1,7 @@
 import { useRuntimeConfig } from '#imports'
 
 const FF_ENABLE_ALL = '*'
-export const FF_AGENTS = 'agents'
+export const FF_IDENTITIES = 'identities'
 export const FF_AGENT_BUILDER = 'agent-builder'
 export const FF_RBAC_IMPROVEMENTS = 'rbac_improvements'
 export const FF_APPLICATION_IN_ERROR = 'application_in_error'

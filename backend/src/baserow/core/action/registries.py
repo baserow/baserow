@@ -401,7 +401,7 @@ class UndoableActionTypeMixin:
 
         from baserow.core.registries import subject_type_registry
 
-        subject_type = subject_type_registry.get_by_model(user)
+        subject_type = subject_type_registry.get_specific_type(user)
         # Non-interactive subjects must not create an Action, but still emit
         # action_done so consumers such as the audit log record the action.
         if not subject_type.is_interactive_user:

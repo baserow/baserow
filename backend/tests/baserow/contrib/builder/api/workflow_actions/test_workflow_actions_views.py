@@ -168,6 +168,8 @@ def test_start_workflow_commits_history_before_scheduling(
         ("simple_container", EventTypes.CLICK),
         ("choice", EventTypes.CHANGE),
         ("record_selector", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CHANGE),
+        ("rating_input", EventTypes.CHANGE),
     ],
 )
 def test_create_notification_workflow_action(
@@ -348,8 +350,8 @@ def test_create_workflow_action_invalid_event(
         ("record_selector", EventTypes.CLICK),
         ("button", EventTypes.CHANGE),
         ("input_text", EventTypes.CHANGE),
-        ("checkbox", EventTypes.CHANGE),
-        ("rating_input", EventTypes.CHANGE),
+        ("checkbox", EventTypes.CLICK),
+        ("rating_input", EventTypes.CLICK),
     ],
 )
 def test_create_workflow_action_rejects_unsupported_change_event(

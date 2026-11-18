@@ -38,6 +38,8 @@ from baserow.contrib.builder.elements.mixins import (
     ContainerElementTypeMixin,
     FormElementTypeMixin,
     MultiPageElementTypeMixin,
+    get_saved_values,
+    get_value_names,
 )
 from baserow.contrib.builder.elements.models import (
     INPUT_TEXT_TYPES,
@@ -1514,6 +1516,9 @@ class RatingInputElementType(InputElementType):
     ]
     simple_formula_fields = ["value", "label"]
 
+    def get_event_names(self, instance: RatingInputElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
+
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
         required: bool
@@ -1785,6 +1790,9 @@ class CheckboxElementType(InputElementType):
     allowed_fields = ["label", "default_value", "required"]
     serializer_field_names = ["label", "default_value", "required"]
     simple_formula_fields = ["label", "default_value"]
+
+    def get_event_names(self, instance: CheckboxElement) -> List[str]:
+        return [EventTypes.CHANGE.value]
 
     class SerializedDict(ElementDict):
         label: BaserowFormulaObject
@@ -2440,6 +2448,11 @@ class FooterElementType(MultiPageContainerElementType):
     model_class = FooterElement
 
 
+# Left out of a menu item's values: its id, and its position, which a menu update
+# sets from the item's place in the list.
+MENU_ITEM_EXCLUDED_FIELDS = frozenset({"id", "menu_item_order", "parent_menu_item"})
+
+
 class MenuElementType(ElementType):
     """
     A Menu element that provides navigation capabilities to the application.
@@ -2470,6 +2483,36 @@ class MenuElementType(ElementType):
             for item in instance.menu_items.all()
             if item.type == MenuItemElement.TYPES.BUTTON
         ]
+
+    def get_menu_item_values(self, item: MenuItemElement) -> Dict[str, Any]:
+        """
+        Return a menu item's values, keyed like an item of the ``menu_items`` value
+        an update takes. An update replaces every item, so sending these back keeps
+        the item as it is, with its uid and so its workflow actions. The position
+        is left out: the update gives it from the item's place in the list.
+
+        :param item: The menu item.
+        :return: The item's values.
+        """
+
+        return get_saved_values(item, MENU_ITEM_EXCLUDED_FIELDS)
+
+    def get_new_menu_item_values(self, **values: Any) -> Dict[str, Any]:
+        """
+        Return the values of a new menu item with a new uid. The values not given
+        get the model's defaults when the item is created.
+
+        :param values: The item's values, keyed like those of get_menu_item_values,
+            without the uid.
+        :return: The values, keyed like an item of the ``menu_items`` value.
+        :raises ValueError: When a key isn't a value of a new menu item.
+        """
+
+        names = get_value_names(MenuItemElement, MENU_ITEM_EXCLUDED_FIELDS)
+        unknown = sorted(values.keys() - (set(names) - {"uid"}))
+        if unknown:
+            raise ValueError(f"A new menu item can't be given {unknown}.")
+        return {"uid": str(uuid.uuid4()), **values}
 
     @property
     def serializer_field_overrides(self) -> Dict[str, Any]:

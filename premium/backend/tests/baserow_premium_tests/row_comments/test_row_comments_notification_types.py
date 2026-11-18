@@ -90,6 +90,7 @@ def test_notification_creation_on_creating_row_comment_mention(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -183,6 +184,7 @@ def test_notify_only_new_mentions_when_updating_a_comment(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -365,6 +367,7 @@ def test_user_receive_notification_if_subscribed_for_comments_on_a_row(
             "id": commenter.id,
             "username": commenter.username,
             "first_name": commenter.first_name,
+            "user_type": "human",
         },
         "workspace": {"id": workspace.id},
         "created_on": "2021-01-01T12:00:00Z",

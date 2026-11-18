@@ -15,12 +15,19 @@ import { resolve } from 'path'
 
 // Read rather than imported: the i18n loader turns an imported locale file
 // into compiled message ASTs, which the copy below can't be read off of.
-const en = JSON.parse(
-  readFileSync(
-    resolve(process.cwd(), 'modules/integrations/locales/en.json'),
-    'utf8'
+const readLocale = (module) =>
+  JSON.parse(
+    readFileSync(
+      resolve(process.cwd(), `modules/${module}/locales/en.json`),
+      'utf8'
+    )
   )
-)
+const core = readLocale('core')
+const integrations = readLocale('integrations')
+const en = {
+  ...integrations,
+  serviceType: { ...core.serviceType, ...integrations.serviceType },
+}
 
 describe('Local baserow service types', () => {
   let testApp = null
@@ -436,13 +443,14 @@ describe('Local baserow service types', () => {
     )
   })
 
-  test('a trashed integration agent marks the integration and service as in error', () => {
+  test('a trashed integration identity marks the integration and service as in error', () => {
     const integration = {
       id: 5,
       type: 'local_baserow',
       authorized_subject: {
         id: 9,
-        type: 'core.Agent',
+        type: 'auth.User',
+        user_type: 'identity',
         name: 'Writer',
         trashed: true,
       },
@@ -528,6 +536,41 @@ describe('Local baserow service types', () => {
     ).toBe('serviceType.errorNoRowsSelected')
   })
 
+  test('row trigger service types are keyed like the backend', () => {
+    expect(
+      [
+        LocalBaserowRowsCreatedTriggerServiceType,
+        LocalBaserowRowsUpdatedTriggerServiceType,
+        LocalBaserowRowsDeletedTriggerServiceType,
+        LocalBaserowFieldsUpdatedTriggerServiceType,
+      ].map((ServiceType) => ServiceType.getType())
+    ).toEqual([
+      'local_baserow_rows_created',
+      'local_baserow_rows_updated',
+      'local_baserow_rows_deleted',
+      'local_baserow_fields_updated',
+    ])
+    expect(
+      testApp.getRegistry().get('service', 'local_baserow_rows_created')
+    ).toBeInstanceOf(LocalBaserowRowsCreatedTriggerServiceType)
+  })
+
+  test('row trigger types describe their event with a count and a table', () => {
+    const t = (key, values = {}) =>
+      key
+        .split('.')
+        .reduce((messages, part) => messages[part], en)
+        .replace(/\{(\w+)\}/g, (placeholder, name) => values[name])
+    const rowsCreated = new LocalBaserowRowsCreatedTriggerServiceType({
+      app: { $i18n: { t } },
+    })
+
+    expect(rowsCreated.getEventContextSchema({})).toEqual({
+      count: { type: 'number', title: 'Count' },
+      table: { type: 'string', title: 'Table' },
+    })
+  })
+
   test('row trigger types are named after the table they watch', () => {
     const t = (key, values = {}) =>
       key
@@ -555,5 +598,11 @@ describe('Local baserow service types', () => {
     expect(types[0].getDefaultName({ table_id: 31 }, {})).toBe(
       'Rows are created'
     )
+  })
+
+  test('a trigger type without a list payload describes no event values', () => {
+    const periodic = testApp.getRegistry().get('service', 'periodic')
+
+    expect(periodic.getEventContextSchema({})).toEqual({})
   })
 })

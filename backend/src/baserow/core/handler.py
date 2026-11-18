@@ -44,6 +44,7 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
+from baserow.core.user.identity import load_user_types
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_files.exceptions import TemplateImportWithoutFilesZip
 from baserow.core.user_files.template_files import template_file_owner
@@ -341,6 +342,7 @@ class CoreHandler:
 
         result = {}
         undetermined_checks = set(checks)
+        load_user_types(check.actor for check in checks)
 
         for permission_manager_name in settings.PERMISSION_MANAGERS:
             if not undetermined_checks:
@@ -860,7 +862,16 @@ class CoreHandler:
         )
         workspaceuser_workspaces = WorkspaceUser.objects.select_related(
             "workspace"
-        ).annotate(workspace_agent_count=Count("workspace__agents", distinct=True))
+        ).annotate(
+            workspace_identity_count=Count(
+                "workspace__workspaceuser",
+                filter=Q(
+                    workspace__workspaceuser__user__profile__user_type="identity",
+                    workspace__workspaceuser__user__profile__trashed=False,
+                ),
+                distinct=True,
+            )
+        )
         workspaceuser_workspaces = workspaceuser_workspaces.prefetch_related(
             Prefetch(
                 "workspace__workspaceuser_set",
@@ -951,6 +962,7 @@ class CoreHandler:
         if not isinstance(workspace, Workspace):
             raise ValueError("The workspace is not an instance of Workspace.")
 
+        self._raise_if_not_a_person(user.pk)
         try:
             workspace_user = WorkspaceUser.objects.get(user=user, workspace=workspace)
         except WorkspaceUser.DoesNotExist:
@@ -1160,6 +1172,35 @@ class CoreHandler:
         if not is_valid:
             raise InvalidWorkspaceRole(f"The role {role_uid} is not available.")
 
+    def get_workspace_user_role_uid(self, workspace_user: WorkspaceUser) -> str:
+        """
+        Returns the role of a workspace member as the first permission manager that
+        answers names it, which can differ from the stored `permissions` value.
+
+        :param workspace_user: The membership of a person or an identity.
+        :return: The resolved role uid.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            role_uid = permission_manager_type_registry.get(
+                permission_manager_name
+            ).get_workspace_user_role_uid(workspace_user)
+            if role_uid is not None:
+                return role_uid
+        return workspace_user.permissions
+
+    @staticmethod
+    def get_stored_workspace_role_uid(role_uid: str) -> str:
+        """
+        Returns the value a workspace role is stored with on the membership. Builder
+        is stored under its basic name, so switching permission managers keeps it.
+
+        :param role_uid: The role uid given to a person or an identity.
+        :return: The `permissions` value of the membership.
+        """
+
+        return WORKSPACE_USER_PERMISSION_MEMBER if role_uid == "BUILDER" else role_uid
+
     def is_workspace_role_upgrade(
         self, current_role_uid: str, new_role_uid: str, workspace: Workspace
     ) -> bool:
@@ -1235,6 +1276,7 @@ class CoreHandler:
         """
 
         with atomic_if_not_already():
+            self._raise_if_not_a_person(workspace_user.user_id)
             if kwargs["permissions"] != "ADMIN":
                 CoreHandler.raise_if_user_is_last_admin_of_workspace(workspace_user)
 
@@ -1278,6 +1320,8 @@ class CoreHandler:
             raise CannotDeleteYourselfFromWorkspace(
                 "Cannot delete yourself from workspace."
             )
+
+        self._raise_if_not_a_person(workspace_user.user_id)
 
         before_workspace_user_deleted.send(
             self,
@@ -1588,9 +1632,11 @@ class CoreHandler:
         :param user: the user we want to add.
         :param permissions: the permissions of the user in this workspace. 'member' by
             default if not specified.
+        :raises ValueError: When the user is not a person.
         :return: The created or existing `WorkspaceUser` object.
         """
 
+        self._raise_if_not_a_person(user.pk)
         workspace_user, created = WorkspaceUser.objects.get_or_create(
             user=user,
             workspace=workspace,
@@ -2082,7 +2128,16 @@ class CoreHandler:
     def get_user_email_mapping(
         cls, workspace_id: int, only_emails: list[Email]
     ) -> UserEmailMapping:
-        workspace_users = WorkspaceUser.objects.filter(
+        """
+        Returns the people and identities of a workspace by email, so a copy can
+        resolve the users its rows are attributed to.
+
+        :param workspace_id: The workspace the copy is imported into.
+        :param only_emails: Limits the mapping to these emails when not empty.
+        :return: The member of the workspace for each email.
+        """
+
+        workspace_users = WorkspaceUser.objects_and_identities.filter(
             workspace_id=workspace_id
         ).select_related("user")
 
@@ -3137,6 +3192,23 @@ class CoreHandler:
                 )
 
         Application.objects.bulk_update(applications, ["installed_from_template"])
+
+    @staticmethod
+    def _raise_if_not_a_person(user_id: int) -> None:
+        """
+        Refuses to write the membership of a user who is not a person. Only a person
+        joins, leaves or changes role this way, the membership of an identity follows
+        the identity.
+
+        :param user_id: The id of the user whose membership is written.
+        :raises ValueError: When the user is not a person.
+        """
+
+        if not User.objects.filter(pk=user_id).exists():
+            raise ValueError(
+                "Only a person joins, leaves or changes role this way. The membership "
+                "of an identity follows the identity."
+            )
 
     @classmethod
     def raise_if_user_is_last_admin_of_workspace(cls, workspace_user: WorkspaceUser):

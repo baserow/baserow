@@ -19,7 +19,7 @@
   "dependencies": {
     "@faker-js/faker": "10.5.0",
     "@nuxt/test-utils": "^3.21.0",
-    "@playwright/test": "^1.48.0",
+    "@playwright/test": "1.64.1",
     "axios": "1.20.0",
     "dotenv": "16.0.3"
   }

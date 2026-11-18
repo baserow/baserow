@@ -17,6 +17,7 @@ from baserow.core.cache import local_cache
 from baserow.core.exceptions import IsNotAdminError
 from baserow.core.registries import plugin_registry
 from baserow_premium.license.exceptions import (
+    CantManuallyChangeSeatsError,
     FeaturesNotAvailableError,
     InvalidLicenseError,
     LicenseAlreadyExistsError,
@@ -1224,3 +1225,13 @@ def test_premium_license_builder_usage_license_extra_info(
             "highest_role_per_user_id": {},
             "application_users_taken": 30,
         }
+
+
+@pytest.mark.django_db
+def test_identities_cannot_be_assigned_license_seats(data_fixture):
+    admin = data_fixture.create_user(is_staff=True)
+    identity = data_fixture.create_identity()
+    license_object = License.objects.create(license=VALID_ONE_SEAT_LICENSE.decode())
+    with pytest.raises(CantManuallyChangeSeatsError):
+        LicenseHandler.add_user_to_license(admin, license_object, identity)
+    assert not license_object.users.exists()

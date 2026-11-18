@@ -393,8 +393,11 @@ describe('McpOAuthConnections', () => {
     await openEditTools(wrapper, 11)
     saveButton().click()
     await flushPromises()
-    wrapper.vm.toolsModal.hide()
-    await flushPromises()
+    const previousModal = saveButton().closest('.modal__wrapper')
+    previousModal.querySelector('.modal__close').click()
+    // Modal.hide defers removal with a timer. Finish closing before opening the
+    // other connection, as flushPromises alone does not wait for that timer.
+    await vi.waitFor(() => expect(previousModal.isConnected).toBe(false))
     await openEditTools(wrapper, 12)
     expect(saveButton().disabled).toBe(false)
 

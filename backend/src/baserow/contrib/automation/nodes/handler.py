@@ -147,7 +147,7 @@ class AutomationNodeHandler:
                         node.service = specific_services_map[service_id]
             return nodes
 
-        if with_cache and not base_queryset:
+        if with_cache and base_queryset is None:
             return local_cache.get(
                 self._get_node_cache_key(workflow, specific),
                 _get_nodes,

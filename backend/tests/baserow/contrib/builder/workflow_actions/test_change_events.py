@@ -27,7 +27,7 @@ from baserow.core.graph.types import GraphPointPosition
 from baserow.core.utils import MirrorDict
 
 
-@pytest.fixture(params=["choice", "record_selector"])
+@pytest.fixture(params=["choice", "record_selector", "checkbox", "rating_input"])
 def change_action(data_fixture, request):
     user = data_fixture.create_user()
     draft = data_fixture.create_builder_application(user=user)
@@ -62,11 +62,10 @@ def change_action(data_fixture, request):
     repeat = data_fixture.create_builder_repeat_element(
         page=page, data_source=record_source
     )
-    element_kwargs = (
-        {"data_source": option_source}
-        if request.param == "record_selector"
-        else {"options": [{"name": "Selected", "value": "selected"}]}
-    )
+    element_kwargs = {
+        "choice": {"options": [{"name": "Selected", "value": "selected"}]},
+        "record_selector": {"data_source": option_source},
+    }.get(request.param, {})
     element = data_fixture.create_builder_element(
         type(element_type_registry.get(request.param)),
         page=page,
@@ -75,9 +74,12 @@ def change_action(data_fixture, request):
         required=True,
         **element_kwargs,
     )
-    selected = (
-        str(option_rows[2].id) if request.param == "record_selector" else "selected"
-    )
+    selected, rendered = {
+        "choice": ("selected", "selected"),
+        "record_selector": (str(option_rows[2].id), str(option_rows[2].id)),
+        "checkbox": (True, "true"),
+        "rating_input": (3, "3"),
+    }[request.param]
     service = data_fixture.create_local_baserow_upsert_row_service(
         integration=integration, table=output
     )
@@ -103,6 +105,7 @@ def change_action(data_fixture, request):
         "output_field": output_fields[0],
         "action": action,
         "selected": selected,
+        "rendered": rendered,
     }
 
 
@@ -135,7 +138,7 @@ def test_public_change_action_reads_new_value_and_enclosing_record(
         fixture["output"]
         .get_model()
         .objects.values_list(fixture["output_field"].db_column, flat=True)
-    ) == [f"Beta:{fixture['selected']}"]
+    ) == [f"Beta:{fixture['rendered']}"]
 
 
 @pytest.mark.django_db

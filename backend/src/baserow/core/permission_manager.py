@@ -22,18 +22,17 @@ from baserow.core.user_sources.operations import (
     ReadUserSourceOperationType,
 )
 
-from .agents.operations import (
-    CreateAgentOperationType,
-    DeleteAgentOperationType,
-    UpdateAgentOperationType,
-)
-from .agents.subjects import AgentSubjectType
 from .ai_provider.operations import ManageAIProvidersOperationType
 from .exceptions import (
     IsNotAdminError,
     PermissionDenied,
     UserInvalidWorkspacePermissionsError,
     UserNotInWorkspace,
+)
+from .identities.operations import (
+    CreateIdentityOperationType,
+    DeleteIdentityOperationType,
+    UpdateIdentityOperationType,
 )
 from .operations import (
     CreateInvitationLinkWorkspaceOperationType,
@@ -65,6 +64,8 @@ from .registries import (
 )
 from .subjects import AnonymousUserSubjectType, UserSubjectType
 from .trash.operations import EmptyWorkspaceTrashOperationType
+from .types import Actor
+from .user.identity import is_human
 
 User = get_user_model()
 
@@ -111,6 +112,9 @@ class CorePermissionManagerType(PermissionManagerType):
 
     type = "core"
     supported_actor_types = [UserSubjectType.type]
+
+    def actor_is_supported(self, actor):
+        return is_human(actor)
 
     ALWAYS_ALLOWED_OPERATIONS = [
         ListWorkspacesOperationType.type,
@@ -167,6 +171,11 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
 
     type = "allow_if_template"
     supported_actor_types = [UserSubjectType.type, AnonymousUserSubjectType.type]
+
+    def actor_is_supported(self, actor):
+        return is_human(actor) or isinstance(
+            actor, AnonymousUserSubjectType.model_class
+        )
 
     OPERATION_ALLOWED_ON_TEMPLATES = [
         ReadWorkspaceOperationType.type,
@@ -263,8 +272,7 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
     """
 
     type = "member"
-    supported_actor_types = [UserSubjectType.type, AgentSubjectType.type]
-    actor_cache_key = "_in_workspace_cache"
+    supported_actor_types = [UserSubjectType.type]
 
     ALWAYS_ALLOWED_OPERATION_FOR_WORKSPACE_MEMBERS: List[str] = [
         ClearNotificationsOperationType.type,
@@ -273,37 +281,22 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
     ]
 
     def is_actor_in_workspace(
-        self, actor, workspace, callback=None, include_trash=False
-    ):
+        self, actor: Actor, workspace: Workspace, include_trash: bool = False
+    ) -> bool:
         """
-        Check is an actor is in a workspace. This method cache the result on the actor
-        to prevent extra queries when used multiple times in a row. This is the case
-        when we check the permission first then we filter the queryset for instance.
+        Checks whether the actor is in the workspace. The answer is cached for the
+        current request or execution, so a check followed by a queryset filter
+        queries once.
 
-        :param actor: the actor to check.
-        :param workspace: the workspace to check the actor belongs to.
-        :param callback: an optional callback to check whether the actor belongs to the
-          workspace. By default a query is made if not provided.
+        :param actor: The actor to check.
+        :param workspace: The workspace the actor must belong to.
         :param include_trash: Whether trashed workspace memberships should count.
+        :return: Whether the actor is in the workspace.
         """
 
-        # Add cache to prevent another query during the filtering if any
-        if not hasattr(actor, self.actor_cache_key):
-            setattr(actor, self.actor_cache_key, {})
-
-        actor_cache = getattr(actor, self.actor_cache_key)
-        cache_key = (workspace.id, include_trash)
-        if cache_key not in actor_cache:
-            if callback is not None:
-                in_workspace = callback()
-            else:
-                in_workspace = self.get_actors_in_workspace_map(
-                    workspace, [actor], include_trash=include_trash
-                )[actor]
-
-            actor_cache[cache_key] = in_workspace
-
-        return actor_cache.get(cache_key, False)
+        return self.get_actors_in_workspace_map(
+            workspace, [actor], include_trash=include_trash
+        )[actor]
 
     def get_actors_in_workspace_map(
         self,
@@ -316,17 +309,10 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
         """
 
         actors_by_subject_type = defaultdict(set)
-        actors_in_workspace = {}
         for actor in actors:
-            actor_cache = getattr(actor, self.actor_cache_key, {})
-            cache_key = (workspace.id, include_trash)
-            if cache_key in actor_cache:
-                actors_in_workspace[actor] = actor_cache[cache_key]
-            else:
-                actors_by_subject_type[subject_type_registry.get_by_model(actor)].add(
-                    actor
-                )
+            actors_by_subject_type[subject_type_registry.get_by_model(actor)].add(actor)
 
+        actors_in_workspace = {}
         for subject_type, actors_of_type in actors_by_subject_type.items():
             cached = local_cache.get(
                 f"workspace_membership_{subject_type.type}_{workspace.id}_{include_trash}",
@@ -349,23 +335,19 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):
         if workspace is None:
-            return {}
+            return {
+                check: PermissionDenied(check.actor)
+                for check in checks
+                if not is_human(check.actor)
+            }
 
         permission_by_check = {}
         actors_in_workspace = self.get_actors_in_workspace_map(
             workspace, {check.actor for check in checks}, include_trash=include_trash
         )
 
-        def check_workspace(actor):
-            return lambda: actors_in_workspace[actor]
-
         for check in checks:
-            if self.is_actor_in_workspace(
-                check.actor,
-                workspace,
-                check_workspace(check.actor),
-                include_trash=include_trash,
-            ):
+            if actors_in_workspace[check.actor]:
                 if (
                     check.operation_name
                     in self.ALWAYS_ALLOWED_OPERATION_FOR_WORKSPACE_MEMBERS
@@ -391,7 +373,9 @@ class WorkspaceMemberOnlyPermissionManagerType(PermissionManagerType):
         queryset,
         workspace=None,
     ):
-        if workspace and not self.is_actor_in_workspace(actor, workspace):
+        if (workspace is None and not is_human(actor)) or (
+            workspace is not None and not self.is_actor_in_workspace(actor, workspace)
+        ):
             return queryset.none(), True
 
     def filter_queryset_for_workspaces(
@@ -411,7 +395,7 @@ class BasicPermissionManagerType(PermissionManagerType):
     """
 
     type = "basic"
-    supported_actor_types = [UserSubjectType.type, AgentSubjectType.type]
+    supported_actor_types = [UserSubjectType.type]
 
     ADMIN_ONLY_OPERATIONS = [
         ListInvitationsWorkspaceOperationType.type,
@@ -430,9 +414,9 @@ class BasicPermissionManagerType(PermissionManagerType):
         EmptyWorkspaceTrashOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
-        CreateAgentOperationType.type,
-        UpdateAgentOperationType.type,
-        DeleteAgentOperationType.type,
+        CreateIdentityOperationType.type,
+        UpdateIdentityOperationType.type,
+        DeleteIdentityOperationType.type,
     ]
 
     def get_workspace_role_uids_by_actor(
@@ -513,6 +497,9 @@ class StaffOnlySettingOperationPermissionManagerType(PermissionManagerType):
 
     type = "setting_operation"
     supported_actor_types = [UserSubjectType.type]
+
+    def actor_is_supported(self, actor):
+        return is_human(actor)
 
     # Maps `CoreOperationType` to `Setting` boolean field.
     STAFF_ONLY_SETTING_OPERATION_MAP = {

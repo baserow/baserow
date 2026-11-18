@@ -7,6 +7,7 @@
       :default-values="defaultValues"
       :enable-view-picker="false"
       :databases="databases"
+      :form-choices-error="formChoicesError"
       @values-changed="emitServiceChange($event)"
     ></LocalBaserowServiceForm>
   </form>
@@ -39,6 +40,14 @@ export default defineComponent({
       type: Array,
       required: false,
       default: () => [],
+    },
+    /**
+     * Why there is nothing to choose from, forwarded to the service form.
+     */
+    formChoicesError: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   emits: ['values-changed'],

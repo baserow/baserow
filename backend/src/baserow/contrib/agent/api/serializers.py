@@ -73,7 +73,14 @@ class AgentRunAsSerializer(serializers.Serializer):
     )
 
 
-class AgentRunAsSubjectsQueryParamsSerializer(serializers.Serializer):
+class AgentRunAsOptionSerializer(serializers.Serializer):
+    """A selectable identity returned by the Agent's scoped run-as endpoint."""
+
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
+class AgentRunAsIdentitiesQueryParamsSerializer(serializers.Serializer):
     page = serializers.IntegerField(min_value=1, required=False, default=1)
     size = serializers.IntegerField(min_value=1, max_value=100, required=False)
     search = serializers.CharField(required=False, allow_blank=True, default="")

@@ -184,8 +184,8 @@ core when another background feature needs it.
   after it commits. Rate limits and auto-disable follow before other types are offered.
 - Follow-ups: editors continuing shared conversations, in-app notifications for their
   waiting approvals, the
-  agent-level pause switch, "Run once" and "Last run", email and row triggers in
-  the picker, per trigger rate limits and auto-disable, the setup wizard's "Run
+  agent-level pause switch, "Run once" and "Last run", email triggers in the
+  picker, per trigger rate limits and auto-disable, the setup wizard's "Run
   automatically" step, the "Who can use it" role settings, a "Row comment is created"
   trigger type, the `manual` type (hidden until something can start an agent), an
   optional shared secret for HTTP triggers, and sample data for their message picker.
@@ -208,7 +208,9 @@ defaults, and name the service fields an agent doesn't use, which then keep thei
 defaults. The frontend one can word the default message and name the form fields to
 hide. Nothing agent-specific goes on the shared service type or its form: any form
 built on the form mixin takes `hiddenFormFields` from its host, and a hidden field
-isn't shown, validated or sent.
+isn't shown, validated or sent. A hook on the shared service type is fine when it
+names no consumer and its default keeps every existing type as it is; what an agent
+does with it stays in agent code.
 
 The HTTP trigger uses all of it. Agents hide the test URL and the workflow response
 settings: a firing starts a run in the background, and a valid request is always
@@ -228,6 +230,15 @@ itself reads who caused the event, and a webhook request has no one, so it never
 applies here: the rate limits bound an agent wired to its own webhook. The request
 throttle and the body size cap are the shared `BASEROW_AUTOMATION_HTTP_TRIGGER_*`
 settings, so raising them for Automation raises them for agents too.
+
+Row triggers add such hooks to the trigger service type. `can_subject_read` and
+`get_form_choices` limit a trigger to the tables the agent's run identity may list.
+`split_event_payload` cuts a large event into the batches that start one
+conversation each, and `get_event_context` gives each batch its count and table.
+`events_can_be_skipped` is off for rows only, so a new row trigger waits for the
+previous run while the other types still skip. Their `AgentTriggerType`s word the
+default message and what opens a trigger without one: when it fired, then the
+count, the table and the rows.
 
 ## Revisit triggers
 

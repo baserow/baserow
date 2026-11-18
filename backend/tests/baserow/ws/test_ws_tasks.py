@@ -22,8 +22,10 @@ from baserow.core.ai_provider.models import (
 from baserow.core.ai_provider.registries import (
     ai_provider_model_feature_type_registry,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import IsolationLevel
 from baserow.core.models import WORKSPACE_USER_PERMISSION_MEMBER
+from baserow.core.operations import ReadWorkspaceOperationType
 from baserow.ws.tasks import (
     AI_PROVIDER_UPDATE_RENDER_LOCK_TIMEOUT,
     _ai_provider_renderer_lock,
@@ -34,6 +36,7 @@ from baserow.ws.tasks import (
     broadcast_to_channel_group,
     broadcast_to_group,
     broadcast_to_groups,
+    broadcast_to_permitted_users,
     broadcast_to_users,
     broadcast_to_users_individual_payloads,
     force_disconnect_users,
@@ -49,6 +52,7 @@ def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_an
     member = data_fixture.create_user()
     outsider = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=admin)
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
     data_fixture.create_user_workspace(
         user=member,
         workspace=workspace,
@@ -80,6 +84,7 @@ def test_workspace_ai_provider_update_payloads_are_complete_permission_scoped_an
 
     assert outsider.id not in payloads_by_user
     assert staff.id not in payloads_by_user
+    assert identity.id not in payloads_by_user
     assert all(len(call.args[0]) <= 1 for call in mock_broadcast.call_args_list)
     assert payloads_by_user[member.id] == {
         "type": "ai_provider_updated",
@@ -847,6 +852,54 @@ async def test_broadcast_to_users_individual_payloads(data_fixture):
 
     await communicator_1.disconnect()
     await communicator_2.disconnect()
+
+
+@pytest.mark.django_db
+def test_permission_broadcast_queries_do_not_grow_with_workspace_members(data_fixture):
+    query_counts = []
+    for member_count in (1, 25):
+        workspace = data_fixture.create_workspace()
+        member_ids = {
+            data_fixture.create_user_workspace(
+                workspace=workspace, permissions=WORKSPACE_USER_PERMISSION_MEMBER
+            ).user_id
+            for _ in range(member_count)
+        }
+        data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+
+        with (
+            local_cache.context(),
+            patch("baserow.ws.tasks.broadcast_to_users") as broadcast,
+            CaptureQueriesContext(connection) as queries,
+        ):
+            broadcast_to_permitted_users(
+                workspace.id,
+                ReadWorkspaceOperationType.type,
+                "workspace",
+                workspace.id,
+                {"type": "test_event"},
+            )
+
+        assert set(broadcast.call_args.args[0]) == member_ids
+        query_counts.append(len(queries))
+
+    assert query_counts[1] <= query_counts[0]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("multiple_workspaces", [False, True])
+def test_workspace_broadcasts_only_target_users(data_fixture, multiple_workspaces):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_identity(workspace=workspace)
+
+    with patch("baserow.ws.tasks.broadcast_to_users") as broadcast:
+        if multiple_workspaces:
+            broadcast_to_groups([workspace.id], {"type": "test_event"})
+        else:
+            broadcast_to_group(workspace.id, {"type": "test_event"})
+
+    assert broadcast.call_args.args[0] == [user.id]
 
 
 @pytest.mark.django_db

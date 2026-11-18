@@ -14,7 +14,6 @@ from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.exceptions import PermissionException
 from baserow.core.mcp import BaserowMCPServer, current_key
 from baserow.core.mcp.groups import (
@@ -126,11 +125,11 @@ def test_list_audit_log_filters(admin_ctx, enterprise_data_fixture):
     workspace = admin_ctx.workspace
     mine = _entry(workspace, admin_ctx.user, days_ago=1)
     theirs = _entry(workspace, colleague, days_ago=10, action_type="delete_table")
-    # An agent can have the same id as a user.
+    # Entries of a removed legacy Agent keep its type and can share a user's id.
     _entry(
         workspace,
         admin_ctx.user,
-        actor_type=AgentSubjectType.type,
+        actor_type="core.Agent",
         actor_name="Agent",
     )
 

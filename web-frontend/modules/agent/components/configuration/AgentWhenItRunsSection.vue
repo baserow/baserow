@@ -15,6 +15,18 @@
         {{ $t('agent.addTrigger') }}
       </ButtonText>
     </div>
+    <Alert v-if="typesLoadError && !loading && !loadError" type="error">
+      {{ $t('agent.triggerTypesLoadError') }}
+      <template #actions
+        ><Button
+          type="secondary"
+          size="small"
+          button-type="button"
+          @click="retryLoad"
+          >{{ $t('action.retry') }}</Button
+        ></template
+      >
+    </Alert>
     <AgentCardListHeader
       v-if="!loading && !loadError && triggers.length"
       :all-expanded="allExpanded"
@@ -30,7 +42,7 @@
           type="secondary"
           size="small"
           button-type="button"
-          @click="fetchTriggers"
+          @click="retryLoad"
           >{{ $t('action.retry') }}</Button
         ></template
       >
@@ -48,6 +60,9 @@
         :editable="editable"
         :max-queued-trigger-runs="configuration.max_queued_trigger_runs"
         :max-parallel-trigger-runs="configuration.max_parallel_trigger_runs"
+        :type-options="typeOptionsOf(trigger)"
+        :types-version="typesVersion"
+        :run-as-active="runAsActive"
         :available-types="availableTypes"
         :saving="savingIds.has(trigger.id)"
         :service-error="serviceErrors[trigger.id] || ''"
@@ -76,10 +91,12 @@ import AgentCardListHeader from '@baserow/modules/agent/components/configuration
 import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
 import AgentTriggerPicker from '@baserow/modules/agent/components/configuration/AgentTriggerPicker'
 import { useAgentTriggers } from '@baserow/modules/agent/composables/useAgentTriggers'
+import { RUN_AS_STATUS } from '@baserow/modules/agent/constants'
+import { getRunAsStatus } from '@baserow/modules/agent/utils/runAs'
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps({
-  /** The Agent's configuration: its trigger types and queued run cap. */
+  /** The Agent's configuration: trigger types, queued run cap and run identity. */
   configuration: { type: Object, required: true },
   /** Whether the user may add, change and delete triggers. */
   editable: Boolean,
@@ -93,19 +110,25 @@ const workspace = computed(() =>
 const availableTypes = computed(
   () => props.configuration.available_trigger_types || []
 )
+const runAsActive = computed(
+  () => getRunAsStatus(props.configuration.run_as) === RUN_AS_STATUS.ACTIVE
+)
 const {
   triggers,
+  triggerTypes,
+  typesVersion,
   loading,
   loadError,
+  typesLoadError,
   savingIds,
   serviceErrors,
   serviceReverts,
-  fetchTriggers,
+  retryLoad,
   createTrigger,
   updateTrigger,
   changeTriggerType,
   deleteTrigger,
-} = useAgentTriggers(agent)
+} = useAgentTriggers(agent, () => props.configuration.run_as)
 const { expandedIds, allExpanded, toggle, toggleAll } =
   useExpandedItems(triggers)
 watch(
@@ -124,4 +147,12 @@ const canAddTriggers = computed(
     !loading.value &&
     !loadError.value
 )
+
+/**
+ * @param {object} trigger A trigger of the list.
+ * @returns {object|null} What the run identity offers its type, empty for a
+ *   type the Agent no longer offers, or null while the types load.
+ */
+const typeOptionsOf = (trigger) =>
+  triggerTypes.value && (triggerTypes.value[trigger.type] || {})
 </script>

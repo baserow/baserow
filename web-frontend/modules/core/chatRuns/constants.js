@@ -48,6 +48,8 @@ export const RUN_ERROR_CODE = Object.freeze({
   PERSIST_FAILED: 'persist_failed',
 })
 
+export const ERROR_CHAT_RUN_IN_PROGRESS = 'ERROR_CHAT_RUN_IN_PROGRESS'
+
 export const STATUS_CHECK_MS = 5000
 // A quiet stream sends a heartbeat about every 5 s, so this much silence means it stalled.
 export const STREAM_IDLE_MS = 15000

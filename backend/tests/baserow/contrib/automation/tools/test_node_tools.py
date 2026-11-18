@@ -67,7 +67,8 @@ def test_add_nodes_after_an_existing_node_and_each_other(automation_ctx):
 
     first, second = result["created_nodes"]
     assert (first["ref"], second["ref"]) == ("first", "second")
-    graph = workflow.get_graph().graph
+    workflow.refresh_from_db()
+    graph = workflow.graph
     assert graph[str(trigger.id)]["next"][""] == [first["id"]]
     assert graph[str(first["id"])]["next"][""] == [second["id"]]
     (error,) = result["formula_errors"]
@@ -132,7 +133,8 @@ def test_add_nodes_to_an_existing_router_branch(automation_ctx):
     )
 
     (created,) = result["created_nodes"]
-    assert workflow.get_graph().graph[str(router.id)]["next"][big] == [created["id"]]
+    workflow.refresh_from_db()
+    assert workflow.graph[str(router.id)]["next"][big] == [created["id"]]
 
 
 @pytest.mark.django_db
