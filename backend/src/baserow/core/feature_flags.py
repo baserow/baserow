@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING
 
 from django.conf import settings
+from django.contrib.auth.models import AbstractUser
 
 from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.registries import plugin_registry
 
 if TYPE_CHECKING:
-    from django.contrib.auth.models import AbstractUser, AnonymousUser
+    from django.contrib.auth.models import AnonymousUser
 
 FF_DASHBOARD_FILTERS = "dashboard-filters"
 FF_ENABLE_ALL = "*"
@@ -25,14 +26,18 @@ def get_user_feature_flags(user: "AbstractUser | AnonymousUser | None") -> set[s
     :return: The lowercased names of the feature flags granted to the user.
     """
 
-    if user is None or not user.is_authenticated:
+    if not isinstance(user, AbstractUser):
         return set()
 
-    return {
+    flags = {
         flag.lower()
         for plugin in plugin_registry.registry.values()
         for flag in plugin.get_user_feature_flags(user)
     }
+    # Agents run as identities, so granting the agent builder must grant both.
+    if FF_AGENT_BUILDER in flags:
+        flags.add(FF_IDENTITIES)
+    return flags
 
 
 def feature_flag_is_enabled(

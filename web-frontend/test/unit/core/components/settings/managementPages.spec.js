@@ -198,6 +198,7 @@ describe('Management pages', () => {
       global: {
         mocks: {
           $hasPermission: () => true,
+          $featureFlagIsEnabled: () => true,
           $t: (key) => key,
           $route: { name },
           $store: { getters: { 'notification/getUnreadCount': 0 } },

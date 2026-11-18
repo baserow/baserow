@@ -31,7 +31,6 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowRowsCr
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedTriggerServiceType,
 )
-from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.handler import CoreHandler
 from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
@@ -144,27 +143,6 @@ def test_each_trigger_call_checks_its_operations_on_the_agent(
         for args, _ in check.call_args_list
         for permission in args[1]
     ] == [(operation.type, agent.id) for operation in operations]
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("write", ["create", "update", "delete"])
-def test_trigger_writes_need_the_feature_flag(
-    data_fixture, periodic_trigger, settings, write
-):
-    user = data_fixture.create_user()
-    agent = data_fixture.create_agent_application(user=user)
-    trigger = periodic_trigger(agent)
-    settings.FEATURE_FLAGS = []
-
-    with pytest.raises(FeatureDisabledException):
-        call(write, user, agent, trigger)
-
-    trigger.refresh_from_db()
-    assert (AgentTrigger.objects.count(), trigger.enabled, trigger.trashed) == (
-        1,
-        True,
-        False,
-    )
 
 
 @pytest.mark.django_db

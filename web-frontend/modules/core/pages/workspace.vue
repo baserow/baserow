@@ -283,6 +283,7 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
 import { useRoute, useNuxtApp, createError } from '#app'
+import { visibleApplications } from '@baserow/modules/core/utils/workspace'
 import { useHead } from '#imports'
 import { usePageAsyncData } from '@baserow/modules/core/composables/usePageAsyncData'
 
@@ -422,7 +423,10 @@ useHead(() => ({
 }))
 
 const getAllOfWorkspace = (ws) =>
-  $store.getters['application/getAllOfWorkspace'](ws)
+  visibleApplications(
+    nuxtApp,
+    $store.getters['application/getAllOfWorkspace'](ws)
+  )
 
 const dashboardHelpComponents = computed(() =>
   Object.values($registry.getAll('plugin'))

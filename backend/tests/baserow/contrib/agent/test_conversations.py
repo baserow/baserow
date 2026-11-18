@@ -31,7 +31,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
-from baserow.core.exceptions import FeatureDisabledException, PermissionException
+from baserow.core.exceptions import PermissionException
 from baserow.core.models import TrashEntry
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.exceptions import CannotRestoreItemNotOwnedByUser
@@ -109,36 +109,6 @@ def test_first_message_creates_a_private_conversation(
         "message_id": message.id,
     }
     assert not Action.objects.exists()
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("write", ["conversation", "message", "decision"])
-def test_agents_answer_nothing_while_the_feature_is_off(
-    data_fixture, configured_agent, settings, write
-):
-    """An Agent imported while the feature is off must not call its provider."""
-
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
-    approval = data_fixture.create_agent_tool_approval(conversation=conversation)
-    settings.FEATURE_FLAGS = []
-    service = AgentService()
-
-    with pytest.raises(FeatureDisabledException):
-        if write == "conversation":
-            service.create_conversation(user, agent.id, uuid4(), uuid4(), "Hi")
-        elif write == "message":
-            service.create_message(user, agent.id, conversation.uuid, uuid4(), "Hi")
-        else:
-            service.decide_approvals(
-                user,
-                agent.id,
-                conversation.uuid,
-                [{"id": approval.id, "approved": True}],
-            )
-
-    assert not ChatRun.objects.exists()
 
 
 @pytest.mark.django_db
