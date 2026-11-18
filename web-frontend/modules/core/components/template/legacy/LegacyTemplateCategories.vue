@@ -22,7 +22,7 @@
         }"
       >
         <a class="templates__category-link" @click="selectCategory(category.id)"
-          >{{ category.name }}
+          >{{ categoryName(category) }}
           <i
             class="templates__category-link-caret-right iconoir-nav-arrow-right"
           ></i>

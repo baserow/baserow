@@ -650,6 +650,32 @@
     "allTemplates": "All templates",
     "noResults": "No templates found"
   },
+  "templateCategoryNames": {
+    "Application Themes": "Application Themes",
+    "Baserow": "Baserow",
+    "Business Continuity": "Business Continuity",
+    "Business Operations": "Business Operations",
+    "Business Strategy": "Business Strategy",
+    "Finance and Accounting": "Finance and Accounting",
+    "Food and Restaurants": "Food and Restaurants",
+    "Governance": "Governance",
+    "HR and Recruiting": "HR and Recruiting",
+    "Health and Wellness": "Health and Wellness",
+    "Legal": "Legal",
+    "Marketing": "Marketing",
+    "Nonprofits": "Nonprofits",
+    "Personal and Hobbies": "Personal and Hobbies",
+    "Product Management": "Product Management",
+    "Project Management": "Project Management",
+    "Public Sector": "Public Sector",
+    "Real Estate": "Real Estate",
+    "Sales and CRM": "Sales and CRM",
+    "Software Development": "Software Development",
+    "Students": "Students",
+    "Teachers": "Teachers",
+    "Travel and Outdoors": "Travel and Outdoors",
+    "🔥 Most Popular": "🔥 Most Popular"
+  },
   "templateEmptyState": {
     "noResultsTitle": "No templates found",
     "noResultsDescription": "No templates match “{query}”. Try a different search."

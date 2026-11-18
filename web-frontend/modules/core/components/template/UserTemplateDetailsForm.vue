@@ -71,7 +71,7 @@
           :disabled="disabled"
           @click="toggleCategory(category.id)"
         >
-          {{ category.name }}
+          {{ getCategoryName(category, $i18n) }}
         </Chips>
       </div>
     </FormGroup>
@@ -82,6 +82,10 @@
 import { computed, ref } from 'vue'
 import { useNuxtApp } from '#app'
 
+import {
+  getCategoryName,
+  sortCategories,
+} from '@baserow/modules/core/utils/templateCategory'
 import TemplateIconSelectContext from '@baserow/modules/core/components/template/TemplateIconSelectContext'
 
 // Mirrors the limits of the job request.
@@ -122,7 +126,10 @@ const iconButton = ref(null)
 const iconContext = ref(null)
 
 const selectableCategories = computed(() =>
-  props.categories.filter((category) => category.user_selectable !== false)
+  sortCategories(
+    props.categories.filter((category) => category.user_selectable !== false),
+    $i18n
+  )
 )
 
 function isNameValid() {

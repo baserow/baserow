@@ -322,7 +322,7 @@ describe('TemplateModal navigation', () => {
   })
 
   it.each([
-    ['🔥 Most Popular', ['🔥 Most Popular']],
+    ['🔥 Most Popular', ['templateCategoryNames.🔥 Most Popular']],
     ['Featured', ['templateCategories.allTemplates']],
   ])(
     'lands on Most Popular, else All, with no template open (%s)',

@@ -1,10 +1,3 @@
-%templates-column {
-  max-width: 1180px;
-  margin: 0 auto;
-  border-left: solid 1px $palette-neutral-200;
-  border-right: solid 1px $palette-neutral-200;
-}
-
 .templates-modal .modal__box--full-screen {
   top: 16px;
   bottom: 16px;
@@ -20,20 +13,12 @@
   .templates__body .header {
     padding-right: 40px;
   }
-
-  .template-list {
-    @extend %templates-column;
-  }
 }
 
 .templates-page {
   @include absolute(0);
 
   background-color: $palette-neutral-0;
-
-  .template-list {
-    @extend %templates-column;
-  }
 }
 
 .templates__body {

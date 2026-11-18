@@ -67,10 +67,10 @@
           </div>
           <div v-if="categories.length" class="template-details__categories">
             <span
-              v-for="category in categories"
+              v-for="category in sortedCategories"
               :key="category.id"
               class="template-details__category"
-              >{{ category.name }}</span
+              >{{ getCategoryName(category, $i18n) }}</span
             >
           </div>
         </div>
@@ -220,6 +220,10 @@ import {
 } from '@baserow/modules/core/utils/userTemplate'
 import { isPrivateLinkPage } from '@baserow/modules/core/utils/templatePrivateLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  getCategoryName,
+  sortCategories,
+} from '@baserow/modules/core/utils/templateCategory'
 import { getState } from '@baserow/modules/core/components/template/userTemplateStates'
 import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
@@ -285,6 +289,8 @@ function edit(mode, hideMenu) {
 }
 
 const isOwner = computed(() => isOwnTemplate(props.template))
+
+const sortedCategories = computed(() => sortCategories(props.categories, $i18n))
 
 const REASON_TOOLTIP_OPTIONS = {
   contentClasses: ['tooltip__content--expandable', 'template-details__reason'],
