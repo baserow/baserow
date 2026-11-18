@@ -62,7 +62,7 @@ The background task does the one-off backfill in batches after the rollout, inst
 
 ### 2. Managed in Workspace settings, through the existing integration API
 
-Workspace integrations are created, edited, reordered and deleted on an Integrations page in Workspace settings. Everyone who may list them can open the page; the management actions follow the Admin-only permissions of decision 6, and a Local Baserow integration shows there the identity it runs as, as in decision 7.
+Workspace integrations are created, edited and deleted on an Integrations page in Workspace settings. Everyone who may list them can open the page; the management actions follow the Admin-only permissions of decision 6, and a Local Baserow integration shows there the identity it runs as, as in decision 7.
 
 Inside an app, a workspace integration is picked through the integration selector of decision 3. Promotion is triggered from the app's own integration settings by an Admin, after which the integration appears in Workspace settings and in the workspace group of the selector in every app.
 
@@ -106,7 +106,7 @@ An Admin may promote an existing app-level integration by moving its `applicatio
 
 Promotion is undoable unless new services or user sources began referencing the integration after the move, in which case moving it back could break them.
 
-For a Local Baserow integration authorised as someone other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Bulk replacement is deferred to v2. Demotion is not offered; an Admin who wants to stop sharing an integration deletes it and recreates it at the app level.
+For a Local Baserow integration authorised as a person other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Bulk replacement is deferred to v2. Demotion is not offered; an Admin who wants to stop sharing an integration deletes it and recreates it at the app level.
 
 ## Options considered
 

@@ -18,14 +18,14 @@ endpoint, and a workspace settings page plus dropdown grouping.
 
 | ADR decision                                   | Section            |
 | ---------------------------------------------- | ------------------ |
-| 1. Hidden shared application                   | 1.1                |
-| 2. Managed in Workspace settings, existing API | 1.3, 2.2, 2.3, 2.5 |
-| 3. App or workspace integration                | 1.4                |
+| 1. Hidden shared application                   | 1.1, 1.6, 2.1      |
+| 2. Managed in Workspace settings, existing API | 1.3, 2.2, 2.5      |
+| 3. App or workspace integration                | 1.4, 2.3           |
 | 4. Publish copies, duplicates/snapshots link   | 1.5                |
 | 5. Workspace exports and templates flatten     | 1.5                |
-| 6. Admins manage, Builders list                | 1.2, 1.3           |
-| 7. Every integration type                      | 1.1                |
-| 8. Promotion as a one-row move                 | 1.7, 2.5           |
+| 6. Admins manage, Builders list                | 1.2, 1.3, 1.6      |
+| 7. Every integration type                      | 1.1, 2.2, 2.3      |
+| 8. Promotion as a one-row move                 | 1.7, 2.4, 2.5      |
 
 ## 1. Backend
 
@@ -154,8 +154,8 @@ the workspace integrations its services use are handled per path:
   branches on these flags at `application_types.py:411`).
 - `get_integration_for_import()` (`handler.py:92`) callers pass
   `keep_unmapped = is_duplicate and not is_template`; the widened check in 1.4 then
-  accepts the destination workspace's shared app. File imports and templates drop an
-  unmapped id as today.
+  accepts the destination workspace's shared app. Workspace imports and templates drop
+  an unmapped id as today.
 - Local Baserow needs nothing: `export_serialized` keeps the subject on publish and
   `after_import` keeps it on a published copy, re-authorising to the importer otherwise
   (`local_baserow/integration_types.py:170-240`).
@@ -235,7 +235,9 @@ in this workspace". The delete confirmation has no usage count (follow-up).
 prop) and "Workspace" (the shared app's integrations filtered by `integrationType`).
 Props and the eight callers are unchanged. The shared app's integrations are fetched
 once when an application is selected (builder, automation and dashboard `select`
-hooks). The dashboard store's private `integrations` list reads the merged set.
+hooks). The dashboard store's private `integrations` list reads the merged set. A
+workspace Local Baserow integration authorised as a person shows the same "Runs as X in
+all applications in this workspace" hint as the settings page.
 
 ### 2.4 Realtime
 
