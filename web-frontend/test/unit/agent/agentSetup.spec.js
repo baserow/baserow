@@ -8,7 +8,7 @@ import {
   SETUP_SUGGESTIONS,
   applyAgentSetup,
   emptyAgentSetup,
-  newIdentityRoleUid,
+  newIdentityRole,
   setupTools,
   suggestionSetup,
   toolsForPermissions,
@@ -112,30 +112,37 @@ describe('emptyAgentSetup', () => {
   })
 })
 
-describe('newIdentityRoleUid', () => {
-  const role = (uid, extra = {}) => ({
-    uid,
-    isVisible: true,
-    isDeactivated: false,
-    allowedSubjectTypes: null,
-    ...extra,
+describe('newIdentityRole', () => {
+  const role = (uid, extra = {}) => ({ uid, isVisible: true, ...extra })
+  const workspace = { _: { roles: [role('VIEWER'), role('EDITOR')] } }
+
+  test.each([
+    ['read', [], 'VIEWER'],
+    ['ask', [], 'EDITOR'],
+    ['change', [], 'EDITOR'],
+    ['custom', [], 'VIEWER'],
+    ['custom', ['list_tables'], 'VIEWER'],
+    ['custom', ['create_rows'], 'EDITOR'],
+  ])('%s with tools %j uses %s', (permissions, allowed, expected) => {
+    const setup = {
+      permissions,
+      customTools: { allowed_tools: allowed, ask_first_tools: allowed },
+    }
+    expect(newIdentityRole(workspace, setup, tools).uid).toBe(expected)
   })
 
   test.each([
-    ['a Builder role', [role('ADMIN'), role('BUILDER')], 'BUILDER'],
-    ['no Builder role', [role('ADMIN'), role('MEMBER')], 'MEMBER'],
+    [[role('MEMBER'), role('EDITOR', { isDeactivated: true })], 'MEMBER'],
     [
-      'a Builder role identities cannot have',
-      [role('BUILDER', { allowedSubjectTypes: ['baserow_enterprise.Team'] })],
-      'MEMBER',
+      [role('EDITOR', { allowedSubjectTypes: ['baserow_enterprise.Team'] })],
+      undefined,
     ],
-    [
-      'a deactivated Builder role',
-      [role('BUILDER', { isDeactivated: true })],
-      'MEMBER',
-    ],
-  ])('with %s', (_, roles, uid) => {
-    expect(newIdentityRoleUid({ _: { roles } })).toBe(uid)
+    [[role('MEMBER', { isVisible: false }), role('BUILDER')], undefined],
+    [[], undefined],
+  ])('uses only an active, assignable role', (roles, expected) => {
+    expect(
+      newIdentityRole({ _: { roles } }, { permissions: 'ask' }, [])?.uid
+    ).toBe(expected)
   })
 })
 
@@ -169,7 +176,7 @@ describe('applyAgentSetup', () => {
   const full = setup({
     start: SETUP_START.SCHEDULE,
     schedule: { interval: 'WEEK', day_of_week: 0 },
-    actsAs: { kind: SETUP_ACTS_AS.NEW, roleUid: 'BUILDER' },
+    actsAs: { kind: SETUP_ACTS_AS.NEW },
     providerType: 'openai',
     modelIdentifier: 'model-two',
     reasoningEffort: 'low',
@@ -217,7 +224,7 @@ describe('applyAgentSetup', () => {
     reply('onPost', '/agent/10/actions/', 200, { id: 2 })
   }
 
-  const apply = (values) =>
+  const apply = (values, roleUid) =>
     applyAgentSetup(
       {
         store: testApp.store,
@@ -226,7 +233,8 @@ describe('applyAgentSetup', () => {
         t: (key) => key,
       },
       workspace,
-      values
+      values,
+      roleUid
     )
 
   const emailName = () =>
@@ -244,7 +252,7 @@ describe('applyAgentSetup', () => {
   test('creates the agent, then applies every choice in order', async () => {
     mockAll()
 
-    const { application, notApplied } = await apply(full)
+    const { application, notApplied } = await apply(full, 'EDITOR')
 
     expect(application.id).toBe(10)
     expect(notApplied).toEqual([])
@@ -258,7 +266,7 @@ describe('applyAgentSetup', () => {
       [
         'POST',
         '/identities/workspace/1/',
-        { name: 'Deal scout', role_uid: 'BUILDER' },
+        { name: 'Deal scout', role_uid: 'EDITOR' },
       ],
       [
         'PATCH',

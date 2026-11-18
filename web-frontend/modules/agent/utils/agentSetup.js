@@ -32,7 +32,7 @@ const AI_AGENT_FEATURE = 'ai_agent'
  * @property {'chat'|'schedule'} start
  * @property {object|null} schedule What differs from the default schedule,
  *   used while it starts on a schedule.
- * @property {{kind: 'new', roleUid: string}|{kind: 'existing', id: number, name: string}|{kind: 'none'}} actsAs
+ * @property {{kind: 'new'}|{kind: 'existing', id: number, name: string, roleUid: string}|{kind: 'none'}} actsAs
  * @property {'read'|'ask'|'change'|'custom'} permissions
  * @property {{allowed_tools: string[], ask_first_tools: string[]}|null} customTools
  *   The tools picked one by one, used while the permissions are custom.
@@ -99,33 +99,31 @@ export const SETUP_SUGGESTIONS = Object.freeze([
   },
 ])
 
-const PREFERRED_IDENTITY_ROLE = 'BUILDER'
-const FALLBACK_IDENTITY_ROLE = 'MEMBER'
-
 /**
- * @param {object} workspace The workspace, with its roles loaded in `_.roles`.
- * @returns {object[]} The active roles an identity can be given.
+ * Choose the new identity's workspace role from the requested workspace tools.
+ * A write that requires approval still needs an identity that can perform it.
+ * Workspaces without role-based access control offer Member instead.
  */
-export function identityRoles(workspace) {
-  return (workspace._?.roles || []).filter(
+export function newIdentityRole(workspace, setup, availableTools) {
+  const needsEditor =
+    setup.permissions === SETUP_PERMISSIONS.CUSTOM
+      ? availableTools.some(
+          (tool) =>
+            tool.changes_data &&
+            setup.customTools.allowed_tools.includes(tool.name)
+        )
+      : setup.permissions !== SETUP_PERMISSIONS.READ
+  const roles = (workspace._?.roles || []).filter(
     (role) =>
       role.isVisible &&
       !role.isDeactivated &&
       (!Array.isArray(role.allowedSubjectTypes) ||
         role.allowedSubjectTypes.includes(UserSubjectType.getType()))
   )
-}
-
-/**
- * @param {object} workspace The workspace the identity joins.
- * @returns {string} The role a new identity gets.
- */
-export function newIdentityRoleUid(workspace) {
-  return identityRoles(workspace).some(
-    (role) => role.uid === PREFERRED_IDENTITY_ROLE
+  return (
+    roles.find((role) => role.uid === (needsEditor ? 'EDITOR' : 'VIEWER')) ??
+    roles.find((role) => role.uid === 'MEMBER')
   )
-    ? PREFERRED_IDENTITY_ROLE
-    : FALLBACK_IDENTITY_ROLE
 }
 
 /**
@@ -145,7 +143,7 @@ export function emptyAgentSetup(name, workspace, canCreateIdentity) {
     start: SETUP_START.CHAT,
     schedule: null,
     actsAs: canCreateIdentity
-      ? { kind: SETUP_ACTS_AS.NEW, roleUid: newIdentityRoleUid(workspace) }
+      ? { kind: SETUP_ACTS_AS.NEW }
       : { kind: SETUP_ACTS_AS.NONE },
     permissions: SETUP_PERMISSIONS.ASK,
     customTools: null,
@@ -252,10 +250,11 @@ export function setupActionTypes(registry, workspace) {
  * @param {object} context The store, client, registry and translate function.
  * @param {object} workspace The workspace the identity is created in.
  * @param {AgentSetup} setup The wizard's choices.
+ * @param {string|undefined} roleUid The suggested role for automatic creation.
  * @returns {Promise<{type: string, id: number}|null>} The identity to run as,
  *   or null when none was chosen or it could not be created.
  */
-async function resolveIdentity({ store }, workspace, setup) {
+async function resolveIdentity({ store }, workspace, setup, roleUid) {
   const { actsAs } = setup
   if (actsAs.kind === SETUP_ACTS_AS.EXISTING) {
     return { type: UserSubjectType.getType(), id: actsAs.id }
@@ -263,7 +262,7 @@ async function resolveIdentity({ store }, workspace, setup) {
   if (actsAs.kind !== SETUP_ACTS_AS.NEW) return null
   const identity = await store.dispatch('identity/create', {
     workspaceId: workspace.id,
-    values: { name: setup.name, role_uid: actsAs.roleUid },
+    values: { name: setup.name, role_uid: roleUid },
   })
   return { type: UserSubjectType.getType(), id: identity.id }
 }
@@ -336,10 +335,11 @@ async function enableWebSearch(agentService, agentId, configuration) {
  * @param {{store: object, client: object, registry: object, t: Function}} context
  * @param {object} workspace The workspace the agent is created in.
  * @param {AgentSetup} setup The wizard's choices.
+ * @param {string|undefined} roleUid The workspace role shown for a new identity.
  * @returns {Promise<{application: object, notApplied: string[]}>} The created
  *   agent and the translated labels of what wasn't applied.
  */
-export async function applyAgentSetup(context, workspace, setup) {
+export async function applyAgentSetup(context, workspace, setup, roleUid) {
   const { store, client, registry, t } = context
   const application = await store.dispatch('application/create', {
     type: AGENT_APPLICATION_TYPE,
@@ -353,7 +353,7 @@ export async function applyAgentSetup(context, workspace, setup) {
 
   let runAs = null
   try {
-    runAs = await resolveIdentity(context, workspace, setup)
+    runAs = await resolveIdentity(context, workspace, setup, roleUid)
   } catch {
     notApplied.push(t('agent.setupActsAs'))
   }

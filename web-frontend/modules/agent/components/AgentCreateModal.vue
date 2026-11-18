@@ -31,7 +31,9 @@
           v-model="setup"
           :workspace="workspace"
           :available-tools="availableTools"
+          :can-bind-identity="canBindIdentity"
           :can-create-identity="canCreateIdentity"
+          :new-identity-role="suggestedRole"
         />
         <AgentCreateModelStep
           v-else
@@ -91,6 +93,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   applyAgentSetup,
   emptyAgentSetup,
+  newIdentityRole,
 } from '@baserow/modules/agent/utils/agentSetup'
 
 const STEP = Object.freeze({ DESCRIBE: 1, REVIEW: 2, MODEL: 3 })
@@ -114,13 +117,20 @@ const modal = ref(null)
 const step = ref(STEP.DESCRIBE)
 const loading = ref(false)
 const error = reactive({ visible: false, title: '', message: '' })
+const canBindIdentity = computed(() =>
+  $hasPermission('identity.bind', props.workspace, props.workspace.id)
+)
 const canCreateIdentity = computed(
   () =>
+    canBindIdentity.value &&
     $featureFlagIsEnabled(FF_IDENTITIES) &&
     $hasPermission('identity.create', props.workspace, props.workspace.id)
 )
 const setup = ref(emptyAgentSetup('', props.workspace, false))
 const availableTools = ref([])
+const suggestedRole = computed(() =>
+  newIdentityRole(props.workspace, setup.value, availableTools.value)
+)
 const hasName = computed(() => setup.value.name.trim().length > 0)
 const canCreate = computed(
   () =>
@@ -183,7 +193,8 @@ async function create() {
     created = await applyAgentSetup(
       { store, client: $client, registry: $registry, t },
       props.workspace,
-      setup.value
+      setup.value,
+      suggestedRole.value?.uid
     )
   } catch (caught) {
     showError(caught)

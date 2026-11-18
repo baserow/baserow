@@ -488,8 +488,7 @@
     "setupLaterNote": "You can change all of this later.",
     "setupConfiguration": "Instructions, model and workspace access",
     "setupPartialTitle": "Some choices weren't applied",
-    "setupPartialMessage": "Set them up in Configuration: {items}",
-    "runAsCreateIdentity": "Create identity…"
+    "setupPartialMessage": "Set them up in Configuration: {items}"
   },
   "trashType": {
     "agent_conversation": "conversation",

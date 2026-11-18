@@ -36,12 +36,17 @@
     small-label
     required
   >
-    <Dropdown
+    <PaginatedDropdown
       class="agent-create__acts-as"
-      :model-value="actsAsValue"
-      :show-search="false"
+      :value="actsAsValue"
+      :fetch-page="fetchIdentities"
+      :add-empty-item="false"
+      include-display-name-in-selected-event
+      fetch-on-open
+      refresh-on-open
+      :disabled="!canBindIdentity"
       fixed-items
-      @update:model-value="chooseActsAs"
+      @input="chooseActsAs"
     >
       <template #selectedValue>
         <i class="dropdown__selected-icon" :class="actsAsIcon"></i>
@@ -50,50 +55,58 @@
           {{ actsAsRole.name }}
         </Badge>
       </template>
-      <DropdownItem
-        v-if="canCreateIdentity"
-        :value="SETUP_ACTS_AS.NEW"
-        :name="newIdentityName"
-        :description="$t('agent.setupNewIdentityDescription')"
-      >
-        <i class="select__item-icon baserow-icon-agent"></i>
-        <span class="select__item-name-text">{{ newIdentityName }}</span>
-        <Badge v-if="newIdentityRole" class="agent-create__role" size="small">
-          {{ newIdentityRole.name }}
-        </Badge>
-      </DropdownItem>
-      <DropdownItem
-        v-for="identity in identities"
-        :key="identity.id"
-        :value="existingValue(identity.id)"
-        :name="$t('agent.setupUseIdentity', { name: identity.name })"
-        :description="$t('agent.setupUseIdentityDescription')"
-      >
-        <i class="select__item-icon baserow-icon-agent"></i>
-        <span class="select__item-name-text">{{
-          $t('agent.setupUseIdentity', { name: identity.name })
-        }}</span>
-        <Badge
-          v-if="roleOf(identity.role_uid)"
-          class="agent-create__role"
-          size="small"
+      <template #items="{ results }">
+        <DropdownItem
+          v-if="canCreateIdentity"
+          :value="SETUP_ACTS_AS.NEW"
+          :name="newIdentityName"
+          :description="$t('agent.setupNewIdentityDescription')"
         >
-          {{ roleOf(identity.role_uid).name }}
-        </Badge>
-      </DropdownItem>
-      <DropdownItem
-        :value="SETUP_ACTS_AS.NONE"
-        :name="$t('agent.noWorkspaceAccess')"
-        :description="$t('agent.setupNoWorkspaceAccessDescription')"
-        icon="iconoir-prohibition"
-      />
-      <DropdownItem
-        v-if="canCreateIdentity"
-        :value="CREATE_IDENTITY"
-        :name="$t('agent.runAsCreateIdentity')"
-        icon="iconoir-plus"
-      />
-    </Dropdown>
+          <i class="select__item-icon" :class="identityIcon"></i>
+          <span class="select__item-name-text">{{ newIdentityName }}</span>
+          <Badge v-if="newIdentityRole" class="agent-create__role" size="small">
+            {{ newIdentityRole.name }}
+          </Badge>
+        </DropdownItem>
+        <DropdownItem
+          v-for="identity in results"
+          :key="identity.id"
+          :value="identity.id"
+          :name="$t('agent.setupUseIdentity', { name: identity.name })"
+          :description="$t('agent.setupUseIdentityDescription')"
+        >
+          <i class="select__item-icon" :class="identityIcon"></i>
+          <span class="select__item-name-text">{{
+            $t('agent.setupUseIdentity', { name: identity.name })
+          }}</span>
+          <Badge
+            v-if="roleOf(identity.role_uid)"
+            class="agent-create__role"
+            size="small"
+          >
+            {{ roleOf(identity.role_uid).name }}
+          </Badge>
+        </DropdownItem>
+        <DropdownItem
+          :value="SETUP_ACTS_AS.NONE"
+          :name="$t('agent.noWorkspaceAccess')"
+          :description="$t('agent.setupNoWorkspaceAccessDescription')"
+          icon="iconoir-prohibition"
+        />
+      </template>
+      <template v-if="canCreateIdentity" #footer="{ hide }">
+        <div class="select__footer">
+          <button
+            type="button"
+            class="select__footer-button"
+            @click="addIdentity(hide)"
+          >
+            <i class="iconoir-plus" aria-hidden="true"></i>
+            {{ $t('agent.addIdentity') }}
+          </button>
+        </div>
+      </template>
+    </PaginatedDropdown>
   </FormGroup>
   <FormGroup
     class="agent-create__section"
@@ -166,7 +179,8 @@
     v-if="canCreateIdentity"
     ref="createIdentityModal"
     :workspace="workspace"
-    @saved="selectCreatedIdentity"
+    :initial-role-uid="newIdentityRole?.uid"
+    @saved="selectIdentity"
   />
   <AgentToolPermissionsModal
     ref="toolPermissionsModal"
@@ -182,8 +196,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import IdentityService from '@baserow/modules/core/services/identity'
 import ManageIdentityModal from '@baserow/modules/core/components/settings/identities/ManageIdentityModal'
 import AgentToolPermissionsModal from '@baserow/modules/agent/components/configuration/AgentToolPermissionsModal'
@@ -192,7 +208,6 @@ import {
   SETUP_ACTS_AS,
   SETUP_PERMISSIONS,
   SETUP_START,
-  newIdentityRoleUid,
   scheduleValues,
   setupActionTypes,
   toolsForPermissions,
@@ -217,20 +232,23 @@ const PERMISSION_PRESETS = [
   },
 ]
 const CUSTOM_ICON = 'iconoir-settings'
-const EXISTING_PREFIX = `${SETUP_ACTS_AS.EXISTING}:`
-const CREATE_IDENTITY = 'create'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
   workspace: { type: Object, required: true },
   availableTools: { type: Array, required: true },
+  canBindIdentity: Boolean,
   canCreateIdentity: Boolean,
+  newIdentityRole: { type: Object, default: null },
 })
 const emit = defineEmits(['update:modelValue'])
 const { t } = useI18n()
 const { $client, $registry } = useNuxtApp()
 
-const identities = ref([])
+const identityIcon = $registry.get(
+  'subject',
+  UserSubjectType.getType()
+).identityIconClass
 const createIdentityModal = ref(null)
 const toolPermissionsModal = ref(null)
 const actionTypes = computed(() => setupActionTypes($registry, props.workspace))
@@ -254,19 +272,15 @@ const newIdentityName = computed(() =>
   t('agent.setupNewIdentity', { name: props.modelValue.name })
 )
 
-const existingValue = (id) => `${EXISTING_PREFIX}${id}`
 const roleOf = (uid) =>
   (props.workspace._?.roles || []).find((role) => role.uid === uid) || null
-const newIdentityRole = computed(() => roleOf(props.modelValue.actsAs.roleUid))
 
 const actsAsValue = computed(() => {
   const { actsAs } = props.modelValue
-  return actsAs.kind === SETUP_ACTS_AS.EXISTING
-    ? existingValue(actsAs.id)
-    : actsAs.kind
+  return actsAs.kind === SETUP_ACTS_AS.EXISTING ? actsAs.id : actsAs.kind
 })
 const actsAsIcon = computed(() =>
-  hasIdentity.value ? 'baserow-icon-agent' : 'iconoir-prohibition'
+  hasIdentity.value ? identityIcon : 'iconoir-prohibition'
 )
 const actsAsName = computed(() => {
   const { actsAs } = props.modelValue
@@ -277,11 +291,8 @@ const actsAsName = computed(() => {
 })
 const actsAsRole = computed(() => {
   const { actsAs } = props.modelValue
-  if (actsAs.kind === SETUP_ACTS_AS.NEW) return newIdentityRole.value
-  if (actsAs.kind === SETUP_ACTS_AS.EXISTING)
-    return roleOf(
-      identities.value.find((identity) => identity.id === actsAs.id)?.role_uid
-    )
+  if (actsAs.kind === SETUP_ACTS_AS.NEW) return props.newIdentityRole
+  if (actsAs.kind === SETUP_ACTS_AS.EXISTING) return roleOf(actsAs.roleUid)
   return null
 })
 
@@ -310,52 +321,40 @@ function choosePermissions(value) {
   else update({ permissions: value })
 }
 
-function selectCreatedIdentity(identity) {
-  identities.value = [...identities.value, identity]
+function selectIdentity(identity) {
   update({
     actsAs: {
       kind: SETUP_ACTS_AS.EXISTING,
       id: identity.id,
       name: identity.name,
+      roleUid: identity.role_uid,
     },
   })
 }
 
-function chooseActsAs(value) {
-  if (value === CREATE_IDENTITY) {
-    createIdentityModal.value.show()
-  } else if (value === SETUP_ACTS_AS.NEW) {
-    update({
-      actsAs: {
-        kind: SETUP_ACTS_AS.NEW,
-        roleUid: newIdentityRoleUid(props.workspace),
-      },
-    })
-  } else if (value === SETUP_ACTS_AS.NONE) {
-    update({ actsAs: { kind: SETUP_ACTS_AS.NONE } })
-  } else {
-    const id = Number(value.slice(EXISTING_PREFIX.length))
-    const identity = identities.value.find((item) => item.id === id)
-    update({
-      actsAs: { kind: SETUP_ACTS_AS.EXISTING, id, name: identity.name },
-    })
+function chooseActsAs({ value, item }) {
+  if (value === SETUP_ACTS_AS.NEW || value === SETUP_ACTS_AS.NONE) {
+    update({ actsAs: { kind: value } })
+  } else if (item) {
+    selectIdentity(item)
   }
+}
+
+function fetchIdentities(page, search) {
+  return IdentityService($client).listPage(props.workspace.id, {
+    page,
+    search,
+    forSelection: true,
+  })
+}
+
+function addIdentity(hide) {
+  hide()
+  createIdentityModal.value.show()
 }
 
 function toggleAction(type, enabled) {
   const others = props.modelValue.actionTypes.filter((item) => item !== type)
   update({ actionTypes: enabled ? [...others, type] : others })
 }
-
-onMounted(async () => {
-  try {
-    const { data } = await IdentityService($client).listPage(
-      props.workspace.id,
-      { forSelection: true }
-    )
-    identities.value = data.results
-  } catch {
-    identities.value = []
-  }
-})
 </script>

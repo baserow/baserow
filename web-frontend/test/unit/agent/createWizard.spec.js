@@ -4,7 +4,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import { clone } from '@baserow/modules/core/utils/object'
 import AgentCreateModal from '@baserow/modules/agent/components/AgentCreateModal'
 import AgentCreateReviewStep from '@baserow/modules/agent/components/AgentCreateReviewStep'
-import { choose, page, workspace as workspaceData } from './helpers'
+import { agentData, choose, page, workspace as workspaceData } from './helpers'
 
 const tools = [
   { name: 'list_tables', group: 'database', changes_data: false },
@@ -33,13 +33,13 @@ describe('AgentCreateModal', () => {
     await testApp.afterEach()
   })
 
-  async function open({ identities = false } = {}) {
+  async function open({ identities = false, hasPermission = () => true } = {}) {
     // Without the identities flag the setup starts with no workspace access.
     const app = Object.create(testApp.nuxtApp)
     Object.defineProperty(app, '$featureFlagIsEnabled', {
       value: () => identities,
     })
-    Object.defineProperty(app, '$hasPermission', { value: () => true })
+    Object.defineProperty(app, '$hasPermission', { value: hasPermission })
     const wrapper = await testApp.mount(AgentCreateModal, {
       props: { applicationType: agentType, workspace },
       global: { plugins: [{ install: (vueApp) => (vueApp.$nuxt = app) }] },
@@ -47,6 +47,15 @@ describe('AgentCreateModal', () => {
     wrapper.vm.show()
     await flushPromises()
     return wrapper
+  }
+
+  function mockAgentCreation() {
+    vi.spyOn(agentType, 'select').mockResolvedValue(true)
+    testApp.mock.onPost('/applications/workspace/1/').reply(200, agentData)
+    testApp.mock
+      .onGet('/agent/10/configuration/')
+      .reply(200, { available_tools: tools })
+    testApp.mock.onPatch('/agent/10/configuration/').reply(200, {})
   }
 
   const button = (wrapper, label) =>
@@ -175,16 +184,18 @@ describe('AgentCreateModal', () => {
   })
 
   test('acts as the identity created from the dropdown', async () => {
-    testApp.mock
-      .onPost('/identities/workspace/1/')
-      .reply(200, { id: 7, name: 'Investor', workspace_id: 1 })
+    testApp.mock.onPost('/identities/workspace/1/').reply(200, {
+      id: 7,
+      name: 'Investor',
+      workspace_id: 1,
+      role_uid: 'VIEWER',
+    })
     const wrapper = await open({ identities: true })
     await next(wrapper)
 
-    await choose(
-      dropdown(wrapper, 'agent.setupActsAs'),
-      'agent.runAsCreateIdentity'
-    )
+    const picker = dropdown(wrapper, 'agent.setupActsAs')
+    await picker.get('.dropdown__selected').trigger('click')
+    await picker.get('.select__footer-button').trigger('click')
     await flushPromises()
     expect(setup(wrapper).actsAs.kind).toBe('new')
     await wrapper.get('.modal__box .modal__box input').setValue('Investor')
@@ -196,7 +207,117 @@ describe('AgentCreateModal', () => {
       kind: 'existing',
       id: 7,
       name: 'Investor',
+      roleUid: 'VIEWER',
     })
+  })
+
+  test.each([
+    ['a Builder', true],
+    ['an admin with identity creation turned off', false],
+  ])(
+    '%s can find and bind an existing identity on a later page',
+    async (_, identities) => {
+      mockAgentCreation()
+      const identityUrl = '/identities/workspace/1/'
+      testApp.mock.onGet(identityUrl).reply(({ params }) => [
+        200,
+        {
+          count: 2,
+          results:
+            params.page === 1
+              ? [{ id: 1, name: 'First', role_uid: 'EDITOR' }]
+              : [{ id: 2, name: 'Last', role_uid: 'VIEWER' }],
+        },
+      ])
+      const wrapper = await open({
+        identities,
+        hasPermission: (operation) =>
+          operation === 'identity.bind' || !identities,
+      })
+      await textarea(wrapper).setValue('Summarize rows.')
+      await next(wrapper)
+      const picker = dropdown(wrapper, 'agent.setupActsAs')
+      expect(picker.find('.select__footer-button').exists()).toBe(false)
+      expect(picker.text()).not.toContain('agent.setupNewIdentity')
+      await picker.get('.dropdown__selected').trigger('click')
+      await flushPromises()
+      await picker.get('.select__items').trigger('scroll')
+      await flushPromises()
+      await picker.findAll('.select__item-link').at(-2).trigger('click')
+      expect(setup(wrapper).actsAs).toEqual({
+        kind: 'existing',
+        id: 2,
+        name: 'Last',
+        roleUid: 'VIEWER',
+      })
+      await next(wrapper)
+      await button(wrapper, 'agent.createApplication').trigger('click')
+      await flushPromises()
+      expect(JSON.parse(testApp.mock.history.patch[0].data)).toMatchObject({
+        instructions: 'Summarize rows.',
+        run_as_subject_id: 2,
+      })
+      expect(
+        testApp.mock.history.post.some(({ url }) => url === identityUrl)
+      ).toBe(false)
+    }
+  )
+
+  test('updates the automatic role after changing suggestions and saves the displayed role', async () => {
+    testApp.store.commit('workspace/SET_ROLES', {
+      workspaceId: workspace.id,
+      roles: ['EDITOR', 'VIEWER'].map((uid) => ({
+        uid,
+        name: uid,
+        isVisible: true,
+      })),
+    })
+    mockAgentCreation()
+    testApp.mock.onPost('/identities/workspace/1/').reply(200, {
+      id: 7,
+      name: 'Agent',
+      workspace_id: 1,
+    })
+    testApp.mock.onPost('/agent/10/triggers/').reply(200, {})
+    const wrapper = await open({ identities: true })
+    await next(wrapper)
+    expect(selected(wrapper, 'agent.setupActsAs')).toContain('EDITOR')
+    await back(wrapper)
+    await wrapper.findAll('.agent-create__suggestion')[3].trigger('click')
+    await next(wrapper)
+    expect(selected(wrapper, 'agent.setupActsAs')).toContain('VIEWER')
+    await next(wrapper)
+    await button(wrapper, 'agent.createApplication').trigger('click')
+    await flushPromises()
+    const request = testApp.mock.history.post.find(
+      ({ url }) => url === '/identities/workspace/1/'
+    )
+    expect(JSON.parse(request.data).role_uid).toBe('VIEWER')
+  })
+
+  test('a caller without binding permission saves instructions without fetching identities', async () => {
+    mockAgentCreation()
+    const wrapper = await open({
+      identities: true,
+      hasPermission: (operation) => operation !== 'identity.bind',
+    })
+    await textarea(wrapper).setValue('Summarize each week.')
+    await next(wrapper)
+    expect(dropdown(wrapper, 'agent.setupActsAs').classes()).toContain(
+      'dropdown--disabled'
+    )
+    expect(wrapper.text()).not.toContain('agent.addIdentity')
+    expect(
+      testApp.mock.history.get.some(
+        ({ url }) => url === '/identities/workspace/1/'
+      )
+    ).toBe(false)
+    await next(wrapper)
+    await button(wrapper, 'agent.createApplication').trigger('click')
+    await flushPromises()
+    const values = JSON.parse(testApp.mock.history.patch[0].data)
+    expect(values.instructions).toBe('Summarize each week.')
+    expect(values).not.toHaveProperty('run_as_subject_id')
   })
 
   test('needs a model once a provider is chosen', async () => {

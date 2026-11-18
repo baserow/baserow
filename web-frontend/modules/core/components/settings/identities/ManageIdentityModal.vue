@@ -79,6 +79,7 @@ export default {
   props: {
     workspace: { type: Object, required: true },
     identity: { type: Object, default: null },
+    initialRoleUid: { type: String, default: null },
   },
   emits: ['saved'],
   data() {
@@ -163,7 +164,7 @@ export default {
           this.values,
           setting.getInitialValues(this.identity, {
             workspace: this.workspace,
-            defaultRole,
+            defaultRole: this.initialRoleUid ?? defaultRole,
           })
         )
       }
