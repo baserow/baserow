@@ -11,6 +11,7 @@ from baserow.core.notifications.registries import (
     NotificationType,
 )
 from baserow.core.prosemirror.utils import prosemirror_doc_to_plain_text
+from baserow.core.user.identity import is_human
 from baserow_premium.row_comments.handler import RowCommentHandler
 from baserow_premium.row_comments.models import (
     RowCommentsNotificationMode,
@@ -158,9 +159,12 @@ def on_row_comment_created(sender, row_comment, row, user, mentions, **kwargs):
 
     table_id = row_comment.table_id
     row_id = row_comment.row_id
-    if not RowCommentsNotificationMode.objects.filter(
-        user=user, table_id=table_id, row_id=row_id
-    ).exists():
+    if (
+        is_human(user)
+        and not RowCommentsNotificationMode.objects.filter(
+            user=user, table_id=table_id, row_id=row_id
+        ).exists()
+    ):
         RowCommentHandler.update_row_comments_notification_mode(
             user,
             table_id,

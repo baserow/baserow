@@ -63,6 +63,7 @@ from baserow.core.telemetry.utils import baserow_trace_handler
 from baserow.core.trash.exceptions import RelatedTableTrashedException
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.trash.registries import trash_item_type_registry
+from baserow.core.user.identity import collaborator_q
 from baserow.core.utils import (
     ChildProgressBuilder,
     extract_allowed,
@@ -218,9 +219,12 @@ class FieldHandler:
         ).prefetch_related(
             Prefetch(
                 "table__database__workspace__users",
-                queryset=User.objects.filter(profile__to_be_deleted=False).order_by(
-                    "first_name"
-                ),
+                queryset=User.objects_and_identities.filter(
+                    collaborator_q(include_identities=True),
+                    profile__to_be_deleted=False,
+                )
+                .select_related("profile")
+                .order_by("first_name"),
                 to_attr="available_collaborators",
             ),
             "select_options",

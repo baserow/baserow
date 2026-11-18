@@ -202,7 +202,7 @@ export class UserSubjectType extends SubjectType {
   }
 
   get identityIconClass() {
-    return 'iconoir-lock'
+    return 'iconoir-hexagon'
   }
 
   getId(subject) {

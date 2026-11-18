@@ -16,6 +16,7 @@
 </template>
 
 <script>
+import { clamp } from '@baserow/modules/core/utils/number'
 import {
   collectTeleportRootsForOutsideClick,
   getTeleportedElementFromRef,
@@ -68,6 +69,10 @@ export default {
       type: Boolean,
       default: () => false,
       required: false,
+    },
+    horizontalViewportMargin: {
+      type: Number,
+      default: null,
     },
     /**
      * When `checkForEdges` is called, this prop allows us to force the
@@ -479,6 +484,16 @@ export default {
 
       if (horizontalAdjusted === 'right') {
         positions.right = window.innerWidth - targetRight - horizontalOffset
+      }
+
+      if (this.horizontalViewportMargin !== null) {
+        const margin = this.horizontalViewportMargin
+        const availableWidth =
+          window.innerWidth - this.$refs.contextEl.offsetWidth
+        const left = positions.left ?? availableWidth - positions.right
+        positions.left =
+          window.scrollX + clamp(left, margin, availableWidth - margin)
+        positions.right = null
       }
 
       if (verticalAdjusted === 'bottom') {

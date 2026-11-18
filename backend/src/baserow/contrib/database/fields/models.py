@@ -956,6 +956,11 @@ class MultipleCollaboratorsField(Field):
             "collaborator."
         ),
     )
+    include_identities = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Indicates if the identities of the workspace can be assigned.",
+    )
     multiple_collaborators_default = ArrayField(
         models.PositiveBigIntegerField(),
         null=True,

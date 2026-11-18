@@ -77,6 +77,7 @@ import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
+import { getSelectableCollaborators } from '@baserow/modules/core/utils/collaborator'
 import suggestion from '@baserow/modules/core/editor/suggestion'
 
 export default {
@@ -105,6 +106,10 @@ export default {
     mentionableUsers: {
       type: [Array, null],
       default: null,
+    },
+    allowIdentitySuggestions: {
+      type: Boolean,
+      default: true,
     },
     enterStopEdit: {
       type: Boolean,
@@ -178,8 +183,40 @@ export default {
     resolvedMenuContainer() {
       return this.menuContainer ?? (() => document.body)
     },
+    mentionNames() {
+      return this.mentionableUsers
+        ? new Map(
+            this.mentionableUsers.map((user) => [user.user_id, user.name])
+          )
+        : null
+    },
   },
   watch: {
+    mentionNames(names) {
+      if (!this.editor || !names) {
+        return
+      }
+      const transaction = this.editor.state.tr
+      this.editor.state.doc.descendants((node, position) => {
+        if (node.type.name !== 'mention') {
+          return
+        }
+        const name = names.get(Number(node.attrs.id))
+        if (name !== undefined && name !== node.attrs.label) {
+          transaction.setNodeMarkup(position, undefined, {
+            ...node.attrs,
+            label: name,
+          })
+        }
+      })
+      if (transaction.docChanged) {
+        // A display-name refresh changes neither the saved mention nor undo history.
+        transaction
+          .setMeta('preventUpdate', true)
+          .setMeta('addToHistory', false)
+        this.editor.view.dispatch(transaction)
+      }
+    },
     editable: {
       handler() {
         this.teardownEditor()
@@ -299,8 +336,14 @@ export default {
       if (users !== null) {
         const mentionsExt = createMention({
           loggedUserId: this.loggedUserId,
-          suggestion: suggestion({ users }),
-          users,
+          suggestion: suggestion({
+            users: () =>
+              getSelectableCollaborators(
+                this.mentionableUsers ?? [],
+                this.allowIdentitySuggestions
+              ),
+          }),
+          users: () => this.mentionableUsers,
         })
         extensions.push(mentionsExt)
       }

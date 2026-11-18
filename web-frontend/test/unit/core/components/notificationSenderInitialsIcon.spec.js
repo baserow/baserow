@@ -21,7 +21,9 @@ describe('NotificationSenderInitialsIcon', () => {
       },
     })
 
-    expect(wrapper.find('.identity-avatar .iconoir-lock').exists()).toBe(true)
+    expect(wrapper.get('.identity-avatar .avatar__icon').classes()).toContain(
+      testApp.$registry.get('subject', 'auth.User').identityIconClass
+    )
     expect(wrapper.find('[role="img"]').attributes('aria-label')).toBe(
       'subjectType.identity'
     )

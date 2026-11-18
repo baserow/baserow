@@ -116,4 +116,27 @@ describe('Context.vue', () => {
 
     expect(wrapper.vm.opener).toBe(target)
   })
+
+  it('positions a menu within a scrolled viewport when its anchor is partly outside', () => {
+    vi.stubGlobal('innerWidth', 375)
+    vi.stubGlobal('scrollX', 156)
+    const wrapper = mount(Context, { props: { horizontalViewportMargin: 8 } })
+    try {
+      const menu = wrapper.vm.getTeleportedElement()
+      vi.spyOn(menu, 'offsetWidth', 'get').mockReturnValue(359)
+      vi.spyOn(menu, 'getBoundingClientRect').mockReturnValue(
+        new DOMRect(0, 0, 359, 287)
+      )
+      const anchor = document.createElement('button')
+      vi.spyOn(anchor, 'getBoundingClientRect').mockReturnValue(
+        new DOMRect(294, 51, 99, 32)
+      )
+      expect(
+        wrapper.vm.calculatePositionElement(anchor, 'bottom', 'left', 10, 0)
+      ).toMatchObject({ left: 164, right: null })
+    } finally {
+      wrapper.unmount()
+      vi.unstubAllGlobals()
+    }
+  })
 })
