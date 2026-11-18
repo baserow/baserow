@@ -100,7 +100,8 @@ class UpdateIdentityActionType(ActionType):
     @classmethod
     def do(cls, user: AbstractUser, identity: User, **values: Any) -> User:
         """
-        Updates an identity and records its name and role before and after.
+        Updates an identity and, when its name or role changed, records them
+        before and after.
 
         :param user: The user updating the identity.
         :param identity: The identity to update.
@@ -110,20 +111,21 @@ class UpdateIdentityActionType(ActionType):
 
         workspace = IdentityHandler.get_workspace(identity)
         updated = IdentityService().update_identity(user, identity, **values)
-        cls.register_action(
-            user=user,
-            params=cls.Params(
-                workspace.id,
-                workspace.name,
-                updated.identity.id,
-                updated.new_values["name"],
-                updated.new_values["role_uid"],
-                updated.original_values["name"],
-                updated.original_values["role_uid"],
-            ),
-            scope=cls.scope(workspace.id),
-            workspace=workspace,
-        )
+        if updated.original_values != updated.new_values:
+            cls.register_action(
+                user=user,
+                params=cls.Params(
+                    workspace.id,
+                    workspace.name,
+                    updated.identity.id,
+                    updated.new_values["name"],
+                    updated.new_values["role_uid"],
+                    updated.original_values["name"],
+                    updated.original_values["role_uid"],
+                ),
+                scope=cls.scope(workspace.id),
+                workspace=workspace,
+            )
         return updated.identity
 
     @classmethod

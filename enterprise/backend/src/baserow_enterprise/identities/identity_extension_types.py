@@ -1,3 +1,4 @@
+from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.expressions import ArraySubquery
 from django.db.models import JSONField, OuterRef, Value
@@ -7,6 +8,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.registries import IdentityExtensionType
@@ -15,6 +17,10 @@ from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
+from baserow_enterprise.teams.actions import (
+    CreateTeamSubjectActionType,
+    DeleteTeamSubjectActionType,
+)
 from baserow_enterprise.teams.models import Team, TeamSubject
 from baserow_enterprise.teams.operations import (
     CreateTeamSubjectOperationType,
@@ -164,9 +170,59 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
         TeamSubject.objects.filter(
             id__in=[membership.id for membership in removed_memberships]
         ).delete()
-        TeamSubject.objects.bulk_create(
+        added_memberships = TeamSubject.objects.bulk_create(
             [TeamSubject(team=team, subject=identity) for team in added_teams]
         )
+        self._record_team_changes(
+            user, identity, added_memberships, removed_memberships
+        )
+
+    def _record_team_changes(
+        self,
+        user: AbstractUser,
+        identity: User,
+        added: list[TeamSubject],
+        removed: list[TeamSubject],
+    ) -> None:
+        """
+        Records the teams an identity joined and left as the actions the team
+        endpoints register, so the audit log shows them wherever they are made.
+
+        :param user: The user who changed the teams of the identity.
+        :param identity: The identity whose teams changed.
+        :param added: The memberships that were created.
+        :param removed: The memberships that were deleted.
+        """
+
+        workspace = IdentityHandler().get_workspace(identity)
+        created = action_type_registry.get_by_type(CreateTeamSubjectActionType)
+        for membership in added:
+            created.register_action(
+                user=user,
+                params=created.Params(
+                    membership.team_id,
+                    membership.team.name,
+                    membership.id,
+                    {"id": identity.id},
+                    membership.subject_type_natural_key,
+                ),
+                scope=created.scope(workspace.id),
+                workspace=workspace,
+            )
+        deleted = action_type_registry.get_by_type(DeleteTeamSubjectActionType)
+        for membership in removed:
+            deleted.register_action(
+                user=user,
+                params=deleted.Params(
+                    membership.team_id,
+                    membership.team.name,
+                    membership.id,
+                    identity.id,
+                    membership.subject_type_natural_key,
+                ),
+                scope=deleted.scope(workspace.id),
+                workspace=workspace,
+            )
 
     def create(self, identity, values, user):
         self._sync_teams(identity, values.get("team_ids"), user)
