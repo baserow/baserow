@@ -42,6 +42,8 @@ describe('Kuma durable streamed send and resume', () => {
   const send = () =>
     store.dispatch('assistant/sendMessage', { message: 'Hi', workspace })
   const follower = () => store.getters['chatRuns/getFollower']('run-1')
+  const shownContents = () =>
+    store.getters['assistant/messages'].map((m) => m.content)
   const emit = (type, values, metadata) =>
     receive(runRecord(type, values, metadata))
   async function open(active = null) {
@@ -448,7 +450,6 @@ describe('Kuma durable streamed send and resume', () => {
   })
 
   test.each([
-    [429, 'ERROR_CHAT_RUN_LIMIT', 'assistant.runLimitReached'],
     [400, 'ERROR_REQUEST_BODY_VALIDATION', 'assistant.runFailedToStart'],
     [400, 'ERROR_ASSISTANT_MODEL_DISABLED', 'Refused.'],
   ])('a %i %s refusal reads as %s', async (status, code, content) => {
@@ -465,13 +466,31 @@ describe('Kuma durable streamed send and resume', () => {
 
   test('refreshing the chat keeps a refused prompt and its explanation', async () => {
     await open()
-    service.sendMessage.mockRejectedValue(refused(429, 'ERROR_CHAT_RUN_LIMIT'))
+    service.sendMessage.mockRejectedValue(
+      refused(400, 'ERROR_REQUEST_BODY_VALIDATION')
+    )
     await send()
     await store.dispatch('assistant/refreshCurrentChat')
-    expect(store.getters['assistant/messages'].map((m) => m.content)).toEqual([
-      'Hi',
-      'assistant.runLimitReached',
-    ])
+    expect(shownContents()).toEqual(['Hi', 'assistant.runFailedToStart'])
+  })
+
+  test('a message refused by the run limit leaves one notice, however often it is sent', async () => {
+    await open()
+    service.sendMessage.mockRejectedValue(refused(429, 'ERROR_CHAT_RUN_LIMIT'))
+    expect(await send()).toBe(SEND_OUTCOME.LIMIT_REACHED)
+    await send()
+    expect(shownContents()).toEqual(['assistant.runLimitReached'])
+  })
+
+  test('the run limit notice goes away when a message is sent again', async () => {
+    await open()
+    service.sendMessage.mockRejectedValueOnce(
+      refused(429, 'ERROR_CHAT_RUN_LIMIT')
+    )
+    await send()
+    send()
+    await flushPromises()
+    expect(shownContents()).toEqual(['Hi'])
   })
 
   test('a bug while recovering a lost send surfaces instead of a refusal', async () => {
