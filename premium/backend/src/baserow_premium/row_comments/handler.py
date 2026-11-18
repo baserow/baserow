@@ -227,21 +227,16 @@ class RowCommentHandler:
         LicenseHandler.raise_if_user_doesnt_have_feature(
             PREMIUM, requesting_user, workspace
         )
-        checks = [
-            PermissionCheck(requesting_user, ReadRowCommentsOperationType.type, table)
-            for table in tables
-        ]
-        permitted = CoreHandler().check_multiple_permissions(
-            checks, workspace=workspace
-        )
-        for check in checks:
-            if permitted[check] is not True:
-                CoreHandler().check_permissions(
-                    requesting_user,
-                    check.operation_name,
-                    workspace=workspace,
-                    context=check.context,
+        CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(
+                    requesting_user, ReadRowCommentsOperationType.type, table
                 )
+                for table in tables
+            ],
+            workspace=workspace,
+            raise_exception=True,
+        )
 
         if not tables:
             return RowCommentSearchResult([], False)
