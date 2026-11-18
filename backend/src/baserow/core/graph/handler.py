@@ -1167,18 +1167,18 @@ class BaseGraphHandler(ABC):
         }
         self._update_graph()
 
-    def get_chain_tail_id(self, point: GraphPoint, output: str) -> str | None:
+    def get_chain_ids(self, point: GraphPoint, output: str) -> List[str]:
         """
-        The ID of the last point of the chain that follows a point on one of its
-        outputs.
+        The IDs of the points of the chain that follows a point on one of its
+        outputs, in order.
 
         :param point: The point the chain follows.
         :param output: The output of the point the chain is on.
-        :return: The ID, None when no point follows on that output.
+        :return: The IDs, empty when no point follows on that output.
         """
 
         next_ids = self.get_next_point_ids(point, output)
-        return self._get_chain_tail_id(next_ids[0]) if next_ids else None
+        return self._walk_chain_ids(next_ids[0], set()) if next_ids else []
 
     def remove(
         self, point_to_delete: GraphPoint, keep_info: bool = False

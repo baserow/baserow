@@ -100,22 +100,26 @@ class CreateAutomationNodeActionType(UndoableActionType):
     def _check_chain_can_be_followed(cls, node: AutomationNode, output: str):
         """
         Check the nodes on the default output of a node can follow the chain on
-        another of its outputs. A chain that ends in a router can't be followed:
-        they would run only when none of its branches match.
+        another of its outputs. A chain that holds a router with branches can't be
+        followed: the chain goes on along its default branch, so they would run
+        only when none of its branches match.
 
-        :raises AutomationNodeNotDeletable: When the chain ends in a router.
+        :raises AutomationNodeNotDeletable: When the chain holds such a router.
         """
 
-        tail_id = node.workflow.get_graph().get_chain_tail_id(node, output)
-        if tail_id is None:
-            return
-        tail = AutomationNodeHandler().get_node(int(tail_id))
-        if len(tail.service.get_type().get_edges(tail.service.specific)) > 1:
-            raise AutomationNodeNotDeletable(
-                f"Node {node.id} can't be removed: the nodes on its default output "
-                f"would follow router {tail.id} and run only when none of its "
-                "branches match."
-            )
+        for node_id in node.workflow.get_graph().get_chain_ids(node, output):
+            chain_node = AutomationNodeHandler().get_node(int(node_id))
+            service = chain_node.service
+            # A router has one output per branch plus the default one. With no
+            # branch, its default output always runs.
+            if len(service.get_type().get_edges(service.specific)) > 1:
+                raise AutomationNodeNotDeletable(
+                    f"Node {node.id} can't be removed: the nodes on its default "
+                    f"output would follow router {chain_node.id} and run only when "
+                    "none of its branches match. This step can't be undone: to "
+                    f"remove node {node.id}, move the nodes off its outputs, then "
+                    "delete it."
+                )
 
     @classmethod
     def redo(

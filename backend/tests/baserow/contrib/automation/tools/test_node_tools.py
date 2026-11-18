@@ -338,6 +338,61 @@ def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router(
 
 
 @pytest.mark.django_db
+def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router_mid_chain(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router2",
+                type="router",
+                previous_node_ref=str(email["id"]),
+                edges=[{"label": "Small", "condition": "true"}],
+            ),
+            _email(ref="r2_default", previous="router2"),
+        ],
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    other = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other"
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    # The chain on the branch ends in a node on Router2's default branch: Other
+    # would then run only when none of Router2's branches match.
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    assert "This step can't be undone" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+    assert AutomationNode.objects.filter(id=other.id).exists()
+
+
+@pytest.mark.django_db
 def test_redo_router_insert_broadcasts_the_final_graph_once(
     automation_ctx, django_capture_on_commit_callbacks
 ):
