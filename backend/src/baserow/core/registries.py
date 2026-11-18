@@ -5,6 +5,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, TypeVar, Union
 from zipfile import ZipFile
 
+from django.conf import settings
 from django.core.files.storage import Storage
 from django.db.models import Q, QuerySet
 from django.db.transaction import Atomic
@@ -13,6 +14,7 @@ from rest_framework.serializers import Serializer
 
 from baserow.contrib.database.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.core.auth_provider.registries import AuthenticationProviderTypeRegistry
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import ChildProgressBuilder
@@ -24,6 +26,7 @@ from .exceptions import (
     ObjectScopeTypeDoesNotExist,
     OperationTypeAlreadyRegistered,
     OperationTypeDoesNotExist,
+    PermissionDenied,
     PermissionException,
     PermissionManagerTypeAlreadyRegistered,
     PermissionManagerTypeDoesNotExist,
@@ -166,6 +169,9 @@ class ImportExportConfig:
     Who restores a snapshot. Kept apart from `copied_by` so a restore carries
     every credential the snapshot holds.
     """
+
+    imported_by: Optional["AbstractUser"] = None
+    """Who receives initial access when importing a portable archive."""
 
 
 class Plugin(APIUrlsInstanceMixin, Instance):
@@ -475,7 +481,16 @@ class ApplicationType(
         model = self.model_class
         last_order = model.get_last_order(workspace)
 
-        instance = model.objects.create(workspace=workspace, order=last_order, **kwargs)
+        policy = kwargs.pop("access_policy", None) or None
+        if policy:
+            manager = permission_manager_type_registry.get_application_policy(policy)
+            manager.validate_application_access(user, workspace)
+        instance = model.objects.create(
+            workspace=workspace, order=last_order, access_policy=policy, **kwargs
+        )
+        if policy:
+            local_cache.delete(f"application_policies_{workspace.id}")
+            manager.initialize_application_access(user, instance)
         if init_with_data:
             self.init_application(user, instance)
         return instance
@@ -572,6 +587,10 @@ class ApplicationType(
             order=application.order,
             type=self.type,
         )
+        if application.access_policy and not (
+            import_export_config.is_publishing or import_export_config.is_user_template
+        ):
+            structure["access_policy"] = application.access_policy
         # Annotate any `SerializationProcessorType` we have.
         structure = self.export_serialized_structure_with_registry(
             application.get_root(), application, structure, import_export_config
@@ -628,9 +647,26 @@ class ApplicationType(
         # off, we'll use it after the Application has been created.
         snapshot_from = serialized_copy.pop("snapshot_from", None)
 
+        policy = serialized_values.get("access_policy") or None
+        if policy:
+            manager = permission_manager_type_registry.get_application_policy(policy)
+            if not import_export_config.include_permission_data:
+                manager.validate_application_access(
+                    import_export_config.imported_by, workspace
+                )
+            elif import_export_config.copied_by:
+                manager.validate_application_access(
+                    import_export_config.copied_by, workspace
+                )
         application = self.model_class.objects.create(
-            workspace=workspace, **serialized_copy
+            workspace=workspace, access_policy=policy, **serialized_copy
         )
+        if policy and workspace:
+            local_cache.delete(f"application_policies_{workspace.id}")
+        if policy and not import_export_config.include_permission_data:
+            manager.initialize_application_access(
+                import_export_config.imported_by, application
+            )
 
         # The Application comes from a Snapshot, set its
         # `snapshot_from` related manager. This ensures that
@@ -815,6 +851,16 @@ class PermissionManagerType(abc.ABC, Instance):
 
     # A list of subject types that are supported by this permission manager.
     supported_actor_types = []
+
+    application_access_policy = None
+
+    def validate_application_access(self, user, workspace):
+        """Check whether an actor can create an app using this policy."""
+        raise NotImplementedError()
+
+    def initialize_application_access(self, user, application):
+        """Install the initial scoped grants for a validated creation request."""
+        raise NotImplementedError()
 
     def actor_is_supported(self, actor: Actor):
         """
@@ -1095,6 +1141,21 @@ class PermissionManagerTypeRegistry(Registry[PermissionManagerType]):
 
     does_not_exist_exception_class = PermissionManagerTypeDoesNotExist
     already_registered_exception_class = PermissionManagerTypeAlreadyRegistered
+
+    def get_application_policy(self, name):
+        """Return the active permission manager that enforces this stored policy."""
+        try:
+            return self.application_policies()[name]
+        except KeyError:
+            raise PermissionDenied() from None
+
+    def application_policies(self):
+        return {
+            manager.application_access_policy: manager
+            for manager in self.get_all()
+            if manager.application_access_policy
+            and manager.type in settings.PERMISSION_MANAGERS
+        }
 
 
 class InvitationLinkScopeType(Instance, abc.ABC):

@@ -689,6 +689,7 @@ class Application(
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=160)
     order = models.PositiveIntegerField()
+    access_policy = models.CharField(max_length=32, null=True, blank=True)
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",

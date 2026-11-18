@@ -23,6 +23,8 @@ class AirtableImportJob(JobWithUserIpAddress, Job):
         on_delete=models.CASCADE,
         help_text="The workspace where the Airtable base must be imported into.",
     )
+    name = models.CharField(max_length=160, null=True, blank=True)
+    access_policy = models.CharField(max_length=32, null=True, blank=True)
     airtable_share_id = models.CharField(
         max_length=200,
         help_text="Public ID of the shared Airtable base that must be imported.",

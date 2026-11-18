@@ -147,6 +147,12 @@
   }
 }
 
+.tree__indicator {
+  flex-shrink: 0;
+  color: $palette-neutral-600;
+  font-size: 12px;
+}
+
 .tree__error-icon {
   flex-shrink: 0;
   color: $palette-red-700;

@@ -191,6 +191,16 @@ export class BaserowPlugin extends Registerable {
     return []
   }
 
+  /** Optional fields contributed to the application creation form. */
+  getApplicationCreateFormComponent() {
+    return null
+  }
+
+  /** Optional { icon, label } shown beside the application name. */
+  getApplicationSidebarIndicator(application) {
+    return null
+  }
+
   /**
    * Every registered plugin can display multiple additional context items in the
    * application context displayed by the sidebar when opening the context menu of

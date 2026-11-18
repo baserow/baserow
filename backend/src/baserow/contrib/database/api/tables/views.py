@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -62,6 +63,7 @@ from baserow.contrib.database.table.operations import (
     ImportRowsDatabaseTableOperationType,
     ReadDatabaseTableOperationType,
 )
+from baserow.contrib.database.tokens.constants import TOKEN_TO_OPERATION_MAP
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
@@ -70,6 +72,7 @@ from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
+from baserow.core.types import PermissionCheck
 
 from .errors import (
     ERROR_INITIAL_SYNC_TABLE_DATA_LIMIT_EXCEEDED,
@@ -120,35 +123,38 @@ class AllTablesView(APIView):
             database__workspace_id=token.workspace_id
         )
 
-        if permissions.filter(database__isnull=True, table__isnull=True).exists():
-            accessible_tables = tables_queryset
-        else:
-            accessible_tables = Table.objects.none()
-
-            database_ids = permissions.filter(
-                database__isnull=False, table__isnull=True
-            ).values_list("database_id", flat=True)
-
-            if database_ids:
-                accessible_tables = accessible_tables | tables_queryset.filter(
-                    database_id__in=database_ids
-                )
-
-            table_ids = permissions.filter(table__isnull=False).values_list(
-                "table_id", flat=True
-            )
-
-            if table_ids:
-                accessible_tables = accessible_tables | tables_queryset.filter(
-                    id__in=table_ids
-                )
-
-        tables = CoreHandler().filter_queryset(
-            request.user,
-            ListTablesDatabaseTableOperationType.type,
-            accessible_tables,
-            workspace=token.workspace,
+        scopes = Q(database_id__in=permissions.values("database_id")) | Q(
+            id__in=permissions.values("table_id")
         )
+        if permissions.filter(database__isnull=True, table__isnull=True).exists():
+            scopes |= Q(database__access_policy__isnull=True)
+
+        tables = list(
+            CoreHandler().filter_queryset(
+                request.user,
+                ListTablesDatabaseTableOperationType.type,
+                tables_queryset.filter(scopes).select_related("database"),
+                workspace=token.workspace,
+            )
+        )
+        # An explicit token grant on a protected table may have outlived the
+        # owner's access to that operation. Use the same checks as row requests.
+        checks = [
+            PermissionCheck(token, operation, table)
+            for table in tables
+            if table.database.access_policy
+            for operation in TOKEN_TO_OPERATION_MAP.values()
+        ]
+        if checks:
+            allowed = CoreHandler().check_multiple_permissions(checks, token.workspace)
+            visible = {
+                check.context.id for check, granted in allowed.items() if granted
+            }
+            tables = [
+                table
+                for table in tables
+                if not table.database.access_policy or table.id in visible
+            ]
 
         serializer = TableWithoutDataSyncSerializer(tables, many=True)
         return Response(serializer.data)

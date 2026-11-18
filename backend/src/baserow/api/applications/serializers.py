@@ -76,6 +76,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "created_on",
             "last_viewed",
             "pending_count",
+            "access_policy",
         )
         extra_kwargs = {"id": {"read_only": True}}
 
@@ -92,6 +93,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
             data.pop("last_viewed", None)
         if "pending_count_per_application" not in self.context:
             data.pop("pending_count", None)
+        if not data.get("access_policy"):
+            data.pop("access_policy", None)
         return data
 
 
@@ -116,7 +119,7 @@ class BaseApplicationCreatePolymorphicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Application
-        fields = ("name", "type", "init_with_data")
+        fields = ("name", "type", "init_with_data", "access_policy")
 
 
 class PolymorphicApplicationCreateSerializer(PolymorphicRequestSerializer):

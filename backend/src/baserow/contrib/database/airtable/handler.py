@@ -1434,6 +1434,9 @@ class AirtableHandler:
         progress_builder: Optional[ChildProgressBuilder] = None,
         download_files_buffer: Optional[IOBase] = None,
         config: Optional[AirtableImportConfig] = None,
+        name: str | None = None,
+        access_policy: str | None = None,
+        imported_by=None,
     ) -> Database:
         """
         Downloads all the data of the provided publicly shared Airtable base, converts
@@ -1481,7 +1484,13 @@ class AirtableHandler:
             download_files_buffer,
         )
 
+        if name:
+            baserow_database_export["name"] = name
+        if access_policy:
+            baserow_database_export["access_policy"] = access_policy
+
         import_export_config = ImportExportConfig(
+            imported_by=imported_by,
             # We are not yet downloading any role/permission data from airtable so
             # nothing to import
             include_permission_data=False,
@@ -1495,6 +1504,7 @@ class AirtableHandler:
             import_export_config,
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=600),
+            atomic_per_application=bool(access_policy),
         )
 
         return databases[0].specific

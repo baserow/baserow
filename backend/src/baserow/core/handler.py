@@ -185,7 +185,7 @@ class ApplicationUpdatedResult:
 
 @baserow_trace_handler
 class CoreHandler:
-    default_create_allowed_fields = ["name", "init_with_data"]
+    default_create_allowed_fields = ["name", "init_with_data", "access_policy"]
     default_update_allowed_fields = ["name"]
 
     def clear_context(self):
@@ -2282,6 +2282,7 @@ class CoreHandler:
                 pending_counts[user_id].update(user_counts)
         return dict(pending_counts)
 
+    @transaction.atomic
     def create_application(
         self,
         user: AbstractUser,

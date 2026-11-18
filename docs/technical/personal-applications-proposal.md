@@ -1,6 +1,9 @@
 # Personal applications through RBAC inheritance
 
-Proposal based on `develop` at `74d6625a49`.
+Implemented on `explore/personal-applications`, based on `develop` at
+`74d6625a49`. After applying migrations and deploying the updated readers and
+workers, add `personal_applications` to `FEATURE_FLAGS` on the backend and frontend
+to enable creation. Existing Personal apps keep their restrictions with the flag off.
 
 Every application type offers a name and a choice of **Collaborative** or
 **Personal** at creation. Collaborative is the default for existing apps and
@@ -23,11 +26,10 @@ access this app. You can invite others later.”
 
 ### Resolve the policy in Enterprise RBAC
 
-Store the inheritance choice once per Personal application. An Enterprise
-one-to-one record referencing the base `core.Application` would make existing
-applications Collaborative without a data migration. Keep the creator's Admin
-grant in the existing role assignment table. Sharing and revocation then use
-normal app-scoped grants. Neither operation writes a record for each excluded
+The nullable `core.Application.access_policy` stores the inheritance choice.
+Existing apps inherit their workspace roles. Enterprise RBAC provides the
+`personal` policy and stores the creator’s Admin grant in the existing role
+assignment table. Sharing and revocation use normal app-scoped grants. Neither operation writes a record for each excluded
 workspace member. No ownership permission manager is needed.
 
 Apply the existing direct Admin precedence throughout the workspace. For
@@ -112,11 +114,8 @@ many Personal databases and tables.
   enforcement on existing Personal scopes, including lists in a workspace
   containing both modes. Simply enabling
   all of Enterprise RBAC on expiry would change Collaborative access too.
-  A build without the Enterprise plugin is a separate case. If switching a
-  populated installation to OSS-only must be supported, a restriction stored
-  solely in Enterprise cannot be enforced there. Decide before settling the
-  schema whether to prevent that transition or persist a generic policy key in
-  core that denies access when its provider is missing.
+  If Enterprise is removed, core denies workspace access to apps whose policy
+  provider is missing. Reinstalling Enterprise restores role resolution.
 - **Workspace exports and backups.** A full workspace export requested by a
   direct workspace Admin must include every active application, whether
   Personal or Collaborative. The export job already filters applications by
@@ -133,16 +132,17 @@ many Personal databases and tables.
   restore and duplication create new app IDs. Extend the Enterprise serialization
   processor to carry the policy along with applicable grants on same-workspace
   copies. Ensure the resulting Personal copy has an active administrator. For
-  imports across workspaces, the processor deliberately skips subject IDs. Offer
-  a destination policy and bootstrap its creator. A private source must never
-  silently become a workspace-visible copy. When the creator leaves, a direct
-  workspace Admin retains access and can designate another application Admin
+  imports across workspaces, the processor skips source subject IDs. The
+  importer gets an explicit Admin grant on a new Personal app. A portable
+  import or duplication that creates a Personal application requires RBAC.
+  When the creator leaves, a workspace Admin can designate another app Admin
   while RBAC sharing is licensed.
   [Existing permission serialization](../../enterprise/backend/src/baserow_enterprise/structure_types.py)
 - **Other audiences.** Workspace RBAC governs access to the application and its
   contents in the workspace. Database tokens, published Builder sites, public
-  views and template copies have their own access paths. Verify that creating
-  a Personal app gives no existing workspace-wide credential unintended access.
+  views and template copies have their own access paths. Workspace-wide token
+  grants exclude Personal databases. An explicit database or table token grant
+  applies within its owner’s current permissions.
   Distinguish intentional publishing from workspace membership in the sharing
   flow. Agent conversation visibility and the identity an agent uses to run
   tools have their own semantics.
@@ -152,7 +152,7 @@ many Personal databases and tables.
 
 ### Implementation order and acceptance
 
-1. Start with Enterprise storage and resolution. On the same app, compare a
+1. Start with policy storage and Enterprise role resolution. On the same app, compare a
    direct read, a list, frontend permissions and effective access for the
    creator, an uninvited workspace Admin, a team invitee and a newly joined
    member. Check that an explicit No access grant cannot lower a direct

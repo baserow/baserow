@@ -1,6 +1,18 @@
 <template>
   <div>
     <AirtableImportForm ref="form" @submitted="importFromAirtable">
+      <FormGroup
+        :label="$t('applicationForm.nameLabel')"
+        small-label
+        class="margin-bottom-2"
+      >
+        <FormInput
+          v-model="name"
+          :placeholder="$t('importFromAirtable.baseName')"
+          :maxlength="160"
+        />
+      </FormGroup>
+      <ApplicationCreateOptions :workspace="workspace" />
       <Error :error="error">
         <template v-if="showOpenSharedLink" #actions>
           <a
@@ -48,6 +60,7 @@
 <script>
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
+import ApplicationCreateOptions from '@baserow/modules/core/components/application/ApplicationCreateOptions'
 import jobProgress from '@baserow/modules/core/mixins/jobProgress'
 import AirtableService from '@baserow/modules/database/services/airtable'
 import AirtableImportForm from '@baserow/modules/database/components/airtable/AirtableImportForm'
@@ -59,7 +72,7 @@ import {
 
 export default {
   name: 'ImportFromAirtable',
-  components: { AirtableImportForm },
+  components: { AirtableImportForm, ApplicationCreateOptions },
   mixins: [error, jobProgress],
   props: {
     workspace: {
@@ -71,6 +84,7 @@ export default {
   data() {
     return {
       loading: false,
+      name: '',
       lastAirtableUrl: '',
       showOpenSharedLink: false,
     }
@@ -95,7 +109,8 @@ export default {
           values.airtableUrl,
           values.skipFiles,
           values.useSession ? values.session : null,
-          values.useSession ? values.sessionSignature : null
+          values.useSession ? values.sessionSignature : null,
+          { name: this.name || undefined, access_policy: values.access_policy }
         )
         this.startJobPoller(data)
       } catch (error) {

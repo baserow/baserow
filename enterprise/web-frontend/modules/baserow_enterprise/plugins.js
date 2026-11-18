@@ -1,6 +1,7 @@
 import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/ChatwootSupportSidebarWorkspace'
 import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
+import PersonalApplicationForm from '@baserow_enterprise/components/member-roles/PersonalApplicationForm'
 import MemberRolesApplicationContextItem from '@baserow_enterprise/components/member-roles/MemberRolesApplicationContextItem'
 import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
 import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
@@ -32,6 +33,21 @@ export class EnterprisePlugin extends BaserowPlugin {
     }
     sidebarItems.push(AuditLogSidebarWorkspace)
     return sidebarItems
+  }
+
+  getApplicationCreateFormComponent() {
+    return this.app.$featureFlagIsEnabled('personal_applications')
+      ? PersonalApplicationForm
+      : null
+  }
+
+  getApplicationSidebarIndicator(application) {
+    return application.access_policy === 'personal'
+      ? {
+          icon: 'iconoir-user',
+          label: this.app.$i18n.t('personalApplication.indicator'),
+        }
+      : null
   }
 
   getAdditionalApplicationContextComponents(workspace, application) {

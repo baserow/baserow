@@ -4,6 +4,10 @@ from typing import List
 from django.contrib.auth import get_user_model
 
 from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
+from baserow.core.application_access import (
+    applications_with_policies,
+    containing_application,
+)
 from baserow.core.cache import local_cache
 from baserow.core.context import get_private_link_token
 from baserow.core.handler import CoreHandler
@@ -60,6 +64,10 @@ from .registries import (
     WORKSPACE_FILTER_ALLOW_ALL,
     WORKSPACE_FILTER_DENY_ALL,
     PermissionManagerType,
+    WorkspaceFilterDecision,
+    object_scope_type_registry,
+    operation_type_registry,
+    permission_manager_type_registry,
     subject_type_registry,
 )
 from .subjects import AnonymousUserSubjectType, UserSubjectType
@@ -71,7 +79,7 @@ User = get_user_model()
 
 
 class WorkspaceRoleAvailabilityPermissionManagerType(PermissionManagerType):
-    """Deny workspace operations when an actor's stored role is unavailable."""
+    """Deny access when the provider for a stored role or app policy is missing."""
 
     type = "workspace_role_availability"
 
@@ -91,6 +99,20 @@ class WorkspaceRoleAvailabilityPermissionManagerType(PermissionManagerType):
             ].append(check)
 
         result = {}
+        # A protected app may outlive the plugin which enforces its policy.
+        policies = permission_manager_type_registry.application_policies()
+        unavailable = {
+            app.id
+            for app in applications_with_policies([workspace])[workspace.id]
+            if app.access_policy not in policies
+        }
+        if unavailable:
+            for check in checks:
+                if (
+                    getattr(containing_application(check.context), "id", None)
+                    in unavailable
+                ):
+                    result[check] = PermissionDenied(check.actor)
         for subject_type, subject_checks in checks_by_subject_type.items():
             actors = list({check.actor for check in subject_checks})
             availability_by_actor = dict(
@@ -102,6 +124,24 @@ class WorkspaceRoleAvailabilityPermissionManagerType(PermissionManagerType):
             for check in subject_checks:
                 if not availability_by_actor[check.actor]:
                     result[check] = PermissionDenied(check.actor)
+        return result
+
+    def filter_queryset_for_workspaces(
+        self, actor, operation_name, queryset, workspaces
+    ):
+        scope = operation_type_registry.get(operation_name).object_scope
+        if not object_scope_type_registry.scope_type_includes_scope_type(
+            object_scope_type_registry.get("application"), scope
+        ):
+            return None
+        policies = permission_manager_type_registry.application_policies()
+        result = {}
+        for workspace_id, apps in applications_with_policies(workspaces).items():
+            unavailable = [app for app in apps if app.access_policy not in policies]
+            if unavailable:
+                result[workspace_id] = WorkspaceFilterDecision(
+                    q=~scope.get_filter_for_scopes(unavailable)
+                )
         return result
 
 

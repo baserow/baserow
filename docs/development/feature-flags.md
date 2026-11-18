@@ -11,6 +11,8 @@ Add/remove features flags to the list below:
   workers have drained, as described in [ADR 013](../decisions/013-identities.md#deployment-gate).
 - `user_templates` — template marketplace: the new template browser and user templates.
 - `agent-builder` — Agent application creation.
+- `personal_applications` enables Personal app creation with Enterprise RBAC. Enable
+  it after deploying the migrations, backend and workers. [Personal applications](../technical/personal-applications-proposal.md)
 
 ## Enabling feature flags
 

@@ -171,7 +171,18 @@ export const actions = {
       workspace.id,
       postData
     )
-    return dispatch('forceCreate', data)
+    return dispatch('applicationCreated', data)
+  },
+  async applicationCreated({ dispatch }, data) {
+    const application = await dispatch('forceCreate', data)
+    if (data.access_policy) {
+      try {
+        await dispatch('refreshPermissions', application)
+      } catch {
+        await dispatch('toast/setPermissionsUpdated', true, { root: true })
+      }
+    }
+    return application
   },
   /**
    * Forcefully create an item in the store without making a call to the server.

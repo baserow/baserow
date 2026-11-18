@@ -22,6 +22,7 @@
       </template>
     </FormGroup>
 
+    <ApplicationCreateOptions :workspace="workspace" />
     <div class="actions">
       <div class="align-right">
         <Button
@@ -41,12 +42,15 @@
 <script>
 import { useVuelidate } from '@vuelidate/core'
 import form from '@baserow/modules/core/mixins/form'
+import ApplicationCreateOptions from '@baserow/modules/core/components/application/ApplicationCreateOptions'
 import { required, helpers } from '@vuelidate/validators'
 
 export default {
   name: 'BlankDatabaseForm',
+  components: { ApplicationCreateOptions },
   mixins: [form],
   props: {
+    workspace: { type: Object, required: true },
     defaultName: {
       type: String,
       required: false,
