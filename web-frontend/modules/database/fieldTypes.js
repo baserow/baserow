@@ -4988,13 +4988,7 @@ export class MultipleCollaboratorsFieldType extends FieldType {
   }
 
   parseFromLinkedRowItemValue(field, value) {
-    const collaborator = getSelectableCollaborators(
-      this.app.$store.getters['workspace/getCollaborators'](),
-      field.include_identities
-    ).find((item) => item.email === value || item.name === value)
-    return collaborator
-      ? { id: collaborator.user_id, name: collaborator.name }
-      : null
+    return this.app.$store.getters['workspace/getUserByEmail'](value) || null
   }
 
   getName() {

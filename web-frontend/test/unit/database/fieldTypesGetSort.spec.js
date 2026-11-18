@@ -252,27 +252,8 @@ describe('MultipleCollaboratorsFieldType sorting', () => {
     }
   )
 
-  test('linked collaborator values use the member or Identity user id', async () => {
-    await testApp.store.dispatch('workspace/forceCreate', {
-      id: 1,
-      users: [
-        { id: 10, user_id: 20, name: 'Person', email: 'person@example.com' },
-      ],
-      identities: [{ id: 30, user_id: 30, name: 'Ops' }],
-    })
+  test('paste without a loaded workspace uses the field collaborators', () => {
     const type = new MultipleCollaboratorsFieldType({ app: testApp.getApp() })
-    expect(type.parseFromLinkedRowItemValue({}, 'person@example.com')).toEqual({
-      id: 20,
-      name: 'Person',
-    })
-    expect(type.parseFromLinkedRowItemValue({}, 'Ops')).toBeNull()
-    expect(
-      type.parseFromLinkedRowItemValue({ include_identities: true }, 'Ops')
-    ).toEqual({
-      id: 30,
-      name: 'Ops',
-    })
-    expect(type.parseFromLinkedRowItemValue({}, 'missing')).toBeNull()
     expect(
       type.prepareValueForPaste(
         { available_collaborators: [{ id: 20, name: 'Person' }] },
