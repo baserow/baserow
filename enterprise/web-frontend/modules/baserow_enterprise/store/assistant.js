@@ -4,7 +4,7 @@ import {
   getStoredChatUuid,
   getTabId,
   storeChatUuid,
-  getStoredOnboardingRunId,
+  getOnboardingRunId,
 } from '@baserow_enterprise/utils/assistantTabStorage'
 import { uuid as uuidv4 } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
@@ -206,7 +206,7 @@ export const actions = {
 
   setPanelOpen({ commit, rootGetters }, value) {
     commit('SET_PANEL_OPEN', value)
-    const runId = getStoredOnboardingRunId()
+    const runId = getOnboardingRunId()
     const follower = runId && rootGetters['chatRuns/getFollower'](runId)
     if (value && follower?.finished) {
       this.$registry
