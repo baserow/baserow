@@ -209,6 +209,29 @@ def test_admin_workspace_users_and_free_seats_exclude_identities(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_list_admin_workspaces_does_not_count_the_shared_application(
+    api_client, data_fixture
+):
+    staff_user, staff_token = data_fixture.create_user_and_token(is_staff=True)
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_shared_application(workspace=workspace)
+    data_fixture.create_database_application(workspace=workspace)
+
+    response = api_client.get(
+        reverse("api:admin:workspaces:list"),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {staff_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert [
+        (result["id"], result["application_count"])
+        for result in response.json()["results"]
+    ] == [(workspace.id, 1)]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_delete_workspace(api_client, data_fixture):
     normal_user, normal_token = data_fixture.create_user_and_token()
     staff_user, staff_token = data_fixture.create_user_and_token(is_staff=True)

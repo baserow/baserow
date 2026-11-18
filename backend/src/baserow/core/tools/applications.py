@@ -63,14 +63,18 @@ def visible_applications(
     ctx: ToolContext, types: list[str] | None = None
 ) -> QuerySet[Application]:
     """
-    The applications of the workspace the user can see, in sidebar order.
+    The applications of the workspace the user can see, in sidebar order. The
+    hidden shared application, which owns the workspace integrations, is left out.
 
     :param types: Only applications of these types, if given.
     :raises InstanceTypeDoesNotExist: If a type isn't an application type.
     """
 
     applications = CoreService().list_applications_in_workspace(
-        ctx.user, ctx.workspace, specific=False
+        ctx.user,
+        ctx.workspace,
+        specific=False,
+        base_queryset=Application.objects_without_shared,
     )
     if types is not None:
         models = [application_type_registry.get(t).model_class for t in types]

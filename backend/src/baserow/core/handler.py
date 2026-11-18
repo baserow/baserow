@@ -62,6 +62,7 @@ from .emails import WorkspaceInvitationEmail, can_deliver_emails
 from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
+    ApplicationOperationNotSupported,
     CannotChangeYourOwnWorkspaceRole,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
@@ -2396,6 +2397,8 @@ class CoreHandler:
         :param user: The user on whose behalf the application is updated.
         :param application: The application instance that needs to be updated.
         :param kwargs: Additional parameters to pass to the application update.
+        :raises ApplicationOperationNotSupported: When the application type isn't
+            managed by users, like the shared application.
         :return: The updated application instance.
         """
 
@@ -2407,6 +2410,9 @@ class CoreHandler:
         )
 
         application_type = application_type_registry.get_by_model(application)
+        if not application_type.is_user_managed:
+            raise ApplicationOperationNotSupported()
+
         allowed_values = extract_allowed(
             kwargs, self.default_update_allowed_fields + application_type.allowed_fields
         )
@@ -2447,6 +2453,8 @@ class CoreHandler:
         :param application: The application instance that needs to be duplicated.
         :param progress_builder: If provided will be used to build a child progress bar
             and report on this methods progress to the parent of the progress_builder.
+        :raises ApplicationOperationNotSupported: When the application type isn't
+            managed by users, like the shared application.
         :return: The new (duplicated) application instance.
         """
 
@@ -2458,6 +2466,9 @@ class CoreHandler:
             workspace=application.workspace,
             context=application,
         )
+
+        if not application.get_type().is_user_managed:
+            raise ApplicationOperationNotSupported()
 
         start_progress, export_progress, import_progress = 10, 30, 60
         progress = ChildProgressBuilder.build(progress_builder, child_total=100)
@@ -2573,6 +2584,8 @@ class CoreHandler:
         :param user: The user on whose behalf the application is deleted.
         :param application: The application instance that needs to be deleted.
         :raises ValueError: If one of the provided parameters is invalid.
+        :raises ApplicationOperationNotSupported: When the application type isn't
+            managed by users, like the shared application.
         """
 
         if not isinstance(application, Application):
@@ -2584,6 +2597,9 @@ class CoreHandler:
             workspace=application.workspace,
             context=application,
         )
+
+        if not application.get_type().is_user_managed:
+            raise ApplicationOperationNotSupported()
 
         application_id = application.id
         TrashHandler.trash(
@@ -2629,7 +2645,7 @@ class CoreHandler:
         )
 
         exported_applications = []
-        applications = workspace.application_set.all()
+        applications = workspace.application_set_without_shared()
         for a in applications:
             application = a.specific
             application_type = application_type_registry.get_by_model(application)
