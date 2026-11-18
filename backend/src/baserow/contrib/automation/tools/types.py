@@ -332,9 +332,13 @@ class NodeRefs:
             return node_id, ""
         if uid is None:
             labels = ", ".join(f"'{label}'" for label in edges) or "none"
+            reason = (
+                f"matches several branches of node '{ref}', use the exact label"
+                if matches
+                else f"is not a branch of node '{ref}'"
+            )
             raise DjangoValidationError(
-                f"router_edge_label '{edge_label}' is not a branch of node "
-                f"'{ref}'. Its branches: {labels}."
+                f"router_edge_label '{edge_label}' {reason}. Its branches: {labels}."
             )
         return node_id, uid
 
