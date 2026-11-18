@@ -152,7 +152,8 @@ class AutomationNodeService:
         :param position: The position relative to the reference node.
         :param output: The output of the reference node.
         :param next_output: The output of the new node that the nodes it is
-            inserted before follow, the default one unless given.
+            inserted before follow, the default one unless given. It is checked
+            once the node exists, so callers must run this in a transaction.
         :param kwargs: Additional attributes of the automation node.
         :return: The created automation node.
         """
