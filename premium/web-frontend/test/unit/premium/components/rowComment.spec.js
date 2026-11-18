@@ -53,6 +53,7 @@ describe('RowComment component', () => {
 
   test('renders the stored comment document read-only', async () => {
     const wrapper = await mountComponent()
+    expect(wrapper.get('.row-comments__comment-head-initial').text()).toBe('J')
     const editor = wrapper.find('.tiptap')
 
     expect(editor.attributes('contenteditable')).toBe('false')
@@ -62,6 +63,18 @@ describe('RowComment component', () => {
 
     const mention = wrapper.find('.rich-text-editor__mention')
     expect(mention.text()).toBe('@Jane Doe')
+  })
+
+  test('shows the shared identity avatar for an identity author', async () => {
+    const wrapper = await mountComponent({
+      comment: { ...comment, user_type: 'identity' },
+    })
+    const avatar = wrapper.get(
+      '[aria-label="subjectType.identity"] .identity-avatar i'
+    )
+    expect(avatar.classes()).toContain(
+      testApp.$registry.get('subject', 'auth.User').identityIconClass
+    )
   })
 
   test('saving without any edits does not dispatch an update', async () => {

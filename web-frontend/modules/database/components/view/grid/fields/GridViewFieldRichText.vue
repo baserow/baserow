@@ -29,6 +29,7 @@
       :enable-rich-text-formatting="true"
       :enable-images="enableImages"
       :mentionable-users="mentionableUsers"
+      :allow-identity-suggestions="!!field.long_text_include_identities"
       :thin-scrollbar="true"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
@@ -68,7 +69,6 @@
 import RichTextEditor from '@baserow/modules/core/components/editor/RichTextEditor.vue'
 import UserFileService from '@baserow/modules/core/services/userFile'
 import gridField from '@baserow/modules/database/mixins/gridField'
-import { getSelectableCollaborators } from '@baserow/modules/core/utils/collaborator'
 import gridFieldInput from '@baserow/modules/database/mixins/gridFieldInput'
 import FieldRichTextModal from '@baserow/modules/database/components/view/FieldRichTextModal'
 import { parseMarkdown } from '@baserow/modules/core/editor/markdown'
@@ -109,12 +109,7 @@ export default {
     },
     mentionableUsers() {
       return this.enableMentions && this.workspace
-        ? getSelectableCollaborators(
-            this.$store.getters['workspace/getCollaborators'](
-              this.workspace.id
-            ),
-            this.field.long_text_include_identities
-          )
+        ? this.$store.getters['workspace/getCollaborators'](this.workspace.id)
         : null
     },
   },

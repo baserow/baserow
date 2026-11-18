@@ -77,6 +77,7 @@ import { isOsSpecificModifierPressed } from '@baserow/modules/core/utils/events'
 import { uuid } from '@baserow/modules/core/utils/string'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { clone } from '@baserow/modules/core/utils/object'
+import { getSelectableCollaborators } from '@baserow/modules/core/utils/collaborator'
 import suggestion from '@baserow/modules/core/editor/suggestion'
 
 export default {
@@ -105,6 +106,10 @@ export default {
     mentionableUsers: {
       type: [Array, null],
       default: null,
+    },
+    allowIdentitySuggestions: {
+      type: Boolean,
+      default: true,
     },
     enterStopEdit: {
       type: Boolean,
@@ -328,7 +333,13 @@ export default {
       if (users !== null) {
         const mentionsExt = createMention({
           loggedUserId: this.loggedUserId,
-          suggestion: suggestion({ users: () => this.mentionableUsers }),
+          suggestion: suggestion({
+            users: () =>
+              getSelectableCollaborators(
+                this.mentionableUsers ?? [],
+                this.allowIdentitySuggestions
+              ),
+          }),
           users: () => this.mentionableUsers,
         })
         extensions.push(mentionsExt)

@@ -115,7 +115,7 @@ class RowCommentHandler:
             row_comment_manager = RowComment.objects_and_trash
 
         return (
-            row_comment_manager.select_related("user")
+            row_comment_manager.select_related("user__profile")
             .filter(table_id=table_id, row_id=row_id)
             .all()
         )
@@ -148,7 +148,7 @@ class RowCommentHandler:
         )
 
         queryset = RowComment.objects.select_related(
-            "table__database__workspace"
+            "table__database__workspace", "user__profile"
         ).prefetch_related(
             Prefetch("mentions", queryset=User.objects_and_identities.all())
         )
