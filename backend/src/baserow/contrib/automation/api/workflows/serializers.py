@@ -170,7 +170,7 @@ def workflow_history_context(
         "message_hidden_run_ids": {
             history.workflow_history_id
             for history in failed
-            if access.node_id_hidden(history.node.workflow, history.node_id)
+            if access.history_hidden(history)
         }
     }
 

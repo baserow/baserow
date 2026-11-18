@@ -246,6 +246,36 @@ class AutomationNodeAccess:
         node = self._nodes_of_workflow(workflow).get(node_id)
         return node is None or self.node_hidden(node)
 
+    def dispatch_table_ids(self, node: AutomationNode) -> set[int]:
+        """
+        The tables a dispatch of the node reads now: its own and those of the
+        nodes it reads, directly or not. Kept with the history entry of the
+        dispatch, as its message and result are built from them.
+        """
+
+        return node_table_ids(node) | self.read_table_ids(node)
+
+    def history_hidden(self, node_history, workflow=None) -> bool:
+        """
+        Whether the message and result of a node history show the user the data
+        of a table they may not see. When the tables the dispatch read were kept
+        they decide, whatever the node reads now, and a table that no longer
+        exists counts as hidden. Older entries are decided from the node, read
+        with the other nodes of the workflow it ran, trashed or not.
+
+        :param node_history: The node history, with its node.
+        :param workflow: The workflow the node ran in, when already known.
+        """
+
+        if node_history.read_table_ids is not None:
+            return not all(
+                self.tables.allows_table(table_id)
+                for table_id in node_history.read_table_ids
+            )
+        return self.node_id_hidden(
+            workflow or node_history.node.workflow, node_history.node_id
+        )
+
     def _node_reads(self, node: AutomationNode) -> FormulaReads:
         if node.id not in self._reads:
             self._reads[node.id] = node_reads(node)

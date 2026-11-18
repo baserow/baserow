@@ -1359,3 +1359,79 @@ def test_history_serializers_show_nothing_without_a_node_access(
     assert AutomationNodeHistorySerializer(node_history).data["message"] == ""
     assert AutomationNodeResultSerializer(result).data["result"] is None
     assert AutomationWorkflowHistorySerializer(run).data["message"] == ""
+
+
+def _run_results(workflow):
+    """
+    The node history with a result of each node of the workflow, as the test runs
+    of `test_run_nodes` stored them.
+    """
+
+    from baserow.contrib.automation.history.models import AutomationNodeHistory
+
+    return {
+        history.node_id: history
+        for history in AutomationNodeHistory.objects.filter(
+            workflow_history__workflow=workflow, node_results__isnull=False
+        ).order_by("id")
+    }
+
+
+def _result_as(api_client, node_history, token):
+    response = api_client.get(
+        reverse(
+            "api:automation:history:node_result",
+            kwargs={"node_history_id": node_history.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, response.json()
+    return response.json()["result"]
+
+
+@pytest.mark.django_db
+def test_run_history_remembers_the_tables_each_node_read(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    _, workflow, trigger, _, _, _ = workflow_on_a_secret_table
+    _, iterator, email = test_run_nodes
+    table_id = trigger.service.specific.table_id
+
+    histories = _run_results(workflow)
+
+    assert histories[trigger.id].read_table_ids == [table_id]
+    assert histories[iterator.id].read_table_ids == [table_id]
+
+
+@pytest.mark.django_db
+def test_past_run_results_stay_hidden_after_the_formula_reading_the_table_is_edited(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    admin, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    histories = _run_results(workflow)
+    assert _result_as(api_client, histories[iterator.id], restricted_token) is None
+
+    AutomationNodeService().update_node(
+        admin, iterator.id, service={"source": _formula("'nothing'")}
+    )
+
+    assert _result_as(api_client, histories[iterator.id], restricted_token) is None
+    assert "Paid 250k" in str(
+        _result_as(api_client, histories[iterator.id], admin_token)
+    )
+
+
+@pytest.mark.django_db
+def test_past_run_results_stay_hidden_after_the_table_is_permanently_deleted(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    histories = _run_results(workflow)
+    table = trigger.service.specific.table
+    TrashHandler.trash(admin, workflow.automation.workspace, table.database, table)
+    TrashHandler.permanently_delete(table)
+
+    for node in (trigger, iterator):
+        assert _result_as(api_client, histories[node.id], restricted_token) is None

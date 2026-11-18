@@ -774,6 +774,19 @@ class AutomationNodeHandler:
         )
 
     @baserow_trace(tracer)
+    def _dispatch_table_ids(self, node: AutomationNode) -> List[int]:
+        """
+        The tables a dispatch of the node reads, kept with its history entry. The
+        nodes of the workflow are read once per task, through the node cache.
+        """
+
+        from baserow.contrib.automation.nodes.access import AutomationNodeAccess
+
+        access = AutomationNodeAccess(None).add_nodes(
+            self.get_nodes(node.workflow), all_of_workflow=True
+        )
+        return sorted(access.dispatch_table_ids(node))
+
     def dispatch_node(
         self,
         node_id: int,
@@ -872,6 +885,7 @@ class AutomationNodeHandler:
             started_on=timezone.now(),
             attempt=attempt,
             iteration_path=iteration_path,
+            read_table_ids=self._dispatch_table_ids(node),
         )
 
         node_type: Type[AutomationActionNodeType] = node.get_type()

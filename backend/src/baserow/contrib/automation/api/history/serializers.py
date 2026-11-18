@@ -45,8 +45,8 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         access = self.context.get("node_access")
-        if access is None or access.node_id_hidden(
-            self.context["run_workflow"], instance.node_id
+        if access is None or access.history_hidden(
+            instance, self.context.get("run_workflow")
         ):
             # An error can name the fields and values of the table it read.
             data["message"] = ""
@@ -123,7 +123,7 @@ class AutomationNodeResultSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         access = self.context.get("node_access")
-        if access is None or access.node_hidden(instance.node_history.node):
+        if access is None or access.history_hidden(instance.node_history):
             data["result"] = None
         return data
 
