@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent @keydown.enter.stop>
+  <div @keydown.enter.stop>
     <h2 class="box__title">
       {{ $t('customCodeSettingForm.customCodeTitle') }}
     </h2>
@@ -32,6 +32,7 @@
         :modal-title="$t('customCodeSettingForm.customJS')"
       />
     </FormGroup>
+    <slot name="head-html" />
     <hr class="margin-top-3 margin-bottom-3" />
     <div class="custom-code__add-script">
       <ButtonText
@@ -64,7 +65,7 @@
         @delete="onDelete(script)"
       />
     </FormGroup>
-  </form>
+  </div>
 </template>
 
 <script>

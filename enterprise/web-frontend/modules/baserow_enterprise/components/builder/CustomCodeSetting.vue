@@ -13,45 +13,47 @@
       ref="settingsForm"
       :default-values="autosaveValues"
       @values-changed="onValuesChanged"
-    />
-    <hr class="margin-top-3 margin-bottom-3" />
-    <form @submit.prevent="saveHtml" @keydown.enter.stop>
-      <FormGroup
-        class="margin-bottom-2"
-        :helper-text="$t('customCodeSettingForm.customHtmlHelp')"
-        :error="htmlSaveError"
-        small-label
-      >
-        <template #label>
-          <label :for="htmlInputId">
-            {{ $t('customCodeSettingForm.customHtml') }}
-          </label>
-        </template>
-        <FormTextarea
-          :id="htmlInputId"
-          v-model="htmlDraft"
-          :rows="6"
-          :disabled="savingHtml"
-          :error="htmlSaveError"
-          :aria-invalid="htmlSaveError"
-          :aria-describedby="htmlSaveError ? htmlErrorId : undefined"
-          spellcheck="false"
-        />
-        <template #error>
-          <span :id="htmlErrorId" role="alert">
-            {{ $t('customCodeSettingForm.customHtmlSaveError') }}
-          </span>
-        </template>
-      </FormGroup>
-      <Button
-        button-type="submit"
-        type="secondary"
-        :loading="savingHtml"
-        :disabled="htmlDraft === savedHtml"
-      >
-        {{ $t('customCodeSettingForm.saveHtml') }}
-      </Button>
-    </form>
+    >
+      <template #head-html>
+        <form @submit.prevent="saveHtml">
+          <FormGroup
+            class="margin-bottom-2"
+            :helper-text="$t('customCodeSettingForm.customHtmlHelp')"
+            :error="htmlSaveError"
+            small-label
+          >
+            <template #label>
+              <label :for="htmlInputId">
+                {{ $t('customCodeSettingForm.customHtml') }}
+              </label>
+            </template>
+            <FormTextarea
+              :id="htmlInputId"
+              v-model="htmlDraft"
+              :rows="6"
+              :disabled="savingHtml"
+              :error="htmlSaveError"
+              :aria-invalid="htmlSaveError"
+              :aria-describedby="htmlSaveError ? htmlErrorId : undefined"
+              spellcheck="false"
+            />
+            <template #error>
+              <span :id="htmlErrorId" role="alert">
+                {{ $t('customCodeSettingForm.customHtmlSaveError') }}
+              </span>
+            </template>
+          </FormGroup>
+          <Button
+            button-type="submit"
+            type="secondary"
+            :loading="savingHtml"
+            :disabled="htmlDraft === savedHtml"
+          >
+            {{ $t('customCodeSettingForm.saveHtml') }}
+          </Button>
+        </form>
+      </template>
+    </CustomCodeSettingForm>
   </div>
 </template>
 

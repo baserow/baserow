@@ -52,6 +52,16 @@ test('saves the HTML text explicitly and can clear it', async () => {
   const { builder, dispatch, wrapper, html, save, saveHtml } =
     await mountSetting()
 
+  const javascript = wrapper.get('textarea[data-language="javascript"]')
+  const externalScripts = wrapper.get('.custom-code__add-script')
+  expect(
+    javascript.element.compareDocumentPosition(html.element) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
+  expect(
+    html.element.compareDocumentPosition(externalScripts.element) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+  ).toBeTruthy()
   expect(html.element.value).toBe(savedHtml)
   expect(save.element.disabled).toBe(true)
   await html.setValue(newHtml)
