@@ -11,7 +11,6 @@ import { expect, test } from "../baserowTest";
 // The form copy, from web-frontend/modules/database/locales/en.json.
 const COPY = {
   assign: "Allow assigning identities",
-  mention: "Allow mentioning identities",
   removes: "Saving removes the identities already assigned in this field.",
 };
 const IDENTITY_ICON = ".iconoir-hexagon";
@@ -60,7 +59,7 @@ async function openPicker(gridPage: GridPage) {
   return picker;
 }
 
-test("identities are assignable and mentionable only where a field allows it", async ({
+test("identities are assignable only where a collaborator field allows it", async ({
   page,
   workspacePage,
 }) => {
@@ -92,7 +91,7 @@ test("identities are assignable and mentionable only where a field allows it", a
     { formula: "count(field('Owners'))" },
     table
   );
-  const notes = await createField(
+  await createField(
     user,
     "Notes",
     "long_text",
@@ -157,55 +156,14 @@ test("identities are assignable and mentionable only where a field allows it", a
   await expect.poll(ownersOf).toEqual([userId, identity.id].sort());
   await expect.poll(countOf).toBe(2);
 
-  // Mentions follow the long text field's own option.
+  // Long text fields never suggest identities.
   const mentionList = page.locator(".rich-text-editor__mention-list:visible");
   const editor = gridPage.activeRichTextEditor();
-  const identityOption = mentionList.getByText(identity.name, { exact: true });
-  const suggest = async () => {
-    await gridPage.startEditingRichTextField(0, 2);
-    await editor.click();
-    await editor.press("ControlOrMeta+a");
-    await editor.press("Backspace");
-    await editor.pressSequentially("@");
-    await expect(
-      mentionList.getByText(user.name, { exact: true })
-    ).toBeVisible();
-  };
-  await suggest();
-  await expect(identityOption).toHaveCount(0);
-  await editor.press("Backspace");
-  await gridPage.selectFieldCell(0, 1);
-
-  const notesForm = await editField(page, "Notes", COPY.mention);
-  await test.info().attach("Long text field settings", {
-    body: await notesForm.screenshot(),
-    contentType: "image/png",
-  });
-  await saveField(page, notes);
-  await suggest();
-  const suggestion = mentionList
-    .locator(".rich-text-editor__mention-list-item")
-    .filter({ hasText: identity.name });
-  await expect(suggestion.locator(IDENTITY_ICON)).toBeVisible();
-  await identityOption.click();
-  const mention = gridPage
-    .fieldCellAt(0, 2)
-    .locator(".rich-text-editor__mention");
-  await expect(mention).toHaveText(`@${identity.name}`);
-  await gridPage.selectFieldCell(0, 1);
-  await expect
-    .poll(async () => String((await listRows(user, table))[0].Notes).trim())
-    .toBe(`@${identity.id}`);
-
-  await editField(page, "Notes", COPY.mention);
-  await saveField(page, notes);
-  await expect(mention).toHaveText(`@${identity.name}`);
   await gridPage.startEditingRichTextField(0, 2);
-  await expect(editor.locator(".rich-text-editor__mention")).toHaveText(
-    `@${identity.name}`
-  );
-  await editor.press("End");
-  await editor.pressSequentially(" @");
+  await editor.click();
+  await editor.pressSequentially("@");
   await expect(mentionList.getByText(user.name, { exact: true })).toBeVisible();
-  await expect(identityOption).toHaveCount(0);
+  await expect(
+    mentionList.getByText(identity.name, { exact: true })
+  ).toHaveCount(0);
 });

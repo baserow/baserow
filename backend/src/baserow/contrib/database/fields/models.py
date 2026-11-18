@@ -371,11 +371,6 @@ class LongTextField(Field):
     long_text_enable_rich_text = models.BooleanField(
         default=False, null=True, help_text="Enable rich text formatting for the field."
     )  # TODO: Remove null=True in a future release.
-    long_text_include_identities = models.BooleanField(
-        default=False,
-        db_default=False,
-        help_text="Indicates if the identities of the workspace can be mentioned.",
-    )
 
 
 class URLField(Field):

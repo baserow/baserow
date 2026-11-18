@@ -13,7 +13,7 @@
       :enable-rich-text-formatting="true"
       :enable-images="enableImages"
       :mentionable-users="mentionableUsers"
-      :allow-identity-suggestions="!!field.long_text_include_identities"
+      :allow-identity-suggestions="false"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"

@@ -24,7 +24,7 @@
           :enable-rich-text-formatting="true"
           :enable-images="enableImages"
           :mentionable-users="mentionableUsers"
-          :allow-identity-suggestions="!!field.long_text_include_identities"
+          :allow-identity-suggestions="false"
           :model-value="modelValue"
           :clipboard-markdown-resolver="resolveClipboardMarkdown"
           :upload-file="uploadFile"

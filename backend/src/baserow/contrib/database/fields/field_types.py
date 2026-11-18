@@ -565,8 +565,8 @@ class TextFieldType(CollationSortMixin, FieldType):
 class LongTextFieldType(CollationSortMixin, FieldType):
     type = "long_text"
     model_class = LongTextField
-    allowed_fields = ["long_text_enable_rich_text", "long_text_include_identities"]
-    serializer_field_names = allowed_fields
+    allowed_fields = ["long_text_enable_rich_text"]
+    serializer_field_names = ["long_text_enable_rich_text"]
     public_serializer_field_names = serializer_field_names
     api_exceptions_map = {
         RichTextImageLimitExceeded: ERROR_RICH_TEXT_IMAGE_LIMIT_EXCEEDED,

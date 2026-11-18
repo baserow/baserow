@@ -543,8 +543,7 @@
     "refreshFormulaOptions": "Refresh formula options"
   },
   "fieldLongTextSubForm": {
-    "enableRichTextFormatting": "Enable rich text formatting",
-    "includeIdentities": "Allow mentioning identities"
+    "enableRichTextFormatting": "Enable rich text formatting"
   },
   "formulaFieldItemDescription": {
     "syntax": "Syntax",

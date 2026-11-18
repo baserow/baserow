@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Assign and mention identities in rows and comments",
+    "message": "Assign identities to rows and mention them in row comments",
     "issue_origin": "github",
     "issue_number": 6259,
     "domain": "database",
