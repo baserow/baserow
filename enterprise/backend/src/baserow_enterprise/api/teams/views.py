@@ -798,7 +798,7 @@ class TeamInvitationLinksView(APIView):
 
 
 class TeamInvitationLinkView(APIView):
-    """Renames and deletes one permanent link to a team."""
+    """Changes and deletes one permanent link to a team."""
 
     permission_classes = (IsAuthenticated,)
 
@@ -810,7 +810,9 @@ class TeamInvitationLinkView(APIView):
         ],
         tags=["Teams"],
         operation_id="update_team_invitation_link",
-        description="Changes the name of an invitation link to the team.",
+        description=(
+            "Changes the name of an invitation link to the team or its password."
+        ),
         request=UpdateTeamInvitationLinkSerializer,
         responses={
             200: TeamInvitationLinkSerializer,
@@ -835,7 +837,13 @@ class TeamInvitationLinkView(APIView):
         invitation_link = handler.get_team_invitation_link(invitation_link_id, team)
         invitation_link = action_type_registry.get_by_type(
             UpdateTeamInvitationLinkActionType
-        ).do(request.user, team, invitation_link, data["name"])
+        ).do(
+            request.user,
+            team,
+            invitation_link,
+            name=data.get("name"),
+            password=data.get("password"),
+        )
         return Response(TeamInvitationLinkSerializer(invitation_link).data)
 
     @extend_schema(

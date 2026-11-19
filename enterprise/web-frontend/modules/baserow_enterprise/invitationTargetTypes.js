@@ -249,11 +249,22 @@ export class TeamInvitationTargetType extends InvitationTargetType {
     return data
   }
 
+  /**
+   * `values` holds the `name` or the `password` of the link, whichever changes.
+   * The team gives its own role, so a link to a team has none to change.
+   */
   async updateInvitationLink(workspace, { team }, invitationLink, values) {
+    const changes = {}
+    if (values.name !== undefined) {
+      changes.name = values.name
+    }
+    if (values.password !== undefined) {
+      changes.password = values.password
+    }
     const { data } = await TeamService(this.app.$client).updateInvitationLink(
       team.id,
       invitationLink.id,
-      { name: values.name }
+      changes
     )
     return data
   }

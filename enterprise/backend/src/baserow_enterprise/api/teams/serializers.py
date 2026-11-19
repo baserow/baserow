@@ -3,6 +3,9 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
+from baserow.api.workspaces.invitation_links.serializers import (
+    InvitationLinkPasswordField,
+)
 from baserow.core.models import WorkspaceInvitationLink
 from baserow.core.registries import subject_type_registry
 from baserow_enterprise.api.role.serializers import RoleField
@@ -226,10 +229,22 @@ class TeamInvitationLinkSerializer(serializers.ModelSerializer):
     team_id = serializers.IntegerField(
         source="scope_id", read_only=True, help_text="The team the link adds people to."
     )
+    has_password = serializers.BooleanField(
+        read_only=True,
+        help_text="Whether people must enter a password before they can use the link.",
+    )
 
     class Meta:
         model = WorkspaceInvitationLink
-        fields = ("id", "workspace", "team_id", "name", "slug", "created_on")
+        fields = (
+            "id",
+            "workspace",
+            "team_id",
+            "name",
+            "slug",
+            "has_password",
+            "created_on",
+        )
         read_only_fields = fields
 
 
@@ -240,7 +255,15 @@ class CreateTeamInvitationLinkSerializer(serializers.ModelSerializer):
 
 
 class UpdateTeamInvitationLinkSerializer(serializers.ModelSerializer):
+    password = InvitationLinkPasswordField()
+
     class Meta:
         model = WorkspaceInvitationLink
-        fields = ("name",)
-        extra_kwargs = {"name": {"required": True}}
+        fields = ("name", "password")
+
+    def validate(self, data):
+        if "name" not in data and "password" not in data:
+            raise serializers.ValidationError(
+                "Either the name or the password of the link must be provided."
+            )
+        return data
