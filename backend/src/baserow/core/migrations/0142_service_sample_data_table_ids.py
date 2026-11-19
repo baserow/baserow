@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("core", "0140_userprofile_trashed_idx"),
+        ("core", "0141_ai_provider_excluded_workspaces"),
     ]
 
     operations = [
