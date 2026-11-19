@@ -80,7 +80,7 @@ class AgentRunAsOptionSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
 
 
-class AgentRunAsIdentitiesQueryParamsSerializer(serializers.Serializer):
+class AgentOptionsQueryParamsSerializer(serializers.Serializer):
     page = serializers.IntegerField(min_value=1, required=False, default=1)
     size = serializers.IntegerField(min_value=1, max_value=100, required=False)
     search = serializers.CharField(required=False, allow_blank=True, default="")
@@ -128,8 +128,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
     )
     ask_first_tools = serializers.ListField(
         child=serializers.CharField(),
-        help_text="The names of the allowed tools that wait for the conversation "
-        "owner's approval before they run.",
+        help_text="The allowed tools that require approval before they run.",
     )
     pending_tools = serializers.ListField(
         child=serializers.CharField(),
@@ -248,8 +247,8 @@ class AgentConfigurationUpdateSerializer(
     ask_first_tools = serializers.ListField(
         child=serializers.CharField(),
         required=False,
-        help_text="The names of the allowed tools that wait for the conversation "
-        "owner's approval. Provide it with allowed_tools. When it's left out, newly "
+        help_text="The allowed tools that require approval. Provide this list with "
+        "allowed_tools. When it's left out, newly "
         "allowed tools that change data ask first and the other tools keep their "
         "setting.",
     )
@@ -330,6 +329,11 @@ class AgentConfigurationUpdateSerializer(
         return values
 
 
+class AgentParticipantSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
 class AgentConversationSerializer(serializers.ModelSerializer):
     run_id = serializers.SerializerMethodField(
         help_text="The run writing a reply in this conversation, or null."
@@ -338,12 +342,20 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         help_text="The number of held tool calls in this conversation waiting for "
         "a decision."
     )
-    shared = serializers.SerializerMethodField(
-        help_text="Whether a trigger started this conversation. A shared conversation "
-        "is read by everyone who may read the agent's conversations, accepts no "
-        "messages, and its held tool calls are decided by anyone who may send the "
-        "agent messages."
-    )
+    participants = serializers.SerializerMethodField()
+    owner_user_id = serializers.IntegerField(read_only=True, allow_null=True)
+
+    @extend_schema_field(AgentParticipantSerializer(many=True))
+    def get_participants(self, conversation):
+        return (
+            [
+                {"id": person.pk, "name": person.first_name or person.username}
+                for person in conversation.participants.all()
+            ]
+            if not conversation.shared
+            else []
+        )
+
     trigger_id = serializers.IntegerField(
         read_only=True,
         allow_null=True,
@@ -370,6 +382,9 @@ class AgentConversationSerializer(serializers.ModelSerializer):
             "pending_approval_count",
             "pinned",
             "shared",
+            "started_by_trigger",
+            "owner_user_id",
+            "participants",
             "trigger_id",
             "trigger_type",
             "trigger_name",
@@ -384,15 +399,6 @@ class AgentConversationSerializer(serializers.ModelSerializer):
         return self.context.get("conversation_pending_approvals", {}).get(
             conversation.id, 0
         )
-
-    @extend_schema_field(serializers.BooleanField())
-    def get_shared(self, conversation: AgentConversation) -> bool:
-        """
-        :param conversation: The serialized conversation.
-        :return: Whether a trigger started it, so it has no owner.
-        """
-
-        return conversation.is_shared
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_trigger_type(self, conversation: AgentConversation) -> str | None:
@@ -476,6 +482,17 @@ class AgentPendingReplySerializer(serializers.ModelSerializer):
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):
+    sender = serializers.SerializerMethodField()
+
+    @extend_schema_field(AgentParticipantSerializer(allow_null=True))
+    def get_sender(self, message):
+        if message.role == AgentMessage.Role.USER and message.sender_id:
+            return {
+                "id": message.sender_id,
+                "name": message.sender.first_name or message.sender.username,
+            }
+        return None
+
     steps = AgentMessageStepSerializer(many=True, allow_null=True, read_only=True)
     approvals = AgentToolApprovalSerializer(
         many=True,
@@ -496,6 +513,7 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "id",
             "uuid",
             "role",
+            "sender",
             "content",
             "created_on",
             "status",
@@ -509,6 +527,17 @@ class AgentMessageSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.UUIDField(allow_null=True))
     def get_run_id(self, message: AgentMessage) -> UUID | None:
         return self.context.get("active_runs", {}).get(message.id)
+
+
+class LeaveAgentConversationSerializer(serializers.Serializer):
+    trashed = serializers.BooleanField(read_only=True)
+
+
+class RequestAgentApprovalSerializer(serializers.Serializer):
+    reply_uuid = serializers.UUIDField()
+    user_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), allow_empty=False, max_length=100
+    )
 
 
 class AgentMessageContentSerializer(

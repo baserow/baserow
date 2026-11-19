@@ -5,7 +5,7 @@ from django.db import transaction
 import pytest
 
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
-from baserow.contrib.agent.exceptions import AgentConversationReadOnly
+from baserow.contrib.agent.exceptions import AgentNotReady
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentConversation,
@@ -31,9 +31,9 @@ CHANGE = READ | {"stop", "pin", "rename", "delete"}
         (None, set(), PermissionException),
         ("NO_ACCESS", set(), PermissionException),
         ("VIEWER", READ, PermissionException),
-        ("EDITOR", READ, AgentConversationReadOnly),
-        ("BUILDER", CHANGE, AgentConversationReadOnly),
-        ("ADMIN", CHANGE, AgentConversationReadOnly),
+        ("EDITOR", READ, AgentNotReady),
+        ("BUILDER", CHANGE, AgentNotReady),
+        ("ADMIN", CHANGE, AgentNotReady),
     ],
     ids=["non-member", "no-access", "viewer", "editor", "builder", "admin"],
 )
@@ -45,7 +45,7 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
     allowed,
     send_error,
 ):
-    """Viewers and editors watch; builders change and stop them; nobody sends."""
+    """Editors may continue a ready agent. Builders may also change shared history."""
 
     admin = enterprise_data_fixture.create_user()
     user = enterprise_data_fixture.create_user()

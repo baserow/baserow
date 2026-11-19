@@ -1846,6 +1846,7 @@ PERMISSION_MANAGERS = [
     "allow_public_builder",
     "member",
     "token",
+    "agent_participation",
     "write_field_values",
     "role",
     "basic",
@@ -1854,6 +1855,7 @@ PERMISSION_MANAGERS = [
 ]
 
 if "baserow_enterprise" not in INSTALLED_APPS:
+    PERMISSION_MANAGERS.remove("agent_participation")
     PERMISSION_MANAGERS.remove("write_field_values")
     PERMISSION_MANAGERS.remove("role")
 if "baserow_premium" not in INSTALLED_APPS:

@@ -153,6 +153,7 @@ export const savedValues = (testApp) =>
 
 export async function createAgentPage() {
   const testApp = new TestApp()
+  testApp.authenticate({ id: 1, first_name: 'Author' })
   const allowed = ref(() => true)
   await testApp.store.dispatch('workspace/forceCreate', clone(workspace))
   const agent = await testApp.store.dispatch(
@@ -279,6 +280,10 @@ export const conversation = (
   id,
   uuid,
   title,
+  owner_user_id: 1,
+  shared: false,
+  started_by_trigger: false,
+  participants: [{ id: 1, name: 'Author' }],
   created_on: '2026-10-14T10:00:00Z',
   updated_on: updatedOn,
 })
@@ -286,6 +291,9 @@ export const conversation = (
 export const sharedConversation = (uuid, title, triggerType = 'periodic') => ({
   ...conversation(uuid, title),
   shared: true,
+  owner_user_id: null,
+  started_by_trigger: true,
+  participants: [],
   trigger_type: triggerType,
 })
 
@@ -304,6 +312,7 @@ export const message = (
   id,
   uuid,
   role,
+  sender: role === 'user' ? { id: 1, name: 'Author' } : null,
   content,
   created_on: '2026-10-14T10:00:00Z',
   status,
@@ -356,7 +365,7 @@ export const messages = (wrapper) =>
     .map((item) => item.text())
 
 export const conversationTitles = (wrapper) =>
-  wrapper.findAll('.agent-conversations__item').map((item) => item.text())
+  wrapper.findAll('.agent-conversations__item-name').map((item) => item.text())
 
 /** Open a conversation's ⋮ menu and choose an action by its label. */
 export async function chooseFromMenu(wrapper, title, action) {

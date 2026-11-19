@@ -74,7 +74,15 @@ def update_of(
             "run_id": str(run_id) if run_id else None,
             "pending_approval_count": pending_approval_count,
             "pinned": conversation.pinned,
-            "shared": conversation.owner_user_id is None,
+            "shared": conversation.shared,
+            "owner_user_id": conversation.owner_user_id,
+            "participants": []
+            if conversation.shared
+            else [
+                {"id": u.pk, "name": u.first_name or u.username}
+                for u in conversation.participants.all()
+            ],
+            "started_by_trigger": conversation.started_by_trigger,
             "trigger_id": conversation.trigger_id,
             "trigger_type": trigger_type,
             "trigger_name": trigger_name,

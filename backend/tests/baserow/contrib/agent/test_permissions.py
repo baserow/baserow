@@ -1,11 +1,9 @@
-import contextlib
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
 
 import pytest
 
-from baserow.contrib.agent.exceptions import AgentConversationReadOnly
 from baserow.contrib.agent.models import (
     AgentApplication,
     AgentConversation,
@@ -13,6 +11,7 @@ from baserow.contrib.agent.models import (
     AgentToolApproval,
 )
 from baserow.contrib.agent.operations import (
+    ApproveAgentToolCallsOperationType,
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
     DeleteAgentConversationOperationType,
@@ -89,14 +88,21 @@ def call(
             "retry conversation",
             [CreateAgentConversationOperationType, CreateAgentMessageOperationType],
         ),
-        ("retry message", [CreateAgentMessageOperationType]),
+        (
+            "retry message",
+            [ReadAgentConversationsOperationType, CreateAgentMessageOperationType],
+        ),
         ("update conversation", [UpdateAgentConversationOperationType]),
         ("delete conversation", [DeleteAgentConversationOperationType]),
-        ("decide approvals", [CreateAgentMessageOperationType]),
+        (
+            "decide approvals",
+            [ReadAgentConversationsOperationType, ApproveAgentToolCallsOperationType],
+        ),
         (
             "always allow",
             [
-                CreateAgentMessageOperationType,
+                ReadAgentConversationsOperationType,
+                ApproveAgentToolCallsOperationType,
                 UpdateApplicationOperationType,
                 ReadAgentConfigurationOperationType,
             ],
@@ -112,6 +118,8 @@ def test_each_call_checks_its_operation_on_the_agent(
     message = data_fixture.create_agent_message(user=user, agent=agent)
     conversation = message.conversation
     approval = data_fixture.create_agent_tool_approval(conversation=conversation)
+    # Realtime delivery independently checks every recipient.
+    mocker.patch("baserow.contrib.agent.ws.signals._notify_readers")
     check = mocker.spy(CoreHandler, "check_multiple_permissions")
 
     call(name, user, agent, conversation, message, approval)
@@ -128,8 +136,14 @@ def test_each_call_checks_its_operation_on_the_agent(
     "name,operations",
     [
         ("list messages", [ReadAgentConversationsOperationType]),
-        ("retry message", [CreateAgentMessageOperationType]),
-        ("decide approvals", [CreateAgentMessageOperationType]),
+        (
+            "retry message",
+            [ReadAgentConversationsOperationType, ApproveAgentToolCallsOperationType],
+        ),
+        (
+            "decide approvals",
+            [ReadAgentConversationsOperationType, ApproveAgentToolCallsOperationType],
+        ),
         (
             "update conversation",
             [UpdateAgentConversationOperationType, UpdateApplicationOperationType],
@@ -147,13 +161,14 @@ def test_shared_conversation_calls_also_check_the_agent_update(
     agent = configured_agent(user=user)
     conversation = data_fixture.create_shared_agent_conversation(agent=agent)
     message = data_fixture.create_agent_message(
-        conversation=conversation, role="trigger"
+        conversation=conversation, role="user", sender=user
     )
     approval = data_fixture.create_agent_tool_approval(conversation=conversation)
+    # Realtime delivery independently checks every recipient.
+    mocker.patch("baserow.contrib.agent.ws.signals._notify_readers")
     check = mocker.spy(CoreHandler, "check_multiple_permissions")
 
-    with contextlib.suppress(AgentConversationReadOnly):
-        call(name, user, agent, conversation, message, approval)
+    call(name, user, agent, conversation, message, approval)
 
     assert [
         (permission.operation_name, permission.context.id)

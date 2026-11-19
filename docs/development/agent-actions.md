@@ -79,7 +79,7 @@ An approved call is denied instead of sent when:
   integration's name and place in the list;
 - it came back without its resolved values.
 
-"Always allow" only stops asking first for the action whose call was approved,
+"Always approve" only stops asking first for the action whose call was approved,
 while it is unchanged.
 
 Not covered: the instance's own SMTP settings can change between hold and approval.

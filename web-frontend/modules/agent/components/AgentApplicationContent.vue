@@ -34,7 +34,7 @@
         :key="agent.id"
         ref="approvalsMenu"
         :agent="agent"
-        :can-decide="state.canReviewPending"
+        :can-decide="state.canDecide"
         :can-always-allow="state.canUpdateConfiguration"
         :deciding-replies="state.decidingReplies"
         :decide="state.decideApprovals"
@@ -72,9 +72,52 @@
         @retry="state.retryConversations"
         @load-more="state.loadMoreConversations"
         @update="state.updateConversation"
-        @delete="state.deleteConversation"
+        @share="audienceModal.show('share', $event)"
+        @delete="
+          $event.shared
+            ? state.deleteConversation($event)
+            : audienceModal.show('delete', $event)
+        "
       />
       <main class="agent-chat" :class="{ 'agent-chat--empty': showChatIntro }">
+        <div
+          v-if="state.selectedConversation && !state.selectedConversation.local"
+          class="agent-audience"
+        >
+          <i
+            :class="
+              state.selectedConversation.shared
+                ? 'iconoir-community'
+                : 'iconoir-lock'
+            "
+            aria-hidden="true"
+          ></i>
+          <span v-if="state.selectedConversation.shared">{{
+            $t('agent.sharedLabel')
+          }}</span>
+          <span
+            v-else
+            class="agent-audience__participants"
+            :title="participantNames"
+          >
+            {{ $t('agent.privateLabel')
+            }}<template v-if="participantNames">
+              · {{ participantNames }}</template
+            >
+          </span>
+          <ButtonText
+            v-if="mayAskForApproval"
+            size="small"
+            @click="
+              audienceModal.show(
+                'request',
+                state.selectedConversation,
+                state.currentHistory.items.at(-1).uuid
+              )
+            "
+            >{{ $t('agent.askForApproval') }}</ButtonText
+          >
+        </div>
         <div class="agent-chat__announcement" role="status">
           {{ announcement }}
         </div>
@@ -212,7 +255,7 @@
               state.canSend && Boolean(state.currentDraft?.content.trim())
             "
             :sending="Boolean(state.currentDraft?.sending)"
-            :running="replyRunning"
+            :running="replyRunning && state.canStopSelected"
             :stopping="Boolean(state.replyFollower?.stopRequested)"
             :activity="composerActivity"
             :activity-tone="state.waitingForApproval ? 'waiting' : 'default'"
@@ -225,7 +268,7 @@
             @stop="stopReply"
           />
           <div
-            v-else-if="state.selectedConversation?.shared"
+            v-else-if="state.selectedConversation && !state.canWriteSelected"
             class="agent-chat__shared"
           >
             <i
@@ -247,6 +290,12 @@
           </div>
         </div>
       </main>
+      <AgentConversationAudienceModal
+        ref="audienceModal"
+        :agent-id="agent.id"
+        @changed="state.receiveConversation"
+        @deleted="state.onDeleted"
+      />
       <AgentConfigurationSidebar
         v-if="state.canReadConfiguration && configurationOpen"
         ref="configurationSidebar"
@@ -272,6 +321,7 @@
 
 <script setup>
 import { computed, nextTick, provide, reactive, ref, toRef, watch } from 'vue'
+import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
 import { useNuxtApp } from '#app'
 import agentOrb from '@baserow/modules/agent/assets/images/agent-orb.svg?url'
@@ -283,6 +333,7 @@ import {
 } from '@baserow/modules/core/toolPresentationTypes'
 import { provideNow } from '@baserow/modules/core/composables/useNow'
 import AgentPendingApprovalsContext from '@baserow/modules/agent/components/AgentPendingApprovalsContext'
+import AgentConversationAudienceModal from '@baserow/modules/agent/components/AgentConversationAudienceModal'
 import AgentConversationList from '@baserow/modules/agent/components/AgentConversationList'
 import AgentMessage from '@baserow/modules/agent/components/AgentMessage'
 import AgentConfigurationSidebar from '@baserow/modules/agent/components/AgentConfigurationSidebar'
@@ -325,6 +376,20 @@ const configurationOpen = ref(true)
 provideNow()
 // Configuration sections read the Agent's workspace from here.
 provide('agentApplication', agent)
+const store = useStore()
+const audienceModal = ref(null)
+const participantNames = computed(() =>
+  state.selectedConversation?.participants
+    ?.map((person) => person.name)
+    .join(', ')
+)
+const mayAskForApproval = computed(
+  () =>
+    state.waitingForApproval &&
+    !state.selectedConversation?.shared &&
+    state.selectedConversation?.owner_user_id ===
+      store.getters['auth/getUserId']
+)
 const showChatIntro = computed(
   () =>
     !state.currentHistory?.items.length &&
@@ -465,11 +530,8 @@ const canCompose = computed(
     !showConfigurationWarning.value &&
     state.canWriteSelected
 )
-// A shared conversation takes no messages, so a running reply gets Stop alone.
 const showComposer = computed(
-  () =>
-    !state.selectedConversation?.shared &&
-    (canCompose.value || replyRunning.value)
+  () => canCompose.value || (replyRunning.value && state.canWriteSelected)
 )
 const warningTitle = computed(() =>
   hasLoadError.value

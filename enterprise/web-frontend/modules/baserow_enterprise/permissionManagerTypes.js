@@ -129,3 +129,13 @@ export class WriteFieldValuesPermissionManagerType extends PermissionManagerType
     })
   }
 }
+
+export class AgentParticipationPermissionManagerType extends PermissionManagerType {
+  static getType() {
+    return 'agent_participation'
+  }
+  hasPermission(permissions, operation, context) {
+    if (permissions[operation]?.includes(context?.id)) return false
+    return null
+  }
+}

@@ -1,3 +1,4 @@
+from baserow_enterprise.agent_permissions.models import AgentParticipationRule
 from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
     LocalBaserowSemanticSearchActionNode,
@@ -40,6 +41,7 @@ from baserow_enterprise.semantic_search.models import (
 from baserow_enterprise.teams.models import Team, TeamSubject, WorkspaceTeamInvitation
 
 __all__ = [
+    "AgentParticipationRule",
     "Team",
     "TeamSubject",
     "WorkspaceTeamInvitation",

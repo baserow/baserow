@@ -43,6 +43,7 @@ class AgentConfig(AppConfig):
         from .chat_run_type import AgentChatRunType
         from .last_viewed_types import AgentLastViewedItemType
         from .operations import (
+            ApproveAgentToolCallsOperationType,
             CreateAgentConversationOperationType,
             CreateAgentMessageOperationType,
             DeleteAgentConversationOperationType,
@@ -97,6 +98,7 @@ class AgentConfig(AppConfig):
             ReadAgentConversationsOperationType,
             CreateAgentConversationOperationType,
             CreateAgentMessageOperationType,
+            ApproveAgentToolCallsOperationType,
             ReadAgentConfigurationOperationType,
             UpdateAgentConversationOperationType,
             DeleteAgentConversationOperationType,

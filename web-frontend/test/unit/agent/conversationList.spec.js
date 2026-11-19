@@ -10,6 +10,7 @@ describe('Agent conversation list', () => {
 
   beforeEach(() => {
     testApp = new TestApp()
+    testApp.authenticate({ id: 1 })
   })
 
   afterEach(async () => {
@@ -48,7 +49,11 @@ describe('Agent conversation list', () => {
   })
 
   test('retains focus and selection while existing rows load or reorder', async () => {
-    const saved = { uuid: 'saved', title: 'Saved conversation' }
+    const saved = {
+      owner_user_id: 1,
+      uuid: 'saved',
+      title: 'Saved conversation',
+    }
     const draft = { uuid: 'draft', title: '', local: true }
     const wrapper = await testApp.mount(AgentConversationList, {
       props: { items: [saved, draft], selected: 'saved', hasMore: true },
@@ -99,9 +104,7 @@ describe('Agent conversation list', () => {
     })
     const row = wrapper.get('.agent-conversations__item')
     expect(row.get('.iconoir-chat-bubble').exists()).toBe(true)
-    expect(row.element.lastElementChild).toBe(
-      row.get('.agent-conversations__status').element
-    )
+    expect(row.find('.agent-conversations__status').exists()).toBe(false)
     expect(row.get('.agent-conversations__draft').text()).toBe('agent.draft')
     expect(wrapper.get('.agent-conversations__footer button').element).toBe(
       create.element
@@ -152,8 +155,8 @@ describe('Agent conversation list', () => {
     expect(replying.get('.agent-conversations__status').classes()).toContain(
       'agent-conversations__status--replying'
     )
-    expect(replying.find('.agent-conversations__status-label').exists()).toBe(
-      false
+    expect(replying.get('.agent-conversations__status-label').text()).toBe(
+      'agent.replying'
     )
     expect(shared.get('.agent-conversations__status-label').text()).toBe(
       'agent.waitingForApprovalShared'
@@ -164,7 +167,7 @@ describe('Agent conversation list', () => {
     testApp.mount(AgentConversationList, {
       props: { items, canUpdate: true, canDelete: true },
     })
-  const saved = { uuid: 'saved', title: 'Saved conversation' }
+  const saved = { owner_user_id: 1, uuid: 'saved', title: 'Saved conversation' }
 
   test('offers a menu only for saved conversations and cancels a rename on Escape', async () => {
     const wrapper = await mountList([
@@ -253,9 +256,9 @@ describe('Agent conversation list', () => {
       await wrapper.setProps({ loading: false, error: true })
       intersect([{ isIntersecting: true }])
       expect(wrapper.emitted('load-more')).toHaveLength(1)
-      expect(
-        wrapper.get('.agent-conversations__private').attributes('aria-label')
-      ).toBe('agent.privateConversation')
+      expect(wrapper.get('.agent-conversations__audience').text()).toBe(
+        'agent.privateLabel'
+      )
       wrapper.unmount()
       expect(disconnect).toHaveBeenCalledOnce()
     } finally {
@@ -272,6 +275,7 @@ describe('Agent conversation list', () => {
             title: 'Daily digest',
             shared: true,
             trigger_type: 'periodic',
+            trigger_name: 'Every morning',
           },
           {
             uuid: 'removed',
@@ -289,10 +293,30 @@ describe('Agent conversation list', () => {
       .map((icon) => icon.classes().find((name) => name.startsWith('iconoir-')))
     expect(icons).toEqual([
       'iconoir-timer',
-      'iconoir-chat-bubble',
+      'iconoir-flash',
       'iconoir-chat-bubble',
     ])
-    expect(wrapper.findAll('.agent-conversations__private')).toHaveLength(1)
+    expect(
+      wrapper
+        .findAll('.agent-conversations__audience')
+        .map((label) => label.text())
+    ).toEqual(['agent.sharedLabel', 'agent.sharedLabel', 'agent.privateLabel'])
+    const [scheduled, removed] = wrapper.findAll('.agent-conversations__detail')
+    expect(scheduled.text()).toBe('Every morning')
+    expect(removed.text()).toBe('agent.startedByTrigger')
+  })
+
+  test('shows the shared audience and last activity when there is no trigger information', async () => {
+    const updatedOn = '2026-11-12T08:45:00Z'
+    const wrapper = await mountList([
+      { ...saved, shared: true, updated_on: updatedOn },
+    ])
+    const row = wrapper.get('.agent-conversations__item')
+    expect(row.get('.agent-conversations__audience').text()).toBe(
+      'agent.sharedLabel'
+    )
+    expect(row.get('time').attributes('datetime')).toBe(updatedOn)
+    expect(row.find('.agent-conversations__status').exists()).toBe(false)
   })
 
   test('lets only members who may update the agent change a shared conversation', async () => {

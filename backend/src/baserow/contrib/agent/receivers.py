@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Exists, OuterRef
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 
@@ -30,7 +31,17 @@ def delete_owned_conversations(sender, instance: AbstractUser, **kwargs) -> None
     :param instance: The user being deleted.
     """
 
-    AgentConversation.objects_and_trash.filter(owner_user=instance).delete()
+    AgentConversation.objects_and_trash.filter(
+        owner_user=instance, shared=False, trashed=True
+    ).delete()
+    memberships = AgentConversation.participants.through.objects.filter(
+        agentconversation_id=OuterRef("pk")
+    )
+    AgentConversation.objects_and_trash.filter(
+        Exists(memberships.filter(user=instance)),
+        ~Exists(memberships.exclude(user=instance)),
+        shared=False,
+    ).delete()
     TrashEntry.objects.filter(
         trash_item_type=AgentConversationTrashableItemType.type,
         trash_item_owner=instance,

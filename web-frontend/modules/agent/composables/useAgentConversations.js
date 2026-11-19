@@ -65,7 +65,6 @@ const REJECTED_MESSAGE_ERRORS = [
   API_ERROR_CODE.CHAT_RUN_IN_PROGRESS,
   API_ERROR_CODE.AGENT_BUSY,
   API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL,
-  API_ERROR_CODE.AGENT_CONVERSATION_READ_ONLY,
 ]
 
 const SEND_ERRORS = {
@@ -74,7 +73,6 @@ const SEND_ERRORS = {
   [API_ERROR_CODE.AGENT_BUSY]: 'agent.agentsBusy',
   [API_ERROR_CODE.AGENT_CONVERSATION_WAITING_FOR_APPROVAL]:
     'agent.conversationWaitingForApproval',
-  [API_ERROR_CODE.AGENT_CONVERSATION_READ_ONLY]: 'agent.conversationReadOnly',
 }
 
 // Another session changed the conversation, so a refusal re-reads it.
@@ -184,22 +182,27 @@ export function useAgentConversations(agent, configuration) {
       ? null
       : error
   })
-  const canMessageSelected = computed(
-    () =>
-      canReadConversations.value &&
+  const canApprove = computed(() =>
+    permission('agent_application.approve_tool_calls')
+  )
+  const canWriteSelected = computed(() => {
+    const conversation = selectedConversation.value
+    if (!conversation || !canReadConversations.value) return false
+    if (conversation.started_by_trigger) return canApprove.value
+    return (
       canCreateMessage.value &&
-      Boolean(selectedConversation.value) &&
-      (!selectedConversation.value.local || canCreateConversation.value)
-  )
-  // A shared conversation takes no messages until continuation ships.
-  const canWriteSelected = computed(
-    () => canMessageSelected.value && !selectedConversation.value.shared
-  )
-  const canStopSelected = computed(
-    () =>
-      Boolean(selectedConversation.value) &&
-      (!selectedConversation.value.shared || canUpdateAgent.value)
-  )
+      (!conversation.local || canCreateConversation.value)
+    )
+  })
+  const canStopSelected = computed(() => {
+    const conversation = selectedConversation.value
+    return (
+      conversation &&
+      (conversation.shared
+        ? canUpdateAgent.value
+        : conversation.owner_user_id === store.getters['auth/getUserId'])
+    )
+  })
   // Sending is blocked while a reply waits, so the waiting reply is the newest.
   const pendingApprovalCount = computed(
     () => pendingApprovals(currentHistory.value?.items.at(-1)).length
@@ -220,15 +223,11 @@ export function useAgentConversations(agent, configuration) {
       !replyFollower.value &&
       !waitingForApproval.value
   )
-  // Deciding continues the reply, so it needs sending access, even when shared.
-  const canReviewPending = computed(
+  const canDecide = computed(
     () =>
       configuration.readyToSend.value &&
       canReadConversations.value &&
-      canCreateMessage.value
-  )
-  const canDecide = computed(
-    () => configuration.readyToSend.value && canMessageSelected.value
+      canApprove.value
   )
   const decidingReplies = reactive(new Set())
   const scopeIsCurrent = (currentScope) => scope === currentScope
@@ -680,7 +679,7 @@ export function useAgentConversations(agent, configuration) {
     conversationUuid = selectedUuid.value
   ) {
     if (
-      !canReviewPending.value ||
+      !canDecide.value ||
       !conversationUuid ||
       decidingReplies.has(reply.uuid)
     )
@@ -841,7 +840,12 @@ export function useAgentConversations(agent, configuration) {
       else notifyIf(error)
       return
     }
+    await onDeleted(conversation, true)
+  }
+
+  async function onDeleted(conversation, restorable) {
     removeConversation(conversation.uuid)
+    if (!restorable) return
     await store.dispatch('toast/restore', {
       trash_item_type: 'agent_conversation',
       trash_item_id: conversation.id,
@@ -1036,9 +1040,10 @@ export function useAgentConversations(agent, configuration) {
     sendMessage,
     decideApprovals,
     openPendingConversation,
-    canReviewPending,
     stopReply,
     updateConversation,
+    receiveConversation,
+    onDeleted,
     deleteConversation,
   }
 }

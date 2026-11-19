@@ -150,8 +150,7 @@ class AgentConversation(
     TrashableModelMixin, BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model
 ):
     """
-    A conversation with an agent: private to the user who started it, or shared
-    (no owner) when a trigger started it.
+    Conversation history visible to its participants or to every reader of the agent.
     """
 
     agent = models.ForeignKey(
@@ -163,7 +162,7 @@ class AgentConversation(
         settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="agent_conversations",
     )
     trigger = models.ForeignKey(
@@ -177,24 +176,19 @@ class AgentConversation(
     trashed = models.BooleanField(default=False, db_default=False)
     pinned = models.BooleanField(default=False, db_default=False)
 
+    shared = models.BooleanField(default=False, db_default=False)
+    started_by_trigger = models.BooleanField(default=False, db_default=False)
+    participants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="participating_agent_conversations"
+    )
+
     @property
     def is_shared(self) -> bool:
-        """
-        :return: Whether a trigger started the conversation: it has no owner and
-            everyone who may read the agent's conversations reads it.
-        """
-
-        return self.owner_user_id is None
+        return self.shared
 
     @property
     def pending_count_user_ids(self) -> list[int] | None:
-        """
-        :return: The users whose pending count the conversation's held calls add
-            to: its owner, or None for everyone who may read the agent when it's
-            shared, since those who may decide them depends on their role.
-        """
-
-        return None if self.is_shared else [self.owner_user_id]
+        return None if self.shared else [user.id for user in self.participants.all()]
 
     class Meta:
         ordering = ("-pinned", "-updated_on", "-id")
@@ -246,6 +240,11 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
         max_length=16, choices=Role.choices, default=Role.USER, db_default=Role.USER
     )
     content = models.TextField()
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # The reply retains its origin even if its human sender deletes their account.
+    unattended = models.BooleanField(default=False, db_default=False)
     # Only the agent's replies have one.
     status = models.CharField(
         max_length=16, choices=AgentReplyStatus.choices, null=True

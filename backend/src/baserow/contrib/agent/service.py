@@ -1,8 +1,11 @@
 from uuid import UUID
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
-from django.db.models import F, QuerySet
+from django.db.models import F, Q, QuerySet
+
+from rest_framework.exceptions import ValidationError
 
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -19,14 +22,15 @@ from .action_tools.handler import AgentActionHandler
 from .action_tools.signals import agent_action_updated
 from .constants import AgentReadinessState
 from .exceptions import (
-    AgentConversationReadOnly,
     AgentConversationWaitingForApproval,
     AgentNotReady,
+    AgentToolApprovalNotPending,
     AgentTriggerOff,
 )
 from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage, AgentToolApproval
 from .operations import (
+    ApproveAgentToolCallsOperationType,
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
     DeleteAgentConversationOperationType,
@@ -202,8 +206,7 @@ class AgentService:
         has_pending_approvals: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
-        Return the user's own conversations and the shared ones, never another
-        owner's.
+        Return shared conversations and private conversations this user participates in.
 
         :param user: The user listing conversations.
         :param agent_id: The id of the agent.
@@ -251,7 +254,9 @@ class AgentService:
             user, agent_id, ReadAgentConversationsOperationType.type
         )
         conversation = self.handler.get_conversation(agent, user, conversation_uuid)
-        return conversation, conversation.messages.prefetch_related("approvals")
+        return conversation, conversation.messages.select_related(
+            "sender"
+        ).prefetch_related("approvals")
 
     def _check_shared_change(
         self,
@@ -270,6 +275,8 @@ class AgentService:
             may not update the agent.
         """
 
+        if not conversation.shared and conversation.owner_user_id != user.id:
+            raise PermissionDenied()
         for operation in self.handler.get_shared_change_operations(conversation):
             CoreHandler().check_permissions(
                 user, operation, workspace=agent.workspace, context=agent
@@ -349,6 +356,142 @@ class AgentService:
             )
         return conversation
 
+    def _author_conversation(self, user, agent_id, uuid, *, lock=False):
+        agent = self.get_authorized_agent(
+            user, agent_id, ReadAgentConversationsOperationType.type
+        )
+        conversation = self.handler.get_conversation(agent, user, uuid, for_update=lock)
+        if conversation.owner_user_id != user.id:
+            raise PermissionDenied()
+        return conversation
+
+    @transaction.atomic
+    def share_conversation(self, user, agent_id, uuid):
+        conversation = self._author_conversation(user, agent_id, uuid, lock=True)
+        if not conversation.shared:
+            conversation.shared = True
+            conversation.save(update_fields=["shared"])
+            self._notify_audience_change(user, conversation)
+        return conversation
+
+    def _notify_audience_change(self, user, conversation):
+        agent_conversation_updated.send(
+            self,
+            conversation=conversation,
+            user=user,
+            values={
+                "shared": conversation.shared,
+                "participants": [
+                    {"id": u.pk, "name": u.first_name or u.username}
+                    for u in conversation.participants.all()
+                ]
+                if not conversation.shared
+                else [],
+            },
+        )
+        application_pending_count_updated.send(
+            self,
+            application=conversation.agent,
+            user_ids=conversation.pending_count_user_ids,
+        )
+
+    def _approval_candidates(self, conversation, candidates):
+        agent = conversation.agent
+        checks_by_user = {
+            candidate: (
+                PermissionCheck(
+                    candidate, ReadAgentConversationsOperationType.type, agent
+                ),
+                PermissionCheck(
+                    candidate, ApproveAgentToolCallsOperationType.type, agent
+                ),
+            )
+            for candidate in candidates
+        }
+        allowed = CoreHandler().check_multiple_permissions(
+            [check for pair in checks_by_user.values() for check in pair],
+            workspace=agent.workspace,
+        )
+        return [
+            candidate
+            for candidate, checks in checks_by_user.items()
+            if all(allowed[c] for c in checks)
+        ]
+
+    def approval_candidates(self, user, agent_id, uuid, search=""):
+        conversation = self._author_conversation(user, agent_id, uuid)
+        if conversation.shared or not self.handler.get_waiting_reply(conversation):
+            return []
+        members = (
+            get_user_model()
+            .objects.filter(
+                workspaceuser__workspace=conversation.agent.workspace, is_active=True
+            )
+            .exclude(pk=user.pk)
+        )
+        if search:
+            members = members.filter(
+                Q(first_name__icontains=search) | Q(email__icontains=search)
+            )
+        return self._approval_candidates(
+            conversation, list(members.order_by("first_name", "pk"))
+        )
+
+    @transaction.atomic
+    def request_approval(self, user, agent_id, uuid, reply_uuid, user_ids):
+        conversation = self._author_conversation(user, agent_id, uuid, lock=True)
+        reply = self.handler.get_waiting_reply(conversation)
+        if conversation.shared or reply is None or reply.uuid != reply_uuid:
+            raise AgentToolApprovalNotPending()
+        candidates = list(
+            get_user_model()
+            .objects.filter(
+                pk__in=user_ids,
+                is_active=True,
+                workspaceuser__workspace=conversation.agent.workspace,
+            )
+            .exclude(pk=user.pk)
+        )
+        if {
+            person.pk for person in self._approval_candidates(conversation, candidates)
+        } != set(user_ids):
+            raise ValidationError({"user_ids": "Choose eligible workspace members."})
+        conversation.participants.add(*candidates)
+        self._notify_audience_change(user, conversation)
+        return conversation
+
+    @transaction.atomic
+    def delete_for_me(self, user, agent_id, uuid):
+        conversation = self._author_conversation(user, agent_id, uuid, lock=True)
+        if conversation.shared:
+            raise PermissionDenied()
+        CoreHandler().check_permissions(
+            user,
+            DeleteAgentConversationOperationType.type,
+            workspace=conversation.agent.workspace,
+            context=conversation.agent,
+        )
+        if not conversation.participants.exclude(pk=user.pk).exists():
+            return self.delete_conversation(user, agent_id, uuid)
+        conversation.participants.remove(user)
+        from baserow.ws.tasks import broadcast_to_users
+
+        transaction.on_commit(
+            lambda: broadcast_to_users.delay(
+                [user.pk],
+                {
+                    "type": "agent_conversation_deleted",
+                    "agent_id": agent_id,
+                    "conversation_uuid": str(uuid),
+                },
+            )
+        )
+        self._notify_audience_change(user, conversation)
+        application_pending_count_updated.send(
+            self, application=conversation.agent, user_ids=[user.pk]
+        )
+        return conversation
+
     def _require_ready(self, agent: AgentApplication) -> None:
         """Reject new content without leaking privileged setting diagnostics."""
 
@@ -410,9 +553,7 @@ class AgentService:
 
     def can_follow_conversation(self, user: AbstractUser, conversation_id: int) -> bool:
         """
-        Check that the user may follow the conversation's runs: their own with one
-        query, as it runs on the websocket's shared thread, a shared one also with
-        the permission to read the agent's conversations.
+        Check participation or sharing and the current permission to read the agent.
 
         :param user: The user following the conversation.
         :param conversation_id: The id of the conversation.
@@ -425,9 +566,7 @@ class AgentService:
         )
         if conversation is None:
             return False
-        return not conversation.is_shared or self._can_read_agent_conversations(
-            user, conversation.agent
-        )
+        return self._can_read_agent_conversations(user, conversation.agent)
 
     def can_cancel_conversation_run(
         self, user: AbstractUser, conversation_id: int
@@ -444,6 +583,8 @@ class AgentService:
 
         conversation = self._get_accessible_conversation(user, conversation_id)
         if conversation is None:
+            return False
+        if not conversation.shared and conversation.owner_user_id != user.id:
             return False
         operations = [
             ReadAgentConversationsOperationType.type,
@@ -469,23 +610,26 @@ class AgentService:
         if trigger is None or trigger.trashed or not trigger.enabled:
             raise AgentTriggerOff
 
-    def prepare_reply(self, reply_id: int) -> AgentReplyRequest:
+    def prepare_reply(
+        self, reply_id: int, *, approval_actor_id: int | None = None
+    ) -> AgentReplyRequest:
         """
         Load what a reply answers, or the paused run it continues, checking again
         that it may still be written: access and configuration can change while
-        the reply waits. The owner must still be allowed to send; an unattended
+        the reply waits. A human sender or approver needs current access. An unattended
         reply needs its trigger alive and enabled.
 
         :param reply_id: The id of the reply.
+        :param approval_actor_id: The actor whose decision resumed the reply.
         :raises AgentConversationDoesNotExist: When the reply no longer exists or its
             conversation is in the trash.
         :raises PermissionException: When the agent or its workspace is trashed, or
-            the owner left the workspace or may no longer send messages to the agent.
+            the actor no longer has permission to continue the reply.
         :raises AgentTriggerOff: When the trigger of a shared conversation is off,
             trashed or deleted.
         :raises AgentNotReady: When the agent's configuration is no longer ready.
         :return: The instructions, the model and the tools, with the prompt and the
-            earlier messages, or with the paused run and the owner's decisions.
+            earlier messages, or with the paused run and the approval decisions.
         """
 
         reply = self.handler.get_reply(reply_id)
@@ -494,14 +638,23 @@ class AgentService:
         # Workspace membership is part of the permission check below.
         if agent.trashed or agent.workspace is None or agent.workspace.trashed:
             raise PermissionDenied
-        if conversation.is_shared:
+        if reply.unattended:
             self._require_live_trigger(conversation)
-        else:
+        if approval_actor_id is not None or not reply.unattended:
+            actor = (
+                get_user_model().objects.filter(pk=approval_actor_id).first()
+                if approval_actor_id is not None
+                else reply.sender
+            )
+            if actor is None or not self.can_read_conversation(actor, conversation.id):
+                raise PermissionDenied()
+            operation = (
+                ApproveAgentToolCallsOperationType
+                if approval_actor_id is not None or conversation.started_by_trigger
+                else CreateAgentMessageOperationType
+            )
             CoreHandler().check_permissions(
-                conversation.owner_user,
-                CreateAgentMessageOperationType.type,
-                workspace=agent.workspace,
-                context=agent,
+                actor, operation.type, workspace=agent.workspace, context=agent
             )
         self._require_ready(agent)
         return self.handler.get_reply_request(reply)
@@ -583,7 +736,6 @@ class AgentService:
             agent.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
-        :raises AgentConversationReadOnly: When a trigger started the conversation.
         :raises ValidationError: When the content is blank or too long.
         :raises AgentMessageConflict: When the uuid was accepted with other content.
         :raises AgentConversationWaitingForApproval: When the latest reply waits for
@@ -597,15 +749,21 @@ class AgentService:
         """
 
         agent = self.get_authorized_agent(
-            user, agent_id, CreateAgentMessageOperationType.type
+            user, agent_id, ReadAgentConversationsOperationType.type
         )
         conversation = self.handler.get_conversation(
             agent, user, conversation_uuid, for_update=True
         )
-        if conversation.is_shared:
-            raise AgentConversationReadOnly
+        operation = (
+            ApproveAgentToolCallsOperationType
+            if conversation.started_by_trigger
+            else CreateAgentMessageOperationType
+        )
+        CoreHandler().check_permissions(
+            user, operation.type, workspace=agent.workspace, context=agent
+        )
         validate_message_content(content)
-        retry = self.handler.get_message_retry(conversation, uuid, content)
+        retry = self.handler.get_message_retry(conversation, uuid, content, user)
         if retry is not None:
             return retry
         if self.handler.get_waiting_reply(conversation) is not None:
@@ -613,7 +771,7 @@ class AgentService:
         # Configuration may have changed while waiting for the conversation lock.
         agent = self.handler.get_agent(agent_id)
         self._require_ready(agent)
-        result = self.handler.create_message(conversation, uuid, content)
+        result = self.handler.create_message(conversation, uuid, content, sender=user)
         if result.created:
             agent_conversation_activity.send(
                 self, conversation=result.conversation, user=user, run_id=result.run_id
@@ -630,10 +788,8 @@ class AgentService:
         always_allow: bool = False,
     ) -> AgentToolDecisionsResult:
         """
-        Approve or reject held calls of the reply waiting in one of the user's
-        conversations or in a shared one, tell the other sessions of those who may
-        decide what is left, and continue the reply once nothing is. Continuing
-        costs model usage like a message, so it needs the same access.
+        Record decisions in a visible conversation, notify its readers, and
+        continue the reply once all pending calls have a decision.
 
         :param user: The user deciding.
         :param agent_id: The id of the agent.
@@ -643,8 +799,8 @@ class AgentService:
         :param always_allow: Whether the tools of the approved calls stop asking
             first, which needs the access of a configuration update.
         :raises FeatureDisabledException: When Agents are disabled.
-        :raises PermissionException: When the user may not send messages to the
-            agent, or may not update its configuration while always allowing.
+        :raises PermissionException: When the user may not approve tool calls or
+            may not update the configuration while always allowing.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
@@ -656,7 +812,10 @@ class AgentService:
             first.
         """
 
-        operations = [CreateAgentMessageOperationType.type]
+        operations = [
+            ReadAgentConversationsOperationType.type,
+            ApproveAgentToolCallsOperationType.type,
+        ]
         if always_allow:
             operations += [
                 UpdateApplicationOperationType.type,
@@ -689,7 +848,7 @@ class AgentService:
         run_id = None
         if all_decided:
             self._require_ready(self.handler.get_agent(agent_id))
-            run_id = self.handler.resume_reply(reply).id
+            run_id = self.handler.resume_reply(reply, user).id
         agent_conversation_activity.send(
             self, conversation=conversation, user=user, run_id=run_id
         )

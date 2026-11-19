@@ -6,6 +6,7 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
+from baserow.contrib.agent.signals import before_agent_trigger_deleted
 from baserow.contrib.agent.types import AgentTriggerTypeOptions, AgentTriggerUpdated
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.operations import UpdateApplicationOperationType
@@ -292,5 +293,6 @@ class AgentTriggerService:
         trigger = self._get_authorized_trigger(
             user, agent_id, trigger_id, *WRITE_OPERATIONS, for_update=True
         )
+        before_agent_trigger_deleted.send(self, trigger=trigger)
         self.handler.delete_trigger(user, trigger)
         return trigger

@@ -1,5 +1,15 @@
 <template>
   <section class="agent-triggers" :aria-busy="loading">
+    <component
+      :is="component"
+      v-for="(component, index) in permissionSettings"
+      :key="`${agent.id}-${index}`"
+      :agent="agent"
+      :workspace="workspace"
+      :editable="editable"
+      :has-trigger="triggers.length > 0"
+      :has-enabled-trigger="triggers.some((trigger) => trigger.enabled)"
+    />
     <div class="agent-triggers__header">
       <h3 class="agent-triggers__title">{{ $t('agent.triggers') }}</h3>
       <ButtonText
@@ -104,6 +114,10 @@ const props = defineProps({
   /** Whether the user may add, change and delete triggers. */
   editable: Boolean,
 })
+const { $registry } = useNuxtApp()
+const permissionSettings = Object.values($registry.getAll('plugin'))
+  .map((plugin) => plugin.getAgentParticipationSettingsComponent?.())
+  .filter(Boolean)
 const store = useStore()
 const agent = inject('agentApplication')
 const picker = ref(null)
