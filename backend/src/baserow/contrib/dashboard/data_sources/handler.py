@@ -395,6 +395,8 @@ class DashboardDataSourceHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param import_export_config: What kind of import this is. It decides
+            whether the service keeps an integration the import didn't copy.
         :return: the new data source instance.
         """
 
@@ -405,7 +407,7 @@ class DashboardDataSourceHandler:
                 serialized_service.pop("integration_id", None),
                 id_mapping,
                 application_id=dashboard.id,
-                keep_unmapped=False,
+                import_export_config=import_export_config,
             )
 
             service = ServiceHandler().import_service(

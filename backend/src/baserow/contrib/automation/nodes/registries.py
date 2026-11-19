@@ -298,6 +298,7 @@ class AutomationNodeType(
                 serialized_service.get("integration_id", None),
                 id_mapping,
                 application_id=workflow.automation_id if workflow else None,
+                import_export_config=kwargs.get("import_export_config"),
             )
 
             return ServiceHandler().import_service(

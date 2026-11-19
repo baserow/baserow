@@ -344,11 +344,15 @@ class AgentActionHandler:
                 and not import_export_config.is_template
                 and values.get("enabled", False)
             )
+            # A duplicate leaves out the integrations the copier may not read, and
+            # those of the source Agent are dropped here as the copy can't use
+            # them. The workspace integrations stay in the workspace, so a
+            # duplicate keeps them.
             integration = IntegrationHandler().get_integration_for_import(
                 service_values.get("integration_id"),
                 id_mapping,
                 application_id=agent.id,
-                keep_unmapped=False,
+                import_export_config=import_export_config,
             )
             service = ServiceHandler().import_service(
                 integration,

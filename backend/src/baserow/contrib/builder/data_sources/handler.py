@@ -691,6 +691,7 @@ class DataSourceHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         """
         Creates an instance using the serialized version previously exported with
@@ -702,6 +703,8 @@ class DataSourceHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param import_export_config: What kind of import this is. It decides
+            whether the service keeps an integration the import didn't copy.
         :return: the new data source instance.
         """
 
@@ -716,6 +719,7 @@ class DataSourceHandler:
                 serialized_service.pop("integration_id", None),
                 id_mapping,
                 application_id=page.builder_id,
+                import_export_config=import_export_config,
             )
 
             service = ServiceHandler().import_service(

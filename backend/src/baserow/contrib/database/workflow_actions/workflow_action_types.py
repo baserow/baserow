@@ -53,6 +53,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
+from baserow.core.registries import ImportExportConfig
 from baserow.core.registry import Instance
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -199,7 +200,12 @@ class DatabaseWorkflowServiceActionType(
 
         if prop_name == "service" and value:
             return ServiceHandler().import_service(
-                self._imported_integration(value, id_mapping, cache),
+                self._imported_integration(
+                    value,
+                    id_mapping,
+                    cache,
+                    import_export_config=kwargs.get("import_export_config"),
+                ),
                 value,
                 id_mapping,
                 storage=storage,
@@ -223,43 +229,44 @@ class DatabaseWorkflowServiceActionType(
         serialized_service: Dict[str, Any],
         id_mapping: Dict[str, Any],
         cache: Optional[Dict[str, Any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Optional[Integration]:
         """
         The integration an imported service should carry: the copy made by
-        this import, or the original when the copy stays in the same database
-        (a duplicated table or field). Whether the action may keep it is still
-        settled in `import_serialized`; this only decides what to attach.
+        this import, or, when a duplicate stays in the workspace (a duplicated
+        table, field, database or snapshot), the original of one it didn't
+        copy, like a workspace integration. Whether the action may keep it is
+        still settled in `import_serialized`; this only decides what to attach.
 
         :param serialized_service: The service as the export wrote it.
         :param id_mapping: What this import has remapped so far.
         :param cache: Carries the field being imported, put there by
             `import_serialized`.
+        :param import_export_config: What kind of import this is.
         :return: The integration to attach, or None when it names none this
-            database has.
+            database can use.
         """
 
+        # Coerced before the mapping is read: it's keyed by integers and a
+        # JSON round trip can turn the value beside them into a string.
         integration_id = self._serialized_id_to_look_up(
             serialized_service.get("integration_id")
         )
-        if integration_id is None:
-            return None
-        # After the coercion, not before: the mapping is keyed by integers
-        # and a JSON round trip can turn the value beside them into a string.
-        integration_id = id_mapping.get("integrations", {}).get(
-            integration_id, integration_id
-        )
-
-        # Scoped to the database the action lands in. Unmapped ids are the
-        # normal case for a duplicated field or table, and an export written
-        # before 4c carries none at all, so an unscoped lookup would match
-        # whatever row holds that number here — another workspace's bot. The
-        # later check would drop it, but the FK is written first.
         field = (cache or {}).get(self.IMPORTING_FIELD_CACHE_KEY)
-        if field is None:
+        if integration_id is None or field is None:
             return None
-        return Integration.objects.filter(
-            id=integration_id, application_id=field.table.database_id
-        ).first()
+
+        # Checked against the database the action lands in before the FK is
+        # written. Unmapped ids are the normal case for a duplicated field or
+        # table, and an export written before 4c carries none at all, so the
+        # id can be whatever row holds that number here — another workspace's
+        # bot.
+        return IntegrationHandler().get_integration_for_import(
+            integration_id,
+            id_mapping,
+            application_id=field.table.database_id,
+            import_export_config=import_export_config,
+        )
 
     @staticmethod
     def _serialized_id_to_look_up(value: Any) -> Optional[int]:

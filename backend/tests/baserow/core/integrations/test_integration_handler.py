@@ -19,8 +19,10 @@ from baserow.core.integrations.registries import (
     IntegrationType,
     integration_type_registry,
 )
-from baserow.core.registries import application_type_registry
+from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.trash.handler import TrashHandler
+
+DUPLICATE = ImportExportConfig(include_permission_data=False, is_duplicate=True)
 
 
 def pytest_generate_tests(metafunc):
@@ -423,26 +425,32 @@ def test_get_integration_for_import(data_fixture):
         ).id
         == imported.id
     )
-    # An unmapped ID is kept when it belongs to the target application, trashed
-    # or not.
+    # A duplicate keeps an unmapped ID when it belongs to the target application,
+    # trashed or not.
     TrashHandler.trash(user, application.workspace, application, imported)
     assert (
         handler.get_integration_for_import(
-            imported.id, {"integrations": {}}, application_id=application.id
+            imported.id,
+            {"integrations": {}},
+            application_id=application.id,
+            import_export_config=DUPLICATE,
         ).id
         == imported.id
     )
-    # Or dropped when unmapped IDs aren't kept.
+    # An import that doesn't say it's a duplicate drops it.
     assert (
         handler.get_integration_for_import(
-            imported.id, {"integrations": {}}, keep_unmapped=False
+            imported.id, {"integrations": {}}, application_id=application.id
         )
         is None
     )
     # It's dropped when it belongs to another application.
     assert (
         handler.get_integration_for_import(
-            imported.id, {"integrations": {}}, application_id=other_application.id
+            imported.id,
+            {"integrations": {}},
+            application_id=other_application.id,
+            import_export_config=DUPLICATE,
         )
         is None
     )
@@ -467,17 +475,151 @@ def test_get_integration_for_import_keeps_a_workspace_integration_of_the_target(
 
     assert (
         handler.get_integration_for_import(
-            integration.id, id_mapping, application_id=builder.id
+            integration.id,
+            id_mapping,
+            application_id=builder.id,
+            import_export_config=DUPLICATE,
         ).id
         == integration.id
     )
     for application in [other_builder, published_builder]:
         assert (
             handler.get_integration_for_import(
-                integration.id, id_mapping, application_id=application.id
+                integration.id,
+                id_mapping,
+                application_id=application.id,
+                import_export_config=DUPLICATE,
             )
             is None
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "import_export_config,kept",
+    [
+        pytest.param(DUPLICATE, True, id="duplicate"),
+        pytest.param(
+            ImportExportConfig(
+                include_permission_data=False, is_duplicate=True, is_template=True
+            ),
+            False,
+            id="template",
+        ),
+        pytest.param(
+            ImportExportConfig(include_permission_data=False, is_publishing=True),
+            False,
+            id="publishing",
+        ),
+        pytest.param(
+            ImportExportConfig(include_permission_data=False), False, id="file"
+        ),
+    ],
+)
+def test_get_integration_for_import_keeps_a_workspace_integration_only_in_duplicates(
+    data_fixture, import_export_config, kept
+):
+    workspace = data_fixture.create_workspace()
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace)
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+
+    # A source application without integrations of its own adds none to the
+    # mapping.
+    imported = IntegrationHandler().get_integration_for_import(
+        integration.id,
+        {},
+        application_id=builder.id,
+        import_export_config=import_export_config,
+    )
+
+    assert (imported is not None) is kept
+
+
+@pytest.mark.django_db
+def test_check_integration_usable_accepts_the_workspace_integrations_in_a_snapshot(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace)
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    snapshot = data_fixture.create_snapshot(
+        user=user,
+        snapshot_from_application=builder,
+        snapshot_to_application=data_fixture.create_builder_application(workspace=None),
+    )
+    other_snapshot = data_fixture.create_snapshot(
+        user=user,
+        snapshot_from_application=data_fixture.create_builder_application(
+            workspace=data_fixture.create_workspace(user=user)
+        ),
+        snapshot_to_application=data_fixture.create_builder_application(workspace=None),
+    )
+    handler = IntegrationHandler()
+
+    # A snapshot keeps the workspace integrations of the application it's taken
+    # from, so its restore uses them again.
+    assert handler.is_integration_usable(
+        integration, application_id=snapshot.snapshot_to_application_id
+    )
+    assert not handler.is_integration_usable(
+        integration, application_id=other_snapshot.snapshot_to_application_id
+    )
+
+
+@pytest.mark.django_db
+def test_export_referenced_workspace_integrations(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    used = data_fixture.create_local_baserow_integration(
+        application=shared_application, name="Used"
+    )
+    data_fixture.create_local_baserow_integration(
+        application=shared_application, name="Unused"
+    )
+    trashed = data_fixture.create_local_baserow_integration(
+        application=shared_application, name="Trashed"
+    )
+    TrashHandler.trash(user, workspace, None, trashed)
+    own = data_fixture.create_local_baserow_integration(application=builder)
+    other_workspace_integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application()
+    )
+    serialized_content = [
+        {"service": {"integration_id": used.id}},
+        {"nested": [{"integration_id": used.id}, {"integration_id": trashed.id}]},
+        {"integration_id": own.id},
+        {"integration_id": other_workspace_integration.id},
+        # A boolean would otherwise read as the integration with ID 1.
+        {"integration_id": True},
+        {"integration_id": None},
+    ]
+    handler = IntegrationHandler()
+
+    exported = handler.export_referenced_workspace_integrations(
+        builder,
+        serialized_content,
+        ImportExportConfig(include_permission_data=False),
+    )
+
+    # Only the live workspace integrations of this workspace, once each.
+    assert [integration["id"] for integration in exported] == [used.id]
+    assert exported[0]["name"] == "Used"
+    assert exported[0]["type"] == "local_baserow"
+
+    # A duplicate keeps referring to them.
+    assert (
+        handler.export_referenced_workspace_integrations(
+            builder, serialized_content, DUPLICATE
+        )
+        == []
+    )
 
 
 @pytest.mark.django_db
