@@ -681,7 +681,10 @@ describe('Dashboard filter dispatch', () => {
     await vi.advanceTimersByTimeAsync(300)
     expect(requests[0].payload.widget_data[12]).toBe('')
     await settle()
-    expect(store.state.dashboardApplication.data[1]).toEqual({ result: 'new' })
+    expect(store.state.dashboardApplication.data[1]).toEqual({
+      result: 'new',
+      _loaded: true,
+    })
   })
 
   test('preserves values on unrelated realtime updates and changed defaults', async () => {

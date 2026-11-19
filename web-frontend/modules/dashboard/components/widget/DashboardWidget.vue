@@ -1,6 +1,6 @@
 <template>
   <div
-    v-skeleton="{ loading: isLoading, height: '100%' }"
+    v-skeleton="{ loading: isInitialLoading, height: '100%' }"
     class="dashboard-widget"
     :class="{
       'dashboard-widget--selected': isSelected,
@@ -57,11 +57,17 @@
         @delete-widget="$emit('delete-widget', $event)"
       ></WidgetContextMenu>
     </div>
+    <span
+      v-if="isLoading && !isInitialLoading"
+      class="dashboard-widget__refreshing"
+      role="status"
+      :aria-label="$t('dashboard.widgetsLoading')"
+    ></span>
     <component
       :is="widgetComponent(widget.type)"
       :widget="widget"
       :store-prefix="storePrefix"
-      :loading="isLoading"
+      :loading="isInitialLoading"
     >
       <template v-if="!widgetType.hasCard && isEditMode" #actions>
         <WidgetContextMenu
@@ -123,6 +129,12 @@ export default {
     },
     isLoading() {
       return this.widgetType.isLoading(this.widget, this.widgetData)
+    },
+    isInitialLoading() {
+      return (
+        this.isLoading &&
+        !this.widgetType.hasLoadedData(this.widget, this.widgetData)
+      )
     },
     widgetData() {
       return this.$store.getters[

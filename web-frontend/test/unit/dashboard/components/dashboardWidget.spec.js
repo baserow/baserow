@@ -19,16 +19,18 @@ const LoadingWidgetContent = {
   template: '<div class="loading-widget-content">{{ loading }}</div>',
 }
 
+/** Mount a widget with reactive dispatch state and the real skeleton directive. */
 function mountDashboardWidget({
   isMisconfigured = false,
   isLoading = true,
   showHeaderBorder = true,
 } = {}) {
-  const data = reactive(isLoading ? {} : { 1: { result: 42 } })
+  const data = reactive(isLoading ? {} : { 1: { result: 42, _loaded: true } })
   const widgetType = {
     name: 'Chart',
     component: LoadingWidgetContent,
-    isLoading: (_widget, data) => !data[1],
+    isLoading: (_widget, data) => !data[1] || data[1]._loading === true,
+    hasLoadedData: (_widget, data) => data[1]?._loaded === true,
     isMisconfigured: () => isMisconfigured,
     hasCard: true,
     isDisplayWidget: true,
@@ -147,6 +149,28 @@ describe('DashboardWidget', () => {
     )
     expect(wrapper.find('.loading-widget-content').text()).toBe('false')
     expect(wrapper.find('.skeleton-loading').exists()).toBe(false)
+  })
+
+  test('retains loaded content during refresh', async () => {
+    const { wrapper, data } = mountDashboardWidget({ isLoading: false })
+    const content = wrapper.get('.loading-widget-content').element
+    data[1] = { ...data[1], _loading: true }
+    await nextTick()
+
+    expect(wrapper.classes()).not.toContain('skeleton-loading')
+    expect(wrapper.get('.loading-widget-content').element).toBe(content)
+    expect(wrapper.get('.loading-widget-content').text()).toBe('false')
+    expect(wrapper.get('[role="status"]').attributes('aria-label')).toBe(
+      'dashboard.widgetsLoading'
+    )
+    expect(wrapper.html()).toMatchSnapshot('refreshing')
+
+    data[1] = { result: null, _loaded: true }
+    await nextTick()
+    expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    data[1]._loading = true
+    await nextTick()
+    expect(wrapper.classes()).not.toContain('skeleton-loading')
   })
 
   test('delegates header presentation to the registered widget type', () => {

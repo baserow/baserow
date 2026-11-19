@@ -67,6 +67,10 @@ export class WidgetType extends Registerable {
     return false
   }
 
+  hasLoadedData(widget, data) {
+    return false
+  }
+
   isMisconfigured(widget, data) {
     return false
   }
@@ -146,7 +150,16 @@ export class DataSourceWidgetType extends WidgetType {
 
   isLoading(widget, data) {
     const dataSourceData = this.getDataSourceData(widget, data)
-    return !dataSourceData || Object.keys(dataSourceData).length === 0
+    return (
+      !dataSourceData ||
+      dataSourceData._loading === true ||
+      Object.keys(dataSourceData).length === 0
+    )
+  }
+
+  hasLoadedData(widget, data) {
+    const source = this.getDataSourceData(widget, data)
+    return source?._loaded === true
   }
 
   isMisconfigured(widget, data) {
