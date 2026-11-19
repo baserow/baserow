@@ -7,7 +7,7 @@ import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import {
   SemanticSearchPaidFeature,
-  RBACPaidFeature,
+  RowCommentTriggerPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import LocalBaserowSemanticSearchServiceForm from '@baserow_enterprise/integrations/localBaserow/components/services/LocalBaserowSemanticSearchServiceForm'
 
@@ -146,6 +146,19 @@ export class LocalBaserowRowCommentPostedTriggerServiceType extends LocalBaserow
     return LocalBaserowRowCommentPostedTriggerServiceForm
   }
 
+  getErrorMessage(context) {
+    return (
+      super.getErrorMessage(context) ||
+      this.getCommentAccessError(context.service)
+    )
+  }
+
+  getCommentAccessError(service) {
+    return service?.context_data?.can_read_comments === false
+      ? this.app.$i18n.t('rowCommentTrigger.commentAccessRequired')
+      : null
+  }
+
   isDeactivatedReason({ workspace }) {
     return workspace &&
       !this.app.$hasFeature(EnterpriseFeatures.RBAC, workspace.id)
@@ -157,7 +170,7 @@ export class LocalBaserowRowCommentPostedTriggerServiceType extends LocalBaserow
     return this.isDeactivatedReason({ workspace })
       ? [
           PaidFeaturesModal,
-          { 'initial-selected-type': RBACPaidFeature.getType() },
+          { 'initial-selected-type': RowCommentTriggerPaidFeature.getType() },
         ]
       : null
   }

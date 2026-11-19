@@ -1,8 +1,5 @@
 from django.utils.translation import gettext_lazy as _
 
-from baserow.contrib.automation.automation_dispatch_context import (
-    AutomationDispatchContext,
-)
 from baserow.contrib.automation.nodes.node_types import (
     AutomationActionNodeType,
     AutomationTriggerNodeType,
@@ -101,14 +98,20 @@ class LocalBaserowRowCommentPostedTriggerNodeType(
     service_type = type
     model_class = LocalBaserowRowCommentPostedTriggerNode
 
+    def raise_if_misconfigured(self, automation_node):
+        super().raise_if_misconfigured(automation_node)
+        service = automation_node.service.specific
+        workspace = automation_node.workflow.get_original().automation.workspace
+        if self.get_service_type().get_comment_reader(service, workspace) is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The integration needs permission to read row comments on this table."
+            )
+
     def _start_workflow(self, trigger, service, event_payload):
         service_type = self.get_service_type()
-        context = AutomationDispatchContext(trigger.workflow, history=None)
-        try:
-            subject = service_type.get_acting_user(service, context)
-        except ServiceImproperlyConfiguredDispatchException:
-            return None
-        if not service_type.can_subject_read(service, subject, context.workspace):
+        workspace = trigger.workflow.get_original().automation.workspace
+        subject = service_type.get_comment_reader(service, workspace)
+        if subject is None:
             return None
         payload = event_payload(service) if callable(event_payload) else event_payload
         if not service_type.matches_event(service, subject, payload):

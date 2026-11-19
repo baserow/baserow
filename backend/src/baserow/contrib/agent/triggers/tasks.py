@@ -8,8 +8,9 @@ from ..constants import QUEUED_TRIGGER_REPLY_SWEEP_SECONDS
 from .handler import AgentTriggerHandler
 
 
-@app.task
+@app.task(bind=True)
 def start_trigger_conversations(
+    self: Task,
     trigger_id: int,
     service_id: int,
     firings: list[list[str | None]],
@@ -31,7 +32,12 @@ def start_trigger_conversations(
     from .dispatcher import agent_trigger_dispatcher
 
     agent_trigger_dispatcher.start(
-        trigger_id, service_id, firings, dropped_batches, can_read
+        trigger_id,
+        service_id,
+        firings,
+        dropped_batches,
+        can_read,
+        source_table_id=(self.request.headers or {}).get("source_table_id"),
     )
 
 

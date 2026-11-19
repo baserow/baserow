@@ -948,6 +948,9 @@ class TriggerServiceTypeMixin(ABC):
     # A busy consumer may skip an event unless a type says each of its events counts.
     events_can_be_skipped = True
 
+    # Older tasks for existing trigger types were queued without a source table.
+    requires_event_source_table = False
+
     @property
     def listeners(self) -> List[Callable]:
         """

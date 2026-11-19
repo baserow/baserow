@@ -209,10 +209,12 @@ class AgentTriggerDispatcher:
             kept = batches[: settings.AGENT_TRIGGER_MAX_BATCHES_PER_EVENT]
             firings = [self._resolve_firing(trigger, batch, fired_at) for batch in kept]
             dropped_batches = len(batches) - len(kept)
-        # A broker error for one trigger mustn't drop the starts queued after it.
+        source_table_id = getattr(service, "table_id", None)
+        # Headers preserve the task signature for workers from the previous release.
         transaction.on_commit(
-            lambda: start_trigger_conversations.delay(
-                trigger.id, service.id, firings, dropped_batches, can_read
+            lambda: start_trigger_conversations.apply_async(
+                args=(trigger.id, service.id, firings, dropped_batches, can_read),
+                headers={"source_table_id": source_table_id},
             ),
             robust=True,
         )
@@ -252,6 +254,7 @@ class AgentTriggerDispatcher:
         firings: Sequence[Sequence[str | None]],
         dropped_batches: int = 0,
         can_read: bool = True,
+        source_table_id: int | None = None,
     ) -> None:
         """
         Apply the rules of a trigger to each firing of one event, in order, if the
@@ -271,6 +274,7 @@ class AgentTriggerDispatcher:
         :param dropped_batches: How many batches of the event were left out.
         :param can_read: Whether the run identity could read the event's data
             when the event happened.
+        :param source_table_id: The table watched when the event fired, if any.
         """
 
         try:
@@ -282,7 +286,7 @@ class AgentTriggerDispatcher:
                     or not self._is_runnable(trigger)
                 ):
                     return
-                if not can_read or not self._can_read(trigger):
+                if not can_read or not self._can_read_event(trigger, source_table_id):
                     self._record_skip(trigger, AgentTrigger.SkipReason.NO_ACCESS)
                     return
                 for content, failure in firings:
@@ -312,6 +316,17 @@ class AgentTriggerDispatcher:
             service_id,
         )
         return False
+
+    def _can_read_event(
+        self, trigger: AgentTrigger, source_table_id: int | None
+    ) -> bool:
+        """Check access to the table that supplied the message under the trigger lock."""
+        service = trigger.service.specific
+        if source_table_id is None and service.get_type().requires_event_source_table:
+            return False
+        if source_table_id is not None and service.table_id != source_table_id:
+            return False
+        return self._can_read(trigger)
 
     def _can_read(self, trigger: AgentTrigger) -> bool:
         """

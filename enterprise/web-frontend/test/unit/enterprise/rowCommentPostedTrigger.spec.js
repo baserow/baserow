@@ -94,6 +94,33 @@ describe('Row comment posted trigger', () => {
     )
   })
 
+  test('the table field explains a missing comment permission and clears the warning once granted', async () => {
+    const application = { type: 'automation', integrations: [] }
+    const service = { table_id: 5, context_data: { can_read_comments: false } }
+    const wrapper = await mountForm({ application, service })
+    const warning =
+      'The integration needs permission to read row comments on this table.'
+    expect(wrapper.text()).toContain(warning)
+    expect(serviceType.getErrorMessage({ service })).toBe(warning)
+    await wrapper.setProps({
+      service: { ...service, context_data: { can_read_comments: true } },
+    })
+    expect(wrapper.text()).not.toContain(warning)
+  })
+
+  test('the locked automation trigger opens its own Advanced feature explanation', () => {
+    const registry = testApp.getRegistry()
+    const node = registry.get('node', type)
+    const context = { workspace: { id: 1 } }
+    const [, props] = node.getDeactivatedClickModal(context)
+    const feature = registry.get('paidFeature', props['initial-selected-type'])
+    expect(feature.getPlan()).toBe('Advanced')
+    expect(feature.getName()).toBe('Row comment is posted')
+    expect(feature.getContent()).toContain(
+      'Start an automation or agent when someone posts a row comment.'
+    )
+  })
+
   test('both hosts offer a single comment, and the agent opens with its author, source and text', () => {
     const registry = testApp.getRegistry()
     const node = registry.get('node', type)

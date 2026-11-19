@@ -111,6 +111,7 @@ import {
   DateDependencyPaidFeature,
   FieldLevelPermissionsPaidFeature,
   RBACPaidFeature,
+  RowCommentTriggerPaidFeature,
   SSOPaidFeature,
   SupportPaidFeature,
   SemanticSearchPaidFeature,
@@ -407,6 +408,7 @@ export default defineNuxtPlugin({
     $registry.register('paidFeature', new SSOPaidFeature(context))
     $registry.register('paidFeature', new AuditLogPaidFeature(context))
     $registry.register('paidFeature', new RBACPaidFeature(context))
+    $registry.register('paidFeature', new RowCommentTriggerPaidFeature(context))
     $registry.register('paidFeature', new DataSyncPaidFeature(context))
     $registry.register('paidFeature', new CoBrandingPaidFeature(context))
     $registry.register('paidFeature', new AdvancedWebhooksPaidFeature(context))

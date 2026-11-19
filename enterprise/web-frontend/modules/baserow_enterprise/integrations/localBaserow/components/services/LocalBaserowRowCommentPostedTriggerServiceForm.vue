@@ -7,7 +7,9 @@
       :enable-view-picker="false"
       :service-type="serviceType"
       :databases="databases"
-      :form-choices-error="formChoicesError"
+      :form-choices-error="
+        formChoicesError || serviceType.getCommentAccessError(service) || ''
+      "
       @values-changed="$emit('values-changed', $event)"
     />
     <Checkbox

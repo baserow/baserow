@@ -687,6 +687,7 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
     type = "local_baserow_row_comment_posted"
     model_class = LocalBaserowRowCommentPosted
     signal = row_comment_created
+    requires_event_source_table = True
     read_operations = ROW_COMMENT_SEARCH_OPERATIONS
     allowed_fields = [
         *LocalBaserowTableSignalTriggerServiceType.allowed_fields,
@@ -707,6 +708,26 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
             **super().get_form_choices(subject, workspace),
             "mentionName": subject.first_name if subject else "",
         }
+
+    def get_comment_reader(
+        self, service: LocalBaserowRowCommentPosted, workspace: Workspace
+    ) -> Subject | None:
+        """Return the integration subject if it can read comments on the table."""
+        if not service.table or not service.integration or service.integration.trashed:
+            return None
+        try:
+            subject = self.get_acting_user(
+                service, DispatchContext(workspace=workspace)
+            )
+        except ServiceImproperlyConfiguredDispatchException:
+            return None
+        return subject if self.can_subject_read(service, subject, workspace) else None
+
+    def get_context_data(self, service, allowed_fields=None):
+        if not service.integration_id or not service.table:
+            return None
+        reader = self.get_comment_reader(service, service.table.database.workspace)
+        return {"can_read_comments": reader is not None}
 
     def matches_event(
         self,

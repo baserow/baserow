@@ -18,6 +18,7 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.triggers.dispatcher import agent_trigger_dispatcher
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
+from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
 from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItemType
 from baserow.contrib.agent.types import AgentMessageCreated
@@ -192,7 +193,7 @@ def test_a_trigger_whose_run_identity_cannot_read_the_table_starts_nothing(
 ):
     trigger = row_trigger(data_fixture, orders)
     queued = mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.apply_async"
     )
 
     def lose_access() -> None:
@@ -214,7 +215,7 @@ def test_a_trigger_whose_run_identity_cannot_read_the_table_starts_nothing(
     create_orders(orders, 3)
     if when == "before its task runs":
         lose_access()
-    start_trigger_conversations(*queued.call_args.args)
+    start_trigger_conversations.apply(**queued.call_args.kwargs).get()
 
     trigger.refresh_from_db()
     assert not AgentConversation.objects.exists()
@@ -255,18 +256,49 @@ def test_rows_of_a_table_the_identity_cannot_read_never_start_after_a_table_swit
     )
 
     queued = mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.apply_async"
     )
 
     create_orders(orders, 1)
     trigger.service.specific_class.objects.filter(id=trigger.service_id).update(
         table=readable
     )
-    start_trigger_conversations(*queued.call_args.args)
+    start_trigger_conversations.apply(**queued.call_args.kwargs).get()
 
     trigger.refresh_from_db()
     assert not AgentConversation.objects.exists()
     assert trigger.last_skipped_reason == "no_access"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("selection", ["same table", "another table", "no table"])
+def test_a_pending_table_event_keeps_its_source_table(
+    data_fixture, orders, mocker, selection
+):
+    trigger = row_trigger(data_fixture, orders)
+    queued = mocker.patch.object(start_trigger_conversations, "apply_async")
+    create_orders(orders, 1)
+
+    if selection != "same table":
+        table = (
+            data_fixture.create_database_table(database=orders.table.database)
+            if selection == "another table"
+            else None
+        )
+        AgentTriggerService().update_trigger(
+            orders.user,
+            orders.agent.id,
+            trigger.id,
+            service_values={"table_id": table.id if table else None},
+        )
+    start_trigger_conversations.apply(**queued.call_args.kwargs).get()
+
+    trigger.refresh_from_db()
+    if selection == "same table":
+        assert opening_messages() == ["1"]
+    else:
+        assert not opening_messages()
+        assert trigger.last_skipped_reason == "no_access"
 
 
 @pytest.mark.django_db
@@ -296,7 +328,7 @@ def test_the_events_table_is_read_once_however_many_triggers_watch_it(
     data_fixture, orders, mocker
 ):
     mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.apply_async"
     )
 
     def table_reads() -> int:

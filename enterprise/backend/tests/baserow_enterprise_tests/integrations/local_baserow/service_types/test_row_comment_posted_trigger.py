@@ -8,10 +8,14 @@ from baserow_premium_tests.row_comments.utils import create_comment_scenario
 from baserow.contrib.agent.models import AgentMessage
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
+from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.prosemirror.utils import prosemirror_doc_from_plain_text
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.registries import service_type_registry
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowRowCommentPosted,
@@ -127,6 +131,26 @@ def test_published_workflows_match_the_integrations_user_and_table(
     start.assert_not_called()
 
 
+@pytest.mark.parametrize("role,can_read", [("VIEWER", False), ("COMMENTER", True)])
+def test_automation_reports_comment_access_for_its_integration(
+    scenario, enterprise_data_fixture, role, can_read
+):
+    RoleAssignmentHandler().assign_role(
+        scenario.bob, scenario.ctx.workspace, Role.objects.get(uid=role)
+    )
+    workflow = publish(enterprise_data_fixture, scenario, only_when_mentioned=True)
+    trigger = workflow.get_original().get_trigger().specific
+    data = AutomationNodeSerializer(trigger).data
+    assert data["service"]["context_data"] == {"can_read_comments": can_read}
+    if can_read:
+        trigger.get_type().raise_if_misconfigured(trigger)
+    else:
+        with pytest.raises(
+            ServiceImproperlyConfiguredDispatchException, match="read row comments"
+        ):
+            trigger.get_type().raise_if_misconfigured(trigger)
+
+
 def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
     scenario, enterprise_data_fixture, mocker
 ):
@@ -150,7 +174,7 @@ def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
         TYPE,
         service_values={"table_id": scenario.tasks.id, "only_when_mentioned": True},
     )
-    queued = mocker.patch.object(start_trigger_conversations, "delay")
+    queued = mocker.patch.object(start_trigger_conversations, "apply_async")
     assert trigger.on_overlap == "wait"
     options = next(
         option
@@ -162,7 +186,8 @@ def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
     post(scenario, other)
     queued.assert_not_called()
     post(scenario, reviewer)
-    trigger_id, _, firings, _, can_read = queued.call_args.args
+    trigger_id, _, firings, _, can_read = queued.call_args.kwargs["args"]
+    assert queued.call_args.kwargs["headers"]["source_table_id"] == scenario.tasks.id
     assert trigger_id == trigger.id and can_read
     assert firings[0][0].endswith(
         f"Anna commented on row {scenario.task_rows[0].id} in table {scenario.tasks.id}: Please review\n@Reviewer"
@@ -174,13 +199,13 @@ def test_agent_uses_the_current_run_identity_for_mentions_and_comment_access(
     post(scenario, other, author=other)
     queued.assert_not_called()
     post(scenario, other)
-    assert queued.call_args.args[4]
+    assert queued.call_args.kwargs["args"][4]
     RoleAssignmentHandler().assign_role(
         other, workspace, Role.objects.get(uid="NO_ACCESS"), scope=scenario.tasks
     )
     queued.reset_mock()
     post(scenario, other)
-    assert queued.call_args.args[2:] == ([], 0, False)
+    assert queued.call_args.kwargs["args"][2:] == ([], 0, False)
 
 
 def test_only_committed_licensed_posts_are_dispatched(
@@ -250,7 +275,13 @@ def test_agent_api_defaults_to_all_posts_and_can_enable_mention_filter(
     body = response.json()
     assert body["service"]["only_when_mentioned"] is False
     assert body["service"]["integration_id"] is None
+    queued = mocker.patch.object(start_trigger_conversations, "apply_async")
     post(scenario, text="Unfiltered")
+    delivery = queued.call_args.kwargs
+    mocker.stop(queued)
+    start_trigger_conversations.apply(args=delivery["args"]).get()
+    assert not AgentMessage.objects.filter(role="trigger").exists()
+    start_trigger_conversations.apply(**delivery).get()
     response = api_client.patch(
         reverse(
             "api:agent:triggers:item",
