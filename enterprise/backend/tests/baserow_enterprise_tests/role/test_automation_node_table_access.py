@@ -1445,14 +1445,14 @@ def _forget_stored_tables(workflow):
 def test_data_stored_before_the_tables_were_kept_stays_hidden_after_an_edit(
     api_client, workflow_on_a_secret_table, test_run_nodes
 ):
-    from baserow.contrib.automation.nodes.backfill import fill_missing_table_ids
+    from baserow.contrib.automation.nodes.tasks import fill_missing_table_ids_task
 
     admin, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
     _, iterator, _ = test_run_nodes
     histories = _run_results(workflow)
     _forget_stored_tables(workflow)
 
-    assert fill_missing_table_ids() == 1
+    fill_missing_table_ids_task.delay()
     AutomationNodeService().update_node(
         admin, iterator.id, service={"source": _formula("'nothing'")}
     )
@@ -1472,7 +1472,9 @@ def test_data_stored_before_the_tables_were_kept_stays_hidden_after_an_edit(
 def test_filling_the_tables_keeps_those_already_stored(
     workflow_on_a_secret_table, test_run_nodes
 ):
-    from baserow.contrib.automation.nodes.backfill import fill_missing_table_ids
+    from baserow.contrib.automation.nodes.backfill import (
+        fill_missing_table_ids_batch,
+    )
 
     _, workflow, _, _, _, _ = workflow_on_a_secret_table
     _, iterator, _ = test_run_nodes
@@ -1480,7 +1482,7 @@ def test_filling_the_tables_keeps_those_already_stored(
     service.sample_data_table_ids = [999]
     service.save()
 
-    assert fill_missing_table_ids() == 0
+    assert fill_missing_table_ids_batch() is None
 
     service.refresh_from_db()
     assert service.sample_data_table_ids == [999]
@@ -1516,6 +1518,10 @@ def test_a_test_run_after_the_iterator_is_edited_keeps_its_rows_hidden(
     replayed = AutomationNodeHistory.objects.get(
         id__gt=last_history, node=iterator, node_results__isnull=False
     )
+    # The tested node reads the replayed rows too.
+    tested = AutomationNodeHistory.objects.get(id__gt=last_history, node=email)
+    assert tested.read_table_ids == email.service.specific.sample_data_table_ids
+    assert tested.read_table_ids
     assert _result_as(api_client, replayed, restricted_token) is None
     assert "Paid 250k" in str(_result_as(api_client, replayed, admin_token))
     response, services = _nodes_as(api_client, workflow, restricted_token)

@@ -774,12 +774,15 @@ class AutomationNodeHandler:
         )
 
     def _dispatch_table_ids(
-        self, node: AutomationNode, replayed: bool = False
+        self, node: AutomationNode, simulated: bool = False, replayed: bool = False
     ) -> List[int]:
         """
         The tables a dispatch of the node reads, kept with its history entry. The
         nodes of the workflow are read once per task, through the node cache.
 
+        :param simulated: Whether the dispatch is part of a test run, where the
+            nodes it reads answer with their stored test run data, so the tables
+            that data was built from are kept too.
         :param replayed: Whether the node answers with its stored test run data,
             as the nodes before the tested one do in a test run. The tables that
             data was built from are kept too, whatever the node reads now.
@@ -790,7 +793,11 @@ class AutomationNodeHandler:
         access = AutomationNodeAccess(None).add_nodes(
             self.get_nodes(node.workflow), all_of_workflow=True
         )
-        table_ids = access.dispatch_table_ids(node)
+        table_ids = (
+            access.sample_table_ids(node)
+            if simulated
+            else access.dispatch_table_ids(node)
+        )
         if replayed:
             table_ids |= set(node.service.specific.sample_data_table_ids or ())
         return sorted(table_ids)
@@ -896,6 +903,7 @@ class AutomationNodeHandler:
             iteration_path=iteration_path,
             read_table_ids=self._dispatch_table_ids(
                 node,
+                simulated=simulate_until_node is not None,
                 replayed=simulate_until_node is not None
                 and node.id != simulate_until_node.id,
             ),

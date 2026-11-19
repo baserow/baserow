@@ -4,6 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("automation", "0045_automationworkflowhistory_triggered_by_user_type"),
+        ("core", "0141_service_sample_data_table_ids"),
     ]
 
     operations = [
