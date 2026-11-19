@@ -4,6 +4,7 @@ import pytest
 from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.test_utils.helpers import without_shared_applications
 
 
 @pytest.mark.django_db
@@ -88,7 +89,7 @@ def test_list_automation_applications(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert response_json == [
         {

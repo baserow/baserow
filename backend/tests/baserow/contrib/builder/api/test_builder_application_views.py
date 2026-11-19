@@ -7,6 +7,7 @@ from rest_framework.status import HTTP_200_OK
 
 from baserow.api.user_files.serializers import UserFileSerializer
 from baserow.contrib.builder.pages.models import Page
+from baserow.test_utils.helpers import without_shared_applications
 
 
 @pytest.mark.django_db
@@ -119,7 +120,7 @@ def test_list_builder_applications_theme(
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     assert response_json[0]["theme"]["primary_color"] == "#ccccccff"
     assert response_json[0]["theme"]["secondary_color"] == "#0eaa42ff"
@@ -201,7 +202,7 @@ def test_list_builder_applications(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-    response_json = response.json()
+    response_json = without_shared_applications(response.json())
 
     # Check we have the theme but don't want to check every single property
     assert response_json[0]["theme"]["body_text_color"] == "#070810ff"
