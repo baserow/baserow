@@ -2607,16 +2607,28 @@ class MenuElementType(ElementType):
         ]
         return values
 
+    @staticmethod
+    def get_menu_item_uids(menu_items: List[Dict[str, Any]]) -> Set[str]:
+        """
+        The uids of the menu items an update keeps, sub-links included. Both the
+        trash and the delete of click actions during an update read them from here.
+
+        :param menu_items: The `menu_items` value of the update.
+        :return: The uids, as strings.
+        """
+
+        return {
+            str(item.get("uid"))
+            for parent in menu_items
+            for item in (parent, *parent.get("children", []))
+        }
+
     def get_uids_removed_by_update(
         self, instance: MenuElement, values: Dict[str, Any]
     ) -> Set[str]:
         if "menu_items" not in values:
             return super().get_uids_removed_by_update(instance, values)
-        kept = {
-            str(item.get("uid"))
-            for parent in values["menu_items"]
-            for item in (parent, *parent.get("children", []))
-        }
+        kept = self.get_menu_item_uids(values["menu_items"])
         return {str(item.uid) for item in instance.menu_items.all()} - kept
 
     def before_delete(self, instance: MenuElement) -> None:
@@ -2706,12 +2718,8 @@ class MenuElementType(ElementType):
         if "menu_items" in values:
             instance.menu_items.all().delete()
 
-            # Sub-links can be buttons with click actions too.
-            menu_item_uids_to_keep = [
-                item["uid"]
-                for parent in values["menu_items"]
-                for item in (parent, *parent.get("children", []))
-            ]
+            # Read before the loop below pops the children.
+            menu_item_uids_to_keep = list(self.get_menu_item_uids(values["menu_items"]))
             self.delete_workflow_actions(instance, menu_item_uids_to_keep)
 
             items_to_create = []

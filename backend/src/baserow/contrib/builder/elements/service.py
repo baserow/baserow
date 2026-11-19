@@ -36,6 +36,9 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
+from baserow.contrib.builder.workflow_actions.trash_types import (
+    BuilderWorkflowActionTrashableItemType,
+)
 from baserow.core.graph.exceptions import (
     GraphPointNotFoundInGraph,
     GraphPointReferencePointInvalid,
@@ -303,6 +306,12 @@ class ElementService:
         for workflow_action in BuilderWorkflowAction.objects.filter(
             query, element=element
         ):
+            # The editor that sent the update doesn't know the action goes with it.
+            setattr(
+                workflow_action,
+                BuilderWorkflowActionTrashableItemType.NOTIFY_REQUESTER_ATTR,
+                True,
+            )
             TrashHandler.trash(user, builder.workspace, builder, workflow_action)
             trashed.append(workflow_action.id)
         return trashed

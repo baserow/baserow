@@ -19,6 +19,10 @@ class BuilderWorkflowActionTrashableItemType(TrashableItemType):
     type = "builder_workflow_action"
     model_class = BuilderWorkflowAction
 
+    # Set to True on a workflow action before trashing it when the requester's tab
+    # doesn't know it's gone, so that tab hears it too.
+    NOTIFY_REQUESTER_ATTR = "_trash_notifies_requester"
+
     def get_parent(self, trashed_item: BuilderWorkflowAction) -> "Page":
         return trashed_item.page
 
@@ -43,10 +47,14 @@ class BuilderWorkflowActionTrashableItemType(TrashableItemType):
             self,
             workflow_action_id=item_to_trash.id,
             page=page,
-            # Every tab hears it, the requester's included: an element update that
-            # removes a table column or menu item trashes its click actions without
-            # that tab knowing. Like `restore`, which every tab hears too.
-            user=None,
+            # The requester's tab already removed an action it deleted itself, but
+            # not one trashed by an element update that removed its column or menu
+            # item.
+            user=(
+                None
+                if getattr(item_to_trash, self.NOTIFY_REQUESTER_ATTR, False)
+                else requesting_user
+            ),
         )
 
     def restore(
