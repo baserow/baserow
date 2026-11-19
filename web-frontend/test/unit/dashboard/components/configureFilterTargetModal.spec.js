@@ -44,7 +44,16 @@ async function mountConfiguration({ linked = true, tableId = 5 } = {}) {
     getters: {
       getWidgets: (state) => state.widgets,
       getDataSourceById: () => (id) =>
-        id === 31 ? { id: 31, table_id: tableId } : null,
+        id === 31 ? { id: 31, table_id: tableId, integration_id: 10 } : null,
+      getIntegrationById: () => (id) =>
+        id === 10
+          ? {
+              id: 10,
+              context_data: {
+                databases: [{ id: 1, tables: [{ id: 5, name: 'Projects' }] }],
+              },
+            }
+          : null,
     },
     actions,
   })
@@ -68,6 +77,7 @@ async function mountConfiguration({ linked = true, tableId = 5 } = {}) {
           },
         },
         WidgetSettings: {
+          name: 'WidgetSettings',
           template: '<div />',
           methods: { validate: () => validate() },
         },
@@ -108,10 +118,39 @@ test('adds the widget only once its settings are valid and the filter links it',
 
 test('hides the filter conditions until the widget shows a table', async () => {
   const { wrapper } = await mountConfiguration({ linked: false, tableId: null })
-  expect(wrapper.find('.configure-filter-target__conditions').exists()).toBe(
-    false
-  )
+  expect(
+    wrapper.find('.configure-filter-target__section--conditions').exists()
+  ).toBe(false)
   await submitButton(wrapper).trigger('click')
+  expect(wrapper.emitted('configured')).toBeUndefined()
+})
+
+const sections = (wrapper) =>
+  wrapper.findAll('.configure-filter-target__section-header')
+const isOpen = (header) => header.attributes('aria-expanded') === 'true'
+
+test('shows one section at a time, summing up the other', async () => {
+  const { wrapper } = await mountConfiguration()
+  const [widget, conditions] = sections(wrapper)
+  expect([isOpen(widget), isOpen(conditions)]).toEqual([true, false])
+  expect(conditions.text()).toContain(
+    'configureFilterTargetModal.conditionsSummary'
+  )
+  await conditions.trigger('click')
+  expect([isOpen(widget), isOpen(conditions)]).toEqual([false, true])
+  expect(widget.text()).toContain('configureFilterTargetModal.widgetSummary')
+  // Both stay mounted, so hidden settings still validate and save.
+  expect(wrapper.find('.conditions-stub').exists()).toBe(true)
+  expect(wrapper.findComponent({ name: 'WidgetSettings' }).exists()).toBe(true)
+})
+
+test('reopens the widget settings when they are not valid', async () => {
+  const { wrapper } = await mountConfiguration()
+  await sections(wrapper)[1].trigger('click')
+  validate.mockReturnValue(false)
+  await submitButton(wrapper).trigger('click')
+  await flushPromises()
+  expect(isOpen(sections(wrapper)[0])).toBe(true)
   expect(wrapper.emitted('configured')).toBeUndefined()
 })
 

@@ -179,6 +179,8 @@
     "title": "Add a widget to “{filter}”",
     "subtitle": "Choose what the widget shows and how the “{filter}” filter narrows it down.",
     "widget": "Widget",
+    "widgetSummary": "{title} · {table}",
+    "conditionsSummary": "{conditions} · When empty: {empty}",
     "conditions": "How “{filter}” filters it",
     "conditionsHelp": "They start like the first widget this filter applies to on the same table.",
     "add": "Add widget",
