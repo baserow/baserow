@@ -785,11 +785,15 @@ class Application(
         return self.workspace
 
 
+SHARED_APPLICATION_NAME = "__shared__"
+
+
 class SharedApplication(Application):
     """
     The hidden application of a workspace that owns its workspace integrations, so
     that they keep the ownership chain of any integration: integration, application,
-    workspace. Baserow keeps one per workspace, see `SharedApplicationType`.
+    workspace. Baserow keeps one per workspace, created with the workspace, see
+    `CoreHandler.create_shared_application`.
     """
 
 

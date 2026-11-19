@@ -31,6 +31,7 @@ from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import WorkspaceUser
 from baserow.core.signals import application_updated
 from baserow.core.subjects import UserSubjectType
+from baserow.test_utils.helpers import without_shared_applications
 
 from .utils import agent_url
 
@@ -1007,7 +1008,7 @@ def test_agent_payload_includes_only_public_readiness(
     payload = api_client.get(url).json()
 
     if endpoint == "workspace":
-        [payload] = payload
+        [payload] = without_shared_applications(payload)
     assert payload["readiness"] == "incomplete"
     assert not {
         "instructions",

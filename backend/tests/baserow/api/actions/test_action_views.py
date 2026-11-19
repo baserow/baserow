@@ -11,6 +11,7 @@ from baserow.contrib.database.fields.models import NumberField, TextField
 from baserow.core.action.models import Action
 from baserow.core.actions import CreateWorkspaceActionType
 from baserow.core.models import Workspace
+from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import independent_test_db_connection
 
 User = get_user_model()
@@ -105,7 +106,7 @@ def test_undoing_an_action_which_fails_returns_correct_result_code(
     )
     workspace_id = response.json()["id"]
 
-    Workspace.objects.filter(id=workspace_id).delete()
+    TrashHandler.permanently_delete(Workspace.objects.get(id=workspace_id))
 
     response = api_client.patch(
         reverse("api:user:undo"),
@@ -235,7 +236,7 @@ def test_redoing_an_action_which_fails_returns_correct_result_code(
         HTTP_CLIENTSESSIONID=same_session_id,
     )
 
-    Workspace.objects_and_trash.filter(id=workspace_id).delete()
+    TrashHandler.permanently_delete(Workspace.objects_and_trash.get(id=workspace_id))
 
     response = api_client.patch(
         reverse("api:user:redo"),

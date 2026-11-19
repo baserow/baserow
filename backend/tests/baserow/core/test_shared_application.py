@@ -6,11 +6,17 @@ from baserow.contrib.database.models import Database
 from baserow.core.application_types import SharedApplicationType
 from baserow.core.exceptions import ApplicationOperationNotSupported, PermissionDenied
 from baserow.core.handler import CoreHandler
+from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.job_types import ExportApplicationsJobType
-from baserow.core.models import Application, SharedApplication
+from baserow.core.models import (
+    SHARED_APPLICATION_NAME,
+    Application,
+    SharedApplication,
+)
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.tasks import create_missing_shared_applications_task
 from baserow.core.tools import ToolContext
 from baserow.core.tools.applications import visible_applications
 from baserow.core.trash.handler import TrashHandler
@@ -190,3 +196,82 @@ def test_application_tools_leave_the_shared_application_out(data_fixture):
 
     assert ids(visible_applications(ctx)) == [database.id]
     assert ids(visible_applications(ctx, [SharedApplicationType.type])) == []
+
+
+@pytest.mark.django_db
+def test_new_workspace_gets_its_shared_application(data_fixture):
+    user = data_fixture.create_user()
+
+    workspace = CoreHandler().create_workspace(user, "Workspace").workspace
+
+    (shared_application,) = SharedApplication.objects.filter(workspace=workspace)
+    assert shared_application.name == SHARED_APPLICATION_NAME
+    assert shared_application.order == 0
+
+
+@pytest.mark.django_db
+def test_listing_creates_the_missing_shared_application_once(data_fixture):
+    workspace = data_fixture.create_workspace()
+    database = data_fixture.create_database_application(workspace=workspace, order=1)
+
+    listed = ids(CoreHandler().list_applications_in_workspace(workspace))
+
+    (shared_application,) = SharedApplication.objects.filter(workspace=workspace)
+    assert listed == [shared_application.id, database.id]
+    assert ids(CoreHandler().list_applications_in_workspace(workspace)) == listed
+    assert SharedApplication.objects.filter(workspace=workspace).count() == 1
+
+
+@pytest.mark.django_db
+def test_create_missing_shared_applications_skips_existing_and_trashed(data_fixture):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application()
+    trashed_workspace = data_fixture.create_workspace(trashed=True)
+
+    created = CoreHandler().create_missing_shared_applications(
+        [workspace.id, shared_application.workspace_id, trashed_workspace.id]
+    )
+
+    assert [application.workspace_id for application in created] == [workspace.id]
+    existing = SharedApplication.objects.filter(workspace=shared_application.workspace)
+    assert ids(existing) == [shared_application.id]
+    assert ids(trashed_workspace.application_set_including_trash().all()) == []
+
+
+@pytest.mark.django_db
+def test_create_all_missing_shared_applications_walks_every_workspace(data_fixture):
+    workspaces = [data_fixture.create_workspace() for _ in range(3)]
+    data_fixture.create_shared_application(workspace=workspaces[1])
+    data_fixture.create_workspace(trashed=True)
+    handler = CoreHandler()
+
+    assert handler.create_all_missing_shared_applications(batch_size=1) == 2
+    for workspace in workspaces:
+        assert SharedApplication.objects.filter(workspace=workspace).count() == 1
+    assert handler.create_all_missing_shared_applications() == 0
+
+
+@pytest.mark.django_db
+def test_backfill_task_creates_the_missing_shared_applications(data_fixture):
+    workspace = data_fixture.create_workspace()
+
+    create_missing_shared_applications_task()
+
+    assert SharedApplication.objects.filter(workspace=workspace).count() == 1
+
+
+@pytest.mark.django_db
+def test_permanently_deleting_a_workspace_deletes_its_shared_application(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = CoreHandler().create_workspace(user, "Workspace").workspace
+    shared_application = SharedApplication.objects.get(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+
+    TrashHandler.permanently_delete(workspace)
+
+    assert not Application.objects_and_trash.filter(id=shared_application.id).exists()
+    assert not Integration.objects_and_trash.filter(id=integration.id).exists()
