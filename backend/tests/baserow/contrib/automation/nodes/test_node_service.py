@@ -952,6 +952,46 @@ def test_update_node_rejects_integration_from_another_application(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_node_accepts_a_workspace_integration(data_fixture):
+    user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(
+            workspace=node.workflow.automation.workspace
+        ),
+        authorized_user=user,
+    )
+
+    AutomationNodeService().update_node(
+        user,
+        node.id,
+        service={"integration_id": workspace_integration.id},
+    )
+
+    node.service.refresh_from_db()
+    assert node.service.integration_id == workspace_integration.id
+
+
+@pytest.mark.django_db
+def test_update_node_rejects_a_workspace_integration_of_another_workspace(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+    other_integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(user=user),
+        authorized_user=user,
+    )
+
+    with pytest.raises(AutomationNodeMisconfiguredService):
+        AutomationNodeService().update_node(
+            user,
+            node.id,
+            service={"integration_id": other_integration.id},
+        )
+
+
+@pytest.mark.django_db
 def test_create_node_updates_workflow_dirty_cache(data_fixture):
     """
     When a node is created, the workflow's dirty cache flag should be set

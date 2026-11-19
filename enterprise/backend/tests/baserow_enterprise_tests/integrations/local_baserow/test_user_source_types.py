@@ -2859,3 +2859,29 @@ def test_list_user_source_users_with_integration_of_another_application(
 
     assert response.status_code == HTTP_200_OK
     assert response.json() == {"users_per_user_sources": {str(user_source.id): []}}
+
+
+@pytest.mark.django_db
+def test_local_baserow_user_source_reads_through_a_workspace_integration(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace),
+        authorized_user=user,
+    )
+    table, _, (row,) = data_fixture.build_table(
+        user=user,
+        database=data_fixture.create_database_application(workspace=workspace),
+        columns=[("Email", "text"), ("Name", "text"), ("Role", "text")],
+        rows=[["foo@bar.com", "Foo", ""]],
+    )
+    user_source = data_fixture.create_local_baserow_table_user_source(
+        application=builder, integration=integration, table=table
+    )
+    user_source_type = user_source.get_type()
+
+    assert user_source_type.is_configured(user_source)
+    assert [u.id for u in user_source_type.list_users(user_source)] == [row.id]

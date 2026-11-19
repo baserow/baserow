@@ -426,7 +426,8 @@ class DatabaseWorkflowServiceActionType(
         """
         The one rule save, import and dispatch all read, so they cannot
         drift: a carried integration is of a type this action accepts, and
-        belongs to the field's own database.
+        belongs to the field's own database or is one of its workspace's
+        integrations.
 
         :param integration: The integration in question.
         :param field: The button field the action belongs to.
@@ -459,18 +460,18 @@ class DatabaseWorkflowServiceActionType(
 
         integration = None
         if field is not None:
-            # Scoped to the field's database, so someone else's integration
-            # reads the same as nothing.
-            integration = Integration.objects.filter(
-                id=integration_id, application_id=field.table.database_id
-            ).first()
+            # Unscoped: the usability check below accepts the integrations of
+            # the field's database and the workspace integrations, and someone
+            # else's integration fails it with the same answer as nothing.
+            integration = Integration.objects.filter(id=integration_id).first()
 
         if integration is None or not self._integration_is_usable(integration, field):
             # One answer for every way of being wrong, or a caller could walk
             # the ids and learn what this installation holds.
             raise WorkflowActionInvalidIntegration(
                 "This action cannot use that integration. It must be one the "
-                "action accepts, from the database of the button field."
+                "action accepts, from the database of the button field or from "
+                "its workspace."
             )
 
         # Checked against the row already in hand.

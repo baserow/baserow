@@ -346,8 +346,8 @@ class AutomationNodeType(
     ) -> None:
         """
         Checks that the node's service reads only through what its workflow's
-        automation may use: an integration of the automation, and a table of the
-        automation's workspace.
+        automation may use: an integration of the automation or of its workspace,
+        and a table of the automation's workspace.
 
         :param workflow: The workflow the node belongs to.
         :param service: The node's service.

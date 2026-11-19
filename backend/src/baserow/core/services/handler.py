@@ -244,13 +244,15 @@ class ServiceHandler:
         Checks that the service can read through its integration before it's used.
 
         :param service: The service about to be used.
-        :param application_id: When given, the service's integration must belong
-            to this application.
+        :param application_id: When given, the service's integration must be
+            usable from this application, see
+            `IntegrationHandler.check_integration_usable`.
         :param integration: The service's integration, when the caller already
             loaded it. It's fetched otherwise, so that a dispatch never trusts a
             stale one.
         :raises ServiceImproperlyConfiguredDispatchException: When the integration
-            is trashed, belongs to another application, or is required but missing.
+            is trashed, can't be used from the application, or is required but
+            missing.
         """
 
         if service.integration_id is not None:
@@ -322,8 +324,9 @@ class ServiceHandler:
 
         :param service: The service to be dispatched.
         :param dispatch_context: The context used for the dispatch.
-        :param application_id: When given, the service's integration must belong
-            to this application.
+        :param application_id: When given, the service's integration must be
+            usable from this application, see
+            `IntegrationHandler.check_integration_usable`.
         :return: The result of dispatching the service.
         """
 
@@ -343,8 +346,9 @@ class ServiceHandler:
         :param service: The service the records are read through.
         :param record_ids: The record identifiers.
         :param dispatch_context: The context used for the dispatch.
-        :param application_id: When given, the service's integration must belong
-            to this application.
+        :param application_id: When given, the service's integration must be
+            usable from this application, see
+            `IntegrationHandler.check_integration_usable`.
         :return: A dictionary mapping each record id to its name.
         """
 

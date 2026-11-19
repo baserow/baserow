@@ -300,6 +300,94 @@ def test_check_integration_usable(data_fixture):
 
 
 @pytest.mark.django_db
+def test_check_integration_usable_accepts_the_workspace_integrations(data_fixture):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    handler = IntegrationHandler()
+
+    for application in [builder, automation, shared_application]:
+        handler.check_integration_usable(
+            integration,
+            application_id=application.id,
+            workspace_id=workspace.id,
+            integration_types=["local_baserow"],
+        )
+
+    # An application's own integration stays out of reach of its siblings.
+    own_integration = data_fixture.create_local_baserow_integration(application=builder)
+    with pytest.raises(IntegrationNotInApplication):
+        handler.check_integration_usable(own_integration, application_id=automation.id)
+
+
+@pytest.mark.django_db
+def test_check_integration_usable_refuses_the_integrations_of_another_workspace(
+    data_fixture,
+):
+    shared_application = data_fixture.create_shared_application()
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+    other_builder = data_fixture.create_builder_application(
+        workspace=data_fixture.create_workspace()
+    )
+
+    with pytest.raises(IntegrationNotInApplication):
+        IntegrationHandler().check_integration_usable(
+            integration, application_id=other_builder.id
+        )
+
+
+@pytest.mark.django_db
+def test_check_integration_usable_refuses_the_workspace_integrations_when_published(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+
+    # Publishing copies the workspace integrations, so a published copy never
+    # reads through the originals.
+    with pytest.raises(IntegrationNotInApplication):
+        IntegrationHandler().check_integration_usable(
+            integration, application_id=published_builder.id
+        )
+
+
+@pytest.mark.django_db
+def test_check_integration_usable_caches_the_workspace_integration_answer(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    own_integration = data_fixture.create_local_baserow_integration(application=builder)
+    handler = IntegrationHandler()
+
+    # An application's own integration needs no query.
+    with django_assert_num_queries(0):
+        handler.check_integration_usable(own_integration, application_id=builder.id)
+
+    with django_assert_num_queries(1):
+        handler.check_integration_usable(integration, application_id=builder.id)
+        handler.check_integration_usable(integration, application_id=builder.id)
+
+
+@pytest.mark.django_db
 def test_get_integration_including_trashed(data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)
@@ -358,6 +446,38 @@ def test_get_integration_for_import(data_fixture):
         )
         is None
     )
+
+
+@pytest.mark.django_db
+def test_get_integration_for_import_keeps_a_workspace_integration_of_the_target(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    other_builder = data_fixture.create_builder_application(
+        workspace=data_fixture.create_workspace()
+    )
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    handler = IntegrationHandler()
+    id_mapping = {"integrations": {}}
+
+    assert (
+        handler.get_integration_for_import(
+            integration.id, id_mapping, application_id=builder.id
+        ).id
+        == integration.id
+    )
+    for application in [other_builder, published_builder]:
+        assert (
+            handler.get_integration_for_import(
+                integration.id, id_mapping, application_id=application.id
+            )
+            is None
+        )
 
 
 @pytest.mark.django_db
