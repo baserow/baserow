@@ -10,6 +10,7 @@ from baserow.contrib.builder.models import Builder
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.table.models import Table
+from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
 from baserow.test_utils.fixtures import Fixtures
 from baserow_enterprise.assistant.evals.registry import register_scenario
@@ -21,9 +22,42 @@ from baserow_enterprise.assistant.types import (
     UserUIContext,
     WorkspaceUIContext,
 )
+from baserow_premium.license.cache import invalidate_cached_instance_wide_licenses
+from baserow_premium.license.models import License
 
 
-class _EvalFixtures(Fixtures):
+class EvalFixtures(Fixtures):
+    """The fixtures of one eval case."""
+
+    _added_licence_id: int | None = None
+
+    def enable_enterprise(self) -> None:
+        """
+        Give the instance the enterprise licence of the enterprise tests until the
+        case ends. The eval database runs with the debug licence key, which that
+        licence is signed for.
+        """
+
+        from baserow_enterprise_tests.enterprise_fixtures import EnterpriseFixtures
+
+        had_licence = License.objects.filter(
+            cached_untrusted_instance_wide=True
+        ).exists()
+        licence = EnterpriseFixtures().enable_enterprise()
+        if not had_licence:
+            self._added_licence_id = licence.id
+        invalidate_cached_instance_wide_licenses()
+
+    def remove_added_licence(self) -> None:
+        """Remove the licence this case added, so no later case runs with it."""
+
+        if self._added_licence_id is None:
+            return
+        License.objects.filter(id=self._added_licence_id).delete()
+        self._added_licence_id = None
+        invalidate_cached_instance_wide_licenses()
+        local_cache.clear()
+
     def create_user(self, **kwargs) -> AbstractUser:
         # Faker's uniqueness cache belongs to one fixture instance, while eval
         # users persist across scenarios and runs in the same database.
@@ -38,10 +72,10 @@ class _EvalFixtures(Fixtures):
         return super().create_select_option(user=user, **kwargs)
 
 
-def make_fixtures() -> Fixtures:
+def make_fixtures() -> EvalFixtures:
     """Build a ``Fixtures`` instance usable outside pytest, e.g. by scenario builders."""
 
-    return _EvalFixtures(Faker())
+    return EvalFixtures(Faker())
 
 
 def build_database_ui_context(

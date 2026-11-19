@@ -77,7 +77,7 @@
           {{
             $t(disabledReason ? 'agent.toolsSelected' : 'agent.toolsSummary', {
               on: countIn(group, allowedTools),
-              total: group.tools.length,
+              total: group.tools.filter((tool) => !tool.deactivated).length,
             })
           }}
           <template v-if="countIn(group, askFirstTools)">
@@ -103,6 +103,7 @@
       :ask-first-tools="askFirstTools"
       :agent-name="agentName"
       :editable="editable"
+      :workspace="workspace"
       @save="emit('update', $event)"
     />
   </div>
@@ -110,12 +111,14 @@
 
 <script setup>
 import { useNuxtApp } from '#app'
-import { computed, ref, useId } from 'vue'
+import { computed, inject, ref, useId } from 'vue'
+import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
 import SegmentControl from '@baserow/modules/core/components/SegmentControl'
 import {
   groupAgentTools,
   nextAskFirst,
+  usableAgentTools,
 } from '@baserow/modules/agent/agentTools'
 import AgentToolPermissionsModal from '@baserow/modules/agent/components/configuration/AgentToolPermissionsModal'
 
@@ -132,14 +135,21 @@ const emit = defineEmits(['update'])
 const { t } = useI18n()
 const askDescriptionId = useId()
 const { $registry } = useNuxtApp()
+const store = useStore()
+const agent = inject('agentApplication')
 
 const permissions = ref(null)
+const workspace = computed(() =>
+  agent.value ? store.getters['workspace/get'](agent.value.workspace.id) : null
+)
 const groups = computed(() =>
   groupAgentTools(props.availableTools, $registry, t)
 )
-const allTools = computed(() => props.availableTools.map((tool) => tool.name))
+// The presets pick among the tools the workspace can use.
+const usableTools = computed(() => usableAgentTools(props.availableTools))
+const allTools = computed(() => usableTools.value.map((tool) => tool.name))
 const readTools = computed(() =>
-  props.availableTools
+  usableTools.value
     .filter((tool) => !tool.changes_data)
     .map((tool) => tool.name)
 )

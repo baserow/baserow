@@ -153,7 +153,11 @@ msgstr ""
 msgid "Reading the comments..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1459
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1466
+msgid "Searching the comments..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1505
 msgid "Posting the comments..."
 msgstr ""
 

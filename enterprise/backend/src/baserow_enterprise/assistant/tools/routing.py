@@ -98,7 +98,7 @@ def _tool_routes() -> dict[str, _ToolRoute]:
         update_database,
     )
     from .dashboard.tools import TOOL_FUNCTIONS as dashboard_tools
-    from .database.tools import TOOL_FUNCTIONS as database_tools
+    from .database.tools import ROW_COMMENT_FUNCTIONS, TOOL_FUNCTIONS
     from .navigation.tools import navigate
     from .search_user_docs.tools import search_user_docs
 
@@ -109,8 +109,11 @@ def _tool_routes() -> dict[str, _ToolRoute]:
     dashboard_mode = frozenset({AgentMode.DASHBOARD})
     explain_mode = frozenset({AgentMode.EXPLAIN})
 
+    database_tools = [*TOOL_FUNCTIONS, *ROW_COMMENT_FUNCTIONS]
     database_reads = [
-        tool for tool in database_tools if tool.__name__.startswith(("list_", "get_"))
+        tool
+        for tool in database_tools
+        if tool.__name__.startswith(("list_", "get_", "search_"))
     ]
     application_reads = [
         tool for tool in application_tools if tool.__name__.startswith("list_")

@@ -3,6 +3,7 @@ from typing import List
 from baserow.core.registry import Instance, Registry
 
 GROUP_WORKSPACE_READ = "workspace_read"
+GROUP_WORKSPACE_UNDO = "workspace_undo"
 GROUP_DATABASE_READ = "database_read"
 GROUP_DATABASE_EDIT = "database_edit"
 GROUP_DATABASE_DELETE = "database_delete"
@@ -58,6 +59,13 @@ class WorkspaceReadMCPToolGroup(MCPToolGroup):
     area = AREA_WORKSPACE
     read_only_preset = True
     order = 5
+
+
+class WorkspaceUndoMCPToolGroup(MCPToolGroup):
+    type = GROUP_WORKSPACE_UNDO
+    title = "Undo and redo changes"
+    area = AREA_WORKSPACE
+    order = 6
 
 
 class DatabaseReadMCPToolGroup(MCPToolGroup):

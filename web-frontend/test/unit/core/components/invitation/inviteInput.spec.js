@@ -562,6 +562,74 @@ test.each(['person+tag@example.com', 'person@localhost', 'person@例子.测试']
   }
 )
 
+test('submits an address that is still in the text field along with the chips', async () => {
+  const wrapper = await mountInput()
+  try {
+    const input = wrapper.find('input')
+    const button = wrapper.find('.invite-input__row button')
+    await paste(input, 'good@example.com')
+    await input.setValue('Typed@Example.com')
+
+    expect(chips(wrapper)).toEqual(['good@example.com'])
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+
+    expect(wrapper.emitted('add')[0][0].map(({ email }) => email)).toEqual([
+      'good@example.com',
+      'typed@example.com',
+    ])
+    // It became a chip, so the parent can remove or keep it like any pick.
+    expect(chips(wrapper)).toEqual(['good@example.com', 'typed@example.com'])
+    expect(input.element.value).toBe('')
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('submits a typed address without any chip', async () => {
+  const wrapper = await mountInput()
+  try {
+    const input = wrapper.find('input')
+    const button = wrapper.find('.invite-input__row button')
+    expect(button.attributes('disabled')).toBeDefined()
+
+    await input.setValue('typed@example.com')
+    expect(button.attributes('disabled')).toBeUndefined()
+    await button.trigger('click')
+
+    expect(wrapper.emitted('add')[0][0].map(({ email }) => email)).toEqual([
+      'typed@example.com',
+    ])
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+test('does not submit a typed address that cannot be invited', async () => {
+  const wrapper = await mountInput()
+  try {
+    const input = wrapper.find('input')
+    const button = wrapper.find('.invite-input__row button')
+
+    // The address of a member, and text that is no address at all.
+    await input.setValue('mark@x.com')
+    expect(button.attributes('disabled')).toBeDefined()
+    await input.setValue('mark')
+    expect(button.attributes('disabled')).toBeDefined()
+
+    // Next to a chip, the address of the member is left out and marked.
+    await paste(input, 'good@example.com')
+    await input.setValue('mark@x.com')
+    await button.trigger('click')
+    expect(wrapper.emitted('add')[0][0].map(({ email }) => email)).toEqual([
+      'good@example.com',
+    ])
+    expect(errorChips(wrapper)).toEqual(['Mark Delgado'])
+  } finally {
+    wrapper.unmount()
+  }
+})
+
 test('flags addresses while a role that cannot be used for invitations is chosen', async () => {
   const noAccess = {
     uid: 'NO_ACCESS',

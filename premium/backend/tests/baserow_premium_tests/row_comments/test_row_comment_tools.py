@@ -82,8 +82,10 @@ def test_create_and_list_row_comment_as_plain_text(premium_data_fixture):
     assert listed["comments"] == [
         {
             "id": comment.id,
+            "user_id": ctx.user.id,
             "user_name": "Anna",
             "text": "Call back Monday",
+            "mentions": [],
             "created_on": comment.created_on.isoformat(),
             "edited": False,
         }

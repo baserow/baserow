@@ -154,6 +154,13 @@ def dynamic_tool_catalog(ctx) -> str:
     return f"\n<tool_catalog>\n{catalog}\n</tool_catalog>"
 
 
+@main_agent.instructions
+def dynamic_unavailable_tools(ctx: RunContext[AssistantDeps]) -> str:
+    """Explain tools omitted from the catalog because of the workspace licence."""
+
+    return "\n".join(ctx.deps.unavailable_tool_messages)
+
+
 @main_agent.toolset
 def dynamic_toolset(ctx: RunContext[AssistantDeps]):
     """

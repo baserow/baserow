@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest'
-import { nextAskFirst } from '@baserow/modules/agent/agentTools'
+import {
+  nextAskFirst,
+  usableAgentTools,
+} from '@baserow/modules/agent/agentTools'
 
 const availableTools = [
   { name: 'list_tables', changes_data: false },
@@ -34,5 +37,15 @@ describe('nextAskFirst', () => {
     expect(
       nextAskFirst(availableTools, prevAllowed, prevAskFirst, nextAllowed)
     ).toEqual(expected)
+  })
+})
+
+describe('usableAgentTools', () => {
+  test('leaves out the tools the workspace cannot use', () => {
+    const locked = { name: 'create_row_comments', deactivated: true }
+
+    expect(usableAgentTools([...availableTools, locked])).toEqual(
+      availableTools
+    )
   })
 })

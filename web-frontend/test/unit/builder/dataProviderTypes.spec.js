@@ -168,6 +168,15 @@ describe('Builder data provider types', () => {
       _: { dataSourceLoading: false, dataSourceContentLoading: false },
       elementMap: { 2: formContainer, 3: nameInput, 4: emailInput },
       orderedElements: [formContainer, nameInput, emailInput],
+      workflowActions: [
+        {
+          id: 1,
+          element_id: 2,
+          event: 'submit',
+          type: 'notification',
+          title: { formula: "'Submitted'" },
+        },
+      ],
       graph: {
         0: 2,
         2: { children: { '': [3] } },
@@ -180,7 +189,7 @@ describe('Builder data provider types', () => {
       },
     })
     return {
-      builder: { id: 1 },
+      builder: { id: 1, pages: [page] },
       workspace: {},
       page,
       element: formContainer,
@@ -201,6 +210,143 @@ describe('Builder data provider types', () => {
       { 3: 'Ada', 4: 'ada@example.com' },
       {},
     ])
+  })
+
+  test('dispatch preserves valid values inside hidden containers', () => {
+    const provider = testApp
+      .getRegistry()
+      .get('builderDataProvider', 'form_data')
+    const context = formContainerPage()
+    const parent = {
+      id: 5,
+      page_id: context.page.id,
+      type: 'column',
+      visibility_condition: { formula: "get('form_data.4') = 'show'" },
+      _: { elementNamespacePath: [] },
+    }
+    context.page.elementMap[5] = parent
+    context.page.orderedElements.push(parent)
+    context.page.graph = {
+      0: 2,
+      2: { children: { '': [5] } },
+      5: { children: { 0: [3] }, next: { '': [4] } },
+      3: {},
+      4: {},
+    }
+    expect(provider.getDataContent(context)).toEqual({
+      3: 'Ada',
+      4: 'ada@example.com',
+    })
+    expect(provider.getActionDispatchContext(context)).toEqual([
+      { 3: 'Ada', 4: 'ada@example.com' },
+      {},
+    ])
+    context.page.formData[4].value = 'show'
+    expect(provider.getActionDispatchContext(context)).toEqual([
+      { 3: 'Ada', 4: 'show' },
+      {},
+    ])
+  })
+
+  test('dispatch preserves defaults on directly hidden inputs', () => {
+    const provider = testApp
+      .getRegistry()
+      .get('builderDataProvider', 'form_data')
+    const context = formContainerPage()
+    context.page.elementMap[3].visibility_condition = { formula: 'false' }
+    expect(provider.getActionDispatchContext(context)).toEqual([
+      { 3: 'Ada', 4: 'ada@example.com' },
+      {},
+    ])
+  })
+
+  test('ancestor visibility and dispatched inputs use the selected nested repeat row', () => {
+    const provider = testApp
+      .getRegistry()
+      .get('builderDataProvider', 'form_data')
+    const context = formContainerPage()
+    const repeat = {
+      id: 5,
+      page_id: 1,
+      type: 'repeat',
+      data_source_id: 1,
+      _: { elementNamespacePath: [] },
+    }
+    const nestedRepeat = {
+      id: 6,
+      page_id: 1,
+      type: 'repeat',
+      data_source_id: null,
+      schema_property: 'children',
+      visibility_condition: {
+        formula: "get('current_record.__idx__') = 0",
+        mode: 'advanced',
+      },
+      _: { elementNamespacePath: [5] },
+    }
+    context.page.elementMap[6] = nestedRepeat
+    context.page.orderedElements.unshift(nestedRepeat)
+    context.page.graph[6] = { children: { '': [2] } }
+    context.builder.pages.push({ id: 2, shared: true, dataSources: [] })
+    context.page.dataSources = [
+      {
+        id: 1,
+        type: 'csv_file_reader',
+        schema: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              children: {
+                type: 'array',
+                items: { type: 'object', properties: {} },
+              },
+            },
+          },
+        },
+      },
+    ]
+    context.page.elementMap[5] = repeat
+    context.page.orderedElements.unshift(repeat)
+    context.page.graph[0] = 5
+    context.page.graph[5] = { children: { '': [6] } }
+    for (const id of [2, 3, 4]) {
+      context.page.elementMap[id]._.elementNamespacePath = [5, 6]
+    }
+    context.page.elementMap[2].visibility_condition = {
+      formula: "get('current_record.__idx__') = 1",
+      mode: 'advanced',
+    }
+    context.page.formData = {
+      3: { 0: { 0: { value: 'First' }, 1: { value: 'Second' } } },
+      4: {
+        0: {
+          0: { value: 'first@example.com' },
+          1: { value: 'second@example.com' },
+        },
+      },
+    }
+    const formType = testApp.getRegistry().get('element', 'form_container')
+    const isVisible = () =>
+      formType.isVisible({
+        element: context.element,
+        applicationContext: context,
+        checkAncestors: true,
+      })
+    context.recordIndexPath = [0, 0]
+    expect(isVisible()).toBe(false)
+    expect(provider.getActionDispatchContext(context)).toEqual([
+      { 3: 'First', 4: 'first@example.com' },
+      {},
+    ])
+    context.recordIndexPath = [0, 1]
+    expect(isVisible()).toBe(true)
+    expect(provider.getActionDispatchContext(context)).toEqual([
+      { 3: 'Second', 4: 'second@example.com' },
+      {},
+    ])
+    context.recordIndexPath = [1, 1]
+    expect(isVisible()).toBe(false)
   })
 
   test('form data provider applies its requested data scope', () => {

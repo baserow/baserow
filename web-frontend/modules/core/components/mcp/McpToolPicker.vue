@@ -124,6 +124,7 @@ const { t } = useI18n()
 // the API's English title.
 const GROUP_LABELS = {
   workspace_read: 'mcpToolPicker.workspaceRead',
+  workspace_undo: 'mcpToolPicker.workspaceUndo',
   database_read: 'mcpToolPicker.databaseRead',
   database_edit: 'mcpToolPicker.databaseEdit',
   database_delete: 'mcpToolPicker.databaseDelete',

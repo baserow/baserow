@@ -43,7 +43,16 @@ class RowComment(
     class Meta:
         db_table = "database_rowcomment"
         ordering = ("-created_on",)
-        indexes = [models.Index(fields=["table", "row_id", "-created_on"])]
+        indexes = [
+            models.Index(fields=["table", "row_id", "-created_on"]),
+            models.Index(
+                fields=["table", "-created_on"], name="rowcomment_table_created_idx"
+            ),
+            models.Index(
+                fields=["table", "user", "-created_on"],
+                name="rowcomment_table_author_idx",
+            ),
+        ]
 
     def get_parent(self):
         table_model = self.table.get_model()

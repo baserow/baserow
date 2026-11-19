@@ -10,3 +10,5 @@ LEGACY_DEFAULT_TOOLS = [
     "update_rows",
     "delete_rows",
 ]
+
+LOCKED_MESSAGE = "Something else is changing the same data. Try again in a moment."

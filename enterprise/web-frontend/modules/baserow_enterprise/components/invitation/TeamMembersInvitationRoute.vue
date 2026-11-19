@@ -382,7 +382,8 @@ export default {
     },
     /**
      * Revokes the invitation to the team. The workspace invitation itself stays
-     * pending, as it may still give a workspace role or access elsewhere.
+     * pending, as it may still give a workspace role or access elsewhere, which
+     * a toast says after revoking.
      */
     async revokeInvitation({ teamInvitation }) {
       const index = this.teamInvitations.findIndex(
@@ -397,6 +398,12 @@ export default {
           this.team.id,
           teamInvitation.id
         )
+        this.$store.dispatch('toast/info', {
+          title: this.$t('teamMembersRoute.invitationRevokedTitle'),
+          message: this.$t('teamMembersRoute.invitationRevokedMessage', {
+            email: teamInvitation.email,
+          }),
+        })
       } catch (error) {
         this.teamInvitations.splice(index, 0, teamInvitation)
         notifyIf(error, 'team')
