@@ -12,7 +12,6 @@ from baserow.contrib.agent.triggers.trash_types import AgentTriggerTrashableItem
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import View
 from baserow.core.exceptions import PermissionException
-from baserow.core.models import Agent as Identity
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -117,7 +116,7 @@ def test_a_row_trigger_needs_a_table_whose_rows_its_run_identity_lists(
     restricted = enterprise_data_fixture.create_grid_view(
         table=invoices, ownership_type=RestrictedViewOwnershipType.type
     )
-    identity = Identity.objects.create(
+    identity = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Reader", role_uid="NO_ACCESS"
     )
     roles = RoleAssignmentHandler()
@@ -130,7 +129,7 @@ def test_a_row_trigger_needs_a_table_whose_rows_its_run_identity_lists(
     )
     agent = enterprise_data_fixture.create_agent_application(
         workspace=workspace,
-        run_as_subject_type="core.Agent",
+        run_as_subject_type="auth.User",
         run_as_subject_id=identity.id,
     )
 

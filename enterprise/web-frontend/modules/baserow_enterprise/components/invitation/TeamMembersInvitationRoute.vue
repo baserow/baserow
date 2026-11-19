@@ -68,13 +68,12 @@ import InviteInput from '@baserow/modules/core/components/invitation/InviteInput
 import ScopeAccessList from '@baserow/modules/core/components/invitation/ScopeAccessList'
 import emailInvitations from '@baserow/modules/core/mixins/emailInvitations'
 import error from '@baserow/modules/core/mixins/error'
-import { FF_AGENTS } from '@baserow/modules/core/plugins/featureFlags'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import TeamService from '@baserow_enterprise/services/team'
 import { getTeamSubjectKey } from '@baserow_enterprise/utils/teamSubjects'
 
 /**
- * The members of one team. One input adds members and agents of the workspace
+ * The members of one team. One input adds members and identities of the workspace
  * to the team and invites new people by email, and every member and pending
  * invitation is listed below it with a button to remove or revoke it. Each
  * change is saved right away. Members get the team's own role, so there is no
@@ -168,10 +167,7 @@ export default {
         .getOrderedList('subject')
         .filter(
           (subjectType) =>
-            subjectType.canJoinTeam &&
-            subjectType.isEnabled(this.workspace) &&
-            (subjectType.type !== 'core.Agent' ||
-              this.$featureFlagIsEnabled(FF_AGENTS))
+            subjectType.canJoinTeam && subjectType.isEnabled(this.workspace)
         )
     },
     tabs() {
@@ -184,7 +180,7 @@ export default {
       return new Set(this.teamSubjects.map(getTeamSubjectKey))
     },
     /**
-     * The members and agents of the workspace, where those already in the team
+     * The members and identities of the workspace, where those already in the team
      * are listed as such rather than offered, followed by the addresses that
      * already have an invitation to the team, so that they aren't invited
      * twice.
@@ -239,8 +235,8 @@ export default {
     },
     /**
      * The rows of the members list. A member who isn't among the fetched
-     * subjects, such as an agent while agents are off, is still listed by type
-     * and id, so that they can be removed.
+     * subjects, such as an identity while identities are off, is still listed by
+     * type and id, so that they can be removed.
      */
     memberItems() {
       const members = this.teamSubjects.map((teamSubject) => {
@@ -272,7 +268,7 @@ export default {
           ...item,
           name: subjectType.getDisplayName(subject),
           subtitle: subjectType.getSubtitle(subject),
-          badge: subjectType.getBadge(),
+          badge: subjectType.getBadge(subject),
           badgeColor: 'neutral',
           avatarComponent: subjectType.avatarComponent,
           subject,
@@ -337,8 +333,8 @@ export default {
       }
     },
     /**
-     * Adds the picked members and agents to the team one after the other, then
-     * sends one invitation per picked email address. Every pick leaves the
+     * Adds the picked members and identities to the team one after the other,
+     * then sends one invitation per picked email address. Every pick leaves the
      * input as soon as it was added, so after a failure exactly what wasn't
      * added yet is still picked.
      */

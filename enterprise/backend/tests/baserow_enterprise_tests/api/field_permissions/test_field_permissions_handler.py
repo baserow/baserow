@@ -3,8 +3,9 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import FileSystemStorage
+from django.db import connection
 from django.shortcuts import reverse
-from django.test.utils import override_settings
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 from pytest_unordered import unordered
@@ -15,9 +16,9 @@ from baserow.contrib.database.fields.exceptions import FieldNotInTable
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.operations import WriteFieldValuesOperationType
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.field_permissions.handler import (
     FieldPermissionRead,
@@ -70,6 +71,41 @@ def test_only_builder_and_up_can_get_field_permissions(
     assert field_permissions.role == "EDITOR"
     assert field_permissions.allow_in_forms is True
     assert field_permissions.subjects == []
+
+
+@pytest.mark.django_db
+def test_custom_field_permission_update_has_bounded_subject_queries(
+    enterprise_data_fixture, synced_roles, enable_enterprise
+):
+    query_counts = []
+    for member_count in (1, 25):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        database = enterprise_data_fixture.create_database_application(
+            workspace=workspace
+        )
+        table = enterprise_data_fixture.create_database_table(database=database)
+        field = enterprise_data_fixture.create_text_field(table=table)
+        member_ids = {
+            enterprise_data_fixture.create_user_workspace(workspace=workspace).user_id
+            for _ in range(member_count)
+        }
+
+        with local_cache.context(), CaptureQueriesContext(connection) as queries:
+            result = FieldPermissionsHandler.update_field_permissions(
+                user,
+                field,
+                FieldPermissionsRoleEnum.CUSTOM,
+                subjects=[
+                    {"subject_id": member_id, "subject_type": "auth.User"}
+                    for member_id in member_ids
+                ],
+            )
+
+        assert {assignment.subject_id for assignment in result.subjects} == member_ids
+        query_counts.append(len(queries))
+
+    assert query_counts[1] <= query_counts[0]
 
 
 @pytest.mark.django_db
@@ -397,43 +433,47 @@ def test_trashed_custom_field_subject_is_hidden_preserved_and_restored(
     workspace = database.workspace
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
-    selected_agent = Agent.objects.create(workspace=workspace, name="Selected")
-    active_agent = Agent.objects.create(workspace=workspace, name="Active")
+    selected_identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Selected"
+    )
+    active_identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Active"
+    )
     selected_identifier = {
-        "subject_id": selected_agent.id,
-        "subject_type": "core.Agent",
+        "subject_id": selected_identity.id,
+        "subject_type": "auth.User",
     }
     active_identifier = {
-        "subject_id": active_agent.id,
-        "subject_type": "core.Agent",
+        "subject_id": active_identity.id,
+        "subject_type": "auth.User",
     }
 
     FieldPermissionsHandler._sync_field_permission_subjects(
         field, [selected_identifier, active_identifier]
     )
-    TrashHandler.trash(admin, workspace, None, selected_agent)
+    TrashHandler.trash(admin, workspace, None, selected_identity.profile)
 
     assert [
         assignment.subject_id
         for assignment in FieldPermissionsHandler._get_field_permission_subjects(field)
-    ] == [active_agent.id]
+    ] == [active_identity.id]
 
     FieldPermissionsHandler._sync_field_permission_subjects(field, [active_identifier])
     assignments = FieldPermissionsHandler._get_all_field_permission_subjects(field)
     assert {assignment.subject_id for assignment in assignments} == {
-        selected_agent.id,
-        active_agent.id,
+        selected_identity.id,
+        active_identity.id,
     }
 
     FieldPermissionsHandler._sync_field_permission_subjects(
         field, [selected_identifier, active_identifier]
     )
-    TrashHandler.restore_item(admin, "agent", selected_agent.id)
+    TrashHandler.restore_item(admin, "identity", selected_identity.profile.id)
 
     assert {
         assignment.subject_id
         for assignment in FieldPermissionsHandler._get_field_permission_subjects(field)
-    } == {selected_agent.id, active_agent.id}
+    } == {selected_identity.id, active_identity.id}
 
 
 @pytest.mark.django_db
@@ -1105,26 +1145,26 @@ def test_if_license_expires_field_permissions_are_ignored(
 @override_settings(DEBUG=True)
 @pytest.mark.parametrize("via_team", [False, True])
 @pytest.mark.parametrize("role_uid", ["EDITOR", "VIEWER"])
-def test_custom_field_permissions_for_agents(
+def test_custom_field_permissions_for_identities(
     enterprise_data_fixture, synced_roles, via_team, role_uid
 ):
-    """Agent selection requires table access and keeps User IDs independent."""
+    """Identity selection requires table access and keeps User IDs independent."""
 
     admin = enterprise_data_fixture.create_user()
     database = enterprise_data_fixture.create_database_application(user=admin)
     workspace = database.workspace
     table = enterprise_data_fixture.create_database_table(database=database)
     field = enterprise_data_fixture.create_text_field(table=table)
-    agent = Agent.objects.create(
-        id=admin.id, workspace=workspace, name="Selected", role_uid=role_uid
+    identity = enterprise_data_fixture.create_identity(
+        workspace=workspace, name="Selected", role_uid=role_uid
     )
-    unselected = Agent.objects.create(
+    unselected = enterprise_data_fixture.create_identity(
         workspace=workspace, name="Unselected", role_uid="EDITOR"
     )
     subject = (
-        enterprise_data_fixture.create_team(workspace=workspace, members=[agent])
+        enterprise_data_fixture.create_team(workspace=workspace, members=[identity])
         if via_team
-        else agent
+        else identity
     )
     enterprise_data_fixture.enable_enterprise()
     FieldPermissionsHandler.update_field_permissions(
@@ -1134,19 +1174,19 @@ def test_custom_field_permissions_for_agents(
         subjects=[
             {
                 "subject_id": subject.id,
-                "subject_type": "baserow_enterprise.Team" if via_team else "core.Agent",
+                "subject_type": "baserow_enterprise.Team" if via_team else "auth.User",
             }
         ],
     )
     manager = FieldPermissionManagerType()
     selected = manager._get_custom_field_ids_by_actor(
-        workspace, [admin, agent, unselected], {field.id}
+        workspace, [admin, identity, unselected], {field.id}
     )
-    assert selected[agent] == {field.id}
+    assert selected[identity] == {field.id}
     assert selected[admin] == set()
     assert selected[unselected] == set()
-    for actor in [agent, unselected, admin]:
-        allowed = actor == agent and role_uid == "EDITOR"
+    for actor in [identity, unselected, admin]:
+        allowed = actor == identity and role_uid == "EDITOR"
         assert (
             CoreHandler().check_permissions(
                 actor,

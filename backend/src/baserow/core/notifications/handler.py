@@ -16,6 +16,7 @@ from opentelemetry import trace
 from baserow.core.emails import NotificationsSummaryEmail
 from baserow.core.models import User, UserProfile, Workspace
 from baserow.core.telemetry.utils import baserow_trace
+from baserow.core.user.identity import is_human, load_user_types
 from baserow.core.utils import (
     atomic_if_not_already,
     grouper,
@@ -152,7 +153,7 @@ class NotificationHandler:
         """
 
         return cls.all_notifications_for_user(user, workspace).select_related(
-            "notification", "notification__sender"
+            "notification", "notification__sender__profile"
         )
 
     @classmethod
@@ -574,8 +575,18 @@ class NotificationHandler:
         :param workspace: The workspace that the notification is linked to.
         :param kwargs: Any additional kwargs that will be passed to the
             Notification constructor.
-        :return: A list of the created notification recipients instances.
+        :return: A list of the created notification recipients instances, empty
+            when no recipient is a person because nothing is created then.
         """
+
+        # Prefetch the user profiles if possible to avoid N+1 queries later
+        if isinstance(recipients, QuerySet) and issubclass(recipients.model, User):
+            recipients = recipients.select_related("profile")
+        recipients = list(recipients)
+        load_user_types(recipients)
+        recipients = [recipient for recipient in recipients if is_human(recipient)]
+        if not recipients:
+            return []
 
         notification = cls.create_notification(
             notification_type=notification_type,
@@ -585,10 +596,6 @@ class NotificationHandler:
             workspace=workspace,
             **kwargs,
         )
-
-        # Prefetch the user profiles if possible to avoid N+1 queries later
-        if isinstance(recipients, QuerySet) and issubclass(recipients.model, User):
-            recipients = recipients.select_related("profile")
 
         notification_recipients = NotificationRecipient.objects.bulk_create(
             [
@@ -828,22 +835,26 @@ class UserNotificationsGrouper:
             for u in User.objects.filter(id__in=self.user_ids).select_related("profile")
         }
 
+        deliverable = []
+        for notification, user_ids in zip(self.notifications, self.recipients_ids):
+            recipients = [
+                all_recipients[user_id]
+                for user_id in user_ids
+                if user_id in all_recipients
+            ]
+            if recipients:
+                deliverable.append((notification, recipients))
         created_notifications = Notification.objects.bulk_create(
-            self.notifications, batch_size=batch_size
+            [notification for notification, _ in deliverable], batch_size=batch_size
         )
 
-        notification_recipients = []
-        for i, notification in enumerate(created_notifications):
-            notification_recipients.extend(
-                [
-                    NotificationHandler.construct_notification_recipient(
-                        notification=notification,
-                        recipient=all_recipients[recipient_id],
-                        queued=True,
-                    )
-                    for recipient_id in self.recipients_ids[i]
-                ]
+        notification_recipients = [
+            NotificationHandler.construct_notification_recipient(
+                notification=notification, recipient=recipient, queued=True
             )
+            for notification, (_, recipients) in zip(created_notifications, deliverable)
+            for recipient in recipients
+        ]
 
         NotificationRecipient.objects.bulk_create(
             notification_recipients, batch_size=batch_size, ignore_conflicts=True

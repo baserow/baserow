@@ -1,9 +1,15 @@
+import inspect
 from typing import NamedTuple
 
 import pytest
 
-from baserow.core.models import User, Workspace
-from baserow.core.subjects import UserSubjectType
+from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
+from baserow.core.registries import subject_type_registry
+from baserow.core.subjects import (
+    HumanSubjectType,
+    IdentitySubjectType,
+    UserSubjectType,
+)
 
 
 @pytest.mark.django_db
@@ -21,7 +27,8 @@ def test_user_subject_type_is_in_workspace(data_fixture):
 
     fake_user = FakeUser(9999999)
 
-    assert UserSubjectType().is_interactive_user
+    specific_type = subject_type_registry.get_specific_type(user_in_workspace)
+    assert specific_type.is_interactive_user
     assert UserSubjectType().is_in_workspace(user_not_in_workspace, workspace) is False
     assert UserSubjectType().is_in_workspace(user_in_workspace, workspace) is True
     assert UserSubjectType().is_in_workspace(fake_user, workspace) is False
@@ -69,6 +76,28 @@ def test_user_subject_type_uses_prefetched_workspace_memberships(
 
 
 @pytest.mark.django_db
+def test_user_subject_type_never_answers_for_an_identity_from_the_prefetch(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    member = data_fixture.create_user(workspace=workspace)
+    identity = data_fixture.create_identity(workspace=workspace)
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+    subjects = [member, identity]
+
+    with django_assert_num_queries(1):
+        assert UserSubjectType().are_in_workspace(subjects, workspace) == [True, True]
+
+    WorkspaceUser.objects.filter(workspace=workspace, user=member).delete()
+    UserProfile.objects.filter(user_id=identity.id).update(to_be_deleted=True)
+
+    with django_assert_num_queries(1):
+        assert UserSubjectType().are_in_workspace(subjects, workspace) == [True, False]
+
+
+@pytest.mark.django_db
 def test_user_subject_type_checks_members_missing_from_prefetch(
     data_fixture, django_assert_num_queries
 ):
@@ -105,3 +134,18 @@ def test_user_subject_type_can_include_trashed_workspace_membership(data_fixture
 
     assert not subject_type.is_in_workspace(user, workspace)
     assert subject_type.is_in_workspace(user, workspace, include_trash=True)
+
+
+@pytest.mark.parametrize("specific_type", [HumanSubjectType, IdentitySubjectType])
+def test_specific_user_subject_types_override_every_forwarded_method(specific_type):
+    forwarded = [
+        name
+        for name, method in vars(UserSubjectType).items()
+        if callable(method)
+        and name != "_ask_specific_types"
+        and "_specific_type" in inspect.getsource(method)
+    ]
+
+    # A forwarded method that is not overridden would call itself forever.
+    assert forwarded
+    assert [name for name in forwarded if name not in vars(specific_type)] == []

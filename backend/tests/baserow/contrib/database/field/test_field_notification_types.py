@@ -22,7 +22,6 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import RichTextFieldMention
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
-from baserow.core.models import Agent
 from baserow.core.notifications.handler import NotificationHandler
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.trash.handler import TrashHandler
@@ -39,11 +38,13 @@ pytestmark = pytest.mark.enable_signals(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixture):
+def test_identity_row_create_collaborator_notification_keeps_identity_sender(
+    data_fixture,
+):
     owner = data_fixture.create_user()
     collaborator = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, collaborator])
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -56,7 +57,7 @@ def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixt
     )
 
     RowHandler().create_row(
-        user=agent,
+        user=identity,
         table=table,
         values={collaborator_field.id: [{"id": collaborator.id}]},
     )
@@ -64,15 +65,15 @@ def test_agent_row_create_collaborator_notification_has_no_user_sender(data_fixt
     notification = Notification.objects.get(
         type=CollaboratorAddedToRowNotificationType.type
     )
-    assert notification.sender is None
+    assert notification.sender == identity
 
 
 @pytest.mark.django_db(transaction=True)
-def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
+def test_identity_row_update_mention_notification_keeps_identity_sender(data_fixture):
     owner = data_fixture.create_user()
     mentioned_user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(members=[owner, mentioned_user])
-    agent = Agent.objects.create(
+    identity = data_fixture.create_identity(
         workspace=workspace,
         name="Row writer",
         role_uid="ADMIN",
@@ -84,9 +85,9 @@ def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
         long_text_enable_rich_text=True,
     )
     with transaction.atomic():
-        row = RowHandler().create_row(user=agent, table=table)
+        row = RowHandler().create_row(user=identity, table=table)
         RowHandler().update_row(
-            user=agent,
+            user=identity,
             table=table,
             row=row,
             values={rich_text_field.id: f"Hello @{mentioned_user.id}"},
@@ -95,12 +96,12 @@ def test_agent_row_update_mention_notification_has_no_user_sender(data_fixture):
     notification = Notification.objects.get(
         type=UserMentionInRichTextFieldNotificationType.type
     )
-    assert notification.sender is None
+    assert notification.sender == identity
     assert (
         UserMentionInRichTextFieldNotificationType.get_notification_title_for_email(
             notification, {}
         )
-        == f"An unknown user mentioned you in {rich_text_field.name} in row "
+        == f"{identity.first_name} mentioned you in {rich_text_field.name} in row "
         f"{row} in {table.name}."
     )
 
@@ -159,6 +160,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -189,6 +191,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -249,6 +252,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -289,6 +293,7 @@ def test_notification_creation_on_adding_users_on_collaborator_fields(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -362,6 +367,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -384,6 +390,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                     "id": user_1.id,
                     "username": user_1.username,
                     "first_name": user_1.first_name,
+                    "user_type": "human",
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
@@ -414,6 +421,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -436,6 +444,7 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                         "id": user_1.id,
                         "username": user_1.username,
                         "first_name": user_1.first_name,
+                        "user_type": "human",
                     },
                     "created_on": "2023-07-06T12:00:00Z",
                     "data": {
@@ -625,6 +634,7 @@ def test_notification_creation_when_mentioning_users_in_a_rich_text_field_on_row
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -720,6 +730,7 @@ def test_notification_creation_when_mentioning_users_in_a_rich_text_field_on_row
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -807,6 +818,7 @@ def test_notifications_are_not_sent_twice_on_undo_redo_row_create(
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -952,6 +964,7 @@ def test_notifications_are_not_sent_twice_on_undo_redo_row_update(
                 "id": user_1.id,
                 "username": user_1.username,
                 "first_name": user_1.first_name,
+                "user_type": "human",
             },
             "workspace": {"id": workspace.id},
             "data": {
@@ -1314,3 +1327,24 @@ def test_email_notifications_show_unknown_user_for_anonymous_form_submissions(
 
     for k, v in expected_context.items():
         assert user_2_summary_email_context[k] == v
+
+
+@pytest.mark.django_db
+def test_rich_text_tracks_and_notifies_only_human_mentions(data_fixture):
+    human = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=human)
+    identity = data_fixture.create_identity(workspace=table.database.workspace)
+    field = data_fixture.create_long_text_field(
+        table=table, long_text_enable_rich_text=True
+    )
+
+    row = RowHandler().create_row(
+        human, table, {field.id: f"Hi @{identity.id} @{human.id}"}
+    )
+
+    assert set(
+        RichTextFieldMention.objects.filter(row_id=row.id, field=field).values_list(
+            "user_id", flat=True
+        )
+    ) == {human.id}
+    assert not NotificationRecipient.objects.filter(recipient=identity).exists()

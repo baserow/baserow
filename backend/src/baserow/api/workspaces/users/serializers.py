@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth import get_user_model
 
 from drf_spectacular.types import OpenApiTypes
@@ -13,8 +12,8 @@ from baserow.core.ai_provider.registries import (
 )
 from baserow.core.ai_provider.resolution import get_ai_provider_state
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.handler import CoreHandler
 from baserow.core.models import WorkspaceUser
-from baserow.core.registries import permission_manager_type_registry
 
 User = get_user_model()
 
@@ -58,12 +57,7 @@ class WorkspaceUserSerializer(serializers.ModelSerializer):
     def get_role_uid(self, workspace_user):
         """Expose the resolved role without changing legacy permissions."""
 
-        for manager_name in settings.PERMISSION_MANAGERS:
-            manager = permission_manager_type_registry.get(manager_name)
-            role_uid = manager.get_workspace_user_role_uid(workspace_user)
-            if role_uid is not None:
-                return role_uid
-        return workspace_user.permissions
+        return CoreHandler().get_workspace_user_role_uid(workspace_user)
 
     def get_two_factor_auth(self, object):
         try:
@@ -150,8 +144,11 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
         read_only=True,
         help_text="List of all workspace users.",
     )
-    agents_count = serializers.SerializerMethodField(
-        help_text="The number of agents in the workspace."
+    identities = serializers.SerializerMethodField(
+        help_text="The identities that can be assigned or mentioned in the workspace."
+    )
+    identities_count = serializers.SerializerMethodField(
+        help_text="The number of identities in the workspace."
     )
 
     # WorkspaceUser fields
@@ -171,10 +168,28 @@ class WorkspaceUserWorkspaceSerializer(serializers.Serializer):
     )
     ai_features = serializers.SerializerMethodField(read_only=True)
 
-    def get_agents_count(self, workspace_user):
-        """Return the annotated agent count without issuing another query."""
+    def get_identities(self, workspace_user):
+        """Return the prefetched assignable identities, or query them when absent."""
 
-        return getattr(workspace_user, "workspace_agent_count", 0)
+        workspace = workspace_user.workspace
+        memberships = getattr(workspace, "collaborator_identity_memberships", None)
+        if memberships is None:
+            identities = (
+                CoreHandler()
+                .get_workspace_collaborators(workspace, include_identities=True)
+                .filter(profile__user_type="identity")
+            )
+        else:
+            identities = [membership.user for membership in memberships]
+        return [
+            {"id": identity.id, "name": identity.first_name, "user_type": "identity"}
+            for identity in identities
+        ]
+
+    def get_identities_count(self, workspace_user):
+        """Return the annotated identity count without issuing another query."""
+
+        return getattr(workspace_user, "workspace_identity_count", 0)
 
     def _get_ai_provider_state(self, workspace_user):
         """

@@ -60,12 +60,14 @@ describe('Agent tool presentations', () => {
       registry
         .getList('toolPresentation')
         .map((presenter) => presenter.getType())
-        // The provider runs web search, so the backend has no agent tool for it.
+        // These have no agent tool type: the provider runs web search, Baserow
+        // opens web pages itself, and the others come from servers or actions.
         .filter(
           (type) =>
             ![
               'mcp_server_tool',
               'web_search',
+              'web_fetch',
               'smtp_email',
               'http_request',
             ].includes(type)
@@ -642,4 +644,20 @@ describe('Agent tool presentations', () => {
     )
     expect(activity.title).toBe(title)
   })
+
+  test.each([
+    ['running', 'Opening a web page: https://x.test'],
+    ['done', 'Opened a web page: https://x.test'],
+    ['failed', 'Open a web page: https://x.test'],
+  ])(
+    'shows a %s page Baserow opened like one the provider opened',
+    (status, title) => {
+      const activity = toolActivity(
+        step('web_fetch', status, { input: { url: 'https://x.test' } }),
+        registry,
+        t
+      )
+      expect(activity.title).toBe(title)
+    }
+  )
 })

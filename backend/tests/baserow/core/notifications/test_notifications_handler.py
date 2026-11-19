@@ -983,3 +983,64 @@ def test_email_notifications_per_user_limit_with_multiple_users(
         assert u2_email.get_subject() == "You have 4 new notifications - Baserow"
         assert u2_email.get_context()["new_notifications_count"] == 4
         assert u2_email.get_context()["unlisted_notifications_count"] == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("grouped", [False, True])
+def test_identity_notification_recipients_are_ignored(data_fixture, grouped):
+    human = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=human)
+    identity = data_fixture.create_identity(workspace=workspace, role_uid="ADMIN")
+    with custom_notification_types_registered() as (notification_type, _):
+        if grouped:
+            grouper = UserNotificationsGrouper()
+            notification = NotificationHandler.construct_notification(
+                notification_type.type, data={}, sender=identity, workspace=workspace
+            )
+            grouper.add(notification, [human.id, identity.id])
+            grouper.create_all_notifications_and_trigger_task()
+        else:
+            NotificationHandler.create_direct_notification_for_users(
+                notification_type.type,
+                [human, identity],
+                data={},
+                sender=identity,
+                workspace=workspace,
+            )
+    assert list(
+        NotificationRecipient.objects.values_list("recipient_id", flat=True)
+    ) == [human.id]
+    assert Notification.objects.get().sender == identity
+    recipient = NotificationRecipient.objects.get()
+    assert NotificationRecipientSerializer(recipient).data["sender"] == {
+        "id": identity.id,
+        "username": None,
+        "first_name": identity.first_name,
+        "user_type": "identity",
+    }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("grouped", [False, True])
+def test_notification_without_a_human_recipient_is_not_created(data_fixture, grouped):
+    human = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=human)
+    identity = data_fixture.create_identity(workspace=workspace)
+    with custom_notification_types_registered() as (notification_type, _):
+        if grouped:
+            grouper = UserNotificationsGrouper()
+            notification = NotificationHandler.construct_notification(
+                notification_type.type, data={}, sender=human, workspace=workspace
+            )
+            grouper.add(notification, [identity.id])
+            grouper.create_all_notifications_and_trigger_task()
+        else:
+            NotificationHandler.create_direct_notification_for_users(
+                notification_type.type,
+                [identity],
+                data={},
+                sender=human,
+                workspace=workspace,
+            )
+
+    assert not Notification.objects.exists()

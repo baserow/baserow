@@ -24,8 +24,9 @@ from rest_framework.serializers import Serializer
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Workspace
 from baserow.core.registries import (
     ImportExportConfig,
     OperationType,
@@ -450,14 +451,9 @@ class ViewType(
                 )
 
             if owned_by_workspace is not None:
-                workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                    workspace_id=owned_by_workspace.id
-                ).select_related("user")
-
-                for workspaceuser in workspaceusers_from_workspace:
-                    id_mapping["owned_by"][workspaceuser.user.email] = (
-                        workspaceuser.user
-                    )
+                id_mapping["owned_by"] = CoreHandler.get_user_email_mapping(
+                    owned_by_workspace.id, []
+                )
 
         try:
             ownership_type = view_ownership_type_registry.get(
@@ -1228,6 +1224,19 @@ class ViewFilterType(Instance):
     allowing field types to alias themselves to another type for filtering purposes.
     """
 
+    accepts_multiple_values = False
+    """
+    Whether `prepare_value` combines a list of resolved values into one filter
+    value itself. Otherwise, callers with several values apply the filter once per
+    value.
+    """
+
+    negated = False
+    """
+    Whether the filter excludes the rows matching its value. Callers applying the
+    filter once per value combine negated filters with AND, the others with OR.
+    """
+
     def default_filter_on_exception(self):
         """The default Q to use when the filter value is of an incompatible type."""
 
@@ -1251,6 +1260,10 @@ class ViewFilterType(Instance):
         """
 
         raise NotImplementedError("Each must have his own get_filter method.")
+
+    def prepare_value(self, value: Any) -> str:
+        """Convert a resolved formula value to this filter's input representation."""
+        return ensure_string(value)
 
     def get_preload_values(self, view_filter) -> dict:
         """

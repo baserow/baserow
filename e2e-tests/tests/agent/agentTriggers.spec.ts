@@ -150,7 +150,6 @@ test.describe("Agent triggers", () => {
       "PATCH",
       (body) => body?.service?.table_id === table.id
     );
-    await choose(page, section, "Database", "Sales");
     await choose(page, section, "Table", "Orders");
     expect((await picked).status()).toBe(200);
     expect(await listAgentTriggers(agent)).toMatchObject([

@@ -682,4 +682,4 @@ def test_update_dashboard_filter_formula(
         **headers,
     )
     assert response.status_code == HTTP_200_OK, response.json()
-    assert response.json() == {"result": "20"}
+    assert response.json() == {"result": "20", "_is_filtered": True}

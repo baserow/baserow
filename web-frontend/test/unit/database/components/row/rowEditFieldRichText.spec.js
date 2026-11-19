@@ -217,6 +217,7 @@ describe('RowEditFieldRichText component', () => {
         id: 10,
         name: 'Workspace',
         users: [{ user_id: 5, name: 'Jane Doe' }],
+        identities: [{ id: 30, name: 'Ops', user_type: 'identity' }],
       })
     })
 
@@ -229,6 +230,12 @@ describe('RowEditFieldRichText component', () => {
       )
       expect(editor.props('enableImages')).toBe(true)
       expect(editor.props('uploadFile')).toBeInstanceOf(Function)
+    })
+
+    test('renders a saved identity name when identity suggestions are off', async () => {
+      const wrapper = await mountComponent({ value: 'Ask @30' })
+
+      expect(wrapper.get('.rich-text-editor__mention').text()).toBe('@Ops')
     })
 
     test('keeps mentions and images off when disabled', async () => {

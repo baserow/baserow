@@ -416,7 +416,7 @@ class EffectiveAccessView(APIView):
         tags=["Role assignments"],
         operation_id="list_effective_access",
         description=(
-            "Lists the role every user and agent of the workspace effectively holds "
+            "Lists the role every user and identity of the workspace effectively holds "
             "on the given scope, and the scope it comes from: the given scope "
             "itself or one above it, held by the subject themselves or through "
             "their teams. Subjects without access to the scope are left out."
@@ -523,7 +523,7 @@ class SubjectRoleAssignmentsView(APIView):
                 name="subject_type",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.STR,
-                description="The type of the subject: a user, an agent or a team.",
+                description="The type of the subject: a user, an identity or a team.",
             ),
             OpenApiParameter(
                 name="subject_id",
@@ -547,7 +547,7 @@ class SubjectRoleAssignmentsView(APIView):
         tags=["Role assignments"],
         operation_id="list_subject_role_assignments",
         description=(
-            "Lists the roles a user, agent or team holds on databases, tables and "
+            "Lists the roles a user, identity or team holds on databases, tables and "
             "restricted views of the workspace, limited to the objects whose roles "
             "the requesting user may read. A role is locked when the subject is an "
             "admin of the workspace, or of a database or table the object is in, "

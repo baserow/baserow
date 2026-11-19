@@ -1,5 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import WorkflowHistory from '@baserow/modules/automation/components/workflow/sidePanels/WorkflowHistory.vue'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 
 // WorkflowHistory reads the node histories from the automationHistory store
 // and dispatches fetches on toggle; neither matters for the header, so the
@@ -16,7 +17,7 @@ const mountHistory = (item, usersById = {}) => {
     getters: {
       'automationHistory/getNodeHistories': () => null,
       'workspace/getAll': [{ id: 1 }],
-      'workspace/getUserById': (id) => usersById[id] ?? null,
+      'workspace/getCollaboratorById': (id) => usersById[id] ?? null,
     },
   }
   return mountSuspended(WorkflowHistory, {
@@ -40,6 +41,7 @@ const baseItem = {
 
 describe('WorkflowHistory', () => {
   afterEach(() => {
+    vi.restoreAllMocks()
     storeHolder.store = null
   })
 
@@ -72,6 +74,27 @@ describe('WorkflowHistory', () => {
     expect(wrapper.find('.workflow-history__started-by').text()).toBe(
       'historySidePanel.startedBy:Helper'
     )
+  })
+
+  test('retains a deleted Identity identity in the run header', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
+    const wrapper = await mountHistory({
+      ...baseItem,
+      triggered_by: {
+        id: 42,
+        type: 'auth.User',
+        user_type: 'identity',
+        name: 'Writer',
+      },
+    })
+    expect(wrapper.find('.workflow-history__started-by').text()).toBe(
+      'historySidePanel.startedBy:Writer'
+    )
+    expect(wrapper.find('.iconoir-identity-test').exists()).toBe(true)
   })
 
   test('shows nothing when nobody is recorded', async () => {

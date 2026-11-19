@@ -127,8 +127,8 @@ const UPDATE_ROLE_OPERATIONS = {
 }
 
 /**
- * The roles a member, team or agent holds on databases, tables and views, as rows
- * below their row in the members, teams or agents table. Fetched when the row is
+ * The roles a member, team or identity holds on databases, tables and views, as rows
+ * below their row in the members, teams or identities table. Fetched when the row is
  * expanded, a page at a time. Every role can be changed and removed by who may
  * manage the roles of its object. A role that has no effect, because the subject
  * is an admin of the workspace or of a database or table it is in, shows as a

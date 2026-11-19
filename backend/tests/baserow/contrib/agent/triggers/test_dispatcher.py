@@ -32,7 +32,6 @@ from baserow.contrib.integrations.tasks import call_periodic_services_that_are_d
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
-from baserow.core.models import Agent as Identity
 from baserow.core.services.models import Service
 from baserow.core.services.registries import (
     TriggerServiceTypeMixin,
@@ -803,9 +802,9 @@ def test_an_event_caused_by_the_agent_itself_starts_nothing(
 ):
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Identity.objects.create(workspace=agent.workspace, name="Ops")
+    identity = data_fixture.create_identity(workspace=agent.workspace, name="Ops")
     AgentApplication.objects.filter(id=agent.id).update(
-        run_as_subject_type="core.Agent", run_as_subject_id=identity.id
+        run_as_subject_type="auth.User", run_as_subject_id=identity.id
     )
     trigger = periodic_trigger(data_fixture, agent)
 

@@ -428,12 +428,21 @@ class SnapshotHandler:
                 progress_builder=progress.create_child_builder(represents_progress=50),
             )
 
-    def perform_restore(self, snapshot: Snapshot, progress: Progress) -> Application:
+    def perform_restore(
+        self,
+        snapshot: Snapshot,
+        progress: Progress,
+        restored_by: AbstractUser | None = None,
+    ) -> Application:
         """
         Creates an application copy from the snapshotted application. The copy
         will be available as a normal application in the same workspace as the
         original application.
 
+        :param snapshot: The snapshot to restore.
+        :param progress: Reports how far the restore is.
+        :param restored_by: The person restoring, whose permission is checked.
+            The snapshot's creator when nobody is given.
         :raises SnapshotDoesNotExist: When the snapshot with the provided id
             does not exist.
         :raises UserNotInWorkspace: When the user doesn't belong to the same workspace
@@ -448,7 +457,7 @@ class SnapshotHandler:
 
         workspace = snapshot.snapshot_from_application.workspace
         CoreHandler().check_permissions(
-            snapshot.created_by,
+            restored_by or snapshot.created_by,
             RestoreApplicationSnapshotOperationType.type,
             workspace=workspace,
             context=snapshot,
@@ -462,6 +471,7 @@ class SnapshotHandler:
             reduce_disk_space_usage=False,
             is_duplicate=True,
             exclude_sensitive_data=False,
+            restored_by=restored_by,
         )
         # Temporary set the workspace for the application so that the permissions can
         # be correctly set during the import process.

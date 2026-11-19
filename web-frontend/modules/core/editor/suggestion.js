@@ -1,4 +1,5 @@
 import { VueRenderer } from '@tiptap/vue-3'
+import { watch } from 'vue'
 import tippy from 'tippy.js'
 
 import RichTextEditorMentionsList from '@baserow/modules/core/components/editor/RichTextEditorMentionsList'
@@ -7,13 +8,24 @@ export default ({ users }) => ({
   render: () => {
     let popup
     let component
+    let stopWatchingUsers
+    const getUsers = () => (typeof users === 'function' ? users() : users) || []
 
     return {
       onStart: (props) => {
         component = new VueRenderer(RichTextEditorMentionsList, {
           editor: props.editor,
-          props: { users, ...props },
+          props: {
+            ...props,
+            users: getUsers(),
+          },
         })
+
+        stopWatchingUsers = watch(
+          getUsers,
+          (users) => component.updateProps({ users }),
+          { deep: true }
+        )
 
         if (!props.clientRect) {
           return
@@ -32,7 +44,10 @@ export default ({ users }) => ({
       },
 
       onUpdate(props) {
-        component.updateProps(props)
+        component.updateProps({
+          ...props,
+          users: getUsers(),
+        })
 
         if (!props.clientRect) {
           return
@@ -54,6 +69,7 @@ export default ({ users }) => ({
       },
 
       onExit() {
+        stopWatchingUsers?.()
         if (component) {
           popup[0].destroy()
           component.destroy()

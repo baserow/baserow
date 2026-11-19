@@ -75,7 +75,7 @@ def test_created_by_field_type_create_via_api(api_client, data_fixture):
     assert response_json["name"] == "Created by 1"
     assert response_json["type"] == "created_by"
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name}
+        {"id": user.id, "name": user.first_name, "user_type": "human"}
     ]
 
 
@@ -541,3 +541,34 @@ def test_created_by_field_view_aggregation(data_fixture):
 
     result = view_handler.get_field_aggregations(user_a, view, [(field, "empty_count")])
     assert result[field.db_column] == 1
+
+
+@pytest.mark.field_created_by
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_field", ["create_created_by_field", "create_last_modified_by_field"]
+)
+def test_export_shows_an_identity_by_name_without_a_query_per_row(
+    data_fixture, django_assert_num_queries, create_field
+):
+    person = data_fixture.create_user(email="ada@example.com")
+    workspace = data_fixture.create_workspace(user=person)
+    identity = data_fixture.create_identity(workspace=workspace, name="Runner")
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = getattr(data_fixture, create_field)(table=table)
+    model = table.get_model()
+    for user in (identity, person):
+        model.objects.create(created_by=user, last_modified_by=user)
+    field_object = model.get_field_object(field.db_column)
+    rows = list(model.objects.order_by("id").enhance_by_fields())
+
+    with django_assert_num_queries(0):
+        exported = [
+            field_object["type"].get_export_value(
+                getattr(row, field.db_column), field_object
+            )
+            for row in rows
+        ]
+
+    assert exported == ["Runner", "ada@example.com"]

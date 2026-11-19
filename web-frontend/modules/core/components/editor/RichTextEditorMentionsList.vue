@@ -10,9 +10,10 @@
           :class="{ 'is-selected': index === selectedIndex }"
           @click.stop.prevent="selectItem(index)"
         >
-          <div class="select-collaborators__initials">
-            {{ userInitials(user) }}
-          </div>
+          <CollaboratorAvatar
+            class="select-collaborators__initials"
+            :collaborator="{ ...user, id: user.user_id }"
+          />
           <div class="select-collaborators__dropdown-option">
             {{ user.name }}
           </div>
@@ -23,7 +24,9 @@
 </template>
 
 <script>
+import CollaboratorAvatar from '@baserow/modules/core/components/CollaboratorAvatar'
 export default {
+  components: { CollaboratorAvatar },
   props: {
     users: {
       type: Array,
@@ -43,34 +46,29 @@ export default {
   data() {
     return {
       selectedIndex: 0,
-      filteredUsers: [],
     }
   },
-
+  computed: {
+    filteredUsers() {
+      return this.users.filter(
+        (user) =>
+          !user.to_be_deleted &&
+          (!this.query ||
+            user.name.toLowerCase().includes(this.query.toLowerCase()) ||
+            `${user.user_id}` === this.query)
+      )
+    },
+  },
   watch: {
-    workspace() {
+    query() {
       this.selectedIndex = 0
     },
-    query: {
-      handler(query, oldQuery) {
-        this.filteredUsers = this.users.filter(
-          (user) =>
-            !query ||
-            user.name.toLowerCase().includes(query.toLowerCase()) ||
-            `${user.user_id}` === query
-        )
-        if (query !== oldQuery) {
-          this.selectedIndex = 0
-        }
-      },
-      immediate: true,
+    users() {
+      this.selectedIndex = 0
     },
   },
 
   methods: {
-    userInitials(user) {
-      return user.name.slice(0, 1).toUpperCase()
-    },
     onKeyDown({ event }) {
       if (event.key === 'ArrowUp') {
         this.upHandler()

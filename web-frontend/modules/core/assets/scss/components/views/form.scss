@@ -552,6 +552,12 @@
   }
 }
 
+.form-view__field-group {
+  margin: 12px 0 8px;
+  color: $palette-neutral-900;
+  font-weight: 600;
+}
+
 .form-view__field-read-only {
   font-size: 14px;
   font-weight: 500;

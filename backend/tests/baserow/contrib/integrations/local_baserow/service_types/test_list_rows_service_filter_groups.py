@@ -58,6 +58,31 @@ def _build_ingredient_cost_table(data_fixture, user):
 
 
 @pytest.mark.django_db
+def test_builder_list_filter_values_keep_string_conversion(data_fixture):
+    user = data_fixture.create_user()
+    integration, table, ingredient, cost, _ = _build_ingredient_cost_table(
+        data_fixture, user
+    )
+    combined = RowHandler().create_row(
+        user, table, {ingredient.db_column: "Duck,Goose", cost.db_column: 300}
+    )
+    service = data_fixture.create_local_baserow_list_rows_service(
+        table=table, integration=integration
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=service,
+        field=ingredient,
+        type="equal",
+        value=BaserowFormulaObject.create("split('Duck|Goose', '|')"),
+    )
+    service_type = LocalBaserowListRowsUserServiceType()
+    context = FakeDispatchContext()
+    values = service_type.resolve_service_formulas(service, context)
+    result = service_type.dispatch_data(service, values, context)
+    assert [row.id for row in result["results"]] == [combined.id]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize(
     "with_filters,with_groups,nested",
     [
@@ -372,3 +397,89 @@ def test_update_service_filters_with_groups_via_correlation_ids(data_fixture):
     filters = list(service.service_filters.order_by("order"))
     assert filters[0].group_id == group_a.id
     assert filters[1].group_id == group_b.id
+
+
+@pytest.mark.django_db
+def test_group_only_updates_preserve_filter_links_and_resolve_forward_parents(
+    data_fixture,
+):
+    """Shared persistence keeps existing IDs across independent group/filter edits."""
+    field = data_fixture.create_text_field()
+    service = data_fixture.create_local_baserow_list_rows_service(table=field.table)
+    service_type = service.get_type()
+    service_type.update_service_filters(
+        service,
+        service_filter_groups=[
+            {"id": "child", "parent_group_id": "parent", "filter_type": "AND"},
+            {"id": "parent", "parent_group_id": None, "filter_type": "OR"},
+        ],
+        service_filters=[
+            {
+                "field": field,
+                "type": "equal",
+                "value": raw_formula("first"),
+                "group_id": "child",
+            }
+        ],
+    )
+    parent = service.service_filter_groups.get(parent_group=None)
+    child = service.service_filter_groups.get(parent_group=parent)
+    condition = service.service_filters.get()
+    assert condition.group_id == child.id
+    service_type.update_service_filters(
+        service,
+        service_filter_groups=[
+            {
+                "id": str(child.id),
+                "parent_group_id": str(parent.id),
+                "filter_type": "OR",
+            },
+            {"id": str(parent.id), "parent_group_id": None, "filter_type": "AND"},
+        ],
+    )
+    condition.refresh_from_db()
+    child.refresh_from_db()
+    assert condition.group_id == child.id
+    assert child.parent_group_id == parent.id
+    assert child.filter_type == "OR"
+    service_type.update_service_filters(
+        service,
+        service_filters=[
+            {
+                "field": field,
+                "type": "contains",
+                "value": raw_formula("second"),
+                "group_id": str(child.id),
+            }
+        ],
+    )
+    assert set(service.service_filter_groups.values_list("id", flat=True)) == {
+        parent.id,
+        child.id,
+    }
+    updated = service.service_filters.get()
+    assert updated.group_id == child.id
+    assert updated.value == raw_formula("second")
+    assert service_type.serialize_filters(service) == [
+        {
+            "field_id": field.id,
+            "type": "contains",
+            "value": raw_formula("second"),
+            "group": child.id,
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_unresolved_legacy_service_groups_are_retained_at_root(data_fixture):
+    """Preserve the service repair policy independently of strict widget validation."""
+    service = data_fixture.create_local_baserow_list_rows_service()
+    service.get_type().update_service_filters(
+        service,
+        service_filter_groups=[
+            {"id": "orphan", "parent_group_id": "missing", "filter_type": "OR"}
+        ],
+    )
+    group = service.service_filter_groups.get()
+    assert group.parent_group_id is None
+    assert group.filter_type == "OR"

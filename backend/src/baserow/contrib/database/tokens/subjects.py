@@ -1,6 +1,7 @@
 from typing import List
 
 from django.contrib.auth.models import AbstractUser
+from django.db.models import QuerySet
 
 from baserow.core.models import Workspace
 from baserow.core.registries import SubjectType
@@ -14,6 +15,9 @@ class TokenSubjectType(SubjectType):
 
     def get_display_name(self, subject: Token) -> str:
         return subject.name
+
+    def get_queryset(self, include_trash: bool = False) -> QuerySet[Token]:
+        return Token.objects.all()
 
     def are_in_workspace(
         self,

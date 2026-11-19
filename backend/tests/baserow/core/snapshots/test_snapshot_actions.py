@@ -6,6 +6,7 @@ from django.db import transaction
 import pytest
 
 from baserow.core.action.registries import action_type_registry
+from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import JOB_FINISHED
 from baserow.core.snapshots.actions import (
     CreateSnapshotActionType,
@@ -13,6 +14,7 @@ from baserow.core.snapshots.actions import (
     RestoreSnapshotActionType,
 )
 from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.utils import Progress
 
 
 @pytest.mark.django_db
@@ -79,6 +81,34 @@ def test_restore_snapshot_action_type(
     assert send_mock.call_args[1]["action_type"].type == RestoreSnapshotActionType.type
 
     assert snapshot.snapshot_to_application.name == "test"
+
+
+@pytest.fixture
+def snapshot_of_a_deleted_creator(data_fixture, use_tmp_media_root):
+    creator, admin = data_fixture.create_user(), data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[creator, admin])
+    application = data_fixture.create_database_application(workspace=workspace)
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=application, name="snapshot", created_by=creator
+    )
+    SnapshotHandler().perform_create(snapshot, Progress(total=100))
+    creator.delete()
+    snapshot.refresh_from_db()
+    return snapshot, admin
+
+
+@pytest.mark.django_db
+def test_restore_snapshot_checks_the_person_restoring(
+    data_fixture, snapshot_of_a_deleted_creator
+):
+    snapshot, admin = snapshot_of_a_deleted_creator
+    restore = action_type_registry.get_by_type(RestoreSnapshotActionType).do
+
+    with pytest.raises(UserNotInWorkspace):
+        restore(data_fixture.create_user(), snapshot, Progress(total=100))
+    restored = restore(admin, snapshot, Progress(total=100))
+
+    assert restored.workspace_id == snapshot.snapshot_from_application.workspace_id
 
 
 @pytest.mark.django_db(transaction=True)

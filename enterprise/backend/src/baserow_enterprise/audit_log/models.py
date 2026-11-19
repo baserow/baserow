@@ -34,11 +34,12 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
 
     # Reuse the former user columns so existing entries are immediately available
     # through the actor fields and old application versions remain ZDM-compatible.
-    # This is safe only while actor_type is always used with actor_id (User and Agent
-    # primary keys can overlap), auth.User remains the database default for writes
+    # This is safe only while actor_type is always used with actor_id (subject
+    # IDs can overlap across types), auth.User remains the database default for writes
     # made by an old version, and actor names fit the existing user_email column.
     actor_id = models.PositiveIntegerField(db_column="user_id", null=True)
     actor_type = models.CharField(max_length=255, db_default=UserSubjectType.type)
+    actor_user_type = models.CharField(max_length=8, null=True)
     actor_name = models.CharField(
         db_column="user_email", max_length=254, null=True, blank=True
     )
@@ -71,6 +72,17 @@ class AuditLogEntry(CreatedAndUpdatedOnMixin, models.Model):
     def user_id(self):
         """Compatibility alias for integrations still reading the former field."""
         return self.actor_id
+
+    @property
+    def actor(self) -> dict[str, int | str | None]:
+        """The actor of the entry, with the kind of user it was."""
+
+        return {
+            "id": self.actor_id,
+            "type": self.actor_type,
+            "name": self.actor_name,
+            "user_type": self.actor_user_type,
+        }
 
     @property
     def actor_display(self):

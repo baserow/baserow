@@ -16,7 +16,6 @@ from baserow.contrib.agent.models import (
 from baserow.contrib.agent.service import AgentService
 from baserow.core.chat_runs.models import ChatRun
 from baserow.core.exceptions import PermissionException
-from baserow.core.models import Agent
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -184,8 +183,10 @@ def test_editors_decide_held_calls_in_shared_conversations_and_builders_always_a
     agent = enterprise_data_fixture.create_agent_application(workspace=workspace)
     AgentHandler().update_configuration(
         agent,
-        run_as_subject_type="core.Agent",
-        run_as_subject_id=Agent.objects.create(workspace=workspace, name="Ops").id,
+        run_as_subject_type="auth.User",
+        run_as_subject_id=enterprise_data_fixture.create_identity(
+            workspace=workspace, name="Ops"
+        ).id,
         allowed_tools=["create_rows"],
         ask_first_tools=["create_rows"],
     )

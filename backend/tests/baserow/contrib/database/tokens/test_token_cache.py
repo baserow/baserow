@@ -12,6 +12,8 @@ from baserow.contrib.database.tokens.cache import (
     set_cached_token,
 )
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.tokens.models import Token
+from baserow.core.user.identity import is_human
 
 _CACHE_ON = override_settings(BASEROW_CACHE_TTL_SECONDS=30)
 _CACHE_OFF = override_settings(BASEROW_CACHE_TTL_SECONDS=0)
@@ -210,3 +212,20 @@ def test_user_profile_save_invalidates_token_cache(
         user.profile.save()
 
     assert get_cached_token(token.key) is None
+
+
+@pytest.mark.django_db
+@_CACHE_ON
+def test_token_cached_with_an_incomplete_profile_is_reloaded(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    token = data_fixture.create_token(user=user, workspace=workspace)
+    cached_by_the_previous_release = (
+        Token.objects.select_related("workspace", "user__profile")
+        .defer("user__profile__user_type")
+        .get(id=token.id)
+    )
+    set_cached_token(cached_by_the_previous_release)
+
+    assert get_cached_token(token.key) is None
+    assert is_human(TokenHandler().get_by_key(token.key).user)

@@ -1,4 +1,7 @@
+import csv
 import datetime as datetime_module
+import io
+import json
 import re
 import zoneinfo
 from collections import defaultdict
@@ -18,12 +21,11 @@ from dateutil.relativedelta import MO, relativedelta
 
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
+    FILTER_TYPE_OR,
     AnnotatedQ,
     FilterBuilder,
     OptionallyAnnotatedQ,
     filename_contains_filter,
-    map_ids_from_csv_string,
-    parse_ids_from_csv_string,
 )
 from baserow.contrib.database.fields.field_types import (
     AutonumberFieldType,
@@ -72,6 +74,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaURLType,
 )
 from baserow.core.datetime import get_timezones
+from baserow.core.formula.validator import ensure_string
 from baserow.core.models import WorkspaceUser
 
 from .registries import ViewFilterType
@@ -95,6 +98,8 @@ def parse_int_filter_value(value: str) -> int:
 
 
 class NotViewFilterTypeMixin:
+    negated = True
+
     def default_filter_on_exception(self):
         return Q()
 
@@ -1115,12 +1120,126 @@ class DateAfterDaysAgoViewFilterType(TimezoneAwareDateViewFilterType):
         }
 
 
-class SingleSelectEqualViewFilterType(ViewFilterType):
+class SelectOptionFilterMixin:
+    """Match option IDs or exact labels for native and formula selection fields."""
+
+    accepts_multiple_values = True
+    multiple_select = False
+
+    def _parse_values(self, value):
+        """Keep numeric tokens as IDs and parse quoted labels for list operators."""
+        try:
+            values = (
+                next(csv.reader([value], strict=True))
+                if self.accepts_multiple_values
+                else [value]
+            )
+        except (csv.Error, StopIteration):
+            return []
+        parsed = []
+        for token in values:
+            token = token.strip()
+            if not token:
+                continue
+            try:
+                parsed.append(parse_int_filter_value(token))
+            except ValueError:
+                parsed.append(token)
+        return parsed
+
+    def _serialize_values(self, values):
+        if not self.accepts_multiple_values:
+            return ensure_string(values[0]) if values else ""
+        output = io.StringIO()
+        csv.writer(output, lineterminator="\n").writerow(values)
+        return output.getvalue()[:-1]
+
+    def prepare_value(self, value):
+        """Preserve list-item boundaries when formulas return labels with commas."""
+        if self.accepts_multiple_values and isinstance(value, list):
+            return self._serialize_values(
+                [ensure_string(item) for item in value if item is not None]
+            )
+        return super().prepare_value(value)
+
+    def _get_label_filter(self, field_name, labels, model_field, field, effective_type):
+        """Filter labels without extra option lookups or multiplying result rows."""
+        if effective_type.type == FormulaFieldType.type:
+            return get_jsonb_has_any_in_value_filter_expr(
+                model_field,
+                [json.dumps(label) for label in labels],
+                query_path="$[*].value" if self.multiple_select else "$.value",
+            )
+        if self.multiple_select:
+            remote = model_field.remote_field
+            # Only this field's options, and only those used by a row: an unused
+            # option would add a NULL row id, and `NOT IN (..., NULL)` excludes
+            # every row for the negated operators.
+            return Q(
+                id__in=remote.model.objects.filter(
+                    field_id=field.id,
+                    value__in=labels,
+                    **{f"{remote.related_name}__isnull": False},
+                ).values(f"{remote.related_name}__id")
+            )
+        return Q(**{f"{field_name}__value__in": labels})
+
+    def get_filter(self, field_name, value, model_field, field):
+        """Combine ID and label predicates, retaining each operator's negation."""
+        value = value.strip()
+        if not value:
+            return Q()
+        values = self._parse_values(value)
+        ids = [item for item in values if isinstance(item, int)]
+        labels = [item for item in values if isinstance(item, str)]
+        effective_type = field_type_registry.get_by_model(
+            field
+        ).get_compatible_filter_field_type(field)
+        filters = []
+        if ids:
+            filters.append(
+                self.filter_functions[effective_type.type](
+                    field_name,
+                    ids if self.accepts_multiple_values else ids[0],
+                    model_field,
+                    field,
+                )
+            )
+        if labels:
+            filters.append(
+                self._get_label_filter(
+                    field_name, labels, model_field, field, effective_type
+                )
+            )
+        if not filters:
+            return self.default_filter_on_exception()
+        if len(filters) == 1:
+            return filters[0]
+        builder = FilterBuilder(FILTER_TYPE_OR)
+        for predicate in filters:
+            builder.filter(predicate)
+        q, annotations = builder.get_filters_and_annotations()
+        return AnnotatedQ(annotations, q)
+
+    def set_import_serialized_value(self, value, id_mapping, field=None):
+        """Remap option IDs on import, preserving labels and CSV quoting."""
+        mapping = id_mapping["database_field_select_options"]
+        result = []
+        for token in self._parse_values(ensure_string(value)):
+            mapped = mapping.get(token, mapping.get(str(token)))
+            if mapped is not None:
+                result.append(mapped)
+            elif isinstance(token, str):
+                result.append(token)
+        return self._serialize_values(result)
+
+
+class SingleSelectEqualViewFilterType(SelectOptionFilterMixin, ViewFilterType):
     """
-    The single select equal filter accepts a select option id as filter value. This
-    filter is only compatible with the SingleSelectFieldType field type.
+    Match a single selection by its option ID or exact label, including formulas.
     """
 
+    accepts_multiple_values = False
     type = "single_select_equal"
     compatible_field_types = [
         SingleSelectFieldType.type,
@@ -1146,28 +1265,6 @@ class SingleSelectEqualViewFilterType(ViewFilterType):
         }
     )
 
-    def get_filter(self, field_name, value, model_field, field):
-        value = value.strip()
-        if not value:
-            return Q()
-
-        try:
-            value = parse_int_filter_value(value)
-        except ValueError:
-            return self.default_filter_on_exception()
-
-        field_type = field_type_registry.get_by_model(field)
-        effective_field_type = field_type.get_compatible_filter_field_type(field)
-        filter_function = self.filter_functions[effective_field_type.type]
-        return filter_function(field_name, value, model_field, field)
-
-    def set_import_serialized_value(self, value, id_mapping, field=None):
-        mapping = id_mapping["database_field_select_options"]
-        try:
-            return map_ids_from_csv_string(value, mapping)[0]
-        except IndexError:
-            return ""
-
 
 class SingleSelectNotEqualViewFilterType(
     NotViewFilterTypeMixin, SingleSelectEqualViewFilterType
@@ -1175,11 +1272,9 @@ class SingleSelectNotEqualViewFilterType(
     type = "single_select_not_equal"
 
 
-class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
+class SingleSelectIsAnyOfViewFilterType(SelectOptionFilterMixin, ViewFilterType):
     """
-    This filter accepts a string with a list of option ids separated with a comma as
-    value input. The filter will show rows that have single select option value in
-    the filter's value list.
+    Match any option ID or exact label in a CSV list. Quoted labels may contain commas.
     """
 
     type = "single_select_is_any_of"
@@ -1205,34 +1300,12 @@ class SingleSelectIsAnyOfViewFilterType(ViewFilterType):
         }
     )
 
-    def get_filter(self, field_name, value: str, model_field, field):
-        value = value.strip()
-        if not value:
-            return Q()
-
-        if not (option_ids := parse_ids_from_csv_string(value)):
-            return self.default_filter_on_exception()
-
-        field_type = field_type_registry.get_by_model(field)
-        effective_field_type = field_type.get_compatible_filter_field_type(field)
-        filter_function = self.filter_functions[effective_field_type.type]
-        return filter_function(field_name, option_ids, model_field, field)
-
-    def set_import_serialized_value(
-        self, value: str | None, id_mapping: dict, field=None
-    ) -> str:
-        select_option_map = id_mapping["database_field_select_options"]
-        new_values = map_ids_from_csv_string(value or "", select_option_map)
-        return ",".join(new_values)
-
 
 class SingleSelectIsNoneOfViewFilterType(
     NotViewFilterTypeMixin, SingleSelectIsAnyOfViewFilterType
 ):
     """
-    This filter accepts a string with a list of option ids separated with a comma as
-    value input. The filter will show rows that have single select option value not
-    present in the filter's value list.
+    Exclude any option ID or exact label in a CSV list.
     """
 
     type = "single_select_is_none_of"
@@ -1374,6 +1447,7 @@ class LinkRowHasNotViewFilterType(LinkRowHasViewFilterType):
     """
 
     type = "link_row_has_not"
+    negated = True
 
     def default_filter_on_exception(self):
         return Q()
@@ -1436,12 +1510,14 @@ class LinkRowNotContainsViewFilterType(
         return super().get_filter(field_name, value, model_field, field)
 
 
-class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
+class MultipleSelectHasViewFilterType(
+    SelectOptionFilterMixin, ManyToManyHasBaseViewFilter
+):
     """
-    The multiple select has filter accepts the ID of the select_option to filter for
-    and filters the rows where the multiple select field has the provided select_option.
+    Match multiple selections containing any option ID or exact label in a CSV list.
     """
 
+    multiple_select = True
     type = "multiple_select_has"
     compatible_field_types = [
         MultipleSelectFieldType.type,
@@ -1472,26 +1548,6 @@ class MultipleSelectHasViewFilterType(ManyToManyHasBaseViewFilter):
             FormulaFieldType.type: _get_formula_filter,
         }
     )
-
-    def get_filter(self, field_name, value: str, model_field, field):
-        value = value.strip()
-        if not value:
-            return Q()
-
-        if not (option_ids := parse_ids_from_csv_string(value)):
-            return self.default_filter_on_exception()
-
-        field_type = field_type_registry.get_by_model(field)
-        effective_field_type = field_type.get_compatible_filter_field_type(field)
-        filter_function = self.filter_functions[effective_field_type.type]
-        return filter_function(field_name, option_ids, model_field, field)
-
-    def set_import_serialized_value(
-        self, value: str | None, id_mapping: dict, field=None
-    ) -> str:
-        select_option_map = id_mapping["database_field_select_options"]
-        new_values = map_ids_from_csv_string(value or "", select_option_map)
-        return ",".join(new_values)
 
 
 class MultipleSelectHasNotViewFilterType(
@@ -1532,7 +1588,7 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
             id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
 
@@ -1550,7 +1606,7 @@ class MultipleCollaboratorsHasViewFilterType(ManyToManyHasBaseViewFilter):
 
         if self.COLLABORATORS_KEY not in id_mapping:
             id_mapping[self.COLLABORATORS_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
             for workspaceuser in workspaceusers_from_workspace:
@@ -1601,7 +1657,7 @@ class UserIsViewFilterType(ViewFilterType):
 
             id_mapping[self.USER_KEY] = defaultdict(list)
 
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
 
@@ -1619,7 +1675,7 @@ class UserIsViewFilterType(ViewFilterType):
 
         if self.USER_KEY not in id_mapping:
             id_mapping[self.USER_KEY] = defaultdict(list)
-            workspaceusers_from_workspace = WorkspaceUser.objects.filter(
+            workspaceusers_from_workspace = WorkspaceUser.objects_and_identities.filter(
                 workspace_id=workspace_id
             ).select_related("user")
             for workspaceuser in workspaceusers_from_workspace:

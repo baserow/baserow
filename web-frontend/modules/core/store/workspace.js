@@ -7,6 +7,7 @@ import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
 export function populateWorkspace(workspace) {
+  workspace.identities ??= []
   workspace._ = {
     loading: false,
     selected: false,
@@ -177,10 +178,36 @@ export const mutations = {
     state.userIdsInSelected.delete(user.user_id)
     state.items[workspaceIndex].users.splice(usersIndex, 1)
   },
-  UPDATE_AGENTS_COUNT(state, { workspaceId, delta }) {
+  UPSERT_WORKSPACE_IDENTITY(state, { workspaceId, identity }) {
     const workspace = state.items.find((item) => item.id === workspaceId)
-    if (workspace !== undefined && workspace.agents_count !== undefined) {
-      workspace.agents_count = Math.max(0, workspace.agents_count + delta)
+    if (!workspace) {
+      return
+    }
+    workspace.identities ??= []
+    const existing = workspace.identities.find(
+      (item) => item.id === identity.id
+    )
+    if (existing) {
+      Object.assign(existing, identity)
+    } else {
+      workspace.identities.push(identity)
+    }
+  },
+  DELETE_WORKSPACE_IDENTITY(state, { workspaceId, identityId }) {
+    const workspace = state.items.find((item) => item.id === workspaceId)
+    if (workspace?.identities) {
+      workspace.identities = workspace.identities.filter(
+        (identity) => identity.id !== identityId
+      )
+    }
+  },
+  UPDATE_IDENTITIES_COUNT(state, { workspaceId, delta }) {
+    const workspace = state.items.find((item) => item.id === workspaceId)
+    if (workspace !== undefined && workspace.identities_count !== undefined) {
+      workspace.identities_count = Math.max(
+        0,
+        workspace.identities_count + delta
+      )
     }
   },
   SET_PERMISSIONS(state, { workspaceId, permissions }) {
@@ -642,8 +669,8 @@ export const actions = {
       commit('DELETE_WORKSPACE_USER', { workspaceId, id })
     }
   },
-  updateAgentsCount({ commit }, { workspaceId, delta }) {
-    commit('UPDATE_AGENTS_COUNT', { workspaceId, delta })
+  updateIdentitiesCount({ commit }, { workspaceId, delta }) {
+    commit('UPDATE_IDENTITIES_COUNT', { workspaceId, delta })
   },
   /**
    * Forcefully deletes a user by deleting various user workspace instances
@@ -706,6 +733,35 @@ export const getters = {
   isUserIdMemberOfSelectedWorkspace: (state) => (userId) => {
     return state.userIdsInSelected.has(parseInt(userId))
   },
+  getCollaboratorsByWorkspace(state) {
+    const collaborators = {}
+    for (const workspace of state.items) {
+      collaborators[workspace.id] = [
+        ...(workspace.users || []),
+        ...(workspace.identities || []).map((identity) => ({
+          ...identity,
+          user_id: identity.id,
+          user_type: 'identity',
+        })),
+      ]
+    }
+    return collaborators
+  },
+  getAllCollaborators(state, getters) {
+    return Object.fromEntries(
+      Object.values(getters.getCollaboratorsByWorkspace)
+        .flat()
+        .map((collaborator) => [collaborator.user_id, collaborator])
+    )
+  },
+  getCollaborators: (state, getters) => (workspaceId) => {
+    return workspaceId === undefined
+      ? Object.values(getters.getAllCollaborators)
+      : getters.getCollaboratorsByWorkspace[workspaceId] || []
+  },
+  getCollaboratorById: (state, getters) => (userId) => {
+    return getters.getAllCollaborators[userId]
+  },
   getAllUsers(state) {
     const users = {}
     for (const workspace of state.items) {
@@ -724,15 +780,6 @@ export const getters = {
     }
     return users
   },
-  getAllUsersByName(state) {
-    const users = {}
-    for (const workspace of state.items) {
-      for (const user of workspace.users) {
-        users[user.name] = user
-      }
-    }
-    return users
-  },
   getUserById: (state, getters) => (userId) => {
     const users = getters.getAllUsers
     return users[userId]
@@ -740,10 +787,6 @@ export const getters = {
   getUserByEmail: (state, getters) => (email) => {
     const users = getters.getAllUsersByEmail
     return users[email]
-  },
-  getUserByName: (state, getters) => (name) => {
-    const users = getters.getAllUsersByName
-    return users[name]
   },
   haveWorkspacePermissionsBeenLoaded: (state, getters) => (workspaceId) => {
     return getters.get(workspaceId)._.permissionsLoaded

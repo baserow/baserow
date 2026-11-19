@@ -2,6 +2,7 @@
   <Context
     ref="context"
     class="field-context"
+    :horizontal-viewport-margin="8"
     max-height-if-outside-viewport
     @shown="onShow"
   >

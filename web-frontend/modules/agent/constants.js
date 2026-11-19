@@ -1,3 +1,5 @@
+import { ERROR_CHAT_RUN_IN_PROGRESS } from '@baserow/modules/core/chatRuns/constants'
+
 export const AGENT_APPLICATION_TYPE = 'agent'
 
 export const AGENT_READINESS = Object.freeze({
@@ -24,6 +26,7 @@ export const CONFIGURATION_FIELD = Object.freeze({
   WEB_SEARCH_ENABLED: 'web_search_enabled',
   WEB_SEARCH_AVAILABLE: 'web_search_available',
   WEB_SEARCH_BLOCKED_BY_TOOLS: 'web_search_blocked_by_tools',
+  WEB_FETCH_ENABLED: 'web_fetch_enabled',
   AVAILABLE_TRIGGER_TYPES: 'available_trigger_types',
   AVAILABLE_ACTION_TYPES: 'available_action_types',
   MAX_ACTIONS: 'max_actions',
@@ -90,7 +93,7 @@ export const MESSAGE_ROLE = Object.freeze({
 export const API_ERROR_CODE = Object.freeze({
   AGENT_NOT_READY: 'ERROR_AGENT_NOT_READY',
   REQUEST_BODY_VALIDATION: 'ERROR_REQUEST_BODY_VALIDATION',
-  CHAT_RUN_IN_PROGRESS: 'ERROR_CHAT_RUN_IN_PROGRESS',
+  CHAT_RUN_IN_PROGRESS: ERROR_CHAT_RUN_IN_PROGRESS,
   AGENT_BUSY: 'ERROR_AGENT_BUSY',
   AGENT_MESSAGE_CONFLICT: 'ERROR_AGENT_MESSAGE_CONFLICT',
   AGENT_CONVERSATION_DOES_NOT_EXIST: 'ERROR_AGENT_CONVERSATION_DOES_NOT_EXIST',

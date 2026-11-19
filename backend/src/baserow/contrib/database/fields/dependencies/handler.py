@@ -778,24 +778,42 @@ class FieldDependencyHandler:
         :param field_operation_name: The field operation name.
         """
 
-        perm_checks = []
+        # Each check maps to the field named in the error when it fails.
+        perm_checks = {}
         for dep in dependencies:
             dependency_field = dep.dependency
             if dependency_field.table_id != field.table_id:
-                perm_checks.append(
-                    PermissionCheck(
-                        user,
-                        field_operation_name,
+                perm_checks[
+                    PermissionCheck(user, field_operation_name, dependency_field)
+                ] = dependency_field
+            # Looking up a link field reads the primary field of the table it links
+            # to, which the dependencies stop short of. The error names the link, as
+            # the primary field is the one the user may not see.
+            if dep.via_id is not None and issubclass(
+                dependency_field.specific_class, LinkRowField
+            ):
+                primary_field = Field.objects.filter(
+                    table_id=dependency_field.specific.link_row_table_id, primary=True
+                ).first()
+                if (
+                    primary_field is not None
+                    and primary_field.table_id != field.table_id
+                ):
+                    perm_checks.setdefault(
+                        PermissionCheck(user, field_operation_name, primary_field),
                         dependency_field,
                     )
-                )
 
         changed_field_type = field_type_registry.get_by_model(field)
         for (
             check,
             result,
-        ) in CoreHandler().check_multiple_permissions(perm_checks, workspace).items():
+        ) in (
+            CoreHandler()
+            .check_multiple_permissions(list(perm_checks), workspace)
+            .items()
+        ):
             if not result:
                 raise changed_field_type.get_permission_error_when_user_changes_field_to_depend_on_forbidden_field(
-                    check.actor, field, check.context
+                    check.actor, field, perm_checks[check]
                 )

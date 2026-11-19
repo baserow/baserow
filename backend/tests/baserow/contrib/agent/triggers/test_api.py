@@ -33,7 +33,6 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Agent as Identity
 from baserow.core.models import TrashEntry
 from baserow.core.operations import UpdateApplicationOperationType
 
@@ -853,9 +852,9 @@ def agent_reading_orders(
     """An agent of the user acting as a member identity, and an Orders table."""
 
     agent = data_fixture.create_agent_application(user=user)
-    identity = Identity.objects.create(workspace=agent.workspace, name="Reader")
+    identity = data_fixture.create_identity(workspace=agent.workspace, name="Reader")
     AgentApplication.objects.filter(id=agent.id).update(
-        run_as_subject_type="core.Agent", run_as_subject_id=identity.id
+        run_as_subject_type="auth.User", run_as_subject_id=identity.id
     )
     database = data_fixture.create_database_application(
         workspace=agent.workspace, name="Sales"

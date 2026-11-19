@@ -21,9 +21,9 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.signals import agent_conversation_activity
 from baserow.core.action.registries import action_type_registry
-from baserow.core.agents.service import AgentService as IdentityService
 from baserow.core.chat_runs.handler import ChatRunHandler
-from baserow.core.models import Agent
+from baserow.core.identities.handler import IdentityHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.signals import application_pending_count_updated
 from baserow.core.trash.handler import TrashHandler
 
@@ -148,11 +148,13 @@ def test_identity_changes_queue_one_invalidation_after_commit(
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    identity = Agent.objects.create(workspace=workspace, name="PRIVATE IDENTITY")
+    identity = IdentityHandler().create_identity(
+        workspace=workspace, name="PRIVATE IDENTITY"
+    )
     identity_id = identity.id
     identities = IdentityService()
     if change in {"restore", "delete"}:
-        identities.delete_agent(user, identity)
+        identities.delete_identity(user, identity)
     broadcast = mocker.patch(
         "baserow.contrib.agent.ws.signals.broadcast_run_as_updates.delay"
     )
@@ -160,17 +162,17 @@ def test_identity_changes_queue_one_invalidation_after_commit(
     with django_capture_on_commit_callbacks(execute=True):
         with transaction.atomic():
             if change == "create":
-                identity_id = identities.create_agent(
+                identity_id = identities.create_identity(
                     user, workspace, name="PRIVATE NEW IDENTITY"
                 ).id
             elif change == "rename":
-                identities.update_agent(user, identity, name="PRIVATE NEW NAME")
+                identities.update_identity(user, identity, name="PRIVATE NEW NAME")
             elif change == "trash":
-                identities.delete_agent(user, identity)
+                identities.delete_identity(user, identity)
             elif change == "restore":
-                TrashHandler.restore_item(user, "agent", identity.id)
+                TrashHandler.restore_item(user, "identity", identity.profile.id)
             else:
-                TrashHandler.permanently_delete(identity)
+                TrashHandler.permanently_delete(identity.profile)
             broadcast.assert_not_called()
 
     broadcast.assert_called_once_with(workspace.id, identity_id)
@@ -191,13 +193,13 @@ def test_unchanged_identity_name_does_not_invalidate_run_as_options(
 ):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
-    identity = Agent.objects.create(workspace=workspace, name="Original")
+    identity = IdentityHandler().create_identity(workspace=workspace, name="Original")
     broadcast = mocker.patch(
         "baserow.contrib.agent.ws.signals.broadcast_run_as_updates.delay"
     )
 
     with django_capture_on_commit_callbacks(execute=True):
-        IdentityService().update_agent(user, identity, **values)
+        IdentityService().update_identity(user, identity, **values)
 
     broadcast.assert_not_called()
 
@@ -208,7 +210,9 @@ def test_rolled_back_identity_change_does_not_invalidate_configuration(
 ):
     user = data_fixture.create_user()
     application = data_fixture.create_agent_application(user=user)
-    identity = Agent.objects.create(workspace=application.workspace, name="Original")
+    identity = IdentityHandler().create_identity(
+        workspace=application.workspace, name="Original"
+    )
     broadcast = mocker.patch(
         "baserow.contrib.agent.ws.signals.broadcast_run_as_updates.delay"
     )
@@ -216,11 +220,11 @@ def test_rolled_back_identity_change_does_not_invalidate_configuration(
     with django_capture_on_commit_callbacks(execute=True):
         with pytest.raises(RuntimeError):
             with transaction.atomic():
-                IdentityService().update_agent(user, identity, name="Rolled back")
+                IdentityService().update_identity(user, identity, name="Rolled back")
                 raise RuntimeError("Abort identity change")
 
     identity.refresh_from_db()
-    assert identity.name == "Original"
+    assert identity.first_name == "Original"
     broadcast.assert_not_called()
 
 

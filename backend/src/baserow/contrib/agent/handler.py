@@ -56,11 +56,14 @@ from baserow.core.exceptions import SubjectTypeNotExist
 from baserow.core.generative_ai.exceptions import GenerativeAITypeDoesNotExist
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.exceptions import IdentityDoesNotExist
+from baserow.core.identities.handler import IdentityHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.registries import subject_type_registry
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import Subject
+from baserow.core.user.identity import is_identity
 from baserow.core.utils import extract_allowed, remove_unstorable_characters
 
 from .action_tools.handler import AgentActionHandler
@@ -125,7 +128,7 @@ class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title", "pinned"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
-    option_fields = ["web_search_enabled", "reasoning_effort"]
+    option_fields = ["web_search_enabled", "web_fetch_enabled", "reasoning_effort"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -174,6 +177,7 @@ class AgentHandler:
             (run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"]))
             or self.has_mcp_tools(agent)
             or bool(AgentActionHandler().get_callable_actions(agent))
+            or agent.web_fetch_enabled
         )
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
@@ -192,6 +196,7 @@ class AgentHandler:
             web_search_blocked_by_tools=web_search_tool is None
             and with_tools
             and self._get_web_search_tool(agent, False) is not None,
+            web_fetch_enabled=agent.web_fetch_enabled,
             available_trigger_types=AgentTriggerHandler().available_trigger_types(
                 agent
             ),
@@ -430,19 +435,22 @@ class AgentHandler:
         ):
             return missing
         subject = self.get_run_as_subject(subject_type, subject_id, include_trash=True)
-        if subject is None:
+        if not is_identity(subject) or not subject.is_active:
             return missing
-        registered_type = subject_type_registry.get(subject_type)
-        if not registered_type.is_in_workspace(subject, workspace, include_trash=True):
+        try:
+            identity_workspace = IdentityHandler.get_workspace(subject)
+        except IdentityDoesNotExist:
+            return missing
+        if identity_workspace.id != workspace.id:
             return missing
         return AgentRunAsResolution(
             AgentRunAsState.TRASHED
-            if getattr(subject, "trashed", False)
+            if subject.profile.trashed
             else AgentRunAsState.ACTIVE,
             subject_type,
             subject_id,
             subject,
-            registered_type.get_display_name(subject),
+            subject_type_registry.get(subject_type).get_display_name(subject),
         )
 
     def get_usable_run_as_subject(
@@ -1354,10 +1362,18 @@ class AgentHandler:
         prompt, history = (
             (None, []) if resume is not None else self._get_reply_prompt(reply)
         )
+        # Like search, a resumed run keeps opening pages only if it did before it
+        # paused and the setting is still on.
+        web_fetch_enabled = agent.web_fetch_enabled and (
+            transcript is None or transcript.paused_web_fetch
+        )
         web_search_tool = (
             self._get_web_search_tool(
                 agent,
-                bool(tools["allowed_tools"]) or bool(mcp_servers) or bool(action_tools),
+                bool(tools["allowed_tools"])
+                or bool(mcp_servers)
+                or bool(action_tools)
+                or web_fetch_enabled,
             )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
@@ -1384,6 +1400,7 @@ class AgentHandler:
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
             started_by_trigger=conversation.is_shared,
+            web_fetch_enabled=web_fetch_enabled,
         )
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:
@@ -1474,6 +1491,7 @@ class AgentHandler:
             .only(
                 "paused_conversation",
                 "paused_web_search",
+                "paused_web_fetch",
                 "paused_run_as_subject_type",
                 "paused_run_as_subject_id",
             )
@@ -1727,6 +1745,7 @@ class AgentHandler:
             return {
                 "paused_conversation": None,
                 "paused_web_search": False,
+                "paused_web_fetch": False,
                 "paused_run_as_subject_type": None,
                 "paused_run_as_subject_id": None,
             }
@@ -1736,6 +1755,7 @@ class AgentHandler:
                 paused_run.conversation
             ),
             "paused_web_search": paused_run.web_search,
+            "paused_web_fetch": paused_run.web_fetch,
             "paused_run_as_subject_type": None
             if run_as is None
             else subject_type_registry.get_by_model(run_as).type,

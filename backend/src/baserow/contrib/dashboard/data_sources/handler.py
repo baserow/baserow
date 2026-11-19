@@ -13,6 +13,7 @@ from baserow.contrib.dashboard.data_sources.exceptions import (
 )
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
 from baserow.contrib.dashboard.models import Dashboard
+from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
@@ -221,6 +222,7 @@ class DashboardDataSourceHandler:
         original_service_type = service_type_registry.get_by_model(
             data_source.service.specific
         )
+        original_table_id = getattr(data_source.service.specific, "table_id", None)
         original_service = data_source.service
         updated_service = None
         if service_type != original_service_type:
@@ -262,11 +264,27 @@ class DashboardDataSourceHandler:
         if original_service.id != data_source.service.id:
             self.service_handler.delete_service(service_type, original_service)
 
-        return UpdatedDashboardDataSource(
+        from baserow.contrib.dashboard.widgets.handler import WidgetHandler
+        from baserow.contrib.dashboard.widgets.models import Widget
+        from baserow.contrib.dashboard.widgets.types import UpdatedWidget
+
+        updated = UpdatedDashboardDataSource(
             data_source,
             updated_service.original_service_values if updated_service else {},
             updated_service.new_service_values if updated_service else {},
         )
+        for widget in WidgetHandler().get_widgets_for_update(
+            data_source.dashboard, base_queryset=Widget.objects_and_trash.all()
+        ):
+            widget = widget.specific
+            widget.get_type().after_update(
+                UpdatedWidget(
+                    widget,
+                    {"data_source": {"table_id": original_table_id}},
+                    {"data_source": updated},
+                )
+            )
+        return updated
 
     def delete_data_source(self, data_source: DashboardDataSource):
         """
@@ -307,11 +325,17 @@ class DashboardDataSourceHandler:
                 "The service type is missing."
             )
 
+        if dispatch_context.dashboard is None:
+            dispatch_context.dashboard = data_source.dashboard
+        for provider in dispatch_context.data_provider_registry.get_all():
+            provider.validate_data(dispatch_context)
         specific_service = ServiceHandler().get_service(data_source.service.id)
         service_dispatch = self.service_handler.dispatch_service(
             specific_service, dispatch_context
         )
 
+        if specific_service.get_type().is_filtered(specific_service, dispatch_context):
+            return {**service_dispatch.data, "_is_filtered": True}
         return service_dispatch.data
 
     def export_data_source(
@@ -350,6 +374,7 @@ class DashboardDataSourceHandler:
             service=serialized_service,
         )
 
+    @deferred_callback_context()
     def import_data_source(
         self,
         dashboard: Dashboard,
@@ -358,6 +383,7 @@ class DashboardDataSourceHandler:
         files_zip: ExportZipFile | None = None,
         storage: Storage | None = None,
         cache: dict[str, any] | None = None,
+        import_export_config: ImportExportConfig | None = None,
     ) -> DashboardDataSource:
         """
         Creates an instance using the serialized version previously exported with
@@ -389,7 +415,7 @@ class DashboardDataSourceHandler:
                 files_zip=files_zip,
                 storage=storage,
                 cache=cache,
-                import_formula=lambda formula, id_mapping, **kwargs: formula,
+                import_export_config=import_export_config,
             )
 
         data_source = DashboardDataSource.objects.create(
@@ -402,5 +428,30 @@ class DashboardDataSourceHandler:
         id_mapping["dashboard_data_sources"][serialized_data_source["id"]] = (
             data_source.id
         )
+
+        if service is not None:
+
+            def finalize_service():
+                """Remap formulas and service references once all import IDs exist."""
+                from baserow.contrib.dashboard.formula_importer import import_formula
+
+                service_type = service.get_type()
+                updated_models = service_type.import_formulas(
+                    service,
+                    id_mapping,
+                    import_formula,
+                    import_export_config=import_export_config,
+                )
+                updated_models.update(
+                    service_type.after_import(
+                        service,
+                        id_mapping,
+                        import_export_config=import_export_config,
+                    )
+                )
+                for updated in updated_models:
+                    updated.save()
+
+            deferred_callback_context.register(finalize_service)
 
         return data_source

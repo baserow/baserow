@@ -26,6 +26,7 @@ from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import ReadIntegrationOperationType
@@ -65,7 +66,8 @@ class AgentApplicationType(ApplicationType):
         import_export_config: ImportExportConfig,
     ) -> tuple[str | None, int | None]:
         """
-        Keep existing identity references in internal copies of their workspace.
+        Keep existing identity references in internal copies of their workspace,
+        when the person copying or restoring may bind identities.
 
         A trashed identity remains configured so restoring it also restores access
         for the copy. Execution still requires an active identity.
@@ -86,6 +88,8 @@ class AgentApplicationType(ApplicationType):
             return None, None
         if workspace is None:
             return run_as
+        if not IdentityService().can_copy_binding(workspace, import_export_config):
+            return None, None
         resolution = AgentHandler().resolve_run_as_subject(*run_as, workspace)
         if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
             return run_as
@@ -232,6 +236,7 @@ class AgentApplicationType(ApplicationType):
                 )
             ],
             web_search_enabled=application.web_search_enabled,
+            web_fetch_enabled=application.web_fetch_enabled,
             actions=AgentActionHandler().export_actions(
                 application, import_export_config, files_zip, storage
             ),
@@ -300,11 +305,16 @@ class AgentApplicationType(ApplicationType):
         application.run_as_subject_type, application.run_as_subject_id = (
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )
-        # Searching is paid and sends data out, so outside copies must opt in again.
-        application.web_search_enabled = (
-            import_export_config.is_duplicate
-            and not import_export_config.is_template
-            and serialized_values.get("web_search_enabled", False)
+        # Searching is paid, and both send data out, so outside copies must opt in
+        # again.
+        internal_copy = (
+            import_export_config.is_duplicate and not import_export_config.is_template
+        )
+        application.web_search_enabled = internal_copy and serialized_values.get(
+            "web_search_enabled", False
+        )
+        application.web_fetch_enabled = internal_copy and serialized_values.get(
+            "web_fetch_enabled", False
         )
         application.save()
         registered = agent_tool_type_registry.get_types()

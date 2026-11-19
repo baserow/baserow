@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
 
-from baserow.core.agents.subjects import AgentSubjectType
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
@@ -37,7 +36,7 @@ class OperationPermissionContent(TypedDict):
 
 class RolePermissionManagerType(PermissionManagerType):
     type = "role"
-    supported_actor_types = [UserSubjectType.type, AgentSubjectType.type]
+    supported_actor_types = [UserSubjectType.type]
 
     def is_enabled(self, workspace: Workspace):
         """
@@ -52,12 +51,10 @@ class RolePermissionManagerType(PermissionManagerType):
             partial(LicenseHandler.workspace_has_feature, RBAC, workspace),
         )
 
-    def get_workspace_user_role_uid(self, workspace_user):
-        if self.is_enabled(workspace_user.workspace):
+    def get_workspace_role_uid(self, role_uid, workspace):
+        if self.is_enabled(workspace):
             return (
-                RoleAssignmentHandler()
-                .get_role_by_uid(workspace_user.permissions, use_fallback=True)
-                .uid
+                RoleAssignmentHandler().get_role_by_uid(role_uid, use_fallback=True).uid
             )
         return None
 

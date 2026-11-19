@@ -155,6 +155,7 @@ from baserow.core.services.types import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.types import PermissionCheck, Subject
+from baserow.core.user.identity import is_identity
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import GeneratedTableModel, Table
@@ -205,9 +206,9 @@ class LocalBaserowServiceType(ServiceType):
         if service.integration_id:
             integration = service.integration.specific
             authorized_subject = integration.authorized_subject_including_trash
-            if getattr(authorized_subject, "trashed", False):
+            if is_identity(authorized_subject) and authorized_subject.profile.trashed:
                 raise ServiceImproperlyConfiguredDispatchException(
-                    "The integration's authorized agent is trashed"
+                    "The integration's authorized identity is trashed"
                 )
 
             # Nullable, and an import can leave the authorized user null. Refuse
@@ -242,7 +243,7 @@ class LocalBaserowServiceType(ServiceType):
         service: ServiceSubClass,
         dispatch_context: DispatchContext,
     ) -> None:
-        """Record when this service uses an authorized agent."""
+        """Record when this service uses an authorized identity."""
 
         if not service.integration_id:
             return
@@ -616,6 +617,33 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return [field_dbname]
 
+    def import_context_path(
+        self, path: List[str], id_mapping: Dict[int, int], **kwargs
+    ):
+        """
+        Updates the field ids in the path.
+
+        For context path data there is no row ID, as it represents the structure of the
+        overall data, and not a specific row.
+        """
+
+        # Only process the path name if it includes at least one database field id
+        if len(path) >= 1:
+            field_dbname, *rest = path
+        else:
+            return path
+
+        if field_dbname == "id":
+            return path
+
+        # Apply the mapping in case it is present for this field. Like in
+        # `import_path`, an unmapped field keeps its reference.
+        imported_field_dbname = (
+            self.import_property_name(field_dbname, id_mapping) or field_dbname
+        )
+
+        return [imported_field_dbname, *rest]
+
     def deserialize_property(
         self,
         prop_name: str,
@@ -905,6 +933,22 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
     def get_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
+        return self._get_table_context_data(service, allowed_fields)
+
+    def get_public_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        return self._get_table_context_data(service, allowed_fields)
+
+    def get_context_option_names(self, service: ServiceSubClass) -> set[str]:
+        """The table context data only holds select options of the table fields."""
+
+        return set(self._get_table_context_data(service) or {})
+
+    def _get_table_context_data(
+        self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Expose table options independently of how the service dispatches rows."""
         if service.table_id is None:
             return None
 
@@ -976,7 +1020,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
 
         return {
             "type": "object",
-            "title": self.get_schema_name(service),
+            "title": service.table.name,
             "properties": properties,
         }
 
@@ -1032,6 +1076,12 @@ class LocalBaserowViewServiceType(LocalBaserowTableServiceType):
     """
     The `ServiceType` for `LocalBaserowViewService` subclasses.
     """
+
+    def is_filtered(self, service, dispatch_context):
+        """Include filters configured on the selected database view."""
+        return bool(
+            service.view_id and service.view.viewfilter_set.exists()
+        ) or super().is_filtered(service, dispatch_context)
 
     @property
     def allowed_fields(self):
@@ -1250,33 +1300,6 @@ class LocalBaserowTableRowsListServiceTypeMixin(ListServiceTypeMixin):
         )
 
         return [row, imported_field_dbname, *rest]
-
-    def import_context_path(
-        self, path: List[str], id_mapping: Dict[int, int], **kwargs
-    ):
-        """
-        Updates the field ids in the path.
-
-        For context path data there is no row ID, as it represents the structure of the
-        overall data, and not a specific row.
-        """
-
-        # Only process the path name if it includes at least one database field id
-        if len(path) >= 1:
-            field_dbname, *rest = path
-        else:
-            return path
-
-        if field_dbname == "id":
-            return path
-
-        # Apply the mapping in case it is present for this field. Like in
-        # `import_path`, an unmapped field keeps its reference.
-        imported_field_dbname = (
-            self.import_property_name(field_dbname, id_mapping) or field_dbname
-        )
-
-        return [imported_field_dbname, *rest]
 
     def get_record_names(
         self,
@@ -1583,7 +1606,10 @@ class LocalBaserowAggregateRowsUserServiceType(
         service: LocalBaserowAggregateRows,
         allowed_fields: Optional[List[str]] = None,
     ) -> dict:
-        return self._get_field_context_data(service, allowed_fields, public=False)
+        return {
+            **(super().get_context_data(service, allowed_fields) or {}),
+            **self._get_field_context_data(service, allowed_fields, public=False),
+        }
 
     def get_public_context_data(
         self,
@@ -1592,7 +1618,10 @@ class LocalBaserowAggregateRowsUserServiceType(
     ) -> dict:
         # Anonymous visitors only need the field to format the result, never its
         # configuration.
-        return self._get_field_context_data(service, allowed_fields, public=True)
+        return {
+            **(super().get_public_context_data(service, allowed_fields) or {}),
+            **self._get_field_context_data(service, allowed_fields, public=True),
+        }
 
     def _get_field_context_data(
         self,
@@ -1614,11 +1643,6 @@ class LocalBaserowAggregateRowsUserServiceType(
                 ).data
             context_data["field"] = serialized_field
         return context_data
-
-    def get_context_data_schema(
-        self, service: LocalBaserowAggregateRows
-    ) -> dict | None:
-        return None
 
     def enhance_queryset(self, queryset):
         return (
@@ -1938,7 +1962,7 @@ class LocalBaserowAggregateRowsUserServiceType(
         if path[0] == "result":
             return ["result"]
 
-        return []
+        return super().extract_properties(service, path, **kwargs)
 
 
 class LocalBaserowGetRowUserServiceType(

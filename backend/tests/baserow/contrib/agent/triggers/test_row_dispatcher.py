@@ -27,7 +27,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
 )
 from baserow.core.chat_runs.handler import ChatRunHandler
 from baserow.core.chat_runs.models import ChatRun
-from baserow.core.models import Agent as Identity
+from baserow.core.models import UserProfile
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
 from baserow.core.trash.handler import TrashHandler
@@ -47,9 +47,9 @@ def orders(data_fixture, configured_agent) -> SimpleNamespace:
 
     user = data_fixture.create_user()
     agent = configured_agent(user=user)
-    identity = Identity.objects.create(workspace=agent.workspace, name="Reader")
+    identity = data_fixture.create_identity(workspace=agent.workspace, name="Reader")
     AgentApplication.objects.filter(id=agent.id).update(
-        run_as_subject_type="core.Agent", run_as_subject_id=identity.id
+        run_as_subject_type="auth.User", run_as_subject_id=identity.id
     )
     database = data_fixture.create_database_application(workspace=agent.workspace)
     table = data_fixture.create_database_table(database=database, name="Orders")
@@ -201,7 +201,7 @@ def test_a_trigger_whose_run_identity_cannot_read_the_table_starts_nothing(
                 run_as_subject_type=None, run_as_subject_id=None
             )
         elif lost == "trashed":
-            Identity.objects.filter(id=orders.identity.id).update(trashed=True)
+            UserProfile.objects.filter(user=orders.identity).update(trashed=True)
         else:
             mocker.patch.object(
                 LocalBaserowRowsCreatedTriggerServiceType,
@@ -235,9 +235,7 @@ def test_queued_replies_wait_while_the_run_identity_cannot_read_the_table(
     reply.refresh_from_db()
     assert reply.status == "queued"
 
-    run_as.update(
-        run_as_subject_type="core.Agent", run_as_subject_id=orders.identity.id
-    )
+    run_as.update(run_as_subject_type="auth.User", run_as_subject_id=orders.identity.id)
     agent_trigger_dispatcher.hand_off(trigger.id)
 
     reply.refresh_from_db()
