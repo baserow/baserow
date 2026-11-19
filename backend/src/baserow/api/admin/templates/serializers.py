@@ -49,9 +49,11 @@ class AdminUserTemplateSerializer(TemplateSerializer):
         help_text="Whether a revision of the template is listed for everybody, "
         "also while a later one is in review or rejected."
     )
-    private_link = serializers.SerializerMethodField(
+    private_link = serializers.BooleanField(
+        source="template_private_link",
+        read_only=True,
         help_text="Whether the private link of the template is on. The link itself "
-        "is never shown."
+        "is never shown.",
     )
     can_approve = serializers.BooleanField(
         read_only=True,
@@ -136,10 +138,6 @@ class AdminUserTemplateSerializer(TemplateSerializer):
     @extend_schema_field(serializers.BooleanField())
     def get_listed(self, instance: Template) -> bool:
         return UserTemplateHandler().is_listed(instance)
-
-    @extend_schema_field(serializers.BooleanField())
-    def get_private_link(self, instance: Template) -> bool:
-        return instance.get_root().private_link_token is not None
 
     @extend_schema_field(serializers.BooleanField())
     def get_can_reject(self, instance: Template) -> bool:

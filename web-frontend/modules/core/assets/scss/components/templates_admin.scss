@@ -92,6 +92,11 @@
 .templates-admin-tabs {
   padding: 0 24px;
   margin-bottom: 24px;
+
+  .tabs__header {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
 }
 
 @media screen and (max-width: 600px) {

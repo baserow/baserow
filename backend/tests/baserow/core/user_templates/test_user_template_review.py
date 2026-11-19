@@ -396,10 +396,14 @@ def test_template_lists_read_only_the_later_revisions(data_fixture):
     blocked_tab = UserTemplateHandler().list_templates_for_admin(
         UserTemplateState.BLOCKED
     )
+    private_tab = UserTemplateHandler().list_templates_for_admin(
+        UserTemplateState.PRIVATE
+    )
     owned = CoreHandler().list_templates(owner, owned=True)
 
     assert rows_filtered_per_row(rejected_tab) < templates // 4
     assert rows_filtered_per_row(blocked_tab) < templates // 4
+    assert rows_filtered_per_row(private_tab) < templates // 4
     assert rows_filtered_per_row(owned) < templates // 4
 
 

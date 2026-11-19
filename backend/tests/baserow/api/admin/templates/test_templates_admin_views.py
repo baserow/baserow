@@ -605,11 +605,17 @@ def test_review_errors(
     assert list(Template.objects.values().order_by("id")) == before
 
 
-def test_private_link_of_an_edited_template(api_client, data_fixture):
+@pytest.mark.parametrize(
+    "sorts,expected",
+    [("+private_link", [False, True, True]), ("-private_link", [True, True, False])],
+)
+def test_private_link_sorts(api_client, data_fixture, sorts, expected):
     token = get_staff_token(data_fixture)
-    root = create_template(data_fixture, None, "shared")
-    revision = data_fixture.create_user_template_revision(root)
+    edited = create_template(data_fixture, None, "shared")
+    data_fixture.create_user_template_revision(edited)
+    create_template(data_fixture, None, "shared")
+    create_template(data_fixture, None)
 
-    rows = admin_rows(api_client, token, "private", "revision_id", "private_link")
+    rows = admin_rows(api_client, token, "private", "private_link", sorts=sorts)
 
-    assert rows == [(revision.id, True)]
+    assert rows == expected

@@ -129,6 +129,7 @@ class AdminUserTemplatesView(AdminListingView):
         "author": "author_name",
         "updated_on": "template_updated_on",
         "used": "template_install_count",
+        "private_link": "template_private_link",
         "submitted": "submitted_on",
     }
     sort_tie_breakers = ("-id",)

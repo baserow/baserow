@@ -299,7 +299,8 @@ const STATE_COLUMNS = {
     new CrudTableColumn(
       'private_link',
       () => $i18n.t('templatesAdmin.privateLink'),
-      TemplatePrivateLinkField
+      TemplatePrivateLinkField,
+      true
     ),
     usedColumn(),
   ],

@@ -704,6 +704,7 @@ describe('TemplatesAdminTable', () => {
       [
         'templatesAdmin.template',
         'templatesAdmin.author',
+        'templatesAdmin.privateLink',
         'templatesAdmin.used',
       ],
       [],
@@ -824,8 +825,10 @@ describe('TemplatesAdminTable', () => {
       .click()
     await flushPromises()
 
-    expect(menuLabels()).toContain('templateInstall.download')
-    expect(menuLabels()).not.toContain('templateInstall.copyLink')
+    expect(menuLabels()).toEqual([
+      'templateInstall.download',
+      'templatesAdmin.block',
+    ])
   })
 
   test('refreshes the list and counts when a block from the preview ends after the preview closed', async () => {

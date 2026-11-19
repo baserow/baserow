@@ -12,9 +12,11 @@ from django.core.files import File
 from django.core.files.storage import Storage
 from django.db import IntegrityError, connection, transaction
 from django.db.models import (
+    BooleanField,
     Case,
     CharField,
     Exists,
+    ExpressionWrapper,
     F,
     OuterRef,
     Q,
@@ -47,6 +49,7 @@ from baserow.core.models import (
     UserTemplateState,
     Workspace,
     is_instance_admin,
+    template_root_q,
 )
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import get_default_storage
@@ -853,12 +856,18 @@ class UserTemplateHandler:
                 .annotate(can_approve=Value(False), edited_since_submitted=Value(False))
             )
         else:
+            open_review = Template.objects.open_reviews().filter(
+                family_id=OuterRef("family_id")
+            )
             rows = (
                 Template.objects.user()
-                .filter_by_root(marked_for_deletion_at__isnull=True)
                 .latest_revisions()
-                .with_template_state()
-                .filter(template_state=state)
+                .filter_by_root(
+                    marked_for_deletion_at__isnull=True,
+                    blocked_at__isnull=True,
+                    public_revision__isnull=True,
+                )
+                .filter(~Exists(open_review))
                 .annotate(can_approve=Value(False), edited_since_submitted=Value(False))
             )
         if state == UserTemplateState.BLOCKED:
@@ -876,6 +885,10 @@ class UserTemplateHandler:
             template_updated_on=F("created_on"),
             template_install_count=Coalesce(
                 F("root__install_count"), F("install_count")
+            ),
+            template_private_link=ExpressionWrapper(
+                template_root_q(private_link_token__isnull=False),
+                output_field=BooleanField(),
             ),
         ).select_related("author", "root__author")
 
