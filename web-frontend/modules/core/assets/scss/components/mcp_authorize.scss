@@ -69,9 +69,15 @@
   margin: 20px 0;
 }
 
+.mcp-authorize__legacy-tools {
+  margin-top: 20px;
+}
+
 .mcp-authorize__tools {
+  max-height: 240px;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
   list-style: none;
 }
 

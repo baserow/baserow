@@ -3,6 +3,7 @@ from datetime import timedelta
 from typing import Iterable
 from urllib.parse import urlparse
 
+from django.conf import settings
 from django.utils import timezone
 
 from oauth2_provider.models import get_application_model
@@ -18,6 +19,24 @@ ENDPOINT_SCOPE_RE = re.compile(r"^endpoint:(\d+)$")
 LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
 # How stale an application's `updated` may be before a token issue bumps it.
 LAST_USED_RESOLUTION = timedelta(hours=1)
+
+
+# The path of the old per-endpoint URL, relative to the `/mcp` resource. Clients
+# given that URL ask to sign in for it, and still connect with its key.
+LEGACY_RESOURCE_PATH = re.compile(r"/(?P<key>[A-Za-z0-9_-]+)/sse/?")
+
+
+def legacy_resource_key(resource: str) -> str | None:
+    """
+    The endpoint key in an old `/mcp/<key>/sse` resource URL, or None when the
+    resource is any other URL.
+    """
+
+    prefix = settings.MCP_RESOURCE_URL
+    if not resource.startswith(prefix):
+        return None
+    match = LEGACY_RESOURCE_PATH.fullmatch(resource[len(prefix) :])
+    return match.group("key") if match else None
 
 
 def is_allowed_redirect_uri(uri) -> bool:
@@ -131,6 +150,26 @@ class MCPOAuth2Validator(OAuth2Validator):
             missing = [s for s in kept if s in original and s not in requested]
             request.scope = " ".join([*requested, *missing])
         return True
+
+    def _check_and_set_request_resource(self, request):
+        # Clients given the old endpoint URL send it as the resource of the code
+        # exchange and of every refresh. The grant is bound to `/mcp`, which covers
+        # that URL, so it's swapped for `/mcp` before the library checks the token
+        # request doesn't ask for more than the grant.
+        resource = getattr(request, "resource", None)
+        if isinstance(resource, str) and resource.strip():
+            body = getattr(request, "decoded_body", None) or []
+            values = [value for key, value in body if key == "resource"]
+            resource = values if len(values) > 1 else [resource]
+        if isinstance(resource, list):
+            mapped = [
+                settings.MCP_RESOURCE_URL
+                if isinstance(r, str) and legacy_resource_key(r) is not None
+                else r
+                for r in resource
+            ]
+            request.resource = list(dict.fromkeys(mapped))
+        return super()._check_and_set_request_resource(request)
 
     def _save_bearer_token(self, token, request, *args, **kwargs):
         result = super()._save_bearer_token(token, request, *args, **kwargs)

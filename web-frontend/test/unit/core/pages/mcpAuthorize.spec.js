@@ -583,6 +583,47 @@ describe('MCP authorize page', () => {
     expect(wrapper.text()).not.toContain('raw')
   })
 
+  test('an old endpoint removed before Allow shows its own message', async () => {
+    testApp.mock
+      .onPost('/mcp/oauth/consent/')
+      .reply(400, { error: 'legacy_endpoint_not_found', detail: 'raw' })
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, {
+        ...consent,
+        workspaces: [consent.workspaces[0]],
+        tools: consent.tools.slice(0, 2),
+        legacy_endpoint: { name: 'Old', workspace_id: 1 },
+      })
+    stubLocation()
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+    await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('mcpAuthorize.failed')
+    expect(wrapper.text()).toContain('mcpAuthorize.legacyEndpointNotFound')
+  })
+
+  test('an old endpoint without tools says so', async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, {
+        ...consent,
+        workspaces: [consent.workspaces[0]],
+        tools: [],
+        legacy_endpoint: { name: 'Old', workspace_id: 1 },
+      })
+    stubLocation()
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+    expect(
+      wrapper.find('[data-test="mcp-authorize-legacy-no-tools"]').exists()
+    ).toBe(true)
+    expect(
+      wrapper.find('[data-test="mcp-authorize-legacy-tools"]').exists()
+    ).toBe(false)
+  })
+
   test('an unknown error code shows the generic message', async () => {
     const wrapper = await testApp.mount(MCPAuthorize, {
       route: '/mcp-authorize?error=made_up',

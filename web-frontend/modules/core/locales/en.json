@@ -50,6 +50,8 @@
     "invalidTarget": "This server URL can't be used to sign in. Copy the URL from the OAuth tab in your Baserow MCP settings and add the server to the app again.",
     "legacyWarning": "You connected through the old MCP endpoint, so only these tools are available. Use the URL from the OAuth tab in your Baserow MCP settings to access all tools.",
     "legacyTools": "Tools",
+    "legacySubtitle": "It will act as you in the workspace of the old MCP endpoint.",
+    "legacyNoTools": "The old MCP endpoint has no tools available. Use the URL from the OAuth tab in your Baserow MCP settings instead.",
     "legacyEndpointNotFound": "This old MCP endpoint URL doesn't exist or isn't yours. Use the URL from the OAuth tab in your Baserow MCP settings instead.",
     "loadFailed": "Couldn't load this sign-in request.",
     "loadFailedMessage": "Check your connection and reload the page to try again.",

@@ -10,6 +10,7 @@ from oauthlib.oauth2.rfc6749.errors import MismatchingRedirectURIError
 
 from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.models import MCPEndpoint
+from baserow.core.mcp.registries import mcp_tool_registry
 from tests.baserow.core.mcp.oauth.helpers import (
     REDIRECT_URI,
     authorize_query,
@@ -364,3 +365,54 @@ def test_consent_for_the_old_url_of_a_trashed_workspace_is_rejected(
 
     assert response.status_code == 400
     assert response.json()["error"] == "legacy_endpoint_not_found"
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_drops_disabled_tools_of_an_existing_grant(
+    client, api_client, data_fixture, monkeypatch
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["list_databases"]
+    )
+    query = _legacy_query(client, legacy.key)
+    client_id = parse_qs(query)["client_id"][0]
+    grant = data_fixture.create_mcp_endpoint(
+        user=user,
+        workspace=workspace,
+        oauth_client_id=client_id,
+        allowed_tools=["list_databases", "create_rows"],
+    )
+    monkeypatch.setattr(mcp_tool_registry.get("create_rows"), "enabled", False)
+
+    response = _post(api_client, token, query, workspace)
+
+    assert response.status_code == 200, response.content
+    grant.refresh_from_db()
+    assert grant.allowed_tools == ["list_databases"]
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_without_enabled_tools_is_rejected(
+    client, api_client, data_fixture, monkeypatch
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["create_rows"]
+    )
+    monkeypatch.setattr(mcp_tool_registry.get("create_rows"), "enabled", False)
+
+    # A client posting the form itself still can't get a grant without tools.
+    response = _post(
+        api_client,
+        token,
+        _legacy_query(client, legacy.key),
+        workspace,
+        tools=["list_databases"],
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_MCP_TOOLS_NOT_AVAILABLE"
+    assert not MCPEndpoint.objects.filter(oauth_client_id__isnull=False).exists()

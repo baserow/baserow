@@ -52,7 +52,13 @@
             }}
           </h1>
           <p class="mcp-authorize__subtitle">
-            {{ $t('mcpAuthorize.subtitle') }}
+            {{
+              $t(
+                consent.legacy_endpoint
+                  ? 'mcpAuthorize.legacySubtitle'
+                  : 'mcpAuthorize.subtitle'
+              )
+            }}
           </p>
           <Badge
             v-if="!consent.verified"
@@ -104,8 +110,17 @@
           v-if="consent.legacy_endpoint"
           :label="$t('mcpAuthorize.legacyTools')"
           required
+          class="mcp-authorize__legacy-tools"
         >
+          <p
+            v-if="!consent.tools.length"
+            class="mcp-authorize__empty"
+            data-test="mcp-authorize-legacy-no-tools"
+          >
+            {{ $t('mcpAuthorize.legacyNoTools') }}
+          </p>
           <ul
+            v-else
             class="mcp-authorize__tools"
             data-test="mcp-authorize-legacy-tools"
           >
@@ -334,6 +349,15 @@ async function submit(allow) {
     window.location.assign(data.redirect_url)
   } catch (e) {
     loading.value = false
+    const code = e.response?.data?.error
+    if (Object.hasOwn(ERROR_MESSAGES, code)) {
+      error.value = {
+        visible: true,
+        title: t('mcpAuthorize.failed'),
+        message: t(ERROR_MESSAGES[code]),
+      }
+      return
+    }
     error.value = {
       visible: true,
       title: t('mcpAuthorize.failed'),

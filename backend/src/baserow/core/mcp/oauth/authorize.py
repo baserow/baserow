@@ -1,4 +1,3 @@
-import re
 from urllib.parse import parse_qsl, urlsplit
 
 from django.conf import settings
@@ -18,26 +17,10 @@ from .validators import (
     OFFLINE_ACCESS_SCOPE,
     endpoint_scope,
     is_allowed_redirect_uri,
+    legacy_resource_key,
 )
 
 AUTHORIZE_PATH = "/oauth/authorize/"
-
-# The path of the old per-endpoint URL, relative to the `/mcp` resource. Clients
-# given that URL ask to sign in for it, and still connect with its key.
-LEGACY_RESOURCE_PATH = re.compile(r"/(?P<key>[A-Za-z0-9_-]+)/sse/?")
-
-
-def legacy_resource_key(resource: str) -> str | None:
-    """
-    The endpoint key in an old `/mcp/<key>/sse` resource URL, or None when the
-    resource is any other URL.
-    """
-
-    prefix = settings.MCP_RESOURCE_URL
-    if not resource.startswith(prefix):
-        return None
-    match = LEGACY_RESOURCE_PATH.fullmatch(resource[len(prefix) :])
-    return match.group("key") if match else None
 
 
 def requested_legacy_key(request: HttpRequest) -> str | None:

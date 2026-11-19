@@ -41,8 +41,9 @@ def test_protected_resource_metadata_of_the_old_endpoint_url(client, settings, s
         f"/.well-known/oauth-protected-resource/mcp/some-endpoint-key/sse{suffix}"
     )
     assert response.status_code == 200
+    # Names the URL exactly as asked, because the client compares the two.
     assert response.json()["resource"] == (
-        f"{settings.MCP_RESOURCE_URL}/some-endpoint-key/sse"
+        f"{settings.MCP_RESOURCE_URL}/some-endpoint-key/sse{suffix}"
     )
 
 
@@ -54,8 +55,12 @@ def test_protected_resource_metadata_of_the_old_endpoint_url(client, settings, s
         "/.well-known/oauth-protected-resource/mcp/a/b",
     ],
 )
-def test_protected_resource_metadata_is_404_for_other_paths(client, path):
-    assert client.get(path).status_code == 404
+def test_protected_resource_metadata_of_other_paths_is_the_mcp_one(
+    client, settings, path
+):
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.json()["resource"] == settings.MCP_RESOURCE_URL
 
 
 @pytest.mark.django_db

@@ -10,9 +10,9 @@ from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.views import OAuthProtectedResourceMetadataView
 from oauthlib.oauth2.rfc6749.errors import InvalidClientIdError
 
-from .authorize import legacy_resource_key, validate_query
+from .authorize import validate_query
 from .throttling import MCPOAuthAuthorizeRateThrottle, rate_limited
-from .validators import MCP_SCOPE
+from .validators import MCP_SCOPE, legacy_resource_key
 
 # The consent page shows its own text for these codes. Re-adding the server
 # registers an unknown client again; a rejected CIMD client fails the same way
@@ -84,16 +84,15 @@ class MCPProtectedResourceMetadataView(OAuthProtectedResourceMetadataView):
     """
 
     def get(self, request, *args, resource_path=None, **kwargs):
-        if resource_path is None:
-            self.resource = settings.MCP_RESOURCE_URL
-        else:
-            resource = f"{settings.MCP_AUTHORIZATION_SERVER_URL}/{resource_path}"
-            resource = resource.rstrip("/")
-            if resource != settings.MCP_RESOURCE_URL and (
-                legacy_resource_key(resource) is None
-            ):
-                raise Http404()
-            self.resource = resource
+        # Any other path gets the `/mcp` document, as before old URLs had their own.
+        # The old URL keeps the spelling it was asked for, because the client
+        # checks the document names the URL it was given.
+        resource = f"{settings.MCP_AUTHORIZATION_SERVER_URL}/{resource_path or ''}"
+        self.resource = (
+            resource
+            if legacy_resource_key(resource) is not None
+            else settings.MCP_RESOURCE_URL
+        )
         return super().get(request, *args, **kwargs)
 
     def get_resource(self, request):

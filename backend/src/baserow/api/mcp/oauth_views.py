@@ -139,14 +139,19 @@ def _serialize_groups(tools) -> list[dict]:
 LEGACY_ENDPOINT_NOT_FOUND = "legacy_endpoint_not_found"
 
 
+class LegacyEndpointNotFound(Exception):
+    """The old endpoint URL's key matches none of the user's own endpoints."""
+
+
 def _legacy_endpoint(authorize_request, user) -> MCPEndpoint | None:
     """
     The user's own old endpoint whose `/mcp/<key>/sse` URL the client asked to
     sign in for. The client keeps connecting to that URL with the key, so it only
     ever gets this endpoint's workspace and tools.
 
-    :return: The endpoint, None when the client asked for `/mcp`, or False when
-        the key matches none of the user's own endpoints.
+    :raises LegacyEndpointNotFound: When the key matches none of the user's own
+        endpoints.
+    :return: The endpoint, or None when the client asked for `/mcp`.
     """
 
     key = requested_legacy_key(authorize_request)
@@ -164,7 +169,7 @@ def _legacy_endpoint(authorize_request, user) -> MCPEndpoint | None:
         context=endpoint.workspace,
         raise_permission_exceptions=False,
     ):
-        return False
+        raise LegacyEndpointNotFound()
     return endpoint
 
 
@@ -193,8 +198,9 @@ class MCPOAuthConsentView(APIView):
         except OAuthToolkitError as error:
             return _invalid_request(error)
 
-        legacy = _legacy_endpoint(authorize_request, request.user)
-        if legacy is False:
+        try:
+            legacy = _legacy_endpoint(authorize_request, request.user)
+        except LegacyEndpointNotFound:
             return _legacy_endpoint_not_found()
 
         workspace_users = list(
@@ -291,8 +297,9 @@ class MCPOAuthConsentView(APIView):
         if not data["allow"]:
             return Response({"redirect_url": deny_url(authorize_request, credentials)})
 
-        legacy = _legacy_endpoint(authorize_request, request.user)
-        if legacy is False:
+        try:
+            legacy = _legacy_endpoint(authorize_request, request.user)
+        except LegacyEndpointNotFound:
             return _legacy_endpoint_not_found()
         client = _client_info(credentials)
         if legacy:
@@ -300,17 +307,23 @@ class MCPOAuthConsentView(APIView):
             # what that connection gets, whatever the form sent. A grant the
             # client already has in the workspace keeps its tools, so signing in
             # with the old URL never narrows a connection made through `/mcp`.
+            # Only enabled tools can be granted, so names of disabled tools are
+            # dropped, like when the client signs in again through `/mcp`.
             workspace = legacy.workspace
             existing = MCPEndpoint.objects.filter(
                 user=request.user,
                 workspace=workspace,
                 oauth_client_id=client["client_id"],
             ).first()
-            tools = (
-                mcp_tool_registry.get_allowed_names(existing)
-                if existing
-                else [tool.name for tool in mcp_tool_registry.get_allowed_tools(legacy)]
-            )
+            tools = [
+                tool.name
+                for tool in mcp_tool_registry.get_allowed_tools(existing or legacy)
+            ]
+            if not tools:
+                # The form can't send an empty list, so this one can't be either.
+                raise MCPToolsNotAvailable(
+                    mcp_tool_registry.get_allowed_names(existing or legacy)
+                )
         else:
             workspace = CoreHandler().get_workspace(data["workspace_id"])
             tools = data["tools"]
