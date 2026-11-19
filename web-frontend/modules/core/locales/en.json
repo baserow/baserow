@@ -2137,6 +2137,22 @@
     "new": "New",
     "roleHelpText": "Start with No access, then grant access to specific databases, tables or views as needed."
   },
+  "workspaceIntegrations": {
+    "tabTitle": "Integrations",
+    "title": "{count} integrations in {workspace}",
+    "subtitle": "Every application in this workspace can use these integrations.",
+    "search": "Search integrations",
+    "create": "Create integration",
+    "name": "Name",
+    "type": "Type",
+    "details": "Details",
+    "edit": "Edit integration",
+    "delete": "Delete integration",
+    "emptyTitle": "No integrations yet",
+    "emptyDescription": "Create an integration here to set it up once and use it in every application in this workspace.",
+    "deleteTitle": "Delete integration",
+    "deleteMessage": "Every application in this workspace that uses {name} loses this integration until it's restored from the trash."
+  },
   "managementPages": {
     "you": "You"
   },

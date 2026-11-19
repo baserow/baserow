@@ -111,6 +111,44 @@ describe('Shared application', () => {
     expect(store.getters['application/get'](2)).toBe(sharedOf(1))
   })
 
+  test('is returned from the store without a request', async () => {
+    // The mock adapter throws on any request without a handler.
+    const shared = await store.dispatch('application/fetchSharedApplication', {
+      id: 1,
+    })
+
+    expect(shared).toBe(sharedOf(1))
+  })
+
+  test('is fetched with the applications of its workspace when missing', async () => {
+    testApp.mock.onGet('/applications/workspace/4/').replyOnce(200, [
+      {
+        id: 5,
+        type: 'database',
+        name: 'Database',
+        order: 1,
+        workspace: { id: 4 },
+        tables: [],
+      },
+      {
+        id: 6,
+        type: 'shared',
+        name: '__shared__',
+        order: 0,
+        workspace: { id: 4 },
+      },
+    ])
+
+    const shared = await store.dispatch('application/fetchSharedApplication', {
+      id: 4,
+    })
+
+    expect(shared.id).toBe(6)
+    expect(sharedOf(4)).toBe(shared)
+    // Only the shared application is added, the others are left as they were.
+    expect(store.getters['application/get'](5)).toBeUndefined()
+  })
+
   test('holds the workspace integrations', async () => {
     const shared = sharedOf(1)
     expect(shared.integrations).toEqual([])

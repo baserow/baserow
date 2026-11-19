@@ -13,6 +13,8 @@
     "localBaserowSummary": "Local Baserow - {name}, {username}",
     "localBaserowSubjectSummary": "Local Baserow - {type}: {name}",
     "localBaserowNoUser": "Local Baserow - Not configured",
+    "localBaserowWorkspaceHint": "Runs as {name} in all applications in this workspace",
+    "localBaserowWorkspaceSubjectHint": "Runs as {name} ({type}) in all applications in this workspace",
     "errorTrashedIdentity": "The authorized identity has been trashed",
     "errorNoUser": "No user or identity has authorized this integration."
   },

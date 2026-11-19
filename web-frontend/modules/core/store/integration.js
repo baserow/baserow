@@ -309,6 +309,13 @@ const getters = {
   getIntegrations: (state) => (application) => {
     return application?.integrations || []
   },
+  /**
+   * A number that changes with every change to the integrations of the
+   * application, so a component listing them knows when to refresh.
+   */
+  getGeneration: (state) => (application) => {
+    return state.generation[application.id] || 0
+  },
   getIntegrationById: (state) => (application, id) => {
     return application?.integrations?.find(
       (integration) => integration.id === id

@@ -66,6 +66,7 @@ import {
 import {
   MembersWorkspaceSettingsPageType,
   IdentitiesWorkspaceSettingsPageType,
+  IntegrationsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -321,6 +322,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new IdentitiesWorkspaceSettingsPageType(context)
+    )
+    registry.register(
+      'workspaceSettingsPage',
+      new IntegrationsWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))

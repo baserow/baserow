@@ -192,6 +192,7 @@ describe('Management pages', () => {
     ['settings-teams', true],
     ['settings-identities', true],
     ['workspace-audit-log', true],
+    ['settings-integrations', true],
     ['dashboard', false],
   ])('Settings sidebar selection on %s is %s', (name, active) => {
     const wrapper = mount(SidebarMenu, {

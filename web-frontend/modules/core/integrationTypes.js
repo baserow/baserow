@@ -38,6 +38,18 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * Return a sentence that tells what a workspace integration acts as in every
+   * application of the workspace, when the type has such an identity, or null.
+   * It's shown wherever a workspace integration is listed or picked.
+   *
+   * @param {object} integration The workspace integration.
+   * @returns {string|null} The hint, if any.
+   */
+  getWorkspaceHint(integration) {
+    return null
+  }
+
+  /**
    * Returns why this integration can't be used as it is, or null when it's
    * valid. Services, applications and settings built on top of an integration
    * use this to show the user where a misconfiguration comes from.
