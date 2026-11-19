@@ -3287,16 +3287,15 @@ class LocalBaserowTableSignalTriggerServiceType(
             or TrashHandler.item_has_a_trashed_parent(table, check_item_also=True)
         ):
             return False
-        return all(
-            CoreHandler().check_permissions(
-                subject,
-                operation,
-                workspace=workspace,
-                context=table,
-                raise_permission_exceptions=False,
-            )
+        checks = [
+            PermissionCheck(subject, operation, table)
             for operation in self.read_operations
-        )
+        ]
+        allowed = CoreHandler().check_multiple_permissions(checks, workspace=workspace)
+        return all(allowed[check] is True for check in checks)
+
+    def get_event_source_id(self, service: LocalBaserowTableService) -> int | None:
+        return service.table_id
 
     def get_form_choices(
         self, subject: Optional[Subject], workspace: Workspace

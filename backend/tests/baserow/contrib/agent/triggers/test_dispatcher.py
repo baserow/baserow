@@ -353,7 +353,7 @@ def test_a_trashed_agent_queues_nothing_but_keeps_its_schedule(
     trigger = periodic_trigger(data_fixture, agent)
     AgentApplication.objects_and_trash.filter(id=agent.id).update(trashed=True)
     queued = mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.apply_async"
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
     )
 
     tick()
@@ -369,13 +369,13 @@ def test_a_trigger_that_cannot_be_queued_does_not_stop_the_others(
     agent = configured_agent()
     triggers = [periodic_trigger(data_fixture, agent) for _ in range(2)]
     queued = mocker.patch(
-        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.apply_async",
+        "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay",
         side_effect=[ConnectionError("broker down"), None],
     )
 
     tick()
 
-    assert [call.kwargs["args"][0] for call in queued.call_args_list] == [
+    assert [call.args[0] for call in queued.call_args_list] == [
         trigger.id for trigger in triggers
     ]
 
@@ -912,7 +912,7 @@ def test_a_tick_never_waits_for_a_trigger_a_builder_is_saving(
 
     def tick_without_starting():
         mocker.patch(
-            "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.apply_async"
+            "baserow.contrib.agent.triggers.dispatcher.start_trigger_conversations.delay"
         )
         with freeze_time(TICK_AT):
             call_periodic_services_that_are_due()

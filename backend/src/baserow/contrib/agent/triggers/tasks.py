@@ -8,14 +8,14 @@ from ..constants import QUEUED_TRIGGER_REPLY_SWEEP_SECONDS
 from .handler import AgentTriggerHandler
 
 
-@app.task(bind=True)
+@app.task
 def start_trigger_conversations(
-    self: Task,
     trigger_id: int,
     service_id: int,
     firings: list[list[str | None]],
     dropped_batches: int = 0,
     can_read: bool = True,
+    source_id: int | None = None,
 ) -> None:
     """
     Apply the rules of a trigger to each firing of one event, after the event
@@ -27,17 +27,13 @@ def start_trigger_conversations(
         reply, or None, in the event's order.
     :param dropped_batches: How many batches of the event were left out.
     :param can_read: Whether the run identity could read the event's data.
+    :param source_id: What the service watched when the event fired, if any.
     """
 
     from .dispatcher import agent_trigger_dispatcher
 
     agent_trigger_dispatcher.start(
-        trigger_id,
-        service_id,
-        firings,
-        dropped_batches,
-        can_read,
-        source_table_id=(self.request.headers or {}).get("source_table_id"),
+        trigger_id, service_id, firings, dropped_batches, can_read, source_id
     )
 
 

@@ -948,9 +948,6 @@ class TriggerServiceTypeMixin(ABC):
     # A busy consumer may skip an event unless a type says each of its events counts.
     events_can_be_skipped = True
 
-    # Older tasks for existing trigger types were queued without a source table.
-    requires_event_source_table = False
-
     @property
     def listeners(self) -> List[Callable]:
         """
@@ -1013,6 +1010,15 @@ class TriggerServiceTypeMixin(ABC):
         :param subject: The subject the consumer acts as, or None for none.
         :param workspace: The workspace the consumer acts in.
         :return: The form's props by name, or None when it needs nothing.
+        """
+
+        return None
+
+    def get_event_source_id(self, service: Service) -> int | None:
+        """
+        :param service: The specific trigger service.
+        :return: The id of what the service watches, so a queued event can tell
+            whether its service still watches the same source, or None.
         """
 
         return None

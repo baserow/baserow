@@ -687,7 +687,6 @@ class LocalBaserowRowCommentPostedTriggerServiceType(
     type = "local_baserow_row_comment_posted"
     model_class = LocalBaserowRowCommentPosted
     signal = row_comment_created
-    requires_event_source_table = True
     read_operations = ROW_COMMENT_SEARCH_OPERATIONS
     allowed_fields = [
         *LocalBaserowTableSignalTriggerServiceType.allowed_fields,
