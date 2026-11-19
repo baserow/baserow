@@ -38,7 +38,7 @@ from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType, InstallTemplateJobType
 from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
-from baserow.core.models import Template, WorkspaceUser
+from baserow.core.models import Template, Workspace, WorkspaceUser
 from baserow.core.registries import ImportExportConfig, Plugin, plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
@@ -47,8 +47,8 @@ from baserow.core.user_templates.exceptions import (
     TemplateHasNothingToInstall,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow.core.utils import Progress
+from tests.baserow.core.user_templates.utils import start_job
 
 from ..integrations.mcp.utils import serve
 
@@ -1542,14 +1542,25 @@ def test_a_user_template_of_only_agents_the_owner_cant_import_fails(
         UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
 
 
-def test_creating_a_user_template_with_nothing_to_copy_says_why():
-    message = CreateUserTemplateJobType.job_exceptions_map[TemplateHasNothingToInstall]
-    assert list(CreateUserTemplateJobType.job_exceptions_map).index(
-        TemplateHasNothingToInstall
-    ) < list(CreateUserTemplateJobType.job_exceptions_map).index(TemplateHasNoContent)
-    assert message == (
-        "Some of the selected applications can't be copied into a template."
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_creating_a_user_template_names_the_agent_it_cant_copy(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner, name="Ticket triage")
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    workspaces = Workspace.objects_and_trash.count()
+    settings.FEATURE_FLAGS = ["user_templates"]
+
+    job = start_job(owner, agent.workspace, [database, agent])
+
+    assert job.state == JOB_FAILED
+    assert job.human_readable_error == (
+        "These applications can't be copied into a template: Ticket triage"
     )
+    assert Workspace.objects_and_trash.count() == workspaces
+    assert not Template.objects.exists()
 
 
 @pytest.mark.import_export_workspace
@@ -1562,5 +1573,5 @@ def test_a_user_template_missing_an_agent_the_owner_cant_import_fails(
     database = data_fixture.create_database_application(workspace=agent.workspace)
     settings.FEATURE_FLAGS = []
 
-    with pytest.raises(TemplateHasNothingToInstall):
+    with pytest.raises(TemplateHasNothingToInstall, match=agent.name):
         UserTemplateHandler().copy_applications(owner, [database, agent], name="Copy")

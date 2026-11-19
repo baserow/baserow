@@ -466,7 +466,8 @@ class UserTemplateHandler:
         :param track_content: Called with the content created so far as keyword
             arguments.
         :raises TemplateHasNothingToInstall: If any of the applications can't be
-            copied, for example an Agent the owner can't import.
+            copied, for example an Agent the owner can't import. Nothing is
+            created then.
         :return: The workspace holding the copy.
         """
 
@@ -479,6 +480,27 @@ class UserTemplateHandler:
         # Nobody is a member of the new workspace, so the import drops what
         # belongs to the users of the source: personal views and collaborators.
         config = user_template_copy_config()
+        import_config = dataclasses.replace(
+            config,
+            user_files_belong_to_workspace=True,
+            is_template_storage=True,
+            imported_by=owner,
+        )
+        # An application the owner can't import, like an Agent behind a feature
+        # flag, would be missing from the template, and from every update of the
+        # same selection, without anyone noticing.
+        left_out = [
+            application.name
+            for application in applications
+            if not application_type_registry.get_by_model(
+                application.specific_class
+            ).can_import(import_config)
+        ]
+        if left_out:
+            raise TemplateHasNothingToInstall(
+                "These applications can't be copied into a template: "
+                + ", ".join(left_out)
+            )
         storage = get_default_storage()
         files = TemplateFilesTransfer(storage)
 
@@ -495,27 +517,15 @@ class UserTemplateHandler:
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
-        copied, _ = CoreHandler().import_applications_to_workspace(
+        CoreHandler().import_applications_to_workspace(
             workspace,
             serialized,
             files,
-            dataclasses.replace(
-                config,
-                user_files_belong_to_workspace=True,
-                is_template_storage=True,
-                imported_by=owner,
-            ),
+            import_config,
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,
         )
-        if len(copied) < len(serialized):
-            # An application was left out, for example an Agent the owner can't
-            # import because of its feature flag. The template would silently miss
-            # it, and every update of the same selection would miss it again.
-            raise TemplateHasNothingToInstall(
-                "Some of the selected applications can't be copied into a template."
-            )
 
         return workspace
 

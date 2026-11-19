@@ -36,8 +36,9 @@ class TemplateHasNoContent(Exception):
 
 class TemplateHasNothingToInstall(TemplateHasNoContent):
     """
-    Raised when a template has content, but none of it can be installed on this
-    instance, for example Agents while their feature flag is off.
+    Raised when applications can't be imported here, for example Agents while
+    their feature flag is off: when none of a template's applications can be
+    installed, or when any of those selected for a user template can't be copied.
     """
 
 
