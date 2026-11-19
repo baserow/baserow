@@ -1,5 +1,6 @@
 import json
 import zipfile
+from contextlib import contextmanager
 
 from django.urls import reverse
 
@@ -14,6 +15,10 @@ from rest_framework.status import (
 )
 
 from baserow.core.import_export.handler import EXPORT_FORMAT_VERSION, MANIFEST_NAME
+from baserow.core.job_types import ExportApplicationsJobType
+from baserow.core.jobs.handler import JobHandler
+from baserow.core.jobs.registries import job_type_registry
+from baserow.test_utils.helpers import permanently_delete_workspace
 from baserow.version import VERSION
 
 
@@ -446,3 +451,42 @@ def test_export_specific_application_ids_filters_correctly(
                 assert db_data["name"] == "Database 1"
                 assert len(db_data["tables"]) == 1
                 assert db_data["tables"][0]["name"] == "Table 1"
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_failed_export_has_no_download_url(
+    data_fixture, api_client, monkeypatch, use_tmp_media_root
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_database_application(workspace=workspace)
+    job_type = job_type_registry.get(ExportApplicationsJobType.type)
+    run_without_transaction = job_type.transaction_atomic_context
+
+    @contextmanager
+    def delete_workspace_when_the_work_ends(job):
+        with run_without_transaction(job):
+            yield
+        permanently_delete_workspace(workspace)
+
+    monkeypatch.setattr(
+        job_type, "transaction_atomic_context", delete_workspace_when_the_work_ends
+    )
+    job = JobHandler().create_and_start_job(
+        user,
+        ExportApplicationsJobType.type,
+        workspace_id=workspace.id,
+        application_ids=[],
+        sync=True,
+    )
+
+    response = api_client.get(
+        reverse("api:jobs:item", kwargs={"job_id": job.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["url"] is None
+    assert response_json["exported_file_name"] is None

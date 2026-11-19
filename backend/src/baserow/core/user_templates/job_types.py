@@ -364,8 +364,7 @@ class CreateUserTemplateJobType(JobType):
 
     def run(self, job: CreateUserTemplateJob, progress: Progress):
         is_update = job.template_id is not None
-        # An update without applications only changes the details.
-        copies_from_workspace = not is_update or bool(job.application_ids)
+        copies_from_workspace = self._copies_from_workspace(job)
         if copies_from_workspace and job.source_workspace is None:
             raise WorkspaceDoesNotExist("The source workspace does not exist.")
 
@@ -411,15 +410,27 @@ class CreateUserTemplateJobType(JobType):
                     job_id=job.id,
                 )
             return template
-        except BaseException:
+        except BaseException as caught:
             try:
                 # The revision is only set when its transaction committed, and so
-                # is the template of a created one. The template being updated and
-                # its base revision can have been deleted in the meantime, which
-                # the failed job is saved without.
-                job.refresh_from_db(fields=["template", "revision", "base_revision"])
+                # is the template of a created one. The template being updated, its
+                # base revision and the source workspace can have been deleted in
+                # the meantime, which the failed job is saved without.
+                job.refresh_from_db(
+                    fields=["template", "revision", "base_revision", "source_workspace"]
+                )
             except CreateUserTemplateJob.DoesNotExist:
                 self._delete_content_of_deleted_job(job)
+            else:
+                if (
+                    copies_from_workspace
+                    and job.revision_id is None
+                    and job.source_workspace_id is None
+                    and not isinstance(caught, JobCancelled)
+                ):
+                    raise WorkspaceDoesNotExist(
+                        "The source workspace was deleted."
+                    ) from caught
             raise
 
     def _delete_content_of_deleted_job(self, job: CreateUserTemplateJob) -> None:
@@ -439,15 +450,25 @@ class CreateUserTemplateJobType(JobType):
                 "failed."
             )
 
+    def _copies_from_workspace(self, job: CreateUserTemplateJob) -> bool:
+        # An update without applications only changes the details.
+        return job.template_id is None or bool(job.application_ids)
+
     def _save_template(self, job: CreateUserTemplateJob, revision) -> None:
         """
-        Sets the revision on the job in the transaction that creates it. The job
-        is locked first, so that a cancellation either lands before, and is noticed
-        here, or waits for the commit and is refused by `is_cancellable`. The state
-        is read from the locked row, because a progress update of this job can
-        overwrite the cancelled state in the cache.
+        Sets the revision on the job in the transaction that creates it. The
+        source workspace is locked first, so that its deletion either commits
+        before, and is noticed here, or waits until the template is committed. The
+        job is locked next, so that a cancellation either lands before, and is
+        noticed here, or waits for the commit and is refused by `is_cancellable`.
+        The state is read from the locked row, because a progress update of this
+        job can overwrite the cancelled state in the cache.
         """
 
+        if self._copies_from_workspace(job) and not JobHandler.related_object_exists(
+            job, "source_workspace", lock=True
+        ):
+            raise WorkspaceDoesNotExist("The source workspace was deleted.")
         if JobHandler.lock_job(job).state == JOB_CANCELLED:
             raise JobCancelled()
         # The root is revision 1 of a created template.

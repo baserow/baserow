@@ -1,21 +1,26 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional, Set, Type
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.models import ContentType
-from django.db import transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q, QuerySet
 
 from celery.exceptions import SoftTimeLimitExceeded
 
 from baserow.core.utils import Progress
 
-from .constants import JOB_CANCELLED
+from .constants import (
+    JOB_CANCELLED,
+    JOB_FAILED,
+    JOB_FINISHED,
+    SAVE_ENDED_JOB_ATTEMPTS,
+)
 from .exceptions import JobCancelled, JobDoesNotExist, JobNotCancellable
 from .models import Job
-from .registries import job_type_registry
+from .registries import JobType, job_type_registry
 from .signals import job_started
 from .tasks import run_async_job
 from .types import AnyJob
@@ -46,10 +51,18 @@ class JobHandler:
                 raise JobNotCancellable()
 
             # Only the state is saved, so that what the job saved in the meantime
-            # is kept. The task checks the cache, so it's only updated once the
+            # is kept, and only if the job hasn't ended since the cached state was
+            # read. The task checks the cache, so it's only updated once the
             # cancellation commits: a rolled back one mustn't drop the task.
+            updated_on = datetime.now(tz=timezone.utc)
+            if (
+                not Job._base_manager.filter(id=job.id)
+                .exclude(state__in=(JOB_FINISHED, JOB_FAILED))
+                .update(state=JOB_CANCELLED, updated_on=updated_on)
+            ):
+                raise JobNotCancellable()
             job.state = JOB_CANCELLED
-            job.save(update_fields=["state", "updated_on"])
+            job.updated_on = updated_on
             transaction.on_commit(job.set_cached_state)
         return job
 
@@ -68,6 +81,121 @@ class JobHandler:
 
         Job._base_manager.select_for_update().only("id").get(id=job.id)
         return job.specific_class._base_manager.get(id=job.id)
+
+    @classmethod
+    def related_object_exists(cls, job: AnyJob, name: str, lock: bool = False) -> bool:
+        """
+        Tells whether the object a relation of the job points to exists, trashed or
+        not.
+
+        :param job: The specific job.
+        :param name: The name of the relation field.
+        :param lock: Lock the object's row (`FOR NO KEY UPDATE`) until the end of
+            the transaction.
+        :return: Whether the object exists.
+        """
+
+        field = job._meta.get_field(name)
+        queryset = field.related_model._base_manager
+        if lock:
+            queryset = queryset.select_for_update(no_key=True)
+        return queryset.filter(
+            **{field.target_field.attname: getattr(job, field.attname)}
+        ).exists()
+
+    @classmethod
+    def unset_relations_to_deleted_objects(cls, job: AnyJob) -> Set[str]:
+        """
+        Sets to None every `on_delete=SET_NULL` relation of the job whose object
+        doesn't exist anymore. The database already emptied them when the object was
+        deleted, so a save of the job in memory must not write them back.
+
+        :param job: The specific job.
+        :return: The names of the relations that were unset.
+        """
+
+        unset_relations = set()
+        for field in job._meta.concrete_fields:
+            if not field.is_relation or field.remote_field.on_delete != models.SET_NULL:
+                continue
+            if getattr(job, field.attname) is None:
+                continue
+            if not cls.related_object_exists(job, field.name):
+                setattr(job, field.name, None)
+                unset_relations.add(field.name)
+        return unset_relations
+
+    @classmethod
+    def get_deleted_required_relation_error(
+        cls, job: AnyJob, job_type: JobType
+    ) -> Optional[Exception]:
+        """
+        Unsets the relations of the job to deleted objects, then returns the
+        exception of the first required relation of the job type that is empty, see
+        `JobType.required_relations`. A relation is also empty when its object was
+        deleted before the job was loaded.
+
+        :param job: The specific job.
+        :param job_type: The type of the job.
+        :return: The exception, or None when no required relation was deleted.
+        """
+
+        cls.unset_relations_to_deleted_objects(job)
+        for name, exception_class in job_type.required_relations.items():
+            if getattr(job, job._meta.get_field(name).attname) is None:
+                return exception_class(
+                    f"The {name} of the {job_type.type} job {job.id} was deleted."
+                )
+        return None
+
+    @classmethod
+    def raise_if_required_relation_deleted(cls, job: AnyJob, job_type: JobType):
+        """
+        Raises the exception of a required relation of the job type whose object was
+        deleted, see `get_deleted_required_relation_error`. The objects of the
+        required relations are locked first, until the end of the transaction, so
+        that a deletion in flight is waited for and then noticed, and a later one
+        waits for the job to be saved.
+
+        :param job: The specific job.
+        :param job_type: The type of the job.
+        """
+
+        for name in job_type.required_relations:
+            cls.related_object_exists(job, name, lock=True)
+        error = cls.get_deleted_required_relation_error(job, job_type)
+        if error is not None:
+            raise error
+
+    @classmethod
+    def save_ended_job(cls, job: AnyJob, job_type: JobType, finished=False):
+        """
+        Saves the whole job once it ended, without writing back a relation to an
+        object that was deleted while it ran. A deletion that lands between the
+        check and the save makes the save fail, so it's tried again.
+
+        :param job: The specific job.
+        :param job_type: The type of the job.
+        :param finished: The job finished its work. Raises instead of saving when
+            the object of a required relation of the job type was deleted, see
+            `raise_if_required_relation_deleted`, or `JobCancelled` when the job was
+            cancelled in the meantime. The row of the job is locked, so that a later
+            cancellation is refused.
+        """
+
+        for attempt in range(1, SAVE_ENDED_JOB_ATTEMPTS + 1):
+            cls.unset_relations_to_deleted_objects(job)
+            try:
+                with transaction.atomic():
+                    if finished:
+                        cls.raise_if_required_relation_deleted(job, job_type)
+                        if cls.lock_job(job).state == JOB_CANCELLED:
+                            raise JobCancelled()
+                    job.save()
+                return
+            except IntegrityError:
+                if attempt == SAVE_ENDED_JOB_ATTEMPTS:
+                    raise
 
     @classmethod
     def run(cls, job: AnyJob):
