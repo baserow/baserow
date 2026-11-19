@@ -57,10 +57,7 @@
         >
       </template>
       <ButtonIcon
-        v-if="
-          hasOtherMenuItems ||
-          (installableUserTemplate && $featureFlagIsEnabled(FF_USER_TEMPLATES))
-        "
+        v-if="hasOtherMenuItems || installableUserTemplate"
         ref="moreButton"
         type="secondary"
         icon="iconoir-more-vert"
@@ -86,9 +83,7 @@
           </a>
         </li>
         <li
-          v-if="
-            installableUserTemplate && $featureFlagIsEnabled(FF_USER_TEMPLATES)
-          "
+          v-if="installableUserTemplate"
           class="context__menu-item"
           :class="{
             'context__menu-item--with-separator': hasMenuItems && !copyLinkItem,
@@ -124,7 +119,6 @@ import { useNuxtApp, useRouter, useRuntimeConfig } from '#app'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { signedInUserCheck } from '@baserow/modules/core/utils/auth'
-import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import {
   canInstall,

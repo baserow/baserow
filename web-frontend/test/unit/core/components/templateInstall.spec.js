@@ -414,7 +414,12 @@ describe('TemplateInstall', () => {
     test.each([
       ['a user template', userTemplate, true, ['download']],
       ['an official template', template, true, []],
-      ['a user template while user templates are off', userTemplate, false, []],
+      [
+        'a user template while user templates are off',
+        userTemplate,
+        false,
+        ['download'],
+      ],
     ])('menu of %s', async (_, shown, flag, extra) => {
       signIn()
       const wrapper = await mountWithMenu(

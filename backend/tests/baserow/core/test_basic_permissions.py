@@ -1624,14 +1624,13 @@ def test_allow_if_template_permission_manager_allows_openable_templates(
         for row in templates:
             template, workspace = row[0], row[0].workspace
             token = get_link_token(template) if has_link else None
-            enabled = user_templates_enabled or template.type != Template.Type.USER
-            allowed = row[column] and enabled
+            allowed = row[column]
             listed_column = OTHERS if column == HOLDER else column
-            listed = row[listed_column] and enabled
+            listed = row[listed_column]
             in_lists = column != ADMIN or row[OTHERS]
             as_admin = OWNER if column == ADMIN else None
-            checked = row[as_admin or column] and enabled
-            checked_listed = row[as_admin or listed_column] and enabled
+            checked = row[as_admin or column]
+            checked_listed = row[as_admin or listed_column]
             opener = PermissionCheck(actor, ReadWorkspaceOperationType.type).actor
             reason = (template.name, actor, has_link)
             assert (
@@ -1723,8 +1722,7 @@ def test_allow_if_template_permissions_object_lists_official_and_own_templates(
             for row in templates
             if row[0].type != Template.Type.USER
             or (
-                user_templates_enabled
-                and row[column]
+                row[column]
                 and (
                     column == OWNER
                     or column == HOLDER
