@@ -17,25 +17,19 @@
       <template #head-html>
         <FormGroup class="margin-bottom-2" :error="htmlSaveError" small-label>
           <template #label>
-            <label :for="htmlInputId">
-              {{ $t('customCodeSettingForm.customHtml') }}
-            </label>
+            {{ $t('customCodeSettingForm.customHtml') }}
           </template>
-          <FormTextarea
-            :id="htmlInputId"
+          <CodeEditor
             :model-value="htmlDraft ?? savedHtml"
-            :rows="6"
-            :error="htmlSaveError"
-            :aria-invalid="htmlSaveError"
-            :aria-describedby="htmlSaveError ? htmlErrorId : undefined"
-            spellcheck="false"
+            language="html"
+            :placeholder="$t('customCodeSettingForm.customHtmlPlaceholder')"
+            :modal-title="$t('customCodeSettingForm.customHtml')"
+            :error-message="htmlErrorMessage"
             @update:model-value="onHtmlChanged"
             @blur="autosaveHtml.flush()"
           />
           <template #error>
-            <span :id="htmlErrorId" role="alert">
-              {{ $t('customCodeSettingForm.customHtmlSaveError') }}
-            </span>
+            <span role="alert">{{ htmlErrorMessage }}</span>
           </template>
         </FormGroup>
       </template>
@@ -44,10 +38,9 @@
 </template>
 
 <script>
-import { useId } from 'vue'
 import _ from 'lodash'
 import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
-import FormTextarea from '@baserow/modules/core/components/FormTextarea'
+import CodeEditor from '@baserow/modules/core/components/CodeEditor.vue'
 import { clone, isSubObject } from '@baserow/modules/core/utils/object'
 import CustomCodeSettingForm from '@baserow_enterprise/components/builder/CustomCodeSettingForm.vue'
 
@@ -59,7 +52,7 @@ export default {
   components: {
     CustomCodeSettingForm,
     ApplicationUntrustedContentAlert,
-    FormTextarea,
+    CodeEditor,
   },
   provide() {
     return {
@@ -73,10 +66,6 @@ export default {
       required: true,
     },
   },
-  setup() {
-    const htmlInputId = useId()
-    return { htmlInputId, htmlErrorId: `${htmlInputId}-error` }
-  },
   data() {
     return {
       htmlDraft: null,
@@ -84,6 +73,11 @@ export default {
     }
   },
   computed: {
+    htmlErrorMessage() {
+      return this.htmlSaveError
+        ? this.$t('customCodeSettingForm.customHtmlSaveError')
+        : ''
+    },
     savedHtml() {
       return this.builder.custom_code?.html ?? ''
     },

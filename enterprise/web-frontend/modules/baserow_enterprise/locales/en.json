@@ -890,6 +890,7 @@
     "customHtmlSaveError": "Could not save the HTML. Edit the field to try again.",
     "customCSSPlaceholder": "Enter some custom CSS code...",
     "customJSPlaceholder": "Enter some custom JS code...",
+    "customHtmlPlaceholder": "Enter some custom HTML code...",
     "externalScripts": "External scripts / stylesheets",
     "noScript": "Enhance your application with external scripts or stylesheets",
     "customCodeTitle": "Custom code",

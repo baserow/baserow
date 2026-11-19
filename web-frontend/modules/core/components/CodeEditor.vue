@@ -18,6 +18,7 @@
       wide
       content-scrollable
       @show="focusModalEditor"
+      @hidden="$emit('blur')"
     >
       <h2 class="box__title">
         {{ modalTitle }}
@@ -25,6 +26,9 @@
       <div class="code-editor code-editor--modal">
         <EditorContent :editor="modalEditor" />
       </div>
+      <p v-if="errorMessage" class="control__messages--error" role="alert">
+        {{ errorMessage }}
+      </p>
     </Modal>
   </div>
 </template>
@@ -50,7 +54,7 @@ export default {
     language: {
       type: String,
       default: 'javascript',
-      validator: (value) => ['javascript', 'css'].includes(value),
+      validator: (value) => ['javascript', 'css', 'html'].includes(value),
     },
     modelValue: {
       type: String,
@@ -64,8 +68,12 @@ export default {
       type: String,
       default: 'Code',
     },
+    errorMessage: {
+      type: String,
+      default: '',
+    },
   },
-  emits: ['update:modelValue'],
+  emits: ['update:modelValue', 'blur'],
   data() {
     return {
       editor: null,
@@ -85,19 +93,21 @@ export default {
     },
   },
   async mounted() {
-    const { CodeBlockLowlight } =
-      await import('@tiptap/extension-code-block-lowlight')
-    const { createLowlight } = await import('lowlight')
-    const lowlight = createLowlight()
+    const [
+      { CodeBlockLowlight },
+      { createLowlight },
+      { default: javascript },
+      { default: css },
+      { default: xml },
+    ] = await Promise.all([
+      import('@tiptap/extension-code-block-lowlight'),
+      import('lowlight'),
+      import('highlight.js/lib/languages/javascript'),
+      import('highlight.js/lib/languages/css'),
+      import('highlight.js/lib/languages/xml'),
+    ])
 
-    const { default: javascript } =
-      await import('highlight.js/lib/languages/javascript')
-    const { default: css } = await import('highlight.js/lib/languages/css')
-
-    lowlight.register('javascript', javascript)
-    lowlight.register('css', css)
-
-    this.lowlight = lowlight
+    this.lowlight = createLowlight({ javascript, css, xml })
     this.LockedCodeBlockLowlight = CodeBlockLowlight.extend({
       addKeyboardShortcuts() {
         const parentShortcuts = this.parent?.() || {}
@@ -131,6 +141,14 @@ export default {
   methods: {
     createEditor() {
       return new Editor({
+        editorProps: {
+          attributes: {
+            role: 'textbox',
+            'aria-label': this.modalTitle,
+            'aria-multiline': 'true',
+            spellcheck: 'false',
+          },
+        },
         extensions: [
           CodeEditorDocument,
           Text,
@@ -154,6 +172,7 @@ export default {
             this.$emit('update:modelValue', currentCode)
           }
         },
+        onBlur: ({ event }) => this.$emit('blur', event),
       })
     },
     generateCodeBlock(code) {
@@ -172,8 +191,9 @@ export default {
     },
     setEditorContent(editor, code) {
       if (editor && code !== editor.getText()) {
-        editor.commands.setContent(this.generateCodeBlock(code), false, {
-          preserveWhitespace: 'full',
+        editor.commands.setContent(this.generateCodeBlock(code), {
+          emitUpdate: false,
+          parseOptions: { preserveWhitespace: 'full' },
         })
       }
     },

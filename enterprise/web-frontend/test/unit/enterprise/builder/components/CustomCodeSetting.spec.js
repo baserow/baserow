@@ -27,19 +27,17 @@ async function mountSetting() {
       stubs: {
         ApplicationUntrustedContentAlert: true,
         CodeEditor: {
-          props: ['modelValue', 'language'],
-          emits: ['update:modelValue'],
+          props: ['modelValue', 'language', 'placeholder'],
+          emits: ['update:modelValue', 'blur'],
           template: `<textarea :data-language="language" :value="modelValue"
+            :placeholder="placeholder" @blur="$emit('blur', $event)"
             @input="$emit('update:modelValue', $event.target.value)"></textarea>`,
         },
       },
     },
   })
 
-  const label = wrapper
-    .findAll('label[for]')
-    .find((label) => label.text() === 'customCodeSettingForm.customHtml')
-  const html = wrapper.get(`textarea[id="${label.attributes('for')}"]`)
+  const html = wrapper.get('textarea[data-language="html"]')
   return { builder, dispatch, applyUpdate, wrapper, html }
 }
 
@@ -57,6 +55,9 @@ test('autosaves HTML independently of CSS and can clear it', async () => {
       Node.DOCUMENT_POSITION_FOLLOWING
   ).toBeTruthy()
   expect(html.element.value).toBe(savedHtml)
+  expect(html.attributes('placeholder')).toBe(
+    'customCodeSettingForm.customHtmlPlaceholder'
+  )
   expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
   await wrapper.get('textarea[data-language="css"]').setValue('body {}')
 
