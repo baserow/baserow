@@ -1,5 +1,7 @@
 import pytest
 
+from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.core.exceptions import PermissionException
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -186,4 +188,60 @@ def test_only_admins_promote_an_integration(
     assert (
         Integration.objects.get(id=integration.id).application_id
         == shared_application.id
+    )
+
+
+@pytest.mark.django_db
+def test_new_nodes_only_preselect_workspace_integrations_for_who_may_list_them(
+    data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    app_builder = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[app_builder])
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    # Builder on the automation only, so the workspace integrations aren't listed.
+    RoleAssignmentHandler().assign_role(
+        app_builder, workspace, role=Role.objects.get(uid="EDITOR")
+    )
+    RoleAssignmentHandler().assign_role(
+        app_builder,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=automation.application_ptr,
+    )
+    # The manual trigger has no integration, so the automation starts with none.
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, trigger_type="manual"
+    )
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace),
+        user=admin,
+    )
+
+    def create_node(user, **kwargs):
+        node = AutomationNodeService().create_node(
+            user,
+            automation_node_type_registry.get("local_baserow_create_row"),
+            workflow,
+            reference_node_id=workflow.get_trigger().id,
+            position="south",
+            output="",
+            **kwargs,
+        )
+        node.service.refresh_from_db()
+        return node.service.integration_id
+
+    assert create_node(admin) == workspace_integration.id
+    assert create_node(app_builder) is None
+
+    own = data_fixture.create_local_baserow_integration(
+        application=automation, user=app_builder
+    )
+
+    assert create_node(app_builder) == own.id
+    # An integration given to the node is kept, although the own one would be
+    # preselected.
+    assert (
+        create_node(app_builder, service={"integration_id": workspace_integration.id})
+        == workspace_integration.id
     )

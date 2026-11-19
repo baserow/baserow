@@ -107,6 +107,49 @@ def test_get_integrations(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_usable_integrations(data_fixture):
+    workspace = data_fixture.create_workspace()
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    own = data_fixture.create_local_baserow_integration(application=builder)
+    workspace_integration = data_fixture.create_smtp_integration(
+        application=shared_application
+    )
+    # Neither another application's integration in the workspace nor the
+    # workspace integration of another workspace can be used.
+    data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(workspace=workspace)
+    )
+    data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application()
+    )
+
+    integrations = IntegrationHandler().get_usable_integrations(builder)
+
+    assert sorted(i.id for i in integrations) == sorted(
+        [own.id, workspace_integration.id]
+    )
+    assert {type(i) for i in integrations} == {
+        LocalBaserowIntegration,
+        type(workspace_integration),
+    }
+
+
+@pytest.mark.django_db
+def test_get_usable_integrations_of_a_published_copy(data_fixture):
+    workspace = data_fixture.create_workspace()
+    data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace)
+    )
+    published_builder = data_fixture.create_builder_application(workspace=None)
+    own = data_fixture.create_local_baserow_integration(application=published_builder)
+
+    integrations = IntegrationHandler().get_usable_integrations(published_builder)
+
+    assert [i.id for i in integrations] == [own.id]
+
+
+@pytest.mark.django_db
 def test_delete_integration(data_fixture):
     integration = data_fixture.create_local_baserow_integration()
 
