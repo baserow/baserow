@@ -103,7 +103,8 @@ class IntegrationHandler:
         :param integration_id: The exported integration ID, if any.
         :param id_mapping: The import ID mapping.
         :param application_id: The application the service is imported into. When
-            given, an integration belonging to another application is dropped.
+            given, an integration the application can't use is dropped, see
+            `check_integration_usable`.
         :param keep_unmapped: Whether an ID missing from the mapping is kept, as
             duplicating within an application doesn't copy its integrations.
         :return: The integration, or `None` when there's none to refer to.
@@ -146,15 +147,21 @@ class IntegrationHandler:
         checked, in that order.
 
         :param integration: The integration to check.
-        :param application_id: The application the integration must belong to.
+        :param application_id: The application the integration is used from. It can
+            use its own integrations and the workspace integrations of its
+            workspace.
         :param workspace_id: The workspace the integration must belong to.
         :param integration_types: The integration types accepted.
-        :raises IntegrationNotInApplication: When it belongs to another application.
+        :raises IntegrationNotInApplication: When the application can't use it.
         :raises IntegrationNotInWorkspace: When it belongs to another workspace.
         :raises IntegrationTypeNotAllowed: When it isn't of an accepted type.
         """
 
-        if application_id is not None and integration.application_id != application_id:
+        if (
+            application_id is not None
+            and integration.application_id != application_id
+            and not self.is_workspace_integration_of(integration, application_id)
+        ):
             raise IntegrationNotInApplication()
 
         if (
@@ -201,6 +208,34 @@ class IntegrationHandler:
 
         return application.specific_class is SharedApplication
 
+    def is_workspace_integration_of(
+        self, integration: Integration, application_id: int
+    ) -> bool:
+        """
+        Returns whether the integration is a workspace integration of the given
+        application's workspace. A published copy of an application has no workspace,
+        so it never matches: publishing copies the workspace integrations its
+        services use. The answer is cached for the request, as every dispatch of a
+        service checks it.
+
+        :param integration: The integration.
+        :param application_id: The ID of the application it's used from.
+        :return: True when its shared application is the one of that workspace.
+        """
+
+        shared_application_id = integration.application_id
+
+        def resolve():
+            return SharedApplication.objects_and_trash.filter(
+                id=shared_application_id,
+                workspace__application__id=application_id,
+            ).exists()
+
+        return local_cache.get(
+            f"shared_application_{shared_application_id}_serves_{application_id}",
+            resolve,
+        )
+
     def is_integration_usable(
         self,
         integration: Integration,
@@ -212,7 +247,7 @@ class IntegrationHandler:
         Returns whether `check_integration_usable` accepts the integration.
 
         :param integration: The integration to check.
-        :param application_id: The application the integration must belong to.
+        :param application_id: The application the integration is used from.
         :param workspace_id: The workspace the integration must belong to.
         :param integration_types: The integration types accepted.
         :return: True when the integration fits every given constraint.

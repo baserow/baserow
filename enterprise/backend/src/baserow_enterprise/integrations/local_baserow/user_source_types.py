@@ -536,8 +536,8 @@ class LocalBaserowUserSourceType(UserSourceType):
                     )
                 )
                 or (
-                    # The users are read through the integration, which must belong
-                    # to the user source's application.
+                    # The users are read through the integration, which must be
+                    # usable from the user source's application.
                     field == "integration"
                     and not IntegrationHandler().is_integration_usable(
                         related_instance, application_id=user_source.application_id

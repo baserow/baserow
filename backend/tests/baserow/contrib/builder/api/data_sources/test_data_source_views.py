@@ -3220,7 +3220,8 @@ def test_dispatch_data_sources_view(
 def _create_mismatched_integration(data_fixture, kind, user, builder):
     """
     Returns an integration a `local_baserow_list_rows` data source in `builder`
-    must refuse: one of another type, or one belonging to another builder.
+    must refuse: one of another type, one belonging to another builder, or one of
+    another workspace.
     """
 
     if kind == "other_type":
@@ -3232,12 +3233,25 @@ def _create_mismatched_integration(data_fixture, kind, user, builder):
         return data_fixture.create_local_baserow_integration(
             application=other_builder, authorized_user=user
         )
+    if kind == "other_workspace_integration":
+        return data_fixture.create_local_baserow_integration(
+            application=data_fixture.create_shared_application(),
+            authorized_user=user,
+        )
     # A builder in a workspace the user isn't a member of.
     return data_fixture.create_local_baserow_integration()
 
 
+MISMATCHED_INTEGRATION_KINDS = [
+    "other_type",
+    "other_builder",
+    "other_workspace",
+    "other_workspace_integration",
+]
+
+
 @pytest.mark.django_db
-@pytest.mark.parametrize("kind", ["other_type", "other_builder", "other_workspace"])
+@pytest.mark.parametrize("kind", MISMATCHED_INTEGRATION_KINDS)
 def test_create_data_source_rejects_mismatched_integration(
     api_client, data_fixture, kind
 ):
@@ -3268,7 +3282,7 @@ def test_create_data_source_rejects_mismatched_integration(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("has_integration", [True, False])
-@pytest.mark.parametrize("kind", ["other_type", "other_builder", "other_workspace"])
+@pytest.mark.parametrize("kind", MISMATCHED_INTEGRATION_KINDS)
 def test_update_data_source_rejects_mismatched_integration(
     api_client, data_fixture, kind, has_integration
 ):
@@ -3308,7 +3322,9 @@ def test_update_data_source_rejects_mismatched_integration(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("operation", ["create", "update"])
-@pytest.mark.parametrize("kind", ["other_builder", "other_workspace"])
+@pytest.mark.parametrize(
+    "kind", ["other_builder", "other_workspace", "other_workspace_integration"]
+)
 def test_data_source_answers_integration_of_another_application_as_missing(
     api_client, data_fixture, kind, operation
 ):
@@ -3364,6 +3380,50 @@ def test_data_source_answers_integration_of_another_application_as_missing(
             },
         }
     assert DataSource.objects.filter(page=page).count() == 1
+
+
+@pytest.mark.django_db
+def test_create_and_update_data_source_accept_a_workspace_integration(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    shared_application = data_fixture.create_shared_application(
+        workspace=page.builder.workspace
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, authorized_user=user
+    )
+    other_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, authorized_user=user
+    )
+
+    response = api_client.post(
+        reverse("api:builder:data_source:list", kwargs={"page_id": page.id}),
+        {
+            "name": "test",
+            "type": "local_baserow_list_rows",
+            "integration_id": integration.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["integration_id"] == integration.id
+
+    response = api_client.patch(
+        reverse(
+            "api:builder:data_source:item",
+            kwargs={"data_source_id": response.json()["id"]},
+        ),
+        {"integration_id": other_integration.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    assert response.json()["integration_id"] == other_integration.id
 
 
 def _create_foreign_integration_and_table(data_fixture, kind, user, builder):

@@ -970,6 +970,34 @@ def test_automation_node_type_dispatch_refuses_integration_of_another_applicatio
 
 
 @pytest.mark.django_db
+def test_automation_node_type_dispatch_reads_through_a_workspace_integration(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    workspace = workflow.automation.workspace
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace),
+        authorized_user=user,
+    )
+    table = data_fixture.create_database_table(
+        database=data_fixture.create_database_application(workspace=workspace)
+    )
+    field = data_fixture.create_text_field(table=table, primary=True, name="Name")
+    table.get_model().objects.create(**{field.db_column: "Visible"})
+    node = data_fixture.create_automation_node(
+        workflow=workflow,
+        type="local_baserow_list_rows",
+        reference_node_id=workflow.get_trigger().id,
+        service_kwargs={"integration": integration, "table": table},
+    )
+
+    result = node.get_type().dispatch(node, AutomationDispatchContext(workflow, None))
+
+    assert [row["Name"] for row in result.data["results"]] == ["Visible"]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("with_integration", [True, False])
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.async_start_workflow"

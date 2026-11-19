@@ -80,10 +80,11 @@ class IntegrationConsumerMixin:
 
     def check_integration(self, application: Application, values: Dict[str, Any]):
         """
-        Validates that the prepared integration belongs to the given application and
-        is of `integration_type`. An integration of another application is answered
-        like one that doesn't exist, so that the answer says nothing about what the
-        other application holds.
+        Validates that the prepared integration can be used from the given
+        application, being its own or a workspace integration of its workspace, and is
+        of `integration_type`. An integration the application can't use is answered
+        like one that doesn't exist, so that the answer says nothing about what
+        another application holds.
 
         :param application: The application the instance belongs to.
         :param values: The prepared values, as returned by `prepare_values`.
