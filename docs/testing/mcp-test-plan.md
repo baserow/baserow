@@ -348,9 +348,9 @@ Expected: `create_database`, `create_automation`, `create_dashboard` and
 sidebar. Ask Claude to rename each one: the matching `update_` tool is called
 and the sidebar shows the new name. A name of only spaces is refused.
 
-These writes can't be undone with Ctrl+Z in Baserow, because the action is
-stored without a client session id. Delete the application to take it back; it
-goes to the trash.
+These writes can't be undone with Ctrl+Z in Baserow, which only undoes the
+browser's own changes. With the `undo` tool turned on, ask Claude to undo the
+last rename: the old name is back in the sidebar.
 
 ### Create a new application website
 

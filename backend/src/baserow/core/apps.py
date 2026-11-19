@@ -454,13 +454,18 @@ class CoreConfig(AppConfig):
         )
         from baserow.core.mcp.groups import (
             WorkspaceReadMCPToolGroup,
+            WorkspaceUndoMCPToolGroup,
             mcp_tool_group_registry,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
         from baserow.core.mcp.search.tools import SearchWorkspaceMcpTool
+        from baserow.core.mcp.undo.tools import RedoMcpTool, UndoMcpTool
 
         mcp_tool_group_registry.register(WorkspaceReadMCPToolGroup())
+        mcp_tool_group_registry.register(WorkspaceUndoMCPToolGroup())
         mcp_tool_registry.register(SearchWorkspaceMcpTool())
+        mcp_tool_registry.register(UndoMcpTool())
+        mcp_tool_registry.register(RedoMcpTool())
 
         action_type_registry.register(CreateMCPEndpointActionType())
         action_type_registry.register(UpdateMCPEndpointActionType())
