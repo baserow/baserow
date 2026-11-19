@@ -521,15 +521,24 @@ class ActionNodeCreate(BaseModel):
         "", max_length=75, description="Display name. Defaults to the node type."
     )
     type: ActionNodeType
-    previous_node_ref: str = Field(
-        ...,
+    previous_node_ref: str | None = Field(
+        default=None,
         description="The ref of the node this one follows: a node defined earlier "
         "in the call, or the ID of a node already in the workflow. The new node is "
-        "inserted there, and the node that followed it then follows the new one.",
+        "inserted there, and the node that followed it then follows the new one. "
+        "Give this or before_node_id.",
     )
     router_edge_label: str = Field(
         default="",
         description="Branch label if previous node is a router.",
+    )
+    before_node_id: int | None = Field(
+        default=None,
+        description="The ID of a node already in the workflow to insert this one "
+        "right before, in its place: on the same branch, or first in the same "
+        "container. That node and the nodes after it then follow the new one. Use "
+        "it to add a node before an existing one, instead of previous_node_ref and "
+        "router_edge_label. Give this or previous_node_ref.",
     )
 
     # -- router --
@@ -616,6 +625,13 @@ class ActionNodeCreate(BaseModel):
     def _validate_required_for_type(self):
         if not self.label:
             self.label = self.type.replace("_", " ").capitalize()
+        if (self.previous_node_ref is None) == (self.before_node_id is None):
+            raise ValueError("Give either previous_node_ref or before_node_id.")
+        if self.before_node_id is not None and self.router_edge_label:
+            raise ValueError(
+                "router_edge_label is not used with before_node_id: the new node "
+                "takes the branch of the node it is inserted before."
+            )
         labels = [edge.label.lower() for edge in self.edges or []]
         if len(labels) != len(set(labels)):
             raise ValueError("Each router branch needs its own label.")
@@ -984,6 +1000,7 @@ _COMMON_FIELDS = {
     "type",
     "previous_node_ref",
     "router_edge_label",
+    "before_node_id",
 }
 
 
@@ -1031,3 +1048,14 @@ class WorkflowCreate(BaseModel):
         default_factory=list,
         description="Action nodes executed after the trigger. Each node has one previous_node_ref.",
     )
+
+    @model_validator(mode="after")
+    def _validate_nodes_follow_refs(self):
+        # A new workflow has no existing node to insert before.
+        for node in self.nodes:
+            if node.before_node_id is not None:
+                raise ValueError(
+                    f"Node '{node.ref}' has before_node_id: in a new workflow, "
+                    "place each node with previous_node_ref."
+                )
+        return self

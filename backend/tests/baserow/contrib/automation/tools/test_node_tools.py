@@ -1573,3 +1573,176 @@ def test_node_refs_refuses_default_when_two_branches_match_it():
     assert "leave router_edge_label out" not in str(error.value)
     refs.add("plain", 2, {"Big": "uid3"})
     assert refs.resolve("plain", "default") == (2, "")
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_puts_a_router_before_an_iterator_child(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    iterator = create_node(ctx.user, workflow, "iterator", reference_node_id=trigger.id)
+    child = create_node(
+        ctx.user,
+        workflow,
+        "smtp_email",
+        reference_node_id=iterator.id,
+        position="child",
+    )
+
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                before_node_id=child.id,
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )
+
+    (router,) = result["created_nodes"]
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    graph = workflow.get_graph().graph
+    assert graph[str(iterator.id)]["children"] == {"": [router["id"]]}
+    assert graph[str(router["id"])]["next"] == {str(edge.uid): [child.id]}
+    (shifted,) = result["shifted_nodes"]
+    assert (shifted["id"], shifted["router_edge_label"]) == (child.id, "Match")
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_keeps_the_branch_when_labels_repeat(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    first, second = str(uuid4()), str(uuid4())
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={
+            "edges": [{"uid": first, "label": "Big"}, {"uid": second, "label": "Big"}]
+        },
+    )
+    email = create_node(
+        ctx.user, workflow, "smtp_email", reference_node_id=router.id, output=second
+    )
+
+    (log,) = add_nodes(
+        ctx, workflow.id, [_email(ref="log", previous=None, before_node_id=email.id)]
+    )["created_nodes"]
+
+    graph = workflow.get_graph().graph
+    assert graph[str(router.id)]["next"] == {second: [log["id"]]}
+    assert graph[str(log["id"])]["next"] == {"": [email.id]}
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_leaves_a_node_added_before_it(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    # Another editor adds a log step after the trigger, after the caller listed
+    # the nodes.
+    (log,) = add_nodes(ctx, workflow.id, [_email(ref="log", previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                before_node_id=email["id"],
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    graph = workflow.get_graph().graph
+    assert graph[str(trigger.id)]["next"] == {"": [log["id"]]}
+    assert graph[str(log["id"])]["next"] == {"": [router["id"]]}
+    assert graph[str(router["id"])]["next"] == {str(edge.uid): [email["id"]]}
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_router_needs_its_branch_chosen(automation_ctx):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+
+    with pytest.raises(DjangoValidationError, match=f"before node '{email['id']}'"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [
+                ActionNodeCreate(
+                    ref="router",
+                    type="router",
+                    before_node_id=email["id"],
+                    edges=[{"label": "Match", "condition": "true"}],
+                )
+            ],
+        )
+
+
+@pytest.mark.django_db
+def test_add_nodes_before_node_id_refuses_the_trigger_and_unknown_nodes(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    other, other_trigger = create_workflow(ctx.user, automation, "Other", table)
+    (email,) = add_nodes(ctx, other.id, [_email(previous=str(other_trigger.id))])[
+        "created_nodes"
+    ]
+    before = deepcopy(workflow.get_graph().graph)
+
+    with pytest.raises(DjangoValidationError, match="trigger"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [_email(previous=None, before_node_id=trigger.id)],
+        )
+    with pytest.raises(DjangoValidationError, match="not the ID of a node"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [_email(previous=None, before_node_id=email["id"])],
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+@pytest.mark.parametrize(
+    "position,error",
+    [
+        ({}, "Give either"),
+        ({"previous_node_ref": "1", "before_node_id": 2}, "Give either"),
+        ({"before_node_id": 2, "router_edge_label": "Big"}, "takes the branch"),
+    ],
+)
+def test_add_nodes_takes_exactly_one_position(position, error):
+    with pytest.raises(PydanticValidationError, match=error):
+        ActionNodeCreate(
+            ref="mail",
+            type="smtp_email",
+            to_emails="team@example.com",
+            subject="Hi",
+            body="Hello",
+            **position,
+        )

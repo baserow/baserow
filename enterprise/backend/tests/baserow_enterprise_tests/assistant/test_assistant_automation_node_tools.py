@@ -188,6 +188,51 @@ def test_add_node_after_existing(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_add_node_before_existing_by_id(data_fixture):
+    """
+    Insert a router before the existing email node by its ID, with the email on
+    the router's branch.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    automation, workflow_id = _create_test_workflow(data_fixture, user, workspace)
+    ctx = make_test_ctx(user, workspace)
+    trigger_id, email_id = [
+        node["id"]
+        for node in list_nodes(ctx, workflow_id=workflow_id, thought="x")["nodes"]
+    ]
+
+    result = add_nodes(
+        ctx,
+        workflow_id=workflow_id,
+        nodes=[
+            ActionNodeCreate(
+                ref="router1",
+                label="Only VIPs",
+                type="router",
+                before_node_id=email_id,
+                edges=[{"label": "VIP", "condition": "true"}],
+                shifted_node_edge_label="VIP",
+            )
+        ],
+        thought="put the email behind a condition",
+    )
+
+    (router,) = result["created_nodes"]
+    (shifted,) = result["shifted_nodes"]
+    assert (shifted["id"], shifted["router_edge_label"]) == (email_id, "VIP")
+    final = list_nodes(ctx, workflow_id=workflow_id, thought="verify")["nodes"]
+    assert [node["id"] for node in final] == [trigger_id, router["id"], email_id]
+
+
+def test_add_nodes_prompt_inserts_before_a_node_by_id():
+    doc = add_nodes.__doc__
+    assert "To add a node before an existing node X, set before_node_id" in doc
+    assert "use X's previous_node_ref" not in doc
+
+
+@pytest.mark.django_db(transaction=True)
 def test_add_node_append_to_workflow(data_fixture):
     """Append a new action node at the end of an existing workflow."""
     user = data_fixture.create_user()
