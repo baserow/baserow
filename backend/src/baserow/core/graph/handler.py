@@ -1129,18 +1129,17 @@ class BaseGraphHandler(ABC):
         point: GraphPoint,
         from_output: str,
         to_output: str,
-        at_point_ids: Iterable[int] = (),
+        moved_point_ids: Iterable[int],
     ) -> None:
         """
-        The opposite of `join_next_points`: only the points before the first of
-        `at_point_ids` in the chain on `from_output` move to `to_output`, it and the
-        points after it stay. The whole chain moves when it holds none of them.
+        The opposite of `join_next_points`: the points at the start of the chain on
+        `from_output` that are in `moved_point_ids` move to `to_output`, up to the
+        first point that isn't. That point and the points after it stay.
 
         :param point: The point whose outputs to change.
         :param from_output: The output whose points move.
         :param to_output: The output the points move to.
-        :param at_point_ids: The IDs of the points that stay, as joined: the
-            chain splits at the first one still in it.
+        :param moved_point_ids: The IDs of the points that may move.
         :raises GraphPointReferencePointInvalid: When there are points to move and
             points already follow the point on `to_output`.
         """
@@ -1150,21 +1149,25 @@ class BaseGraphHandler(ABC):
         if not next_points.get(from_output):
             return
         chain = self._walk_chain_ids(next_points[from_output][0], set())
-        staying_ids = {str(point_id) for point_id in at_point_ids}
-        index = next(
-            (index for index, point_id in enumerate(chain) if point_id in staying_ids),
-            None,
+        moved_ids = {str(point_id) for point_id in moved_point_ids}
+        count = next(
+            (
+                index
+                for index, point_id in enumerate(chain)
+                if point_id not in moved_ids
+            ),
+            len(chain),
         )
-        if index is None:
-            self.move_next_points(point, from_output, to_output)
+        if count == 0:
             return
-        if index == 0:
+        if count == len(chain):
+            self.move_next_points(point, from_output, to_output)
             return
         if next_points.get(to_output):
             raise GraphPointReferencePointInvalid(
                 f"Points already follow point {point.id} on output {to_output}."
             )
-        staying = self.get_info(chain[index - 1])["next"].pop("")
+        staying = self.get_info(chain[count - 1])["next"].pop("")
         self.get_info(point)["next"] = {
             **next_points,
             to_output: next_points[from_output],

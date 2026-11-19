@@ -80,16 +80,20 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
 
     @classmethod
     def split_outputs_on_restore(
-        cls, node_id: int, next_output: str, joined_node_ids: list[int]
+        cls,
+        node_id: int,
+        next_output: str,
+        moved_node_ids: list[int],
+        joined_node_ids: list[int],
     ):
         """
-        Note on a trashed node's entry that, once restored, the nodes on its default
-        output before the first of `joined_node_ids` move to `next_output`. Undoing
-        an insert before nodes joins them onto the default output, so the restore
-        puts them back.
+        Note on a trashed node's entry that, once restored, the nodes an insert
+        moved to `next_output` go back there. Undoing the insert joined them onto
+        the default output, before `joined_node_ids`.
 
         :param node_id: The ID of the trashed node.
         :param next_output: The output the nodes move back to.
+        :param moved_node_ids: The nodes the insert moved to `next_output`.
         :param joined_node_ids: The nodes that were on the default output before
             the join, which stay there.
         """
@@ -98,9 +102,31 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
         trash_entry.additional_restoration_data = {
             **trash_entry.additional_restoration_data,
             "next_output": next_output,
+            "moved_node_ids": moved_node_ids,
             "joined_node_ids": joined_node_ids,
         }
         trash_entry.save(update_fields=["additional_restoration_data"])
+
+    def _split_outputs(self, node: AutomationNode, data: dict):
+        """
+        Move the nodes the insert moved back to their output: the run of them at
+        the start of the default output, so a node added since stays where it is.
+
+        :raises TrashItemRestorationDisallowed: When the default output starts
+            with a node that is neither one of them nor one that was there.
+        """
+
+        moved_ids = data.get("moved_node_ids", [])
+        chain = node.workflow.get_graph().get_chain_ids(node, "")
+        if chain and int(chain[0]) not in {*moved_ids, *data["joined_node_ids"]}:
+            raise TrashItemRestorationDisallowed(
+                f"This automation node cannot be restored: node {chain[0]} was put "
+                "before the nodes it had on its branch, and would then run only "
+                "when the branch matches."
+            )
+        node.workflow.get_graph().split_next_points(
+            node, "", data["next_output"], moved_ids
+        )
 
     def trash(
         self,
@@ -144,9 +170,7 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
             and isinstance(data, dict)
             and data.get("next_output")
         ):
-            trashed_item.workflow.get_graph().split_next_points(
-                trashed_item, "", data["next_output"], data["joined_node_ids"]
-            )
+            self._split_outputs(trashed_item, data)
 
         AutomationNodeHandler().invalidate_node_cache(trashed_item.workflow)
 

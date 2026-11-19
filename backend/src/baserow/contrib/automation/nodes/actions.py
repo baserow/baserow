@@ -112,6 +112,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.split_outputs_on_restore(
                 params.node_id,
                 params.next_output,
+                params.moved_node_ids,
                 [int(node_id) for node_id in joined_ids],
             )
 
