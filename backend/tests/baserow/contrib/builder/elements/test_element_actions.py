@@ -717,7 +717,7 @@ def test_only_links_to_deleted_pages_are_cleared(data_fixture):
         str(kept.id),
         trashed.id,
         None,
-        deleted_id,
+        None,
     ]
 
 
@@ -789,6 +789,8 @@ def test_undo_of_removing_a_button_column_brings_back_its_click_actions(
         assert [c.kwargs["workflow_action_id"] for c in deleted.call_args_list] == [
             removed_action.id
         ]
+        # The tab that removed the column doesn't know its action is gone.
+        assert [c.kwargs["user"] for c in deleted.call_args_list] == [None]
 
         _undo(user, page, session_id)
         assert [str(c.uid) for c in table.fields.order_by("order")] == [
@@ -887,3 +889,128 @@ def test_update_element_action_undo_redo_of_style_and_visibility(data_fixture):
 
     _redo(user, page, session_id)
     assert saved() == values
+
+
+def _menu_link(uid, name, **kwargs):
+    return {"uid": uid, "type": "link", "variant": "link", "name": name, **kwargs}
+
+
+def _menu_items(menu):
+    return menu.get_type().export_prepared_values(menu, {"menu_items"})["menu_items"]
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_menu_update_and_its_undo_keep_a_sub_link_button_click_action(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    menu = data_fixture.create_builder_menu_element(page=page)
+    parent, button, sibling = (str(uuid.uuid4()) for _ in range(3))
+    ElementService().update_element(
+        user,
+        menu,
+        menu_items=[
+            _menu_link(parent, "Parent", children=[{"uid": button, "type": "button"}])
+        ],
+    )
+    menu.refresh_from_db()
+    UpdateElementActionType.do(
+        user,
+        menu,
+        {"menu_items": [*_menu_items(menu), _menu_link(sibling, "Sibling")]},
+    )
+    # Attached from another session, after the update.
+    action = data_fixture.create_notification_workflow_action(
+        page=page, element=menu, event=f"{button}_click"
+    )
+
+    _undo(user, page, session_id)
+
+    assert {str(item.uid) for item in menu.menu_items.all()} == {parent, button}
+    assert _live(action)
+
+
+@pytest.mark.django_db
+def test_removing_a_column_keeps_another_elements_action_with_the_same_uid(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    uid = str(uuid.uuid4())
+    table = data_fixture.create_builder_table_element(
+        page=page, fields=[{**_button_column(), "uid": uid}, _button_column("Kept")]
+    )
+    other_table = data_fixture.create_builder_table_element(
+        page=page, fields=[{**_button_column(), "uid": uid}]
+    )
+    other_action = data_fixture.create_notification_workflow_action(
+        page=page, element=other_table, event=f"{uid}_click"
+    )
+
+    ElementService().update_element(user, table, fields=_columns(table)[1:])
+
+    assert _live(other_action)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_of_removing_a_column_restores_its_action_on_the_tables_new_page(
+    data_fixture,
+):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    other_page = data_fixture.create_builder_page(builder=page.builder)
+    table = data_fixture.create_builder_table_element(
+        page=page, fields=[_button_column(), _button_column("Kept")]
+    )
+    go = table.fields.order_by("order").first()
+    action = data_fixture.create_notification_workflow_action(
+        page=page, element=table, event=f"{go.uid}_click"
+    )
+    UpdateElementActionType.do(user, table, {"fields": _columns(table)[1:]})
+    ElementService().move_element(
+        user, other_page, table, "", None, GraphPointPosition.SOUTH
+    )
+
+    _undo(user, page, session_id)
+
+    assert list(
+        BuilderWorkflowAction.objects.filter(page=other_page).values_list(
+            "id", flat=True
+        )
+    ) == [action.id]
+    assert not BuilderWorkflowAction.objects.filter(page=page).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_undo_of_menu_items_drops_a_custom_links_unused_deleted_page(data_fixture):
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    other_page = data_fixture.create_builder_page(builder=page.builder)
+    menu = data_fixture.create_builder_menu_element(page=page)
+    ElementService().update_element(
+        user,
+        menu,
+        menu_items=[
+            _menu_link(
+                str(uuid.uuid4()),
+                "External",
+                navigation_type="custom",
+                navigate_to_page_id=other_page.id,
+                navigate_to_url="'https://example.com'",
+            )
+        ],
+    )
+    UpdateElementActionType.do(user, menu, {"menu_items": []})
+    other_page.delete()
+
+    _undo(user, page, session_id)
+
+    item = menu.menu_items.get()
+    assert item.navigation_type == "custom"
+    assert item.navigate_to_url["formula"] == "'https://example.com'"
+    assert item.navigate_to_page_id is None

@@ -43,7 +43,10 @@ class BuilderWorkflowActionTrashableItemType(TrashableItemType):
             self,
             workflow_action_id=item_to_trash.id,
             page=page,
-            user=requesting_user,
+            # Every tab hears it, the requester's included: an element update that
+            # removes a table column or menu item trashes its click actions without
+            # that tab knowing. Like `restore`, which every tab hears too.
+            user=None,
         )
 
     def restore(

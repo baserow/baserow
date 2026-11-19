@@ -462,12 +462,16 @@ class PageHandler:
             [page_path], existing_paths, max_length=255, suffix="/{0}"
         )
 
-    def _page_links(self, values: Any) -> List[Tuple[Dict[str, Any], int]]:
+    def _page_links(
+        self, values: Any, include_unused: bool = False
+    ) -> List[Tuple[Dict[str, Any], int]]:
         """
         Find every link to a page in the values of an element or workflow action,
         nested ones such as menu items and table columns included.
 
         :param values: The values to look through.
+        :param include_unused: Also return the page id a link to a custom URL
+            keeps but doesn't use.
         :return: Each dict holding a `navigate_to_page_id`, with that id as an int.
         :raises ValidationError: When a `navigate_to_page_id` isn't a page id.
         """
@@ -478,8 +482,8 @@ class PageHandler:
             if isinstance(value, dict):
                 page_id = value.get("navigate_to_page_id")
                 # A link to a custom URL keeps a page id it doesn't use.
-                if page_id not in (None, "") and value.get("navigation_type") != (
-                    "custom"
+                if page_id not in (None, "") and (
+                    include_unused or value.get("navigation_type") != "custom"
                 ):
                     try:
                         links.append((value, int(page_id)))
@@ -550,7 +554,8 @@ class PageHandler:
         Clear every `navigate_to_page_id`, nested ones included, that names a page
         that no longer exists. A trashed page's links are kept, so they work again
         when it's restored. Used to replay values saved before the page was
-        deleted, such as an undo snapshot.
+        deleted, such as an undo snapshot. The page id a link to a custom URL keeps
+        is cleared too, since saving it still needs the page.
 
         :param builder: The builder the values belong to.
         :param values: The values to replay.
@@ -558,7 +563,7 @@ class PageHandler:
         """
 
         values = deepcopy(values)
-        links = self._page_links(values)
+        links = self._page_links(values, include_unused=True)
         if not links:
             return values
         found = self._linkable_page_ids(builder, {page_id for _, page_id in links})

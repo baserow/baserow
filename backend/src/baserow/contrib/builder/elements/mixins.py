@@ -916,7 +916,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
 
             # Call before delete hook of removed fields
             for field in instance.fields.exclude(query):
-                field.get_type().before_delete(field)
+                field.get_type().before_delete(field, instance)
 
             # Remove previous fields
             instance.fields.all().delete()
@@ -934,7 +934,7 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     def before_delete(self, instance: CollectionElementSubClass):
         # Call the before_delete hook of all fields
         for field in instance.fields.all():
-            field.get_type().before_delete(field)
+            field.get_type().before_delete(field, instance)
 
         instance.fields.all().delete()
 

@@ -2706,7 +2706,12 @@ class MenuElementType(ElementType):
         if "menu_items" in values:
             instance.menu_items.all().delete()
 
-            menu_item_uids_to_keep = [item["uid"] for item in values["menu_items"]]
+            # Sub-links can be buttons with click actions too.
+            menu_item_uids_to_keep = [
+                item["uid"]
+                for parent in values["menu_items"]
+                for item in (parent, *parent.get("children", []))
+            ]
             self.delete_workflow_actions(instance, menu_item_uids_to_keep)
 
             items_to_create = []

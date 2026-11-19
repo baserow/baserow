@@ -73,6 +73,7 @@ def test_workflow_action_deleted(mock_broadcast_to_permitted_users, data_fixture
         page=page, element=element
     )
     workflow_action_id = workflow_action.id
+    user.web_socket_id = "requester-tab"
 
     BuilderWorkflowActionService().delete_workflow_action(
         user=user, workflow_action=workflow_action
@@ -84,6 +85,8 @@ def test_workflow_action_deleted(mock_broadcast_to_permitted_users, data_fixture
     assert args[0][4]["type"] == "workflow_action_deleted"
     assert args[0][4]["workflow_action_id"] == workflow_action_id
     assert args[0][4]["page_id"] == page.id
+    # The requester's tab hears it too.
+    assert args[0][5] is None
 
 
 @pytest.mark.django_db(transaction=True)

@@ -354,13 +354,15 @@ class ElementType(
             # the action would otherwise be left behind on the source page, so move it
             # along with the element. This runs for every element in a moved subtree
             # because each one passes through its type's wrap_move (which chains here).
+            # Trashed actions move too, so an undo restores them on the element's
+            # page.
             from baserow.contrib.builder.workflow_actions.models import (
                 BuilderWorkflowAction,
             )
 
-            BuilderWorkflowAction.objects.filter(element=element).update(
-                page_id=target_page.id
-            )
+            BuilderWorkflowAction.objects_including_trashed_elements.filter(
+                element=element
+            ).update(page_id=target_page.id)
 
     def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
         """
@@ -748,10 +750,13 @@ class CollectionFieldType(
 
         return serializer_class(model_instance_or_instances, context=context, **kwargs)
 
-    def before_delete(self, instance: CollectionField):
+    def before_delete(self, instance: CollectionField, element: Element):
         """
         This hooks is called before we delete a collection field and gives the
         opportunity to clean up things.
+
+        :param instance: The collection field about to be deleted.
+        :param element: The element the field belongs to.
         """
 
     def formula_generator(
