@@ -140,8 +140,9 @@ def test_effective_access_through_teams(data_fixture, enterprise_data_fixture):
 
     assert get_effective_access(workspace, table) == {
         admin: ("ADMIN", workspace, []),
-        # Roles of teams on the same scope add up: the highest one applies.
-        in_two_teams: ("EDITOR", application, ["Sales", "Support"]),
+        # Roles of teams on the same scope add up: the highest one applies, and
+        # only the team giving it is named.
+        in_two_teams: ("EDITOR", application, ["Sales"]),
         with_own_role: ("VIEWER", application, []),
     }
 
@@ -227,3 +228,50 @@ def test_effective_access_of_identities(data_fixture):
         workspace_identity: ("EDITOR", workspace, []),
         table_identity: ("VIEWER", table, []),
     }
+
+
+@pytest.mark.django_db
+def test_effective_access_names_every_team_giving_the_effective_role(
+    data_fixture, enterprise_data_fixture
+):
+    admin = data_fixture.create_user()
+    no_role = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(no_role, "NO_ROLE_LOW_PRIORITY")]
+    )
+    for name, role_uid in [("Ops", "EDITOR"), ("Finance", "EDITOR"), ("HR", "VIEWER")]:
+        team = enterprise_data_fixture.create_team(
+            workspace=workspace, name=name, members=[no_role]
+        )
+        assign(team, workspace, role_uid, workspace)
+
+    assert get_effective_access(workspace, workspace)[no_role] == (
+        "EDITOR",
+        workspace,
+        ["Finance", "Ops"],
+    )
+
+
+@pytest.mark.django_db
+def test_effective_access_of_given_subjects_only(data_fixture, enterprise_data_fixture):
+    admin = data_fixture.create_user()
+    editor = data_fixture.create_user()
+    no_role = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin,
+        custom_permissions=[(editor, "EDITOR"), (no_role, "NO_ROLE_LOW_PRIORITY")],
+    )
+    data_fixture.create_identity(workspace=workspace, name="Bot", role_uid="VIEWER")
+    team = enterprise_data_fixture.create_team(
+        workspace=workspace, name="Ops", members=[no_role]
+    )
+    assign(team, workspace, "EDITOR", workspace)
+
+    effective_access = RoleAssignmentHandler().get_effective_access(
+        workspace, workspace, subjects=[no_role, editor]
+    )
+
+    assert {
+        access.subject: (access.role.uid, [team.name for team in access.teams])
+        for access in effective_access
+    } == {editor: ("EDITOR", []), no_role: ("EDITOR", ["Ops"])}

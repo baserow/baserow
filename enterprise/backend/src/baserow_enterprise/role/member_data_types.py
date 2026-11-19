@@ -11,9 +11,18 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.operations import ListWorkspaceUsersWorkspaceOperationType
 from baserow.core.registries import permission_manager_type_registry, plugin_registry
-from baserow_enterprise.api.role.serializers import RoleField
+from baserow.core.types import PermissionCheck
+from baserow_enterprise.api.role.serializers import (
+    RoleField,
+    TeamWorkspaceRoleSerializer,
+)
+from baserow_enterprise.role.constants import (
+    NO_ROLE_LOW_PRIORITY_ROLE_UID,
+    ROLE_ASSIGNABLE_OBJECT_MAP,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
+from baserow_enterprise.teams.operations import ListTeamSubjectsOperationType
 from baserow_premium.plugins import PremiumPlugin
 
 User = get_user_model()
@@ -156,6 +165,102 @@ class EnterpriseRoleAssignmentCountDataType(MemberDataType):
         for member in serialized_data:
             member["role_assignment_count"] = count_per_user_id.get(
                 member["user_id"], 0
+            )
+
+        return serialized_data
+
+
+class EnterpriseTeamWorkspaceRoleDataType(MemberDataType):
+    type = "team_workspace_role"
+
+    def get_request_serializer_field(self) -> serializers.Field:
+        return TeamWorkspaceRoleSerializer(
+            required=False,
+            allow_null=True,
+            help_text=(
+                "Enterprise or advanced only: for a member whose own workspace role "
+                "is 'No role', the role they effectively hold on the workspace "
+                "through their teams, and the teams it comes through. Null when no "
+                "team gives them a role on the workspace."
+            ),
+        )
+
+    def annotate_serialized_workspace_members_data(
+        self,
+        workspace: Workspace,
+        serialized_data: List[OrderedDict],
+        user: AbstractUser,
+    ) -> List[OrderedDict]:
+        """
+        Annotates every member whose stored workspace role is "No role" with the
+        workspace role they take from their teams, resolved as the effective access
+        of the workspace is. Only those who may read the roles of the workspace get
+        it, and the teams are limited to the ones whose members they may list.
+        """
+
+        if (
+            "role" not in settings.PERMISSION_MANAGERS
+            or not permission_manager_type_registry.get("role").is_enabled(workspace)
+        ):
+            return serialized_data
+
+        for member in serialized_data:
+            member[self.type] = None
+
+        no_role_user_ids = {
+            member["user_id"]
+            for member in serialized_data
+            if member["permissions"] == NO_ROLE_LOW_PRIORITY_ROLE_UID
+        }
+        if not no_role_user_ids:
+            return serialized_data
+
+        if not CoreHandler().check_permissions(
+            user,
+            ROLE_ASSIGNABLE_OBJECT_MAP["workspace"]["READ"],
+            workspace=workspace,
+            context=workspace,
+            raise_permission_exceptions=False,
+        ):
+            return serialized_data
+
+        effective_access = RoleAssignmentHandler().get_effective_access(
+            workspace,
+            workspace,
+            subjects=list(User.objects.filter(id__in=no_role_user_ids)),
+        )
+        # Only a role through teams is shown: a member with "No role" and no team
+        # role on the workspace isn't in the effective access at all.
+        effective_access = [access for access in effective_access if access.teams]
+        if not effective_access:
+            return serialized_data
+
+        teams = {team for access in effective_access for team in access.teams}
+        checks = {
+            team.id: PermissionCheck(user, ListTeamSubjectsOperationType.type, team)
+            for team in teams
+        }
+        results = CoreHandler().check_multiple_permissions(
+            list(checks.values()), workspace=workspace
+        )
+        visible_team_ids = {
+            team_id for team_id, check in checks.items() if results[check] is True
+        }
+
+        team_workspace_role_per_user_id = {
+            access.subject.id: {
+                "role_uid": access.role.uid,
+                "teams": [
+                    {"id": team.id, "name": team.name}
+                    for team in access.teams
+                    if team.id in visible_team_ids
+                ],
+            }
+            for access in effective_access
+        }
+        for member in serialized_data:
+            member[self.type] = team_workspace_role_per_user_id.get(
+                member["user_id"], None
             )
 
         return serialized_data
