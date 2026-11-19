@@ -27,19 +27,24 @@ class GenerativeAIPromptError(Exception):
 
 def get_provider_api_error_types() -> tuple[type[Exception], ...]:
     """
-    The errors the provider SDKs raise when a request fails at the provider, like
-    an unreachable host, a timeout, an invalid key, a rate limit or an error
-    status. They're caused by the provider settings or by the provider itself, not
-    by Baserow.
+    The errors raised when a request fails at the provider, for the provider SDKs
+    whose Sentry integration captures client errors before re-raising them: OpenAI
+    (also used by the OpenAI-compatible providers), Anthropic and Google. They
+    cover an unreachable host, a timeout, an invalid key, a rate limit and every
+    error status the provider answers with, 4xx included, so a request rejected by
+    the provider is dropped too. That's fine where the error is shown to the user,
+    like when testing a model.
 
-    :return: The base API error class of each provider SDK.
+    :return: The base error classes of these SDKs. Google doesn't wrap transport
+        failures in its own errors, so the `httpx2` transport error is included.
     """
 
     from anthropic import APIError as AnthropicAPIError
     from google.genai.errors import APIError as GoogleAPIError
+    from httpx2 import TransportError as GoogleTransportError
     from openai import APIError as OpenAIAPIError
 
-    return (OpenAIAPIError, AnthropicAPIError, GoogleAPIError)
+    return (OpenAIAPIError, AnthropicAPIError, GoogleAPIError, GoogleTransportError)
 
 
 def get_user_friendly_error_message(exc: Exception) -> str:

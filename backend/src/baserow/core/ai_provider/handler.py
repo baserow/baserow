@@ -1115,8 +1115,9 @@ class AIProviderHandler:
                 for configured_model in provider.models.all()
             ]
             # A provider error is a test result shown to the user, not a server
-            # error, so it isn't reported to Sentry. Other errors still are.
-            with ignore_sentry_exceptions(get_provider_api_error_types()):
+            # error, so it isn't reported to Sentry. Other errors captured by the
+            # Sentry client integrations still are.
+            with ignore_sentry_exceptions(get_provider_api_error_types):
                 result = cls._test_model(
                     provider.provider_type,
                     model.model_identifier,

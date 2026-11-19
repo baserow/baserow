@@ -2,9 +2,9 @@ from unittest.mock import patch
 
 from django.db import DEFAULT_DB_ALIAS
 from django.shortcuts import reverse
-from django.test import override_settings
 
 import httpx
+import httpx2
 import openai
 import pytest
 import sentry_sdk
@@ -17,7 +17,6 @@ from rest_framework.status import (
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
 )
-from sentry_sdk.transport import Transport
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_FEATURE_AI_AGENT,
@@ -1416,18 +1415,29 @@ def _google_server_error():
     )
 
 
+def _google_connect_error():
+    # google-genai doesn't wrap transport failures in its own errors.
+    return httpx2.ConnectError("[Errno 8] nodename nor servname provided")
+
+
+def _google_read_timeout():
+    return httpx2.ReadTimeout("The read operation timed out")
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "make_error,reported",
     [
         (_openai_connection_error, False),
         (_google_server_error, False),
-        # A Baserow bug, like a wrong argument to the client, is still reported.
+        (_google_connect_error, False),
+        (_google_read_timeout, False),
+        # An error that doesn't come from the provider is still reported.
         (lambda: TypeError("unexpected keyword argument 'timeout'"), True),
     ],
 )
 def test_failing_model_test_reports_only_non_provider_errors_to_sentry(
-    api_client, staff_headers, make_error, reported
+    api_client, staff_headers, sentry_events, make_error, reported
 ):
     provider = AIProviderConfig.objects.create(provider_type="mistral", api_key="key")
     model = AIProviderModel.objects.create(
@@ -1436,13 +1446,6 @@ def test_failing_model_test_reports_only_non_provider_errors_to_sentry(
         feature_types=[AI_PROVIDER_FEATURE_AI_FIELDS],
     )
     error = make_error()
-    sent_events = []
-
-    class CollectingTransport(Transport):
-        def capture_envelope(self, envelope):
-            sent_events.extend(
-                item.payload.json for item in envelope.items if item.type == "event"
-            )
 
     def prompt_failing_provider(*args, **kwargs):
         # Like the Sentry AI client integrations, which capture the client error
@@ -1450,21 +1453,11 @@ def test_failing_model_test_reports_only_non_provider_errors_to_sentry(
         sentry_sdk.capture_exception(error)
         raise error
 
-    client = sentry_sdk.Client(
-        dsn="https://public@example.invalid/1",
-        transport=CollectingTransport(),
-        default_integrations=False,
-    )
-    with (
-        sentry_sdk.isolation_scope() as scope,
-        override_settings(SENTRY_DSN="https://public@example.invalid/1"),
-        patch(
-            "baserow.core.generative_ai.generative_ai_model_types."
-            "MistralGenerativeAIModelType.prompt",
-            side_effect=prompt_failing_provider,
-        ),
+    with patch(
+        "baserow.core.generative_ai.generative_ai_model_types."
+        "MistralGenerativeAIModelType.prompt",
+        side_effect=prompt_failing_provider,
     ):
-        scope.set_client(client)
         response = api_client.post(
             reverse("api:ai_provider:test_models"),
             {"model_ids": [model.id]},
@@ -1475,7 +1468,7 @@ def test_failing_model_test_reports_only_non_provider_errors_to_sentry(
     assert response.status_code == HTTP_200_OK
     [result] = response.json()["results"]
     assert result["status"] == "failure"
-    assert [event["exception"]["values"][-1]["type"] for event in sent_events] == (
+    assert [event["exception"]["values"][-1]["type"] for event in sentry_events] == (
         [type(error).__name__] if reported else []
     )
 

@@ -1,7 +1,7 @@
 import logging
 import re
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -157,7 +157,8 @@ def patch_user_model_str():
 
 @contextmanager
 def ignore_sentry_exceptions(
-    exception_types: tuple[type[BaseException], ...],
+    exception_types: tuple[type[BaseException], ...]
+    | Callable[[], tuple[type[BaseException], ...]],
 ) -> Iterator[None]:
     """
     Drops the Sentry events of the given exception types that are captured inside
@@ -167,11 +168,16 @@ def ignore_sentry_exceptions(
     client error before the calling code can handle it.
 
     :param exception_types: The exceptions, including their subclasses, to drop.
+        Can be a function returning them, which is only called when Sentry is
+        enabled, so the modules they come from aren't imported otherwise.
     """
 
     if not settings.SENTRY_DSN:
         yield
         return
+
+    if callable(exception_types):
+        exception_types = exception_types()
 
     import sentry_sdk
 

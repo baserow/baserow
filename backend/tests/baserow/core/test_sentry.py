@@ -9,7 +9,6 @@ import pytest
 import sentry_sdk
 from asgiref.sync import async_to_sync
 from sentry_sdk.envelope import Envelope
-from sentry_sdk.transport import Transport
 
 from baserow.core.sentry import (
     before_send,
@@ -18,6 +17,7 @@ from baserow.core.sentry import (
     log_sentry_event_to_console,
 )
 from baserow.core.sentry_transport import ConsoleSentryTransport
+from baserow.test_utils.sentry import TEST_SENTRY_DSN, collect_sentry_events
 
 
 def test_sentry_sdk_is_not_loaded_when_sentry_is_disabled():
@@ -29,9 +29,14 @@ from django.conf import settings
 
 settings.configure(SENTRY_DSN="")
 
-from baserow.core.sentry import setup_user_in_sentry
+from baserow.core.sentry import ignore_sentry_exceptions, setup_user_in_sentry
+
+def get_exception_types():
+    raise AssertionError("Only called when Sentry is enabled.")
 
 setup_user_in_sentry(SimpleNamespace(id=1))
+with ignore_sentry_exceptions(get_exception_types):
+    pass
 assert not any(
     module == "sentry_sdk" or module.startswith("sentry_sdk.")
     for module in sys.modules
@@ -250,30 +255,6 @@ def test_sentry_hooks_redact_private_link_tokens():
     }
 
 
-class _CollectingTransport(Transport):
-    def __init__(self, options=None):
-        super().__init__(options)
-        self.events = []
-
-    def capture_envelope(self, envelope):
-        self.events.extend(
-            item.payload.json for item in envelope.items if item.type == "event"
-        )
-
-
-@pytest.fixture
-def sentry_events(settings):
-    settings.SENTRY_DSN = "https://public@example.invalid/1"
-    transport = _CollectingTransport()
-    client = sentry_sdk.Client(
-        dsn=settings.SENTRY_DSN, transport=transport, default_integrations=False
-    )
-    with sentry_sdk.isolation_scope() as scope:
-        scope.set_client(client)
-        yield transport.events
-    client.close()
-
-
 class _ProviderError(Exception):
     pass
 
@@ -307,28 +288,19 @@ def test_ignore_sentry_exceptions_drops_logged_exceptions_of_the_given_types(
 ):
     from sentry_sdk.integrations.logging import LoggingIntegration
 
-    settings.SENTRY_DSN = "https://public@example.invalid/1"
-    transport = _CollectingTransport()
-    client = sentry_sdk.Client(
-        dsn=settings.SENTRY_DSN,
-        transport=transport,
-        default_integrations=False,
-        integrations=[LoggingIntegration(event_level=logging.ERROR)],
-    )
+    settings.SENTRY_DSN = TEST_SENTRY_DSN
     log = logging.getLogger("baserow.test_ignore_sentry_exceptions")
-    with sentry_sdk.isolation_scope() as scope:
-        scope.set_client(client)
+    with collect_sentry_events(
+        [LoggingIntegration(event_level=logging.ERROR)]
+    ) as events:
         with ignore_sentry_exceptions((_ProviderError,)):
             for error in (_ProviderError("dropped"), ValueError("kept")):
                 try:
                     raise error
                 except Exception:
                     log.exception("Probe failed")
-    client.close()
 
-    assert [
-        event["exception"]["values"][-1]["value"] for event in transport.events
-    ] == ["kept"]
+    assert _sent(events) == ["kept"]
 
 
 def test_ignore_sentry_exceptions_reaches_async_to_sync_probes(sentry_events):
@@ -344,8 +316,11 @@ def test_ignore_sentry_exceptions_reaches_async_to_sync_probes(sentry_events):
     assert _sent(sentry_events) == ["kept"]
 
 
-def test_ignore_sentry_exceptions_without_sentry(settings):
-    settings.SENTRY_DSN = ""
+def test_ignore_sentry_exceptions_resolves_lazy_types_only_with_sentry(
+    sentry_events,
+):
+    with ignore_sentry_exceptions(lambda: (_ProviderError,)):
+        sentry_sdk.capture_exception(_ProviderError("dropped"))
+        sentry_sdk.capture_exception(ValueError("kept"))
 
-    with ignore_sentry_exceptions((_ProviderError,)):
-        pass
+    assert _sent(sentry_events) == ["kept"]
