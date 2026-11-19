@@ -15,12 +15,7 @@
       @values-changed="onValuesChanged"
     >
       <template #head-html>
-        <FormGroup
-          class="margin-bottom-2"
-          :helper-text="$t('customCodeSettingForm.customHtmlHelp')"
-          :error="htmlSaveError"
-          small-label
-        >
+        <FormGroup class="margin-bottom-2" :error="htmlSaveError" small-label>
           <template #label>
             <label :for="htmlInputId">
               {{ $t('customCodeSettingForm.customHtml') }}

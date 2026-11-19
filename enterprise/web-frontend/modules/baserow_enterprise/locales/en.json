@@ -887,7 +887,6 @@
     "customCSS": "Custom CSS",
     "customJS": "Custom JavaScript",
     "customHtml": "Custom HTML in head",
-    "customHtmlHelp": "Add HTML to the head of every page.",
     "customHtmlSaveError": "Could not save the HTML. Edit the field to try again.",
     "customCSSPlaceholder": "Enter some custom CSS code...",
     "customJSPlaceholder": "Enter some custom JS code...",
