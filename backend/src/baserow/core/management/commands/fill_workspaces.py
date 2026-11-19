@@ -104,6 +104,9 @@ class Command(BaseCommand):
                     except TemplateHasNothingToInstall:
                         # For example a template of only Agents while their
                         # feature flag is off.
+                        logger.info(
+                            f"skipped {template.name}: nothing in it can be installed"
+                        )
                         continue
                     logger.success(
                         f"installed {template.name} in workspace {workspace.id} ("
