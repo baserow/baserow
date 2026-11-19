@@ -66,8 +66,8 @@ export class LocalBaserowIntegrationType extends IntegrationType {
   /**
    * Mirrors what the backend does when the integration moves to the workspace: a
    * person can only authorize an integration as themselves, so one authorized as
-   * someone else is authorized as the user promoting it, while an agent belongs
-   * to the workspace and is kept.
+   * someone else is authorized as the user promoting it, while an identity
+   * belongs to the workspace and is kept.
    */
   getPromotionHint(integration) {
     const subject = integration.authorized_subject
@@ -78,10 +78,10 @@ export class LocalBaserowIntegrationType extends IntegrationType {
 
     const subjectType = this.app.$registry.get('subject', subject.type)
     const name = subjectType.getDisplayName(subject)
-    if (!subjectType.isUser()) {
+    if (subject.user_type === 'identity') {
       return this.app.$i18n.t(
         'localBaserowIntegrationType.localBaserowPromotionSubjectHint',
-        { type: subjectType.getTypeDisplayName(), name }
+        { type: subjectType.getTypeDisplayName(subject), name }
       )
     }
 
