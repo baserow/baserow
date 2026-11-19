@@ -1,4 +1,7 @@
+from typing import Dict, Iterable, List
+
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.db.models import Exists, OuterRef
 
@@ -52,7 +55,7 @@ from baserow.core.exceptions import (
     WorkspaceUserAlreadyExists,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.models import WorkspaceInvitation
+from baserow.core.models import Workspace, WorkspaceInvitation
 from baserow.core.operations import (
     ListInvitationsWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
@@ -60,16 +63,54 @@ from baserow.core.operations import (
 from baserow.core.utils import get_user_remote_ip_address_from_request
 from baserow.throttling.handler import WorkspaceInvitationRateThrottle
 
+from .generated_serializers import WorkspaceInvitationWithDataSerializer
+from .registries import invitation_data_registry
 from .serializers import (
     AcceptWorkspaceInvitationSerializer,
     CreateWorkspaceInvitationSerializer,
     GetWorkspaceInvitationsViewQuerySerializer,
     UpdateWorkspaceInvitationSerializer,
     UserWorkspaceInvitationSerializer,
-    WorkspaceInvitationSerializer,
 )
 
 User = get_user_model()
+
+
+def serialize_workspace_invitations(
+    workspace: Workspace,
+    workspace_invitations: Iterable[WorkspaceInvitation],
+    user: AbstractUser,
+) -> List[Dict]:
+    """
+    Serializes the given invitations of the workspace for the people who manage
+    them, with the data every registered invitation data type adds to them.
+
+    :param workspace: The workspace the invitations belong to.
+    :param workspace_invitations: The invitations to serialize.
+    :param user: The user the invitations are returned to.
+    :return: The serialized invitations.
+    """
+
+    serialized_data = WorkspaceInvitationWithDataSerializer(
+        workspace_invitations, many=True
+    ).data
+    for data_type in invitation_data_registry.get_all():
+        data_type.annotate_serialized_workspace_invitations_data(
+            workspace, serialized_data, user
+        )
+    return serialized_data
+
+
+def serialize_workspace_invitation(
+    workspace_invitation: WorkspaceInvitation, user: AbstractUser
+) -> Dict:
+    """
+    Serializes one invitation like `serialize_workspace_invitations` does.
+    """
+
+    return serialize_workspace_invitations(
+        workspace_invitation.workspace, [workspace_invitation], user
+    )[0]
 
 
 class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
@@ -115,7 +156,7 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
             "workspace."
         ),
         responses={
-            200: WorkspaceInvitationSerializer(many=True),
+            200: WorkspaceInvitationWithDataSerializer(many=True),
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_USER_INVALID_GROUP_PERMISSIONS"]
             ),
@@ -152,8 +193,11 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
             sorts, workspace_invitations
         )
 
-        serializer = WorkspaceInvitationSerializer(workspace_invitations, many=True)
-        return Response(serializer.data)
+        return Response(
+            serialize_workspace_invitations(
+                workspace, workspace_invitations, request.user
+            )
+        )
 
     @extend_schema(
         parameters=[
@@ -174,7 +218,7 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
         ),
         request=CreateWorkspaceInvitationSerializer,
         responses={
-            200: WorkspaceInvitationSerializer,
+            200: WorkspaceInvitationWithDataSerializer,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
@@ -219,7 +263,9 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
                 data["permissions"],
             )
 
-        return Response(WorkspaceInvitationSerializer(workspace_invitation).data)
+        return Response(
+            serialize_workspace_invitation(workspace_invitation, request.user)
+        )
 
 
 class WorkspaceInvitationView(APIView):
@@ -242,7 +288,7 @@ class WorkspaceInvitationView(APIView):
             "right to the related workspace"
         ),
         responses={
-            200: WorkspaceInvitationSerializer,
+            200: WorkspaceInvitationWithDataSerializer,
             400: get_error_schema(
                 ["ERROR_USER_NOT_IN_GROUP", "ERROR_USER_INVALID_GROUP_PERMISSIONS"]
             ),
@@ -272,7 +318,9 @@ class WorkspaceInvitationView(APIView):
             context=workspace_invitation,
         )
 
-        return Response(WorkspaceInvitationSerializer(workspace_invitation).data)
+        return Response(
+            serialize_workspace_invitation(workspace_invitation, request.user)
+        )
 
     @extend_schema(
         parameters=[
@@ -293,7 +341,7 @@ class WorkspaceInvitationView(APIView):
         ),
         request=UpdateWorkspaceInvitationSerializer,
         responses={
-            200: WorkspaceInvitationSerializer,
+            200: WorkspaceInvitationWithDataSerializer,
             400: get_error_schema(
                 [
                     "ERROR_USER_NOT_IN_GROUP",
@@ -325,7 +373,9 @@ class WorkspaceInvitationView(APIView):
         workspace_invitation = action_type_registry.get(
             UpdateWorkspaceInvitationActionType.type
         ).do(request.user, workspace_invitation, **data)
-        return Response(WorkspaceInvitationSerializer(workspace_invitation).data)
+        return Response(
+            serialize_workspace_invitation(workspace_invitation, request.user)
+        )
 
     @extend_schema(
         parameters=[

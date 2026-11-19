@@ -6,6 +6,7 @@ import InviteModal from '@baserow/modules/core/components/invitation/InviteModal
 import EmailInvitationRoute from '@baserow/modules/core/components/invitation/EmailInvitationRoute'
 import LinkInvitationRoute from '@baserow/modules/core/components/invitation/LinkInvitationRoute'
 import { InvitationTargetType } from '@baserow/modules/core/invitationTargetTypes'
+import { InvitationDataType } from '@baserow/modules/core/invitationDataTypes'
 
 const workspace = {
   id: 1,
@@ -43,6 +44,9 @@ describe('InviteModal', () => {
     if (testApp.getRegistry().exists('invitationTarget', 'fake')) {
       testApp.getRegistry().unregister('invitationTarget', 'fake')
     }
+    if (testApp.getRegistry().exists('invitationData', 'fake')) {
+      testApp.getRegistry().unregister('invitationData', 'fake')
+    }
     testApp.afterEach()
   })
 
@@ -57,10 +61,11 @@ describe('InviteModal', () => {
   async function mountAndShow({
     workspace: selectedWorkspace = workspace,
     hasPermission = () => true,
+    mocks = {},
   } = {}) {
     const wrapper = await testApp.mount(InviteModal, {
       propsData: { workspace: selectedWorkspace },
-      global: { mocks: { $hasPermission: hasPermission } },
+      global: { mocks: { $hasPermission: hasPermission, ...mocks } },
     })
     await wrapper.vm.show()
     await flushPromises()
@@ -144,7 +149,11 @@ describe('InviteModal', () => {
     expect(wrapper.find('.invite-list__empty').exists()).toBe(false)
     const rows = () =>
       wrapper.findAll('.invite-list__item').map((row) => row.text())
-    expect(rows()).toEqual([expect.stringMatching(/olga@x\.com\s*Admin/)])
+    expect(rows()).toEqual([
+      expect.stringMatching(
+        /olga@x\.com\s*inviteModal\.pendingWorkspace\s*Admin/
+      ),
+    ])
 
     // The modal closes once everything was sent, so the list is read from the
     // route rather than from the rendered rows.
@@ -185,6 +194,63 @@ describe('InviteModal', () => {
 
     expect(wrapper.find('.invite-list__subtitle').text()).toBe(
       'customRole.invitationSubtitle'
+    )
+  })
+
+  test('shows what each pending invitation is for', async () => {
+    class FakeInvitationDataType extends InvitationDataType {
+      static getType() {
+        return 'fake'
+      }
+
+      getTargets(workspace, invitation) {
+        return (invitation.fake || []).map((name) => ({
+          name,
+          description: `${name} in ${workspace.name}`,
+        }))
+      }
+    }
+    testApp
+      .getRegistry()
+      .register('invitationData', new FakeInvitationDataType())
+    mockServer.mock.onGet('/workspaces/invitations/workspace/1/').reply(200, [
+      { id: 3, email: 'workspace@x.com', permissions: 'ADMIN' },
+      {
+        id: 4,
+        email: 'few@x.com',
+        permissions: 'ADMIN',
+        fake: ['Customers', 'Orders', 'Ops'],
+      },
+      {
+        id: 5,
+        email: 'many@x.com',
+        permissions: 'ADMIN',
+        fake: ['A', 'B', 'C', 'D', 'E'],
+      },
+    ])
+    const wrapper = await mountAndShow({
+      mocks: {
+        $t: (key, params) => (params ? `${key}(${params.count})` : key),
+      },
+    })
+
+    const subtitles = wrapper.findAll('.invite-list__subtitle')
+    expect(subtitles.map((subtitle) => subtitle.text())).toEqual([
+      'inviteModal.pendingWorkspace',
+      'Customers, Orders, Ops',
+      'A, B, C, inviteModal.pendingMoreTargets(2)',
+    ])
+    // The full list can be reached with the keyboard and is read out.
+    expect(subtitles[0].attributes('tabindex')).toBeUndefined()
+    expect(subtitles[2].attributes('tabindex')).toBe('0')
+    expect(subtitles[2].attributes('aria-label')).toBe(
+      [
+        'A in Test workspace',
+        'B in Test workspace',
+        'C in Test workspace',
+        'D in Test workspace',
+        'E in Test workspace',
+      ].join('\n')
     )
   })
 
