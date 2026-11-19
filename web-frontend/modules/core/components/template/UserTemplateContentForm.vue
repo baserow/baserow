@@ -94,10 +94,6 @@ const selectedWorkspace = computed(
 )
 
 /**
- * Explains why the content can't be copied from the workspace, or is null when
- * it can.
- */
-/**
  * The applications the selector shows: not those of a type the user can't use,
  * like Agents without their feature flag, so that one can't stay selected.
  */
@@ -108,6 +104,10 @@ function getCopyableApplications(workspace) {
   )
 }
 
+/**
+ * Explains why the content can't be copied from the workspace, or is null when
+ * it can.
+ */
 function getDisabledReason(workspace) {
   if (workspace === null) {
     return ''

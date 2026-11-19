@@ -349,7 +349,8 @@ const emit = defineEmits([
   'make-private',
 ])
 
-const { $client, $i18n, $priorityBus, $router, $store } = useNuxtApp()
+const { $client, $i18n, $priorityBus, $registry, $router, $store } =
+  useNuxtApp()
 const { copyLink } = useCopyLink()
 const config = useRuntimeConfig()
 const isStaff = computed(() => $store.getters['auth/isStaff'])
@@ -401,9 +402,12 @@ const createDisabledReason = computed(() => {
   if (workspaces.value.length === 0) {
     return $i18n.t('userTemplateList.noWorkspace')
   }
-  const hasContent = workspaces.value.some(
-    (workspace) =>
-      $store.getters['application/getAllOfWorkspace'](workspace).length > 0
+  // Not counting types the user can't use, like Agents without their flag.
+  const hasContent = workspaces.value.some((workspace) =>
+    $store.getters['application/getAllOfWorkspace'](workspace).some(
+      (application) =>
+        $registry.get('application', application.type).canBeCreated()
+    )
   )
   return hasContent ? null : $i18n.t('userTemplateList.noContent')
 })
