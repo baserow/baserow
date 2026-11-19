@@ -531,7 +531,7 @@ def test_undo_router_insert_refuses_when_another_node_joined_the_branch(
     (action,) = ActionHandler.undo(ctx.user, scope, session)
 
     assert "AutomationNodeNotDeletable" in action.error
-    assert f"node {slack.id}" in action.error
+    assert f"node {slack.id} on its branch wasn't moved there" in action.error
     workflow.reload_graph()
     assert workflow.graph == before
 

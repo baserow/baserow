@@ -91,6 +91,7 @@ class CreateAutomationNodeActionType(UndoableActionType):
         params: Params,
         action_to_undo: Action,
     ):
+        joined_ids = []
         if params.next_output:
             # Back on the default output, the nodes take the node's place when it
             # is deleted, as before it was inserted. Nodes added to the default
@@ -118,25 +119,26 @@ class CreateAutomationNodeActionType(UndoableActionType):
     def _check_branch_holds_only_moved_nodes(cls, node: AutomationNode, params: Params):
         """
         Check the chain on next_output holds only the nodes the insert moved there.
-        A node another session added there runs only when the branch matches, and
-        would run every time once the node is removed.
+        Another node there, added or put in place of a moved one by another
+        session, runs only when the branch matches, and would run every time once
+        the node is removed.
 
         :raises AutomationNodeNotDeletable: When the chain holds another node.
         """
 
-        added = [
+        others = [
             node_id
             for node_id in node.workflow.get_graph().get_chain_ids(
                 node, params.next_output
             )
             if int(node_id) not in params.moved_node_ids
         ]
-        if added:
+        if others:
             raise AutomationNodeNotDeletable(
-                f"Node {node.id} can't be removed: node {added[0]} was added on "
-                "its branch since, and would then run every time. This step can't "
-                f"be undone: to remove node {node.id}, move the nodes off its "
-                "outputs, then delete it."
+                f"Node {node.id} can't be removed: node {others[0]} on its branch "
+                "wasn't moved there by this step, and would then run every time. "
+                f"This step can't be undone: to remove node {node.id}, move the "
+                "nodes off its outputs, then delete it."
             )
 
     @classmethod
