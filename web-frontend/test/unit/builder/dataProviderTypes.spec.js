@@ -212,7 +212,7 @@ describe('Builder data provider types', () => {
     ])
   })
 
-  test('dispatch excludes values inside hidden containers without hiding them from formulas', () => {
+  test('dispatch preserves valid values inside hidden containers', () => {
     const provider = testApp
       .getRegistry()
       .get('builderDataProvider', 'form_data')
@@ -238,7 +238,7 @@ describe('Builder data provider types', () => {
       4: 'ada@example.com',
     })
     expect(provider.getActionDispatchContext(context)).toEqual([
-      { 4: 'ada@example.com' },
+      { 3: 'Ada', 4: 'ada@example.com' },
       {},
     ])
     context.page.formData[4].value = 'show'
@@ -326,15 +326,27 @@ describe('Builder data provider types', () => {
         },
       },
     }
+    const formType = testApp.getRegistry().get('element', 'form_container')
+    const isVisible = () =>
+      formType.isVisible({
+        element: context.element,
+        applicationContext: context,
+        checkAncestors: true,
+      })
     context.recordIndexPath = [0, 0]
-    expect(provider.getActionDispatchContext(context)).toEqual([{}, {}])
+    expect(isVisible()).toBe(false)
+    expect(provider.getActionDispatchContext(context)).toEqual([
+      { 3: 'First', 4: 'first@example.com' },
+      {},
+    ])
     context.recordIndexPath = [0, 1]
+    expect(isVisible()).toBe(true)
     expect(provider.getActionDispatchContext(context)).toEqual([
       { 3: 'Second', 4: 'second@example.com' },
       {},
     ])
     context.recordIndexPath = [1, 1]
-    expect(provider.getActionDispatchContext(context)).toEqual([{}, {}])
+    expect(isVisible()).toBe(false)
   })
 
   test('form data provider applies its requested data scope', () => {

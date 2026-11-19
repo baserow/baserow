@@ -321,20 +321,14 @@ export class ElementType extends Registerable {
    * @param {Object} element the element to check
    * @param {Object} applicationContext the applicationContext
    * @param {boolean} checkAncestors include ancestor visibility and configuration errors
-   * @param {boolean} includeSelf also check this element when checkAncestors is true
    * @returns {boolean}
    */
-  isVisible({
-    element,
-    applicationContext,
-    checkAncestors = false,
-    includeSelf = true,
-  }) {
+  isVisible({ element, applicationContext, checkAncestors = false }) {
     if (checkAncestors) {
       const elements = this.app.$store.getters['element/getAncestors'](
         applicationContext.page,
         element,
-        { includeSelf }
+        { includeSelf: true }
       )
       return elements.every((currentElement) => {
         const elementType = this.app.$registry.get(

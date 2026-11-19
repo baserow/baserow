@@ -19,7 +19,7 @@ async function dispatchMetadata(request: BrowserRequest) {
   return JSON.parse(String(form.get("metadata")));
 }
 
-test("ancestor-hidden fields allow form submission without sending their values", async ({
+test("ancestor-hidden fields skip validation while preserving valid defaults", async ({
   context,
   builderPagePage,
   workspacePage,
@@ -34,13 +34,13 @@ test("ancestor-hidden fields allow form submission without sending their values"
     workspacePage.workspace
   );
   const table = await createTable(user, "Submissions", database, [
-    ["Name", "Required email", "Optional email"],
+    ["Name", "Required email", "Optional email", "Default email"],
   ]);
   const fields = await getFieldsForTable(user, table);
   const integration = await createLocalBaserowIntegration(builderPagePage.builder);
   const form = await createBuilderElement(builderPage, "form_container", {
     submit_button_label: "'Submit form'",
-    reset_initial_values_post_submission: false,
+    reset_initial_values_post_submission: true,
   });
   const insideForm = { reference_element_id: form.id, position: "child" };
   const name = await createBuilderElement(builderPage, "input_text", {
@@ -67,18 +67,20 @@ test("ancestor-hidden fields allow form submission without sending their values"
     place_in_container: "0",
   });
   const emails = [];
-  for (const required of [true, false]) {
+  for (const [label, required, initialValue] of [
+    ["Required email", true, "invalid-email"],
+    ["Optional email", false, "invalid-email"],
+    ["Default email", false, "default@example.com"],
+  ] as const) {
     emails.push(
       await createBuilderElement(builderPage, "input_text", {
         reference_element_id: inner.id,
         position: "child",
-        label: required ? "'Required email'" : "'Optional email'",
-        placeholder: required
-          ? "'Required email address'"
-          : "'Optional email address'",
+        label: `'${label}'`,
+        placeholder: `'${label} address'`,
         required,
         validation_type: "email",
-        default_value: "'invalid-email'",
+        default_value: `'${initialValue}'`,
       })
     );
   }
@@ -149,8 +151,34 @@ test("ancestor-hidden fields allow form submission without sending their values"
       Name: "Ada",
       "Required email": "",
       "Optional email": "",
+      "Default email": "",
     }),
   ]);
+
+  // Resetting initializes defaults even for unmounted inputs. Keep that existing data.
+  await expect(preview.getByPlaceholder("Your name", { exact: true })).toHaveValue("");
+  await preview.getByPlaceholder("Your name", { exact: true }).fill("Ada");
+  const defaultDispatch = preview.waitForResponse(
+    (response) => response.request().method() === "POST" &&
+      response.url().endsWith(`/${action.id}/dispatch/`),
+    { timeout: 15000 }
+  );
+  await submit.click();
+  const defaultResponse = await defaultDispatch;
+  expect(defaultResponse.status()).toBe(200);
+  expect((await dispatchMetadata(defaultResponse.request())).form_data).toEqual({
+    [name.id]: "Ada",
+    [toggle.id]: false,
+    [emails[0].id]: "invalid-email",
+    [emails[1].id]: "invalid-email",
+    [emails[2].id]: "default@example.com",
+  });
+  expect(await listRows(user, table)).toEqual([
+    expect.objectContaining({ Name: "Ada", "Default email": "" }),
+    expect.objectContaining({ Name: "Ada", "Required email": "", "Optional email": "", "Default email": "default@example.com" }),
+  ]);
+  await expect(preview.getByPlaceholder("Your name", { exact: true })).toHaveValue("");
+  await preview.getByPlaceholder("Your name", { exact: true }).fill("Ada");
 
   // Showing the container again must restore validation and submit visible values.
   await preview.getByRole("checkbox", { name: "Show email fields" }).check();
@@ -172,17 +200,21 @@ test("ancestor-hidden fields allow form submission without sending their values"
     [toggle.id]: true,
     [emails[0].id]: "required@example.com",
     [emails[1].id]: "optional@example.com",
+    [emails[2].id]: "default@example.com",
   });
   expect(await listRows(user, table)).toEqual([
+    expect.objectContaining({ Name: "Ada", "Required email": "", "Optional email": "", "Default email": "" }),
     expect.objectContaining({
       Name: "Ada",
       "Required email": "",
       "Optional email": "",
+      "Default email": "default@example.com",
     }),
     expect.objectContaining({
       Name: "Ada",
       "Required email": "required@example.com",
       "Optional email": "optional@example.com",
+      "Default email": "default@example.com",
     }),
   ]);
 });
