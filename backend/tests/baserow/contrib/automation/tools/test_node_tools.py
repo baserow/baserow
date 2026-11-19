@@ -18,6 +18,9 @@ from baserow.contrib.automation.nodes.actions import (
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.service import AutomationNodeService
+from baserow.contrib.automation.nodes.trash_types import (
+    AutomationNodeTrashableItemType,
+)
 from baserow.contrib.automation.tools.nodes import (
     add_nodes,
     delete_nodes,
@@ -33,6 +36,7 @@ from baserow.core.action.handler import ActionHandler
 from baserow.core.action.models import Action
 from baserow.core.cache import local_cache
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow.core.trash.handler import TrashHandler
 
 from .conftest import create_node, create_workflow
 
@@ -284,6 +288,50 @@ def test_undo_router_insert_keeps_a_node_added_on_its_default_output(
     assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
     assert graph[str(after["id"])]["next"] == {"": [other.id]}
     assert not Action.objects.filter(error__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_restore_from_trash_after_undo_puts_the_nodes_back_on_the_branch(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    fallback = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Fallback"
+    )
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+
+    # Restored from the trash instead of with redo.
+    TrashHandler.restore_item(
+        ctx.user, AutomationNodeTrashableItemType.type, router["id"]
+    )
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [fallback.id],
+    }
+    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
 
 
 @pytest.mark.django_db

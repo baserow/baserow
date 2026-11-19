@@ -16,6 +16,7 @@ from baserow.contrib.automation.workflows.signals import automation_workflow_upd
 from baserow.core.graph.models import GraphPointTrashableItemType
 from baserow.core.models import TrashEntry
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
+from baserow.core.trash.handler import TrashHandler
 
 
 class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
@@ -77,6 +78,30 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
                 "This automation node cannot be restored as its branch has been deleted."
             )
 
+    @classmethod
+    def split_outputs_on_restore(
+        cls, node_id: int, next_output: str, joined_node_ids: list[int]
+    ):
+        """
+        Note on a trashed node's entry that, once restored, the nodes on its default
+        output before the first of `joined_node_ids` move to `next_output`. Undoing
+        an insert before nodes joins them onto the default output, so the restore
+        puts them back.
+
+        :param node_id: The ID of the trashed node.
+        :param next_output: The output the nodes move back to.
+        :param joined_node_ids: The nodes that were on the default output before
+            the join, which stay there.
+        """
+
+        trash_entry = TrashHandler.get_trash_entry(cls.type, node_id)
+        trash_entry.additional_restoration_data = {
+            **trash_entry.additional_restoration_data,
+            "next_output": next_output,
+            "joined_node_ids": joined_node_ids,
+        }
+        trash_entry.save(update_fields=["additional_restoration_data"])
+
     def trash(
         self,
         item_to_trash: AutomationActionNode,
@@ -112,6 +137,16 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
         restored_nodes: List[AutomationNode] = super().restore(
             trashed_item, trash_entry
         )
+
+        data = trash_entry.additional_restoration_data
+        if (
+            self.should_mutate_graph(trash_entry)
+            and isinstance(data, dict)
+            and data.get("next_output")
+        ):
+            trashed_item.workflow.get_graph().split_next_points(
+                trashed_item, "", data["next_output"], data["joined_node_ids"]
+            )
 
         AutomationNodeHandler().invalidate_node_cache(trashed_item.workflow)
 

@@ -38,9 +38,6 @@ class CreateAutomationNodeActionType(UndoableActionType):
         node_type: str
         # The output of the node that the nodes it was inserted before follow.
         next_output: str = ""
-        # The nodes that followed the node on its default output at the last undo,
-        # so redo leaves them there.
-        joined_node_ids: list[int] = field(default_factory=list)
         # The nodes that moved onto next_output, so undo can tell a node another
         # session added there since.
         moved_node_ids: list[int] = field(default_factory=list)
@@ -103,9 +100,14 @@ class CreateAutomationNodeActionType(UndoableActionType):
             if joined_ids:
                 cls._check_chain_can_be_followed(node, params.next_output)
             graph.join_next_points(node, params.next_output, "")
-            params.joined_node_ids = [int(node_id) for node_id in joined_ids]
-            action_to_undo.params = params
         AutomationNodeService().delete_node(user, params.node_id)
+        if params.next_output:
+            # Redo and a restore from the trash both split the chain again.
+            AutomationNodeTrashableItemType.split_outputs_on_restore(
+                params.node_id,
+                params.next_output,
+                [int(node_id) for node_id in joined_ids],
+            )
 
     @classmethod
     def _check_branch_holds_only_moved_nodes(cls, node: AutomationNode, params: Params):
@@ -169,11 +171,6 @@ class CreateAutomationNodeActionType(UndoableActionType):
             AutomationNodeTrashableItemType.type,
             params.node_id,
         )
-        if params.next_output:
-            node = AutomationNodeHandler().get_node(params.node_id)
-            node.workflow.get_graph().split_next_points(
-                node, "", params.next_output, params.joined_node_ids
-            )
 
 
 class UpdateAutomationNodeActionType(UndoableActionType):
