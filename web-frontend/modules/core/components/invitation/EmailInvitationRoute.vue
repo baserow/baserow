@@ -25,6 +25,7 @@
         :workspace="workspace"
         :empty-title="$t('inviteModal.pendingEmptyTitle')"
         :empty-description="$t('inviteModal.pendingEmptyDescription')"
+        :role-heading="$t('inviteModal.pendingRoleHeading')"
         @role-updated="updateItemRole"
       />
     </InviteInput>
@@ -178,7 +179,10 @@ export default {
           subtitle:
             this.workspace._.roles.find(
               (role) => role.uid === invitation.permissions
-            )?.invitationSubtitle ?? this.$t('inviteModal.pendingWorkspace'),
+            )?.invitationSubtitle ??
+            this.$t('inviteModal.pendingInvitedTo', {
+              targets: this.$t('inviteModal.pendingWorkspace'),
+            }),
           subtitleTooltip: null,
         }
       }
@@ -191,7 +195,9 @@ export default {
         )
       }
       return {
-        subtitle: names.join(', '),
+        subtitle: this.$t('inviteModal.pendingInvitedTo', {
+          targets: names.join(', '),
+        }),
         subtitleTooltip: targets
           .map(({ description }) => description)
           .join('\n'),

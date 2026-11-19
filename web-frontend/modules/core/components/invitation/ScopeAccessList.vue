@@ -5,6 +5,9 @@
       <div>{{ emptyDescription }}</div>
     </div>
     <ul v-else class="invite-list__items invite-list__items--scrollable">
+      <li v-if="roleHeading" class="invite-list__heading" aria-hidden="true">
+        {{ roleHeading }}
+      </li>
       <li v-for="item in items" :key="item.key" class="invite-list__item">
         <div class="invite-list__subject">
           <component
@@ -118,6 +121,14 @@ export default {
     emptyDescription: {
       type: String,
       required: true,
+    },
+    /**
+     * An optional heading shown above the roles of the rows, like "Role".
+     */
+    roleHeading: {
+      type: String,
+      required: false,
+      default: null,
     },
     workspace: {
       type: Object,

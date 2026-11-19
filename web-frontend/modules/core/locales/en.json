@@ -514,6 +514,8 @@
     "pendingTitle": "Pending invitations",
     "pendingEmptyTitle": "No invitations are pending.",
     "pendingEmptyDescription": "Invitations show up here until they are accepted.",
+    "pendingRoleHeading": "Workspace role",
+    "pendingInvitedTo": "Invited to: {targets}",
     "pendingWorkspace": "Workspace",
     "pendingMoreTargets": "+{count} more"
   },
