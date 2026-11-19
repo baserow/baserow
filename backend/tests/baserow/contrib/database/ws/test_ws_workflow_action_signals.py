@@ -261,11 +261,14 @@ def test_trashing_and_restoring_the_target_database_updates_the_button(
     assert message["fields"][0]["requires_reconfiguration"] is False
 
 
-def _button_sending_through(data_fixture, user, bot):
-    """A button whose Slack action posts through this bot."""
+def _button_sending_through(data_fixture, user, bot, database=None):
+    """
+    A button whose Slack action posts through this bot, in the bot's database
+    unless another one is given.
+    """
 
     button_table = data_fixture.create_database_table(
-        user=user, database=bot.application
+        user=user, database=database or bot.application
     )
     button_field = data_fixture.create_button_field(table=button_table, label="Go")
     action = data_fixture.create_database_workflow_action(
@@ -325,6 +328,69 @@ def test_updating_an_integration_updates_the_button(
     [(group, _)] = _button_messages(mock_broadcast_to_channel_group, button_field)
     assert group == f"table-{button_field.table_id}"
     assert _button_messages(mock_broadcast_to_channel_group, unrelated) == []
+
+
+def _button_sending_through_a_workspace_integration(data_fixture, user):
+    """A button whose Slack action posts through a bot of its workspace."""
+
+    database = data_fixture.create_database_application(user=user)
+    shared_application = data_fixture.create_shared_application(
+        workspace=database.workspace
+    )
+    bot = data_fixture.create_slack_bot_integration(
+        application=shared_application, user=user
+    )
+    button_field = _button_sending_through(data_fixture, user, bot, database=database)
+    return bot, button_field
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_changing_a_workspace_integration_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    bot, button_field = _button_sending_through_a_workspace_integration(
+        data_fixture, user
+    )
+    mock_broadcast_to_channel_group.reset_mock()
+
+    IntegrationService().update_integration(user, bot, name="Renamed")
+
+    [(group, _)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert group == f"table-{button_field.table_id}"
+
+    mock_broadcast_to_channel_group.reset_mock()
+    IntegrationService().delete_integration(user, bot)
+
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["fields"][0]["requires_reconfiguration"] is True
+
+    mock_broadcast_to_channel_group.reset_mock()
+    TrashHandler.restore_item(user, "integration", bot.id)
+
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["fields"][0]["requires_reconfiguration"] is False
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_permanently_deleting_a_workspace_integration_updates_the_button(
+    mock_broadcast_to_channel_group, data_fixture
+):
+    user = data_fixture.create_user()
+    bot, button_field = _button_sending_through_a_workspace_integration(
+        data_fixture, user
+    )
+    IntegrationService().delete_integration(user, bot)
+    mock_broadcast_to_channel_group.reset_mock()
+
+    # A workspace integration is in the workspace's trash.
+    TrashHandler.empty(user, button_field.table.database.workspace_id, None)
+    TrashHandler.permanently_delete_marked_trash()
+
+    [(_, message)] = _button_messages(mock_broadcast_to_channel_group, button_field)
+    assert message["fields"][0]["requires_reconfiguration"] is True
 
 
 def _empty_the_trash(user, database):

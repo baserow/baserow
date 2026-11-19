@@ -5,6 +5,7 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 
@@ -113,3 +114,39 @@ def test_builders_keep_managing_the_integrations_of_an_application(
     service.delete_integration(builder, handler.get_integration_for_update(first.id))
 
     assert [i.id for i in service.get_integrations(builder, application)] == [second.id]
+
+
+@pytest.mark.django_db
+def test_only_admins_restore_a_workspace_integration(
+    data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    builder = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[builder])
+    RoleAssignmentHandler().assign_role(
+        builder, workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=admin
+    )
+    application_integration = data_fixture.create_local_baserow_integration(
+        application=application, user=builder
+    )
+    service = IntegrationService()
+    handler = IntegrationHandler()
+    for integration in [workspace_integration, application_integration]:
+        service.delete_integration(
+            admin, handler.get_integration_for_update(integration.id)
+        )
+
+    with pytest.raises(PermissionException):
+        TrashHandler.restore_item(builder, "integration", workspace_integration.id)
+    TrashHandler.restore_item(builder, "integration", application_integration.id)
+    TrashHandler.restore_item(admin, "integration", workspace_integration.id)
+
+    restored = Integration.objects.filter(
+        id__in=[workspace_integration.id, application_integration.id]
+    )
+    assert restored.count() == 2

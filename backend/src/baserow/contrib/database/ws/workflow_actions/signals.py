@@ -20,6 +20,7 @@ from baserow.contrib.database.workflow_actions.reconfiguration import (
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
 from baserow.core import signals as core_signals
 from baserow.core.integrations import signals as integration_signals
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Application
 from baserow.core.trash import signals as trash_signals
 from baserow.ws.registries import page_registry
@@ -208,21 +209,32 @@ def button_target_workspace_restored(sender, workspace_user, **kwargs):
 
 
 def _in_a_database(application: Application) -> bool:
-    """Only a database's integrations can be used by a button."""
-
     return issubclass(application.specific_class, Database)
+
+
+def _usable_by_a_button(application: Application) -> bool:
+    """
+    A button can only use the integrations of its own database and the workspace
+    integrations of its workspace, which the shared application owns.
+
+    :param application: The application that owns the integration.
+    """
+
+    return _in_a_database(application) or IntegrationHandler().is_shared_application(
+        application
+    )
 
 
 @receiver(integration_signals.integration_deleted)
 def button_integration_deleted(sender, integration_id, application, **kwargs):
-    if _in_a_database(application):
+    if _usable_by_a_button(application):
         _broadcast_dependent_buttons(integration_ids=[integration_id])
 
 
 # Also sent when an integration is restored from the trash.
 @receiver(integration_signals.integration_created)
 def button_integration_created(sender, integration, **kwargs):
-    if _in_a_database(integration.application):
+    if _usable_by_a_button(integration.application):
         _broadcast_dependent_buttons(integration_ids=[integration.id])
 
 
@@ -230,7 +242,7 @@ def button_integration_created(sender, integration, **kwargs):
 # for it, so the buttons using it are sent again.
 @receiver(integration_signals.integration_updated)
 def button_integration_updated(sender, integration, **kwargs):
-    if _in_a_database(integration.application):
+    if _usable_by_a_button(integration.application):
         _broadcast_dependent_buttons(integration_ids=[integration.id])
 
 
@@ -276,7 +288,7 @@ def button_dependency_before_permanently_deleted(
     lookup = PERMANENT_DELETION_LOOKUPS.get(sender)
     if lookup is None:
         return
-    if sender == "integration" and not _in_a_database(trash_item.application):
+    if sender == "integration" and not _usable_by_a_button(trash_item.application):
         return
     if sender == "application" and not _in_a_database(trash_item):
         return
