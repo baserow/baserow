@@ -2,6 +2,8 @@ import WorkspaceIntegrationsTable from '@baserow/modules/core/components/setting
 import { SettingsType } from '@baserow/modules/core/settingsTypes'
 import AIProviderWorkspaceSettings from '@baserow/modules/core/components/workspace/AIProviderWorkspaceSettings'
 import SnapshotsWorkspaceSettings from '@baserow/modules/core/components/workspace/SnapshotsWorkspaceSettings'
+import InvitationLinksTable from '@baserow/modules/core/components/settings/invitationLinks/InvitationLinksTable'
+import { FF_RBAC_IMPROVEMENTS } from '@baserow/modules/core/plugins/featureFlags'
 
 export function getEnabledWorkspaceSettings(
   registry,
@@ -104,5 +106,45 @@ export class IntegrationsWorkspaceSettingsType extends SettingsType {
 
   getOrder() {
     return 70
+  }
+}
+
+/**
+ * Lists every invitation link of the workspace in one place: the links to the
+ * workspace and the links to its objects, like a table or a team. It's there
+ * for anyone who can manage at least one kind of link, which every invitation
+ * target type decides for its own links, so it doesn't need the permission to
+ * update the workspace: an admin of a table sees the links to that table.
+ */
+export class InvitationLinksWorkspaceSettingsType extends SettingsType {
+  requiresWorkspaceUpdatePermission = false
+
+  static getType() {
+    return 'invitation-links'
+  }
+
+  getIconClass() {
+    return 'iconoir-link'
+  }
+
+  getName() {
+    return this.app.$i18n.t('invitationLinksSettings.tabTitle')
+  }
+
+  getComponent() {
+    return InvitationLinksTable
+  }
+
+  getOrder() {
+    return 80
+  }
+
+  isEnabled(workspace) {
+    if (!workspace || !this.app.$featureFlagIsEnabled(FF_RBAC_IMPROVEMENTS)) {
+      return false
+    }
+    return Object.values(this.app.$registry.getAll('invitationTarget')).some(
+      (targetType) => targetType.canManageInvitationLinks(workspace)
+    )
   }
 }

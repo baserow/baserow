@@ -77,6 +77,11 @@ export default (client) => {
           `/workspaces/invitation-links/workspace/${workspaceId}/`
         )
       },
+      fetchManageableInvitationLinks(workspaceId) {
+        return client.get(
+          `/workspaces/invitation-links/workspace/${workspaceId}/manageable/`
+        )
+      },
       createInvitationLink(workspaceId, values) {
         return client.post(
           `/workspaces/invitation-links/workspace/${workspaceId}/`,

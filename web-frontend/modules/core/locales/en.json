@@ -2214,5 +2214,19 @@
   },
   "itemPickerModal": {
     "noResults": "No results found"
+  },
+  "invitationLinksSettings": {
+    "tabTitle": "Invitation links",
+    "title": "{count} invitation links in {workspace}",
+    "search": "Search invitation links",
+    "description": "Manage the invite links to this workspace and to its applications, tables, views and teams.",
+    "name": "Name",
+    "to": "To",
+    "inviteAs": "Invite as",
+    "passwordProtected": "Password",
+    "unnamed": "Unnamed link",
+    "workspaceTarget": "Workspace",
+    "emptyTitle": "No invitation links yet",
+    "emptyDescription": "Invitation links you can manage show up here. Create a link to the workspace from the invite button on the Members page, to an application, table or view from its share dialog, or to a team from its members."
   }
 }
