@@ -72,6 +72,21 @@ test('merges pending fields and resolves every caller after the combined save', 
   })
 })
 
+test('makes server-copied conditions available before the save resolves', async () => {
+  const target = { target_widget_id: 20, group: { filters: [] } }
+  const copied = {
+    ...target,
+    group: { filters: [{ field: 7, type: 'contains', value: 'Customer' }] },
+  }
+  patch.mockResolvedValueOnce({ data: { id: 1, target_filters: [copied] } })
+  const save = update({ target_filters: [target] }, { target_filters: [] })
+  await vi.advanceTimersByTimeAsync(1000)
+  await save
+  expect(store.state.dashboardApplication.widgets[0].target_filters).toEqual([
+    copied,
+  ])
+})
+
 test('keeps the latest value when the same field changes repeatedly', async () => {
   const first = update({ title: 'Countries' }, { title: 'Country' })
   const second = update({ title: 'Regions' }, { title: 'Countries' })
@@ -171,9 +186,10 @@ test('does not merge a new edit into a request already sent to the server', asyn
     { title: 'Regions' },
   ])
   expect(firstDone).not.toHaveBeenCalled()
-  finishFirst({ data: {} })
+  finishFirst({ data: { id: 1, title: 'Countries' } })
   await first
   expect(firstDone).toHaveBeenCalledOnce()
+  expect(store.state.dashboardApplication.widgets[0].title).toBe('Regions')
 })
 
 test.each([null, 1])(
