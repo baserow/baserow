@@ -13,7 +13,11 @@ from baserow.core.action.registries import (
 from baserow.core.action.scopes import WorkspaceActionScopeType
 from baserow.core.models import Application, Snapshot, Workspace
 from baserow.core.snapshots.exceptions import SnapshotDoesNotExist
-from baserow.core.snapshots.handler import SnapshotHandler, UpdatedMaxSnapshots
+from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.snapshots.quota_handler import (
+    SnapshotQuotaHandler,
+    UpdatedMaxSnapshots,
+)
 from baserow.core.utils import Progress
 
 
@@ -249,7 +253,7 @@ class UpdateApplicationMaxSnapshotsActionType(ActionType):
         :return: The application and the change.
         """
 
-        application, updated = SnapshotHandler().update_application_max_snapshots(
+        application, updated = SnapshotQuotaHandler().update_application_max_snapshots(
             application_id, user, max_snapshots, delete_snapshots=delete_snapshots
         )
         workspace = application.workspace
@@ -316,8 +320,10 @@ class UpdateWorkspaceDefaultMaxSnapshotsActionType(ActionType):
         :return: The workspace and the change.
         """
 
-        workspace, updated = SnapshotHandler().update_workspace_default_max_snapshots(
-            workspace_id, user, max_snapshots, delete_snapshots=delete_snapshots
+        workspace, updated = (
+            SnapshotQuotaHandler().update_workspace_default_max_snapshots(
+                workspace_id, user, max_snapshots, delete_snapshots=delete_snapshots
+            )
         )
         cls.register_action(
             user=user,

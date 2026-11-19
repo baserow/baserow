@@ -1,9 +1,6 @@
 from rest_framework import serializers
 
-from baserow.core.models import Snapshot, User
-
-# The largest value the max snapshots columns can store.
-POSITIVE_INTEGER_FIELD_MAX = 2147483647
+from baserow.core.models import Application, Snapshot, User, Workspace
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -66,19 +63,23 @@ class SnapshotUsageSerializer(SnapshotAllowanceSerializer):
     )
 
 
-class UpdateApplicationMaxSnapshotsSerializer(serializers.Serializer):
-    max_snapshots = serializers.IntegerField(
-        min_value=0,
-        max_value=POSITIVE_INTEGER_FIELD_MAX,
-        allow_null=True,
-        help_text="How many snapshots the application keeps, or `null` to follow "
-        "the workspace default max snapshots.",
-    )
+class UpdateApplicationMaxSnapshotsSerializer(serializers.ModelSerializer):
     delete_snapshots = serializers.BooleanField(
         default=False,
         help_text="Confirms that the oldest unprotected snapshots beyond a lowered "
         "max snapshots are deleted.",
     )
+
+    class Meta:
+        model = Application
+        fields = ("max_snapshots", "delete_snapshots")
+        extra_kwargs = {
+            "max_snapshots": {
+                "required": True,
+                "help_text": "How many snapshots the application keeps, or `null` "
+                "to follow the workspace default max snapshots.",
+            },
+        }
 
 
 class WorkspaceSnapshotApplicationSerializer(serializers.Serializer):
@@ -99,17 +100,22 @@ class WorkspaceSnapshotSettingsSerializer(SnapshotAllowanceSerializer):
     )
 
 
-class UpdateWorkspaceSnapshotSettingsSerializer(serializers.Serializer):
-    default_max_snapshots = serializers.IntegerField(
-        min_value=0,
-        max_value=POSITIVE_INTEGER_FIELD_MAX,
-        help_text="The max snapshots of applications that don't have their own.",
-    )
+class UpdateWorkspaceSnapshotSettingsSerializer(serializers.ModelSerializer):
     delete_snapshots = serializers.BooleanField(
         default=False,
         help_text="Confirms that the oldest unprotected snapshots beyond a lowered "
         "max snapshots are deleted.",
     )
+
+    class Meta:
+        model = Workspace
+        fields = ("default_max_snapshots", "delete_snapshots")
+        extra_kwargs = {
+            "default_max_snapshots": {
+                "required": True,
+                "help_text": "The max snapshots of applications that don't have their own.",
+            },
+        }
 
 
 class UpdateSnapshotSerializer(serializers.Serializer):

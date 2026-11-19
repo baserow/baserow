@@ -60,6 +60,15 @@
       ></MaxSnapshots>
 
       <Error :error="error"></Error>
+      <Button
+        v-if="usage === null && !snapshotsLoading"
+        type="secondary"
+        @click="
+          hideError()
+          loadSnapshots()
+        "
+        >{{ $t('action.retry') }}</Button
+      >
 
       <component
         :is="component"
@@ -177,7 +186,7 @@
               <Button
                 v-if="!createFinished"
                 :loading="createLoading"
-                :disabled="createLoading || snapshotsLoading"
+                :disabled="createLoading || snapshotsLoading || usage === null"
               >
                 <template v-if="canRaiseAndCreate">
                   {{
@@ -516,6 +525,9 @@ export default {
       modal.methods.show.bind(this)(...args)
     },
     submitted(values) {
+      if (this.usage === null || this.snapshotsLoading) {
+        return
+      }
       if (this.canRaiseAndCreate) {
         return this.create({ ...values, raise_max_snapshots: true })
       }
@@ -531,6 +543,9 @@ export default {
       return this.create(this.pendingValues)
     },
     async create(values) {
+      if (this.usage === null || this.snapshotsLoading) {
+        return
+      }
       this.createLoading = true
       this.hideError()
       try {
@@ -597,8 +612,9 @@ export default {
         )
         this.usage = data
       } catch (error) {
-        // The usage only adds context, the snapshots can be managed without it.
+        // Usage is required to confirm replacement before creating a snapshot.
         this.usage = null
+        this.handleError(error)
       }
     },
     maxSnapshotsUpdated(usage) {

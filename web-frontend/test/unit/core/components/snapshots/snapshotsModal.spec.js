@@ -210,6 +210,44 @@ describe('SnapshotsModal', () => {
     expect(wrapper.vm.snapshotToReplace.id).toBe(3)
   })
 
+  test('blocks creation after usage fails and confirms replacement after retry', async () => {
+    testApp.dontFailOnErrorResponses()
+    testApp.mock.onGet(listUrl).reply(200, [snapshot(1, 1)])
+    testApp.mock.onGet(usageUrl).reply(500)
+    const wrapper = await testApp.mount(SnapshotsModal, {
+      props: { application },
+    })
+    wrapper.vm.show()
+    await flushPromises()
+
+    expect(wrapper.findAll('.snapshots-modal__rows > *')).toHaveLength(1)
+    expect(
+      findButton(wrapper, 'snapshotsModal.create').attributes('disabled')
+    ).toBeDefined()
+    // Enter can submit a form even when its submit button is disabled.
+    await wrapper.find('form.snapshots-modal__form').trigger('submit')
+    await flushPromises()
+    expect(testApp.mock.history.post).toHaveLength(0)
+
+    testApp.mock.onGet(usageUrl).reply(
+      200,
+      usage({
+        max_snapshots: 1,
+        effective_max_snapshots: 1,
+      })
+    )
+    await findButton(wrapper, 'action.retry').trigger('click')
+    await flushPromises()
+    expect(
+      findButton(wrapper, 'snapshotsModal.create').attributes('disabled')
+    ).toBeUndefined()
+    await wrapper.find('form.snapshots-modal__form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('snapshotsModal.confirmReplace')
+    expect(testApp.mock.history.post).toHaveLength(0)
+  })
+
   test('keeps the snapshots listed while they are loaded again', async () => {
     const wrapper = await mountModal([snapshot(2, 2), snapshot(1, 1)])
     let resolveList = null

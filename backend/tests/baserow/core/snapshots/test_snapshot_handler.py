@@ -31,6 +31,7 @@ from baserow.core.snapshots.exceptions import (
 )
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.snapshots.models import CreateSnapshotJob, RestoreSnapshotJob
+from baserow.core.snapshots.quota_handler import SnapshotQuotaHandler
 from baserow.core.snapshots.signals import before_snapshot_created
 from baserow.core.snapshots.tasks import delete_application_snapshot
 from baserow.core.trash.handler import TrashHandler
@@ -526,7 +527,7 @@ def test_allowance_used_is_the_sum_of_the_effective_max_snapshots(
     # Another workspace doesn't count.
     data_fixture.create_database_application(user=user)
 
-    handler = SnapshotHandler()
+    handler = SnapshotQuotaHandler()
     assert handler.get_allowance_used(workspace) == 3 + 3 + 10 + 0
     assert (
         handler.get_allowance_used(workspace, default_max_snapshots=1) == 1 + 1 + 10 + 0
@@ -541,12 +542,12 @@ def test_is_over_allowance(data_fixture: Fixtures):
     application = data_fixture.create_database_application(workspace=workspace)
 
     _set_max_snapshots(application, 5)
-    assert SnapshotHandler().is_over_allowance(workspace) is False
+    assert SnapshotQuotaHandler().is_over_allowance(workspace) is False
     _set_max_snapshots(application, 6)
-    assert SnapshotHandler().is_over_allowance(workspace) is True
+    assert SnapshotQuotaHandler().is_over_allowance(workspace) is True
 
     with override_settings(BASEROW_MAX_SNAPSHOTS_PER_GROUP=-1):
-        assert SnapshotHandler().is_over_allowance(workspace) is False
+        assert SnapshotQuotaHandler().is_over_allowance(workspace) is False
 
 
 @pytest.mark.django_db
@@ -558,7 +559,7 @@ def test_update_application_max_snapshots_within_the_allowance(data_fixture: Fix
     application = data_fixture.create_database_application(workspace=workspace)
     data_fixture.create_database_application(workspace=workspace)
 
-    application, updated = SnapshotHandler().update_application_max_snapshots(
+    application, updated = SnapshotQuotaHandler().update_application_max_snapshots(
         application.id, user, 8
     )
 
@@ -566,10 +567,10 @@ def test_update_application_max_snapshots_within_the_allowance(data_fixture: Fix
     assert updated.original_max_snapshots is None
     assert updated.new_max_snapshots == 8
     assert updated.deleted_count == 0
-    assert SnapshotHandler().get_allowance_used(workspace) == 10
+    assert SnapshotQuotaHandler().get_allowance_used(workspace) == 10
 
     with pytest.raises(MaxSnapshotsExceedsAllowance):
-        SnapshotHandler().update_application_max_snapshots(application.id, user, 9)
+        SnapshotQuotaHandler().update_application_max_snapshots(application.id, user, 9)
 
 
 @pytest.mark.django_db
@@ -585,10 +586,10 @@ def test_update_application_max_snapshots_while_over_the_allowance(
     _set_max_snapshots(second, 3)
 
     # Lowering a max is allowed, even if the workspace stays over.
-    SnapshotHandler().update_application_max_snapshots(first.id, user, 2)
+    SnapshotQuotaHandler().update_application_max_snapshots(first.id, user, 2)
     # Raising one isn't.
     with pytest.raises(MaxSnapshotsExceedsAllowance):
-        SnapshotHandler().update_application_max_snapshots(first.id, user, 3)
+        SnapshotQuotaHandler().update_application_max_snapshots(first.id, user, 3)
 
 
 @pytest.mark.django_db
@@ -606,25 +607,27 @@ def test_a_plugin_can_let_max_snapshots_go_over_the_allowance(
     plugin.get_snapshot_allowance.return_value = None
     plugin.allows_max_snapshots_over_allowance.return_value = True
     mocker.patch(
-        "baserow.core.snapshots.handler.plugin_registry.get_all",
+        "baserow.core.snapshots.quota_handler.plugin_registry.get_all",
         return_value=[plugin],
     )
     max_snapshots_updated = mocker.patch(
-        "baserow.core.snapshots.handler.max_snapshots_updated.send"
+        "baserow.core.snapshots.quota_handler.max_snapshots_updated.send"
     )
 
-    SnapshotHandler().update_application_max_snapshots(application.id, user, 5)
-    SnapshotHandler().update_workspace_default_max_snapshots(workspace.id, user, 2)
+    SnapshotQuotaHandler().update_application_max_snapshots(application.id, user, 5)
+    SnapshotQuotaHandler().update_workspace_default_max_snapshots(workspace.id, user, 2)
     data_fixture.create_database_application(workspace=workspace)
     workspace.refresh_from_db()
 
-    assert SnapshotHandler().get_allowance_used(workspace) == 7
-    assert SnapshotHandler().is_over_allowance(workspace)
-    assert SnapshotHandler()._get_allowance_values(workspace)["can_exceed_allowance"]
+    assert SnapshotQuotaHandler().get_allowance_used(workspace) == 7
+    assert SnapshotQuotaHandler().is_over_allowance(workspace)
+    assert SnapshotQuotaHandler()._get_allowance_values(workspace)[
+        "can_exceed_allowance"
+    ]
     assert max_snapshots_updated.call_count == 2
     # The max snapshots limit still applies.
     with pytest.raises(MaxSnapshotsAboveLimit):
-        SnapshotHandler().update_application_max_snapshots(application.id, user, 6)
+        SnapshotQuotaHandler().update_application_max_snapshots(application.id, user, 6)
 
 
 @pytest.mark.django_db
@@ -632,7 +635,7 @@ def test_get_max_snapshots_to_make_room(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_database_application(workspace=workspace)
-    handler = SnapshotHandler()
+    handler = SnapshotQuotaHandler()
 
     assert handler.get_max_snapshots_to_make_room(application.id, user) == 1
 
@@ -659,7 +662,7 @@ def test_update_application_max_snapshots_without_an_allowance_limit(
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_database_application(workspace=workspace)
 
-    application, _ = SnapshotHandler().update_application_max_snapshots(
+    application, _ = SnapshotQuotaHandler().update_application_max_snapshots(
         application.id, user, 1000
     )
 
@@ -673,15 +676,17 @@ def test_update_max_snapshots_above_the_maximum(data_fixture: Fixtures):
     workspace = data_fixture.create_workspace(user=user)
     application = data_fixture.create_database_application(workspace=workspace)
 
-    SnapshotHandler().update_application_max_snapshots(application.id, user, 3)
+    SnapshotQuotaHandler().update_application_max_snapshots(application.id, user, 3)
     with pytest.raises(MaxSnapshotsAboveLimit):
-        SnapshotHandler().update_application_max_snapshots(application.id, user, 4)
+        SnapshotQuotaHandler().update_application_max_snapshots(application.id, user, 4)
     with pytest.raises(MaxSnapshotsAboveLimit):
-        SnapshotHandler().update_workspace_default_max_snapshots(workspace.id, user, 4)
+        SnapshotQuotaHandler().update_workspace_default_max_snapshots(
+            workspace.id, user, 4
+        )
 
     # A max saved before the maximum was lowered can still be lowered.
     _set_max_snapshots(application, 6)
-    application, _ = SnapshotHandler().update_application_max_snapshots(
+    application, _ = SnapshotQuotaHandler().update_application_max_snapshots(
         application.id, user, 5
     )
     assert application.max_snapshots == 5
@@ -698,7 +703,7 @@ def test_update_application_max_snapshots_below_the_protected_snapshots(
     _create_snapshots(data_fixture, application, user, True, True, False)
 
     with pytest.raises(MaxSnapshotsBelowProtected):
-        SnapshotHandler().update_application_max_snapshots(
+        SnapshotQuotaHandler().update_application_max_snapshots(
             application.id, user, 1, delete_snapshots=True
         )
 
@@ -717,12 +722,12 @@ def test_lower_application_max_snapshots_deletes_the_oldest_unprotected_snapshot
     )
 
     with pytest.raises(MaxSnapshotsChangeDeletesSnapshots) as exc:
-        SnapshotHandler().update_application_max_snapshots(application.id, user, 2)
+        SnapshotQuotaHandler().update_application_max_snapshots(application.id, user, 2)
     assert exc.value.count == 2
     application.refresh_from_db()
     assert application.max_snapshots == 4
 
-    _, updated = SnapshotHandler().update_application_max_snapshots(
+    _, updated = SnapshotQuotaHandler().update_application_max_snapshots(
         application.id, user, 2, delete_snapshots=True
     )
 
@@ -745,13 +750,13 @@ def test_update_application_max_snapshots_back_to_the_workspace_default(
     application = data_fixture.create_database_application(workspace=workspace)
     _set_max_snapshots(application, 5)
 
-    application, updated = SnapshotHandler().update_application_max_snapshots(
+    application, updated = SnapshotQuotaHandler().update_application_max_snapshots(
         application.id, user, None
     )
 
     assert application.max_snapshots is None
     assert updated.original_max_snapshots == 5
-    assert SnapshotHandler().get_effective_max_snapshots(application) == 2
+    assert SnapshotQuotaHandler().get_effective_max_snapshots(application) == 2
 
 
 @pytest.mark.django_db
@@ -762,7 +767,7 @@ def test_update_application_max_snapshots_outside_the_workspace(data_fixture: Fi
     application = data_fixture.create_database_application(workspace=workspace)
 
     with pytest.raises(UserNotInWorkspace):
-        SnapshotHandler().update_application_max_snapshots(
+        SnapshotQuotaHandler().update_application_max_snapshots(
             application.id, other_user, 1
         )
 
@@ -777,22 +782,26 @@ def test_update_workspace_default_max_snapshots(data_fixture: Fixtures, mocker):
     own_max_snapshots = data_fixture.create_database_application(workspace=workspace)
     _set_max_snapshots(own_max_snapshots, 4)
 
-    workspace, updated = SnapshotHandler().update_workspace_default_max_snapshots(
+    workspace, updated = SnapshotQuotaHandler().update_workspace_default_max_snapshots(
         workspace.id, user, 3
     )
     assert workspace.default_max_snapshots == 3
     assert updated.original_max_snapshots == 0
-    assert SnapshotHandler().get_allowance_used(workspace) == 7
+    assert SnapshotQuotaHandler().get_allowance_used(workspace) == 7
 
     with pytest.raises(MaxSnapshotsExceedsAllowance):
-        SnapshotHandler().update_workspace_default_max_snapshots(workspace.id, user, 7)
+        SnapshotQuotaHandler().update_workspace_default_max_snapshots(
+            workspace.id, user, 7
+        )
 
     # Lowering it only deletes snapshots of the applications that follow it.
     oldest, newest = _create_snapshots(data_fixture, follower, user, False, False)
     own = _create_snapshots(data_fixture, own_max_snapshots, user, False, False)
     with pytest.raises(MaxSnapshotsChangeDeletesSnapshots):
-        SnapshotHandler().update_workspace_default_max_snapshots(workspace.id, user, 1)
-    _, updated = SnapshotHandler().update_workspace_default_max_snapshots(
+        SnapshotQuotaHandler().update_workspace_default_max_snapshots(
+            workspace.id, user, 1
+        )
+    _, updated = SnapshotQuotaHandler().update_workspace_default_max_snapshots(
         workspace.id, user, 1, delete_snapshots=True
     )
 
@@ -815,7 +824,7 @@ def test_update_workspace_default_max_snapshots_below_the_protected_snapshots(
     _create_snapshots(data_fixture, follower, user, True, True)
 
     with pytest.raises(MaxSnapshotsBelowProtected):
-        SnapshotHandler().update_workspace_default_max_snapshots(
+        SnapshotQuotaHandler().update_workspace_default_max_snapshots(
             workspace.id, user, 1, delete_snapshots=True
         )
 
@@ -829,7 +838,7 @@ def test_update_workspace_default_max_snapshots_needs_a_workspace_admin(
     workspace = data_fixture.create_workspace(user=admin, members=[member])
 
     with pytest.raises(UserInvalidWorkspacePermissionsError):
-        SnapshotHandler().update_workspace_default_max_snapshots(
+        SnapshotQuotaHandler().update_workspace_default_max_snapshots(
             workspace.id, member, 1
         )
 
@@ -861,7 +870,7 @@ def test_get_workspace_settings(data_fixture: Fixtures):
     _set_max_snapshots(second, 3)
     _create_snapshots(data_fixture, first, user, True, False)
 
-    settings = SnapshotHandler().get_workspace_settings(workspace.id, user)
+    settings = SnapshotQuotaHandler().get_workspace_settings(workspace.id, user)
 
     assert settings["used"] == 5
     assert settings["default_max_snapshots"] == 2
@@ -892,12 +901,12 @@ def test_a_plugin_can_set_the_allowance_of_a_workspace(data_fixture: Fixtures, m
         5 if w.id == workspace.id else None
     )
     mocker.patch(
-        "baserow.core.snapshots.handler.plugin_registry.get_all",
+        "baserow.core.snapshots.quota_handler.plugin_registry.get_all",
         return_value=[plugin],
     )
 
-    assert SnapshotHandler().get_allowance(workspace) == 5
-    assert SnapshotHandler().get_allowance(other_workspace) == 50
+    assert SnapshotQuotaHandler().get_allowance(workspace) == 5
+    assert SnapshotQuotaHandler().get_allowance(other_workspace) == 50
 
 
 @pytest.mark.django_db
@@ -910,7 +919,9 @@ def test_update_application_max_snapshots_needs_a_workspace_admin(
     application = data_fixture.create_database_application(workspace=workspace)
 
     with pytest.raises(UserInvalidWorkspacePermissionsError):
-        SnapshotHandler().update_application_max_snapshots(application.id, member, 1)
+        SnapshotQuotaHandler().update_application_max_snapshots(
+            application.id, member, 1
+        )
 
 
 @pytest.mark.django_db
@@ -963,12 +974,14 @@ def test_update_application_max_snapshots_reads_the_max_snapshots_again_after_lo
         return real_lock(workspace)
 
     mocker.patch.object(
-        handler, "_lock_workspace", side_effect=change_max_snapshots_while_waiting
+        SnapshotHandler,
+        "_lock_workspace",
+        side_effect=change_max_snapshots_while_waiting,
     )
 
     # Going from 0 to 10 would reserve 15 of 10.
     with pytest.raises(MaxSnapshotsExceedsAllowance):
-        handler.update_application_max_snapshots(first.id, user, 10)
+        SnapshotQuotaHandler().update_application_max_snapshots(first.id, user, 10)
 
 
 @pytest.mark.django_db
@@ -988,7 +1001,7 @@ def test_default_max_snapshots_change_queries_dont_grow_with_applications(
             application = data_fixture.create_database_application(workspace=workspace)
             _create_snapshots(data_fixture, application, user, False, False, False)
         with CaptureQueriesContext(connection) as captured:
-            SnapshotHandler().update_workspace_default_max_snapshots(
+            SnapshotQuotaHandler().update_workspace_default_max_snapshots(
                 workspace.id, user, 1, delete_snapshots=True
             )
         assert Snapshot.objects.filter(
@@ -1030,7 +1043,7 @@ def test_a_duplicated_application_follows_the_workspace_default_max_snapshots(
 
     duplicate = Application.objects.select_related("workspace").get(id=duplicate.id)
     assert duplicate.max_snapshots is None
-    assert SnapshotHandler().get_effective_max_snapshots(duplicate) == 2
+    assert SnapshotQuotaHandler().get_effective_max_snapshots(duplicate) == 2
 
 
 @pytest.mark.django_db
@@ -1060,12 +1073,12 @@ def test_a_plugin_can_block_snapshot_creation(data_fixture: Fixtures, mocker):
     plugin.is_snapshot_creation_blocked.return_value = True
     plugin.get_snapshot_allowance.return_value = None
     mocker.patch(
-        "baserow.core.snapshots.handler.plugin_registry.get_all",
+        "baserow.core.snapshots.quota_handler.plugin_registry.get_all",
         return_value=[plugin],
     )
 
-    assert SnapshotHandler().is_snapshot_creation_blocked(workspace) is True
-    assert SnapshotHandler()._get_allowance_values(workspace)["blocked"] is True
+    assert SnapshotQuotaHandler().is_snapshot_creation_blocked(workspace) is True
+    assert SnapshotQuotaHandler()._get_allowance_values(workspace)["blocked"] is True
 
 
 @pytest.mark.django_db
@@ -1075,7 +1088,7 @@ def test_get_workspace_settings_needs_a_workspace_admin(data_fixture: Fixtures):
     workspace = data_fixture.create_workspace(user=admin, members=[member])
 
     with pytest.raises(UserInvalidWorkspacePermissionsError):
-        SnapshotHandler().get_workspace_settings(workspace.id, member)
+        SnapshotQuotaHandler().get_workspace_settings(workspace.id, member)
 
 
 @pytest.mark.django_db
@@ -1111,7 +1124,7 @@ def test_lowering_max_snapshots_counts_the_snapshot_being_created_as_protected(
     handler.create(application.id, user, "Manual")
 
     with pytest.raises(MaxSnapshotsBelowProtected):
-        handler.update_application_max_snapshots(
+        SnapshotQuotaHandler().update_application_max_snapshots(
             application.id, user, 2, delete_snapshots=True
         )
 

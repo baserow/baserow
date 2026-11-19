@@ -59,6 +59,7 @@ from baserow.core.snapshots.exceptions import (
     SnapshotNameNotUnique,
 )
 from baserow.core.snapshots.handler import SnapshotHandler
+from baserow.core.snapshots.quota_handler import SnapshotQuotaHandler
 
 from .serializers import (
     CreateSnapshotSerializer,
@@ -184,7 +185,7 @@ class SnapshotsView(APIView):
 
         handler = SnapshotHandler()
         if data["raise_max_snapshots"]:
-            max_snapshots = handler.get_max_snapshots_to_make_room(
+            max_snapshots = SnapshotQuotaHandler().get_max_snapshots_to_make_room(
                 application_id, request.user
             )
             if max_snapshots is not None:
@@ -391,7 +392,7 @@ class SnapshotUsageView(APIView):
         }
     )
     def get(self, request, application_id):
-        usage = SnapshotHandler().get_usage(application_id, request.user)
+        usage = SnapshotQuotaHandler().get_usage(application_id, request.user)
         return Response(SnapshotUsageSerializer(usage).data)
 
 
@@ -448,7 +449,7 @@ class ApplicationMaxSnapshotsView(APIView):
             data["max_snapshots"],
             delete_snapshots=data["delete_snapshots"],
         )
-        usage = SnapshotHandler().get_usage(application_id, request.user)
+        usage = SnapshotQuotaHandler().get_usage(application_id, request.user)
         return Response(SnapshotUsageSerializer(usage).data)
 
 
@@ -485,7 +486,9 @@ class WorkspaceSnapshotSettingsView(APIView):
         }
     )
     def get(self, request, workspace_id):
-        settings = SnapshotHandler().get_workspace_settings(workspace_id, request.user)
+        settings = SnapshotQuotaHandler().get_workspace_settings(
+            workspace_id, request.user
+        )
         return Response(WorkspaceSnapshotSettingsSerializer(settings).data)
 
     @extend_schema(
@@ -537,5 +540,7 @@ class WorkspaceSnapshotSettingsView(APIView):
             data["default_max_snapshots"],
             delete_snapshots=data["delete_snapshots"],
         )
-        settings = SnapshotHandler().get_workspace_settings(workspace_id, request.user)
+        settings = SnapshotQuotaHandler().get_workspace_settings(
+            workspace_id, request.user
+        )
         return Response(WorkspaceSnapshotSettingsSerializer(settings).data)
