@@ -17,6 +17,7 @@ from baserow.contrib.automation.nodes.actions import (
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
+from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.tools.nodes import (
     add_nodes,
     delete_nodes,
@@ -283,6 +284,51 @@ def test_undo_router_insert_keeps_a_node_added_on_its_default_output(
     assert graph[str(email["id"])]["next"] == {"": [after["id"]]}
     assert graph[str(after["id"])]["next"] == {"": [other.id]}
     assert not Action.objects.filter(error__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_redo_router_insert_keeps_default_nodes_when_the_first_one_is_deleted(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    first = _email_node(
+        ctx, workflow, AutomationNode.objects.get(id=router["id"]), "First"
+    )
+    workflow.reload_graph()
+    second = _email_node(ctx, workflow, first, "Second")
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    ActionHandler.undo(ctx.user, scope, session)
+    # Another session deletes the first node that was on the default output.
+    AutomationNodeService().delete_node(ctx.user, first.id)
+
+    ActionHandler.redo(ctx.user, scope, session)
+
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    workflow.reload_graph()
+    assert workflow.graph[str(router["id"])]["next"] == {
+        str(edge.uid): [email["id"]],
+        "": [second.id],
+    }
+    assert not workflow.graph[str(email["id"])].get("next", {}).get("")
 
 
 @pytest.mark.django_db

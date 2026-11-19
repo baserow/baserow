@@ -1464,7 +1464,7 @@ def test_split_next_points_leaves_the_points_from_a_point_on_the_output():
         }
     )
 
-    model.get_graph().split_next_points(model.points[1], "", "uid1", 4)
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [4])
 
     assert model.graph == {
         "0": 1,
@@ -1480,13 +1480,36 @@ def test_split_next_points_moves_the_whole_chain_without_the_point():
         {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
     )
 
-    model.get_graph().split_next_points(model.points[1], "", "uid1", 99)
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [99])
 
     assert model.graph == {
         "0": 1,
         "1": {"next": {"uid1": [2]}},
         "2": {"next": {"": [3]}},
         "3": {},
+    }
+
+
+def test_split_next_points_leaves_the_points_from_the_first_point_left():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [4]}},
+            "4": {"next": {"": [5]}},
+            "5": {},
+        }
+    )
+
+    # Point 3 is gone: the chain splits at 4, the next of the points given.
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [3, 4, 5])
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2], "": [4]}},
+        "2": {"next": {}},
+        "4": {"next": {"": [5]}},
+        "5": {},
     }
 
 
