@@ -780,7 +780,7 @@ def is_instance_admin(actor: Any) -> bool:
     return isinstance(actor, User) and actor.is_active and actor.is_staff
 
 
-def _root_q(**lookups) -> Q:
+def template_root_q(**lookups) -> Q:
     """
     Matches the rows whose root matches the lookups: the root itself, which also
     holds revision 1, and every later revision pointing at it.
@@ -800,7 +800,10 @@ def template_state_expression() -> Case:
     """
 
     return Case(
-        When(_root_q(blocked_at__isnull=False), then=Value(UserTemplateState.BLOCKED)),
+        When(
+            template_root_q(blocked_at__isnull=False),
+            then=Value(UserTemplateState.BLOCKED),
+        ),
         When(
             last_submitted_state=Template.ReviewState.PENDING,
             then=Value(UserTemplateState.IN_REVIEW),
@@ -810,7 +813,7 @@ def template_state_expression() -> Case:
             then=Value(UserTemplateState.REJECTED),
         ),
         When(
-            _root_q(public_revision__isnull=False),
+            template_root_q(public_revision__isnull=False),
             then=Value(UserTemplateState.PUBLIC),
         ),
         default=Value(UserTemplateState.PRIVATE),
@@ -860,7 +863,7 @@ class TemplateQuerySet(QuerySet):
         """
 
         return self.filter(
-            _root_q(public_revision=F("id"), blocked_at__isnull=True)
+            template_root_q(public_revision=F("id"), blocked_at__isnull=True)
         ).select_related("root")
 
     def listed(self):
@@ -880,7 +883,7 @@ class TemplateQuerySet(QuerySet):
         and every later revision pointing at it.
         """
 
-        return self.filter(_root_q(**lookups))
+        return self.filter(template_root_q(**lookups))
 
     def with_template_state(self) -> "TemplateQuerySet":
         """
@@ -1030,9 +1033,9 @@ class TemplateQuerySet(QuerySet):
 
         q = _official_template_q()
         if (user_id := _get_user_id(actor)) is not None:
-            q |= Q(type=Template.Type.USER) & _root_q(owner_id=user_id)
+            q |= Q(type=Template.Type.USER) & template_root_q(owner_id=user_id)
         if private_link_token is not None:
-            q |= Q(type=Template.Type.USER) & _root_q(
+            q |= Q(type=Template.Type.USER) & template_root_q(
                 private_link_token=private_link_token
             )
         return self.filter(q)
@@ -1064,24 +1067,26 @@ class TemplateQuerySet(QuerySet):
         if not feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor):
             return self.filter(official)
 
-        visible = _root_q(
+        visible = template_root_q(
             public_revision=F("id"),
             blocked_at__isnull=True,
             marked_for_deletion_at__isnull=True,
         )
         if (user_id := _get_user_id(actor)) is not None:
-            visible |= _root_q(owner_id=user_id, marked_for_deletion_at__isnull=True)
+            visible |= template_root_q(
+                owner_id=user_id, marked_for_deletion_at__isnull=True
+            )
         queryset = self
         if private_link_token is not None:
             queryset = queryset.alias(family_id=Coalesce("root_id", "id"))
-            visible |= _root_q(
+            visible |= template_root_q(
                 private_link_token=private_link_token,
                 public_revision__isnull=True,
                 blocked_at__isnull=True,
                 marked_for_deletion_at__isnull=True,
             ) & ~Q(Exists(_later_revisions()))
         if allow_instance_admin and is_instance_admin(actor):
-            visible |= _root_q(marked_for_deletion_at__isnull=True)
+            visible |= template_root_q(marked_for_deletion_at__isnull=True)
         return queryset.filter(official | Q(type=Template.Type.USER) & visible)
 
 

@@ -36,4 +36,5 @@ USER_TEMPLATE_ADMIN_STATES = (
     UserTemplateState.PUBLIC,
     UserTemplateState.REJECTED,
     UserTemplateState.BLOCKED,
+    UserTemplateState.PRIVATE,
 )

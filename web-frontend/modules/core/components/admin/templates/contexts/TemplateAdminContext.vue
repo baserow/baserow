@@ -65,6 +65,12 @@ const TEMPLATE_ADMIN_MENU_ITEMS = {
     { name: 'unblock', separator: true },
     { name: 'delete', separator: true },
   ],
+  private: [
+    { name: 'preview' },
+    { name: 'download' },
+    { name: 'block', separator: true },
+    { name: 'delete', separator: true },
+  ],
 }
 
 const ITEMS = {

@@ -36,6 +36,7 @@ const row = (state, listed = false, canApprove = true) => ({
   ...REVIEW_FIELDS[`${state}:${listed}`],
   workspace_id: 9,
   install_count: 14,
+  private_link: true,
   submitted_on: null,
   author: { first_name: '', email: 'ada@example.com' },
   reviewed_on: '2026-11-02T10:00:00Z',
@@ -72,7 +73,7 @@ describe('TemplatesAdminTable', () => {
     rows,
     {
       count = rows.length,
-      counts = { in_review: 1, public: 1, rejected: 0, blocked: 0 },
+      counts = { in_review: 1, public: 1, rejected: 0, blocked: 0, private: 0 },
       component = TemplatesAdminTable,
     } = {}
   ) => {
@@ -170,7 +171,15 @@ describe('TemplatesAdminTable', () => {
   test('lists the templates of the chosen tab with its counts', async () => {
     const wrapper = await mountTable(
       [{ id: 3, revision_id: 7, name: 'Sprint', author: null, reason: 'Spam' }],
-      { counts: { in_review: 4, public: 12, rejected: 2, blocked: 1 } }
+      {
+        counts: {
+          in_review: 4,
+          public: 12,
+          rejected: 2,
+          blocked: 1,
+          private: 5,
+        },
+      }
     )
     const listStates = () =>
       requestsTo('/admin/templates/').map((request) => request.params.state)
@@ -205,7 +214,7 @@ describe('TemplatesAdminTable', () => {
 
   test('tells when the tab has no templates', async () => {
     const wrapper = await mountTable([], {
-      counts: { in_review: 0, public: 0, rejected: 0, blocked: 0 },
+      counts: { in_review: 0, public: 0, rejected: 0, blocked: 0, private: 0 },
     })
 
     expect(wrapper.find('.data-table__empty').text()).toBe(
@@ -626,7 +635,7 @@ describe('TemplatesAdminTable', () => {
     [
       0,
       'in_review',
-      'templatesAdmin.submitted',
+      ['templatesAdmin.submitted'],
       [
         'templatesAdmin.template',
         'templatesAdmin.author',
@@ -638,12 +647,12 @@ describe('TemplatesAdminTable', () => {
         'templatesAdmin.block',
         'templatesAdmin.delete',
       ],
-      '',
+      [''],
     ],
     [
       1,
       'public',
-      'templatesAdmin.used',
+      ['templatesAdmin.used'],
       [
         'templatesAdmin.template',
         'templatesAdmin.author',
@@ -658,12 +667,12 @@ describe('TemplatesAdminTable', () => {
         'templatesAdmin.block',
         'templatesAdmin.delete',
       ],
-      '14 times',
+      ['14 times'],
     ],
     [
       2,
       'rejected',
-      'templatesAdmin.reason',
+      ['templatesAdmin.reason'],
       ['templatesAdmin.template', 'templatesAdmin.author'],
       ['templatesAdmin.review'],
       [
@@ -672,12 +681,12 @@ describe('TemplatesAdminTable', () => {
         'templatesAdmin.block',
         'templatesAdmin.delete',
       ],
-      '',
+      [''],
     ],
     [
       3,
       'blocked',
-      'templatesAdmin.reason',
+      ['templatesAdmin.reason'],
       ['templatesAdmin.template', 'templatesAdmin.author'],
       [],
       [
@@ -686,11 +695,30 @@ describe('TemplatesAdminTable', () => {
         'templatesAdmin.unblock',
         'templatesAdmin.delete',
       ],
-      '',
+      [''],
+    ],
+    [
+      4,
+      'private',
+      ['templatesAdmin.privateLink', 'templatesAdmin.used'],
+      [
+        'templatesAdmin.template',
+        'templatesAdmin.author',
+        'templatesAdmin.privateLink',
+        'templatesAdmin.used',
+      ],
+      [],
+      [
+        'templatesAdmin.preview',
+        'templateInstall.download',
+        'templatesAdmin.block',
+        'templatesAdmin.delete',
+      ],
+      ['', '14 times'],
     ],
   ])(
     'shows the columns, row button and menu of the tab %s (%s)',
-    async (tabIndex, state, column, sortable, buttons, items, cell) => {
+    async (tabIndex, state, columns, sortable, buttons, items, cells) => {
       const wrapper = await mountTable([row(state, state === 'public')])
       await wrapper.findAll('.tabs__item').at(tabIndex).trigger('click')
       await flushPromises()
@@ -700,7 +728,7 @@ describe('TemplatesAdminTable', () => {
       ).toEqual([
         'templatesAdmin.template',
         'templatesAdmin.author',
-        column,
+        ...columns,
         '',
       ])
       expect(
@@ -708,7 +736,12 @@ describe('TemplatesAdminTable', () => {
           .findAll('.data-table__table-cell-head-link')
           .map((button) => button.text())
       ).toEqual(sortable)
-      expect(wrapper.findAll('tbody td').at(2).text()).toBe(cell)
+      expect(
+        wrapper
+          .findAll('tbody td')
+          .slice(2, -1)
+          .map((td) => td.text())
+      ).toEqual(cells)
       expect(
         wrapper
           .findAll('tbody button:not(.data-table__more)')
@@ -718,6 +751,24 @@ describe('TemplatesAdminTable', () => {
       await openMenu(wrapper)
 
       expect(menuLabels()).toEqual(items)
+    }
+  )
+
+  test.each([
+    [true, 'iconoir-check', 'templatesAdmin.hasPrivateLink'],
+    [false, 'iconoir-cancel', 'templatesAdmin.noPrivateLink'],
+  ])(
+    'shows whether the private link is on (%s)',
+    async (privateLink, icon, label) => {
+      const wrapper = await mountTable([
+        { ...row('private'), private_link: privateLink },
+      ])
+      await wrapper.findAll('.tabs__item').at(4).trigger('click')
+      await flushPromises()
+
+      const cell = wrapper.findAll('tbody td').at(2).find('i')
+      expect(cell.classes()).toContain(icon)
+      expect(cell.attributes('aria-label')).toBe(label)
     }
   )
 
@@ -761,6 +812,23 @@ describe('TemplatesAdminTable', () => {
       '/admin/templates/3/unblock/',
     ])
     await expectRefreshed()
+  })
+
+  test('previews a private template without a link to copy', async () => {
+    testApp.authenticate({ id: 1, preferences: {}, is_staff: true })
+    const wrapper = await mountTable([{ ...row('private'), type: 'user' }])
+
+    await openMenu(wrapper)
+    await clickMenuItem('templatesAdmin.preview')
+    document.body
+      .querySelector('.template-install__actions .button-icon')
+      .click()
+    await flushPromises()
+
+    expect(menuLabels()).toEqual([
+      'templateInstall.download',
+      'templatesAdmin.block',
+    ])
   })
 
   test('refreshes the list and counts when a block from the preview ends after the preview closed', async () => {
