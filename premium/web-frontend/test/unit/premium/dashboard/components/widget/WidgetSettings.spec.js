@@ -84,7 +84,10 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
   }
 
   test('guided configuration requires valid chart settings before returning', async () => {
-    testApp.store.commit('dashboardApplication/SET_WIDGETS', [widget])
+    testApp.store.commit('dashboardApplication/SET_WIDGETS', [
+      widget,
+      { id: 20, type: 'text_filter', title: 'Region', target_filters: [] },
+    ])
     testApp.store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
       dataSourceId: 12,
       values: { table_id: null },
@@ -94,7 +97,7 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
       props: {
         dashboard: { id: 1, workspace: { id: 1 } },
         widgetId: 10,
-        excludeFilterWidgetId: 20,
+        linkFilterWidgetId: 20,
       },
       global: {
         stubs: {
@@ -109,7 +112,7 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
     const finish = () =>
       wrapper
         .findAll('button')
-        .find((button) => button.text() === 'textFilterWidget.addToFilter')
+        .find((button) => button.text() === 'configureFilterTargetModal.add')
     await finish().trigger('click')
     expect(wrapper.emitted('configured')).toBeUndefined()
     wrapper
@@ -120,27 +123,33 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
       'dashboardApplication/updateDataSource',
       expect.objectContaining({
         dataSourceId: 12,
-        excludeFilterWidgetId: 20,
+        linkFilterWidgetId: 20,
       })
     )
     testApp.store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
       dataSourceId: 12,
       values: savedDataSource,
     })
+    // The server links the chart to the filter that asked, as it shows a table.
+    testApp.store.commit('dashboardApplication/UPDATE_WIDGET', {
+      widgetId: 20,
+      values: {
+        target_filters: [
+          {
+            target_widget_id: 10,
+            enabled: true,
+            empty_behavior: 'apply_nothing',
+            group: { filter_type: 'AND', filters: [], filter_groups: [] },
+          },
+        ],
+      },
+    })
     await flushPromises()
-    expect(wrapper.find('.service-form__filter-buttons').exists()).toBe(false)
-    await wrapper
-      .findAll('.tabs__item')
-      .find((tab) =>
-        tab.text().includes('serviceRefinementForms.filterTabTitle')
-      )
-      .trigger('click')
-    expect(wrapper.find('.service-form__condition-form-tab').isVisible()).toBe(
-      true
-    )
-    expect(
-      wrapper.find('.filters__value--formula-input input').element.value
-    ).toBe('Before')
+    // The filter's conditions are set in the modal: the chart's own filter
+    // isn't offered, but grouping and sorting, which shape the chart, are.
+    const refinements = wrapper.find('.service-form__filter-buttons')
+    expect(refinements.find('.iconoir-filter').exists()).toBe(false)
+    expect(refinements.find('.iconoir-group').exists()).toBe(true)
     await finish().trigger('click')
     expect(wrapper.emitted('configured')).toHaveLength(1)
   })

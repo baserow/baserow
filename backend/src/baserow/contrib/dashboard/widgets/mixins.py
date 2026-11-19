@@ -68,15 +68,27 @@ class DisplayWidgetTypeMixin:
             updated = deepcopy(links)
             originals = []
             # Copy this filter's conditions from the first widget on the new
-            # table, independently of its conditions on other tables.
-            default = (
-                build_new_widget_link(instance, links, get_table_widget_ids())
-                if table_id
-                and widget.id != kwargs.get("exclude_filter_widget_id")
-                and getattr(widget, "apply_to_new_widgets", False)
+            # table, independently of its conditions on other tables. A filter
+            # that asked for the widget links it even without conditions.
+            asked = widget.id == kwargs.get("link_filter_widget_id")
+            default = None
+            if (
+                table_id
                 and not widget.trashed
-                else None
-            )
+                and (asked or getattr(widget, "apply_to_new_widgets", False))
+            ):
+                default = build_new_widget_link(instance, links, get_table_widget_ids())
+                if default is None and asked:
+                    default = {
+                        "target_widget_id": instance.id,
+                        "enabled": True,
+                        "empty_behavior": "apply_nothing",
+                        "group": {
+                            "filter_type": "AND",
+                            "filters": [],
+                            "filter_groups": [],
+                        },
+                    }
             for link, replacement in zip(links, updated):
                 if link["target_widget_id"] != instance.id:
                     continue

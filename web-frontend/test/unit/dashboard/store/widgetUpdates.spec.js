@@ -194,7 +194,7 @@ test('does not merge a new edit into a request already sent to the server', asyn
 
 test.each([null, 1])(
   'source updates forward only the requested filter exclusion (%s)',
-  async (excludeFilterWidgetId) => {
+  async (linkFilterWidgetId) => {
     store.commit('dashboardApplication/SET_DATA_SOURCES', [
       { id: 7, table_id: 3 },
     ])
@@ -205,16 +205,16 @@ test.each([null, 1])(
     await store.dispatch('dashboardApplication/updateDataSource', {
       dataSourceId: 7,
       values: { field_id: 4 },
-      excludeFilterWidgetId,
+      linkFilterWidgetId,
     })
     expect(patch).toHaveBeenCalledWith('/dashboard/data-sources/7/', {
       field_id: 4,
-      ...(excludeFilterWidgetId == null
+      ...(linkFilterWidgetId == null
         ? {}
-        : { exclude_filter_widget_id: excludeFilterWidgetId }),
+        : { link_filter_widget_id: linkFilterWidgetId }),
     })
     expect(
       store.getters['dashboardApplication/getDataSourceById'](7)
-    ).not.toHaveProperty('exclude_filter_widget_id')
+    ).not.toHaveProperty('link_filter_widget_id')
   }
 )

@@ -30,7 +30,7 @@ export class WidgetType extends Registerable {
     return null
   }
 
-  /** A short explanation shown when choosing a widget to add. */
+  /** A short explanation shown when hovering the widget in the add widget modal. */
   get description() {
     return null
   }
@@ -178,6 +178,10 @@ export class SummaryWidgetType extends DataSourceWidgetType {
   get name() {
     const { $i18n: i18n } = this.app
     return i18n.t('summaryWidget.name')
+  }
+
+  get description() {
+    return this.app.$i18n.t('summaryWidget.description')
   }
 
   get createWidgetImage() {

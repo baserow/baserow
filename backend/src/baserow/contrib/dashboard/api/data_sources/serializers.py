@@ -96,17 +96,20 @@ class DashboardDataSourceSerializer(ServiceSerializer):
 
 class UpdateDashboardDataSourceSerializer(UpdateServiceSerializer):
     name = serializers.CharField(required=False)
-    exclude_filter_widget_id = serializers.IntegerField(
+    link_filter_widget_id = serializers.IntegerField(
         required=False,
         allow_null=True,
         min_value=1,
-        help_text="Defer automatic linking to this filter while configuring a new widget.",
+        help_text=(
+            "A filter widget that links this widget once it shows a table, with "
+            "the conditions of the first widget it filters on that table."
+        ),
     )
 
     class Meta(ServiceSerializer.Meta):
         fields = UpdateServiceSerializer.Meta.fields + (
             "name",
-            "exclude_filter_widget_id",
+            "link_filter_widget_id",
         )
 
 

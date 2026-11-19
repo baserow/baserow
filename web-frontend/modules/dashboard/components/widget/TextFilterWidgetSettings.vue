@@ -318,9 +318,8 @@
         ref="configurationModal"
         :dashboard="dashboard"
         :widget-id="configuringTarget.widgetId"
-        :exclude-filter-widget-id="configuringTarget.filterId"
+        :link-filter-widget-id="configuringTarget.filterId"
         :store-prefix="storePrefix"
-        :loading="linkingTarget"
         @configured="finishTargetCreation"
         @hidden="configuringTarget = null"
       />
@@ -378,7 +377,6 @@ const createWidgetModal = ref(null)
 const creatingTarget = ref(null)
 const configuringTarget = ref(null)
 const configurationModal = ref(null)
-const linkingTarget = ref(false)
 let disposed = false
 onBeforeUnmount(() => {
   disposed = true
@@ -442,27 +440,8 @@ async function ensureTargetLinked(filterId, targetId) {
   return true
 }
 
-/** Link the configured widget, then return directly to its filter conditions. */
-async function finishTargetCreation(created) {
-  const context = configuringTarget.value
-  if (!context || linkingTarget.value || !canFilter(created)) return
-  linkingTarget.value = true
-  try {
-    if (!(await ensureTargetLinked(context.filterId, created.id))) return
-    if (
-      disposed ||
-      configuringTarget.value !== context ||
-      props.widget.id !== context.filterId
-    )
-      return
-    configurationModal.value?.hide()
-    await openFilters(created)
-  } catch (error) {
-    notifyIf(error, 'dashboard')
-  } finally {
-    linkingTarget.value = false
-  }
-}
+/** The widget and its conditions are saved as they're set: just close. */
+const finishTargetCreation = () => configurationModal.value?.hide()
 const emptyGroup = () => ({
   filters: [],
   filter_groups: [],

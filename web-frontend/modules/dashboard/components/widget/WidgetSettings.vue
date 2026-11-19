@@ -13,7 +13,8 @@
       :widget="widget"
       :store-prefix="storePrefix"
       :small="small"
-      :exclude-filter-widget-id="excludeFilterWidgetId"
+      :show-own-filters="showOwnFilters"
+      :link-filter-widget-id="linkFilterWidgetId"
     />
   </div>
 </template>
@@ -39,7 +40,12 @@ export default {
     }
   },
   props: {
-    excludeFilterWidgetId: { type: Number, default: null },
+    linkFilterWidgetId: { type: Number, default: null },
+    /** Whether the widget's own filter conditions can be edited here. */
+    showOwnFilters: {
+      type: Boolean,
+      default: true,
+    },
     small: {
       type: Boolean,
       default: true,

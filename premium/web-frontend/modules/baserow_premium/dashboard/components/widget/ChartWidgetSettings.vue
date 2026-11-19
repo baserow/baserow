@@ -8,6 +8,7 @@
     :default-values="dataSource"
     :store-prefix="storePrefix"
     :small="small"
+    :show-own-filters="showOwnFilters"
     :loading="loading"
     @values-changed="onDataSourceValuesChanged"
     @widget-values-changed="widgetValuesChanged"
@@ -24,7 +25,12 @@ export default {
   components: { GroupedAggregateRowsDataSourceForm },
   mixins: [error],
   props: {
-    excludeFilterWidgetId: { type: Number, default: null },
+    linkFilterWidgetId: { type: Number, default: null },
+    /** Whether the widget's own filter conditions can be edited here. */
+    showOwnFilters: {
+      type: Boolean,
+      default: true,
+    },
     small: {
       type: Boolean,
       default: true,
@@ -89,9 +95,9 @@ export default {
           {
             dataSourceId: this.dataSource.id,
             values: changedDataSourceValues,
-            ...(this.excludeFilterWidgetId == null
+            ...(this.linkFilterWidgetId == null
               ? {}
-              : { excludeFilterWidgetId: this.excludeFilterWidgetId }),
+              : { linkFilterWidgetId: this.linkFilterWidgetId }),
             widget: this.widget,
           }
         )

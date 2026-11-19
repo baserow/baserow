@@ -1,7 +1,7 @@
 <template>
   <ItemPickerCard
+    v-tooltip="variation.description"
     :name="variation.name"
-    :description="variation.description || null"
     :image="variation.createWidgetImage"
     :disabled="disabled"
     :unavailable="!isWidgetAvailable"

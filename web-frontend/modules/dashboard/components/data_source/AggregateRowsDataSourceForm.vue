@@ -95,7 +95,12 @@
       </FormGroup>
     </FormSection>
     <DashboardServiceRefinementForms
-      v-if="values.table_id && !fieldHasErrors('table_id') && !fieldsLoading"
+      v-if="
+        showOwnFilters &&
+        values.table_id &&
+        !fieldHasErrors('table_id') &&
+        !fieldsLoading
+      "
       :small="small"
       :values="values"
       :table-fields="tableFields"
@@ -131,6 +136,11 @@ export default {
   components: { DashboardTableSelector, DashboardServiceRefinementForms },
   mixins: [form, tableFields],
   props: {
+    /** Whether the widget's own filter conditions can be edited here. */
+    showOwnFilters: {
+      type: Boolean,
+      default: true,
+    },
     small: {
       type: Boolean,
       default: true,
