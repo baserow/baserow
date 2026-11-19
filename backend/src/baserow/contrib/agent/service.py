@@ -207,6 +207,10 @@ class AgentService:
             for application in installed_applications
             if isinstance(application, Database)
         ]
+        if not databases:
+            # An identity with access to nothing can't run the Agent's tools, so
+            # the Agent waits for one to be picked instead.
+            return
         for agent in agents:
             pending = self.handler.get_pending_tool_configuration(agent)
             if not pending["allowed_tools"]:

@@ -58,11 +58,17 @@ def make_agent(fixture, workspace, name, tools):
     return agent
 
 
-def sync_template(fixture, settings, tmp_path, agents_tools, slug="agent-kit"):
+def sync_template(
+    fixture, settings, tmp_path, agents_tools, slug="agent-kit", with_database=True
+):
     """An official template with a database and an Agent for each tool choice."""
 
     source = fixture.create_workspace()
-    database = fixture.create_database_application(workspace=source, name="CRM")
+    databases = (
+        [fixture.create_database_application(workspace=source, name="CRM")]
+        if with_database
+        else []
+    )
     agents = [
         make_agent(fixture, source, f"Agent {index}", tools)
         for index, tools in enumerate(agents_tools)
@@ -75,7 +81,7 @@ def sync_template(fixture, settings, tmp_path, agents_tools, slug="agent-kit"):
                 "icon": "iconoir-shop",
                 "keywords": [],
                 "categories": ["Agents"],
-                "export": export_for_template([database, *agents]),
+                "export": export_for_template([*databases, *agents]),
             }
         )
     )
@@ -162,6 +168,28 @@ def test_an_agent_that_only_reads_gets_a_viewer_identity(
     assert reader_identity.id != writer_identity.id
     assert roles_of(reader_identity) == {(database.id, "VIEWER")}
     assert roles_of(writer_identity) == {(database.id, "EDITOR")}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_agent_only_template_creates_no_identity(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(
+        enterprise_data_fixture,
+        settings,
+        tmp_path,
+        [WRITE_TOOLS],
+        with_database=False,
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED
+    agent = AgentApplication.objects.get(workspace=workspace)
+    assert agent.run_as_subject_id is None
+    assert agent.pending_tool_choices is not None
+    assert not IdentityHandler().get_queryset(workspace).exists()
 
 
 @pytest.mark.django_db(transaction=True)
