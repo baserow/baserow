@@ -34,14 +34,6 @@ class TemplateHasNoContent(Exception):
     """
 
 
-class TemplateHasNothingToInstall(TemplateHasNoContent):
-    """
-    Raised when applications can't be imported here, for example Agents while
-    their feature flag is off: when none of a template's applications can be
-    installed, or when any of those selected for a user template can't be copied.
-    """
-
-
 class TemplateUpdated(Exception):
     """
     Raised when a user template changed since the user or admin saw it.

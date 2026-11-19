@@ -22,7 +22,6 @@ from baserow.contrib.agent.registries import (
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -94,18 +93,6 @@ class AgentApplicationType(ApplicationType):
         if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
             return run_as
         return None, None
-
-    def can_import(self, import_export_config: ImportExportConfig) -> bool:
-        """
-        Agents can't run with the feature flag off, so imports leave them out.
-        Copies within the instance, like duplicates and snapshots, keep them.
-        """
-
-        return import_export_config.keeps_unmapped_references or (
-            feature_flag_is_enabled(
-                FF_AGENT_BUILDER, user=import_export_config.imported_by
-            )
-        )
 
     @staticmethod
     def _enabled_models(workspace: Workspace) -> dict[str, list[str]]:
