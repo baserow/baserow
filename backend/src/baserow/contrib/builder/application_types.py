@@ -297,6 +297,17 @@ class BuilderApplicationType(ApplicationType):
             cache=cache,
         )
 
+        serialized_integrations += (
+            IntegrationHandler().export_referenced_workspace_integrations(
+                builder,
+                [serialized_pages, serialized_user_sources],
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+            )
+        )
+
         serialized_favicon_file = UserFileHandler().export_user_file(
             builder.favicon_file, files_zip, storage, cache=cache
         )
@@ -394,6 +405,7 @@ class BuilderApplicationType(ApplicationType):
         storage: Optional[Storage] = None,
         progress_builder: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, Any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> List[Page]:
         """
         Import user sources to builder.
@@ -404,6 +416,7 @@ class BuilderApplicationType(ApplicationType):
         :param progress_builder: A progress builder that allows for publishing progress.
         :param files_zip: An optional zip file for the related files.
         :param storage: The storage instance.
+        :param import_export_config: What kind of import this is.
         :return: The created user sources instances.
         """
 
@@ -424,6 +437,7 @@ class BuilderApplicationType(ApplicationType):
                 cache=cache,
                 files_zip=files_zip,
                 storage=storage,
+                import_export_config=import_export_config,
             )
             imported_user_sources.append(integration)
 
@@ -539,6 +553,7 @@ class BuilderApplicationType(ApplicationType):
                 storage,
                 progress.create_child_builder(represents_progress=user_source_progress),
                 cache=cache,
+                import_export_config=import_export_config,
             )
 
         if not serialized_pages:

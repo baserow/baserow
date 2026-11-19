@@ -387,6 +387,7 @@ class BuilderWorkflowServiceActionType(
                 serialized_service.get("integration_id", None),
                 id_mapping,
                 application_id=kwargs.get("target_builder_id"),
+                import_export_config=kwargs.get("import_export_config"),
             )
 
             return ServiceHandler().import_service(

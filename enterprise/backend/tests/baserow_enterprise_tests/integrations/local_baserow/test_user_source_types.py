@@ -37,6 +37,7 @@ from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.app_auth_providers.models import AppAuthProvider
 from baserow.core.cache import global_cache
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import plugin_registry
 from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_sources.exceptions import UserSourceImproperlyConfigured
@@ -2941,3 +2942,52 @@ def test_local_baserow_user_source_reads_through_a_workspace_integration(
 
     assert user_source_type.is_configured(user_source)
     assert [u.id for u in user_source_type.list_users(user_source)] == [row.id]
+
+
+def _builder_with_a_user_source_on_a_workspace_integration(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace),
+        authorized_user=user,
+    )
+    table, _, _ = data_fixture.build_table(
+        user=user,
+        database=data_fixture.create_database_application(workspace=workspace),
+        columns=[("Email", "text"), ("Name", "text"), ("Role", "text")],
+        rows=[["foo@bar.com", "Foo", ""]],
+    )
+    data_fixture.create_local_baserow_table_user_source(
+        application=builder, integration=integration, table=table
+    )
+    return user, builder, integration
+
+
+@pytest.mark.django_db
+def test_duplicating_a_builder_keeps_the_workspace_integration_of_its_user_source(
+    data_fixture,
+):
+    user, builder, integration = _builder_with_a_user_source_on_a_workspace_integration(
+        data_fixture
+    )
+
+    duplicated = CoreHandler().duplicate_application(user, builder)
+
+    (user_source,) = UserSource.objects.filter(application=duplicated)
+    assert user_source.integration_id == integration.id
+
+
+@pytest.mark.django_db
+def test_publishing_copies_the_workspace_integration_of_a_user_source(data_fixture):
+    user, builder, integration = _builder_with_a_user_source_on_a_workspace_integration(
+        data_fixture
+    )
+    domain = data_fixture.create_builder_custom_domain(builder=builder)
+
+    published_builder = DomainHandler().publish(domain).published_to
+
+    (copy,) = published_builder.integrations.all()
+    (user_source,) = UserSource.objects.filter(application=published_builder)
+    assert copy.id != integration.id
+    assert user_source.integration_id == copy.id

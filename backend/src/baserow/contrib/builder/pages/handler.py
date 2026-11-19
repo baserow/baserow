@@ -927,6 +927,7 @@ class PageHandler:
                 storage=storage,
                 progress=progress,
                 cache=cache,
+                import_export_config=import_export_config,
             )
 
         for page_instance, serialized_page in imported_pages:
@@ -1093,6 +1094,7 @@ class PageHandler:
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
         cache: Optional[Dict[str, any]] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         """
         Import all page data sources.
@@ -1103,6 +1105,7 @@ class PageHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param import_export_config: What kind of import this is.
         :return: the newly created instance list.
         """
 
@@ -1114,6 +1117,7 @@ class PageHandler:
                 files_zip=files_zip,
                 storage=storage,
                 cache=cache,
+                import_export_config=import_export_config,
             )
             progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 

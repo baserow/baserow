@@ -139,6 +139,17 @@ class DashboardApplicationType(ApplicationType):
             for data_source in data_sources
         ]
 
+        serialized_integrations += (
+            IntegrationHandler().export_referenced_workspace_integrations(
+                dashboard,
+                serialized_data_sources,
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
+            )
+        )
+
         serialized_dashboard = super().export_serialized(
             dashboard,
             import_export_config,

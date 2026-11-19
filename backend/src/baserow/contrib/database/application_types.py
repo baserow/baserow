@@ -372,6 +372,18 @@ class DatabaseApplicationType(ApplicationType):
                 database, import_export_config
             )
         ]
+        # Only the button fields' actions refer to integrations; the rows are
+        # left out of the search.
+        serialized_integrations += (
+            IntegrationHandler().export_referenced_workspace_integrations(
+                database,
+                [table["fields"] for table in serialized_tables],
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=integration_cache,
+            )
+        )
 
         serialized = super().export_serialized(
             database, import_export_config, files_zip, storage

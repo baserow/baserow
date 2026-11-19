@@ -328,7 +328,7 @@ def test_export_user_source(data_fixture):
 @pytest.mark.django_db
 def test_import_user_source(data_fixture):
     builder = data_fixture.create_builder_application()
-    integration = data_fixture.create_local_baserow_integration()
+    integration = data_fixture.create_local_baserow_integration(application=builder)
 
     TO_IMPORT = {
         "email_field_id": None,
@@ -370,7 +370,7 @@ def test_import_user_source(data_fixture):
 @pytest.mark.django_db
 def test_import_user_source_with_migrated_integration(data_fixture):
     builder = data_fixture.create_builder_application()
-    integration = data_fixture.create_local_baserow_integration()
+    integration = data_fixture.create_local_baserow_integration(application=builder)
 
     TO_IMPORT = {
         "email_field_id": None,
