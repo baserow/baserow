@@ -641,59 +641,70 @@ def test_template_selection_follows_display_order_for_both_association_paths(
     assert condition_fields(links_of(setup["filter"].id)[explicit.id]) == [expected]
 
 
-@pytest.mark.django_db
-@pytest.mark.undo_redo
-def test_guided_configuration_defers_only_the_originating_filter_until_association(
-    api_client, setup_dashboard
-):
-    """Source saves and redo skip the origin; Add to filter still copies its model."""
-    setup = setup_dashboard
-    template = setup["summary"](setup["orders"], "Template")
-    configure_target(api_client, setup, template)
-    other_filter = TextFilterWidget.objects.create(
-        dashboard=setup["dashboard"], title="Other"
-    )
-    other_setup = {**setup, "filter": other_filter}
-    configure_target(api_client, other_setup, template)
-    widget = setup["summary"](setup["tickets"], "Guided widget")
+def choose_table(api_client, setup, widget, table):
+    """Pick the widget's table in the guided setup of the filter."""
+
     response = api_client.patch(
         reverse(
             "api:dashboard:data_sources:item",
             kwargs={"data_source_id": widget.data_source_id},
         ),
-        {
-            "table_id": setup["orders"].id,
-            "exclude_filter_widget_id": setup["filter"].id,
-        },
+        {"table_id": table.id, "link_filter_widget_id": setup["filter"].id},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {setup['token']}",
+        # The session `undo` and `redo` replay.
+        HTTP_CLIENTSESSIONID="default-test-user-session-id",
     )
     assert response.status_code == 200, response.json()
-    assert widget.id not in links_of(setup["filter"].id)
-    assert widget.id in links_of(other_filter.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_guided_setup_links_the_widget_as_soon_as_it_shows_a_table(
+    api_client, setup_dashboard
+):
+    """The asking filter links the widget, copying its first widget on the table."""
+    setup = setup_dashboard
+    patch_filter(api_client, setup, {"apply_to_new_widgets": False})
+    template = setup["summary"](setup["orders"], "Template")
+    configure_target(api_client, setup, template)
+    other_filter = TextFilterWidget.objects.create(
+        dashboard=setup["dashboard"], title="Other", apply_to_new_widgets=False
+    )
+    configure_target(api_client, {**setup, "filter": other_filter}, template)
+    widget = setup["summary"](setup["tickets"], "Guided widget")
+
+    choose_table(api_client, setup, widget, setup["orders"])
+
+    link = links_of(setup["filter"].id)[widget.id]
+    assert condition_fields(link) == [setup["name"].id]
+    assert link["enabled"] is True
+    # Only the asking filter links it: the other doesn't filter new widgets.
+    assert widget.id not in links_of(other_filter.id)
+
     undo(setup)
-    ActionHandler.redo(
-        setup["user"],
-        [ApplicationActionScopeType.value(setup["dashboard"].id)],
-        "default-test-user-session-id",
-    )
     assert widget.id not in links_of(setup["filter"].id)
-    response = patch_filter(
-        api_client,
-        setup,
-        {
-            "target_filters": [
-                *links_of(setup["filter"].id).values(),
-                {
-                    "target_widget_id": widget.id,
-                    "group": {"filter_type": "AND", "filters": [], "filter_groups": []},
-                },
-            ]
-        },
-    )
-    assert response.status_code == 200, response.json()
+    redo(setup)
     assert condition_fields(links_of(setup["filter"].id)[widget.id]) == [
         setup["name"].id
+    ]
+
+
+@pytest.mark.django_db
+def test_guided_setup_links_without_conditions_and_follows_table_changes(
+    api_client, setup_dashboard
+):
+    """Without a widget to copy, the link starts empty; a new table re-seeds it."""
+    setup = setup_dashboard
+    widget = setup["summary"](setup["orders"], "Guided widget")
+    choose_table(api_client, setup, widget, setup["tickets"])
+    assert condition_fields(links_of(setup["filter"].id)[widget.id]) == []
+
+    template = setup["summary"](setup["orders"], "Template")
+    configure_target(api_client, setup, template, setup["notes"])
+    choose_table(api_client, setup, widget, setup["orders"])
+    assert condition_fields(links_of(setup["filter"].id)[widget.id]) == [
+        setup["notes"].id
     ]
 
 

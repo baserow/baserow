@@ -79,7 +79,8 @@
     "filteredBy": "Filtered by {filters}"
   },
   "summaryWidget": {
-    "name": "Summary"
+    "name": "Summary",
+    "description": "A single number summing up a field"
   },
   "emptyDashboardSidebar": {
     "title": "No element selected",
@@ -109,6 +110,7 @@
   },
   "textFilterWidget": {
     "name": "Filter",
+    "description": "Lets viewers narrow down other widgets",
     "filterType": "Filter type",
     "input": "Input",
     "dropdown": "Dropdown",
@@ -144,7 +146,6 @@
     "editFilterConditions": "Edit these conditions in the {filter} filter settings.",
     "editWidgetConditions": "Edit these conditions in the widget’s data source settings.",
     "fieldsError": "Could not load the fields. Try again.",
-    "description": "Lets viewers narrow down the other widgets on this dashboard by typing or picking a value.",
     "howItLooks": "How it looks",
     "notApplied": "Not applied",
     "notAppliedHelp": "This filter doesn't filter any widget yet. Select it to choose what it filters.",
@@ -166,15 +167,21 @@
     "conditionSummary": "{conditions}, {match}",
     "anyCanMatch": "any can match",
     "allMustMatch": "all must match",
-    "whenEmptyCount": "1 condition when empty | {count} conditions when empty",
-    "configureNewWidget": "Configure new widget",
-    "addToFilter": "Add to filter",
-    "configurationSaveFailed": "Some changes could not be saved. Update the affected settings and try again."
+    "whenEmptyCount": "1 condition when empty | {count} conditions when empty"
   },
   "dashboardDataProviderType": {
     "widgetData": "Filter widgets"
   },
   "dashboardServiceRefinementForms": {
     "dashboardFilters": "Dashboard filters"
+  },
+  "configureFilterTargetModal": {
+    "title": "Add a widget to “{filter}”",
+    "subtitle": "Choose what the widget shows and how the “{filter}” filter narrows it down.",
+    "widget": "Widget",
+    "conditions": "How “{filter}” filters it",
+    "conditionsHelp": "They start like the first widget this filter applies to on the same table.",
+    "add": "Add widget",
+    "saveFailed": "Some changes could not be saved. Update the affected settings and try again."
   }
 }

@@ -1,5 +1,6 @@
 <template>
   <LocalBaserowTableServiceConditionalForm
+    ref="form"
     :model-value="localGroup.filters"
     :filter-groups="localGroup.filter_groups"
     :filter-type="localGroup.filter_type"
@@ -30,6 +31,7 @@ const defaultFilterValue = computed(() =>
     ? { formula: `get('widget_data.${props.owner.id}')`, mode: 'simple' }
     : { formula: '', mode: 'raw' }
 )
+const form = ref(null)
 const storePrefix = inject('storePrefix', ref(''))
 const localGroup = ref(props.group)
 watch(
@@ -68,4 +70,11 @@ const update = (key, value) => {
   updatePending = true
   nextTick(flushUpdate)
 }
+/** Add one condition on the first field it can filter, if there is one. */
+function addFirstFilter() {
+  if (props.readOnly || !form.value?.getFirstCompatibleField(props.fields))
+    return
+  form.value.addFilter()
+}
+defineExpose({ addFirstFilter })
 </script>

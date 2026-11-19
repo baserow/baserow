@@ -774,7 +774,7 @@ describe('creating widgets from a filter', () => {
   })
   const configurationStub = {
     name: 'ConfigureFilterTargetModal',
-    props: ['widgetId', 'loading'],
+    props: ['widgetId', 'linkFilterWidgetId'],
     emits: ['configured', 'hidden'],
     template: '<div />',
     methods: {
@@ -836,89 +836,21 @@ describe('creating widgets from a filter', () => {
     await flushPromises()
   }
 
-  test.each([1, 6])(
-    'configures table %s before returning to the filter conditions',
-    async (tableId) => {
-      const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
-      await createSummary(wrapper)
-      expect(dispatch.mock.calls).toHaveLength(1)
-      expect(dispatch.mock.calls[0][1]).toEqual(
-        expect.objectContaining({ select: false })
-      )
-      const configuration = wrapper.findComponent({
-        name: 'ConfigureFilterTargetModal',
-      })
-      expect(configuration.props('widgetId')).toBe(30)
-      expect(
-        wrapper
-          .findComponent({ name: 'WidgetFilterConfigurationModal' })
-          .exists()
-      ).toBe(false)
-      store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
-        dataSourceId: 31,
-        values: { table_id: tableId },
-      })
-      configuration.vm.$emit(
-        'configured',
-        store.getters['dashboardApplication/getWidgets'].find(
-          (widget) => widget.id === 30
-        )
-      )
-      await flushPromises()
-      expect(
-        dispatch.mock.calls.find(([action]) =>
-          action.endsWith('/updateWidget')
-        )[1]
-      ).toEqual(
-        expect.objectContaining({
-          widgetId: 2,
-          values: {
-            target_filters: [
-              expect.objectContaining({
-                target_widget_id: 30,
-                group: { filter_type: 'AND', filters: [], filter_groups: [] },
-              }),
-            ],
-          },
-        })
-      )
-      const conditions = wrapper.findComponent({
-        name: 'WidgetFilterConfigurationModal',
-      })
-      expect(conditions.props('target').id).toBe(30)
-      expect(conditions.props('source').table_id).toBe(tableId)
-    }
-  )
-
-  test('keeps conditions already copied by the server', async () => {
+  test('opens the setup of the new widget for this filter, then just closes it', async () => {
     const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
     await createSummary(wrapper)
-    const copied = {
-      target_widget_id: 30,
-      enabled: true,
-      empty_behavior: 'apply_nothing',
-      group: {
-        filter_type: 'OR',
-        filter_groups: [],
-        filters: [
-          {
-            id: 'copied',
-            field: 21,
-            type: 'contains',
-            value: { formula: "get('widget_data.2')", mode: 'simple' },
-          },
-        ],
-      },
-    }
-    store.commit('dashboardApplication/UPDATE_WIDGET', {
-      widgetId: 2,
-      values: { target_filters: [copied] },
+    expect(dispatch.mock.calls).toHaveLength(1)
+    expect(dispatch.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ select: false })
+    )
+    const configuration = wrapper.findComponent({
+      name: 'ConfigureFilterTargetModal',
     })
-    store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
-      dataSourceId: 31,
-      values: { table_id: 6 },
-    })
-    wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).vm.$emit(
+    expect(configuration.props('widgetId')).toBe(30)
+    expect(configuration.props('linkFilterWidgetId')).toBe(2)
+
+    // The modal saved the widget and its conditions as they were set.
+    configuration.vm.$emit(
       'configured',
       store.getters['dashboardApplication/getWidgets'].find(
         (widget) => widget.id === 30
@@ -927,10 +859,11 @@ describe('creating widgets from a filter', () => {
     await flushPromises()
     expect(dispatch.mock.calls).toHaveLength(1)
     expect(
-      wrapper
-        .findComponent({ name: 'WidgetFilterConfigurationModal' })
-        .props('link')
-    ).toEqual(copied)
+      wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
+    ).toBe(false)
+    expect(
+      wrapper.findComponent({ name: 'WidgetFilterConfigurationModal' }).exists()
+    ).toBe(false)
   })
 
   test('closing configuration leaves the filter unlinked', async () => {
@@ -953,29 +886,6 @@ describe('creating widgets from a filter', () => {
     await wrapper.setProps({ widget: second })
     expect(
       wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
-    ).toBe(false)
-  })
-
-  test('keeps configuration open when linking fails', async () => {
-    const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
-    await createSummary(wrapper)
-    dispatch.mockRejectedValueOnce({ handler: { notifyIf: vi.fn() } })
-    store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
-      dataSourceId: 31,
-      values: { table_id: 6 },
-    })
-    wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).vm.$emit(
-      'configured',
-      store.getters['dashboardApplication/getWidgets'].find(
-        (widget) => widget.id === 30
-      )
-    )
-    await flushPromises()
-    expect(
-      wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
-    ).toBe(true)
-    expect(
-      wrapper.findComponent({ name: 'WidgetFilterConfigurationModal' }).exists()
     ).toBe(false)
   })
 })

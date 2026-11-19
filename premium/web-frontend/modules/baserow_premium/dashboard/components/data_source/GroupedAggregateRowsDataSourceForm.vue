@@ -92,7 +92,7 @@
       :group-count-override="values.aggregation_group_bys.length"
       :group-title-override="groupTitleOverride"
       :sort-count-override="values.aggregation_sorts.length"
-      show-filter
+      :show-filter="showOwnFilters"
       show-group
       show-sort
     >
@@ -149,6 +149,11 @@ export default {
   },
   mixins: [form, tableFields],
   props: {
+    /** Whether the widget's own filter conditions can be edited here. */
+    showOwnFilters: {
+      type: Boolean,
+      default: true,
+    },
     small: {
       type: Boolean,
       default: true,

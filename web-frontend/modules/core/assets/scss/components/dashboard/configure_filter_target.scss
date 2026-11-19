@@ -1,0 +1,118 @@
+// Adding a widget to a filter: the widget's settings, then how the filter
+// narrows it down, in one modal.
+.configure-filter-target {
+  color: $palette-neutral-1200;
+}
+
+.configure-filter-target__header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid $palette-neutral-200;
+
+  .box__title {
+    margin-bottom: 4px;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}
+
+.configure-filter-target__subtitle {
+  margin: 0;
+  color: $palette-neutral-900;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.configure-filter-target__section-title {
+  margin: 0 0 12px;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+// The widget's settings are short: two per row, each label above its field.
+.configure-filter-target__widget {
+  .separator {
+    display: none;
+  }
+
+  .form-section {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .widget-settings-base-form > .form-section,
+  .separator + .form-section {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+
+    > .form-section__title-container {
+      display: none;
+    }
+  }
+
+  .control--horizontal {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .control--horizontal .control__label {
+    flex-basis: auto;
+    margin-bottom: 8px;
+  }
+}
+
+.configure-filter-target__conditions {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid $palette-blue-100;
+  border-radius: 8px;
+  background-color: $palette-blue-50;
+}
+
+.configure-filter-target__conditions-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.configure-filter-target__conditions-icon {
+  display: flex;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  border-radius: 6px;
+  background-color: $palette-blue-500;
+  color: $palette-neutral-0;
+  font-size: 14px;
+}
+
+.configure-filter-target__conditions-title {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.configure-filter-target__conditions-help {
+  margin: 0;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.configure-filter-target__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid $palette-neutral-200;
+}

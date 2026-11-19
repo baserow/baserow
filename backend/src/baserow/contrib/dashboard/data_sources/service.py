@@ -165,7 +165,7 @@ class DashboardDataSourceService:
         user: AbstractUser,
         data_source_id: int,
         service_type: ServiceType,
-        exclude_filter_widget_id: int | None = None,
+        link_filter_widget_id: int | None = None,
         **kwargs,
     ) -> UpdatedDashboardDataSource:
         """
@@ -176,7 +176,8 @@ class DashboardDataSourceService:
         :param user: The user trying to update the data_source.
         :param data_source_id: The Id of the data source that should be updated.
         :param service_type: The type of the related service.
-        :param exclude_filter_widget_id: Defer automatic association to this filter.
+        :param link_filter_widget_id: A filter that links the widget for its new
+            table, even when it does not filter widgets added later.
         :param kwargs: Additional attributes of the data source and the service.
         :raises DashboardDataSourceDoesNotExist: If the data source
             doesn't exist.
@@ -216,7 +217,7 @@ class DashboardDataSourceService:
         updated_data_source = self.handler.update_data_source(
             data_source,
             service_type=service_type,
-            exclude_filter_widget_id=exclude_filter_widget_id,
+            link_filter_widget_id=link_filter_widget_id,
             **prepared_values,
         )
 
@@ -237,7 +238,7 @@ class DashboardDataSourceService:
         service_type,
         values,
         filter_links=None,
-        exclude_filter_widget_id=None,
+        link_filter_widget_id=None,
     ):
         """Replay a saved configuration, including conditions cleared by table changes."""
         from baserow.contrib.dashboard.widgets.handler import WidgetHandler
@@ -247,7 +248,7 @@ class DashboardDataSourceService:
             user,
             data_source_id,
             service_type,
-            exclude_filter_widget_id=exclude_filter_widget_id,
+            link_filter_widget_id=link_filter_widget_id,
             **values,
         )
         service = updated.data_source.service.specific
