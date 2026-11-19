@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes form submission blocked by fields inside hidden containers",
+    "issue_origin": "github",
+    "issue_number": 6462,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-11-19"
+}
