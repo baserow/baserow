@@ -17,9 +17,12 @@
       <div v-else-if="fieldsLoading" class="loading" />
       <Alert v-else-if="fieldsError" type="error">
         <p>{{ $t('textFilterWidget.fieldsError') }}</p>
-        <Button type="secondary" size="small" @click="$emit('retry')">{{
-          $t('action.retry')
-        }}</Button>
+        <Button
+          type="secondary"
+          size="small"
+          @click="loadFields(source?.table_id)"
+          >{{ $t('action.retry') }}</Button
+        >
       </Alert>
       <template v-else>
         <Alert
@@ -101,6 +104,8 @@
 </template>
 
 <script setup>
+import FieldService from '@baserow/modules/database/services/field'
+import { getWidgetFilterGroups } from '@baserow/modules/dashboard/utils/widgetFilters'
 import TargetFilterGroup from '@baserow/modules/dashboard/components/widget/TargetFilterGroup'
 import WidgetFilterGroups from '@baserow/modules/dashboard/components/widget/WidgetFilterGroups'
 
@@ -109,15 +114,73 @@ const props = defineProps({
   dashboard: { type: Object, required: true },
   target: { type: Object, required: true },
   source: { type: Object, default: null },
-  fieldsLoading: Boolean,
-  fieldsError: Boolean,
-  hasIncompatibleConditions: Boolean,
+  storePrefix: { type: String, default: '' },
   unavailableReason: { type: String, default: null },
   link: { type: Object, required: true },
-  fields: { type: Array, required: true },
-  readonlyGroups: { type: Array, required: true },
 })
-const emit = defineEmits(['update', 'retry'])
+const emit = defineEmits(['update'])
+const { $store, $client, $registry, $i18n } = useNuxtApp()
+const fields = ref([])
+const fieldsLoading = ref(false)
+const fieldsError = ref(false)
+
+const hasConditions = (group) => Boolean(group?.filters?.length)
+/** Show existing source and other owners' contributions without granting edit access. */
+const readonlyGroups = computed(() => {
+  const groups = hasConditions(props.source)
+    ? [
+        {
+          key: 'permanent',
+          title: $i18n.t('textFilterWidget.permanentGroup'),
+          group: props.source,
+          owner: null,
+        },
+      ]
+    : []
+  return [
+    ...groups,
+    ...getWidgetFilterGroups(
+      $store.getters[`${props.storePrefix}dashboardApplication/getWidgets`],
+      props.target.id,
+      $registry,
+      props.widget.id
+    ),
+  ]
+})
+const hasIncompatibleConditions = computed(() =>
+  [props.link.group, props.link.alternative_group]
+    .filter(Boolean)
+    .some((group) =>
+      group.filters.some((condition) => {
+        const field = fields.value.find((field) => field.id === condition.field)
+        return (
+          !field ||
+          !$registry.get('viewFilter', condition.type).fieldIsCompatible(field)
+        )
+      })
+    )
+)
+let fieldsRequest = 0
+/** Load the target table's fields and ignore superseded requests. */
+async function loadFields(tableId) {
+  const request = ++fieldsRequest
+  fields.value = []
+  fieldsError.value = false
+  fieldsLoading.value = Boolean(tableId)
+  if (!tableId) return
+  try {
+    const { data } = await FieldService($client).fetchAll(tableId)
+    if (request === fieldsRequest) fields.value = data
+  } catch (error) {
+    if (request === fieldsRequest) fieldsError.value = true
+  } finally {
+    if (request === fieldsRequest) fieldsLoading.value = false
+  }
+}
+watch(() => props.source?.table_id, loadFields, { immediate: true })
+onBeforeUnmount(() => {
+  fieldsRequest++
+})
 
 const modal = ref(null)
 const modalOpen = ref(false)
