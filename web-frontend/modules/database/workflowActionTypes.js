@@ -954,7 +954,7 @@ export class GoogleGmailSendEmailWorkflowActionType extends DatabaseExternalWork
     return 'google_gmail_send_email'
   }
   getOrder() {
-    return 95
+    return 65
   }
   get icon() {
     return 'iconoir-mail'

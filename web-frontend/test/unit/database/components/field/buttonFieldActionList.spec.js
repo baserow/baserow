@@ -90,6 +90,7 @@ describe('ButtonFieldActionList', () => {
       'local_baserow_update_row',
       'local_baserow_delete_row',
       'slack_write_message',
+      'google_gmail_send_email',
       'start_workflow',
     ])
     // `$t` returns the key in the test env, so the name is checked against
@@ -514,6 +515,7 @@ describe('ButtonFieldActionList', () => {
         'local_baserow_update_row',
         'local_baserow_delete_row',
         'slack_write_message',
+        'google_gmail_send_email',
         'start_workflow',
       ])
     })
