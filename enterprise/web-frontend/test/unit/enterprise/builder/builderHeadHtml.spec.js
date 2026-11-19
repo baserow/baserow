@@ -1,7 +1,7 @@
 import { fetchBuilderHeadHtml } from '@baserow_enterprise/plugins/builderHeadHtml.server'
 
 describe('Fetching Custom Code HTML during a Builder render', () => {
-  const builder = { id: 42, custom_code: { has_html: true } }
+  const builder = { id: 42, has_head_html: true }
   const config = {
     privateBackendUrl: 'http://backend:8000',
     public: {
@@ -17,45 +17,38 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
     requestUrl: new URL('https://preview.example.com/builder/preview/42'),
   }
 
-  test('fetches the published fragment verbatim and omits preview credentials', async () => {
-    const html = '\n<meta name="description" content="Baserow">\n'
-    const fetch = vi.fn().mockResolvedValue({ html })
-
-    expect(
-      await fetchBuilderHeadHtml({ ...previewOptions, mode: 'public' }, fetch)
-    ).toBe(html)
-    expect(fetch).toHaveBeenCalledWith(
-      'custom_code/42/html/public/',
-      expect.objectContaining({
-        baseURL: 'http://backend:8000/api/',
-        headers: { Accept: 'application/json' },
-      })
-    )
-  })
-
-  test('uses the scoped SSR Preview session for the isolated preview host', async () => {
-    const fetch = vi.fn().mockResolvedValue({ html: '<style></style>' })
-
-    expect(await fetchBuilderHeadHtml(previewOptions, fetch)).toBe(
-      '<style></style>'
-    )
-    expect(fetch).toHaveBeenCalledWith(
+  test.each([
+    ['public', 'custom_code/42/html/public/', { Accept: 'application/json' }],
+    [
+      'preview',
       'builder/preview/42/custom-code/html/',
-      expect.objectContaining({
-        headers: {
-          Accept: 'application/json',
-          Cookie: 'test_baserow_builder_preview=signed-session',
-        },
-      })
-    )
-  })
+      {
+        Accept: 'application/json',
+        Cookie: previewOptions.previewSsrCookieHeader,
+      },
+    ],
+  ])(
+    'fetches the %s fragment verbatim with scoped credentials',
+    async (mode, path, headers) => {
+      const html = '\n<meta name="description" content="Baserow">\n'
+      const fetch = vi.fn().mockResolvedValue({ html })
+
+      expect(
+        await fetchBuilderHeadHtml({ ...previewOptions, mode }, fetch)
+      ).toBe(html)
+      expect(fetch).toHaveBeenCalledWith(
+        path,
+        expect.objectContaining({
+          baseURL: 'http://backend:8000/api/',
+          headers,
+        })
+      )
+    }
+  )
 
   test.each([
     ['untrusted content', { builder: { ...builder, untrusted_content: true } }],
-    [
-      'empty content',
-      { builder: { id: 42, custom_code: { has_html: false } } },
-    ],
+    ['empty content', { builder: { id: 42, has_head_html: false } }],
     ['no Preview session', { previewSsrCookieHeader: undefined }],
     [
       'a different request origin',

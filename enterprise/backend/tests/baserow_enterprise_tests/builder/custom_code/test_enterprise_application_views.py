@@ -71,11 +71,8 @@ def test_get_enterprise_builder_application(
             "url": "",
         },
     ]
-    assert response_json["custom_code"] == {
-        "css": "testCss",
-        "js": "testJs",
-        "html": HEAD_HTML,
-    }
+    assert response_json["custom_code"] == {"css": "testCss", "js": "testJs"}
+    assert response_json["head_html"] == HEAD_HTML
 
 
 @pytest.mark.django_db
@@ -98,7 +95,8 @@ def test_create_enterprise_builder_application(
                     "url": "http://test.com",
                 },
             ],
-            "custom_code": {"css": "testCss", "js": "testJs", "html": HEAD_HTML},
+            "custom_code": {"css": "testCss", "js": "testJs"},
+            "head_html": HEAD_HTML,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -134,7 +132,8 @@ def test_create_enterprise_builder_application_no_licence(api_client, data_fixtu
                     "url": "http://test.com",
                 },
             ],
-            "custom_code": {"css": "testCss", "js": "testJs", "html": HEAD_HTML},
+            "custom_code": {"css": "testCss", "js": "testJs"},
+            "head_html": HEAD_HTML,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -356,8 +355,8 @@ def test_untrusted_custom_code_requires_explicit_consent(
 ):
     """Preview and public asset URLs refuse untrusted code, retaining it for review."""
 
-    settings.PUBLIC_WEB_FRONTEND_URL = "https://editor.example.org"
-    settings.BUILDER_PREVIEW_URL = "https://preview.example.org"
+    settings.PUBLIC_WEB_FRONTEND_HOSTNAME = "editor.example.org"
+    settings.BUILDER_PREVIEW_HOSTNAME = "preview.example.org"
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -388,7 +387,10 @@ def test_untrusted_custom_code_requires_explicit_consent(
         is True
     )
     url = reverse(route, kwargs={"builder_id": builder.id})
-    assert api_client.get(url).status_code == HTTP_404_NOT_FOUND
+    response = api_client.get(url)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    if code_type == "html":
+        assert response["Content-Type"] == "application/json"
 
     builder.untrusted_content = False
     builder.save(update_fields=["untrusted_content"])
@@ -465,8 +467,9 @@ def test_only_custom_code_content_requires_trust_on_import(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("html", [HEAD_HTML, 12])
 def test_update_builder_head_html_independently(
-    enable_enterprise, api_client, data_fixture
+    enable_enterprise, api_client, data_fixture, html
 ):
     user, token = data_fixture.create_user_and_token()
     builder = data_fixture.create_builder_application(user=user)
@@ -474,41 +477,35 @@ def test_update_builder_head_html_independently(
     code.css = "old CSS"
     code.js = "old JS"
     code.save()
-    url = reverse("api:applications:item", kwargs={"application_id": builder.id})
+    url = reverse("api:applications:item", args=[builder.id])
     auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
 
-    response = api_client.patch(
-        url, {"custom_code": {"html": HEAD_HTML}}, format="json", **auth
-    )
+    response = api_client.patch(url, {"head_html": html}, format="json", **auth)
     assert response.status_code == HTTP_200_OK
-    assert response.json()["custom_code"] == {
-        "css": "old CSS",
-        "js": "old JS",
-        "html": HEAD_HTML,
-    }
+    assert response.json()["custom_code"] == {"css": "old CSS", "js": "old JS"}
+    assert response.json()["head_html"] == str(html)
 
+    # Old forms can submit a stale nested HTML value while editing CSS.
     response = api_client.patch(
-        url, {"custom_code": {"css": "new CSS"}}, format="json", **auth
+        url,
+        {"custom_code": {"css": "new CSS", "html": "stale"}},
+        format="json",
+        **auth,
     )
     assert response.status_code == HTTP_200_OK
-    assert response.json()["custom_code"] == {
-        "css": "new CSS",
-        "js": "",
-        "html": HEAD_HTML,
-    }
+    assert response.json()["custom_code"] == {"css": "new CSS", "js": ""}
+    assert response.json()["head_html"] == str(html)
 
-    response = api_client.patch(
-        url, {"custom_code": {"html": ""}}, format="json", **auth
-    )
+    response = api_client.patch(url, {"head_html": ""}, format="json", **auth)
     assert response.status_code == HTTP_200_OK
-    assert response.json()["custom_code"] == {"css": "new CSS", "js": "", "html": ""}
+    assert response.json()["head_html"] == ""
     code.refresh_from_db()
     assert code.html == ""
     assert code.css == "new CSS"
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("invalid", [None, False, 12, [], {}])
+@pytest.mark.parametrize("invalid", [None, False, [], {}])
 def test_update_builder_head_html_rejects_non_text(
     enable_enterprise, api_client, data_fixture, invalid
 ):
@@ -519,12 +516,12 @@ def test_update_builder_head_html_rejects_non_text(
     code.save(update_fields=["html"])
     response = api_client.patch(
         reverse("api:applications:item", kwargs={"application_id": builder.id}),
-        {"custom_code": {"html": invalid}},
+        {"head_html": invalid},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["detail"]["custom_code"]["html"]
+    assert response.json()["detail"]["head_html"]
     code.refresh_from_db()
     assert code.html == HEAD_HTML
 
@@ -564,7 +561,9 @@ def test_public_builder_head_html_serves_only_the_published_snapshot(
     )
     response = api_client.get(public_builder_url)
     assert response.status_code == HTTP_200_OK
-    assert response.json()["custom_code"] == {"css": "", "js": "", "has_html": True}
+    assert response.json()["custom_code"] == {"css": "", "js": ""}
+    assert response.json()["has_head_html"] is True
+    assert "head_html" not in response.json()
 
     republished = DomainHandler().publish(domain).published_to
     response = api_client.get(
@@ -578,8 +577,8 @@ def test_public_builder_head_html_serves_only_the_published_snapshot(
 def test_preview_builder_head_html_requires_a_scoped_session(
     enable_enterprise, api_client, data_fixture, settings
 ):
-    settings.PUBLIC_WEB_FRONTEND_URL = "https://editor.example.org"
-    settings.BUILDER_PREVIEW_URL = "https://preview.example.org"
+    settings.PUBLIC_WEB_FRONTEND_HOSTNAME = "editor.example.org"
+    settings.BUILDER_PREVIEW_HOSTNAME = "preview.example.org"
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     other_builder = data_fixture.create_builder_application(user=user)
@@ -600,9 +599,11 @@ def test_preview_builder_head_html_requires_a_scoped_session(
 
     response = api_client.get(reverse("api:builder:preview:current", args=[builder.id]))
     assert response.status_code == HTTP_200_OK
-    assert response.json()["custom_code"] == {"css": "", "js": "", "has_html": True}
+    assert response.json()["custom_code"] == {"css": "", "js": ""}
+    assert response.json()["has_head_html"] is True
+    assert "head_html" not in response.json()
 
-    settings.BUILDER_PREVIEW_URL = "https://EDITOR.example.org:3001"
+    settings.BUILDER_PREVIEW_HOSTNAME = settings.PUBLIC_WEB_FRONTEND_HOSTNAME
     assert api_client.get(url).status_code == HTTP_404_NOT_FOUND
 
 

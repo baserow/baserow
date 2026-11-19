@@ -10,41 +10,14 @@ from baserow_enterprise.builder.custom_code.models import (
 )
 
 
-class CustomHtmlField(serializers.CharField):
-    def to_internal_value(self, data):
-        if not isinstance(data, str):
-            self.fail("invalid")
-        return super().to_internal_value(data)
-
-
 class CustomCodeSerializer(serializers.ModelSerializer):
-    html = CustomHtmlField(
-        required=False,
-        allow_blank=True,
-        trim_whitespace=False,
-        help_text="Custom HTML for the document head.",
-    )
-
     class Meta:
         model = BuilderCustomCode
-        fields = ["css", "js", "html"]
-
-
-class PublicCustomCodeSerializer(serializers.ModelSerializer):
-    has_html = serializers.SerializerMethodField(
-        help_text="Whether the builder has custom HTML for the document head."
-    )
-
-    class Meta:
-        model = BuilderCustomCode
-        fields = ["css", "js", "has_html"]
-
-    def get_has_html(self, instance: BuilderCustomCode) -> bool:
-        return bool(instance.html)
+        fields = ["css", "js"]
 
 
 class CustomHtmlSerializer(serializers.Serializer):
-    html = serializers.CharField()
+    html = serializers.CharField(read_only=True)
 
 
 class CustomScriptSerializer(serializers.ModelSerializer):
@@ -61,6 +34,11 @@ class EnterpriseBuilderCustomCodeSerializer(serializers.Serializer):
     scripts = serializers.SerializerMethodField(
         help_text="Scripts to embed for this application"
     )
+    head_html = serializers.CharField(source="custom_code.html", read_only=True)
+    has_head_html = serializers.SerializerMethodField()
+
+    def get_has_head_html(self, instance: Builder) -> bool:
+        return bool(instance.custom_code.html)
 
     class Meta:
         ref_name = "EnterpriseBuilderCustomCodeApplication"

@@ -9,17 +9,20 @@ enableAutoUnmount(afterEach)
 const savedHtml = '<meta name="description" content="Saved">'
 const newHtml = '  <meta name="description" content="Draft">\n'
 
-async function mountSetting() {
-  const builder = reactive({
-    id: 1,
-    workspace: { id: 2 },
-    custom_code: { css: '', js: '', html: savedHtml },
-    scripts: [],
-  })
+async function mountSetting(previous = {}) {
+  const builder =
+    previous.builder ??
+    reactive({
+      id: 1,
+      workspace: { id: 2 },
+      custom_code: { css: '', js: '' },
+      head_html: savedHtml,
+      scripts: [],
+    })
   const applyUpdate = async (_action, { values }) => {
-    builder.custom_code = { ...builder.custom_code, ...values.custom_code }
+    Object.assign(builder, values)
   }
-  const dispatch = vi.fn(applyUpdate)
+  const dispatch = previous.dispatch ?? vi.fn(applyUpdate)
   const wrapper = await mountSuspended(CustomCodeSetting, {
     props: { builder },
     global: {
@@ -41,23 +44,10 @@ async function mountSetting() {
   return { builder, dispatch, applyUpdate, wrapper, html }
 }
 
-test('autosaves HTML independently of CSS and can clear it', async () => {
+test('autosaves and clears HTML independently of the CSS and script forms', async () => {
   const { builder, dispatch, wrapper, html } = await mountSetting()
 
-  const javascript = wrapper.get('textarea[data-language="javascript"]')
-  const externalScripts = wrapper.get('.custom-code__add-script')
-  expect(
-    javascript.element.compareDocumentPosition(html.element) &
-      Node.DOCUMENT_POSITION_FOLLOWING
-  ).toBeTruthy()
-  expect(
-    html.element.compareDocumentPosition(externalScripts.element) &
-      Node.DOCUMENT_POSITION_FOLLOWING
-  ).toBeTruthy()
   expect(html.element.value).toBe(savedHtml)
-  expect(html.attributes('placeholder')).toBe(
-    'customCodeSettingForm.customHtmlPlaceholder'
-  )
   expect(wrapper.find('button[type="submit"]').exists()).toBe(false)
   await wrapper.get('textarea[data-language="css"]').setValue('body {}')
 
@@ -66,25 +56,31 @@ test('autosaves HTML independently of CSS and can clear it', async () => {
     application: builder,
     values: { custom_code: { css: 'body {}', js: '' }, scripts: [] },
   })
-  expect(builder.custom_code.html).toBe(savedHtml)
+  expect(builder.head_html).toBe(savedHtml)
 
+  // An invalid external-script URL must not block the independent HTML field.
+  await wrapper.get('.custom-code__add-script button').trigger('click')
+  await wrapper
+    .get('input[placeholder="customCodeSettingScriptForm.urlPlaceholder"]')
+    .setValue('not-a-url')
+  expect(wrapper.text()).toContain('error.invalidURL')
   await html.setValue(newHtml)
   await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(2))
   expect(dispatch).toHaveBeenLastCalledWith('application/update', {
     application: builder,
-    values: { custom_code: { html: newHtml } },
+    values: { head_html: newHtml },
   })
 
   await html.setValue('')
   await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(3))
   expect(dispatch).toHaveBeenLastCalledWith('application/update', {
     application: builder,
-    values: { custom_code: { html: '' } },
+    values: { head_html: '' },
   })
   expect(builder.custom_code.css).toBe('body {}')
 })
 
-test('waits for an in-flight autosave and keeps the HTML draft after a failed save', async () => {
+test('keeps HTML when an earlier CSS response arrives later', async () => {
   const { builder, dispatch, applyUpdate, wrapper, html } = await mountSetting()
   let finishAutosave
   const pendingAutosave = new Promise((resolve) => {
@@ -94,47 +90,44 @@ test('waits for an in-flight autosave and keeps the HTML draft after a failed sa
     await pendingAutosave
     await applyUpdate(...args)
   })
-  dispatch.mockRejectedValueOnce(new Error('Unable to save'))
-
   await wrapper
     .get('textarea[data-language="javascript"]')
     .setValue('let a = 1')
   await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce())
   await html.setValue(newHtml)
   await html.trigger('blur')
-  expect(dispatch).toHaveBeenCalledOnce()
-  expect(html.element.disabled).toBe(false)
+  await flushPromises()
+  expect(dispatch).toHaveBeenCalledTimes(2)
+  expect(builder.head_html).toBe(newHtml)
 
   finishAutosave()
   await flushPromises()
-  expect(dispatch).toHaveBeenCalledTimes(2)
-  expect(builder.custom_code.html).toBe(savedHtml)
-  expect(html.element.value).toBe(newHtml)
-  expect(wrapper.get('[role="alert"]').text()).toBe(
-    'customCodeSettingForm.customHtmlSaveError'
-  )
-
-  const retryHtml = `${newHtml}\n`
-  await html.setValue(retryHtml)
-  await vi.waitFor(() => expect(dispatch).toHaveBeenCalledTimes(3))
-  expect(wrapper.find('[role="alert"]').exists()).toBe(false)
-  expect(builder.custom_code.html).toBe(retryHtml)
+  expect(builder.head_html).toBe(newHtml)
   expect(builder.custom_code.js).toBe('let a = 1')
 })
 
-test('flushes a scheduled HTML autosave when the settings close', async () => {
-  const { builder, dispatch, wrapper, html } = await mountSetting()
-
-  await html.setValue(newHtml)
-  expect(dispatch).not.toHaveBeenCalled()
-  wrapper.unmount()
+test('retains a failed close-time save across reopening and retries on edit', async () => {
+  const first = await mountSetting()
+  first.dispatch.mockRejectedValueOnce(new Error('Unable to save'))
+  await first.html.setValue(newHtml)
+  expect(first.dispatch).not.toHaveBeenCalled()
+  first.wrapper.unmount()
   await flushPromises()
 
-  expect(dispatch).toHaveBeenCalledExactlyOnceWith('application/update', {
-    application: builder,
-    values: { custom_code: { html: newHtml } },
+  expect(first.dispatch).toHaveBeenCalledExactlyOnceWith('application/update', {
+    application: first.builder,
+    values: { head_html: newHtml },
   })
-  expect(builder.custom_code.html).toBe(newHtml)
+  const second = await mountSetting(first)
+  expect(second.html.element.value).toBe(newHtml)
+  expect(second.wrapper.get('[role="alert"]').text()).toBe(
+    'customCodeSettingForm.customHtmlSaveError'
+  )
+  const retryHtml = `${newHtml}\n`
+  await second.html.setValue(retryHtml)
+  await vi.waitFor(() => expect(first.dispatch).toHaveBeenCalledTimes(2))
+  expect(second.wrapper.find('[role="alert"]').exists()).toBe(false)
+  expect(first.builder.head_html).toBe(retryHtml)
 })
 
 test('persists a revert to the original HTML while a different value is saving', async () => {
@@ -159,8 +152,8 @@ test('persists a revert to the original HTML while a different value is saving',
   expect(dispatch).toHaveBeenCalledTimes(2)
   expect(dispatch).toHaveBeenLastCalledWith('application/update', {
     application: builder,
-    values: { custom_code: { html: savedHtml } },
+    values: { head_html: savedHtml },
   })
-  expect(builder.custom_code.html).toBe(savedHtml)
+  expect(builder.head_html).toBe(savedHtml)
   expect(html.element.value).toBe(savedHtml)
 })

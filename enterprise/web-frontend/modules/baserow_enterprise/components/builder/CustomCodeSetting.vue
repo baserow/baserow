@@ -11,16 +11,16 @@
     />
     <CustomCodeSettingForm
       ref="settingsForm"
-      :default-values="autosaveValues"
+      :default-values="builder"
       @values-changed="onValuesChanged"
     >
       <template #head-html>
-        <FormGroup class="margin-bottom-2" :error="htmlSaveError" small-label>
+        <FormGroup class="margin-bottom-2" :error="htmlState.error" small-label>
           <template #label>
             {{ $t('customCodeSettingForm.customHtml') }}
           </template>
           <CodeEditor
-            :model-value="htmlDraft ?? savedHtml"
+            :model-value="htmlState.draft ?? builder.head_html"
             language="html"
             :placeholder="$t('customCodeSettingForm.customHtmlPlaceholder')"
             :modal-title="$t('customCodeSettingForm.customHtml')"
@@ -38,13 +38,14 @@
 </template>
 
 <script>
+import { reactive } from 'vue'
 import _ from 'lodash'
 import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/application/ApplicationUntrustedContentAlert'
 import CodeEditor from '@baserow/modules/core/components/CodeEditor.vue'
 import { clone, isSubObject } from '@baserow/modules/core/utils/object'
 import CustomCodeSettingForm from '@baserow_enterprise/components/builder/CustomCodeSettingForm.vue'
 
-const pendingCodeUpdates = new WeakMap()
+const htmlDrafts = new WeakMap()
 const AUTOSAVE_DELAY = 500
 
 export default {
@@ -67,23 +68,23 @@ export default {
     },
   },
   data() {
-    return {
-      htmlDraft: null,
-      htmlSaveError: false,
+    // Keep unsaved HTML when the settings modal closes.
+    let htmlState = htmlDrafts.get(this.builder)
+    if (!htmlState) {
+      htmlState = reactive({
+        draft: null,
+        error: false,
+        pending: Promise.resolve(),
+      })
+      htmlDrafts.set(this.builder, htmlState)
     }
+    return { htmlState }
   },
   computed: {
     htmlErrorMessage() {
-      return this.htmlSaveError
+      return this.htmlState.error
         ? this.$t('customCodeSettingForm.customHtmlSaveError')
         : ''
-    },
-    savedHtml() {
-      return this.builder.custom_code?.html ?? ''
-    },
-    autosaveValues() {
-      const { css = '', js = '' } = this.builder.custom_code ?? {}
-      return { custom_code: { css, js }, scripts: this.builder.scripts }
     },
   },
   created() {
@@ -101,35 +102,16 @@ export default {
         values: { untrusted_content: false },
       })
     },
-    queueCodeUpdate(update) {
-      const application = this.builder
-      const pending = pendingCodeUpdates.get(application) ?? Promise.resolve()
-      // The API returns the entire custom_code object after each save.
-      // Serialize updates so an older response cannot replace a newer save.
-      const request = pending.then(update, update)
-      pendingCodeUpdates.set(application, request)
-      const clear = () => {
-        if (pendingCodeUpdates.get(application) === request) {
-          pendingCodeUpdates.delete(application)
-        }
-      }
-      request.then(clear, clear)
-      return request
-    },
     async updateApplication(values) {
       const form = this.$refs.settingsForm
-      if (!form?.isFormValid(true)) {
+      if (!form?.isFormValid(true) || isSubObject(this.builder, values)) {
         return
       }
 
       try {
-        await this.queueCodeUpdate(() => {
-          if (!isSubObject(this.autosaveValues, values)) {
-            return this.$store.dispatch('application/update', {
-              application: this.builder,
-              values,
-            })
-          }
+        await this.$store.dispatch('application/update', {
+          application: this.builder,
+          values,
         })
       } catch {
         const title = this.$t('generalSettings.cantUpdateApplicationTitle')
@@ -149,35 +131,34 @@ export default {
       this.autosaveSettings(clone(values))
     },
     onHtmlChanged(html) {
-      this.htmlDraft = html
-      this.htmlSaveError = false
+      this.htmlState.draft = html
+      this.htmlState.error = false
       this.autosaveHtml(html)
     },
-    async saveHtml(html) {
-      try {
-        await this.queueCodeUpdate(async () => {
-          if (this.htmlDraft !== html) {
-            return
-          }
-          if (this.savedHtml !== html) {
+    saveHtml(html) {
+      const state = this.htmlState
+      const builder = this.builder
+      state.pending = state.pending.then(async () => {
+        if (state.draft !== html) return
+        try {
+          if (builder.head_html !== html) {
             await this.$store.dispatch('application/update', {
-              application: this.builder,
-              values: { custom_code: { html } },
+              application: builder,
+              values: { head_html: html },
             })
           }
-          if (this.htmlDraft === html) {
-            this.htmlSaveError = this.savedHtml !== html
-            if (!this.htmlSaveError) {
-              this.htmlDraft = null
+          if (state.draft === html) {
+            state.error = builder.head_html !== html
+            if (!state.error) {
+              state.draft = null
             }
           }
-        })
-      } catch (error) {
-        if (this.htmlDraft === html) {
-          this.htmlSaveError = true
+        } catch (error) {
+          if (state.draft === html) state.error = true
+          error.handler?.handled?.()
         }
-        error.handler?.handled?.()
-      }
+      })
+      return state.pending
     },
   },
 }

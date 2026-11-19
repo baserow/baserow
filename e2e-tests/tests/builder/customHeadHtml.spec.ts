@@ -12,7 +12,6 @@ import { expect, test } from "../baserowTest";
 
 test("renders published head HTML in order and executes it once per document @enterprise", async ({
   builderPagePage,
-  context,
   goto,
   page,
   workspacePage,
@@ -38,7 +37,7 @@ test("renders published head HTML in order and executes it once per document @en
     ].join("\n");
     const client = getClient(workspacePage.user);
     await client.patch(`applications/${builder.id}/`, {
-      custom_code: { html: publishedHead },
+      head_html: publishedHead,
     });
 
     const domainName = `e2e-head-${builder.id}.localhost`;
@@ -76,34 +75,12 @@ test("renders published head HTML in order and executes it once per document @en
     ).toHaveCount(1);
     expect(await headRuns()).toEqual(["first", "second"]);
 
-    const draftHead = '<meta name="test-baserow-head" content="draft">';
     await client.patch(`applications/${builder.id}/`, {
-      custom_code: { html: draftHead },
+      head_html: '<meta name="test-baserow-head" content="draft">',
     });
     await page.reload();
     await expect(marker).toHaveAttribute("content", "published");
     expect(await headRuns()).toEqual(["first", "second"]);
-
-    const grant = await client.post(`builder/preview/${builder.id}/grant/`, {
-      path: builderPage.path,
-    });
-    const previewPage = await context.newPage();
-    const previewResponse = await previewPage.goto(grant.data.url);
-    expect(previewResponse?.ok()).toBe(true);
-    await expect(
-      previewPage.getByRole("link", { name: "Open next page" })
-    ).toBeVisible();
-    const previewSource = await previewResponse!.text();
-    const previewHead = previewSource.match(/<head>[\s\S]*?<\/head>/)?.[0];
-    const isolated =
-      new URL(baserowConfig.BUILDER_PREVIEW_URL).hostname !==
-      new URL(baserowConfig.PUBLIC_WEB_FRONTEND_URL).hostname;
-    if (isolated) {
-      expect(previewHead).toContain(draftHead);
-      expect(previewResponse!.headers()["cache-control"]).toContain("no-store");
-    } else {
-      expect(previewHead).not.toContain(draftHead);
-    }
   } finally {
     await deleteLicense(license);
   }

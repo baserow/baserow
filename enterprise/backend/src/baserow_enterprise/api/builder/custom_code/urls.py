@@ -1,18 +1,21 @@
 from django.urls import re_path
 
-from .views import (
-    CustomCodeView,
-    PreviewCustomHtmlView,
-    PublicCustomCodeView,
-    PublicCustomHtmlView,
-)
+from rest_framework.renderers import JSONRenderer
+
+from .serializers import CustomHtmlSerializer
+from .views import CustomCodeView, PublicCustomCodeView
 
 app_name = "baserow_enterprise.api.custom_code"
 
 preview_urlpatterns = [
     re_path(
         r"^(?P<builder_id>[0-9]+)/custom-code/html/$",
-        PreviewCustomHtmlView.as_view(),
+        CustomCodeView.as_view(
+            renderer_classes=(JSONRenderer,),
+            serializer_class=CustomHtmlSerializer,
+            operation_id="get_preview_builder_custom_html",
+        ),
+        {"code_type": "html"},
         name="html",
     ),
     re_path(
@@ -32,7 +35,12 @@ preview_urlpatterns = [
 urlpatterns = [
     re_path(
         r"^(?P<builder_id>[0-9]+)/html/public/$",
-        PublicCustomHtmlView.as_view(),
+        PublicCustomCodeView.as_view(
+            renderer_classes=(JSONRenderer,),
+            serializer_class=CustomHtmlSerializer,
+            operation_id="get_public_builder_custom_html",
+        ),
+        {"code_type": "html"},
         name="public_html",
     ),
     re_path(

@@ -12,6 +12,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         return super().serializer_field_names + [
             "scripts",
             "custom_code",
+            "head_html",
         ]
 
     @property
@@ -19,6 +20,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         return super().public_serializer_field_names + [
             "scripts",
             "custom_code",
+            "has_head_html",
         ]
 
     @property
@@ -26,6 +28,7 @@ class CustomCodeBuilderApplicationTypeMixin:
         return super().request_serializer_field_names + [
             "scripts",
             "custom_code",
+            "head_html",
         ]
 
     @property
@@ -55,25 +58,14 @@ class CustomCodeBuilderApplicationTypeMixin:
         return {
             **super().serializer_field_overrides,
             "custom_code": CustomCodeSerializer(
-                help_text="Custom code for this builder"
-            ),
-        }
-
-    @property
-    def public_serializer_field_overrides(self):
-        from baserow_enterprise.api.builder.custom_code.serializers import (
-            PublicCustomCodeSerializer,
-        )
-
-        return {
-            **self.serializer_field_overrides,
-            "custom_code": PublicCustomCodeSerializer(
-                help_text="Custom code for this builder"
+                help_text="Custom CSS/JS code for this builder"
             ),
         }
 
     @property
     def request_serializer_field_overrides(self):
+        from rest_framework import serializers
+
         from baserow_enterprise.api.builder.custom_code.serializers import (
             CustomCodeSerializer,
             CustomScriptSerializer,
@@ -87,7 +79,13 @@ class CustomCodeBuilderApplicationTypeMixin:
                 required=False,
             ),
             "custom_code": CustomCodeSerializer(
-                help_text="Custom code for this builder", required=False
+                help_text="Custom CSS/JS code for this builder", required=False
+            ),
+            "head_html": serializers.CharField(
+                required=False,
+                allow_blank=True,
+                trim_whitespace=False,
+                help_text="Custom HTML for the document head.",
             ),
         }
 
@@ -118,20 +116,14 @@ class CustomCodeBuilderApplicationTypeMixin:
 
         if "custom_code" in values:
             code = instance.custom_code
-            code_values = values["custom_code"]
-            update_fields = []
+            code.css = values["custom_code"].get("css", "")
+            code.js = values["custom_code"].get("js", "")
+            code.save(update_fields=["css", "js"])
 
-            # A dedicated HTML save leaves CSS and JS intact. Requests that
-            # update CSS or JS retain their existing replacement semantics.
-            if code_values.keys() != {"html"}:
-                code.css = code_values.get("css", "")
-                code.js = code_values.get("js", "")
-                update_fields.extend(("css", "js"))
-            if "html" in code_values:
-                code.html = code_values["html"]
-                update_fields.append("html")
-
-            code.save(update_fields=update_fields)
+        if "head_html" in values:
+            code = instance.custom_code
+            code.html = values["head_html"]
+            code.save(update_fields=["html"])
 
     def after_update(self, instance, values):
         """

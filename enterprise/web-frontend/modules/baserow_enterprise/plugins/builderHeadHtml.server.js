@@ -10,7 +10,7 @@ export async function fetchBuilderHeadHtml(
   { builder, mode, requestUrl, config, previewSsrCookieHeader },
   fetch = $fetch
 ) {
-  if (builder.untrusted_content || !builder.custom_code?.has_html) {
+  if (builder.untrusted_content || !builder.has_head_html) {
     return ''
   }
 
