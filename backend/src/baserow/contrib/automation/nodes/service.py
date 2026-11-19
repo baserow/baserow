@@ -42,6 +42,8 @@ from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
+from baserow.core.integrations.operations import ListIntegrationsWorkspaceOperationType
+from baserow.core.services.models import Service
 from baserow.core.trash.handler import TrashHandler
 
 
@@ -134,6 +136,57 @@ class AutomationNodeService:
                 f"The reference node {reference_node.id} can't have child"
             )
 
+    def _preselect_integration(
+        self,
+        user: AbstractUser,
+        workflow: AutomationWorkflow,
+        service: Service,
+        integration_type: str,
+    ):
+        """
+        Gives the service of a new node an integration of the given type when the
+        choice is clear. The automation's own come first: when it has exactly one,
+        that one is picked, even if the workspace has some too, as every new
+        automation gets a Local Baserow integration of its own. When it has none,
+        the workspace's is picked if there's exactly one, for a user who may list
+        the workspace integrations, since the integration dropdown doesn't offer
+        them otherwise. Several candidates are left for the user to choose from.
+
+        :param user: The user creating the node.
+        :param workflow: The workflow the node is created in.
+        :param service: The service of the new node, saved when it changes.
+        :param integration_type: The type of integration the service uses.
+        """
+
+        automation = workflow.automation
+        integrations = [
+            integration
+            for integration in IntegrationHandler().get_usable_integrations(automation)
+            if integration.get_type().type == integration_type
+        ]
+        own_integrations = [
+            integration
+            for integration in integrations
+            if integration.application_id == automation.id
+        ]
+
+        if own_integrations:
+            candidates = own_integrations
+        elif integrations and CoreHandler().check_permissions(
+            user,
+            ListIntegrationsWorkspaceOperationType.type,
+            workspace=automation.workspace,
+            context=automation.workspace,
+            raise_permission_exceptions=False,
+        ):
+            candidates = integrations
+        else:
+            candidates = []
+
+        if len(candidates) == 1:
+            service.integration = candidates[0]
+            service.save()
+
     def create_node(
         self,
         user: AbstractUser,
@@ -188,17 +241,11 @@ class AutomationNodeService:
             user,
         )
 
-        # Preselect first integration if exactly one exists
-        if node_type.get_service_type().integration_type:
-            integrations_of_type = [
-                i
-                for i in IntegrationHandler().get_integrations(workflow.automation)
-                if i.get_type().type == node_type.get_service_type().integration_type
-            ]
-
-            if len(integrations_of_type) == 1:
-                prepared_values["service"].integration = integrations_of_type[0]
-                prepared_values["service"].save()
+        integration_type = node_type.get_service_type().integration_type
+        if integration_type and prepared_values["service"].integration_id is None:
+            self._preselect_integration(
+                user, workflow, prepared_values["service"], integration_type
+            )
 
         new_node = self.handler.create_node(
             node_type,

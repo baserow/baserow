@@ -2,7 +2,7 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Union, cast
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from loguru import logger
 
@@ -359,6 +359,31 @@ class IntegrationHandler:
             )
         else:
             return queryset
+
+    def get_usable_integrations(
+        self, application: Application, specific: bool = True
+    ) -> Union[QuerySet[Integration], Iterable[Integration]]:
+        """
+        Gets the integrations the given application can use: its own and the
+        workspace integrations of its workspace, the ones `check_integration_usable`
+        accepts from it. A published copy has no workspace, so it only gets its own.
+
+        :param application: The application the integrations are used from.
+        :param specific: Whether to return the generic integrations or the specific
+            instances.
+        :return: The integrations the application can use.
+        """
+
+        usable = Q(application=application)
+        if application.workspace_id is not None:
+            usable |= Q(
+                shared_application_filter(prefix="application__"),
+                application__workspace_id=application.workspace_id,
+            )
+
+        return self.get_integrations(
+            base_queryset=Integration.objects.filter(usable), specific=specific
+        )
 
     def create_integration(
         self,
