@@ -1637,16 +1637,51 @@ def test_update_nodes_keeps_a_branch_listed_without_a_condition(automation_ctx):
     assert edges == {"Big": "true", "Small": ""}
 
 
-def test_node_refs_refuses_default_when_two_branches_match_it():
+@pytest.mark.parametrize("label", ["default", "Default", "DEFAULT"])
+@pytest.mark.parametrize(
+    "branches", [{"Default": "uid1"}, {"Default": "uid1", "DEFAULT": "uid2"}]
+)
+def test_node_refs_refuses_default_when_a_branch_is_named_default(label, branches):
     refs = NodeRefs()
-    refs.add("router", 1, {"Default": "uid1", "DEFAULT": "uid2"})
+    refs.add("router", 1, branches)
 
-    assert refs.resolve("router", "Default") == (1, "uid1")
-    with pytest.raises(
-        DjangoValidationError,
-        match="matches several branches.*or leave router_edge_label out",
-    ):
-        refs.resolve("router", "default")
+    with pytest.raises(DjangoValidationError) as error:
+        refs.resolve("router", label)
+
+    message = str(error.value)
+    assert "could mean the default branch or the branch named" in message
+    assert "Leave router_edge_label out for the default branch" in message
+    assert "before_node_id" in message and "rename" in message
+
+
+@pytest.mark.django_db
+def test_add_nodes_refuses_default_on_a_router_with_a_branch_named_default(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    router = create_node(
+        ctx.user,
+        workflow,
+        "router",
+        reference_node_id=trigger.id,
+        service={"edges": [{"uid": str(uuid4()), "label": "Default"}]},
+    )
+    before = deepcopy(workflow.get_graph().graph)
+
+    with pytest.raises(DjangoValidationError, match="could mean the default branch"):
+        add_nodes(
+            ctx,
+            workflow.id,
+            [_email(previous=str(router.id), router_edge_label="default")],
+        )
+
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+def test_node_refs_refuses_a_label_that_names_several_branches():
+    refs = NodeRefs()
     refs.add("yes", 3, {"Yes": "uid4", "YES": "uid5"})
     with pytest.raises(DjangoValidationError) as error:
         refs.resolve("yes", "yes")

@@ -319,6 +319,16 @@ class NodeRefs:
                 f"router_edge_label '{edge_label}' is given, but node '{ref}' is "
                 "not a router. Leave it out to follow the node."
             )
+        if edge_label.lower() == DEFAULT_BRANCH:
+            named = [label for label in edges if label.lower() == DEFAULT_BRANCH]
+            if named:
+                raise DjangoValidationError(
+                    f"router_edge_label '{edge_label}' could mean the default branch "
+                    f"or the branch named '{named[0]}' of node '{ref}'. Leave "
+                    "router_edge_label out for the default branch. For that "
+                    "branch, use before_node_id with a node on it, or rename it."
+                )
+            return node_id, ""
         uid = edges.get(edge_label)
         matches = []
         if uid is None:
@@ -328,9 +338,6 @@ class NodeRefs:
                 if label.lower() == edge_label.lower()
             ]
             uid = matches[0] if len(matches) == 1 else None
-        # Only when no branch has the label: when several do, it is ambiguous.
-        if not matches and uid is None and edge_label.lower() == DEFAULT_BRANCH:
-            return node_id, ""
         if uid is None:
             labels = ", ".join(f"'{label}'" for label in edges) or "none"
             reason = (
@@ -338,14 +345,8 @@ class NodeRefs:
                 if matches
                 else f"is not a branch of node '{ref}'"
             )
-            default_hint = (
-                ", or leave router_edge_label out for the default branch"
-                if matches and edge_label.lower() == DEFAULT_BRANCH
-                else ""
-            )
             raise DjangoValidationError(
-                f"router_edge_label '{edge_label}' {reason}{default_hint}. "
-                f"Its branches: {labels}."
+                f"router_edge_label '{edge_label}' {reason}. Its branches: {labels}."
             )
         return node_id, uid
 
