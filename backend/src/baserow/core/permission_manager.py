@@ -8,7 +8,13 @@ from baserow.core.cache import local_cache
 from baserow.core.context import get_private_link_token
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
+    CreateIntegrationWorkspaceOperationType,
+    DeleteWorkspaceIntegrationOperationType,
     ListIntegrationsApplicationOperationType,
+    ListIntegrationsWorkspaceOperationType,
+    OrderIntegrationsWorkspaceOperationType,
+    RestoreWorkspaceIntegrationOperationType,
+    UpdateWorkspaceIntegrationOperationType,
 )
 from baserow.core.models import Template, Workspace
 from baserow.core.notifications.operations import (
@@ -190,6 +196,7 @@ class AllowIfTemplatePermissionManagerType(PermissionManagerType):
         ReadWorkspaceOperationType.type,
         ListApplicationsWorkspaceOperationType.type,
         ListIntegrationsApplicationOperationType.type,
+        ListIntegrationsWorkspaceOperationType.type,
         ListUserSourcesApplicationOperationType.type,
         ReadUserSourceOperationType.type,
         ReadFieldRuleOperationType.type,
@@ -453,6 +460,11 @@ class BasicPermissionManagerType(PermissionManagerType):
         ReadWorkspaceSnapshotSettingsOperationType.type,
         UpdateWorkspaceSnapshotSettingsOperationType.type,
         UpdateApplicationMaxSnapshotsOperationType.type,
+        CreateIntegrationWorkspaceOperationType.type,
+        OrderIntegrationsWorkspaceOperationType.type,
+        UpdateWorkspaceIntegrationOperationType.type,
+        DeleteWorkspaceIntegrationOperationType.type,
+        RestoreWorkspaceIntegrationOperationType.type,
     ]
 
     def get_workspace_role_uids_by_actor(

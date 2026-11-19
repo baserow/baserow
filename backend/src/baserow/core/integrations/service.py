@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
 
@@ -11,10 +11,15 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
+    CreateIntegrationWorkspaceOperationType,
     DeleteIntegrationOperationType,
+    DeleteWorkspaceIntegrationOperationType,
     ListIntegrationsApplicationOperationType,
+    ListIntegrationsWorkspaceOperationType,
+    OrderIntegrationsWorkspaceOperationType,
     ReadIntegrationOperationType,
     UpdateIntegrationOperationType,
+    UpdateWorkspaceIntegrationOperationType,
 )
 from baserow.core.integrations.registries import (
     IntegrationType,
@@ -27,7 +32,7 @@ from baserow.core.integrations.signals import (
     integration_updated,
 )
 from baserow.core.integrations.types import IntegrationForUpdate, UpdatedIntegration
-from baserow.core.models import Application
+from baserow.core.models import Application, Workspace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import extract_undo_redo_values
 
@@ -35,6 +40,58 @@ from baserow.core.utils import extract_undo_redo_values
 class IntegrationService:
     def __init__(self):
         self.handler = IntegrationHandler()
+
+    def _get_operation_and_context(
+        self,
+        application: Application,
+        operation_name: str,
+        workspace_operation_name: str,
+    ) -> Tuple[str, Application | Workspace]:
+        """
+        Picks the operation to check on the integrations of the given application.
+        Those of the shared application are the workspace integrations, so the
+        workspace operation is checked on the workspace instead.
+
+        :param application: The application that holds the integrations.
+        :param operation_name: The operation on the integrations of an application.
+        :param workspace_operation_name: The operation on the workspace integrations.
+        :return: The operation name and the context to check it on.
+        """
+
+        if self.handler.is_shared_application(application):
+            return workspace_operation_name, application.workspace
+        return operation_name, application
+
+    def check_integration_permission(
+        self,
+        user: AbstractUser,
+        integration: Integration,
+        operation_name: str,
+        workspace_operation_name: str,
+    ):
+        """
+        Checks an operation on the given integration. A workspace integration is
+        checked with the workspace operation instead, because the operation on an
+        integration of an application resolves through the shared application to
+        the workspace, so it would let anyone allowed to manage the integrations of
+        every application in the workspace manage it.
+
+        :param user: The user to check.
+        :param integration: The integration the operation is about.
+        :param operation_name: The operation on an integration of an application.
+        :param workspace_operation_name: The operation on a workspace integration.
+        :raises PermissionException: When the user isn't allowed.
+        """
+
+        if self.handler.is_shared_application(integration.application):
+            operation_name = workspace_operation_name
+
+        CoreHandler().check_permissions(
+            user,
+            operation_name,
+            workspace=integration.application.workspace,
+            context=integration,
+        )
 
     def get_integration(self, user: AbstractUser, integration_id: int) -> Integration:
         """
@@ -68,16 +125,22 @@ class IntegrationService:
         :return: The integrations of that application.
         """
 
+        operation_name, context = self._get_operation_and_context(
+            application,
+            ListIntegrationsApplicationOperationType.type,
+            ListIntegrationsWorkspaceOperationType.type,
+        )
+
         CoreHandler().check_permissions(
             user,
-            ListIntegrationsApplicationOperationType.type,
+            operation_name,
             workspace=application.workspace,
-            context=application,
+            context=context,
         )
 
         user_integrations = CoreHandler().filter_queryset(
             user,
-            ListIntegrationsApplicationOperationType.type,
+            operation_name,
             Integration.objects.all(),
             workspace=application.workspace,
         )
@@ -105,11 +168,17 @@ class IntegrationService:
         :return: The created integration.
         """
 
+        operation_name, context = self._get_operation_and_context(
+            application,
+            CreateIntegrationOperationType.type,
+            CreateIntegrationWorkspaceOperationType.type,
+        )
+
         CoreHandler().check_permissions(
             user,
-            CreateIntegrationOperationType.type,
+            operation_name,
             workspace=application.workspace,
-            context=application,
+            context=context,
         )
 
         prepared_values = integration_type.prepare_values(
@@ -188,11 +257,11 @@ class IntegrationService:
             without its credential.
         """
 
-        CoreHandler().check_permissions(
+        self.check_integration_permission(
             user,
+            integration,
             UpdateIntegrationOperationType.type,
-            workspace=integration.application.workspace,
-            context=integration,
+            UpdateWorkspaceIntegrationOperationType.type,
         )
 
         integration_type = integration.get_type()
@@ -228,11 +297,11 @@ class IntegrationService:
 
         application = integration.application
 
-        CoreHandler().check_permissions(
+        self.check_integration_permission(
             user,
+            integration,
             DeleteIntegrationOperationType.type,
-            workspace=application.workspace,
-            context=integration,
+            DeleteWorkspaceIntegrationOperationType.type,
         )
 
         # Soft-delete (trash) the integration so it can be restored via undo. The
@@ -257,12 +326,21 @@ class IntegrationService:
         :return: The integration with an updated order.
         """
 
-        CoreHandler().check_permissions(
-            user,
-            UpdateIntegrationOperationType.type,
-            workspace=integration.application.workspace,
-            context=integration,
-        )
+        workspace = integration.application.workspace
+        if self.handler.is_shared_application(integration.application):
+            CoreHandler().check_permissions(
+                user,
+                OrderIntegrationsWorkspaceOperationType.type,
+                workspace=workspace,
+                context=workspace,
+            )
+        else:
+            CoreHandler().check_permissions(
+                user,
+                UpdateIntegrationOperationType.type,
+                workspace=workspace,
+                context=integration,
+            )
 
         # Check we are on the same application.
         if before and integration.application_id != before.application_id:

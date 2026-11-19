@@ -1,6 +1,6 @@
 from abc import ABC
 
-from baserow.core.operations import ApplicationOperationType
+from baserow.core.operations import ApplicationOperationType, WorkspaceCoreOperationType
 from baserow.core.registries import OperationType
 
 
@@ -36,3 +36,35 @@ class ReadIntegrationOperationType(IntegrationOperationType):
 
 class RestoreIntegrationOperationType(IntegrationOperationType):
     type = "application.integration.restore"
+
+
+# The workspace integrations are owned by the shared application of the workspace.
+# The operations above would resolve through it to the workspace, so that anyone
+# allowed to manage the integrations of every application of the workspace could
+# manage them. These are checked instead, see `IntegrationService`.
+
+
+class ListIntegrationsWorkspaceOperationType(WorkspaceCoreOperationType):
+    type = "workspace.list_integrations"
+    object_scope_name = "integration"
+
+
+class OrderIntegrationsWorkspaceOperationType(WorkspaceCoreOperationType):
+    type = "workspace.order_integrations"
+    object_scope_name = "integration"
+
+
+class CreateIntegrationWorkspaceOperationType(WorkspaceCoreOperationType):
+    type = "workspace.create_integration"
+
+
+class DeleteWorkspaceIntegrationOperationType(IntegrationOperationType):
+    type = "workspace.integration.delete"
+
+
+class UpdateWorkspaceIntegrationOperationType(IntegrationOperationType):
+    type = "workspace.integration.update"
+
+
+class RestoreWorkspaceIntegrationOperationType(IntegrationOperationType):
+    type = "workspace.integration.restore"

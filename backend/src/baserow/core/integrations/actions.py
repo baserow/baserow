@@ -5,8 +5,17 @@ from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
 from baserow.core.action.models import Action
-from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
-from baserow.core.action.scopes import ApplicationActionScopeType
+from baserow.core.action.registries import (
+    ActionScopeStr,
+    ActionTypeDescription,
+    UndoableActionType,
+    render_action_type_description,
+)
+from baserow.core.action.scopes import (
+    WORKSPACE_ACTION_CONTEXT,
+    ApplicationActionScopeType,
+    WorkspaceActionScopeType,
+)
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
@@ -20,7 +29,48 @@ INTEGRATION_ACTION_CONTEXT = _(
 )
 
 
-class CreateIntegrationActionType(UndoableActionType):
+class IntegrationActionTypeMixin:
+    """
+    A workspace integration is managed from the workspace settings and used from
+    every application of the workspace, so its actions are undone from anywhere in
+    the workspace and described in it, never in the hidden shared application that
+    owns it. They record the workspace in `workspace_id` and `workspace_name`, which
+    stay `None` for the integration of an application.
+    """
+
+    @classmethod
+    def scope(cls, application: Application) -> ActionScopeStr:
+        if IntegrationHandler().is_shared_application(application):
+            return WorkspaceActionScopeType.value(application.workspace_id)
+        return ApplicationActionScopeType.value(application.id)
+
+    @classmethod
+    def get_workspace_params(cls, application: Application) -> Dict[str, Any]:
+        """
+        :param application: The application that holds the integration.
+        :return: The workspace params of the action, empty for the integration of
+            an application.
+        """
+
+        if not IntegrationHandler().is_shared_application(application):
+            return {}
+        return {
+            "workspace_id": application.workspace_id,
+            "workspace_name": application.workspace.name,
+        }
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        if params_dict.get("workspace_id") is None:
+            return super().get_long_description(params_dict, *args, **kwargs)
+
+        description = ActionTypeDescription(
+            cls.description.short, cls.description.long, WORKSPACE_ACTION_CONTEXT
+        )
+        return render_action_type_description(description, params_dict)
+
+
+class CreateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType):
     type = "create_integration"
     description = ActionTypeDescription(
         _("Create integration"),
@@ -34,6 +84,8 @@ class CreateIntegrationActionType(UndoableActionType):
         application_name: str
         integration_id: int
         integration_type: str
+        workspace_id: Optional[int] = None
+        workspace_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -55,15 +107,12 @@ class CreateIntegrationActionType(UndoableActionType):
                 application.name,
                 integration.id,
                 integration_type.type,
+                **cls.get_workspace_params(application),
             ),
-            scope=cls.scope(application.id),
+            scope=cls.scope(application),
             workspace=application.workspace,
         )
         return integration
-
-    @classmethod
-    def scope(cls, application_id: int):
-        return ApplicationActionScopeType.value(application_id)
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
@@ -81,7 +130,7 @@ class CreateIntegrationActionType(UndoableActionType):
         )
 
 
-class UpdateIntegrationActionType(UndoableActionType):
+class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType):
     """
     Undo and redo replay the logged values without any credential. The fields
     in `IntegrationType.get_action_log_excluded_fields`, which include every
@@ -104,6 +153,8 @@ class UpdateIntegrationActionType(UndoableActionType):
         integration_id: int
         integration_original_params: Dict[str, Any]
         integration_new_params: Dict[str, Any]
+        workspace_id: Optional[int] = None
+        workspace_name: Optional[str] = None
 
     @classmethod
     def do(
@@ -123,15 +174,12 @@ class UpdateIntegrationActionType(UndoableActionType):
                 updated.integration.id,
                 updated.original_values,
                 updated.new_values,
+                **cls.get_workspace_params(application),
             ),
-            scope=cls.scope(application.id),
+            scope=cls.scope(application),
             workspace=application.workspace,
         )
         return updated.integration
-
-    @classmethod
-    def scope(cls, application_id: int):
-        return ApplicationActionScopeType.value(application_id)
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
@@ -152,7 +200,7 @@ class UpdateIntegrationActionType(UndoableActionType):
         )
 
 
-class DeleteIntegrationActionType(UndoableActionType):
+class DeleteIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType):
     type = "delete_integration"
     description = ActionTypeDescription(
         _("Delete integration"),
@@ -165,6 +213,8 @@ class DeleteIntegrationActionType(UndoableActionType):
         application_id: int
         application_name: str
         integration_id: int
+        workspace_id: Optional[int] = None
+        workspace_name: Optional[str] = None
 
     @classmethod
     def do(cls, user: AbstractUser, integration: Integration) -> None:
@@ -174,6 +224,7 @@ class DeleteIntegrationActionType(UndoableActionType):
             application.id,
             application.name,
             integration.id,
+            **cls.get_workspace_params(application),
         )
 
         IntegrationService().delete_integration(user, integration)
@@ -181,13 +232,9 @@ class DeleteIntegrationActionType(UndoableActionType):
         cls.register_action(
             user=user,
             params=params,
-            scope=cls.scope(application.id),
+            scope=cls.scope(application),
             workspace=application.workspace,
         )
-
-    @classmethod
-    def scope(cls, application_id: int):
-        return ApplicationActionScopeType.value(application_id)
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
@@ -205,7 +252,7 @@ class DeleteIntegrationActionType(UndoableActionType):
         IntegrationService().delete_integration(user, integration)
 
 
-class MoveIntegrationActionType(UndoableActionType):
+class MoveIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType):
     type = "move_integration"
     description = ActionTypeDescription(
         _("Move integration"),
@@ -220,6 +267,8 @@ class MoveIntegrationActionType(UndoableActionType):
         integration_id: int
         original_before_id: Optional[int]
         new_before_id: Optional[int]
+        workspace_id: Optional[int] = None
+        workspace_name: Optional[str] = None
 
     @classmethod
     def _ordered_sibling_ids(cls, integration: Integration) -> List[int]:
@@ -258,15 +307,12 @@ class MoveIntegrationActionType(UndoableActionType):
                 integration.id,
                 original_before_id,
                 before.id if before else None,
+                **cls.get_workspace_params(application),
             ),
-            scope=cls.scope(application.id),
+            scope=cls.scope(application),
             workspace=application.workspace,
         )
         return moved_integration
-
-    @classmethod
-    def scope(cls, application_id: int):
-        return ApplicationActionScopeType.value(application_id)
 
     @classmethod
     def _move(cls, user: AbstractUser, integration_id: int, before_id: Optional[int]):

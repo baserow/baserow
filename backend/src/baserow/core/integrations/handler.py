@@ -21,7 +21,7 @@ from baserow.core.integrations.registries import (
     IntegrationType,
     integration_type_registry,
 )
-from baserow.core.models import Application
+from baserow.core.models import Application, SharedApplication
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
@@ -189,6 +189,17 @@ class IntegrationHandler:
             return workspace.id if workspace else None
 
         return local_cache.get(f"application_{application.id}_workspace_id", resolve)
+
+    def is_shared_application(self, application: Application) -> bool:
+        """
+        Returns whether the application is the shared application of its workspace,
+        whose integrations are the workspace integrations.
+
+        :param application: The application, specific or not.
+        :return: True for the shared application.
+        """
+
+        return application.specific_class is SharedApplication
 
     def is_integration_usable(
         self,

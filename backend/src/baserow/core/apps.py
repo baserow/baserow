@@ -766,12 +766,18 @@ class CoreConfig(AppConfig):
 
         from baserow.core.integrations.operations import (
             CreateIntegrationOperationType,
+            CreateIntegrationWorkspaceOperationType,
             DeleteIntegrationOperationType,
+            DeleteWorkspaceIntegrationOperationType,
             ListIntegrationsApplicationOperationType,
+            ListIntegrationsWorkspaceOperationType,
             OrderIntegrationsOperationType,
+            OrderIntegrationsWorkspaceOperationType,
             ReadIntegrationOperationType,
             RestoreIntegrationOperationType,
+            RestoreWorkspaceIntegrationOperationType,
             UpdateIntegrationOperationType,
+            UpdateWorkspaceIntegrationOperationType,
         )
 
         operation_type_registry.register(CreateIntegrationOperationType())
@@ -781,6 +787,12 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ReadIntegrationOperationType())
         operation_type_registry.register(OrderIntegrationsOperationType())
         operation_type_registry.register(RestoreIntegrationOperationType())
+        operation_type_registry.register(ListIntegrationsWorkspaceOperationType())
+        operation_type_registry.register(CreateIntegrationWorkspaceOperationType())
+        operation_type_registry.register(OrderIntegrationsWorkspaceOperationType())
+        operation_type_registry.register(UpdateWorkspaceIntegrationOperationType())
+        operation_type_registry.register(DeleteWorkspaceIntegrationOperationType())
+        operation_type_registry.register(RestoreWorkspaceIntegrationOperationType())
 
         from baserow.core.action.registries import action_type_registry
         from baserow.core.integrations.actions import (
