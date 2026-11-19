@@ -310,7 +310,7 @@ class UserTemplateHandler:
         template.full_clean(exclude=["slug", "open_application"])
 
         with transaction.atomic():
-            if not self._lock_user(owner):
+            if not self.lock_user(owner):
                 raise UserNotFound("The owner of the template was deleted.")
 
             for _ in range(SLUG_MAX_ATTEMPTS):
@@ -1854,25 +1854,29 @@ class UserTemplateHandler:
             user, root, private_link_token=root.private_link_token
         )
 
-    def _lock_user(self, user: AbstractUser) -> bool:
+    def lock_user(self, user: AbstractUser, *, no_key: bool = False) -> bool:
         """
         Locks the row of the user until the end of the transaction. Creating a
         template and deleting its owner both lock it, so that a template is either
-        committed before the deletion marks it, or not created at all.
+        committed before the deletion marks it, or not created at all. Starting a
+        create user template job locks it too, so that one request at a time counts
+        the user's jobs.
 
+        :param no_key: Takes `FOR NO KEY UPDATE` instead of `FOR UPDATE`, which
+            doesn't block inserting rows that reference the user.
         :return: Whether the user still exists.
         """
 
-        return User.objects.select_for_update().filter(id=user.id).exists()
+        return User.objects.select_for_update(no_key=no_key).filter(id=user.id).exists()
 
     def mark_owned_templates_for_deletion(self, user: AbstractUser) -> None:
         """
         Marks the user templates owned by the user for deletion. The templates
         themselves are removed later. Must run in the transaction deleting the
-        user, see `_lock_user`.
+        user, see `lock_user`.
         """
 
-        self._lock_user(user)
+        self.lock_user(user)
         Template.objects.user().filter(
             owner=user, root__isnull=True, marked_for_deletion_at__isnull=True
         ).update(marked_for_deletion_at=timezone.now())
