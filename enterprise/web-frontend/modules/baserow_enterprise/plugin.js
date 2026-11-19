@@ -42,6 +42,10 @@ import {
   TeamInvitationTargetType,
 } from '@baserow_enterprise/invitationTargetTypes'
 import {
+  ScopesInvitationDataType,
+  TeamsInvitationDataType,
+} from '@baserow_enterprise/invitationDataTypes'
+import {
   MemberInvitationRouteType,
   TeamMembersInvitationRouteType,
 } from '@baserow_enterprise/invitationRouteTypes'
@@ -237,6 +241,8 @@ export default defineNuxtPlugin({
       new EnterpriseTeamsIdentitySettingsType(context)
     )
     $registry.register('subject', new TeamSubjectType(context))
+    $registry.register('invitationData', new ScopesInvitationDataType(context))
+    $registry.register('invitationData', new TeamsInvitationDataType(context))
     $registry.register(
       'invitationTarget',
       new ScopeInvitationTargetType(context)

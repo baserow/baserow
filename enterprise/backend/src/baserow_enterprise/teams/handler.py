@@ -23,6 +23,7 @@ from baserow.core.operations import (
 from baserow.core.registries import SubjectType, subject_type_registry
 from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import PermissionCheck
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.models import (
@@ -54,6 +55,7 @@ from baserow_enterprise.teams.exceptions import (
 from baserow_enterprise.teams.operations import (
     CreateTeamSubjectOperationType,
     ListTeamSubjectsOperationType,
+    ReadTeamOperationType,
 )
 from baserow_premium.license.handler import LicenseHandler
 
@@ -701,6 +703,48 @@ class TeamHandler:
         return WorkspaceTeamInvitation.objects.filter(team=team).select_related(
             "invitation"
         )
+
+    def get_readable_invited_teams(
+        self, user: AbstractUser, workspace: Workspace, invitation_ids: List[int]
+    ) -> Dict[int, List[Team]]:
+        """
+        Returns the teams the given pending invitations add the person to, as shown
+        to the given user: only teams the user may read, and not teams in the trash.
+
+        :param user: The user the teams are shown to.
+        :param workspace: The workspace the invitations belong to.
+        :param invitation_ids: The ids of the invitations.
+        :return: Per invitation id, the teams it adds the person to, oldest
+            invitation to a team first.
+        """
+
+        result = defaultdict(list)
+        team_invitations = list(
+            WorkspaceTeamInvitation.objects.filter(
+                invitation_id__in=invitation_ids,
+                invitation__workspace=workspace,
+                team__workspace=workspace,
+                team__trashed=False,
+            ).select_related("team")
+        )
+        if not team_invitations:
+            return result
+
+        checks = {
+            team_invitation.team_id: PermissionCheck(
+                user, ReadTeamOperationType.type, team_invitation.team
+            )
+            for team_invitation in team_invitations
+        }
+        permissions = CoreHandler().check_multiple_permissions(
+            list(checks.values()), workspace=workspace
+        )
+
+        for team_invitation in team_invitations:
+            if permissions[checks[team_invitation.team_id]] is True:
+                result[team_invitation.invitation_id].append(team_invitation.team)
+
+        return result
 
     def get_team_invitation(
         self, team_invitation_id: int, team: Team

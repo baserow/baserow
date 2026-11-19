@@ -68,6 +68,16 @@
   color: $palette-neutral-900;
 }
 
+.invite-list__subtitle--with-tooltip {
+  cursor: default;
+  border-radius: 4px;
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
 .invite-list__items--scrollable {
   // Show five full rows and half of the next as a cue that the list scrolls.
   max-height: 357px;
