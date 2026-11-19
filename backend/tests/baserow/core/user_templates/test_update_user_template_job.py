@@ -243,6 +243,24 @@ def test_update_user_template_content(data_fixture, use_tmp_media_root):
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
+def test_update_user_template_content_keeps_reserved_categories(
+    data_fixture, use_tmp_media_root
+):
+    source = create_source(data_fixture)
+    user, workspace = source["user"], source["workspace"]
+    root = start_job(user, workspace, [source["database"]]).template
+    reserved = TemplateCategory.objects.create(name="🔥 Most Popular")
+    root.categories.set([reserved])
+
+    job = update_content(user, root, workspace, [source["database"]])
+
+    assert job.state == JOB_FINISHED, job.error
+    revision = Template.objects.get(root=root)
+    assert list(revision.categories.all()) == [reserved]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
 def test_update_user_template_content_rules(data_fixture, use_tmp_media_root):
     source = create_source(data_fixture)
     user, workspace = source["user"], source["workspace"]
@@ -537,6 +555,7 @@ def test_update_user_template_request_modes(data_fixture, values, fields):
     [
         ({"icon": "not-an-icon"}, InvalidTemplateIcon),
         ({"category_ids": [999999]}, InvalidTemplateCategory),
+        ({"category_names": ["Cat", "Baserow"]}, InvalidTemplateCategory),
     ],
 )
 def test_update_user_template_details_with_invalid_icon_or_category(
@@ -544,6 +563,13 @@ def test_update_user_template_details_with_invalid_icon_or_category(
 ):
     user = data_fixture.create_user()
     root = create_template(data_fixture, user)
+    if "category_names" in values:
+        values = {
+            "category_ids": [
+                TemplateCategory.objects.create(name=name).id
+                for name in values["category_names"]
+            ]
+        }
 
     # Refused before the content is copied.
     with pytest.raises(error):

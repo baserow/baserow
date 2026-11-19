@@ -236,15 +236,15 @@
                 </a>
               </li>
               <li
-                v-if="focusedPrivateLinkUrl"
+                v-if="focusedCopyLinkItem"
                 class="context__menu-item context__menu-item--with-separator"
               >
                 <a
                   class="context__menu-item-link"
-                  @click.prevent="copyPrivateLink()"
+                  @click.prevent="copyLink(focusedCopyLinkItem.url, copied)"
                 >
                   <i class="context__menu-item-icon iconoir-link"></i>
-                  {{ $t('userTemplateList.copyLink') }}
+                  {{ $t(focusedCopyLinkItem.label) }}
                   <Copied ref="copied"></Copied>
                 </a>
               </li>
@@ -252,7 +252,7 @@
                 v-if="canInstall(focusedTemplate, isStaff)"
                 class="context__menu-item"
                 :class="{
-                  'context__menu-item--with-separator': !focusedPrivateLinkUrl,
+                  'context__menu-item--with-separator': !focusedCopyLinkItem,
                 }"
               >
                 <a
@@ -304,7 +304,8 @@ import {
   canMakePrivate,
   canMakePublic,
   makePublicResubmits,
-  getPrivateLinkUrl,
+  getCopyLinkItem,
+  getCopyLinkKind,
 } from '@baserow/modules/core/utils/userTemplate'
 import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
@@ -358,9 +359,10 @@ const searchInput = ref(null)
 const actionsContext = ref(null)
 // The template whose actions are shown.
 const focusedTemplate = ref(null)
-const focusedPrivateLinkUrl = computed(() =>
+const focusedCopyLinkItem = computed(() =>
   focusedTemplate.value
-    ? getPrivateLinkUrl(
+    ? getCopyLinkItem(
+        getCopyLinkKind(focusedTemplate.value),
         focusedTemplate.value,
         $router,
         config.public.publicWebFrontendUrl
@@ -495,10 +497,6 @@ function togglePrivateLink(event, template) {
     0,
     !open
   )
-}
-
-function copyPrivateLink() {
-  return copyLink(focusedPrivateLinkUrl.value, copied.value)
 }
 
 function edit(mode) {

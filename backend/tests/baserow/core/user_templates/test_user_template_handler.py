@@ -252,7 +252,9 @@ def test_create_template_root_rejects_missing_or_unknown_categories(data_fixture
 
 
 @pytest.mark.django_db
-def test_create_template_root_without_categories_on_the_instance(data_fixture):
+def test_create_template_root_without_pickable_categories(data_fixture):
+    data_fixture.create_template_category(name="Baserow")
+
     template = create_root(data_fixture, category_ids=[])
 
     assert list(template.categories.all()) == []

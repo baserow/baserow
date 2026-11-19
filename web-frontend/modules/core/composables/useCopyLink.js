@@ -19,7 +19,10 @@ export function useCopyLink() {
     try {
       await copyToClipboard(url)
     } catch {
-      store.dispatch('toast/error', { title: $i18n.t('copied.linkFailed') })
+      store.dispatch('toast/error', {
+        title: $i18n.t('copied.linkFailedTitle'),
+        message: $i18n.t('copied.linkFailedMessage'),
+      })
       return
     }
     copied?.show()

@@ -13,6 +13,9 @@ from baserow.core.models import (
     UserTemplateState,
     is_instance_admin,
 )
+from baserow.core.user_templates.constants import (
+    USER_TEMPLATE_RESERVED_CATEGORY_NAMES,
+)
 from baserow.core.user_templates.handler import UserTemplateHandler
 
 
@@ -142,18 +145,26 @@ class TemplateSerializer(serializers.ModelSerializer):
         return None if author is None else author.first_name
 
 
-class TemplateCategoriesSerializer(serializers.ModelSerializer):
+class TemplateCategorySerializer(serializers.ModelSerializer):
+    user_selectable = serializers.SerializerMethodField(
+        help_text="Whether authors can put their user templates in this category. "
+        "Some are reserved for official templates."
+    )
+
+    class Meta:
+        model = TemplateCategory
+        fields = ("id", "name", "user_selectable")
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_user_selectable(self, instance: TemplateCategory) -> bool:
+        return instance.name not in USER_TEMPLATE_RESERVED_CATEGORY_NAMES
+
+
+class TemplateCategoriesSerializer(TemplateCategorySerializer):
     templates = TemplateSerializer(read_only=True, many=True)
 
-    class Meta:
-        model = TemplateCategory
-        fields = ("id", "name", "templates")
-
-
-class TemplateCategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TemplateCategory
-        fields = ("id", "name")
+    class Meta(TemplateCategorySerializer.Meta):
+        fields = ("id", "name", "templates", "user_selectable")
 
 
 class TemplateDetailSerializer(TemplateSerializer):
@@ -232,7 +243,8 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
     )
     listed = serializers.SerializerMethodField(
         help_text="Whether a revision of the template is listed for everybody, also "
-        "while a later one is in review or rejected. Only shown to its owner."
+        "while a later one is in review or rejected. Only shown to its owner, and "
+        "to instance admins on the template page."
     )
     source_workspace_id = serializers.SerializerMethodField(
         help_text="The workspace the applications of the latest revision were "
@@ -277,15 +289,26 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
         :return: The state and the reason, None for anyone else.
         """
 
+        if not self._shows_state(instance):
+            return None, None
+        return UserTemplateHandler().get_template_state(instance)
+
+    def _shows_state(self, instance: Template) -> bool:
+        """
+        Whether the state of the template is shown: to its owner, and to instance
+        admins when the context has `shows_state_to_staff`.
+
+        :param instance: The template revision.
+        :return: True if the state and whether it's listed are shown.
+        """
+
         request = self.context.get("request")
         shown_to_staff = (
             self.context.get("shows_state_to_staff", False)
             and instance.type == Template.Type.USER
             and is_instance_admin(request.user)
         )
-        if not (shown_to_staff or self._is_owner(instance)):
-            return None, None
-        return UserTemplateHandler().get_template_state(instance)
+        return shown_to_staff or self._is_owner(instance)
 
     def _get_owner_metadata(self, instance):
         if not self._is_owner(instance):
@@ -352,7 +375,7 @@ class TemplateListItemSerializer(TemplateDetailSerializer):
 
     @extend_schema_field(serializers.BooleanField(allow_null=True))
     def get_listed(self, instance: Template) -> Optional[bool]:
-        if not self._is_owner(instance):
+        if not self._shows_state(instance):
             return None
         return UserTemplateHandler().is_listed(instance)
 

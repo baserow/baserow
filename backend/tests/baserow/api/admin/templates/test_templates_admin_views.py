@@ -83,7 +83,9 @@ def test_list_rows(api_client, data_fixture):
         "icon": "document",
         "workspace_id": latest.workspace_id,
         "open_application": None,
-        "categories": [{"id": category.id, "name": "Planning"}],
+        "categories": [
+            {"id": category.id, "name": "Planning", "user_selectable": True}
+        ],
         "author": {"id": author.id, "first_name": "Ann", "email": "ann@example.com"},
         "state": "in_review",
         "reason": None,

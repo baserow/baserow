@@ -28,8 +28,9 @@ describe('TemplateDetails', () => {
     await testApp.afterEach()
   })
 
-  const mountComponent = async (props = {}) => {
+  const mountComponent = async (props = {}, route = undefined) => {
     const wrapper = await testApp.mount(TemplateDetails, {
+      route,
       props: { template, ...props },
       global: { stubs: { TableTemplate: true } },
     })
@@ -116,7 +117,12 @@ describe('TemplateDetails', () => {
   })
 
   test('adds the owner actions to the install menu of an own template', async () => {
-    const userTemplate = { ...template, type: 'user' }
+    const userTemplate = {
+      ...template,
+      type: 'user',
+      is_own: true,
+      listed: false,
+    }
     const wrapper = await mountComponent({
       template: userTemplate,
       ownerActions: true,
@@ -151,15 +157,24 @@ describe('TemplateDetails', () => {
   })
 
   test.each([
-    ['private', 'templateDetails.makePublic', 'make-public'],
-    ['public', 'templateDetails.makePrivate', 'make-private'],
+    ['private', ['templateDetails.makePublic'], 'make-public'],
+    [
+      'public',
+      [
+        'templateDetails.makePrivate',
+        expect.stringMatching(/^templateInstall\.copyLink/),
+      ],
+      'make-private',
+    ],
   ])(
     'offers the visibility change of a %s own template',
-    async (state, label, event) => {
+    async (state, labels, event) => {
       const userTemplate = {
         ...template,
         type: 'user',
+        is_own: true,
         state,
+        listed: state === 'public',
         can_make_public: event === 'make-public',
       }
       const wrapper = await mountComponent({
@@ -174,7 +189,7 @@ describe('TemplateDetails', () => {
       expect(links.map((link) => link.text())).toStrictEqual([
         'templateDetails.editDetails',
         'templateDetails.updateContent',
-        label,
+        ...labels,
         'templateInstall.download',
         'templateDetails.delete',
       ])
@@ -226,40 +241,93 @@ describe('TemplateDetails', () => {
     }
   )
 
-  test.each([
-    ['private', true],
-    ['blocked', false],
-  ])(
-    'copies the private link of a %s own template: %s',
-    async (state, copied) => {
-      vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
-      const token = 'a'.repeat(64)
-      const wrapper = await mountComponent({
-        template: {
-          ...template,
-          type: 'user',
-          state,
-          private_link_token: token,
-        },
-        ownerActions: true,
-      })
+  describe('copy item', () => {
+    const token = 'a'.repeat(64)
+    const sharing = ['templateInstall.copyLink', '/template/project-tracker']
+    const privateLink = [
+      'templateInstall.copyPrivateLink',
+      `/template/project-tracker/private-link/${token}`,
+    ]
+    const author = { type: 'user', is_own: true, private_link_token: token }
+    const admin = { type: 'user', is_own: false, private_link_token: null }
+    const other = { type: 'user', listed: null, state: null }
+    const listed = { state: 'public', listed: true }
+    const pendingEdit = { state: 'in_review', listed: true }
+    const unlisted = { state: 'private', listed: false }
 
-      await wrapper
-        .find('.template-install__actions .button-icon')
-        .trigger('click')
-      const link = wrapper
-        .findAll('.context__menu-item-link')
-        .find((item) => item.text().includes('templateInstall.copyLink'))
-      expect(link !== undefined).toBe(copied)
-      if (copied) {
-        await link.trigger('click')
-        const [url] = navigator.clipboard.writeText.mock.calls[0]
-        expect(new URL(url).pathname).toBe(
-          `/template/project-tracker/private-link/${token}`
+    test.each([
+      ['author', 'listed', { ...author, ...listed }, false, sharing],
+      ['author', 'pending edit', { ...author, ...pendingEdit }, false, sharing],
+      [
+        'author',
+        'private link',
+        { ...author, ...unlisted },
+        false,
+        privateLink,
+      ],
+      [
+        'author',
+        'neither',
+        { ...author, ...unlisted, private_link_token: null },
+        false,
+        null,
+      ],
+      [
+        'author',
+        'blocked',
+        { ...author, state: 'blocked', listed: false },
+        false,
+        null,
+      ],
+      [
+        'author on its link page',
+        'listed',
+        { ...author, ...listed },
+        true,
+        sharing,
+      ],
+      [
+        'author on its link page',
+        'private link',
+        { ...author, ...unlisted },
+        true,
+        privateLink,
+      ],
+      ['admin', 'pending edit', { ...admin, ...pendingEdit }, false, sharing],
+      ['admin', 'private', { ...admin, ...unlisted }, false, null],
+      ['other', 'listed', other, false, sharing],
+      ['other on a private link page', 'shown', other, true, null],
+      ['anyone', 'official', {}, false, sharing],
+    ])(
+      'of the %s on a %s template',
+      async (_viewer, _shown, fields, onLinkPage, expected) => {
+        vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn() } })
+        const wrapper = await mountComponent(
+          {
+            template: { ...template, ...fields },
+            ownerActions: fields.is_own === true && !onLinkPage,
+          },
+          onLinkPage ? privateLink[1] : '/template/project-tracker'
         )
+
+        const more = wrapper.find('.template-install__actions .button-icon')
+        if (more.exists()) {
+          await more.trigger('click')
+        }
+        const items = wrapper
+          .findAll('.context__menu-item-link')
+          .filter((link) => link.text().startsWith('templateInstall.copy'))
+        expect(items.map((link) => link.text())).toStrictEqual(
+          expected ? [expect.stringMatching(`^${expected[0]}`)] : []
+        )
+        if (expected) {
+          await items[0].trigger('click')
+          const [url] = navigator.clipboard.writeText.mock.calls[0]
+          expect(new URL(url).pathname).toBe(expected[1])
+        }
       }
-    }
-  )
+    )
+  })
 
   const menuLabels = async (wrapper) => {
     await wrapper
@@ -361,11 +429,7 @@ describe('TemplateDetails', () => {
     ])
     expect(testApp.store.state.toast.items).toMatchObject([
       { type: 'success', title: 'templateDetails.blockReasonChangedTitle' },
-      {
-        type: 'success',
-        title: 'templateDetails.blockedTitle',
-        message: 'templateDetails.blockedDescription',
-      },
+      { type: 'success', title: 'templateDetails.blockedTitle' },
     ])
     expect(wrapper.find('.template-details__state').exists()).toBe(false)
     expect(await menuLabels(wrapper)).toContain('templatesAdmin.block')

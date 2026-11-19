@@ -270,20 +270,87 @@ describe('TemplateModal navigation', () => {
     expect(wrapper.find('.details').text()).toBe('Project Tracker: Business')
   })
 
-  it('opens the default template right away', async () => {
-    testApp.mock.resetHandlers()
-    testApp.mock.onGet('/templates/').reply(200, [
-      { ...categories[0], templates: [projectTracker] },
-      { ...categories[1], templates: [{ ...recipeBook, is_default: true }] },
-    ])
-    const wrapper = await mountAndShow()
+  it.each([false, true])(
+    'opens a linked user template from the server, own: %s',
+    async (own) => {
+      testApp.mock
+        .onGet(`/templates/${sprintTracker.slug}/`)
+        .reply(200, { ...sprintTracker, is_own: own })
+      const wrapper = await mountAndShow(sprintTracker.slug)
 
-    expect(wrapper.find('.details').text()).toBe('Recipe Book: Personal')
+      expect(wrapper.find('.details').text()).toBe('Sprint Tracker: Agile')
+      expect(
+        wrapper.findComponent({ name: 'TemplateDetails' }).props('ownerActions')
+      ).toBe(own)
+    }
+  )
 
-    await wrapper.find('.details__back').trigger('click')
+  it('tells that a linked template is not available and shows the list', async () => {
+    testApp.mock.onGet(`/templates/${sprintTracker.slug}/`).reply(404, {
+      error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
+    })
+    const wrapper = await mountAndShow(sprintTracker.slug)
 
+    expect(wrapper.find('.details').exists()).toBe(false)
     expect(wrapper.find('.list').isVisible()).toBe(true)
+    expect(testApp.store.state.toast.items).toMatchObject([
+      { type: 'error', title: 'templateModal.unavailableTitle' },
+    ])
   })
+
+  it('opens a linked template when the list cannot be loaded', async () => {
+    testApp.mock.resetHandlers()
+    testApp.mock.onGet('/templates/').reply(500)
+    testApp.mock
+      .onGet(`/templates/${sprintTracker.slug}/`)
+      .reply(200, sprintTracker)
+    const wrapper = await mountAndShow(sprintTracker.slug)
+
+    expect(wrapper.find('.details').text()).toBe('Sprint Tracker: Agile')
+    expect(testApp.store.state.toast.items).toStrictEqual([])
+  })
+
+  it('keeps a linked template slug inside the templates endpoint', async () => {
+    testApp.mock.onGet('/templates/..%2Fworkspaces/').reply(404, {
+      error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
+    })
+    await mountAndShow('../workspaces')
+
+    expect(testApp.mock.history.get.map(({ url }) => url)).toContain(
+      '/templates/..%2Fworkspaces/'
+    )
+  })
+
+  it.each([
+    ['🔥 Most Popular', ['templateCategoryNames.🔥 Most Popular']],
+    ['Featured', ['templateCategories.allTemplates']],
+  ])(
+    'lands on Most Popular, else All, with no template open (%s)',
+    async (name, selected) => {
+      testApp.mock.resetHandlers()
+      testApp.mock.onGet('/templates/').reply(200, [
+        ...categories,
+        {
+          id: 3,
+          name,
+          templates: [{ ...recipeBook, is_default: true, keywords: '' }],
+        },
+      ])
+      const wrapper = await testApp.mount(TemplateModal, {
+        props: { workspace: { id: 1 } },
+        global: { stubs: { ...stubs, TemplateList: false }, mocks },
+      })
+      await wrapper.vm.show()
+      await flushPromises()
+
+      expect(wrapper.find('.details').exists()).toBe(false)
+      expect(
+        wrapper
+          .findAll('.template-list__category-link--active')
+          .map((link) => link.text())
+      ).toStrictEqual(selected)
+    }
+  )
 
   it('opens the list again when shown after a template was opened', async () => {
     const wrapper = await mountAndShow('project-tracker')
@@ -478,27 +545,39 @@ describe('TemplateModal navigation', () => {
       expect(wrapper.find('.details').text()).toBe('Project Tracker: Business')
     })
 
-    it('make an own template public, whose modal takes the search shortcut', async () => {
-      testApp.authenticate({ id: 1 })
-      const wrapper = await mountAndShow()
-      await openOwnTab(wrapper)
-      const ownListComponent = () =>
-        wrapper.findComponent({ name: 'UserTemplateList' })
+    it.each([
+      ['make-public', 'MakeTemplatePublicModal'],
+      ['make-private', 'MakeTemplatePrivateModal'],
+    ])(
+      'ask before the %s action on an own template, whose modal takes the search shortcut',
+      async (action, modalName) => {
+        testApp.authenticate({ id: 1 })
+        const wrapper = await mountAndShow()
+        await openOwnTab(wrapper)
+        const ownListComponent = () =>
+          wrapper.findComponent({ name: 'UserTemplateList' })
 
-      await wrapper.find('.own-list__make-public').trigger('click')
-      await flushPromises()
+        await wrapper.find(`.own-list__${action}`).trigger('click')
+        await flushPromises()
 
-      const makePublicModal = wrapper.findComponent({
-        name: 'MakeTemplatePublicModal',
-      })
-      expect(makePublicModal.props('template')).toStrictEqual(sprintTracker)
-      expect(ownListComponent().props('active')).toBe(false)
+        const modal = wrapper.findComponent({ name: modalName })
+        expect(modal.props('template')).toStrictEqual(sprintTracker)
+        expect(ownListComponent().props('active')).toBe(false)
+        expect(testApp.mock.history.patch).toHaveLength(0)
 
-      makePublicModal.findComponent({ name: 'Modal' }).vm.hide()
-      await flushPromises()
+        modal.findComponent({ name: 'Modal' }).vm.hide()
+        await flushPromises()
 
-      expect(ownListComponent().props('active')).toBe(true)
-    })
+        expect(ownListComponent().props('active')).toBe(true)
+        expect(testApp.mock.history.patch).toHaveLength(0)
+        expect(replaceInList).not.toHaveBeenCalled()
+      }
+    )
+
+    const confirmMakePrivate = (wrapper) =>
+      wrapper
+        .findComponent({ name: 'MakeTemplatePrivateModal' })
+        .find('button[type="submit"]')
 
     it('tell that a public template is no longer shared, and list them again', async () => {
       testApp.authenticate({ id: 1 })
@@ -653,6 +732,8 @@ describe('TemplateModal navigation', () => {
 
       await wrapper.find('.details__make-private').trigger('click')
       await flushPromises()
+      await confirmMakePrivate(wrapper).trigger('click')
+      await flushPromises()
 
       expect(refreshPublicList).toHaveBeenCalledTimes(1)
     })
@@ -668,7 +749,10 @@ describe('TemplateModal navigation', () => {
       await wrapper.find('.own-list__sprint-tracker').trigger('click')
 
       await wrapper.find('.details__make-private').trigger('click')
-      await wrapper.find('.details__make-private').trigger('click')
+      await flushPromises()
+      expect(testApp.mock.history.patch).toHaveLength(0)
+      confirmMakePrivate(wrapper).trigger('click')
+      confirmMakePrivate(wrapper).trigger('click')
       await flushPromises()
       const changed = { ...sprintTracker, name: 'Private', state: 'private' }
       reply.send([200, changed])

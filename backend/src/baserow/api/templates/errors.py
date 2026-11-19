@@ -18,7 +18,8 @@ ERROR_INVALID_TEMPLATE_ICON = (
 ERROR_INVALID_TEMPLATE_CATEGORY = (
     "ERROR_INVALID_TEMPLATE_CATEGORY",
     HTTP_400_BAD_REQUEST,
-    "The categories of the template are missing or do not exist.",
+    "The categories of the template are missing, do not exist or are reserved for "
+    "official templates.",
 )
 ERROR_TEMPLATE_HAS_NO_CONTENT = (
     "ERROR_TEMPLATE_HAS_NO_CONTENT",
