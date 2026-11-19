@@ -294,15 +294,26 @@ class MCPOAuthConsentView(APIView):
         legacy = _legacy_endpoint(authorize_request, request.user)
         if legacy is False:
             return _legacy_endpoint_not_found()
+        client = _client_info(credentials)
         if legacy:
             # The client connects with the old endpoint's key, so the grant gets
-            # what that connection gets, whatever the form sent.
+            # what that connection gets, whatever the form sent. A grant the
+            # client already has in the workspace keeps its tools, so signing in
+            # with the old URL never narrows a connection made through `/mcp`.
             workspace = legacy.workspace
-            tools = [tool.name for tool in mcp_tool_registry.get_allowed_tools(legacy)]
+            existing = MCPEndpoint.objects.filter(
+                user=request.user,
+                workspace=workspace,
+                oauth_client_id=client["client_id"],
+            ).first()
+            tools = (
+                mcp_tool_registry.get_allowed_names(existing)
+                if existing
+                else [tool.name for tool in mcp_tool_registry.get_allowed_tools(legacy)]
+            )
         else:
             workspace = CoreHandler().get_workspace(data["workspace_id"])
             tools = data["tools"]
-        client = _client_info(credentials)
         try:
             # The grant only persists if a code was issued for it.
             with transaction.atomic():

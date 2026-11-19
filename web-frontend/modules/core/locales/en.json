@@ -1826,7 +1826,7 @@
     "oauthTab": "OAuth",
     "endpointTab": "Endpoint",
     "configOnlyTitle": "Only for config files",
-    "configOnlyMessage": "These endpoint URLs only work when added to a config file, such as in Claude Desktop, Cursor or Windsurf. Apps that ask you to sign in, like ChatGPT and claude.ai, need the URL from the OAuth tab."
+    "configOnlyMessage": "These endpoint URLs only work in config files, such as in Claude Desktop, Cursor or Windsurf. Apps that ask you to sign in, like ChatGPT and claude.ai, only get all tools with the URL from the OAuth tab."
   },
   "mcpOAuthConnections": {
     "title": "Connect an AI tool",

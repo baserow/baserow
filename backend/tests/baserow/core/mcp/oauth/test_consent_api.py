@@ -319,3 +319,48 @@ def test_consent_for_the_old_url_grants_its_workspace_and_tools(
     grant = MCPEndpoint.objects.get(oauth_client_id__isnull=False)
     assert grant.workspace_id == workspace.id
     assert grant.allowed_tools == ["list_databases"]
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_keeps_the_tools_of_an_existing_grant(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["list_databases"]
+    )
+    query = _legacy_query(client, legacy.key)
+    client_id = parse_qs(query)["client_id"][0]
+    grant = data_fixture.create_mcp_endpoint(
+        user=user,
+        workspace=workspace,
+        oauth_client_id=client_id,
+        allowed_tools=["list_databases", "create_rows"],
+    )
+
+    response = _post(api_client, token, query, workspace)
+
+    assert response.status_code == 200
+    grant.refresh_from_db()
+    assert grant.allowed_tools == ["list_databases", "create_rows"]
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_of_a_trashed_workspace_is_rejected(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(user=user, workspace=workspace)
+    workspace.trashed = True
+    workspace.save()
+
+    response = api_client.get(
+        reverse(URL),
+        {"query": _legacy_query(client, legacy.key)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "legacy_endpoint_not_found"
