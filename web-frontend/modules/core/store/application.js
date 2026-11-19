@@ -14,7 +14,7 @@ import { SharedApplicationType } from '@baserow/modules/core/applicationTypes'
  * its workspace. It's in the store, so it can be found by id, but it isn't one of
  * the user's applications.
  */
-function isSharedApplication(application) {
+export function isSharedApplication(application) {
   return application.type === SharedApplicationType.getType()
 }
 
