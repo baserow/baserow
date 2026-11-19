@@ -62,6 +62,11 @@ from .registries import (
     PermissionManagerType,
     subject_type_registry,
 )
+from .snapshots.operations import (
+    ReadWorkspaceSnapshotSettingsOperationType,
+    UpdateApplicationMaxSnapshotsOperationType,
+    UpdateWorkspaceSnapshotSettingsOperationType,
+)
 from .subjects import AnonymousUserSubjectType, UserSubjectType
 from .trash.operations import EmptyWorkspaceTrashOperationType
 from .types import Actor
@@ -417,6 +422,9 @@ class BasicPermissionManagerType(PermissionManagerType):
         CreateIdentityOperationType.type,
         UpdateIdentityOperationType.type,
         DeleteIdentityOperationType.type,
+        ReadWorkspaceSnapshotSettingsOperationType.type,
+        UpdateWorkspaceSnapshotSettingsOperationType.type,
+        UpdateApplicationMaxSnapshotsOperationType.type,
     ]
 
     def get_workspace_role_uids_by_actor(

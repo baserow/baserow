@@ -5,6 +5,7 @@
       {{ $filters.lowercase(applicationType.getName()) }}
     </h2>
     <Error :error="error"></Error>
+    <SnapshotAllowanceWarning :workspace="workspace"></SnapshotAllowanceWarning>
     <component
       :is="applicationType.getApplicationFormComponent()"
       ref="applicationForm"
@@ -23,9 +24,11 @@ import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/string'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
+import SnapshotAllowanceWarning from '@baserow/modules/core/components/snapshots/SnapshotAllowanceWarning'
 
 export default {
   name: 'CreateApplicationModal',
+  components: { SnapshotAllowanceWarning },
   mixins: [modal, error],
   props: {
     applicationType: {

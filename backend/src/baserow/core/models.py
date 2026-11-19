@@ -386,6 +386,13 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
     seats_taken_updated_at = models.DateTimeField(null=True)
     now = models.DateTimeField(null=True)
     generative_ai_models_settings = models.JSONField(default=dict, null=True)
+    default_max_snapshots = models.PositiveIntegerField(
+        default=0,
+        db_default=0,
+        help_text="How many snapshots each application of the workspace keeps when "
+        "it doesn't have a max of its own. Every max reserves that many snapshots "
+        "of the workspace's snapshot allowance.",
+    )
 
     def get_parent(self):
         return None
@@ -700,6 +707,12 @@ class Application(
         on_delete=models.SET_NULL,
         null=True,
         related_name="installed_applications",
+    )
+    max_snapshots = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="How many snapshots the application keeps. Empty to follow the "
+        "workspace default max snapshots.",
     )
 
     class Meta:
@@ -1671,6 +1684,18 @@ class Snapshot(HierarchicalModelMixin, models.Model):
     mark_for_deletion = models.BooleanField(default=False)
     created_by = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
+    created_automatically = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Indicates that the snapshot was created by an automatic snapshot "
+        "schedule instead of by a user.",
+    )
+    protected = models.BooleanField(
+        default=True,
+        db_default=True,
+        help_text="A protected snapshot is never deleted automatically to make room "
+        "for a new one or when a max is lowered. It still expires.",
+    )
 
     def get_parent(self):
         return self.snapshot_from_application

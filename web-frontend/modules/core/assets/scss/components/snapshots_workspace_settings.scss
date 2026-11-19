@@ -1,0 +1,195 @@
+// The Snapshots page of the workspace settings. Follows the snapshots modal's type
+// scale: 20px for the heading, 14px for section titles and 13px with a 20px line
+// height for everything else.
+.snapshots-workspace-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  line-height: 20px;
+}
+
+.snapshots-workspace-settings__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-workspace-settings__intro {
+  margin: 4px 0 0;
+  color: $palette-neutral-900;
+}
+
+.snapshots-workspace-settings__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+}
+
+.snapshots-workspace-settings__card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-workspace-settings__muted {
+  color: $palette-neutral-900;
+  font-variant-numeric: tabular-nums;
+}
+
+.snapshots-workspace-settings__usage-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.snapshots-workspace-settings__usage-bar {
+  height: 6px;
+  border-radius: 3px;
+  background-color: $palette-neutral-200;
+  overflow: hidden;
+}
+
+.snapshots-workspace-settings__usage-fill {
+  height: 100%;
+  background-color: $palette-blue-700;
+}
+
+.snapshots-workspace-settings__usage-fill--over {
+  background-color: $palette-red-600;
+}
+
+.snapshots-workspace-settings__warning,
+.snapshots-workspace-settings__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: $palette-red-800;
+
+  i {
+    flex: none;
+    margin-top: 2px;
+  }
+}
+
+.snapshots-workspace-settings__max-snapshots-warning {
+  margin: 0;
+}
+
+.snapshots-workspace-settings__max-snapshots {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.snapshots-workspace-settings__max-snapshots-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.snapshots-workspace-settings__max-snapshots-value {
+  flex: none;
+  min-width: 24px;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: $palette-neutral-1200;
+}
+
+.snapshots-workspace-settings__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.snapshots-workspace-settings__input {
+  width: 80px;
+}
+
+.snapshots-workspace-settings__confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  background-color: $palette-red-50;
+
+  span {
+    flex: 1 1 100%;
+  }
+}
+
+.snapshots-workspace-settings__applications {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+// With many applications the table scrolls on its own, below its sticky header,
+// so the rest of the page stays in reach.
+.snapshots-workspace-settings__table-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid $palette-neutral-200;
+  border-radius: 8px;
+}
+
+.snapshots-workspace-settings__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+
+  th,
+  td {
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-weight: 500;
+    color: $palette-neutral-900;
+    background-color: $palette-neutral-25;
+    border-bottom: 1px solid $palette-neutral-200;
+  }
+
+  tbody tr:not(:last-child) td {
+    border-bottom: 1px solid $palette-neutral-200;
+  }
+}
+
+.snapshots-workspace-settings__number {
+  width: 128px;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.snapshots-workspace-settings__application {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  i {
+    flex: none;
+    color: $palette-neutral-900;
+  }
+}
+
+.snapshots-workspace-settings__application-name {
+  @extend %ellipsis;
+}
