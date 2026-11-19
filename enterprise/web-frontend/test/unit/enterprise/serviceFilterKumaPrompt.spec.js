@@ -8,7 +8,7 @@ import ServiceFilterKumaPrompt from '@baserow_enterprise/components/assistant/Se
 // The prompt itself is tested with `KumaInlinePrompt`. These tests cover what the
 // filter form adds: the target, its suggestions, the unsaved changes and freezing.
 const mocks = vi.hoisted(() => ({
-  updateServiceFilters: null,
+  runAction: null,
 }))
 
 vi.mock('vuex', async (importOriginal) => ({
@@ -24,7 +24,7 @@ vi.mock('@baserow_enterprise/utils/assistant', () => ({
 }))
 
 vi.mock('@baserow_enterprise/services/assistant', () => ({
-  default: () => ({ updateServiceFilters: mocks.updateServiceFilters }),
+  default: () => ({ runAction: mocks.runAction }),
 }))
 
 async function mount({
@@ -70,7 +70,7 @@ function warning(wrapper) {
 
 describe('ServiceFilterKumaPrompt', () => {
   afterEach(() => {
-    mocks.updateServiceFilters = null
+    mocks.runAction = null
   })
 
   test('renders nothing without a data source or node to filter', async () => {
@@ -107,7 +107,7 @@ describe('ServiceFilterKumaPrompt', () => {
   })
 
   test('asks Kuma to change the filters of the target', async () => {
-    mocks.updateServiceFilters = vi.fn(async () => ({
+    mocks.runAction = vi.fn(async () => ({
       changed: true,
       summary: 'Added a filter on Name.',
     }))
@@ -115,11 +115,10 @@ describe('ServiceFilterKumaPrompt', () => {
 
     await send(wrapper, 'Name is the ID page parameter')
 
-    expect(mocks.updateServiceFilters).toHaveBeenCalledWith(
-      'builder_data_source',
-      12,
+    expect(mocks.runAction).toHaveBeenCalledWith(
+      'update_service_filters',
       'Name is the ID page parameter',
-      null
+      { kind: 'builder_data_source', id: 12, table_id: null }
     )
     // Frozen while the request was written and sent, then released.
     expect(filterForm.setFrozen.mock.calls).toEqual([[true], [false]])
@@ -129,7 +128,7 @@ describe('ServiceFilterKumaPrompt', () => {
   })
 
   test('sends the table picked for a data source without one', async () => {
-    mocks.updateServiceFilters = vi.fn(async () => ({
+    mocks.runAction = vi.fn(async () => ({
       changed: true,
       summary: 'Added a filter.',
     }))
@@ -137,11 +136,10 @@ describe('ServiceFilterKumaPrompt', () => {
 
     await send(wrapper, 'only done tasks')
 
-    expect(mocks.updateServiceFilters).toHaveBeenCalledWith(
-      'builder_data_source',
-      12,
+    expect(mocks.runAction).toHaveBeenCalledWith(
+      'update_service_filters',
       'only done tasks',
-      7
+      { kind: 'builder_data_source', id: 12, table_id: 7 }
     )
   })
 
@@ -166,7 +164,7 @@ describe('ServiceFilterKumaPrompt', () => {
   })
 
   test('drops the undo once the filters are edited again', async () => {
-    mocks.updateServiceFilters = vi.fn(async () => ({
+    mocks.runAction = vi.fn(async () => ({
       changed: true,
       summary: 'Added a filter.',
     }))

@@ -1,11 +1,11 @@
 from django.urls import path
 
 from .views import (
+    AssistantActionsView,
     AssistantChatMessageFeedbackView,
     AssistantChatsView,
     AssistantChatView,
     AssistantOnboardingPromptSuggestionsView,
-    AssistantServiceFiltersView,
 )
 
 app_name = "baserow_enterprise.api.assistant"
@@ -37,8 +37,8 @@ urlpatterns = [
         name="onboarding_prompt_suggestions",
     ),
     path(
-        "service-filters/",
-        AssistantServiceFiltersView.as_view(),
-        name="service_filters",
+        "actions/",
+        AssistantActionsView.as_view(),
+        name="actions",
     ),
 ]

@@ -7,11 +7,16 @@ import KumaInlinePrompt from '@baserow_enterprise/components/assistant/KumaInlin
 
 const mocks = vi.hoisted(() => ({
   available: true,
+  runAction: vi.fn(),
   dispatch: null,
 }))
 
 // Reactive like the store, so a change re-evaluates what depends on it.
 const selectedWorkspace = ref({ id: 1 })
+
+vi.mock('@baserow_enterprise/services/assistant', () => ({
+  default: () => ({ runAction: mocks.runAction }),
+}))
 
 vi.mock('vuex', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -225,4 +230,22 @@ describe('KumaInlinePrompt', () => {
     expect(wrapper.find('.kuma-inline-prompt').exists()).toBe(false)
     expect(wrapper.emitted('active').at(-1)).toEqual([false])
   })
+})
+
+test('runs a targeted action and exposes its result to the host', async () => {
+  const result = { changed: true, summary: 'Updated.', result: { value: 42 } }
+  mocks.runAction.mockResolvedValueOnce(result)
+  const wrapper = await mount({
+    action: 'update_service_filters',
+    parameters: { kind: 'builder_data_source', id: 12 },
+  })
+  await openAndType(wrapper, 'Only done tasks')
+  await submitButton(wrapper).trigger('click')
+  await flushPromises()
+  expect(mocks.runAction).toHaveBeenCalledWith(
+    'update_service_filters',
+    'Only done tasks',
+    { kind: 'builder_data_source', id: 12 }
+  )
+  expect(wrapper.emitted('completed')).toEqual([[result]])
 })

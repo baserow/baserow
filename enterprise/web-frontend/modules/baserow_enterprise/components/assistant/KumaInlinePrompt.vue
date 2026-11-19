@@ -129,15 +129,16 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
 import { useStore } from 'vuex'
+import AssistantService from '@baserow_enterprise/services/assistant'
 import { isAssistantAvailable } from '@baserow_enterprise/utils/assistant'
 
 /**
  * A small Kuma prompt shown in place, e.g. under a form: a link opens a card where
- * the user describes what they want, the host's `request` asks Kuma to do it, and
+ * the user describes what they want, the shared action endpoint asks Kuma to do it, and
  * Kuma's summary is shown with an undo when something changed.
  *
  * The host provides what the request is about: the copy, the suggestions, a
- * message blocking the request when it can't be made yet, and `request`. It's only
+ * message blocking the request when it can't be made yet, and action parameters. It's only
  * shown when Kuma is available in the workspace, like the sidebar's Kuma AI item.
  */
 const props = defineProps({
@@ -158,7 +159,10 @@ const props = defineProps({
    * Sends the user's request to Kuma. Resolves `{ changed, summary }`: whether
    * Kuma changed something, which can then be undone, and what it did.
    */
-  request: { type: Function, required: true },
+  request: { type: Function, default: null },
+  /** Targeted action supported by the shared assistant endpoint. */
+  action: { type: String, default: '' },
+  parameters: { type: Object, default: () => ({}) },
   /** The name of the error messages to show, see `getMessage`. */
   errorName: { type: String, default: null },
   /** Separates the link from the links before it in the same row. */
@@ -166,7 +170,7 @@ const props = defineProps({
 })
 
 /** `active` is emitted with whether the card is shown, e.g. to freeze a form. */
-const emit = defineEmits(['active'])
+const emit = defineEmits(['active', 'completed'])
 
 const app = useNuxtApp()
 const store = useStore()
@@ -265,7 +269,14 @@ async function submit() {
   state.value = 'working'
   errorMessage.value = ''
   try {
-    const result = await props.request(message)
+    const result = props.action
+      ? await AssistantService(app.$client).runAction(
+          props.action,
+          message,
+          props.parameters
+        )
+      : await props.request(message)
+    emit('completed', result)
     summary.value = result.summary
     changed.value = result.changed
     prompt.value = ''

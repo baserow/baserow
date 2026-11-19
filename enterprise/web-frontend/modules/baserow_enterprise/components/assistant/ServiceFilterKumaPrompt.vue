@@ -8,7 +8,8 @@
     :working-label="$t('serviceFilterKumaPrompt.working')"
     :suggestions="suggestions"
     :blocked-message="blockedMessage"
-    :request="updateFilters"
+    action="update_service_filters"
+    :parameters="actionParameters"
     error-name="dataSource"
     with-divider
     @active="filterForm?.setFrozen($event)"
@@ -17,7 +18,6 @@
 
 <script setup>
 import { computed, inject, onBeforeUnmount, ref, toValue, watch } from 'vue'
-import AssistantService from '@baserow_enterprise/services/assistant'
 import KumaInlinePrompt from '@baserow_enterprise/components/assistant/KumaInlinePrompt'
 
 /**
@@ -77,12 +77,9 @@ const suggestions = computed(() =>
   }))
 )
 
-function updateFilters(message) {
-  return AssistantService(app.$client).updateServiceFilters(
-    target.value.kind,
-    target.value.id,
-    message,
-    serviceFilters?.getUnsavedTableId?.() ?? null
-  )
-}
+const actionParameters = computed(() => ({
+  kind: target.value?.kind,
+  id: target.value?.id,
+  table_id: serviceFilters?.getUnsavedTableId?.() ?? null,
+}))
 </script>

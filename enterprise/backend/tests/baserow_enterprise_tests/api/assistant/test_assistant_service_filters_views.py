@@ -30,8 +30,12 @@ def _data_source(data_fixture, user):
 
 def _post(api_client, token, **data):
     return api_client.post(
-        reverse("assistant:service_filters"),
-        data=data,
+        reverse("assistant:actions"),
+        data={
+            "action": "update_service_filters",
+            "prompt": data.pop("prompt"),
+            "parameters": data,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -41,7 +45,7 @@ def _post(api_client, token, **data):
 @override_settings(DEBUG=True)
 @patch(f"{VIEWS}.check_lm_ready_or_raise")
 @patch(f"{VIEWS}.resolve_assistant_model")
-@patch(f"{VIEWS}.run_service_filter_request")
+@patch("baserow_enterprise.assistant.actions.run_service_filter_request")
 def test_service_filters_runs_the_request(
     mock_run, mock_resolve, mock_check, api_client, enterprise_data_fixture
 ):
@@ -65,7 +69,11 @@ def test_service_filters_runs_the_request(
     )
 
     assert response.status_code == 200, response.json()
-    assert response.json() == {"changed": True, "summary": "Added a filter."}
+    assert response.json() == {
+        "changed": True,
+        "summary": "Added a filter.",
+        "result": {},
+    }
     args, kwargs = mock_run.call_args
     assert args[1:] == (
         "builder_data_source",
@@ -96,7 +104,7 @@ def test_service_filters_runs_the_request(
 @override_settings(DEBUG=True)
 @patch(f"{VIEWS}.check_lm_ready_or_raise")
 @patch(f"{VIEWS}.resolve_assistant_model")
-@patch(f"{VIEWS}.run_service_filter_request")
+@patch("baserow_enterprise.assistant.actions.run_service_filter_request")
 def test_service_filters_errors(
     mock_run, mock_resolve, mock_check, api_client, enterprise_data_fixture
 ):
@@ -140,3 +148,33 @@ def test_service_filters_errors(
     response = _post(api_client, token, kind="nope", id=data_source.id, prompt="x")
     assert response.status_code == 400
     assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"action": "unknown", "prompt": "x", "parameters": {}},
+        {"action": "update_service_filters", "prompt": "x", "parameters": {}},
+        {
+            "action": "update_service_filters",
+            "prompt": "",
+            "parameters": {"kind": "builder_data_source", "id": 1},
+        },
+    ],
+)
+@patch("baserow_enterprise.assistant.actions.run_service_filter_request")
+def test_assistant_action_rejects_invalid_requests(
+    mock_run, api_client, enterprise_data_fixture, body
+):
+    """Reject unsupported actions and malformed parameters before executing an agent."""
+    _, token = enterprise_data_fixture.create_user_and_token()
+    response = api_client.post(
+        reverse("assistant:actions"),
+        data=body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 400
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+    mock_run.assert_not_called()

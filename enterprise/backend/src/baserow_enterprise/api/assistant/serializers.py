@@ -489,10 +489,27 @@ class ServiceFiltersRequestSerializer(serializers.Serializer):
         self.fields["kind"].choices = service_filter_target_type_registry.get_types()
 
 
-class ServiceFiltersResponseSerializer(serializers.Serializer):
-    changed = serializers.BooleanField(
-        help_text="Whether Kuma changed the filters. They're saved when it did."
-    )
-    summary = serializers.CharField(
-        help_text="What Kuma changed, or why it didn't change anything."
-    )
+class AssistantActionRequestSerializer(serializers.Serializer):
+    """Validate the common envelope and the selected action's parameters."""
+
+    action = serializers.ChoiceField(choices=["update_service_filters"])
+    prompt = serializers.CharField(max_length=2000)
+    parameters = serializers.DictField()
+
+    def validate(self, attrs):
+        # Explicit dispatch keeps this small without introducing another registry.
+        if attrs["action"] == "update_service_filters":
+            serializer = ServiceFiltersRequestSerializer(
+                data={**attrs["parameters"], "prompt": attrs["prompt"]}
+            )
+            serializer.is_valid(raise_exception=True)
+            attrs["parameters"] = serializer.validated_data
+        return attrs
+
+
+class AssistantActionResponseSerializer(serializers.Serializer):
+    """Common outcome with optional action-specific data."""
+
+    changed = serializers.BooleanField()
+    summary = serializers.CharField()
+    result = serializers.DictField()
