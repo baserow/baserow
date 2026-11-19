@@ -10,12 +10,17 @@ from baserow.contrib.automation.action_scopes import (
 )
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotDeletable
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
+from baserow.contrib.automation.nodes.models import (
+    AutomationActionNode,
+    AutomationNode,
+    CoreRouterActionNode,
+)
 from baserow.contrib.automation.nodes.node_types import AutomationNodeType
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.contrib.integrations.core.models import CoreRouterServiceEdge
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.graph.types import GraphPointPositionType
@@ -145,19 +150,28 @@ class CreateAutomationNodeActionType(UndoableActionType):
         :raises AutomationNodeNotDeletable: When the chain holds such a router.
         """
 
-        for node_id in node.workflow.get_graph().get_chain_ids(node, output):
-            chain_node = AutomationNodeHandler().get_node(int(node_id))
-            service = chain_node.service
-            # A router has one output per branch plus the default one. With no
-            # branch, its default output always runs.
-            if len(service.get_type().get_edges(service.specific)) > 1:
-                raise AutomationNodeNotDeletable(
-                    f"Node {node.id} can't be removed: the nodes on its default "
-                    f"output would follow router {chain_node.id} and run only when "
-                    "none of its branches match. This step can't be undone: to "
-                    f"remove node {node.id}, move the nodes off its outputs, then "
-                    "delete it."
-                )
+        chain_ids = [
+            int(node_id)
+            for node_id in node.workflow.get_graph().get_chain_ids(node, output)
+        ]
+        # Only a router has outputs besides the default one, one per branch. With
+        # no branch, its default output always runs. Read in one query, as the
+        # graph is locked.
+        routers = set(
+            CoreRouterActionNode.objects.filter(
+                id__in=chain_ids,
+                service_id__in=CoreRouterServiceEdge.objects.values("service_id"),
+            ).values_list("id", flat=True)
+        )
+        router_id = next((id_ for id_ in chain_ids if id_ in routers), None)
+        if router_id is not None:
+            raise AutomationNodeNotDeletable(
+                f"Node {node.id} can't be removed: the nodes on its default "
+                f"output would follow router {router_id} and run only when "
+                "none of its branches match. This step can't be undone: to "
+                f"remove node {node.id}, move the nodes off its outputs, then "
+                "delete it."
+            )
 
     @classmethod
     def redo(

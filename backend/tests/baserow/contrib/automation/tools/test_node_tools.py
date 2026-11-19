@@ -5,6 +5,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from pydantic import ValidationError as PydanticValidationError
@@ -532,6 +534,49 @@ def test_undo_router_insert_refuses_when_another_node_joined_the_branch(
     assert f"node {slack.id}" in action.error
     workflow.reload_graph()
     assert workflow.graph == before
+
+
+def _undo_router_insert_queries(ctx, automation, table, length):
+    workflow, trigger = create_workflow(ctx.user, automation, f"Flow {length}", table)
+    add_nodes(
+        ctx,
+        workflow.id,
+        [_email(ref="e0", previous=str(trigger.id))]
+        + [_email(ref=f"e{i}", previous=f"e{i - 1}") for i in range(1, length)],
+    )
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Big", "condition": "true"}],
+                shifted_node_edge_label="Big",
+            )
+        ],
+    )["created_nodes"]
+    workflow.reload_graph()
+    _email_node(ctx, workflow, AutomationNode.objects.get(id=router["id"]), "Other")
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+    with CaptureQueriesContext(connection) as queries:
+        (action,) = ActionHandler.undo(ctx.user, scope, session)
+    assert not action.error
+    return len(queries)
+
+
+@pytest.mark.django_db
+def test_undo_router_insert_checks_the_chain_in_a_fixed_number_of_queries(
+    automation_ctx,
+):
+    ctx, automation, table, _ = automation_ctx
+
+    short = _undo_router_insert_queries(ctx, automation, table, 2)
+    long = _undo_router_insert_queries(ctx, automation, table, 10)
+
+    assert long == short
 
 
 @pytest.mark.django_db
