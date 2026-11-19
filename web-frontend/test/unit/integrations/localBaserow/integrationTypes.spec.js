@@ -61,4 +61,58 @@ describe('LocalBaserowIntegrationType', () => {
       integrationType('smtp').getWorkspaceHint({ host: 'smtp.example.com' })
     ).toBeNull()
   })
+
+  const promotionHint = (subject) =>
+    integrationType().getPromotionHint({ authorized_subject: subject })
+
+  test('promoting an integration says who it will run as', () => {
+    testApp.authenticate({
+      id: 1,
+      first_name: 'Ada',
+      username: 'ada@example.com',
+    })
+
+    expect(
+      promotionHint({
+        id: 1,
+        type: 'auth.User',
+        first_name: 'Ada',
+        username: 'ada@example.com',
+      })
+    ).toBe('localBaserowIntegrationType.localBaserowPromotionHint')
+    // A person can only authorize an integration as themselves, so the backend
+    // authorizes it as the user promoting it.
+    expect(
+      promotionHint({
+        id: 2,
+        type: 'auth.User',
+        first_name: 'Grace',
+        username: 'grace@example.com',
+      })
+    ).toBe('localBaserowIntegrationType.localBaserowPromotionReauthorizeHint')
+    // An agent belongs to the workspace and is kept.
+    expect(
+      promotionHint({
+        id: 3,
+        type: 'core.Agent',
+        name: 'Support bot',
+        trashed: false,
+      })
+    ).toBe('localBaserowIntegrationType.localBaserowPromotionSubjectHint')
+  })
+
+  test('promoting an integration that runs as nobody has no hint', () => {
+    expect(promotionHint(null)).toBeNull()
+    expect(
+      promotionHint({
+        id: 3,
+        type: 'core.Agent',
+        name: 'Support bot',
+        trashed: true,
+      })
+    ).toBeNull()
+    expect(
+      integrationType('smtp').getPromotionHint({ host: 'smtp.example.com' })
+    ).toBeNull()
+  })
 })

@@ -33,6 +33,12 @@
               "
             />
             <ButtonIcon
+              v-if="canPromote"
+              v-tooltip="$t('promoteIntegration.action')"
+              icon="iconoir-community"
+              @click="showPromoteModal(integration)"
+            />
+            <ButtonIcon
               icon="iconoir-bin"
               @click="deleteIntegration(integration)"
             />
@@ -49,11 +55,18 @@
         {{ $t('integrationSettings.noIntegrationMessage') }}
       </p>
     </template>
+    <PromoteIntegrationModal
+      v-if="canPromote"
+      ref="promoteModal"
+      :application="builder"
+      :integration="integrationToPromote"
+    />
   </div>
 </template>
 
 <script>
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
+import PromoteIntegrationModal from '@baserow/modules/core/components/integrations/PromoteIntegrationModal'
 import { mapActions } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
@@ -63,7 +76,7 @@ import {
 
 export default {
   name: 'IntegrationSettings',
-  components: { IntegrationCreateEditModal },
+  components: { IntegrationCreateEditModal, PromoteIntegrationModal },
   props: {
     builder: {
       type: Object,
@@ -71,11 +84,28 @@ export default {
     },
   },
   data() {
-    return { state: 'loaded' }
+    return { state: 'loaded', integrationToPromote: null }
   },
   computed: {
     integrationTypes() {
       return this.$registry.getOrderedList('integration')
+    },
+    /**
+     * Whether the user can make an integration available to the whole workspace,
+     * which creates it there.
+     */
+    canPromote() {
+      const workspace = this.$store.getters['workspace/get'](
+        this.builder.workspace.id
+      )
+      return (
+        !!workspace &&
+        this.$hasPermission(
+          'workspace.create_integration',
+          workspace,
+          workspace.id
+        )
+      )
     },
     integrations() {
       return this.$store.getters['integration/getIntegrations'](this.builder)
@@ -105,6 +135,10 @@ export default {
     },
     getSubtitle(integration) {
       return integrationSubtitle(this, integration)
+    },
+    showPromoteModal(integration) {
+      this.integrationToPromote = integration
+      this.$refs.promoteModal.show()
     },
     async deleteIntegration(integration) {
       try {

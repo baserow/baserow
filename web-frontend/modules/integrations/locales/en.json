@@ -15,6 +15,9 @@
     "localBaserowNoUser": "Local Baserow - Not configured",
     "localBaserowWorkspaceHint": "Runs as {name} in all applications in this workspace",
     "localBaserowWorkspaceSubjectHint": "Runs as {name} ({type}) in all applications in this workspace",
+    "localBaserowPromotionHint": "It will run as you in all applications in this workspace.",
+    "localBaserowPromotionReauthorizeHint": "It will run as you instead of {name} in all applications in this workspace.",
+    "localBaserowPromotionSubjectHint": "It will keep running as {name} ({type}) in all applications in this workspace.",
     "errorTrashedIdentity": "The authorized identity has been trashed",
     "errorNoUser": "No user or identity has authorized this integration."
   },

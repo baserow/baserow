@@ -63,6 +63,41 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     )
   }
 
+  /**
+   * Mirrors what the backend does when the integration moves to the workspace: a
+   * person can only authorize an integration as themselves, so one authorized as
+   * someone else is authorized as the user promoting it, while an agent belongs
+   * to the workspace and is kept.
+   */
+  getPromotionHint(integration) {
+    const subject = integration.authorized_subject
+    // Not configured, the summary and the error message already say so.
+    if (!subject || subject.trashed) {
+      return null
+    }
+
+    const subjectType = this.app.$registry.get('subject', subject.type)
+    const name = subjectType.getDisplayName(subject)
+    if (!subjectType.isUser()) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowPromotionSubjectHint',
+        { type: subjectType.getTypeDisplayName(), name }
+      )
+    }
+
+    const user = this.app.$store.getters['auth/getUserObject']
+    if (subject.id !== user?.id) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowPromotionReauthorizeHint',
+        { name }
+      )
+    }
+
+    return this.app.$i18n.t(
+      'localBaserowIntegrationType.localBaserowPromotionHint'
+    )
+  }
+
   get formComponent() {
     return LocalBaserowForm
   }

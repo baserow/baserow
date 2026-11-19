@@ -1426,6 +1426,15 @@
     "credentialRequiredTitle": "Credential required",
     "credentialRequiredMessage": "Enter the credential again to change where this integration connects."
   },
+  "promoteIntegration": {
+    "action": "Make available to the whole workspace",
+    "title": "Make {name} available to the whole workspace",
+    "description": "Every application in {workspace} will be able to use it. From then on, only workspace admins can change or delete it, in the workspace settings.",
+    "keepsWorking": "This application keeps using it. Published versions keep their current copy until they're published again.",
+    "confirm": "Make available",
+    "successTitle": "Integration available to the whole workspace",
+    "successMessage": "{name} is now listed in the workspace settings, under Integrations."
+  },
   "integrationEditForm": {
     "name": "Name",
     "namePlaceholder": "Enter integration name..."

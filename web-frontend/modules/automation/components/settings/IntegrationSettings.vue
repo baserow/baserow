@@ -33,6 +33,12 @@
               "
             />
             <ButtonIcon
+              v-if="canPromote"
+              v-tooltip="$t('promoteIntegration.action')"
+              icon="iconoir-community"
+              @click="showPromoteModal(integration)"
+            />
+            <ButtonIcon
               icon="iconoir-bin"
               @click="deleteIntegration(integration)"
             />
@@ -49,12 +55,19 @@
         {{ $t('integrationSettings.noIntegrationMessage') }}
       </p>
     </template>
+    <PromoteIntegrationModal
+      v-if="canPromote"
+      ref="promoteModal"
+      :application="automation"
+      :integration="integrationToPromote"
+    />
   </div>
 </template>
 
 <script>
 import { useStore } from 'vuex'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
+import PromoteIntegrationModal from '@baserow/modules/core/components/integrations/PromoteIntegrationModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
   integrationSubtitle,
@@ -64,7 +77,7 @@ import { defineComponent, ref, computed, onMounted, toRefs } from 'vue'
 
 export default defineComponent({
   name: 'IntegrationSettings',
-  components: { IntegrationCreateEditModal },
+  components: { IntegrationCreateEditModal, PromoteIntegrationModal },
   props: {
     automation: {
       type: Object,
@@ -94,6 +107,30 @@ export default defineComponent({
 
     const getSubtitle = (integration) => {
       return integrationSubtitle(app, integration)
+    }
+
+    // Whether the user can make an integration available to the whole
+    // workspace, which creates it there.
+    const canPromote = computed(() => {
+      const workspace = store.getters['workspace/get'](
+        automation.value.workspace.id
+      )
+      return (
+        !!workspace &&
+        app.$hasPermission(
+          'workspace.create_integration',
+          workspace,
+          workspace.id
+        )
+      )
+    })
+
+    const promoteModal = ref(null)
+    const integrationToPromote = ref(null)
+
+    const showPromoteModal = (integration) => {
+      integrationToPromote.value = integration
+      promoteModal.value.show()
     }
 
     const fetchIntegrations = async () => {
@@ -132,6 +169,10 @@ export default defineComponent({
       getIntegrationType,
       getSubtitle,
       deleteIntegration,
+      canPromote,
+      promoteModal,
+      integrationToPromote,
+      showPromoteModal,
     }
   },
 })
