@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any
 from django.contrib.contenttypes.models import ContentType
 
 from baserow.contrib.database.views.models import View
+from baserow.core.application_access import containing_application
 from baserow.core.models import Application
 from baserow.core.registries import (
     ImportExportConfig,
@@ -12,6 +13,7 @@ from baserow.core.registries import (
 from baserow.core.types import SerializationProcessorScope
 from baserow.core.utils import atomic_if_not_already
 from baserow_enterprise.features import RBAC
+from baserow_enterprise.role.constants import PERSONAL_APPLICATION_POLICY
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.role.types import NewRoleAssignment
@@ -104,9 +106,11 @@ class RoleAssignmentSerializationProcessorType(SerializationProcessorType):
             # to choose how to map subjects.
             return
 
-        # Do not export anything if the workspace doesn't have RBAC enabled.
+        # A Personal app retains its scoped grants across license expiry.
         if not LicenseHandler.workspace_has_feature(RBAC, workspace):
-            return {}
+            app = containing_application(scope)
+            if not app or app.access_policy != PERSONAL_APPLICATION_POLICY:
+                return {}
 
         # Application subclass scopes can't be passed to
         # the role assignment handler. See #1624.

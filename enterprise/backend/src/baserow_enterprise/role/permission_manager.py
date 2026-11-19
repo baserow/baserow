@@ -6,9 +6,15 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q
 
+from baserow.core.application_access import (
+    applications_with_policies,
+    containing_application,
+)
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.feature_flags import feature_flag_is_enabled
 from baserow.core.models import Workspace
+from baserow.core.permission_manager import BasicPermissionManagerType
 from baserow.core.registries import (
     OperationType,
     PermissionManagerType,
@@ -23,7 +29,7 @@ from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_premium.license.handler import LicenseHandler
 
-from .constants import READ_ONLY_ROLE_UID
+from .constants import ADMIN_ROLE_UID, PERSONAL_APPLICATION_POLICY, READ_ONLY_ROLE_UID
 from .models import Role
 
 User = get_user_model()
@@ -37,6 +43,25 @@ class OperationPermissionContent(TypedDict):
 class RolePermissionManagerType(PermissionManagerType):
     type = "role"
     supported_actor_types = [UserSubjectType.type]
+
+    application_access_policy = PERSONAL_APPLICATION_POLICY
+
+    def validate_application_access(self, user, workspace):
+        feature_flag_is_enabled("personal_applications", raise_if_disabled=True)
+        if user is None:
+            raise PermissionDenied()
+        LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, user, workspace)
+
+    def initialize_application_access(self, user, application):
+        workspace = application.workspace
+        handler = RoleAssignmentHandler()
+        handler.assign_role(
+            user,
+            workspace,
+            handler.get_role_by_uid(ADMIN_ROLE_UID),
+            application.application_ptr,
+            send_signals=False,
+        )
 
     def is_enabled(self, workspace: Workspace):
         """
@@ -114,8 +139,22 @@ class RolePermissionManagerType(PermissionManagerType):
         Checks the permissions for each check.
         """
 
-        if workspace is None or not self.is_enabled(workspace):
+        if not checks or workspace is None:
             return {}
+        if not self.is_enabled(workspace):
+            if not applications_with_policies([workspace], PERSONAL_APPLICATION_POLICY)[
+                workspace.id
+            ]:
+                return {}
+            # Basic permissions still govern collaborative applications after expiry.
+            checks = [
+                check
+                for check in checks
+                if getattr(containing_application(check.context), "access_policy", None)
+                == PERSONAL_APPLICATION_POLICY
+            ]
+            if not checks:
+                return {}
 
         # Workspace actor by subject_type
         actors_by_subject_type = defaultdict(set)
@@ -170,6 +209,7 @@ class RolePermissionManagerType(PermissionManagerType):
         roles_by_scope: List[Tuple[Any, List[Role]]],
         operation_type: OperationType,
         use_object_scope: bool = False,
+        default=None,
     ) -> Tuple[bool, Set[Any]]:
         """
         Compute the default policy and exceptions for an operation given the
@@ -190,13 +230,14 @@ class RolePermissionManagerType(PermissionManagerType):
         )
 
         # Default permissions at the workspace level
-        _, default_workspace_roles = roles_by_scope[0]
-        default = any(
-            [
-                operation_type.type in self.get_role_operations(r)
-                for r in default_workspace_roles
-            ]
-        )
+        if default is None:
+            _, default_workspace_roles = roles_by_scope[0]
+            default = any(
+                [
+                    operation_type.type in self.get_role_operations(r)
+                    for r in default_workspace_roles
+                ]
+            )
         exceptions = set()
         inclusions = set()
 
@@ -260,6 +301,22 @@ class RolePermissionManagerType(PermissionManagerType):
 
         return default, exceptions, inclusions
 
+    def _expired_scope_roles(self, roles_by_scope, personal_apps):
+        """Keep scoped RBAC inside Personal apps while Basic governs the workspace."""
+        if not roles_by_scope:
+            return []
+        workspace_scope = roles_by_scope[0]
+        if RoleAssignmentHandler.is_workspace_admin(roles_by_scope):
+            scoped_roles = [(app, workspace_scope[1]) for app in personal_apps]
+        else:
+            personal_ids = {app.id for app in personal_apps}
+            scoped_roles = [
+                (scope, roles)
+                for scope, roles in roles_by_scope[1:]
+                if getattr(containing_application(scope), "id", None) in personal_ids
+            ]
+        return [workspace_scope, *scoped_roles]
+
     def get_permissions_object(
         self,
         actor: AbstractUser,
@@ -282,12 +339,30 @@ class RolePermissionManagerType(PermissionManagerType):
         of context IDs that are an exception to the default rule.
         """
 
-        if workspace is None or not self.is_enabled(workspace):
+        if workspace is None:
+            return None
+        expired = not self.is_enabled(workspace)
+        if expired and not (
+            personal_apps := applications_with_policies(
+                [workspace], PERSONAL_APPLICATION_POLICY
+            )[workspace.id]
+        ):
             return None
 
         # Get all role assignments for this actor into this workspace
         roles_by_scope = RoleAssignmentHandler().get_roles_per_scope(workspace, actor)
 
+        basic_denied_operations = None
+        if expired:
+            basic = BasicPermissionManagerType().get_permissions_object(
+                actor, workspace
+            )
+            if basic is None:
+                return None
+            roles_by_scope = self._expired_scope_roles(roles_by_scope, personal_apps)
+            basic_denied_operations = (
+                set() if basic["is_admin"] else set(basic["admin_only_operations"])
+            )
         all_operations = for_operation_types or operation_type_registry.get_all()
 
         if RoleAssignmentHandler.is_workspace_admin(roles_by_scope):
@@ -312,14 +387,21 @@ class RolePermissionManagerType(PermissionManagerType):
 
         # First, for each operation we want the default policy and exceptions
         for operation_type in all_operations:
-            default, exceptions, inclusions = self.get_operation_policy(
-                roles_by_scope, operation_type, use_object_scope
-            )
-
             base_scope_type = (
                 operation_type.object_scope
                 if use_object_scope
                 else operation_type.context_scope
+            )
+            operation_roles = roles_by_scope
+            basic_default = None
+            if basic_denied_operations is not None:
+                basic_default = operation_type.type not in basic_denied_operations
+                if not object_scope_type_registry.scope_type_includes_scope_type(
+                    object_scope_type_registry.get("application"), base_scope_type
+                ):
+                    operation_roles = roles_by_scope[:1]
+            default, exceptions, inclusions = self.get_operation_policy(
+                operation_roles, operation_type, use_object_scope, default=basic_default
             )
 
             policy_per_operation[operation_type.type]["default"] = default
@@ -423,11 +505,23 @@ class RolePermissionManagerType(PermissionManagerType):
         )
 
         base_scope_type = operation_type.object_scope
-
+        policy_apps = applications_with_policies(
+            workspaces, PERSONAL_APPLICATION_POLICY
+        )
         policy_per_workspace = {}
         all_exception_scopes = set()
         for workspace in workspaces:
             roles_per_scope = roles_per_scope_per_workspace[workspace.id]
+            expired = not self.is_enabled(workspace)
+            if expired:
+                if not object_scope_type_registry.scope_type_includes_scope_type(
+                    object_scope_type_registry.get("application"), base_scope_type
+                ):
+                    policy_per_workspace[workspace.id] = (True, set(), set())
+                    continue
+                roles_per_scope = self._expired_scope_roles(
+                    roles_per_scope, policy_apps[workspace.id]
+                )
             if RoleAssignmentHandler.is_workspace_admin(roles_per_scope):
                 # An admin of the workspace holds the admin role on every object
                 # in it, whatever roles they were given on lower scopes, so there
@@ -441,9 +535,10 @@ class RolePermissionManagerType(PermissionManagerType):
                 continue
 
             default, exceptions, inclusions = self.get_operation_policy(
-                roles_per_scope_per_workspace[workspace.id],
+                roles_per_scope,
                 operation_type,
                 use_object_scope=True,
+                default=True if expired else None,
             )
             policy_per_workspace[workspace.id] = (default, exceptions, inclusions)
             all_exception_scopes |= exceptions | inclusions
@@ -473,7 +568,12 @@ class RolePermissionManagerType(PermissionManagerType):
         operation.
         """
 
-        if workspace is None or not self.is_enabled(workspace):
+        if workspace is None or not (
+            self.is_enabled(workspace)
+            or applications_with_policies([workspace], PERSONAL_APPLICATION_POLICY)[
+                workspace.id
+            ]
+        ):
             return
 
         operation_type = operation_type_registry.get(operation_name)
@@ -513,8 +613,13 @@ class RolePermissionManagerType(PermissionManagerType):
             enabled for any of the workspaces.
         """
 
+        policy_apps = applications_with_policies(
+            workspaces, PERSONAL_APPLICATION_POLICY
+        )
         enabled_workspaces = [
-            workspace for workspace in workspaces if self.is_enabled(workspace)
+            workspace
+            for workspace in workspaces
+            if self.is_enabled(workspace) or policy_apps[workspace.id]
         ]
         if not enabled_workspaces:
             return None

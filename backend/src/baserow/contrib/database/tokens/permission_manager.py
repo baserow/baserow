@@ -1,9 +1,13 @@
 from collections import defaultdict
 
+from django.db.models import prefetch_related_objects
+
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.models import TokenPermission
 from baserow.contrib.database.tokens.subjects import TokenSubjectType
+from baserow.core.handler import CoreHandler
 from baserow.core.registries import PermissionManagerType
+from baserow.core.types import PermissionCheck
 
 from .constants import OPERATION_TO_TOKEN_MAP, TOKEN_TO_OPERATION_MAP
 
@@ -35,23 +39,35 @@ class TokenPermissionManagerType(PermissionManagerType):
                 (token_id, TOKEN_TO_OPERATION_MAP[type])
             ].add((table_id, database_id))
 
+        prefetch_related_objects([check.context for check in token_checks], "database")
         permission_by_token = {}
+        owner_checks = {}
         for check in token_checks:
             scopes = scopes_by_token_id_and_operation[
                 (check.actor.id, check.operation_name)
             ]
-            context = check.context
-            if (
-                (None, None) in scopes
-                or any(table_id == context.id for table_id, _ in scopes)
-                or any(database_id == context.database_id for _, database_id in scopes)
-            ):
+            table = check.context
+            explicit = (table.id, None) in scopes or (None, table.database_id) in scopes
+            if table.database.access_policy:
+                if explicit and table.database.workspace_id == check.actor.workspace_id:
+                    owner_checks[check] = PermissionCheck(
+                        check.actor.user, check.operation_name, table
+                    )
+            elif explicit or (None, None) in scopes:
                 permission_by_token[check] = True
-            else:
-                permission_by_token[check] = NoPermissionToTable(
-                    f"The provided token does not have "
-                    f"{OPERATION_TO_TOKEN_MAP[check.operation_name]}"
-                    f" permissions to table {context.id}."
-                )
+                continue
+            permission_by_token[check] = NoPermissionToTable(
+                f"The provided token does not have "
+                f"{OPERATION_TO_TOKEN_MAP[check.operation_name]} permissions to table {table.id}."
+            )
 
+        # Workspace-wide tokens predate the app. Only an explicit token grant
+        # within its owner's current permissions can reach a protected database.
+        if owner_checks:
+            allowed = CoreHandler().check_multiple_permissions(
+                list(owner_checks.values()), workspace, include_trash=include_trash
+            )
+            for check, owner_check in owner_checks.items():
+                if allowed[owner_check]:
+                    permission_by_token[check] = True
         return permission_by_token

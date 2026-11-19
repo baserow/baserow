@@ -115,6 +115,13 @@ export default {
     }
   },
   computed: {
+    isPersonal() {
+      const application =
+        this.target.scopeType === 'application'
+          ? this.target.scope
+          : this.target.database
+      return application?.access_policy === 'personal'
+    },
     scopeTypeName() {
       return this.getLevelName(this.target.scopeType, this.target.scope)
     },
@@ -128,7 +135,9 @@ export default {
           scopeType: 'workspace',
           scope: this.workspace,
           initials: nameAbbreviation(this.workspace.name),
-          name: this.$t('shareScope.everyoneAt', { name: this.workspace.name }),
+          name: this.isPersonal
+            ? this.$t('personalApplication.admins')
+            : this.$t('shareScope.everyoneAt', { name: this.workspace.name }),
         },
       ]
       if (database && ['database_table', 'database_view'].includes(scopeType)) {
@@ -195,9 +204,14 @@ export default {
                 : this.$t('shareScope.fromLevel', { level: levelName }),
             explanation:
               level.scopeType === 'workspace'
-                ? this.$t('shareScope.fromWorkspaceExplanation', {
-                    type: this.scopeTypeName,
-                  })
+                ? this.$t(
+                    this.isPersonal
+                      ? 'personalApplication.adminAccess'
+                      : 'shareScope.fromWorkspaceExplanation',
+                    {
+                      type: this.scopeTypeName,
+                    }
+                  )
                 : this.$t('shareScope.fromLevelExplanation', {
                     type: this.scopeTypeName,
                     level: levelName,

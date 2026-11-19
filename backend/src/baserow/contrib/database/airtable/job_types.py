@@ -20,6 +20,7 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.registries import JobType
+from baserow.core.registries import permission_manager_type_registry
 from baserow.core.signals import application_created
 
 from .actions import ImportDatabaseFromAirtableActionType
@@ -52,6 +53,8 @@ class AirtableImportJobType(JobType):
     request_serializer_field_names = [
         "workspace_id",
         "database_id",
+        "name",
+        "access_policy",
         "airtable_share_url",
         "skip_files",
         "session",
@@ -59,6 +62,8 @@ class AirtableImportJobType(JobType):
     ]
 
     request_serializer_field_overrides = {
+        "name": serializers.CharField(max_length=160, required=False),
+        "access_policy": serializers.CharField(max_length=32, required=False),
         "workspace_id": serializers.IntegerField(
             required=False,
             help_text="The workspace ID where the Airtable base must be imported into.",
@@ -116,6 +121,11 @@ class AirtableImportJobType(JobType):
             context=workspace,
         )
 
+        if policy := values.get("access_policy"):
+            permission_manager_type_registry.get_application_policy(
+                policy
+            ).validate_application_access(user, workspace)
+
         airtable_share_id = extract_share_id_from_url(values["airtable_share_url"])
 
         session = values.get("session", None)
@@ -129,6 +139,8 @@ class AirtableImportJobType(JobType):
 
         return {
             "airtable_share_id": airtable_share_id,
+            "name": values.get("name"),
+            "access_policy": values.get("access_policy"),
             "workspace": workspace,
             "skip_files": values.get("skip_files", False),
             "session": session,
@@ -145,6 +157,8 @@ class AirtableImportJobType(JobType):
             job.skip_files,
             job.session,
             job.session_signature,
+            name=job.name,
+            access_policy=job.access_policy,
             progress_builder=progress.create_child_builder(
                 represents_progress=progress.total
             ),

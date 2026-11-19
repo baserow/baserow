@@ -72,6 +72,7 @@ class ImportDatabaseFromAirtableActionType(ActionType):
             airtable_share_id,
             progress_builder=progress_builder,
             config=config,
+            imported_by=user,
             **kwargs,
         )
 

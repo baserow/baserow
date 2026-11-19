@@ -1,0 +1,79 @@
+.application-access {
+  min-width: 0;
+  margin: 20px 0;
+  padding: 0;
+  border: 0;
+
+  legend {
+    padding: 0;
+  }
+
+  & + .actions {
+    margin-top: 20px;
+  }
+}
+
+.application-access__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 8px;
+}
+
+.application-access__option {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  align-content: start;
+  align-items: center;
+  gap: 3px 8px;
+  padding: 12px;
+  border: 1px solid $palette-neutral-300;
+  background-color: $palette-neutral-0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+
+  @include rounded($rounded-md);
+
+  &:hover {
+    border-color: $palette-neutral-500;
+    background-color: $palette-neutral-50;
+  }
+
+  &:has(:checked) {
+    border-color: $palette-blue-500;
+    background-color: $palette-blue-50;
+  }
+
+  &:focus-visible,
+  &:has(:focus-visible) {
+    outline: 2px solid $palette-blue-700;
+    outline-offset: 2px;
+  }
+
+  input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: $palette-blue-700;
+    cursor: pointer;
+  }
+
+  .iconoir-lock {
+    color: $palette-neutral-900;
+    font-size: 16px;
+  }
+}
+
+.application-access__label {
+  color: $palette-neutral-1200;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.application-access__description {
+  grid-column: 2;
+  color: $palette-neutral-900;
+  font-size: 12px;
+  line-height: 17px;
+}

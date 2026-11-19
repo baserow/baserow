@@ -324,7 +324,10 @@ export default {
       const installedApplications = this.job.installed_applications
       try {
         for (const application of installedApplications) {
-          await this.$store.dispatch('application/forceCreate', application)
+          await this.$store.dispatch(
+            'application/applicationCreated',
+            application
+          )
         }
         this.$store.dispatch('toast/info', {
           title: this.$t('importWorkspaceModal.successTitle'),

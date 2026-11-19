@@ -21,6 +21,7 @@
       </template>
     </FormGroup>
 
+    <ApplicationCreateOptions :workspace="workspace" />
     <slot></slot>
   </form>
 </template>
@@ -29,9 +30,11 @@
 import { useVuelidate } from '@vuelidate/core'
 import { required } from '@vuelidate/validators'
 import form from '@baserow/modules/core/mixins/form'
+import ApplicationCreateOptions from './ApplicationCreateOptions'
 
 export default {
   name: 'ApplicationForm',
+  components: { ApplicationCreateOptions },
   mixins: [form],
   props: {
     defaultName: {

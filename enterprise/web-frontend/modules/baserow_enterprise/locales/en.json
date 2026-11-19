@@ -1,4 +1,15 @@
 {
+  "personalApplication": {
+    "access": "Access",
+    "collaborative": "Collaborative",
+    "workspaceRoles": "Members use their workspace roles to access this app.",
+    "personal": "Personal",
+    "initialAccess": "Start with just you and workspace admins. Invite others later.",
+    "unlock": "Unlock Personal access with role-based access control",
+    "indicator": "Personal application",
+    "admins": "Workspace admins",
+    "adminAccess": "Workspace admins always have access to personal applications."
+  },
   "clientHandler": {
     "cannotDisableAllAuthProvidersTitle": "Last enabled provider",
     "cannotDisableAllAuthProvidersDescription": "It is not possible to disable or delete last enabled provider."

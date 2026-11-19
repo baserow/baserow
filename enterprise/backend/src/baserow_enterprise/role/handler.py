@@ -15,6 +15,7 @@ from django.db.models import (
     prefetch_related_objects,
 )
 
+from baserow.core.application_access import applications_with_policies
 from baserow.core.cache import local_cache
 from baserow.core.exceptions import (
     InvalidWorkspaceRole,
@@ -66,6 +67,7 @@ from .constants import (
     INTERNAL_ROLE_UIDS,
     NO_ACCESS_ROLE_UID,
     NO_ROLE_LOW_PRIORITY_ROLE_UID,
+    PERSONAL_APPLICATION_POLICY,
     READ_ONLY_ROLE_UID,
     ROLE_ASSIGNABLE_OBJECT_MAP,
 )
@@ -641,6 +643,9 @@ class RoleAssignmentHandler:
 
         # Finally replace scope_params by real scope
         roles_per_scope_per_user = defaultdict(list)
+        personal_apps = applications_with_policies(
+            [workspace], PERSONAL_APPLICATION_POLICY
+        )[workspace.id]
         for actor in actors:
             roles_per_scope = []
             for key, value in roles_by_scope[actor.id].items():
@@ -658,6 +663,7 @@ class RoleAssignmentHandler:
                     for key in admin_scope_params_per_actor_id[actor.id]
                     if key in scope_cache
                 ],
+                personal_apps,
             )
 
         return roles_per_scope_per_user
@@ -921,6 +927,9 @@ class RoleAssignmentHandler:
                 scope_cache[(content_type_id, scope.id)] = scope
 
         result = {}
+        personal_apps = applications_with_policies(
+            workspaces, PERSONAL_APPLICATION_POLICY
+        )
         for workspace in workspaces:
             workspace_scope_param = (workspace_content_type.id, workspace.id)
             scope_cache[workspace_scope_param] = workspace
@@ -940,6 +949,7 @@ class RoleAssignmentHandler:
                     for key in admin_scope_params_per_workspace[workspace.id]
                     if key in scope_cache
                 ],
+                personal_apps[workspace.id],
             )
 
             # Prime the request local cache `get_roles_per_scope` reads from. If it
@@ -1008,6 +1018,7 @@ class RoleAssignmentHandler:
         self,
         roles_per_scope: List[Tuple[ScopeObject, List[Role]]],
         admin_scopes: List[ScopeObject],
+        personal_apps=(),
     ) -> List[Tuple[ScopeObject, List[Role]]]:
         """
         Applies the rule that an admin can never be locked out of what they
@@ -1026,10 +1037,11 @@ class RoleAssignmentHandler:
         :param roles_per_scope: The ordered roles per scope of one actor.
         :param admin_scopes: The scopes of that list on which the actor holds the
             admin role directly.
-        :return: The same list with the entries an admin role makes inert removed.
+        :param personal_apps: The Personal applications in this workspace.
+        :return: The ordered effective scopes, including Personal application defaults.
         """
 
-        if not roles_per_scope or not admin_scopes:
+        if not roles_per_scope or not (personal_apps or admin_scopes):
             return roles_per_scope
 
         admin_role = self.get_role_by_uid(ADMIN_ROLE_UID)
@@ -1039,6 +1051,18 @@ class RoleAssignmentHandler:
         if workspace_scope in admin_scopes:
             return [(workspace_scope, [admin_role])]
 
+        # Workspace inheritance stops here unless the actor has an explicit app grant.
+        if personal_apps:
+            explicit_scopes = {scope for scope, _ in roles_per_scope}
+            no_access = self.get_role_by_uid(NO_ACCESS_ROLE_UID)
+            defaults = [
+                (app, [no_access])
+                for app in personal_apps
+                if app not in explicit_scopes
+            ]
+            roles_per_scope = roles_per_scope[:1] + defaults + roles_per_scope[1:]
+        if not admin_scopes:
+            return roles_per_scope
         result = []
         applied_admin_scopes = []
         for scope, roles in roles_per_scope:

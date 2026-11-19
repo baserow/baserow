@@ -18,7 +18,9 @@
         class="tree__link"
         :class="{ 'tree__link--empty': application.name === '' }"
         :title="application.name"
-        :aria-label="application.name"
+        :aria-label="
+          [application.name, ...indicators.map(({ label }) => label)].join(', ')
+        "
         @click="$emit('selected', application)"
       >
         <i class="tree__icon" :class="application._?.type?.iconClass"></i>
@@ -30,6 +32,15 @@
             @change="renameApplication(application, $event)"
           ></Editable>
         </span>
+        <i
+          v-for="indicator in indicators"
+          :key="indicator.label"
+          v-tooltip="indicator.label"
+          class="tree__indicator"
+          :class="indicator.icon"
+          role="img"
+          :aria-label="indicator.label"
+        ></i>
         <i
           v-if="isInError"
           v-tooltip="errorMessage"
@@ -108,6 +119,13 @@ export default {
     }
   },
   computed: {
+    indicators() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .map((plugin) =>
+          plugin.getApplicationSidebarIndicator(this.application)
+        )
+        .filter(Boolean)
+    },
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce((components, plugin) => {
