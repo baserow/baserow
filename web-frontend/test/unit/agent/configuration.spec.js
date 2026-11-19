@@ -14,6 +14,7 @@ import {
   mockAgent,
   mockAvailability,
   mockConfiguration,
+  mockIntegrations,
   mockRename,
   mockSaves,
   modelDropdown,
@@ -93,7 +94,7 @@ describe('Agent configuration', () => {
       testApp,
       completeConfiguration({ available_action_types: ['smtp_email'] })
     )
-    testApp.mock.onGet('application/10/integrations/').reply(200, [])
+    await mockIntegrations(testApp)
     testApp.mock.onGet('/agent/10/actions/').reply(200, [])
     const wrapper = await mount()
     await openSection(wrapper, 'agent.actions')

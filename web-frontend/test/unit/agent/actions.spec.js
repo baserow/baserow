@@ -13,6 +13,7 @@ import {
   useFakeTimers,
   choose,
   deferredReply,
+  mockIntegrations,
 } from './helpers'
 
 const formula = (value = '') => ({
@@ -84,7 +85,7 @@ describe('Agent action editor', () => {
       clone(agentData)
     )
     agentRef = ref(agent)
-    testApp.mock.onGet('application/10/integrations/').reply(200, [])
+    await mockIntegrations(testApp)
     testApp.mock.onGet('/agent/10/action-types/').reply(200, [])
   })
   afterEach(async () => {

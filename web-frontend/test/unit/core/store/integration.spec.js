@@ -345,3 +345,164 @@ describe('integration store', () => {
     expect(application.integrations).toEqual([updatedIntegration])
   })
 })
+
+describe('workspace integrations in the integration store', () => {
+  const WORKSPACE_ID = 1
+  const SHARED_APPLICATION = {
+    id: 99,
+    name: '__shared__',
+    type: 'shared',
+    order: 0,
+    workspace: { id: WORKSPACE_ID },
+  }
+  const database = (id, workspaceId = WORKSPACE_ID) => ({
+    id,
+    name: `Database ${id}`,
+    type: 'database',
+    workspace: { id: workspaceId },
+    tables: [],
+  })
+  const integration = (id, applicationId, name) => ({
+    id,
+    application_id: applicationId,
+    type: 'smtp',
+    name,
+    order: `${id}`,
+  })
+
+  let testApp = null
+  let store = null
+
+  beforeEach(async () => {
+    testApp = new TestApp()
+    store = testApp.store
+    await store.dispatch('workspace/forceCreate', {
+      id: WORKSPACE_ID,
+      name: 'Acme',
+    })
+    await store.dispatch('application/forceCreate', database(100))
+  })
+
+  afterEach(async () => {
+    await testApp.afterEach()
+  })
+
+  const get = (id) => store.getters['application/get'](id)
+  const names = (integrations) => integrations.map(({ name }) => name)
+  const usable = (id) =>
+    names(store.getters['integration/getUsableIntegrations'](get(id)))
+  const fetchOnce = (id) =>
+    store.dispatch('integration/fetchWorkspaceIntegrationsOnce', {
+      application: get(id),
+    })
+
+  test('an application uses its own integrations, then the workspace ones', async () => {
+    await store.dispatch('application/forceCreate', database(200, 2))
+    await store.dispatch('integration/forceCreate', {
+      application: get(100),
+      integration: integration(1, 100, 'Own'),
+    })
+    await store.dispatch('application/forceCreate', { ...SHARED_APPLICATION })
+    await store.dispatch('integration/forceCreate', {
+      application: get(SHARED_APPLICATION.id),
+      integration: integration(2, SHARED_APPLICATION.id, 'Team'),
+    })
+
+    expect(usable(100)).toEqual(['Own', 'Team'])
+    // A service using a workspace integration finds it.
+    expect(
+      store.getters['integration/getIntegrationById'](get(100), 2)
+    ).toMatchObject({ name: 'Team' })
+    // A settings page lists the application's own only.
+    const own = store.getters['integration/getIntegrations'](get(100))
+    expect(names(own)).toEqual(['Own'])
+    // The shared application owns them, so they aren't listed twice.
+    expect(usable(SHARED_APPLICATION.id)).toEqual(['Team'])
+    // Another workspace has none of them.
+    expect(usable(200)).toEqual([])
+  })
+
+  test('the workspace integrations are fetched once per workspace', async () => {
+    await store.dispatch('application/forceCreate', database(101))
+    // The store doesn't have the shared application yet, like for a workspace
+    // created after the applications were loaded.
+    testApp.mock
+      .onGet(`/applications/workspace/${WORKSPACE_ID}/`)
+      .reply(200, [{ ...SHARED_APPLICATION }, database(100), database(101)])
+    testApp.mock
+      .onGet(`application/${SHARED_APPLICATION.id}/integrations/`)
+      .reply(200, [integration(2, SHARED_APPLICATION.id, 'Team')])
+
+    expect(names(await fetchOnce(100))).toEqual(['Team'])
+    expect(names(await fetchOnce(101))).toEqual(['Team'])
+
+    expect(testApp.mock.history.get.map(({ url }) => url)).toEqual([
+      `/applications/workspace/${WORKSPACE_ID}/`,
+      `application/${SHARED_APPLICATION.id}/integrations/`,
+    ])
+    expect(usable(101)).toEqual(['Team'])
+  })
+
+  test('a fetch that gave up is asked again, one that loaded is not', async () => {
+    await store.dispatch('application/forceCreate', { ...SHARED_APPLICATION })
+    let settled = false
+    let attempts = 0
+    testApp.mock
+      .onGet(`application/${SHARED_APPLICATION.id}/integrations/`)
+      .reply(() => {
+        attempts += 1
+        if (!settled) {
+          // Written to during every attempt, so no answer is ever current.
+          store.dispatch('integration/forceCreate', {
+            application: get(SHARED_APPLICATION.id),
+            integration: integration(attempts, SHARED_APPLICATION.id, 'New'),
+          })
+        }
+        return [200, [integration(2, SHARED_APPLICATION.id, 'Team')]]
+      })
+
+    expect(await fetchOnce(100)).toBeNull()
+    settled = true
+    expect(names(await fetchOnce(100))).toEqual(['Team'])
+    const attemptsWhenLoaded = attempts
+    expect(names(await fetchOnce(100))).toEqual(['Team'])
+
+    expect(attempts).toBe(attemptsWhenLoaded)
+  })
+
+  test('nothing is fetched for a workspace the user is not a member of', async () => {
+    // Like the workspace of a template preview.
+    await store.dispatch('application/forceCreate', database(200, 2))
+
+    expect(await fetchOnce(200)).toEqual([])
+    expect(testApp.mock.history.get).toHaveLength(0)
+  })
+
+  test('nothing is fetched for a user who cannot list them', async () => {
+    // Like a user with a role on some applications of the workspace only.
+    const app = store.app
+    const asked = []
+    store.app = Object.create(app, {
+      $hasPermission: {
+        value: (...args) => {
+          asked.push(args)
+          return false
+        },
+      },
+    })
+    try {
+      expect(await fetchOnce(100)).toEqual([])
+    } finally {
+      store.app = app
+    }
+
+    expect(asked).toEqual([
+      [
+        'workspace.list_integrations',
+        expect.objectContaining({ id: WORKSPACE_ID }),
+        WORKSPACE_ID,
+      ],
+    ])
+    expect(testApp.mock.history.get).toHaveLength(0)
+  })
+})

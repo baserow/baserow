@@ -85,7 +85,9 @@ export default {
   },
   computed: {
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](this.builder)
+      return this.$store.getters['integration/getUsableIntegrations'](
+        this.builder
+      )
     },
     userSources() {
       return this.$store.getters['userSource/getUserSources'](this.builder)

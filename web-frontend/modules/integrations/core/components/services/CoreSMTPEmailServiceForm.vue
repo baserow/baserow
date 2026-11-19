@@ -244,7 +244,7 @@ export default {
         return []
       }
       const allIntegrations = this.$store.getters[
-        'integration/getIntegrations'
+        'integration/getUsableIntegrations'
       ](this.application)
       return allIntegrations.filter(
         (integration) => integration.type === SMTPIntegrationType.getType()

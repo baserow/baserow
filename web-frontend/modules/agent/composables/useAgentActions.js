@@ -137,7 +137,12 @@ export function useAgentActions(
     loadError.value = false
     try {
       if (integrations)
-        await store.dispatch('integration/fetch', { application })
+        await Promise.all([
+          store.dispatch('integration/fetch', { application }),
+          store.dispatch('integration/fetchWorkspaceIntegrationsOnce', {
+            application,
+          }),
+        ])
       const { data } = await service.list(application.id)
       if (!isCurrent()) return
       const existing = new Map(

@@ -108,7 +108,7 @@ export default {
     },
     integrations() {
       const allIntegrations = this.$store.getters[
-        'integration/getIntegrations'
+        'integration/getUsableIntegrations'
       ](this.application)
       return allIntegrations.filter(
         (integration) => integration.type === this.integrationType.type
