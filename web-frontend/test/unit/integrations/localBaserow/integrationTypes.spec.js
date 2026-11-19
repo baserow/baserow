@@ -90,11 +90,12 @@ describe('LocalBaserowIntegrationType', () => {
         username: 'grace@example.com',
       })
     ).toBe('localBaserowIntegrationType.localBaserowPromotionReauthorizeHint')
-    // An agent belongs to the workspace and is kept.
+    // An identity belongs to the workspace and is kept.
     expect(
       promotionHint({
         id: 3,
-        type: 'core.Agent',
+        type: 'auth.User',
+        user_type: 'identity',
         name: 'Support bot',
         trashed: false,
       })
@@ -106,7 +107,8 @@ describe('LocalBaserowIntegrationType', () => {
     expect(
       promotionHint({
         id: 3,
-        type: 'core.Agent',
+        type: 'auth.User',
+        user_type: 'identity',
         name: 'Support bot',
         trashed: true,
       })
