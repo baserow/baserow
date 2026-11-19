@@ -1,4 +1,5 @@
 import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
+import { FF_AGENT_BUILDER } from '@baserow/modules/core/plugins/featureFlags'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
@@ -8,7 +9,11 @@ export async function selectAgentApplication(app, to) {
 
   try {
     const agent = $store.getters['application/get'](agentId)
-    if (!agent || agent.type !== AGENT_APPLICATION_TYPE) {
+    if (
+      !app.$featureFlagIsEnabled(FF_AGENT_BUILDER) ||
+      !agent ||
+      agent.type !== AGENT_APPLICATION_TYPE
+    ) {
       throw new StoreItemLookupError('Agent not found.')
     }
 

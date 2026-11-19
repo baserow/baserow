@@ -11,7 +11,22 @@
         class="row-comments__comment-head-details"
         :class="{ 'row-comments__comment-head-details--right': ownComment }"
       >
-        <div v-if="!ownComment" class="row-comments__comment-head-initial">
+        <span
+          v-if="!ownComment && comment.user_type === 'identity'"
+          role="img"
+          :aria-label="$t('subjectType.identity')"
+        >
+          <component
+            :is="$registry.get('subject', 'auth.User').avatarComponent"
+            :subject="{
+              id: comment.user_id,
+              first_name: firstName,
+              user_type: comment.user_type,
+            }"
+            size="large"
+          />
+        </span>
+        <div v-else-if="!ownComment" class="row-comments__comment-head-initial">
           {{ $filters.nameAbbreviation(firstName) }}
         </div>
         <div class="row-comments__comment-head-name">
@@ -60,7 +75,9 @@
         ref="editor"
         v-model="message"
         :editable="editing"
-        :mentionable-users="workspace.users"
+        :mentionable-users="
+          $store.getters['workspace/getCollaborators'](workspace.id)
+        "
         :enter-stop-edit="true"
         @stop-edit="stopEdit(true)"
       />

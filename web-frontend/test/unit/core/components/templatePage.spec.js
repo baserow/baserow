@@ -5,6 +5,7 @@ import { clearNuxtData, useNuxtApp, useRouter } from '#app'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
+import LegacyTemplatePage from '@baserow/modules/core/components/template/legacy/LegacyTemplatePage'
 import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTemplateModeration'
 
 const projectTracker = {
@@ -462,34 +463,40 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.details').text()).toBe('Project Tracker:')
   })
 
-  test('fails with a not found error for an unknown template', async () => {
-    testApp.dontFailOnErrorResponses()
-    testApp.mock.onGet('/templates/unknown/').reply(404, {
-      error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
-    })
-    testApp.mock.onGet('/templates/').reply(200, categories)
+  test.each([
+    ['TemplatePage', TemplatePage],
+    ['LegacyTemplatePage', LegacyTemplatePage],
+  ])(
+    '%s fails with a not found error for an unknown template',
+    async (_name, Page) => {
+      testApp.dontFailOnErrorResponses()
+      testApp.mock.onGet('/templates/unknown/').reply(404, {
+        error: 'ERROR_TEMPLATE_DOES_NOT_EXIST',
+      })
+      testApp.mock.onGet('/templates/').reply(200, categories)
 
-    // Nuxt shows the error page for an error thrown in the page setup, here it
-    // is caught by the parent instead.
-    const errors = []
-    const Parent = defineComponent({
-      setup() {
-        onErrorCaptured((error) => {
-          errors.push(error)
-          return false
-        })
-        return () => h(TemplatePage)
-      },
-    })
-    await testApp.mount(Parent, {
-      route: '/template/unknown',
-      global: { stubs },
-    })
+      // Nuxt shows the error page for an error thrown in the page setup, here it
+      // is caught by the parent instead.
+      const errors = []
+      const Parent = defineComponent({
+        setup() {
+          onErrorCaptured((error) => {
+            errors.push(error)
+            return false
+          })
+          return () => h(Page)
+        },
+      })
+      await testApp.mount(Parent, {
+        route: '/template/unknown',
+        global: { stubs },
+      })
 
-    expect(errors[0]).toMatchObject({
-      statusCode: 404,
-      message: 'Template not found.',
-      fatal: true,
-    })
-  })
+      expect(errors[0]).toMatchObject({
+        statusCode: 404,
+        message: 'Template not found.',
+        fatal: true,
+      })
+    }
+  )
 })

@@ -1408,6 +1408,9 @@
     "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments.",
     "invalidArgumentType": "'{value}' is not a valid argument for the '{funcType}' function."
   },
+  "nodeExplorer": {
+    "noDataAvailable": "No data is available for this formula."
+  },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",
     "noProvidersText": "No data providers were found. To get started you can, for example, add a data source or page parameter."
@@ -1524,6 +1527,10 @@
     "addProvider": "Add provider",
     "editProvider": "Edit provider",
     "providerType": "Provider type",
+    "excludedWorkspaces": "Excluded workspaces",
+    "excludedWorkspacesHelp": "These workspaces cannot use this instance provider. Workspace providers are unaffected.",
+    "addExcludedWorkspace": "Exclude a workspace",
+    "removeExcludedWorkspace": "Remove {name} from excluded workspaces",
     "apiKey": "API key",
     "changeApiKey": "Change API key",
     "apiKeyUpdateHint": "Enter a new API key to replace the existing key.",
@@ -1546,6 +1553,7 @@
     "kumaDisabled": "Disabled",
     "kumaInvalidFallback": "Selected model unavailable — using deprecated environment model: {model}",
     "kumaInvalidNoFallback": "Selected model unavailable — no environment model configured",
+    "modelUnavailableInWorkspace": "Selected model unavailable in this workspace",
     "kumaDisabledInWorkspace": "Disabled in this workspace",
     "kumaUseInstance": "Use instance setting — {model}",
     "kumaInheritedUnavailable": "selected instance model unavailable",
@@ -2020,5 +2028,8 @@
   },
   "serviceType": {
     "eventCount": "Count"
+  },
+  "itemPickerModal": {
+    "noResults": "No results found"
   }
 }

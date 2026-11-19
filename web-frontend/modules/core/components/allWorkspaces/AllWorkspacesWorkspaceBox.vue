@@ -205,7 +205,10 @@ import CreateApplicationContext from '@baserow/modules/core/components/applicati
 import SearchHighlight from '@baserow/modules/core/components/SearchHighlight'
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
 import { SORT_BY_LAST_VIEWED } from '@baserow/modules/core/utils/allWorkspaces'
-import { getWorkspaceMembersCount } from '@baserow/modules/core/utils/workspace'
+import {
+  canListIdentities,
+  getWorkspaceMembersCount,
+} from '@baserow/modules/core/utils/workspace'
 
 const COMPACT_APPLICATION_LIMIT = 3
 
@@ -310,11 +313,7 @@ export default {
     memberCount() {
       return getWorkspaceMembersCount(
         this.workspace,
-        this.$hasPermission(
-          'workspace.list_identities',
-          this.workspace,
-          this.workspace.id
-        )
+        canListIdentities(this, this.workspace)
       )
     },
     hasUnreadNotifications() {

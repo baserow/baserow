@@ -38,6 +38,10 @@ describe('AIProviderFormModal', () => {
   })
 
   test('loads suggestions and creates a provider without pre-save testing', async () => {
+    testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+      count: 1,
+      results: [{ id: 20, value: 'Finance' }],
+    })
     const dispatch = vi
       .spyOn(testApp.store, 'dispatch')
       .mockImplementation((action) => {
@@ -85,6 +89,7 @@ describe('AIProviderFormModal', () => {
       'generativeAIModelType.openaiApiKeyDescription',
       'generativeAIModelType.openaiBaseUrlDescription',
       'generativeAIModelType.openaiModelIdentifierDescription',
+      'aiProviderAdmin.excludedWorkspacesHelp',
     ])
 
     const modelInput = wrapper.find(
@@ -119,11 +124,16 @@ describe('AIProviderFormModal', () => {
     ).toBe(false)
     expect(wrapper.find('.ai-provider-form__model-status').exists()).toBe(false)
 
+    const dropdown = wrapper.findComponent({ name: 'PaginatedDropdown' })
+    await dropdown.find('.dropdown__selected').trigger('click')
+    await flushPromises()
+    await dropdown.find('.select__item-link').trigger('click')
     await wrapper.find('.actions button').trigger('click')
     await flushPromises()
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/create', {
       extra_settings: {},
+      excluded_workspace_ids: [20],
       provider_type: 'openai',
       api_key: 'temporary-secret',
       models: [
@@ -250,7 +260,10 @@ describe('AIProviderFormModal', () => {
 
     expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
       providerId: 1,
-      values: { extra_settings: {}, api_key: 'replacement-secret' },
+      values: {
+        extra_settings: {},
+        api_key: 'replacement-secret',
+      },
     })
   })
 
@@ -379,5 +392,211 @@ describe('AIProviderFormModal', () => {
     expect(wrapper.text()).toContain(
       'generativeAIModelType.bedrockChangeSecret'
     )
+  })
+
+  test('adds and removes excluded workspaces before saving an instance provider', async () => {
+    const provider = {
+      id: 1,
+      provider_type: 'openai',
+      extra_settings: {},
+      excluded_workspaces: [{ id: 10, name: 'Original workspace' }],
+    }
+    testApp.mock.onGet('/admin/workspaces/options/').reply(200, {
+      count: 3,
+      results: [
+        { id: 10, value: 'Original workspace' },
+        { id: 20, value: 'Finance' },
+        { id: 30, value: 'Operations' },
+      ],
+    })
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue(provider)
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider,
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    const dropdown = wrapper.findComponent({ name: 'PaginatedDropdown' })
+    const excludedNames = () =>
+      wrapper
+        .findAll('.ai-provider-form__workspace-name')
+        .map((name) => name.text())
+    const pickOption = async (index) => {
+      await dropdown.find('.dropdown__selected').trigger('click')
+      await flushPromises()
+      await dropdown.findAll('.select__item-link')[index].trigger('click')
+      await flushPromises()
+    }
+
+    await pickOption(1)
+    expect(
+      dropdown.findAll('.select__item-name-text').map((item) => item.text())
+    ).toEqual(['Original workspace', 'Finance', 'Operations'])
+    expect(
+      dropdown
+        .findAll('.ai-provider-form__workspace-id')
+        .map((item) => item.text())
+    ).toEqual(['(10)', '(20)', '(30)'])
+    expect(dropdown.find('.select__item').classes()).toContain('disabled')
+    expect(dropdown.find('.dropdown__selected').text()).toBe(
+      'aiProviderAdmin.addExcludedWorkspace'
+    )
+    await pickOption(2)
+    expect(excludedNames()).toEqual([
+      'Original workspace',
+      'Finance',
+      'Operations',
+    ])
+    expect(
+      wrapper.find('.ai-provider-form__workspace-name').attributes('title')
+    ).toBe('Original workspace (10)')
+
+    await wrapper.find('.ai-provider-form__workspace-remove').trigger('click')
+    expect(excludedNames()).toEqual(['Finance', 'Operations'])
+    expect(provider.excluded_workspaces).toEqual([
+      { id: 10, name: 'Original workspace' },
+    ])
+    expect(dispatch).not.toHaveBeenCalled()
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [20, 30] },
+    })
+  })
+
+  test('hides exclusions and omits them from unrelated edits when the API did not provide the list', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', extra_settings: {} },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.findComponent({ name: 'PaginatedDropdown' }).exists()).toBe(
+      false
+    )
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {} },
+    })
+  })
+
+  test('creates a workspace provider without showing or sending exclusions', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        providerTypes: [
+          { type: 'ollama', uses_api_key: false, extra_fields: [] },
+        ],
+        workspaceId: 42,
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.findComponent({ name: 'PaginatedDropdown' }).exists()).toBe(
+      false
+    )
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/create', {
+      values: { provider_type: 'ollama', extra_settings: {}, models: [] },
+      workspaceId: 42,
+    })
+  })
+
+  test('hides exclusions and omits instance settings for workspace providers', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', extra_settings: {} },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+        workspaceId: 42,
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.findComponent({ name: 'PaginatedDropdown' }).exists()).toBe(
+      false
+    )
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      workspaceId: 42,
+      values: { extra_settings: {} },
+    })
+  })
+
+  test('keeps an explicitly empty API exclusion list editable', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: { id: 1, provider_type: 'openai', excluded_workspaces: [] },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    expect(wrapper.findComponent({ name: 'PaginatedDropdown' }).exists()).toBe(
+      true
+    )
+
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [] },
+    })
+  })
+
+  test('saves an empty exclusion list after removing its last workspace', async () => {
+    const dispatch = vi
+      .spyOn(testApp.store, 'dispatch')
+      .mockResolvedValue({ id: 1 })
+    const wrapper = await testApp.mount(AIProviderFormModal, {
+      props: {
+        provider: {
+          id: 1,
+          provider_type: 'openai',
+          excluded_workspaces: [{ id: 10, name: 'Finance' }],
+        },
+        providerTypes: [
+          { type: 'openai', uses_api_key: true, extra_fields: [] },
+        ],
+      },
+    })
+    await wrapper.vm.show()
+    await wrapper.find('.ai-provider-form__workspace-remove').trigger('click')
+    expect(wrapper.find('.ai-provider-form__workspace').exists()).toBe(false)
+    await wrapper.find('.actions button').trigger('click')
+    await flushPromises()
+
+    expect(dispatch).toHaveBeenCalledWith('aiProvider/update', {
+      providerId: 1,
+      values: { extra_settings: {}, excluded_workspace_ids: [] },
+    })
   })
 })

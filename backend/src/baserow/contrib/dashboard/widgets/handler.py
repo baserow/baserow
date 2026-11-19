@@ -9,6 +9,7 @@ from baserow.contrib.dashboard.widgets.registries import (
     WidgetType,
     widget_type_registry,
 )
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
@@ -80,16 +81,24 @@ class WidgetHandler:
         dashboard: Dashboard,
         base_queryset: QuerySet | None = None,
         specific: bool = True,
+        with_cache: bool = False,
     ) -> QuerySet[Widget] | Iterable[Widget]:
         """
-        Gets all the specific widgets of a given page.
+        Gets all the specific widgets of a dashboard.
 
         :param dashboard: The dashboard that holds the widgets.
         :param base_queryset: The base queryset to use to build the query.
         :param specific: Whether to return the generic widgets or the specific
             instances.
+        :param with_cache: Reuse request-local results for the default queryset.
         :return: The widgets of the dashboard.
         """
+
+        if with_cache and base_queryset is None:
+            return local_cache.get(
+                f"dashboard_widgets_{dashboard.id}_{specific}",
+                lambda: list(self.get_widgets(dashboard, specific=specific)),
+            )
 
         queryset = base_queryset if base_queryset is not None else Widget.objects.all()
         queryset = queryset.select_related("dashboard", "dashboard__workspace").filter(
@@ -101,8 +110,8 @@ class WidgetHandler:
             widgets = specific_iterator(
                 queryset,
                 per_content_type_queryset_hook=(
-                    lambda widget, queryset: widget_type_registry.get_by_model(
-                        widget
+                    lambda model, queryset: widget_type_registry.get_by_model(
+                        model
                     ).enhance_queryset(queryset)
                 ),
             )
@@ -111,13 +120,21 @@ class WidgetHandler:
 
         return widgets
 
-    def get_widgets_for_update(self, dashboard: Dashboard) -> list[Widget]:
-        """Returns all active dashboard widgets locked for a layout mutation."""
+    @staticmethod
+    def invalidate_widgets_cache(dashboard_id):
+        """Discard request-local widget lookups and their validated input after edits."""
+        for specific in (True, False):
+            local_cache.delete(f"dashboard_widgets_{dashboard_id}_{specific}")
+        local_cache.delete(f"dashboard_validated_widget_data_{dashboard_id}")
 
+    def get_widgets_for_update(
+        self, dashboard: Dashboard, base_queryset: QuerySet | None = None
+    ) -> list[Widget]:
+        """Locks dashboard widgets in ID order, excluding trashed ones by default."""
+
+        queryset = base_queryset if base_queryset is not None else Widget.objects.all()
         return list(
-            Widget.objects.select_related(
-                "dashboard", "dashboard__workspace", "content_type"
-            )
+            queryset.select_related("dashboard", "dashboard__workspace", "content_type")
             .filter(dashboard=dashboard)
             .select_for_update(of=("self",))
             .order_by("id")
@@ -288,6 +305,9 @@ class WidgetHandler:
         """
 
         allowed_values = extract_allowed(kwargs, widget.get_type().allowed_fields)
+        allowed_values = widget.get_type().prepare_value_for_db(
+            allowed_values, instance=widget
+        )
 
         original_widget_values = widget.get_type().export_prepared_values(
             instance=widget
@@ -310,7 +330,7 @@ class WidgetHandler:
         :param widget: Widget to delete.
         """
 
-        widget_type = widget_type_registry.get_by_model(widget)
+        widget_type = widget.get_type()
         widget.delete()
         widget_type.after_delete(widget)
 
@@ -333,7 +353,7 @@ class WidgetHandler:
         :return: The serialized version.
         """
 
-        widget_type = widget_type_registry.get_by_model(widget)
+        widget_type = widget.get_type()
 
         return cast(
             WidgetDict,

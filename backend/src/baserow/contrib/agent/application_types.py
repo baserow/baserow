@@ -22,7 +22,6 @@ from baserow.contrib.agent.registries import (
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -160,7 +159,6 @@ class AgentApplicationType(ApplicationType):
         init_with_data: bool = False,
         **kwargs,
     ) -> AgentApplication:
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         models = generative_ai_model_type_registry.get_enabled_models_per_type(
             workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
         )
@@ -223,7 +221,7 @@ class AgentApplicationType(ApplicationType):
             provider_type=application.provider_type,
             model_identifier=application.model_identifier,
             reasoning_effort=application.reasoning_effort,
-            **AgentHandler().get_tool_configuration(application),
+            **AgentHandler().get_stored_tool_configuration(application),
             integrations=[
                 IntegrationHandler().export_integration(
                     integration,
@@ -236,6 +234,7 @@ class AgentApplicationType(ApplicationType):
                 )
             ],
             web_search_enabled=application.web_search_enabled,
+            web_fetch_enabled=application.web_fetch_enabled,
             actions=AgentActionHandler().export_actions(
                 application, import_export_config, files_zip, storage
             ),
@@ -304,11 +303,16 @@ class AgentApplicationType(ApplicationType):
         application.run_as_subject_type, application.run_as_subject_id = (
             self._imported_run_as(workspace, serialized_values, import_export_config)
         )
-        # Searching is paid and sends data out, so outside copies must opt in again.
-        application.web_search_enabled = (
-            import_export_config.is_duplicate
-            and not import_export_config.is_template
-            and serialized_values.get("web_search_enabled", False)
+        # Searching is paid, and both send data out, so outside copies must opt in
+        # again.
+        internal_copy = (
+            import_export_config.is_duplicate and not import_export_config.is_template
+        )
+        application.web_search_enabled = internal_copy and serialized_values.get(
+            "web_search_enabled", False
+        )
+        application.web_fetch_enabled = internal_copy and serialized_values.get(
+            "web_fetch_enabled", False
         )
         application.save()
         registered = agent_tool_type_registry.get_types()

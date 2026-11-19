@@ -44,7 +44,11 @@ from baserow.core.deferred_callbacks import deferred_callback_context
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.import_export.id_mapping import seed_id_mappings
 from baserow.core.registries import plugin_registry
-from baserow.core.user.identity import load_user_types
+from baserow.core.user.identity import (
+    active_identity_q,
+    collaborator_q,
+    load_user_types,
+)
 from baserow.core.user.utils import normalize_email_address
 from baserow.core.user_files.exceptions import TemplateImportWithoutFilesZip
 from baserow.core.user_files.template_files import template_file_owner
@@ -876,7 +880,14 @@ class CoreHandler:
             Prefetch(
                 "workspace__workspaceuser_set",
                 queryset=workspaceusers_with_user_and_profile,
-            )
+            ),
+            Prefetch(
+                "workspace__workspaceuser_set",
+                queryset=WorkspaceUser.objects_and_identities.filter(
+                    active_identity_q("user__")
+                ).select_related("user"),
+                to_attr="collaborator_identity_memberships",
+            ),
         )
         return workspaceuser_workspaces
 
@@ -1143,6 +1154,16 @@ class CoreHandler:
             "user"
         )
         return [wk_user.user for wk_user in wk_users]
+
+    def get_workspace_role_uid(self, role_uid: str, workspace: Workspace) -> str:
+        """Resolve a role alias using the workspace's active permission managers."""
+
+        for manager_name in settings.PERMISSION_MANAGERS:
+            manager = permission_manager_type_registry.get(manager_name)
+            resolved_role_uid = manager.get_workspace_role_uid(role_uid, workspace)
+            if resolved_role_uid is not None:
+                return resolved_role_uid
+        return role_uid
 
     def raise_if_invalid_workspace_role(
         self, role_uid: str, workspace: Workspace
@@ -1884,7 +1905,7 @@ class CoreHandler:
 
         return WorkspaceInvitationLink.objects.filter(
             workspace=workspace, scope_type__isnull=True
-        )
+        ).select_related("workspace")
 
     def create_workspace_invitation_link(
         self,
@@ -2124,6 +2145,25 @@ class CoreHandler:
 
         return workspace_user
 
+    def get_workspace_collaborators(
+        self, workspace: Workspace | int | None, include_identities: bool = False
+    ) -> QuerySet[User]:
+        """
+        Returns the users who can be assigned or mentioned in a workspace.
+
+        :param workspace: The workspace or its ID. None, as in an import without a
+            workspace, has no collaborators.
+        :param include_identities: Whether the active identities of the workspace
+            are returned along with its human members.
+        :return: The collaborators, with their profile loaded.
+        """
+
+        if workspace is None:
+            return User.objects.none()
+        return User.objects_and_identities.filter(
+            collaborator_q(include_identities), workspaceuser__workspace=workspace
+        ).select_related("profile")
+
     @classmethod
     def get_user_email_mapping(
         cls, workspace_id: int, only_emails: list[Email]
@@ -2139,7 +2179,7 @@ class CoreHandler:
 
         workspace_users = WorkspaceUser.objects_and_identities.filter(
             workspace_id=workspace_id
-        ).select_related("user")
+        ).select_related("user__profile")
 
         if only_emails:
             workspace_users = workspace_users.filter(user__email__in=only_emails)
@@ -2800,7 +2840,7 @@ class CoreHandler:
             default=F("updated_on"),
         )
         # The actor's own come first in the listing.
-        is_own = Value(False)
+        order = [changed_on.desc(nulls_last=True), "-id"]
         if listed and actor.is_authenticated:
             is_own = Case(
                 When(
@@ -2810,18 +2850,14 @@ class CoreHandler:
                 ),
                 default=Value(False),
             )
-        templates = templates.alias(list_is_own=is_own, list_changed_on=changed_on)
+            order.insert(0, is_own.desc())
         if category_id is not None:
             # The categories of the listed row itself, which an edit can change.
             templates = templates.filter(categories__id=category_id)
         return (
             templates.select_related("author", "root__author")
             .prefetch_related("categories")
-            .order_by(
-                F("list_is_own").desc(),
-                F("list_changed_on").desc(nulls_last=True),
-                "-id",
-            )
+            .order_by(*order)
         )
 
     def list_public_template_categories(

@@ -1,10 +1,93 @@
+from copy import deepcopy
+from unittest.mock import patch
+
 import pytest
 
+from baserow.contrib.dashboard.application_types import DashboardApplicationType
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
-from baserow.contrib.dashboard.widgets.models import Widget
+from baserow.contrib.dashboard.widgets.models import TextFilterWidget, Widget
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.contrib.dashboard.widgets.trash_types import WidgetTrashableItemType
+from baserow.core.formula import BaserowFormulaObject
+from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("trash_filter_first", [True, False])
+@pytest.mark.parametrize("restore_filter_first", [True, False])
+def test_restore_filter_links_in_any_order(
+    data_fixture, trash_filter_first, restore_filter_first
+):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table)
+    source = data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+        dashboard=dashboard, table=table
+    )
+    target = data_fixture.create_summary_widget(dashboard=dashboard, data_source=source)
+    owner = TextFilterWidget.objects.create(dashboard=dashboard, title="Country")
+    group = {
+        "filter_type": "AND",
+        "filter_groups": [],
+        "filters": [
+            {
+                "field": field.id,
+                "type": "equal",
+                "value": BaserowFormulaObject.create(f"get('widget_data.{owner.id}')"),
+            }
+        ],
+    }
+    alternative = deepcopy(group)
+    alternative["filters"][0]["value"] = BaserowFormulaObject.create(
+        "France", mode="raw"
+    )
+    original = [
+        {
+            "target_widget_id": target.id,
+            "group": group,
+            "empty_behavior": "apply_alternative",
+            "alternative_group": alternative,
+        }
+    ]
+    owner.target_filters = deepcopy(original)
+    owner.save(update_fields=["target_filters"])
+
+    with patch(
+        "baserow.contrib.dashboard.widgets.signals.widget_updated.send"
+    ) as updated:
+        for widget in (owner, target) if trash_filter_first else (target, owner):
+            TrashHandler.trash(user, dashboard.workspace, dashboard, widget)
+        # Both active and trashed filters must stop referencing a trashed target.
+        owner.refresh_from_db()
+        assert owner.target_filters == []
+        assert updated.call_count == (0 if trash_filter_first else 1)
+        updated.reset_mock()
+
+        first, second = (owner, target) if restore_filter_first else (target, owner)
+        TrashHandler.restore_item(user, WidgetTrashableItemType.type, first.id)
+        owner.refresh_from_db()
+        assert owner.target_filters == ([] if restore_filter_first else original)
+        # Restoring links on a trashed owner must not broadcast an active widget update.
+        updated.assert_not_called()
+
+        if restore_filter_first:
+            # A dashboard exported while the target is still trashed remains importable.
+            app_type = DashboardApplicationType()
+            config = ImportExportConfig(include_permission_data=False)
+            copied = app_type.import_serialized(
+                dashboard.workspace,
+                app_type.export_serialized(dashboard, config),
+                config,
+                {},
+            )
+            assert TextFilterWidget.objects.get(dashboard=copied).target_filters == []
+
+        TrashHandler.restore_item(user, WidgetTrashableItemType.type, second.id)
+        owner.refresh_from_db()
+        assert owner.target_filters == original
+        assert updated.call_count == (1 if restore_filter_first else 0)
 
 
 @pytest.mark.django_db
@@ -67,3 +150,55 @@ def test_delete_widget_permanently_removes_data_source(data_fixture):
 
     assert Widget.objects.filter(id=widget.id).count() == 0
     assert DashboardDataSource.objects.filter(id=data_source_id).count() == 0
+
+
+@pytest.mark.django_db
+def test_widget_trash_hooks_receive_persisted_state_and_restoration_metadata(
+    data_fixture, monkeypatch
+):
+    """Hooks bracket persisted changes and see restored layout and custom metadata."""
+    from baserow.contrib.dashboard.widgets.registries import widget_type_registry
+
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget = data_fixture.create_summary_widget(dashboard=dashboard)
+    remaining = data_fixture.create_summary_widget(dashboard=dashboard)
+    widget_type = widget_type_registry.get_by_model(widget)
+    observations = []
+
+    def record_hook(name):
+        original = getattr(widget_type, name)
+
+        def hook(instance, *args):
+            entry = args[-1]
+            persisted = Widget.objects_and_trash.get(id=instance.id)
+            source = DashboardDataSource.objects_and_trash.get(id=widget.data_source_id)
+            observations.append(
+                (name, instance.trashed, persisted.trashed, source.trashed)
+            )
+            if name == "before_trashed":
+                assert args[0] == user
+                entry.additional_restoration_data = {"custom": "preserved"}
+                entry.save(update_fields=["additional_restoration_data"])
+            elif name == "after_restore":
+                assert entry.additional_restoration_data["custom"] == "preserved"
+                assert instance.grid_y >= remaining.grid_y + remaining.grid_height
+            return original(instance, *args)
+
+        return hook
+
+    for name in ["before_trashed", "after_trashed", "before_restore", "after_restore"]:
+        monkeypatch.setattr(widget_type, name, record_hook(name))
+    # The trash API can receive base widgets rather than their specific subclasses.
+    entry = TrashHandler.trash(
+        user, dashboard.workspace, dashboard, Widget.objects.get(id=widget.id)
+    )
+    entry.refresh_from_db()
+    assert entry.additional_restoration_data["custom"] == "preserved"
+    TrashHandler.restore_item(user, WidgetTrashableItemType.type, widget.id)
+    assert observations == [
+        ("before_trashed", False, False, False),
+        ("after_trashed", True, True, True),
+        ("before_restore", True, True, True),
+        ("after_restore", False, False, False),
+    ]

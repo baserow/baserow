@@ -33,6 +33,7 @@ from .exceptions import (
     AIProviderDoesNotExist,
     AIProviderFeatureModelNotAvailable,
     AIProviderFeatureModeNotAllowed,
+    AIProviderIsReadOnly,
     AIProviderModelAlreadyConfigured,
     AIProviderModelDoesNotExist,
     AIProviderModelInUse,
@@ -134,22 +135,24 @@ class AIProviderHandler:
         return cls._workspace_provider_config(provider, workspace_enabled)
 
     @staticmethod
-    def _inherited_scope() -> Q:
+    def _inherited_scope(workspace: Workspace) -> Q:
         """
         Instance providers a workspace is allowed to see. What the instance
-        disabled stays private to the instance admin, so a workspace never
-        learns it exists.
+        disabled, or excluded this workspace from, stays private to the instance
+        admin, so the workspace never learns it exists.
         """
 
-        return Q(workspace__isnull=True, is_active=True)
+        return Q(workspace__isnull=True, is_active=True) & ~Q(
+            excluded_workspaces=workspace
+        )
 
     @staticmethod
-    def _inherited_model_scope() -> Q:
+    def _inherited_model_scope(workspace: Workspace) -> Q:
         return Q(
             provider_config__workspace__isnull=True,
             provider_config__is_active=True,
             is_enabled=True,
-        )
+        ) & ~Q(provider_config__excluded_workspaces=workspace)
 
     @staticmethod
     def _models_prefetch(inherited: bool) -> Prefetch | str:
@@ -159,10 +162,19 @@ class AIProviderHandler:
             "models", queryset=AIProviderModel.objects.filter(is_enabled=True)
         )
 
+    @staticmethod
+    def _excluded_workspaces_prefetch() -> Prefetch:
+        # Preserve exclusions while a workspace is in the trash, including when
+        # the admin saves the provider form before that workspace is restored.
+        return Prefetch(
+            "excluded_workspaces",
+            queryset=Workspace.objects_and_trash.only("id", "name"),
+        )
+
     @classmethod
-    def _inherited_providers(cls) -> list[AIProviderConfig]:
+    def _inherited_providers(cls, workspace: Workspace) -> list[AIProviderConfig]:
         return list(
-            AIProviderConfig.objects.filter(cls._inherited_scope())
+            AIProviderConfig.objects.filter(cls._inherited_scope(workspace))
             .prefetch_related(cls._models_prefetch(True))
             .order_by("id")
         )
@@ -186,10 +198,14 @@ class AIProviderHandler:
 
         queryset = AIProviderConfig.objects.prefetch_related("models").order_by("id")
         if workspace is None:
-            return list(queryset.filter(workspace__isnull=True))
+            return list(
+                queryset.filter(workspace__isnull=True).prefetch_related(
+                    cls._excluded_workspaces_prefetch()
+                )
+            )
 
         owned = list(queryset.filter(workspace=workspace))
-        inherited = cls._inherited_providers()
+        inherited = cls._inherited_providers(workspace)
         disabled_provider_ids = set(
             AIProviderWorkspaceOverride.objects.filter(
                 workspace=workspace,
@@ -220,7 +236,9 @@ class AIProviderHandler:
         """
 
         if state.workspace is None:
-            return sorted(state.instance_providers.values(), key=lambda p: p.id)
+            providers = sorted(state.instance_providers.values(), key=lambda p: p.id)
+            prefetch_related_objects(providers, cls._excluded_workspaces_prefetch())
+            return providers
 
         providers = [
             cls._workspace_provider_config(provider)
@@ -233,6 +251,7 @@ class AIProviderHandler:
             )
             for provider in state.instance_providers.values()
             if provider.is_active
+            and provider.id not in state.excluded_instance_provider_ids
         ]
         return sorted(providers, key=lambda provider: provider.id)
 
@@ -247,13 +266,15 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(workspace=workspace)
             if include_inherited:
-                scope |= cls._inherited_scope()
+                scope |= cls._inherited_scope(workspace)
         try:
             provider = AIProviderConfig.objects.get(scope, id=provider_id)
         except AIProviderConfig.DoesNotExist as exc:
             raise AIProviderDoesNotExist(provider_id) from exc
         inherited = workspace is not None and provider.workspace_id is None
         prefetch_related_objects([provider], cls._models_prefetch(inherited))
+        if workspace is None:
+            prefetch_related_objects([provider], cls._excluded_workspaces_prefetch())
         return provider
 
     @classmethod
@@ -267,7 +288,7 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(provider_config__workspace=workspace)
             if include_inherited:
-                scope |= cls._inherited_model_scope()
+                scope |= cls._inherited_model_scope(workspace)
         try:
             return AIProviderModel.objects.select_related("provider_config").get(
                 scope, id=model_id
@@ -286,7 +307,7 @@ class AIProviderHandler:
         if workspace is not None:
             scope = Q(provider_config__workspace=workspace)
             if include_inherited:
-                scope |= cls._inherited_model_scope()
+                scope |= cls._inherited_model_scope(workspace)
         models_by_id = {
             model.id: model
             for model in AIProviderModel.objects.filter(scope, id__in=model_ids)
@@ -326,7 +347,10 @@ class AIProviderHandler:
         extra_settings: dict[str, Any] | None = None,
         models_data: list[dict[str, Any]] | None = None,
         workspace: Workspace | None = None,
+        excluded_workspaces: list[Workspace] | None = None,
     ) -> AIProviderConfig:
+        if workspace is not None and excluded_workspaces is not None:
+            raise AIProviderIsReadOnly()
         get_supported_provider_type(provider_type)
         api_key = api_key.strip()
         if AIProviderConfig.objects.filter(
@@ -360,11 +384,17 @@ class AIProviderHandler:
                 for model in models_data
             ]
         )
+        if excluded_workspaces is not None:
+            provider.excluded_workspaces(manager="objects_and_trash").set(
+                excluded_workspaces
+            )
         clear_ai_provider_state_cache()
         return cls.get_provider(provider.id, workspace=workspace)
 
     @classmethod
     def update_provider(cls, provider: AIProviderConfig, **values) -> AIProviderConfig:
+        if provider.workspace_id is not None and "excluded_workspaces" in values:
+            raise AIProviderIsReadOnly(provider.id)
         api_key = values["api_key"].strip() if "api_key" in values else provider.api_key
         extra_settings = values.get("extra_settings", provider.extra_settings)
         model_identifiers = list(
@@ -396,9 +426,13 @@ class AIProviderHandler:
         if "extra_settings" in values:
             provider.extra_settings = validated_extra_settings
             update_fields.append("extra_settings")
-        if update_fields:
+        if "excluded_workspaces" in values:
+            provider.excluded_workspaces(manager="objects_and_trash").set(
+                values["excluded_workspaces"]
+            )
             update_fields.append("updated_on")
-            provider.save(update_fields=update_fields)
+        if update_fields:
+            provider.save(update_fields=set(update_fields) | {"updated_on"})
             if connection_settings_changed:
                 provider.models.update(
                     last_test_at=None,
@@ -675,17 +709,14 @@ class AIProviderHandler:
     def _is_feature_model_available(
         model: AIProviderModel | None,
         feature_type: str,
-        state: ScopedAIProviderState,
-        inherited: bool = False,
+        state: ScopedAIProviderState | None = None,
     ) -> bool:
         """
         Check whether a feature can resolve through a model in one scope.
 
         :param model: The selected model, or None when nothing is selected.
         :param feature_type: The feature the model must be eligible for.
-        :param state: The already-loaded provider state of the scope.
-        :param inherited: Whether the scope inherits the model as the instance
-            selection, which ignores the scope's provider switch-offs.
+        :param state: The loaded scope, or None to check the instance selection.
         :return: Whether the model is enabled, eligible and reachable in the scope.
         """
 
@@ -697,12 +728,24 @@ class AIProviderHandler:
         provider = model.provider_config
         if not provider.is_active:
             return False
+        if state is None or state.workspace is None:
+            return provider.workspace_id is None
         if provider.workspace_id is not None:
             return provider.workspace_id == state.workspace_id
-        # The legacy env model ignored workspace AI settings; inheritance keeps that.
-        if inherited or state.workspace is None:
-            return True
-        return provider.id not in state.disabled_instance_provider_ids
+        return provider.id not in state.unavailable_instance_provider_ids
+
+    @classmethod
+    def _instance_feature_state(
+        cls, setting: AIProviderFeatureSetting | None, feature_type: str
+    ) -> str:
+        """Resolve the instance selection before applying any workspace exclusion."""
+        if setting is None:
+            return "unconfigured"
+        if not setting.is_enabled:
+            return "disabled"
+        if cls._is_feature_model_available(setting.model, feature_type):
+            return "configured"
+        return "invalid"
 
     @classmethod
     def list_feature_settings(
@@ -729,19 +772,19 @@ class AIProviderHandler:
             feature_type
         ) in ai_provider_model_feature_type_registry.get_default_model_feature_types():
             instance_setting = state.get_instance_feature_setting(feature_type)
+            instance_state = cls._instance_feature_state(instance_setting, feature_type)
+            can_inherit = workspace is not None and instance_state != "invalid"
             instance_model = None
-            if instance_setting is None:
-                instance_state = "unconfigured"
-            elif not instance_setting.is_enabled:
-                instance_state = "disabled"
-            elif instance_setting.is_enabled:
-                if cls._is_feature_model_available(
-                    instance_setting.model, feature_type, state, inherited=True
+            if instance_state == "configured":
+                # Inheritance follows the instance even when a workspace switches
+                # the provider off. An instance-admin exclusion still blocks use.
+                if (
+                    instance_setting.model.provider_config_id
+                    in state.excluded_instance_provider_ids
                 ):
-                    instance_model = instance_setting.model
-                    instance_state = "configured"
-                else:
                     instance_state = "invalid"
+                else:
+                    instance_model = instance_setting.model
 
             scoped_setting = (
                 state.get_feature_setting(feature_type)
@@ -781,6 +824,7 @@ class AIProviderHandler:
                     "feature_type": feature_type,
                     "mode": mode,
                     "state": feature_state,
+                    "can_inherit": can_inherit,
                     "model": model,
                     "inherited_model": instance_model
                     if workspace is not None
@@ -848,15 +892,10 @@ class AIProviderHandler:
         if mode == AI_PROVIDER_FEATURE_MODE_INHERIT:
             if workspace is None:
                 raise AIProviderFeatureModeNotAllowed(mode)
-            state = get_ai_provider_state(workspace)
-            instance_setting = state.get_instance_feature_setting(feature_type)
-            if (
-                instance_setting is not None
-                and instance_setting.is_enabled
-                and not cls._is_feature_model_available(
-                    instance_setting.model, feature_type, state, inherited=True
-                )
-            ):
+            instance_setting = get_ai_provider_state().get_instance_feature_setting(
+                feature_type
+            )
+            if cls._instance_feature_state(instance_setting, feature_type) == "invalid":
                 raise AIProviderFeatureModelNotAvailable(
                     feature_type,
                     getattr(instance_setting.model, "id", None),

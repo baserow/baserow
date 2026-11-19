@@ -87,7 +87,8 @@ export default {
     allowNodeSelection: {
       type: String,
       required: true,
-      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
+      validator: (value) =>
+        ['none', 'all', 'array', 'object', 'value'].includes(value),
     },
   },
   emits: [

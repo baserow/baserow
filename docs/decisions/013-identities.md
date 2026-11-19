@@ -175,17 +175,17 @@ tokens and anonymous actors still exist. Row history, automation history and aud
 records snapshot the user type next to the name, so the kind survives deletion; old
 records and other actor kinds leave it null. User subject metadata includes the kind.
 
-Assigning and mentioning identities is opt-in per field and off by default:
+Collaborator fields can opt in to identity assignments.
 
 - A collaborator field with `include_identities` accepts the active identities of its
   workspace. Without it, pickers, paste, validation and cell values are human-only.
 - Turning that option off deletes the identity assignments, because hidden values
   would still count in filters, formulas and aggregations and would reappear if the
   option came back. The field update backs up the column first, so it can be undone.
-- A rich text long text field with `long_text_include_identities` suggests identities
-  as mentions. Turning it off only stops the suggestions; existing mentions stay.
-- Row comments have no option: identities can be mentioned in them, and can author
-  them through the tools of an Agent application.
+- Rich text fields suggest people for mentions. Existing identity mentions keep
+  their display names.
+- Row comments can mention identities, and identities can author comments through
+  the tools of an Agent application.
 
 Identity names and icons update through realtime events. Public collaborator cell
 values keep their shape. Exports write an identity as `Name <identity>`, since its

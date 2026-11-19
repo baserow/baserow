@@ -480,10 +480,34 @@ export default {
       if (this.fixedItemsImmutable) {
         const updatePosition = () => {
           const element = this.$refs.itemsContainer
-          const targetRect = this.$el.getBoundingClientRect()
+          const externalTarget = !this.showInput && this.opener
+          const targetRect = (
+            externalTarget || this.$el
+          ).getBoundingClientRect()
 
           element.style.left = targetRect.left + 'px'
           element.style['min-width'] = targetRect.width + 'px'
+
+          if (externalTarget) {
+            const spaceAbove = Math.max(0, targetRect.top - 20)
+            const spaceBelow = Math.max(
+              0,
+              window.innerHeight - targetRect.bottom - 20
+            )
+            const items = this.$refs.items
+            // Include the search/footer and any list content hidden by scrolling.
+            const menuHeight =
+              element.offsetHeight +
+              Math.max(0, items.scrollHeight - items.clientHeight)
+            const above = menuHeight > spaceBelow && spaceAbove > spaceBelow
+
+            element.style.top = above ? 'auto' : `${targetRect.bottom}px`
+            element.style.bottom = above
+              ? `${window.innerHeight - targetRect.top}px`
+              : 'auto'
+            element.style.maxHeight = `${above ? spaceAbove : spaceBelow}px`
+            return
+          }
 
           // 140 is ~ the size of 1 item + optional footer
           const minHeight = 140

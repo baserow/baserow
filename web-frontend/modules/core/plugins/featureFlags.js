@@ -1,5 +1,6 @@
 import { useRuntimeConfig } from '#imports'
 
+export const FF_DASHBOARD_FILTERS = 'dashboard-filters'
 const FF_ENABLE_ALL = '*'
 export const FF_IDENTITIES = 'identities'
 export const FF_AGENT_BUILDER = 'agent-builder'
@@ -13,17 +14,23 @@ function getFeatureFlags(env) {
     .map((flag) => flag.trim().toLowerCase())
 }
 
-function featureFlagIsEnabled(featureFlags, flag) {
-  if (featureFlags.includes(FF_ENABLE_ALL)) {
+export function featureFlagIsEnabled(featureFlags, flag, store) {
+  const name = flag.toLowerCase()
+  if (featureFlags.includes(FF_ENABLE_ALL) || featureFlags.includes(name)) {
     return true
-  } else {
-    return featureFlags.includes(flag.toLowerCase())
   }
+  // Sign-out keeps the last user's additional data in the store.
+  if (!store.getters['auth/isAuthenticated']) {
+    return false
+  }
+  const userFlags = store.getters['auth/getAdditionalUserData'].feature_flags
+  return Boolean(userFlags?.includes(name))
 }
 
 export default defineNuxtPlugin({
   name: 'feature-flags',
-  setup() {
+  dependsOn: ['create-store'],
+  setup(nuxtApp) {
     const runtimeConfig = useRuntimeConfig()
     const featureFlagsValue = runtimeConfig.public.featureFlags
     const FEATURE_FLAGS = getFeatureFlags({
@@ -34,7 +41,7 @@ export default defineNuxtPlugin({
     return {
       provide: {
         featureFlagIsEnabled: (flag) =>
-          featureFlagIsEnabled(FEATURE_FLAGS, flag),
+          featureFlagIsEnabled(FEATURE_FLAGS, flag, nuxtApp.$store),
       },
     }
   },

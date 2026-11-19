@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -8,6 +8,10 @@ from baserow.core.action.registries import (
     ActionScopeStr,
     ActionType,
     ActionTypeDescription,
+)
+from baserow.core.actions import (
+    describe_invitation_link_password_change,
+    get_invitation_link_password_change,
 )
 from baserow.core.models import Workspace, WorkspaceInvitationLink
 from baserow_enterprise.models import Team, TeamSubject, WorkspaceTeamInvitation
@@ -475,6 +479,7 @@ class UpdateTeamInvitationLinkActionType(ActionType):
         "invitation_link_id",
         "team_id",
         "workspace_id",
+        "password_change",
     ]
 
     @dataclasses.dataclass
@@ -485,6 +490,7 @@ class UpdateTeamInvitationLinkActionType(ActionType):
         team_id: int
         team_name: str
         workspace_id: int
+        password_change: str = ""
 
     @classmethod
     def do(
@@ -492,16 +498,20 @@ class UpdateTeamInvitationLinkActionType(ActionType):
         user: AbstractUser,
         team: Team,
         invitation_link: WorkspaceInvitationLink,
-        name: str,
+        name: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> WorkspaceInvitationLink:
         """
-        Renames a link to a team. Look into `TeamHandler.update_team_invitation_link`
-        for further details.
+        Changes the name of a link to a team or its password. Look into
+        `TeamHandler.update_team_invitation_link` for further details.
         """
 
         original_name = invitation_link.name
+        password_change = get_invitation_link_password_change(
+            invitation_link.has_password, password
+        )
         invitation_link = TeamHandler().update_team_invitation_link(
-            user, team, invitation_link, name
+            user, team, invitation_link, name=name, password=password
         )
 
         cls.register_action(
@@ -513,11 +523,22 @@ class UpdateTeamInvitationLinkActionType(ActionType):
                 team.id,
                 team.name,
                 team.workspace_id,
+                password_change,
             ),
             scope=cls.scope(team.workspace_id),
             workspace=team.workspace,
         )
         return invitation_link
+
+    @classmethod
+    def get_long_description(cls, params_dict: Dict[str, Any], *args, **kwargs) -> str:
+        description = super().get_long_description(params_dict, *args, **kwargs)
+        if not params_dict.get("password_change"):
+            return description
+        # The team context ends with a space of its own.
+        return describe_invitation_link_password_change(
+            description.rstrip(), params_dict
+        )
 
     @classmethod
     def scope(cls, workspace_id: int) -> ActionScopeStr:

@@ -21,6 +21,7 @@ from baserow_enterprise.assistant.evals.registry import (
     register_scenario,
 )
 from baserow_enterprise.assistant.evals.scenarios import (
+    EvalFixtures,
     build_builder_ui_context,
     build_database_ui_context,
 )
@@ -245,20 +246,8 @@ PROMPT_AUDIT_LOG_WHO_DELETED = "Who deleted a table this week?"
 PROMPT_AUDIT_LOG_WHAT_CHANGED = "What did Anna change yesterday?"
 
 
-def _enable_enterprise() -> None:
-    """
-    Give the instance the enterprise licence of the enterprise tests. The eval
-    database is disposable and runs with the debug licence key, which that licence is
-    signed for.
-    """
-
-    from baserow_enterprise_tests.enterprise_fixtures import EnterpriseFixtures
-
-    EnterpriseFixtures().enable_enterprise()
-
-
 @register_scenario("core-audit-log")
-def _audit_log_scenario(fx: Fixtures) -> EvalScenario:
+def _audit_log_scenario(fx: EvalFixtures) -> EvalScenario:
     from baserow_enterprise.audit_log.models import AuditLogEntry
 
     # The audit log only keeps the email. A case's rounds share a database, so it
@@ -267,7 +256,7 @@ def _audit_log_scenario(fx: Fixtures) -> EvalScenario:
     anna = fx.create_user(
         first_name="Anna", email=f"anna.{fx.fake.uuid4()}@example.com"
     )
-    _enable_enterprise()
+    fx.enable_enterprise()
     workspace = fx.create_workspace(user=user)
     fx.create_user_workspace(user=anna, workspace=workspace)
     database = fx.create_database_application(workspace=workspace, name="Sales")

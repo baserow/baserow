@@ -276,6 +276,18 @@ class Plugin(APIUrlsInstanceMixin, Instance):
         :type user: User
         """
 
+    def get_user_feature_flags(self, user: "AbstractUser") -> set[str]:
+        """
+        The feature flags granted to the signed in user. It's called for many checks
+        per request, so it must answer from data already on the user instance or
+        cached with it.
+
+        :param user: The signed in user.
+        :return: The names of the granted feature flags.
+        """
+
+        return set()
+
     def enhance_workspace_queryset(
         self, queryset: QuerySet["Workspace"]
     ) -> QuerySet["Workspace"]:
@@ -1046,6 +1058,15 @@ class PermissionManagerType(abc.ABC, Instance):
         self, workspace_user: "WorkspaceUser"
     ) -> Optional[str]:
         """Resolve a workspace user's role UID, or defer to another manager."""
+
+        return self.get_workspace_role_uid(
+            workspace_user.permissions, workspace_user.workspace
+        )
+
+    def get_workspace_role_uid(
+        self, role_uid: str, workspace: "Workspace"
+    ) -> Optional[str]:
+        """Resolve a role UID for the workspace, or defer to another manager."""
 
         return None
 

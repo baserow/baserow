@@ -75,7 +75,7 @@ def test_last_modified_by_field_type_create_via_api(api_client, data_fixture):
     assert response_json["name"] == "Last modified by 1"
     assert response_json["type"] == "last_modified_by"
     assert response_json["available_collaborators"] == [
-        {"id": user.id, "name": user.first_name}
+        {"id": user.id, "name": user.first_name, "user_type": "human"}
     ]
 
 

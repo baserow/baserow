@@ -24,6 +24,7 @@ from baserow.api.user.registries import UserDataType, user_data_registry
 from baserow.contrib.database.models import Database, Table
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Settings, Workspace, WorkspaceUser
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.user.actions import SendResetUserPasswordActionType
 from baserow.core.user.handler import UserHandler
 from baserow.throttling.types import RateLimit
@@ -1263,6 +1264,31 @@ def test_additional_user_data(api_client, data_fixture):
         response_json = response.json()
         assert response.status_code == HTTP_200_OK
         assert response_json["tmp"] is True
+
+
+@pytest.mark.django_db
+def test_user_data_feature_flags(api_client, data_fixture):
+    data_fixture.create_password_provider()
+    data_fixture.create_user(email="test@test.nl", password="thisIsAValidPassword")
+
+    class GrantingPlugin(Plugin):
+        type = "test_granting"
+
+        def get_user_feature_flags(self, user):
+            return {"FLAG_B", "flag_a"}
+
+    def sign_in():
+        response = api_client.post(
+            reverse("api:user:token_auth"),
+            {"email": "test@test.nl", "password": "thisIsAValidPassword"},
+            format="json",
+        )
+        assert response.status_code == HTTP_200_OK
+        return response.json()["feature_flags"]
+
+    assert sign_in() == []
+    with patch.dict(plugin_registry.registry, {"test": GrantingPlugin()}):
+        assert sign_in() == ["flag_a", "flag_b"]
 
 
 @pytest.mark.django_db

@@ -70,6 +70,7 @@ from baserow.core.utils import remove_null_characters
 from .action_tools.tools import BoundActionTool
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
+    CONVERSATION_USER_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
     OUTPUT_RETRIES,
@@ -77,6 +78,7 @@ from .constants import (
     TOOL_RETRIES,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
+    WEB_FETCH_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
     WEB_SEARCH_INSTRUCTIONS,
     WEB_SEARCH_STEP_MAX_QUERIES,
@@ -87,6 +89,7 @@ from .models import AgentMessage
 from .previews import arguments_preview
 from .registries import AgentToolType, agent_tool_type_registry, input_shower
 from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
+from .web_fetch import web_fetch_tool
 
 if TYPE_CHECKING:
     from baserow.core.chat_runs.journal import ChatRunJournal
@@ -303,6 +306,8 @@ class AgentResponder:
         self._text_is_commentary = False
         self._result: AgentRunResult[str | DeferredToolRequests] | None = None
         self._web_search_tool: WebSearchTool | None = None
+        # Fetched by Baserow rather than the provider, so every model can use it.
+        self._web_fetch_tool = web_fetch_tool() if request.web_fetch_enabled else None
         self._response_calls: list[ToolCallPart] = []
         self._invalid_call_ids: set[str] = set()
         self._mcp_toolsets = [
@@ -342,7 +347,9 @@ class AgentResponder:
                     "changes_data": snapshot.changes_data,
                     "input": toolset.get_step_input(name),
                 }
-        if name == WebSearchTool.kind:
+        if name == WebSearchTool.kind or (
+            self._web_fetch_tool is not None and name == self._web_fetch_tool.name
+        ):
             return {"changes_data": False, "input": _web_search_step_input(arguments)}
         if name not in self._tools:
             return None
@@ -380,7 +387,7 @@ class AgentResponder:
     def _get_instructions(self, web_search_tool: WebSearchTool | None) -> str:
         """
         Combine saved instructions with this reply's workspace access, trigger and
-        web search context.
+        web context.
 
         :param web_search_tool: The web search this attempt offers, if any.
         :return: The instructions.
@@ -388,6 +395,11 @@ class AgentResponder:
 
         request = self._request
         instructions = request.instructions
+        if request.conversation_user is not None:
+            instructions += "\n\n" + CONVERSATION_USER_INSTRUCTIONS.format(
+                name=request.conversation_user.name,
+                user_id=request.conversation_user.id,
+            )
         if request.run_as_unavailable:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if request.started_by_trigger:
@@ -409,7 +421,11 @@ class AgentResponder:
             instructions += f"\n\n{WEB_SEARCH_FAILED_INSTRUCTIONS}"
         elif request.web_search_enabled:
             instructions += f"\n\n{WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS}"
-        return instructions
+        if self._web_fetch_tool is not None:
+            instructions += f"\n\n{WEB_FETCH_INSTRUCTIONS}"
+        return "\n\n".join(
+            filter(None, [instructions, *request.unavailable_tool_messages])
+        )
 
     def _search_unavailable(self) -> None:
         """
@@ -551,7 +567,7 @@ class AgentResponder:
     def _toolsets(self) -> list[AbstractToolset[None]]:
         """
         The tools the reply may call: Baserow's, acting as the Agent's identity,
-        and those turned on for its MCP servers.
+        web fetch when it's turned on, and those turned on for its MCP servers.
 
         :return: The toolsets, none when the reply may call no tool.
         """
@@ -574,6 +590,8 @@ class AgentResponder:
                     self._tools,
                 )
             )
+        if self._web_fetch_tool is not None:
+            toolsets.append(FunctionToolset([self._web_fetch_tool]))
         return [
             *toolsets,
             *(
@@ -754,6 +772,7 @@ class AgentResponder:
                     self._result.conversation, mode="json"
                 ),
                 web_search=self._web_search_tool is not None,
+                web_fetch=self._web_fetch_tool is not None,
                 run_as=self._request.acting_subject,
             )
             if paused

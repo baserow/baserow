@@ -394,6 +394,19 @@ class ServiceType(
 
         return None
 
+    def get_context_option_names(self, service: ServiceSubClass) -> set[str]:
+        """
+        Return the context data entries that list selectable values of the
+        service's source, like the select options of table fields, rather than
+        describe the service's own result. Surfaces that publish context data can
+        then expose only the entries something explicitly references.
+
+        :param service: The service we want the option entry names for.
+        :return: The names of the context data entries holding options.
+        """
+
+        return set()
+
     def get_public_context_data(
         self, service: ServiceSubClass, allowed_fields: Optional[List[str]] = None
     ):
@@ -550,6 +563,10 @@ class ServiceType(
         else:
             path = self.prepare_value_path(service, path)
         return get_value_at_path(result, path)
+
+    def is_filtered(self, service: Service, dispatch_context: DispatchContext) -> bool:
+        """Report whether this service's dispatched result is restricted by filters."""
+        return False
 
     def dispatch_transform(
         self,

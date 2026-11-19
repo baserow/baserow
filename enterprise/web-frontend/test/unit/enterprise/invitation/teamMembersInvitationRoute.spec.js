@@ -95,6 +95,9 @@ function createClient() {
   }
 }
 
+// Collects the toasts the route shows.
+const storeDispatch = vi.fn()
+
 async function mountRoute(
   client,
   {
@@ -106,6 +109,7 @@ async function mountRoute(
 ) {
   picker.removed = []
   picker.resets = 0
+  storeDispatch.mockClear()
   const bus = { $emit: vi.fn() }
   const hasPermission = (operation) => permissions.includes(operation)
   const app = {
@@ -120,6 +124,7 @@ async function mountRoute(
       mocks: {
         $client: client,
         $bus: bus,
+        $store: { dispatch: storeDispatch },
         $hasPermission: hasPermission,
         $featureFlagIsEnabled: () => identitiesEnabled,
         $registry: createRegistry(app),
@@ -340,6 +345,16 @@ test('revokes a pending invitation right away', async () => {
   expect(client.delete).toHaveBeenCalledWith('/teams/3/invitations/70/')
   expect(memberNames(wrapper)).toEqual(['Mark Delgado', 'Writer'])
   expect(bus.$emit).not.toHaveBeenCalled()
+  // Revoking only takes the person out of the team invitation, which is said.
+  expect(storeDispatch.mock.calls).toEqual([
+    [
+      'toast/info',
+      {
+        title: 'teamMembersRoute.invitationRevokedTitle',
+        message: 'teamMembersRoute.invitationRevokedMessage',
+      },
+    ],
+  ])
 })
 
 test('puts a pending invitation back when revoking it fails', async () => {
@@ -350,6 +365,10 @@ test('puts a pending invitation back when revoking it fails', async () => {
   await clickMember(wrapper, 'new@x.com')
 
   expect(memberNames(wrapper)).toEqual(['new@x.com', 'Mark Delgado', 'Writer'])
+  expect(storeDispatch).not.toHaveBeenCalledWith(
+    'toast/info',
+    expect.anything()
+  )
 })
 
 test('clears the input once every pick was added', async () => {

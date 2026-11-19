@@ -41,13 +41,7 @@
             (workspaceId === null ||
               (setting.mode === 'model' && workspaceId !== null))
           "
-          :name="
-            legacyModel(setting)
-              ? $t('aiProviderAdmin.kumaInvalidFallback', {
-                  model: legacyModelDisplay(setting),
-                })
-              : $t('aiProviderAdmin.kumaInvalidNoFallback')
-          "
+          :name="invalidSelectionLabel(setting)"
           :value="setting.state"
           disabled
         />
@@ -208,11 +202,7 @@ export default {
         return setting.model?.model_identifier || ''
       }
       if (selection === 'invalid') {
-        return this.legacyModel(setting)
-          ? this.$t('aiProviderAdmin.kumaInvalidFallback', {
-              model: this.legacyModelDisplay(setting),
-            })
-          : this.$t('aiProviderAdmin.kumaInvalidNoFallback')
+        return this.invalidSelectionLabel(setting)
       }
       if (selection === 'legacy') {
         return this.legacyModelLabel(setting, true)
@@ -223,6 +213,20 @@ export default {
       return this.workspaceId === null
         ? this.$t('aiProviderAdmin.kumaDisabled')
         : this.$t('aiProviderAdmin.kumaDisabledInWorkspace')
+    },
+    usesLegacyModel(setting) {
+      const workspace = this.$store.getters['workspace/get'](this.workspaceId)
+      return workspace?.ai_features?.[setting.feature_type]?.state === 'legacy'
+    },
+    invalidSelectionLabel(setting) {
+      if (this.workspaceId !== null && !this.usesLegacyModel(setting)) {
+        return this.$t('aiProviderAdmin.modelUnavailableInWorkspace')
+      }
+      return this.legacyModel(setting)
+        ? this.$t('aiProviderAdmin.kumaInvalidFallback', {
+            model: this.legacyModelDisplay(setting),
+          })
+        : this.$t('aiProviderAdmin.kumaInvalidNoFallback')
     },
     inheritedState(setting) {
       if (setting.inherited_state !== undefined) {
@@ -266,10 +270,9 @@ export default {
       )
     },
     inheritDisabled(setting) {
-      // The backend refuses to inherit an unusable instance selection.
       const inheritedState = this.inheritedState(setting)
       if (inheritedState === 'invalid') {
-        return true
+        return setting.can_inherit !== true
       }
       return (
         inheritedState === 'unconfigured' &&

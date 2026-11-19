@@ -95,7 +95,10 @@ import { getManagementTableLayout } from '@baserow/modules/core/utils/management
 import { mapGetters } from 'vuex'
 import { clone } from '@baserow/modules/core/utils/object'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { getWorkspaceMembersCount } from '@baserow/modules/core/utils/workspace'
+import {
+  canListIdentities,
+  getWorkspaceMembersCount,
+} from '@baserow/modules/core/utils/workspace'
 
 import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import WorkspaceService from '@baserow/modules/core/services/workspace'
@@ -155,11 +158,7 @@ export default {
     membersCount() {
       return getWorkspaceMembersCount(
         this.workspace,
-        this.$hasPermission(
-          'workspace.list_identities',
-          this.workspace,
-          this.workspace.id
-        )
+        canListIdentities(this, this.workspace)
       )
     },
     roles() {

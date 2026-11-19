@@ -12,7 +12,7 @@ const requestedTable = (input) =>
   typeof input?.values?.table === 'string' ? input.values.table.trim() : ''
 
 /** Database presenters share count/table formatting; Core knows neither field. */
-class DatabaseToolPresentationType extends ToolPresentationType {
+export class DatabaseToolPresentationType extends ToolPresentationType {
   static getType() {
     return this.definition.type
   }
@@ -353,6 +353,17 @@ export class WebSearchToolPresentationType extends ToolPresentationType {
   }
 }
 
+/** A page Baserow opens for the model, which works with every provider. */
+export class WebFetchToolPresentationType extends WebSearchToolPresentationType {
+  static getType() {
+    return 'web_fetch'
+  }
+
+  getLabel(t) {
+    return t('agent.toolWebFetch')
+  }
+}
+
 const isEmpty = (value) =>
   value == null || value === '' || (Array.isArray(value) && !value.length)
 
@@ -458,6 +469,7 @@ export const agentToolPresentationTypes = [
   SMTPEmailToolPresentationType,
   HTTPRequestToolPresentationType,
   WebSearchToolPresentationType,
+  WebFetchToolPresentationType,
   ListDatabasesToolPresentationType,
   ListTablesToolPresentationType,
   GetTableSchemaToolPresentationType,

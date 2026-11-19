@@ -423,9 +423,10 @@ not.
 
 ### 4.5 Inheriting an unusable instance selection
 
-A workspace switch-off cannot make the inherited selection `invalid` (4.4); only
-breaking the instance selection itself can. The guardrails in 4.3 refuse to disable
-the selected model, so force it.
+A workspace switching off a provider can still inherit its instance selection
+(4.4). An instance admin excluding the workspace makes that selection unavailable
+in the workspace. To exercise a selection that is broken at instance scope,
+disable the selected model directly. The guard in 4.3 prevents this through the UI.
 
 1. With the instance row on model A, set a workspace row to **Disabled in this
    workspace**, then disable model A directly:
@@ -463,6 +464,15 @@ Note the asymmetry, which is deliberate: a workspace *already* inheriting when t
 instance selection broke keeps working on the legacy environment model (see
 section 5), but no workspace may newly opt into that state.
 
+3. With model A enabled, select a working workspace model for Kuma. As instance
+   admin, exclude the workspace from A's provider. Reload workspace AI settings
+   and choose **Use instance setting — selected instance model unavailable**.
+
+Verify that the reset succeeds and removes the workspace override. While the
+exclusion applies, the workspace reports `mode=inherit state=invalid` and Kuma
+is unavailable even with an environment model configured. Remove the exclusion
+and reload. The workspace now inherits model A without another settings change.
+
 ### 4.6 Cross-scope: a workspace selection blocks the instance admin
 
 1. With the instance Kuma row **Disabled** and one workspace pointing at instance
@@ -489,8 +499,8 @@ that type instead. Editing or deleting it through the API returns
 
 ## 5. Invalid selection falls back (forced state)
 
-The guardrails above make an invalid selection unreachable through the UI, so force
-it directly:
+To exercise the legacy fallback, make the selected instance provider inactive.
+The in-use guard prevents this through the UI, so update it directly:
 
 ```bash
 just dc-dev exec -T backend /baserow/venv/bin/python \
@@ -551,9 +561,10 @@ and a model with no feature ticked must be absent from all feature lists. The le
 no-feature model — which is why the frontend must always read `ai_features` for
 feature eligibility.
 
-`ai_features.kuma` carries `is_enabled` plus a `state`. That `state` is not the
-helper's: `unconfigured` and `invalid` are both reported here as `legacy`, because
-what the client needs to know is that Kuma is running on the environment model.
+`ai_features.kuma` reports `state=invalid` and `is_enabled=false` when the
+selected model's provider excludes the workspace. Otherwise an unconfigured or
+invalid selection reports `state=legacy`, with `is_enabled` reflecting whether
+an environment model is configured.
 
 ### 6.2 The Kuma switch does not touch AI fields
 

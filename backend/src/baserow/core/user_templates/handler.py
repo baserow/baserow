@@ -31,6 +31,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from baserow.core.exceptions import IsNotAdminError, TemplateDoesNotExist
+from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.cache import job_progress_key
 from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FAILED
@@ -1607,8 +1608,9 @@ class UserTemplateHandler:
         private_link_token: Optional[str] = None,
     ) -> Optional[InstallAccess]:
         """
-        Why the user may install a user template. The caller checks whether it's
-        marked for deletion.
+        Why the user may install a user template. Only its owner may while the
+        feature is off for the user. The caller checks whether it's marked for
+        deletion.
 
         :param user: The user who installs the template.
         :param root: The root of the template.
@@ -1621,6 +1623,8 @@ class UserTemplateHandler:
             return None
         if root.owner_id == user.id:
             return InstallAccess.OWNER
+        if not feature_flag_is_enabled(FF_USER_TEMPLATES, user=user):
+            return None
         if user.is_staff:
             return InstallAccess.INSTANCE_ADMIN
         if self.is_listed(root):

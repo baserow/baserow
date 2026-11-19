@@ -1,10 +1,14 @@
-from typing import Any, Dict, List, Optional
+from collections import defaultdict
+from datetime import datetime
+from typing import Any, Dict, List, NamedTuple, Optional
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import QuerySet
+from django.db.models import Prefetch, Q, QuerySet
 
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.operations import (
     CreateViewRowCommentOperationType,
@@ -17,11 +21,13 @@ from baserow.contrib.database.views.registries import (
 )
 from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.handler import CoreHandler
+from baserow.core.models import User, Workspace
 from baserow.core.prosemirror.utils import (
     extract_mentioned_users_in_workspace,
     is_valid_prosemirror_document,
 )
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.types import PermissionCheck
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.row_comments.exceptions import (
@@ -50,6 +56,11 @@ from baserow_premium.row_comments.signals import (
     row_comments_notification_mode_updated,
 )
 
+ROW_COMMENT_SEARCH_OPERATIONS = (
+    ReadRowCommentsOperationType.type,
+    ReadDatabaseRowOperationType.type,
+)
+
 
 def _get_view_if_provided(user, view_id):
     """
@@ -60,6 +71,11 @@ def _get_view_if_provided(user, view_id):
         return None
 
     return ViewHandler().get_view_as_user(user, view_id)
+
+
+class RowCommentSearchResult(NamedTuple):
+    comments: List[RowComment]
+    has_more: bool
 
 
 class RowCommentHandler:
@@ -114,7 +130,7 @@ class RowCommentHandler:
             row_comment_manager = RowComment.objects_and_trash
 
         return (
-            row_comment_manager.select_related("user")
+            row_comment_manager.select_related("user__profile")
             .filter(table_id=table_id, row_id=row_id)
             .all()
         )
@@ -147,8 +163,10 @@ class RowCommentHandler:
         )
 
         queryset = RowComment.objects.select_related(
-            "table__database__workspace"
-        ).prefetch_related("mentions")
+            "table__database__workspace", "user__profile"
+        ).prefetch_related(
+            Prefetch("mentions", queryset=User.objects_and_identities.all())
+        )
 
         try:
             row_comment = queryset.get(pk=comment_id)
@@ -171,6 +189,136 @@ class RowCommentHandler:
             raise RowCommentDoesNotExist()
 
         return row_comment
+
+    @classmethod
+    def search_comments(
+        cls,
+        requesting_user: AbstractUser,
+        workspace: Workspace,
+        tables: List[Table],
+        mentioned_user_ids: Optional[List[int]] = None,
+        author_ids: Optional[List[int]] = None,
+        created_after: Optional[datetime] = None,
+        created_before: Optional[datetime] = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> RowCommentSearchResult:
+        """
+        Returns the newest comments on the rows of the given tables. A search for
+        mentions starts from the mentions of those users. Any other search reads
+        every table newest first on its own, up to the page asked for.
+
+        :param requesting_user: The user who is searching the comments.
+        :param workspace: The workspace of the tables.
+        :param tables: The tables whose comments are searched.
+        :param mentioned_user_ids: If provided, only the comments mentioning one of
+            these users are returned.
+        :param author_ids: If provided, only the comments written by one of these
+            users are returned.
+        :param created_after: If provided, only the comments created at or after
+            this moment are returned.
+        :param created_before: If provided, only the comments created before this
+            moment are returned.
+        :param limit: The most comments to return.
+        :param offset: How many of the newest matching comments to skip.
+        :return: The comments, newest first, with their author and mentions, and
+            whether more candidates matched before checking which rows still exist.
+        :raises FeaturesNotAvailableError: If the user doesn't have the premium
+            feature in the workspace.
+        :raises PermissionException: If the user may not read the comments of one
+            of the tables.
+        """
+
+        LicenseHandler.raise_if_user_doesnt_have_feature(
+            PREMIUM, requesting_user, workspace
+        )
+        CoreHandler().check_multiple_permissions(
+            [
+                PermissionCheck(requesting_user, operation, table)
+                for table in tables
+                for operation in ROW_COMMENT_SEARCH_OPERATIONS
+            ],
+            workspace=workspace,
+            raise_exception=True,
+        )
+
+        if not tables:
+            return RowCommentSearchResult([], False)
+
+        filters = Q()
+        if author_ids is not None:
+            filters &= Q(user_id__in=author_ids)
+        if created_after is not None:
+            filters &= Q(created_on__gte=created_after)
+        if created_before is not None:
+            filters &= Q(created_on__lt=created_before)
+        newest = (
+            RowComment.objects.filter(filters)
+            .order_by("-created_on", "-id")
+            .values("id", "created_on")
+        )
+        if mentioned_user_ids is not None:
+            # One query over the tables lets the database start from the mentions.
+            newest = newest.filter(
+                id__in=RowComment.mentions.through.objects.filter(
+                    user_id__in=mentioned_user_ids
+                ).values("rowcomment_id"),
+                table_id__in=[table.id for table in tables],
+            )
+        else:
+            per_table = [
+                newest.filter(table_id=table.id)[: offset + limit + 1]
+                for table in tables
+            ]
+            newest = per_table[0]
+            if len(per_table) > 1:
+                newest = newest.union(*per_table[1:], all=True).order_by(
+                    "-created_on", "-id"
+                )
+        comment_ids = [comment["id"] for comment in newest[offset : offset + limit + 1]]
+
+        comments = list(
+            RowComment.objects.filter(id__in=comment_ids[:limit])
+            .order_by("-created_on", "-id")
+            .select_related("user")
+            .prefetch_related(
+                Prefetch("mentions", queryset=User.objects_and_identities.all())
+            )
+        )
+        return RowCommentSearchResult(
+            cls._on_existing_rows(tables, comments), len(comment_ids) > limit
+        )
+
+    @classmethod
+    def _on_existing_rows(
+        cls, tables: List[Table], comments: List[RowComment]
+    ) -> List[RowComment]:
+        """
+        Leaves out the comments whose row is trashed, with one query per table the
+        comments are in.
+
+        :param tables: The tables the comments were searched in.
+        :param comments: The comments found.
+        :return: The comments on rows that exist, in the given order.
+        """
+
+        row_ids = defaultdict(set)
+        for comment in comments:
+            row_ids[comment.table_id].add(comment.row_id)
+        existing = {
+            (table.id, row_id)
+            for table in tables
+            if table.id in row_ids
+            # A model without fields costs no query to build.
+            for row_id in table.get_model(field_ids=[], add_dependencies=False)
+            .objects.filter(id__in=row_ids[table.id])
+            .values_list("id", flat=True)
+        }
+        return [
+            comment
+            for comment in comments
+            if (comment.table_id, comment.row_id) in existing
+        ]
 
     @classmethod
     def create_comment(
@@ -233,7 +381,7 @@ class RowCommentHandler:
         )
 
         if mentions:
-            row_comment.mentions.set(mentions)
+            row_comment.mentions(manager="objects_and_identities").set(mentions)
 
         row_comment_created.send(
             cls,
@@ -289,15 +437,16 @@ class RowCommentHandler:
 
         try:
             new_mentions = extract_mentioned_users_in_workspace(message, workspace)
-            old_mentions = row_comment.mentions.all()
+            old_mentions = set(
+                row_comment.mentions(manager="objects_and_identities").all()
+            )
         except ValueError:
             raise InvalidRowCommentMentionException()
 
         row_comment.message = message
         row_comment.save(update_fields=["message", "updated_on"])
 
-        if new_mentions:
-            row_comment.mentions.set(new_mentions)
+        row_comment.mentions(manager="objects_and_identities").set(new_mentions)
 
         row = RowHandler().get_row(
             requesting_user, table, row_comment.row_id, view=view
@@ -351,7 +500,7 @@ class RowCommentHandler:
 
         TrashHandler.trash(requesting_user, database.workspace, database, row_comment)
 
-        mentions = list(row_comment.mentions.all())
+        mentions = list(row_comment.mentions(manager="objects_and_identities").all())
         row_comment_deleted.send(
             cls,
             row_comment=row_comment,

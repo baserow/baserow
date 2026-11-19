@@ -914,3 +914,36 @@ def test_the_watchdog_is_cancelled_when_the_request_raises(settings):
             send_http_request("GET", base + "/0", deadline=deadline)
 
     assert deadline not in _pending_deadlines()
+
+
+@pytest.mark.parametrize("send_netrc_credentials", [True, False])
+def test_netrc_credentials_can_be_left_out_redirects_included(
+    settings, tmp_path, monkeypatch, send_netrc_credentials
+):
+    settings.INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = True
+    netrc = tmp_path / "netrc"
+    netrc.write_text("machine 127.0.0.1 login worker password secret\n")
+    netrc.chmod(0o600)
+    monkeypatch.setenv("NETRC", str(netrc))
+    authorization = []
+
+    def record(then):
+        def handle(handler):
+            authorization.append(handler.headers.get("Authorization"))
+            then(handler)
+
+        return handle
+
+    routes = {"/start": record(redirect("/done")), "/done": record(answer())}
+    with local_server(routes) as (base, _):
+        send_http_request(
+            "GET",
+            base + "/start",
+            deadline=time.monotonic() + 5,
+            send_netrc_credentials=send_netrc_credentials,
+        )
+
+    if send_netrc_credentials:
+        assert all(header.startswith("Basic ") for header in authorization)
+    else:
+        assert authorization == [None, None]

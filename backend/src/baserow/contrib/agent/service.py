@@ -5,7 +5,6 @@ from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import F, QuerySet
 
 from baserow.core.exceptions import PermissionDenied
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
@@ -32,6 +31,7 @@ from .operations import (
     ReadAgentConversationsOperationType,
     UpdateAgentConversationOperationType,
 )
+from .registries import agent_tool_type_registry
 from .signals import (
     agent_conversation_activity,
     agent_conversation_deleted,
@@ -141,6 +141,9 @@ class AgentService:
             its configuration, or may not bind it to a different identity.
         :raises AgentRunAsSubjectDoesNotExist: When the Agent can't act as the
             given subject.
+        :raises rest_framework.exceptions.PermissionDenied: When an allowed tool is
+            deactivated in the Agent's workspace, unless its type raises its own
+            error.
         :return: The Agent, its original and new configuration values, and the
             resolved resulting configuration.
         """
@@ -156,6 +159,8 @@ class AgentService:
         current_run_as = [getattr(agent, field) for field in self.handler.run_as_fields]
         if any(run_as) and run_as != current_run_as:
             IdentityService().check_can_bind(user, agent.workspace)
+        for name in values.get("allowed_tools") or []:
+            agent_tool_type_registry.get(name).raise_if_deactivated(agent.workspace)
         updated = self.handler.update_configuration(agent, **values)
         if updated.original_values != updated.new_values:
             # Open pages refresh readiness from this public application payload.
@@ -498,7 +503,6 @@ class AgentService:
             are new.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.get_authorized_agent(
             user,
             agent_id,
@@ -557,7 +561,6 @@ class AgentService:
             is new.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.get_authorized_agent(
             user, agent_id, CreateAgentMessageOperationType.type
         )
@@ -618,7 +621,6 @@ class AgentService:
             first.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         operations = [CreateAgentMessageOperationType.type]
         if always_allow:
             operations += [

@@ -1310,7 +1310,7 @@ describe('Agent triggers', () => {
 
     expect(
       card.findAll('.dropdown__selected-text').map((item) => item.text())
-    ).toEqual(['Sales', 'Orders'])
+    ).toEqual(['Orders'])
     expect(card.find('.agent-trigger-card__status').exists()).toBe(false)
     expect(card.find('.control__messages--error').exists()).toBe(false)
     expect(patches(testApp)).toEqual([])
@@ -1361,7 +1361,7 @@ describe('Agent triggers', () => {
 
     expect(statuses()).toEqual([])
     expect(fieldErrors()).toEqual([])
-    expect(selected()).toEqual(['Sales', 'Orders'])
+    expect(selected()).toEqual(['Orders'])
   })
 
   test('retries the trigger types with the list when both failed to load', async () => {
@@ -1381,7 +1381,7 @@ describe('Agent triggers', () => {
 
     expect(
       wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
-    ).toEqual(['Sales', 'Orders'])
+    ).toEqual(['Orders'])
   })
 
   test('offers to retry the trigger types alone when only they failed to load', async () => {
@@ -1407,7 +1407,7 @@ describe('Agent triggers', () => {
     ])
     expect(
       wrapper.findAll('.dropdown__selected-text').map((item) => item.text())
-    ).toEqual(['Sales', 'Orders'])
+    ).toEqual(['Orders'])
   })
 
   test('saves how many rows each conversation gets, for list triggers only', async () => {

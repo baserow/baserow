@@ -593,7 +593,7 @@ export default {
     /**
      * Changes the role a pending invitation grants on the object, or revokes it
      * when `newRole` is null. Only this object is revoked, the invitation itself
-     * stays pending in the workspace.
+     * stays pending in the workspace, which a toast says after revoking.
      */
     async updateScopedInvitationRole(scopedInvitation, newRole) {
       const index = this.scopedInvitations.findIndex(
@@ -611,6 +611,15 @@ export default {
         const service = RoleAssignmentsService(this.$client)
         if (newRole === null) {
           await service.deleteScopedInvitation(scopedInvitation.id)
+          // Only the role on this object is taken back. The person can still
+          // join the workspace, so whoever revokes is told.
+          this.$store.dispatch('toast/info', {
+            title: this.$t('shareScope.invitationRevokedTitle'),
+            message: this.$t('shareScope.invitationRevokedMessage', {
+              email: previous.email,
+              type: this.scopeTypeName,
+            }),
+          })
         } else {
           await service.updateScopedInvitation(scopedInvitation.id, newRole)
         }

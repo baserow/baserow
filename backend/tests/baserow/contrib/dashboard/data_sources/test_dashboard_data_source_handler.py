@@ -489,3 +489,63 @@ def test_dispatch_data_source_improperly_configured(data_fixture):
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         DashboardDataSourceHandler().dispatch_data_source(data_source, dispatch_context)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("deferred", [False, True])
+def test_import_source_formulas_without_display_widget(data_fixture, deferred):
+    """Sources finalize their formulas without relying on a display widget hook."""
+    from baserow.contrib.dashboard.widgets.models import TextFilterWidget
+    from baserow.core.deferred_callbacks import deferred_callback_context
+    from baserow.core.formula import BaserowFormulaObject
+
+    dashboard = data_fixture.create_dashboard_application()
+    original_widget = TextFilterWidget.objects.create(
+        dashboard=dashboard, title="Filter"
+    )
+    field = data_fixture.create_text_field()
+    source = data_fixture.create_dashboard_local_baserow_aggregate_rows_data_source(
+        dashboard=dashboard, table=field.table
+    )
+    original_formula = BaserowFormulaObject.create(
+        f"get('widget_data.{original_widget.id}')"
+    )
+    data_fixture.create_local_baserow_table_service_filter(
+        service=source.service.specific,
+        field=field,
+        type="equal",
+        value=original_formula,
+    )
+    target_dashboard = data_fixture.create_dashboard_application()
+    copied_widget = TextFilterWidget.objects.create(
+        dashboard=target_dashboard, title="Copied filter"
+    )
+    mapping = {
+        "integrations": {},
+        "dashboard_data_sources": {},
+        "dashboard_widgets": {} if deferred else {original_widget.id: copied_widget.id},
+        "database_tables": {field.table_id: field.table_id},
+        "database_fields": {field.id: field.id},
+    }
+    handler = DashboardDataSourceHandler()
+    serialized = handler.export_data_source(source)
+
+    def import_source():
+        return handler.import_data_source(
+            target_dashboard, deepcopy(serialized), mapping
+        )
+
+    if deferred:
+        with deferred_callback_context():
+            copied = import_source()
+            assert (
+                copied.service.specific.service_filters.get().value == original_formula
+            )
+            # This mapping becomes available only after importing the source.
+            mapping["dashboard_widgets"][original_widget.id] = copied_widget.id
+    else:
+        copied = import_source()
+    assert (
+        copied.service.specific.service_filters.get().value
+        == BaserowFormulaObject.create(f"get('widget_data.{copied_widget.id}')")
+    )

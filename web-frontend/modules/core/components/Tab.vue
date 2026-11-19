@@ -14,6 +14,7 @@ export default {
   },
   props: {
     badge: { type: String, default: null },
+    badgeColor: { type: String, default: 'cyan' },
     title: {
       type: String,
       default: 'Tab',

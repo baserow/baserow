@@ -68,10 +68,13 @@ export class AgentApplicationType extends ApplicationType {
   }
 
   isVisible(application) {
-    return this.app.$hasPermission(
-      'application.read',
-      application,
-      application.workspace.id
+    return (
+      this.canBeCreated() &&
+      this.app.$hasPermission(
+        'application.read',
+        application,
+        application.workspace.id
+      )
     )
   }
 

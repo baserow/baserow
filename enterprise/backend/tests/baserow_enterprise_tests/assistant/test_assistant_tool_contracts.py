@@ -56,6 +56,7 @@ from baserow_enterprise.assistant.tools.database.tools import (
     list_rows,
     list_tables,
     list_views,
+    search_row_comments,
 )
 from baserow_enterprise.assistant.tools.database.types import ListTablesFilterArg
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
@@ -288,7 +289,7 @@ def _seed_dashboard(
 
 
 @pytest.fixture
-def seed(premium_data_fixture: Any) -> SeededWorkspace:
+def seed(premium_data_fixture: Any, enable_enterprise, synced_roles) -> SeededWorkspace:
     fx = premium_data_fixture
     user = fx.create_user()
     workspace = fx.create_workspace(user=user)
@@ -361,7 +362,7 @@ def _check_search_workspace(result: Any, seed: SeededWorkspace) -> None:
     assert any(item["id"] == seed.table.id for item in result["results"])
 
 
-def _list_row_comments_of_a_new_comment(ctx: Any, seed: SeededWorkspace) -> Any:
+def _with_a_new_comment(seed: SeededWorkspace, read: Callable[[int], Any]) -> Any:
     row_id = seed.table.get_model().objects.first().id
     RowComment.objects.create(
         table=seed.table,
@@ -369,19 +370,31 @@ def _list_row_comments_of_a_new_comment(ctx: Any, seed: SeededWorkspace) -> Any:
         user=seed.user,
         message=prosemirror_doc_from_plain_text("Called them"),
     )
-    with patch(
-        "baserow_premium.row_comments.handler.LicenseHandler"
-        ".raise_if_user_doesnt_have_feature"
-    ):
-        return list_row_comments(ctx, seed.table.id, row_id, thought="contract")
+    return read(row_id)
+
+
+_COMMENT_KEYS = {
+    "id": int,
+    "user_id": int,
+    "user_name": str,
+    "text": str,
+    "mentions": list,
+    "created_on": str,
+    "edited": bool,
+}
 
 
 def _check_list_row_comments(result: Any, seed: SeededWorkspace) -> None:
     assert result["count"] == 1
+    assert_items(result["comments"], _COMMENT_KEYS, "list_row_comments")
+
+
+def _check_search_row_comments(result: Any, seed: SeededWorkspace) -> None:
+    assert set(result) == {"comments", "has_more"}
     assert_items(
         result["comments"],
-        {"id": int, "user_name": str, "text": str, "created_on": str, "edited": bool},
-        "list_row_comments",
+        {**_COMMENT_KEYS, "table_id": int, "table": str, "row_id": int, "row": str},
+        "search_row_comments",
     )
 
 
@@ -587,8 +600,21 @@ READ_TOOL_CASES: list[ReadToolCase] = [
     ),
     ReadToolCase(
         "list_row_comments",
-        _list_row_comments_of_a_new_comment,
+        lambda ctx, s: _with_a_new_comment(
+            s,
+            lambda row_id: list_row_comments(
+                ctx, s.table.id, row_id, thought="contract"
+            ),
+        ),
         _check_list_row_comments,
+    ),
+    ReadToolCase(
+        "search_row_comments",
+        lambda ctx, s: _with_a_new_comment(
+            s,
+            lambda row_id: search_row_comments(ctx, s.database.id, thought="contract"),
+        ),
+        _check_search_row_comments,
     ),
     ReadToolCase("list_audit_log", _list_audit_log_of_a_new_entry, _check_audit_log),
     ReadToolCase(

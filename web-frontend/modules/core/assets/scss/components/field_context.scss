@@ -1,5 +1,6 @@
 .field-context {
-  min-width: 400px;
+  min-width: min(400px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
 }
 
 .field-context__content {

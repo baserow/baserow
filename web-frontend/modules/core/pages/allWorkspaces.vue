@@ -114,6 +114,7 @@ import AllWorkspacesHeader from '@baserow/modules/core/components/allWorkspaces/
 import AllWorkspacesWorkspaceBox from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesWorkspaceBox'
 import AllWorkspacesApplicationCard from '@baserow/modules/core/components/allWorkspaces/AllWorkspacesApplicationCard'
 import { getRoleTranslations } from '@baserow/modules/core/store/workspace'
+import { visibleApplications } from '@baserow/modules/core/utils/workspace'
 import { SIDEBAR_TYPES } from '@baserow/modules/core/utils/constants'
 import { CORE_ACTION_SCOPES } from '@baserow/modules/core/utils/undoRedoConstants'
 import { matchesQuery } from '@baserow/modules/core/utils/search'
@@ -245,7 +246,10 @@ function roleNameOf(workspace) {
 const applicationsByWorkspaceId = computed(() => {
   const grouped = new Map()
 
-  for (const application of store.getters['application/getAll']) {
+  for (const application of visibleApplications(
+    nuxtApp,
+    store.getters['application/getAll']
+  )) {
     const workspaceId = application.workspace.id
     if (!grouped.has(workspaceId)) {
       grouped.set(workspaceId, [])

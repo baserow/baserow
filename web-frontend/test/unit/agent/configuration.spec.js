@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { UserSubjectType } from '@baserow/modules/core/subjectTypes'
 import {
   agentData,
   choose,
@@ -641,6 +642,11 @@ describe('Agent configuration', () => {
   })
 
   test('runs as a chosen identity or with no workspace access', async () => {
+    vi.spyOn(
+      UserSubjectType.prototype,
+      'identityIconClass',
+      'get'
+    ).mockReturnValue('iconoir-identity-test')
     testApp.mock.onGet('/agent/10/run-as-identities/').reply(
       200,
       page([
@@ -659,19 +665,20 @@ describe('Agent configuration', () => {
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
     const body = () => wrapper.get('.agent-configuration__body')
-    const select = async (name) => {
+    const select = async (name, expectedIcon) => {
       await body().get('.dropdown__selected').trigger('click')
       await flushPromises()
-      await body()
+      const item = body()
         .findAll('.select__item-link')
         .find((item) => item.text().includes(name))
-        .trigger('click')
+      expect(item.get('.select__item-icon').classes()).toContain(expectedIcon)
+      await item.trigger('click')
       await flushPromises()
     }
 
-    await select('Investor')
+    await select('Investor', 'iconoir-identity-test')
     expect(body().text()).toContain('agent.runAsHelper')
-    await select('agent.noWorkspaceAccess')
+    await select('agent.noWorkspaceAccess', 'iconoir-prohibition')
 
     expect(savedValues(testApp)).toEqual([
       { run_as_subject_type: 'auth.User', run_as_subject_id: 7 },
@@ -1227,7 +1234,8 @@ describe('Agent configuration', () => {
   )
 
   describe('web search', () => {
-    const setting = (wrapper) => wrapper.get('.agent-web-search')
+    const setting = (wrapper) =>
+      wrapper.findComponent({ name: 'AgentWebSearchSetting' })
     const webSearch = (extra = {}) =>
       completeConfiguration({
         web_search_enabled: false,
@@ -1262,7 +1270,7 @@ describe('Agent configuration', () => {
       expect(input.props('disabled')).toBe(true)
       expect(input.props('modelValue')).toBe(false)
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchUnavailable')
     })
 
@@ -1282,7 +1290,7 @@ describe('Agent configuration', () => {
       const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
       expect(input.props('disabled')).toBe(true)
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchBlockedByTools')
     })
 
@@ -1304,7 +1312,7 @@ describe('Agent configuration', () => {
         await openSection(wrapper, 'agent.agentSettings')
 
         expect(
-          setting(wrapper).find('.agent-web-search__unavailable').exists()
+          setting(wrapper).find('.agent-web-setting__unavailable').exists()
         ).toBe(false)
         expect(setting(wrapper).findComponent({ name: 'Badge' }).exists()).toBe(
           false
@@ -1331,10 +1339,10 @@ describe('Agent configuration', () => {
         'agent.webSearchUnavailableBadge'
       )
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').classes()
+        setting(wrapper).get('.agent-web-setting__unavailable').classes()
       ).toContain('alert--warning')
       expect(
-        setting(wrapper).get('.agent-web-search__unavailable').text()
+        setting(wrapper).get('.agent-web-setting__unavailable').text()
       ).toBe('agent.webSearchUnavailableWhileOn')
 
       expect(input.props('modelValue')).toBe(true)
@@ -1371,6 +1379,35 @@ describe('Agent configuration', () => {
         expect(setting(wrapper).find('.alert').exists()).toBe(warned)
       }
     )
+  })
+
+  describe('opening web pages', () => {
+    const setting = (wrapper) =>
+      wrapper.findComponent({ name: 'AgentWebFetchSetting' })
+    const webFetch = (extra = {}) =>
+      completeConfiguration({ web_fetch_enabled: false, ...extra })
+
+    test('is off by default, saves when turned on and then warns', async () => {
+      mockConfiguration(testApp, webFetch())
+      mockSaves(testApp, webFetch({ web_fetch_enabled: true }))
+      const wrapper = await mount()
+      await openSection(wrapper, 'agent.agentSettings')
+
+      const input = setting(wrapper).findComponent({ name: 'SwitchInput' })
+      expect(input.props('modelValue')).toBe(false)
+      expect(setting(wrapper).find('.alert').exists()).toBe(false)
+
+      input.vm.$emit('update:modelValue', true)
+      await flushPromises()
+
+      expect(savedValues(testApp)).toEqual([{ web_fetch_enabled: true }])
+      expect(input.props('modelValue')).toBe(true)
+      // Even without workspace tools the conversation and trigger data can leak
+      // through the URLs it opens.
+      expect(setting(wrapper).get('.alert').text()).toBe(
+        'agent.webFetchWarning'
+      )
+    })
   })
 
   const withTools = (
@@ -1466,6 +1503,51 @@ describe('Agent configuration', () => {
       ])
     }
   )
+
+  test('locks a tool the workspace cannot use and explains why instead of allowing it', async () => {
+    const show = vi.fn()
+    const LockedModal = { methods: { show }, render: () => null }
+    vi.spyOn(
+      testApp.getRegistry().get('toolPresentation', 'delete_rows'),
+      'getDeactivatedClickModal'
+    ).mockReturnValue([LockedModal, {}])
+    const configuration = withTools(['list_tables', 'create_rows'])
+    configuration.available_tools.find(
+      ({ name }) => name === 'delete_rows'
+    ).deactivated = true
+    configuration.available_tools.push({
+      name: 'locked_without_modal',
+      group: 'database',
+      changes_data: true,
+      deactivated: true,
+    })
+    mockConfiguration(testApp, configuration)
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+
+    // Every tool the workspace can use is allowed, so the preset is Everything.
+    expect(tools.get('.segment-control__button--active').text()).toBe(
+      'agent.toolsEverything'
+    )
+    await tools.get('button.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    const lock = (tool) =>
+      inModal('.agent-tool-permissions__tool', tool).querySelector(
+        '.agent-tool-permissions__locked'
+      )
+    expect(lock('agent.toolCreateRows')).toBeNull()
+    // A lock stands where the tool would be allowed and asked first.
+    expect(toolInput('agent.toolDeleteRows', 'allow')).toBeNull()
+    expect(toolInput('agent.toolDeleteRows', 'ask-first')).toBeNull()
+    expect(lock('agent.toolDeleteRows').tagName).toBe('BUTTON')
+    expect(lock('locked_without_modal').tagName).toBe('I')
+
+    lock('agent.toolDeleteRows').click()
+    await flushPromises()
+
+    expect(show).toHaveBeenCalledTimes(1)
+  })
 
   test('enables database listing and asks before newly allowed database changes', async () => {
     const availableTools = [
