@@ -86,9 +86,10 @@ def _replay(
     Undoes or redoes the latest tool call of the endpoint. `ActionHandler` takes at
     most `MAX_UNDOABLE_ACTIONS_PER_ACTION_GROUP` actions of a group at a time, so
     it's called again while the next action in line is still from the same call.
-    It stops at a part that failed, so the rest of the call stays as it was. The
-    tool holds the endpoint's changes lock alone, so no other call of the endpoint
-    adds an action between the parts.
+    It stops at a part that failed, so the rest of the call stays as it was. It
+    also stops when another call of the endpoint added an action between the parts,
+    and the next undo or redo goes on from there. An action added right before the
+    next part is replayed is taken back with it, and the loop stops after it.
     """
 
     # Only the changes made through this endpoint share its session, and an
@@ -138,7 +139,6 @@ class UndoMcpTool(MCPTool):
     group = GROUP_WORKSPACE_UNDO
     title = "Undo the last change"
     destructive = True
-    replays_changes = True
     input_schema = NoInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: NoInput) -> list[dict]:
@@ -189,7 +189,6 @@ class RedoMcpTool(MCPTool):
     group = GROUP_WORKSPACE_UNDO
     title = "Redo the last undone change"
     destructive = True
-    replays_changes = True
     input_schema = NoInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: NoInput) -> list[dict]:
