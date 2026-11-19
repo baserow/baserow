@@ -7,6 +7,7 @@ import pytest
 from baserow.contrib.dashboard.data_sources.actions import (
     UpdateDashboardDataSourceActionType,
 )
+from baserow.contrib.dashboard.widgets.actions import UpdateWidgetActionType
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, TextFilterWidget
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.scopes import ApplicationActionScopeType
@@ -132,6 +133,22 @@ def undo(setup):
         setup["user"],
         [ApplicationActionScopeType.value(setup["dashboard"].id)],
         "default-test-user-session-id",
+    )
+
+
+def redo(setup):
+    ActionHandler.redo(
+        setup["user"],
+        [ApplicationActionScopeType.value(setup["dashboard"].id)],
+        "default-test-user-session-id",
+    )
+
+
+def update_links(setup, links):
+    """Save the filter's links as an undoable editor action."""
+
+    UpdateWidgetActionType.do(
+        setup["user"], setup["filter"].id, "text_filter", {"target_filters": links}
     )
 
 
@@ -678,3 +695,49 @@ def test_guided_configuration_defers_only_the_originating_filter_until_associati
     assert condition_fields(links_of(setup["filter"].id)[widget.id]) == [
         setup["name"].id
     ]
+
+
+@pytest.mark.django_db
+def test_undo_and_redo_restore_links_without_copying_conditions(
+    api_client, setup_dashboard
+):
+    """Copying applies to links an editor adds, not to links undo/redo restores."""
+    setup = setup_dashboard
+    template = setup["summary"](setup["orders"], "Template")
+    configure_target(api_client, setup, template)
+    other = setup["summary"](setup["orders"], "Other")
+    empty = {"filter_type": "AND", "filters": [], "filter_groups": []}
+
+    # An editor adding the widget gets the template's conditions.
+    update_links(
+        setup,
+        [
+            *links_of(setup["filter"].id).values(),
+            {"target_widget_id": other.id, "group": empty},
+        ],
+    )
+    copied = links_of(setup["filter"].id)[other.id]
+    assert condition_fields(copied) == [setup["name"].id]
+    undo(setup)
+    assert other.id not in links_of(setup["filter"].id)
+    redo(setup)
+    assert links_of(setup["filter"].id)[other.id] == copied
+
+    # The editor deliberately clears them, then removes the link.
+    links = links_of(setup["filter"].id)
+    links[other.id]["group"] = empty
+    update_links(setup, list(links.values()))
+    update_links(
+        setup,
+        [
+            link
+            for link in links_of(setup["filter"].id).values()
+            if link["target_widget_id"] != other.id
+        ],
+    )
+
+    undo(setup)
+    assert condition_fields(links_of(setup["filter"].id)[other.id]) == []
+    undo(setup)
+    redo(setup)
+    assert condition_fields(links_of(setup["filter"].id)[other.id]) == []

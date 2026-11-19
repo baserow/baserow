@@ -272,13 +272,14 @@ class WidgetService:
         )
 
     def update_widget(
-        self, user: AbstractUser, widget_id: int, **kwargs
+        self, user: AbstractUser, widget_id: int, replay: bool = False, **kwargs
     ) -> UpdatedWidget:
         """
         Updates a widget given the user permissions.
 
         :param user: The user trying to update the widget.
         :param widget_id: The ID of the widget to update.
+        :param replay: Whether undo or redo is replaying saved values.
         :param kwargs: Attributes of the widget.
         :raises WidgetDoesNotExist: If the widget can't be found.
         :raises PermissionException: Raised when user doesn't have the
@@ -298,7 +299,7 @@ class WidgetService:
             context=widget,
         )
 
-        updated_widget = self.handler.update_widget(widget, **kwargs)
+        updated_widget = self.handler.update_widget(widget, replay=replay, **kwargs)
         updated_widget = updated_widget.widget.get_type().after_update(
             updated_widget, **kwargs
         )
