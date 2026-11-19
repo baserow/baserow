@@ -15,6 +15,7 @@ from baserow.core.models import (
     Workspace,
     WorkspaceUser,
 )
+from baserow.core.user_templates.exceptions import TemplateHasNothingToInstall
 
 User = get_user_model()
 
@@ -96,9 +97,14 @@ class Command(BaseCommand):
                 )
 
                 for template in Template.objects.official():
-                    CoreHandler().install_template(
-                        user=user, workspace=workspace, template=template
-                    )
+                    try:
+                        CoreHandler().install_template(
+                            user=user, workspace=workspace, template=template
+                        )
+                    except TemplateHasNothingToInstall:
+                        # For example a template of only Agents while their
+                        # feature flag is off.
+                        continue
                     logger.success(
                         f"installed {template.name} in workspace {workspace.id} ("
                         f"iteration {i})"
