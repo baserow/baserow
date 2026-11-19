@@ -95,6 +95,7 @@
             <TemplateInstall
               :template="template"
               :workspace="workspace"
+              :applications="applications"
               :show-copy-link="!ownerActions && !isPrivateLink && !isBlocked"
               :copy-link-url="ownerActions ? privateLinkUrl : null"
               :latest="ownerActions || isOwner"

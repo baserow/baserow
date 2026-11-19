@@ -64,6 +64,10 @@ export class AgentApplicationType extends ApplicationType {
     return { agent: application }
   }
 
+  createsIdentityOnInstall() {
+    return true
+  }
+
   getOrder() {
     return 100
   }

@@ -51,11 +51,14 @@ export default (client) => {
     asyncInstall(
       workspaceId,
       templateId,
-      { latest = false, revisionId = null } = {}
+      { latest = false, revisionId = null, createIdentities = false } = {}
     ) {
       const params = latest ? { latest: true } : {}
       if (revisionId !== null) {
         params.revision_id = revisionId
+      }
+      if (createIdentities) {
+        params.create_identities = true
       }
       return client.post(
         `/templates/install/${workspaceId}/${templateId}/async/`,
