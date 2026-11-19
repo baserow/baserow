@@ -37,9 +37,8 @@ from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
 from baserow.core.utils import to_path
 
-# Data sources can't read form data or the current record, and reading other data
-# sources is left out to avoid dependency cycles between them.
-FILTER_DATA_PROVIDERS = ("page_parameter", "user")
+# Only earlier data sources are available, matching the formula picker and dispatch.
+FILTER_DATA_PROVIDERS = ("page_parameter", "user", "data_source")
 
 FORMULA_ERRORS = (BaserowFormulaException, InvalidRuntimeFormula, RecursionError)
 
@@ -114,6 +113,13 @@ class BuilderDataSourceServiceFilterTargetType(ServiceFilterTargetType):
         self, user: AbstractUser, owner: DataSource
     ) -> Callable[[str], str | None]:
         page_parameters = _page_parameter_names(owner.page)
+        previous_source_ids = set()
+        for source in DataSourceHandler().get_data_sources(
+            owner.page, with_shared=True
+        ):
+            if source.id == owner.id:
+                break
+            previous_source_ids.add(str(source.id))
 
         def check(formula: str) -> str | None:
             try:
@@ -133,8 +139,12 @@ class BuilderDataSourceServiceFilterTargetType(ServiceFilterTargetType):
                 if provider not in FILTER_DATA_PROVIDERS:
                     return (
                         f"a data source filter can't read '{provider}'. It can only "
-                        "read the page parameters and the logged in user."
+                        "read page parameters, the logged in user and earlier data sources."
                     )
+                if provider == "data_source" and (
+                    not path or path[0] not in previous_source_ids
+                ):
+                    return "a data source filter can only read earlier data sources."
                 if provider == "page_parameter" and (
                     not path or path[0] not in page_parameters
                 ):
@@ -151,8 +161,10 @@ class BuilderDataSourceServiceFilterTargetType(ServiceFilterTargetType):
         return (
             "Filter values can be formulas reading the page parameters with "
             "get('page_parameter.<name>') or the logged in user with "
-            "get('user.<property>'). Nothing else is available: data sources can't "
-            "read form data, the current record or other data sources."
+            "get('user.<property>'), or earlier data sources with "
+            "get('data_source.<id>.<path>'). Shared-page sources come before "
+            "page-local sources. A source cannot read itself, later sources, "
+            "form data or the current record."
         )
 
     def persist(self, user, owner, service_type, values) -> None:

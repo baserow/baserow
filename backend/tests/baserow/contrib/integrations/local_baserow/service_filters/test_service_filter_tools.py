@@ -10,6 +10,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
+from django.http import HttpRequest
 
 import pytest
 from asgiref.sync import async_to_sync
@@ -17,6 +18,10 @@ from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 
+from baserow.contrib.builder.data_sources.builder_dispatch_context import (
+    BuilderDispatchContext,
+)
+from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowTableServiceFilter,
@@ -588,3 +593,52 @@ def test_table_picked_in_the_editor_is_checked(seeded, data_fixture):
         table_id=seeded.table.id,
     )
     assert same.saves_table is False and same.table.id == seeded.table.id
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "location", ["earlier", "shared", "self", "later", "other_page"]
+)
+def test_builder_filter_data_source_dependencies(data_fixture, seeded, location):
+    """Allow previous sources while rejecting cycles and inaccessible page sources."""
+    owner = seeded.data_source
+    page = owner.page
+    if location == "shared":
+        page = page.builder.shared_page
+    elif location == "other_page":
+        page = data_fixture.create_builder_page(builder=page.builder)
+    dependency = owner
+    if location != "self":
+        dependency = data_fixture.create_builder_local_baserow_list_rows_data_source(
+            page=page,
+            table=seeded.table,
+            integration=owner.service.integration,
+            order=owner.order - 1 if location == "earlier" else owner.order + 1,
+        )
+    formula = f"get('data_source.{dependency.id}.0.id')"
+    arguments = (
+        ctx(seeded),
+        "builder_data_source",
+        owner.id,
+        ops(add(seeded.amount.id, "equal", formula, True)),
+    )
+    if location in {"earlier", "shared"}:
+        result = update_service_filters(*arguments)
+        assert result["changed"] is True
+        assert filters_of(owner.service) == [
+            (seeded.amount.id, "equal", formula, "advanced")
+        ]
+        model = seeded.table.get_model()
+        matching = model.objects.create()
+        setattr(matching, f"field_{seeded.amount.id}", matching.id)
+        matching.save()
+        model.objects.create(**{f"field_{seeded.amount.id}": matching.id + 100})
+        dispatch_context = BuilderDispatchContext(
+            HttpRequest(), owner.page, only_expose_public_allowed_properties=False
+        )
+        result = DataSourceHandler().dispatch_data_source(owner, dispatch_context)
+        assert [row["id"] for row in result["results"]] == [matching.id]
+    else:
+        with pytest.raises(DjangoValidationError, match="earlier data sources"):
+            update_service_filters(*arguments)
+        assert filters_of(owner.service) == []
