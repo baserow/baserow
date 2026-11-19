@@ -4,7 +4,6 @@
       <component
         :is="chartComponent"
         id="chart-id"
-        :key="chartRenderKey"
         ref="chart"
         :options="chartOptions"
         :data="data"
@@ -92,9 +91,6 @@ export default {
     },
     hasChartData() {
       return this.data.datasets.length > 0
-    },
-    chartRenderKey() {
-      return `${this.chartComponent}-${JSON.stringify(this.data)}`
     },
     chartOptions() {
       const options = {
@@ -205,7 +201,7 @@ export default {
     },
   },
   watch: {
-    chartRenderKey() {
+    chartComponent() {
       this.$nextTick(() => this.resizeChart())
     },
     hasChartData() {

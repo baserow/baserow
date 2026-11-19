@@ -1073,7 +1073,10 @@ export const actions = {
 
     commit('INVALIDATE_DATA_SOURCE_DISPATCH', requestContext.dataSourceId)
     const request = getDataSourceDispatchRequest(requestContext, state)
-    commit('UPDATE_DATA', { dataSourceId: request.dataSourceId, values: null })
+    commit('UPDATE_DATA', {
+      dataSourceId: request.dataSourceId,
+      values: { ...state.data[request.dataSourceId], _loading: true },
+    })
     const queue = getDataSourceDispatchQueue(
       state,
       getDataSourceDispatchConcurrency($config)
@@ -1123,7 +1126,7 @@ export const actions = {
       }
       commit('UPDATE_DATA', {
         dataSourceId: request.dataSourceId,
-        values: response.data,
+        values: { ...response.data, _loaded: true },
       })
     } catch (error) {
       if (!isDataSourceDispatchCurrent(state, request)) {

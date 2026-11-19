@@ -127,9 +127,10 @@ describe('dashboardApplication store', () => {
     expect(
       store.getters['dashboardApplication/getDataSourceById'](dataSource.id)
     ).toMatchObject(dataSource)
-    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-      dataSourceResult
-    )
+    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual({
+      ...dataSourceResult,
+      _loaded: true,
+    })
   })
 
   test('realtime adds a widget created elsewhere without selecting it', async () => {
@@ -151,9 +152,10 @@ describe('dashboardApplication store', () => {
     expect(
       store.getters['dashboardApplication/getDataSourceById'](dataSource.id)
     ).toMatchObject(dataSource)
-    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-      dataSourceResult
-    )
+    expect(store.state.dashboardApplication.data[dataSource.id]).toEqual({
+      ...dataSourceResult,
+      _loaded: true,
+    })
   })
 
   test.each(['local', 'realtime'])(
@@ -221,9 +223,10 @@ describe('dashboardApplication store', () => {
 
         expect(loadingStates.length).toBeGreaterThan(0)
         expect(loadingStates).not.toContain(true)
-        expect(store.state.dashboardApplication.data[dataSource.id]).toEqual(
-          dataSourceResult
-        )
+        expect(store.state.dashboardApplication.data[dataSource.id]).toEqual({
+          ...dataSourceResult,
+          _loaded: true,
+        })
       } finally {
         unsubscribe()
       }
@@ -241,7 +244,7 @@ describe('dashboardApplication store', () => {
       })
       expect(
         store.state.dashboardApplication.data[existingDataSource.id]
-      ).toEqual(dataSourceResult)
+      ).toEqual({ ...dataSourceResult, _loaded: true })
     }
   )
 })

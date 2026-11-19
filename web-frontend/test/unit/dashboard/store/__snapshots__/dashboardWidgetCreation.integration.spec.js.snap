@@ -4,6 +4,7 @@ exports[`dashboardApplication store > fetchNewDataSources awaits missing results
 {
   "data": {
     "10": {
+      "_loaded": true,
       "result": 42,
     },
   },
