@@ -151,7 +151,7 @@ describe('InviteModal', () => {
       wrapper.findAll('.invite-list__item').map((row) => row.text())
     expect(rows()).toEqual([
       expect.stringMatching(
-        /olga@x\.com\s*inviteModal\.pendingWorkspace\s*Admin/
+        /olga@x\.com\s*inviteModal\.pendingInvitedTo\s*Admin/
       ),
     ])
 
@@ -230,15 +230,16 @@ describe('InviteModal', () => {
     ])
     const wrapper = await mountAndShow({
       mocks: {
-        $t: (key, params) => (params ? `${key}(${params.count})` : key),
+        $t: (key, params) =>
+          params ? `${key}(${Object.values(params).join('|')})` : key,
       },
     })
 
     const subtitles = wrapper.findAll('.invite-list__subtitle')
     expect(subtitles.map((subtitle) => subtitle.text())).toEqual([
-      'inviteModal.pendingWorkspace',
-      'Customers, Orders, Ops',
-      'A, B, C, inviteModal.pendingMoreTargets(2)',
+      'inviteModal.pendingInvitedTo(inviteModal.pendingWorkspace)',
+      'inviteModal.pendingInvitedTo(Customers, Orders, Ops)',
+      'inviteModal.pendingInvitedTo(A, B, C, inviteModal.pendingMoreTargets(2))',
     ])
     // The full list can be reached with the keyboard and is read out.
     expect(subtitles[0].attributes('tabindex')).toBeUndefined()

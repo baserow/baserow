@@ -486,6 +486,7 @@
     "noResults": "No {subjects} match. Type a full email address to invite someone new.",
     "noSubjectResults": "No {subjects} match.",
     "directAccess": "Direct access on this {type}",
+    "roleHeading": "Role",
     "emptyTitle": "No one has a role set on this {type} yet.",
     "emptyDescription": "Everyone below inherits access from higher levels.",
     "invitePending": "Invite pending",

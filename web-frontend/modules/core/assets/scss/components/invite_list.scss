@@ -15,6 +15,21 @@
   color: $palette-neutral-900;
 }
 
+// Names the role column. It is the first row of the list, so it lines up with
+// the roles below it and stays in view while the list scrolls.
+.invite-list__heading {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-bottom: 8px;
+  font-size: 12px;
+  line-height: 20px;
+  font-weight: 500;
+  text-align: right;
+  color: $palette-neutral-900;
+  background-color: $palette-neutral-0;
+}
+
 .invite-list__items {
   margin: 0;
   padding: 0;
@@ -28,7 +43,8 @@
   gap: 16px;
   padding: 12px 0;
 
-  &:first-child {
+  &:first-child,
+  .invite-list__heading + & {
     padding-top: 0;
   }
 
