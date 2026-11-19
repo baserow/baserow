@@ -1,5 +1,3 @@
-import { ulid } from 'ulid'
-
 /** Derive affected sources directly from widget links in this dashboard store. */
 export const refreshWidgetSources = (widget, { state, dispatch, registry }) => {
   const targets = new Set(
@@ -81,74 +79,6 @@ export const getTextFilterDefaultValue = (widget) => {
 
 /** Matches the backend limit on a dispatched filter value. */
 export const TEXT_FILTER_MAX_VALUE_LENGTH = 1000
-
-/**
- * Operators a filter set up from a field uses, in order of preference. Keep in
- * sync with `DEFAULT_OPERATORS` in the backend's `filter_setup.py`.
- */
-export const DEFAULT_FILTER_OPERATORS = [
-  'single_select_is_any_of',
-  'multiple_select_has',
-  'contains',
-  'equal',
-]
-
-export const getDefaultFilterOperator = (registry, field) =>
-  DEFAULT_FILTER_OPERATORS.find((type) =>
-    registry.get('viewFilter', type).fieldIsCompatible(field)
-  ) || null
-
-/**
- * The field a filter starts on for a table: its primary field, else the first
- * one in the table's order that a filter can match. Like the backend's choice.
- */
-export const getFirstFilterField = (registry, fields) =>
-  [...fields]
-    .sort(
-      (a, b) =>
-        Number(Boolean(b.primary)) - Number(Boolean(a.primary)) ||
-        (a.order ?? 0) - (b.order ?? 0) ||
-        a.id - b.id
-    )
-    .find((field) => getDefaultFilterOperator(registry, field)) || null
-
-/**
- * A link matching the filter widget's value against any of the fields, like
- * the backend builds for a filter's fields. Null when no field can be matched.
- */
-export const buildFieldsFilterLink = (
-  registry,
-  filterWidget,
-  targetId,
-  fields
-) => {
-  const filters = fields.flatMap((field) => {
-    const type = getDefaultFilterOperator(registry, field)
-    return type
-      ? [
-          {
-            id: ulid(),
-            field: field.id,
-            type,
-            group: null,
-            value: {
-              formula: `get('widget_data.${filterWidget.id}')`,
-              mode: 'simple',
-              version: '0.1',
-            },
-          },
-        ]
-      : []
-  })
-  return filters.length
-    ? {
-        target_widget_id: targetId,
-        enabled: true,
-        empty_behavior: 'apply_nothing',
-        group: { filter_type: 'OR', filter_groups: [], filters },
-      }
-    : null
-}
 
 /** Filter widgets currently applied to the target widget. */
 export const getFiltersOfWidget = (widgets, targetWidgetId, registry) =>

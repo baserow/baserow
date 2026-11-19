@@ -122,7 +122,6 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         "placeholder",
         "default_value",
         "target_filters",
-        "filter_table_id",
         "apply_to_new_widgets",
     ]
     serializer_field_names = [
@@ -132,7 +131,6 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         "placeholder",
         "default_value",
         "target_filters",
-        "filter_table_id",
         "apply_to_new_widgets",
     ]
     public_serializer_field_names = [
@@ -145,16 +143,11 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     ]
     serializer_field_overrides = {
         "target_filters": serializers.JSONField(required=False),
-        "filter_table_id": serializers.IntegerField(
-            required=False,
-            allow_null=True,
-            help_text="The table whose rows the filter narrows down.",
-        ),
         "apply_to_new_widgets": serializers.BooleanField(
             required=False,
             help_text=(
-                "Also filter widgets that start showing the filter's table, with "
-                "the conditions of the last widget it filters on that table."
+                "Also filter widgets that start showing a table this filter already "
+                "applies to, using the first widget's conditions on that table."
             ),
         ),
         "options": FormulaSerializerField(
@@ -180,13 +173,10 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         placeholder: str
         default_value: str | list[str]
         target_filters: list
-        filter_table_id: int | None
         apply_to_new_widgets: bool
 
     def prepare_value_for_db(self, values, instance=None):
         """Validate option paths in their dashboard and normalize saved defaults."""
-        if values.get("filter_table_id") is not None:
-            self.check_filter_table(values, instance)
         if "options" in values:
             dashboard_id = instance.dashboard_id if instance else values["dashboard"].id
             field = FormulaSerializerField(
@@ -207,23 +197,15 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 ),
                 values.get("multiple", getattr(instance, "multiple", False)),
             )
-        return super().prepare_value_for_db(values, instance)
+        values = super().prepare_value_for_db(values, instance)
+        if instance is not None and "target_filters" in values:
+            from .filter_setup import copy_new_target_conditions
 
-    def check_filter_table(self, values, instance):
-        """The filter's table must be a table of the dashboard's workspace."""
-
-        from baserow.contrib.database.table.models import Table
-
-        dashboard = instance.dashboard if instance else values["dashboard"]
-        if not Table.objects.filter(
-            id=values["filter_table_id"],
-            database__workspace_id=dashboard.workspace_id,
-            trashed=False,
-            database__trashed=False,
-        ).exists():
-            raise serializers.ValidationError(
-                {"filter_table_id": "The table does not exist."}
-            )
+            links = copy_new_target_conditions(instance, values["target_filters"])
+            if links != values["target_filters"]:
+                self.validate_target_filters(links, instance.dashboard_id)
+                values["target_filters"] = links
+        return values
 
     def normalize_default_value(self, value, mode, multiple):
         """Store a list for multiple dropdowns and one string for other modes."""
@@ -257,17 +239,6 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 widget.default_value, widget.mode, widget.multiple
             ),
         )
-
-    def deserialize_property(self, prop_name, value, id_mapping, **kwargs):
-        if prop_name == "filter_table_id" and value is not None:
-            if "database_tables" not in id_mapping:
-                return value
-            # Like a data source's table: a duplicate keeps a table outside the
-            # duplicated scope, an import into another workspace forgets it.
-            config = kwargs.get("import_export_config")
-            keeps = getattr(config, "keeps_unmapped_references", False)
-            return id_mapping["database_tables"].get(value, value if keeps else None)
-        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
 
     def after_import(self, widget, id_mapping, **kwargs):
         from baserow.contrib.dashboard.formula_importer import import_formula

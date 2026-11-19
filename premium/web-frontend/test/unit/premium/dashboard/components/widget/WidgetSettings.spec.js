@@ -1,6 +1,7 @@
 import flushPromises from 'flush-promises'
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import WidgetSettings from '@baserow/modules/dashboard/components/widget/WidgetSettings'
+import ConfigureFilterTargetModal from '@baserow/modules/dashboard/components/widget/ConfigureFilterTargetModal'
 
 describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
   let testApp
@@ -67,6 +68,7 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await testApp.afterEach()
   })
 
@@ -80,6 +82,68 @@ describe.each(['chart', 'pie_chart'])('%s filter settings', (type) => {
     await flushPromises()
     return wrapper
   }
+
+  test('guided configuration requires valid chart settings before returning', async () => {
+    testApp.store.commit('dashboardApplication/SET_WIDGETS', [widget])
+    testApp.store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+      dataSourceId: 12,
+      values: { table_id: null },
+    })
+    const dispatch = vi.spyOn(testApp.store, 'dispatch').mockResolvedValue()
+    const wrapper = await testApp.mount(ConfigureFilterTargetModal, {
+      props: {
+        dashboard: { id: 1, workspace: { id: 1 } },
+        widgetId: 10,
+        excludeFilterWidgetId: 20,
+      },
+      global: {
+        stubs: {
+          Modal: {
+            template: '<div><slot /></div>',
+            methods: { show() {}, hide() {} },
+          },
+        },
+      },
+    })
+    await flushPromises()
+    const finish = () =>
+      wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'textFilterWidget.addToFilter')
+    await finish().trigger('click')
+    expect(wrapper.emitted('configured')).toBeUndefined()
+    wrapper
+      .findComponent({ name: 'DashboardTableSelector' })
+      .vm.$emit('update:modelValue', 4)
+    await flushPromises()
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/updateDataSource',
+      expect.objectContaining({
+        dataSourceId: 12,
+        excludeFilterWidgetId: 20,
+      })
+    )
+    testApp.store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+      dataSourceId: 12,
+      values: savedDataSource,
+    })
+    await flushPromises()
+    expect(wrapper.find('.service-form__filter-buttons').exists()).toBe(false)
+    await wrapper
+      .findAll('.tabs__item')
+      .find((tab) =>
+        tab.text().includes('serviceRefinementForms.filterTabTitle')
+      )
+      .trigger('click')
+    expect(wrapper.find('.service-form__condition-form-tab').isVisible()).toBe(
+      true
+    )
+    expect(
+      wrapper.find('.filters__value--formula-input input').element.value
+    ).toBe('Before')
+    await finish().trigger('click')
+    expect(wrapper.emitted('configured')).toHaveLength(1)
+  })
 
   test('edits a filter value and restores the saved value on reload', async () => {
     const wrapper = await openFilters()

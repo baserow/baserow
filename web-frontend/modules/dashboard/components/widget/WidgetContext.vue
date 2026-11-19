@@ -104,7 +104,6 @@ export default {
             widget: {
               type: filterType.getType(),
               title: filterType.name,
-              filter_table_id: this.tableId,
               target_filters: [
                 {
                   target_widget_id: this.widget.id,

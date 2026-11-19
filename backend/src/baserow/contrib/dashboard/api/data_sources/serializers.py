@@ -96,9 +96,18 @@ class DashboardDataSourceSerializer(ServiceSerializer):
 
 class UpdateDashboardDataSourceSerializer(UpdateServiceSerializer):
     name = serializers.CharField(required=False)
+    exclude_filter_widget_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=1,
+        help_text="Defer automatic linking to this filter while configuring a new widget.",
+    )
 
     class Meta(ServiceSerializer.Meta):
-        fields = UpdateServiceSerializer.Meta.fields + ("name",)
+        fields = UpdateServiceSerializer.Meta.fields + (
+            "name",
+            "exclude_filter_widget_id",
+        )
 
 
 class DashboardDispatchSerializer(serializers.Serializer):

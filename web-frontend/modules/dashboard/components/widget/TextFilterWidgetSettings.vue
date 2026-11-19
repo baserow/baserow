@@ -1,17 +1,6 @@
 <template>
   <div class="text-filter-widget-settings">
     <section class="text-filter-widget-settings__section">
-      <FilterTableSetup
-        :widget="widget"
-        :dashboard="dashboard"
-        :store-prefix="storePrefix"
-        :save="updateSettings"
-      />
-    </section>
-    <section
-      v-if="showAllSettings"
-      class="text-filter-widget-settings__section"
-    >
       <div class="text-filter-widget-settings__heading">
         <h3 class="text-filter-widget-settings__title">
           {{ $t('textFilterWidget.targets') }}
@@ -115,25 +104,21 @@
           >{{ $t('textFilterWidget.addWidgets') }}</Button
         >
         <Checkbox
-          v-if="filterTable"
           :checked="widget.apply_to_new_widgets"
           class="dashboard-widget-filter-targets__apply-new"
           @input="updateSetting('apply_to_new_widgets', $event)"
-          >{{
-            $t('textFilterWidget.applyToNewWidgets', {
-              table: filterTable.name,
-            })
-          }}</Checkbox
+          >{{ $t('textFilterWidget.applyToNewWidgets') }}</Checkbox
         >
         <Dropdown
           ref="targetPicker"
-          v-model="selectedTargets"
+          :model-value="null"
+          :disabled="targetsSaving"
           :show-input="false"
           :tabindex="-1"
-          multiple
           show-search
           show-footer
           fixed-items
+          @update:model-value="addTarget"
         >
           <DropdownItem
             v-for="candidate in availableTargets"
@@ -151,7 +136,6 @@
           <template #footer>
             <div class="dashboard-widget-filter-targets__actions">
               <ButtonText
-                v-if="filterTable"
                 icon="iconoir-plus"
                 class="dashboard-widget-filter-targets__create"
                 :loading="creatingTarget?.filterId === widget.id"
@@ -164,22 +148,12 @@
                 @click="targetPicker.hide()"
                 >{{ $t('action.cancel') }}</Button
               >
-              <Button
-                size="small"
-                :disabled="!selectedTargets.length"
-                :loading="targetsSaving"
-                @click="addTargets"
-                >{{ $t('action.add') }}</Button
-              >
             </div>
           </template>
         </Dropdown>
       </FormGroup>
     </section>
-    <section
-      v-if="showAllSettings"
-      class="text-filter-widget-settings__section"
-    >
+    <section class="text-filter-widget-settings__section">
       <h3 class="text-filter-widget-settings__title margin-bottom-2">
         {{ $t('textFilterWidget.howItLooks') }}
       </h3>
@@ -339,6 +313,17 @@
         hide-filters
         @widget-variation-selected="createTarget"
       />
+      <ConfigureFilterTargetModal
+        v-if="configuringTarget"
+        ref="configurationModal"
+        :dashboard="dashboard"
+        :widget-id="configuringTarget.widgetId"
+        :exclude-filter-widget-id="configuringTarget.filterId"
+        :store-prefix="storePrefix"
+        :loading="linkingTarget"
+        @configured="finishTargetCreation"
+        @hidden="configuringTarget = null"
+      />
       <WidgetFilterConfigurationModal
         v-if="target"
         ref="groupModal"
@@ -367,14 +352,12 @@ import isEqual from 'lodash/isEqual'
 import { useWidgetOptions } from '@baserow/modules/dashboard/composables/useWidgetOptions'
 import ItemCard from '@baserow/modules/core/components/ItemCard'
 import DashboardFormulaInput from '@baserow/modules/dashboard/components/DashboardFormulaInput'
-import FilterTableSetup from '@baserow/modules/dashboard/components/widget/FilterTableSetup'
+import ConfigureFilterTargetModal from '@baserow/modules/dashboard/components/widget/ConfigureFilterTargetModal'
 import CreateWidgetModal from '@baserow/modules/dashboard/components/CreateWidgetModal'
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
 import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import {
-  buildFieldsFilterLink,
-  getFirstFilterField,
   getWidgetFilterGroups,
   getTextFilterDefaultValue,
 } from '@baserow/modules/dashboard/utils/widgetFilters'
@@ -401,96 +384,91 @@ const fieldsError = ref(false)
 const targetPicker = ref(null)
 const targetMenu = ref(null)
 const menuTarget = ref(null)
-const selectedTargets = ref([])
 const targetsSaving = ref(false)
 const createWidgetModal = ref(null)
 /** The filter a widget is being created for, if any. */
 const creatingTarget = ref(null)
-const filterTable = computed(() => {
-  const id = props.widget.filter_table_id
-  if (!id) return null
-  for (const database of $store.getters['application/getAll'] || []) {
-    const table = (database.tables || []).find((table) => table.id === id)
-    if (table) return table
-  }
-  return null
+const configuringTarget = ref(null)
+const configurationModal = ref(null)
+const linkingTarget = ref(false)
+let disposed = false
+onBeforeUnmount(() => {
+  disposed = true
 })
 const openCreateWidget = () => {
   targetPicker.value?.hide()
   createWidgetModal.value?.show()
 }
-/**
- * Create a widget showing the filter's table, filter it, and open its
- * conditions so the editor can set them up right away.
- */
+/** Create a widget without leaving the originating filter's settings. */
 async function createTarget(variation) {
-  // The editor may select another filter while this runs: everything below
-  // is for the filter that asked, as it was then.
-  const filter = props.widget
-  const tableId = filter.filter_table_id
-  if (creatingTarget.value || !tableId) return
-  creatingTarget.value = { filterId: filter.id }
-  const prefix = `${props.storePrefix}dashboardApplication`
+  const filterId = props.widget.id
+  if (creatingTarget.value || configuringTarget.value) return
+  creatingTarget.value = { filterId }
   try {
     const type = $registry.get('dashboardWidget', variation.type.getType())
-    // Selecting the new widget would swap these settings out.
-    const created = await $store.dispatch(`${prefix}/createWidget`, {
-      dashboard: props.dashboard,
-      widget: { title: type.name, type: type.getType(), ...variation.params },
-      select: false,
-    })
     if (!type.isDisplayWidget) return
-    const { data: fields } = await FieldService($client).fetchAll(tableId)
-    await $store.dispatch(`${prefix}/updateDataSource`, {
-      dataSourceId: type.getDataSourceId(created),
-      values: type.getDataSourceValuesForTable(tableId, fields),
-      widget: created,
-    })
-    // A filter applied to widgets added later has joined it already, with the
-    // conditions of the last widget. Otherwise it starts on the first field.
+    const created = await $store.dispatch(
+      `${props.storePrefix}dashboardApplication/createWidget`,
+      {
+        dashboard: props.dashboard,
+        widget: { title: type.name, type: type.getType(), ...variation.params },
+        select: false,
+      }
+    )
+    if (disposed || props.widget.id !== filterId) return
+    configuringTarget.value = { filterId, widgetId: created.id }
+    await nextTick()
+    configurationModal.value?.show()
+  } catch (error) {
+    notifyIf(error, 'dashboard')
+  } finally {
+    creatingTarget.value = null
+  }
+}
+
+/** Link the configured widget, then return directly to its filter conditions. */
+async function finishTargetCreation(created) {
+  const context = configuringTarget.value
+  if (!context || linkingTarget.value || !canFilter(created)) return
+  linkingTarget.value = true
+  try {
+    const prefix = `${props.storePrefix}dashboardApplication`
     const current = $store.getters[`${prefix}/getWidgets`].find(
-      (widget) => widget.id === filter.id
+      (widget) => widget.id === context.filterId
     )
     if (!current) return
     const links = current.target_filters || []
     if (!links.some((link) => link.target_widget_id === created.id)) {
-      const field = getFirstFilterField($registry, fields)
-      const link = field
-        ? buildFieldsFilterLink($registry, current, created.id, [field])
-        : {
-            target_widget_id: created.id,
-            enabled: true,
-            empty_behavior: 'apply_nothing',
-            group: emptyGroup(),
-          }
       await $store.dispatch(`${prefix}/updateWidget`, {
         widgetId: current.id,
-        values: { target_filters: [...links, link] },
+        values: {
+          target_filters: [
+            ...links,
+            {
+              target_widget_id: created.id,
+              enabled: true,
+              empty_behavior: 'apply_nothing',
+              group: emptyGroup(),
+            },
+          ],
+        },
         originalValues: { target_filters: links },
       })
     }
-    if (props.widget.id === filter.id) {
-      await openFilters(
-        targets.value.find((widget) => widget.id === created.id) || created
-      )
-    }
+    if (
+      disposed ||
+      configuringTarget.value !== context ||
+      props.widget.id !== context.filterId
+    )
+      return
+    configurationModal.value?.hide()
+    await openFilters(created)
   } catch (error) {
     notifyIf(error, 'dashboard')
   } finally {
-    if (creatingTarget.value?.filterId === filter.id) {
-      creatingTarget.value = null
-    }
+    linkingTarget.value = false
   }
 }
-/**
- * A new filter starts with the table question only. Its other settings show
- * once it has a table or filters something.
- */
-const showAllSettings = computed(
-  () =>
-    Boolean(props.widget.filter_table_id) ||
-    Boolean(props.widget.target_filters?.length)
-)
 const emptyGroup = () => ({
   filters: [],
   filter_groups: [],
@@ -621,9 +599,10 @@ const link = computed(
 watch(
   () => props.widget.id,
   () => {
+    configurationModal.value?.hide()
+    configuringTarget.value = null
     targetId.value = null
     menuTarget.value = null
-    selectedTargets.value = []
     targetMenu.value?.hide()
     targetPicker.value?.hide()
   }
@@ -661,35 +640,38 @@ const updateLink = (value) =>
     },
   ])
 const openTargetPicker = (event) => {
-  selectedTargets.value = []
   targetPicker.value.show(event.currentTarget)
 }
 const openTargetMenu = (candidate, event) => {
   menuTarget.value = candidate
   targetMenu.value.toggle(event.currentTarget, 'bottom', 'right', 4)
 }
-async function addTargets() {
+async function addTarget(id) {
   if (targetsSaving.value) return
-  const candidates = availableTargets.value.filter(
-    (candidate) =>
-      selectedTargets.value.includes(candidate.id) && canFilter(candidate)
+  const candidate = availableTargets.value.find(
+    (widget) => widget.id === id && canFilter(widget)
   )
-  if (!candidates.length) return
+  if (!candidate) return
+  const filterId = props.widget.id
   targetsSaving.value = true
   try {
     const saved = await updateSetting('target_filters', [
       ...(props.widget.target_filters || []),
-      ...candidates.map((candidate) => ({
+      {
         target_widget_id: candidate.id,
         group: emptyGroup(),
         empty_behavior: 'apply_nothing',
-      })),
+      },
     ])
-    if (saved) targetPicker.value?.hide()
+    if (saved && !disposed && props.widget.id === filterId) {
+      targetPicker.value?.hide()
+      await openFilters(candidate)
+    }
   } finally {
     targetsSaving.value = false
   }
 }
+
 async function removeTarget() {
   if (targetsSaving.value || !menuTarget.value) return
   const id = menuTarget.value.id

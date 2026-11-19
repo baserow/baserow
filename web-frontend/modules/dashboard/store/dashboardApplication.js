@@ -727,7 +727,7 @@ export const actions = {
   },
   async updateDataSource(
     { state, commit, dispatch },
-    { dataSourceId, values, widget }
+    { dataSourceId, values, widget, excludeFilterWidgetId = null }
   ) {
     const { $client, $registry } = this
     const previousTableId = state.dataSources.find(
@@ -742,10 +742,12 @@ export const actions = {
 
     let data
     try {
-      const response = await DataSourceService($client).update(
-        dataSourceId,
-        values
-      )
+      const response = await DataSourceService($client).update(dataSourceId, {
+        ...values,
+        ...(excludeFilterWidgetId == null
+          ? {}
+          : { exclude_filter_widget_id: excludeFilterWidgetId }),
+      })
       data = response.data
     } catch (error) {
       if (isDataSourceMutationCurrent(state, request)) {

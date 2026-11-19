@@ -3,14 +3,6 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 
 import TextFilterWidgetSettings from '@baserow/modules/dashboard/components/widget/TextFilterWidgetSettings'
 
-// The table setup has its own spec.
-vi.mock(
-  '@baserow/modules/dashboard/components/widget/FilterTableSetup',
-  () => ({
-    default: { name: 'FilterTableSetup', render: () => null },
-  })
-)
-
 let testApp
 beforeEach(() => {
   testApp = new TestApp()
@@ -25,7 +17,6 @@ describe('TextFilterWidgetSettings', () => {
     const widget = {
       id: 2,
       type: 'text_filter',
-      filter_table_id: 1,
       mode: 'dropdown',
       multiple: true,
       options: { formula: 'France, Belgium', mode: 'raw' },
@@ -68,7 +59,6 @@ describe('TextFilterWidgetSettings', () => {
       const widget = {
         id: 2,
         type: 'text_filter',
-        filter_table_id: 1,
         mode: 'dropdown',
         multiple,
         options: { formula: 'France, Belgium', mode: 'raw' },
@@ -106,7 +96,6 @@ describe('TextFilterWidgetSettings', () => {
     const widget = {
       id: 2,
       type: 'text_filter',
-      filter_table_id: 1,
       mode: 'dropdown',
       multiple: false,
       default_value: '',
@@ -201,7 +190,6 @@ describe('TextFilterWidgetSettings', () => {
   test('offers single or multiple selection only for dropdowns', async () => {
     const widget = {
       id: 2,
-      filter_table_id: 1,
       mode: 'input',
       multiple: false,
       placeholder: '',
@@ -234,7 +222,6 @@ describe('TextFilterWidgetSettings', () => {
         dashboard: { id: 1 },
         widget: {
           id: 2,
-          filter_table_id: 1,
           placeholder: 'Type here',
           default_value: 'Initial',
         },
@@ -243,7 +230,11 @@ describe('TextFilterWidgetSettings', () => {
     expect(wrapper.html()).toMatchSnapshot()
     const inputs = wrapper
       .findAll('.control input')
-      .filter((input) => !input.classes().includes('select__search-input'))
+      .filter(
+        (input) =>
+          input.attributes('type') !== 'checkbox' &&
+          !input.classes().includes('select__search-input')
+      )
     expect(inputs).toHaveLength(2)
     await inputs[0].setValue('')
     await inputs[0].trigger('blur')
@@ -290,7 +281,6 @@ async function mountTargets({ linked = false, prefix = '' } = {}) {
     {
       id: 2,
       type: 'text_filter',
-      filter_table_id: 1,
       title: 'Country',
       target_filters: linked
         ? [
@@ -308,7 +298,6 @@ async function mountTargets({ linked = false, prefix = '' } = {}) {
     {
       id: 9,
       type: 'text_filter',
-      filter_table_id: 1,
       title: 'Other filter',
       target_filters: [
         {
@@ -389,12 +378,10 @@ test('toggles a target without opening its conditions or losing either group', a
   expect(toggle.attributes('aria-checked')).toBe('true')
 })
 
-test('adds eligible widgets together, keeps existing conditions and isolates template saves', async () => {
+test('associates one existing widget and opens its conditions', async () => {
   const { wrapper, widget, dispatch, fetch, namespace } = await mountTargets({
     prefix: 'template/',
   })
-  expect(wrapper.findAll('.dashboard-widget-filter-target')).toHaveLength(0)
-  expect(wrapper.text()).toContain('textFilterWidget.noTargets')
   await button(wrapper, 'textFilterWidget.addWidgets').trigger('click')
   expect(option(wrapper, 'Other filter')).toBeUndefined()
   expect(
@@ -403,26 +390,22 @@ test('adds eligible widgets together, keeps existing conditions and isolates tem
       .classList.contains('disabled')
   ).toBe(true)
   await option(wrapper, 'New widget').trigger('click')
-  expect(button(wrapper, 'action.add').attributes('disabled')).toBeDefined()
-  await option(wrapper, 'Revenue').trigger('click')
-  await option(wrapper, 'Orders').trigger('click')
   expect(dispatch).not.toHaveBeenCalled()
   await button(wrapper, 'action.cancel').trigger('click')
   expect(widget.target_filters).toHaveLength(0)
   await button(wrapper, 'textFilterWidget.addWidgets').trigger('click')
-  expect(button(wrapper, 'action.add').attributes('disabled')).toBeDefined()
-  await option(wrapper, 'Revenue').trigger('click')
   await option(wrapper, 'Orders').trigger('click')
-  await button(wrapper, 'action.add').trigger('click')
   await flushPromises()
   expect(widget.target_filters.map((link) => link.target_widget_id)).toEqual([
-    3, 5,
+    5,
   ])
-  expect(wrapper.findAll('.dashboard-widget-filter-target')).toHaveLength(2)
-  expect(wrapper.find('.dashboard-widget-filter-target').text()).toContain(
-    'textFilterWidget.setUpConditions'
-  )
-  expect(fetch).not.toHaveBeenCalled()
+  expect(wrapper.findAll('.dashboard-widget-filter-target')).toHaveLength(1)
+  expect(
+    wrapper
+      .findComponent({ name: 'WidgetFilterConfigurationModal' })
+      .props('target').id
+  ).toBe(5)
+  expect(fetch).toHaveBeenCalled()
   expect(dispatch).toHaveBeenCalledOnce()
   expect(dispatch).toHaveBeenCalledWith(
     `${namespace}/updateWidget`,
@@ -729,22 +712,7 @@ test('retries loading fields without showing an empty condition editor after fai
   )
 })
 
-test.each([
-  [{}, false],
-  [{ filter_table_id: 1 }, true],
-  [
-    {
-      target_filters: [
-        {
-          target_widget_id: 3,
-          group: { filter_type: 'AND', filters: [], filter_groups: [] },
-          empty_behavior: 'apply_nothing',
-        },
-      ],
-    },
-    true,
-  ],
-])('a new filter only asks for its table first %o', async (values, shown) => {
+test('a new filter can target widgets without choosing a table', async () => {
   const wrapper = await testApp.mount(TextFilterWidgetSettings, {
     props: {
       dashboard: { id: 1 },
@@ -755,13 +723,16 @@ test.each([
         multiple: false,
         default_value: '',
         target_filters: [],
-        ...values,
       },
     },
   })
-
-  expect(wrapper.text().includes('textFilterWidget.howItLooks')).toBe(shown)
-  expect(wrapper.text().includes('textFilterWidget.targets')).toBe(shown)
+  expect(wrapper.text()).toContain('textFilterWidget.howItLooks')
+  expect(wrapper.text()).toContain('textFilterWidget.targets')
+  expect(wrapper.text()).not.toContain('filterTableSetup.question')
+  await button(wrapper, 'textFilterWidget.addWidgets').trigger('click')
+  expect(
+    wrapper.find('.dashboard-widget-filter-targets__create').exists()
+  ).toBe(true)
 })
 
 test.each([
@@ -774,7 +745,6 @@ test.each([
       widget: {
         id: 2,
         type: 'text_filter',
-        filter_table_id: 1,
         mode,
         multiple: false,
         default_value: '',
@@ -787,10 +757,9 @@ test.each([
   expect(wrapper.text().includes('textFilterWidget.placeholder')).toBe(shown)
 })
 
-describe("widgets of the filter's table", () => {
-  const tableFields = [
-    { id: 22, name: 'Notes', type: 'text', primary: false, order: 0 },
-    { id: 21, name: 'Name', type: 'text', primary: true, order: 1 },
+describe('creating widgets from a filter', () => {
+  const fields = [
+    { id: 21, name: 'Name', type: 'text', primary: true, order: 0 },
   ]
   const filterWidget = (values = {}) => ({
     id: 2,
@@ -800,31 +769,28 @@ describe("widgets of the filter's table", () => {
     multiple: false,
     default_value: '',
     target_filters: [],
-    filter_table_id: 6,
-    apply_to_new_widgets: true,
+    apply_to_new_widgets: false,
     ...values,
   })
-
-  /**
-   * Mount a filter of the Tickets table. `onDataSource` stands for the server
-   * answering the new widget's table, where the filter may link it itself.
-   */
-  async function mountFilters(widgets, { onDataSource = () => {} } = {}) {
-    const store = testApp.store
-    store.commit('application/SET_ITEMS', [
-      {
-        id: 20,
-        type: 'database',
-        name: 'Sales',
-        workspace: { id: 1 },
-        tables: [{ id: 6, name: 'Tickets' }],
+  const configurationStub = {
+    name: 'ConfigureFilterTargetModal',
+    props: ['widgetId', 'loading'],
+    emits: ['configured', 'hidden'],
+    template: '<div />',
+    methods: {
+      show() {},
+      hide() {
+        this.$emit('hidden')
       },
-    ])
+    },
+  }
+
+  async function mountFilters(widgets) {
+    const store = testApp.store
     store.commit('dashboardApplication/SET_DASHBOARD_ID', 1)
     store.commit('dashboardApplication/SET_WIDGETS', widgets)
     store.commit('dashboardApplication/SET_DATA_SOURCES', [])
-    vi.spyOn(store.$client, 'get').mockResolvedValue({ data: tableFields })
-    const finish = {}
+    vi.spyOn(store.$client, 'get').mockResolvedValue({ data: fields })
     const dispatch = vi
       .spyOn(store, 'dispatch')
       .mockImplementation(async (action, payload) => {
@@ -844,32 +810,24 @@ describe("widgets of the filter's table", () => {
           ])
           return created
         }
-        if (action.endsWith('/updateDataSource')) {
-          await new Promise((resolve) => (finish.dataSource = resolve))
-          store.getters['dashboardApplication/getDataSourceById'](31).table_id =
-            payload.values.table_id
-          onDataSource(store)
-        }
-        if (action.endsWith('/updateWidget')) {
+        if (action.endsWith('/updateWidget'))
           store.commit('dashboardApplication/UPDATE_WIDGET', payload)
-        }
       })
     const wrapper = await testApp.mount(TextFilterWidgetSettings, {
       props: { dashboard: { id: 1, workspace: { id: 1 } }, widget: widgets[0] },
+      global: { stubs: { ConfigureFilterTargetModal: configurationStub } },
     })
     dispatch.mockClear()
-    return { wrapper, dispatch, finish }
+    return { wrapper, dispatch, store }
   }
 
   async function createSummary(wrapper) {
     await button(wrapper, 'textFilterWidget.addWidgets').trigger('click')
-    const create = wrapper
+    await wrapper
       .findAll('.dashboard-widget-filter-targets__create')
       .at(-1)
-    expect(create.text()).toBe('textFilterWidget.createWidget')
-    await create.trigger('click')
+      .trigger('click')
     const modal = wrapper.findComponent({ name: 'CreateWidgetModal' })
-    // Filters can't be filtered: only widgets showing data are offered.
     expect(modal.props('hideFilters')).toBe(true)
     modal.vm.$emit(
       'widget-variation-selected',
@@ -878,125 +836,146 @@ describe("widgets of the filter's table", () => {
     await flushPromises()
   }
 
-  test.each([
-    ['links it on the first field when the filter did not', false],
-    ['keeps the link the filter made', true],
-  ])(
-    'creating a widget shows the table and %s, then opens its conditions',
-    async (_, linkedByServer) => {
-      const { wrapper, dispatch, finish } = await mountFilters(
-        [filterWidget()],
-        {
-          onDataSource: (store) => {
-            if (!linkedByServer) return
-            store.commit('dashboardApplication/UPDATE_WIDGET', {
-              widgetId: 2,
-              values: {
-                target_filters: [
-                  {
-                    target_widget_id: 30,
-                    enabled: true,
-                    empty_behavior: 'apply_nothing',
-                    group: {
-                      filter_type: 'AND',
-                      filter_groups: [],
-                      filters: [
-                        {
-                          id: 'c',
-                          field: 22,
-                          type: 'contains',
-                          group: null,
-                          value: { formula: '', mode: 'simple' },
-                        },
-                      ],
-                    },
-                  },
-                ],
-              },
-            })
-          },
-        }
-      )
-
+  test.each([1, 6])(
+    'configures table %s before returning to the filter conditions',
+    async (tableId) => {
+      const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
       await createSummary(wrapper)
-      finish.dataSource()
-      await flushPromises()
-
-      const actions = dispatch.mock.calls.map(([action]) => action)
-      expect(actions.slice(0, 2)).toEqual([
-        'dashboardApplication/createWidget',
-        'dashboardApplication/updateDataSource',
-      ])
-      // The filter stays selected, so its settings aren't swapped out.
+      expect(dispatch.mock.calls).toHaveLength(1)
       expect(dispatch.mock.calls[0][1]).toEqual(
         expect.objectContaining({ select: false })
       )
-      expect(dispatch.mock.calls[1][1]).toEqual({
-        dataSourceId: 31,
-        // The summary shows the first field, like choosing the table in its
-        // settings.
-        values: { table_id: 6, field_id: 22, aggregation_type: 'count' },
-        widget: expect.objectContaining({ id: 30 }),
+      const configuration = wrapper.findComponent({
+        name: 'ConfigureFilterTargetModal',
       })
-      if (linkedByServer) {
-        expect(actions).toHaveLength(2)
-      } else {
-        const save = dispatch.mock.calls[2]
-        expect(save[0]).toBe('dashboardApplication/updateWidget')
-        // The primary field, although another field comes first.
-        expect(save[1].values.target_filters).toEqual([
-          expect.objectContaining({
-            target_widget_id: 30,
-            group: expect.objectContaining({
-              filters: [
-                expect.objectContaining({ field: 21, type: 'contains' }),
-              ],
-            }),
-          }),
-        ])
-      }
-      const modal = wrapper.findComponent({
+      expect(configuration.props('widgetId')).toBe(30)
+      expect(
+        wrapper
+          .findComponent({ name: 'WidgetFilterConfigurationModal' })
+          .exists()
+      ).toBe(false)
+      store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+        dataSourceId: 31,
+        values: { table_id: tableId },
+      })
+      configuration.vm.$emit(
+        'configured',
+        store.getters['dashboardApplication/getWidgets'].find(
+          (widget) => widget.id === 30
+        )
+      )
+      await flushPromises()
+      expect(
+        dispatch.mock.calls.find(([action]) =>
+          action.endsWith('/updateWidget')
+        )[1]
+      ).toEqual(
+        expect.objectContaining({
+          widgetId: 2,
+          values: {
+            target_filters: [
+              expect.objectContaining({
+                target_widget_id: 30,
+                group: { filter_type: 'AND', filters: [], filter_groups: [] },
+              }),
+            ],
+          },
+        })
+      )
+      const conditions = wrapper.findComponent({
         name: 'WidgetFilterConfigurationModal',
       })
-      expect(modal.exists()).toBe(true)
-      expect(modal.props('target').id).toBe(30)
+      expect(conditions.props('target').id).toBe(30)
+      expect(conditions.props('source').table_id).toBe(tableId)
     }
   )
 
-  test('a created widget is linked to the filter that asked for it', async () => {
-    const first = filterWidget({ apply_to_new_widgets: false })
-    const second = filterWidget({ id: 5, title: 'Other' })
-    const { wrapper, dispatch, finish } = await mountFilters([first, second])
-
+  test('keeps conditions already copied by the server', async () => {
+    const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
     await createSummary(wrapper)
-    // The editor selects the other filter while the widget is set up.
-    await wrapper.setProps({ widget: second })
-    finish.dataSource()
-    await flushPromises()
-
-    const save = dispatch.mock.calls.find(([action]) =>
-      action.endsWith('/updateWidget')
+    const copied = {
+      target_widget_id: 30,
+      enabled: true,
+      empty_behavior: 'apply_nothing',
+      group: {
+        filter_type: 'OR',
+        filter_groups: [],
+        filters: [
+          {
+            id: 'copied',
+            field: 21,
+            type: 'contains',
+            value: { formula: "get('widget_data.2')", mode: 'simple' },
+          },
+        ],
+      },
+    }
+    store.commit('dashboardApplication/UPDATE_WIDGET', {
+      widgetId: 2,
+      values: { target_filters: [copied] },
+    })
+    store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+      dataSourceId: 31,
+      values: { table_id: 6 },
+    })
+    wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).vm.$emit(
+      'configured',
+      store.getters['dashboardApplication/getWidgets'].find(
+        (widget) => widget.id === 30
+      )
     )
-    expect(save[1].widgetId).toBe(2)
+    await flushPromises()
+    expect(dispatch.mock.calls).toHaveLength(1)
+    expect(
+      wrapper
+        .findComponent({ name: 'WidgetFilterConfigurationModal' })
+        .props('link')
+    ).toEqual(copied)
+  })
+
+  test('closing configuration leaves the filter unlinked', async () => {
+    const { wrapper, dispatch } = await mountFilters([filterWidget()])
+    await createSummary(wrapper)
+    wrapper
+      .findComponent({ name: 'ConfigureFilterTargetModal' })
+      .vm.$emit('hidden')
+    await flushPromises()
+    expect(dispatch.mock.calls).toHaveLength(1)
     expect(
       wrapper.findComponent({ name: 'WidgetFilterConfigurationModal' }).exists()
     ).toBe(false)
   })
 
-  test('turns off filtering widgets added later', async () => {
-    const { wrapper, dispatch } = await mountFilters([filterWidget()])
+  test('changing filters dismisses the guided configuration', async () => {
+    const second = filterWidget({ id: 5 })
+    const { wrapper } = await mountFilters([filterWidget(), second])
+    await createSummary(wrapper)
+    await wrapper.setProps({ widget: second })
+    expect(
+      wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
+    ).toBe(false)
+  })
 
-    const checkbox = wrapper
-      .findAllComponents({ name: 'Checkbox' })
-      .find((item) =>
-        item.classes().includes('dashboard-widget-filter-targets__apply-new')
+  test('keeps configuration open when linking fails', async () => {
+    const { wrapper, dispatch, store } = await mountFilters([filterWidget()])
+    await createSummary(wrapper)
+    dispatch.mockRejectedValueOnce({ handler: { notifyIf: vi.fn() } })
+    store.commit('dashboardApplication/UPDATE_DATA_SOURCE', {
+      dataSourceId: 31,
+      values: { table_id: 6 },
+    })
+    wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).vm.$emit(
+      'configured',
+      store.getters['dashboardApplication/getWidgets'].find(
+        (widget) => widget.id === 30
       )
-    expect(checkbox.text()).toContain('textFilterWidget.applyToNewWidgets')
-    await checkbox.vm.$emit('input', false)
-
-    expect(dispatch).toHaveBeenCalledWith(
-      'dashboardApplication/updateWidget',
-      expect.objectContaining({ values: { apply_to_new_widgets: false } })
     )
+    await flushPromises()
+    expect(
+      wrapper.findComponent({ name: 'ConfigureFilterTargetModal' }).exists()
+    ).toBe(true)
+    expect(
+      wrapper.findComponent({ name: 'WidgetFilterConfigurationModal' }).exists()
+    ).toBe(false)
   })
 })

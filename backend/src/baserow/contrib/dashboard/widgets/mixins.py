@@ -35,7 +35,6 @@ class DisplayWidgetTypeMixin:
 
         from .filter_setup import (
             build_new_widget_link,
-            get_first_field,
             get_matching_targets,
         )
 
@@ -52,31 +51,29 @@ class DisplayWidgetTypeMixin:
 
         def get_table_widget_ids():
             if "widgets" not in lookups:
-                lookups["widgets"] = {
+                lookups["widgets"] = [
                     widget.id
-                    for widget, _ in get_matching_targets(instance.dashboard, table_id)
-                }
+                    for widget, target_source in get_matching_targets(
+                        instance.dashboard, table_id
+                    )
+                    # All widgets sharing this source still have old-table
+                    # conditions; none can be a template for the new table.
+                    if target_source.id != source.id
+                ]
             return lookups["widgets"]
-
-        def get_field():
-            if "field" not in lookups:
-                lookups["field"] = get_first_field(table_id)
-            return lookups["field"]
 
         for widget in filter_widgets:
             filter_type = widget.get_type()
             links = filter_type.get_target_filters(widget)
             updated = deepcopy(links)
             originals = []
-            # A filter of the new table, applied to widgets added later, filters
-            # this one like the last widget it filters on that table.
+            # Copy this filter's conditions from the first widget on the new
+            # table, independently of its conditions on other tables.
             default = (
-                build_new_widget_link(
-                    widget, instance, links, get_table_widget_ids(), get_field
-                )
+                build_new_widget_link(instance, links, get_table_widget_ids())
                 if table_id
+                and widget.id != kwargs.get("exclude_filter_widget_id")
                 and getattr(widget, "apply_to_new_widgets", False)
-                and getattr(widget, "filter_table_id", None) == table_id
                 and not widget.trashed
                 else None
             )

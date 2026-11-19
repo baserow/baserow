@@ -136,17 +136,6 @@ export class DataSourceWidgetType extends WidgetType {
     return widget.data_source_id
   }
 
-  /**
-   * The data source values that make a new widget show the table, as if it was
-   * chosen in the widget's settings.
-   *
-   * @param {number} tableId The table the widget shows.
-   * @param {Array} fields The table's fields, in the order the API lists them.
-   */
-  getDataSourceValuesForTable(tableId, fields) {
-    return { table_id: tableId }
-  }
-
   afterCreate(widget, context) {
     if (
       context.state.dataSources.some(
@@ -205,29 +194,6 @@ export class SummaryWidgetType extends DataSourceWidgetType {
 
   get showHeaderBorder() {
     return false
-  }
-
-  getDataSourceValuesForTable(tableId, fields) {
-    // Like choosing the table in the settings: the summary shows the first
-    // field, with the first aggregation that supports it.
-    const values = super.getDataSourceValuesForTable(tableId, fields)
-    const field = fields[0]
-    if (!field) return values
-    const unsupported = this.app.$registry.get(
-      'service',
-      'local_baserow_aggregate_rows'
-    ).unsupportedAggregationTypes
-    const aggregation = this.app.$registry
-      .getOrderedList('viewAggregation')
-      .find(
-        (type) =>
-          !unsupported.includes(type.getType()) && type.fieldIsCompatible(field)
-      )
-    return {
-      ...values,
-      field_id: field.id,
-      aggregation_type: aggregation ? aggregation.getType() : '',
-    }
   }
 }
 
