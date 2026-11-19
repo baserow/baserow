@@ -41,10 +41,8 @@ from baserow.core.ai_provider.constants import (
 )
 from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderModel
-from baserow.core.ai_provider.resolution import (
-    ScopedAIProviderState,
-    get_ai_provider_state,
-)
+from baserow.core.ai_provider.registries import ai_provider_model_feature_type_registry
+from baserow.core.ai_provider.resolution import get_ai_provider_state
 from baserow.core.cache import global_cache
 from baserow.core.generative_ai.capabilities import test_model_text_and_tool_calling
 from baserow.core.generative_ai.generative_ai_model_types import (
@@ -167,7 +165,6 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
 _PROVIDER_PREFIX_ALIASES = {"google-gla": "google", "google-vertex": "google-cloud"}
 
 AssistantModelSource = Literal["legacy", "database", "explicit"]
-_DatabaseModelSource = Literal["legacy", "database", "disabled"]
 
 
 def _normalize_model_string(value: str) -> str:
@@ -189,35 +186,6 @@ def _normalize_model_string(value: str) -> str:
         value = f"{_PROVIDER_PREFIX_ALIASES[provider]}:{rest}"
 
     return value
-
-
-def _get_database_model(
-    workspace: Workspace | None = None,
-    state: ScopedAIProviderState | None = None,
-) -> tuple[AIProviderModel | None, _DatabaseModelSource]:
-    """Resolve Kuma's database-backed model from one provider-state snapshot.
-
-    :param workspace: The workspace scope, or ``None`` for the instance scope.
-    :param state: An already-loaded provider state for the requested scope.
-    :return: The selected model, if any, and its resolution source.
-    """
-
-    if state is None:
-        state = get_ai_provider_state(workspace)
-    settings_list = AIProviderHandler.list_feature_settings(workspace, state=state)
-    setting = next(
-        (
-            value
-            for value in settings_list
-            if value["feature_type"] == AI_PROVIDER_FEATURE_KUMA
-        ),
-        None,
-    )
-    if setting is None or setting["state"] in {"unconfigured", "invalid"}:
-        return None, "legacy"
-    if setting["state"] == "disabled":
-        return None, "disabled"
-    return setting["model"], "database"
 
 
 @dataclass(frozen=True, slots=True)
@@ -287,6 +255,8 @@ def resolve_assistant_model(
     :param model: An explicit model identifier that bypasses persisted selection.
     :return: The resolved model profile and provider-state snapshot.
     :raises AssistantModelDisabledError: If Kuma is explicitly disabled.
+    :raises AssistantConfiguredModelNotAvailableError: If the selected provider
+        excludes this workspace.
     """
 
     if model is not None:
@@ -297,10 +267,18 @@ def resolve_assistant_model(
             database_model=None,
         )
 
-    state = get_ai_provider_state(workspace)
-    database_model, source = _get_database_model(workspace, state=state)
+    kuma_feature_type = ai_provider_model_feature_type_registry.get(
+        AI_PROVIDER_FEATURE_KUMA
+    )
+    database_model, source = kuma_feature_type.resolve_model(
+        get_ai_provider_state(workspace)
+    )
     if source == "disabled":
         raise AssistantModelDisabledError("Kuma is disabled for this scope.")
+    if source == "unavailable":
+        raise AssistantConfiguredModelNotAvailableError(
+            "The selected Kuma model is unavailable in this workspace."
+        )
 
     if database_model is not None:
         model_string = (

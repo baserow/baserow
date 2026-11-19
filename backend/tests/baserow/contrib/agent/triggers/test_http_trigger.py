@@ -152,7 +152,7 @@ def test_a_trigger_changed_to_http_refuses_get_too(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("state", ["disabled", "trashed", "feature_off", "not_ready"])
+@pytest.mark.parametrize("state", ["disabled", "trashed", "not_ready"])
 def test_an_http_request_cannot_start_an_inactive_agent_trigger(
     api_client, http_trigger, settings, state, django_capture_on_commit_callbacks
 ):
@@ -163,8 +163,6 @@ def test_an_http_request_cannot_start_an_inactive_agent_trigger(
     elif state == "trashed":
         trigger.agent.trashed = True
         trigger.agent.save()
-    elif state == "feature_off":
-        settings.FEATURE_FLAGS = []
     else:
         trigger.agent.model_identifier = ""
         trigger.agent.save()

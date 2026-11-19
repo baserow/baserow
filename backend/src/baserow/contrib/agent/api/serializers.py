@@ -90,6 +90,10 @@ class AgentToolSerializer(serializers.Serializer):
     name = serializers.CharField()
     group = serializers.CharField()
     changes_data = serializers.BooleanField()
+    deactivated = serializers.BooleanField(
+        help_text="Whether the Agent's workspace can't use the tool, for lack of a "
+        "licence for example. A deactivated tool can't be allowed."
+    )
 
 
 class AgentConfigurationSerializer(serializers.Serializer):
@@ -142,6 +146,9 @@ class AgentConfigurationSerializer(serializers.Serializer):
         help_text="Whether the agent's model can search the web, but not while the "
         "agent uses workspace tools."
     )
+    web_fetch_enabled = serializers.BooleanField(
+        help_text="Whether the agent may open web pages, which Baserow fetches."
+    )
     available_trigger_types = serializers.ListField(
         child=serializers.CharField(),
         help_text="The trigger types that can be added to the agent on this "
@@ -176,7 +183,8 @@ class AgentConfigurationSerializer(serializers.Serializer):
         List the registered tools.
 
         :param configuration: The configuration being serialized.
-        :return: Each tool's name, group and whether it changes data.
+        :return: Each tool's name, group, whether it changes data and whether the
+            Agent's workspace can't use it.
         """
 
         return [
@@ -184,6 +192,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
                 "name": tool_type.type,
                 "group": tool_type.group,
                 "changes_data": tool_type.changes_data,
+                "deactivated": tool_type.type in configuration.deactivated_tools,
             }
             for tool_type in agent_tool_type_registry.get_all()
         ]
@@ -259,6 +268,7 @@ class AgentConfigurationUpdateSerializer(
             "run_as_subject_id",
             "allowed_tools",
             "web_search_enabled",
+            "web_fetch_enabled",
             "ask_first_tools",
         )
         extra_kwargs = {

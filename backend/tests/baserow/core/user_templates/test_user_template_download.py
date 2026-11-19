@@ -162,17 +162,22 @@ def test_download_admitted_through_private_link_when_the_link_changes(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "actor,shown,error",
+    "actor,shown,flag_on,error",
     [
         # The owner may download a revision that isn't the public one.
-        ("owner", "old", None),
-        ("owner", "other_template", TemplateDoesNotExist),
-        ("staff", "old", None),
-        ("user", "public", None),
-        ("user", "old", TemplateUpdated),
+        ("owner", "old", True, None),
+        ("owner", "other_template", True, TemplateDoesNotExist),
+        ("staff", "old", True, None),
+        ("user", "public", True, None),
+        ("user", "old", True, TemplateUpdated),
+        ("owner", "old", False, None),
+        ("staff", "old", False, TemplateDoesNotExist),
+        ("user", "public", False, TemplateDoesNotExist),
     ],
 )
-def test_get_downloadable_revision(data_fixture, actor, shown, error):
+def test_get_downloadable_revision(
+    data_fixture, settings, actor, shown, flag_on, error
+):
     owner = data_fixture.create_user()
     template = create_template(data_fixture, owner)
     revision = add_revision(data_fixture, template)
@@ -187,6 +192,8 @@ def test_get_downloadable_revision(data_fixture, actor, shown, error):
         "public": revision,
         "other_template": create_template(data_fixture, data_fixture.create_user()),
     }[shown]
+    if not flag_on:
+        settings.FEATURE_FLAGS = []
 
     def get():
         return UserTemplateHandler().get_downloadable_revision(

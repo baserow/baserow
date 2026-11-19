@@ -553,9 +553,13 @@ class CoreConfig(AppConfig):
             UnreadUserNotificationsCountPermissionsDataType,
         )
         from baserow.api.user.registries import user_data_registry
-        from baserow.api.user.user_data_types import GlobalPermissionsDataType
+        from baserow.api.user.user_data_types import (
+            GlobalPermissionsDataType,
+            UserFeatureFlagsDataType,
+        )
 
         user_data_registry.register(GlobalPermissionsDataType())
+        user_data_registry.register(UserFeatureFlagsDataType())
         user_data_registry.register(UnreadUserNotificationsCountPermissionsDataType())
 
         from baserow.core.preference_types import (

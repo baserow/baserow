@@ -50,7 +50,9 @@ class AgentConfiguration:
     web_search_enabled: bool
     web_search_available: bool
     web_search_blocked_by_tools: bool
+    web_fetch_enabled: bool
     ask_first_tools: list[str]
+    deactivated_tools: list[str]
     available_trigger_types: list[str]
     available_action_types: list[str]
     max_actions: int | None
@@ -158,6 +160,14 @@ class AgentReplyResume:
 
 
 @dataclass(frozen=True)
+class AgentConversationUser:
+    """The person a private conversation is with."""
+
+    id: int
+    name: str
+
+
+@dataclass(frozen=True)
 class AgentReplyRequest:
     reply_id: int
     workspace: Workspace | None
@@ -176,12 +186,16 @@ class AgentReplyRequest:
     """Who the tools act as, or None for no workspace access."""
     allowed_tool_names: list[str] = field(default_factory=list)
     """The tools the reply may call, none without an identity to act as."""
+    unavailable_tool_messages: list[str] = field(default_factory=list)
+    """Instructions naming the allowed tools the workspace can't use, and why."""
     ask_first_tool_names: list[str] = field(default_factory=list)
     """The allowed tools whose calls wait for the owner's approval."""
     action_tools: list["BoundActionTool"] = field(default_factory=list)
     """The enabled actions, which don't act as the Agent's identity."""
     timezone: str | None = None
     """The timezone of the owner, for the dates the tools read and write."""
+    conversation_user: AgentConversationUser | None = None
+    """The person the conversation is with, or None when a trigger started it."""
     mcp_servers: tuple[MCPServerSnapshot, ...] = ()
     """The MCP servers with tools turned on, as reviewed when the reply started."""
     reasoning_effort: str | None = None
@@ -192,6 +206,8 @@ class AgentReplyRequest:
     """Whether web search is turned on, even when the model can't use it."""
     started_by_trigger: bool = False
     """Whether a trigger started the conversation, so its prompt is outside data."""
+    web_fetch_enabled: bool = False
+    """Whether the reply may open web pages, which Baserow fetches for any model."""
 
 
 @dataclass(frozen=True)
@@ -202,6 +218,8 @@ class AgentPausedRun:
     """The run, dumped with its messages and held calls."""
     web_search: bool
     """Whether it offered web search."""
+    web_fetch: bool
+    """Whether it offered opening web pages."""
     run_as: Subject | None
     """Who its tools acted as, or None for no workspace access."""
 

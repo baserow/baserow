@@ -276,9 +276,9 @@ class CreateUserTemplateJobType(JobType):
         if values.get("template_id") is not None:
             return self._prepare_update_values(values, user)
 
-        # Only creating a template checks the flag: without one, there's nothing to
-        # update or delete.
-        feature_flag_is_enabled(FF_USER_TEMPLATES, raise_if_disabled=True)
+        # Only creating checks the flag: updates act on templates the user already
+        # owns.
+        feature_flag_is_enabled(FF_USER_TEMPLATES, user=user, raise_if_disabled=True)
         self._validate_mode(values, CREATE_REQUIRED_FIELDS)
         make_public = values.get("make_public", False)
         if make_public and not values.get("public_listing_consent"):

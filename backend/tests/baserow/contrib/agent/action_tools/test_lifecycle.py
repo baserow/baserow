@@ -18,7 +18,6 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentAction
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
-from baserow.core.exceptions import FeatureDisabledException
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.object_scopes import ApplicationObjectScopeType
@@ -194,18 +193,6 @@ def test_each_call_checks_operations_on_owning_agent(data_fixture, mocker, name)
         for args, _ in check.call_args_list
         for permission in args[1]
     ] == [(operation, agent.id) for operation in expected]
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("name", ["create", "update", "delete"])
-def test_writes_need_feature_flag(data_fixture, settings, name):
-    user = data_fixture.create_user()
-    agent = data_fixture.create_agent_application(user=user)
-    action = data_fixture.create_agent_action(agent=agent)
-    settings.FEATURE_FLAGS = []
-    with pytest.raises(FeatureDisabledException):
-        call(name, user, agent, action)
-    assert AgentAction.objects.filter(id=action.id, enabled=True).exists()
 
 
 @pytest.mark.django_db

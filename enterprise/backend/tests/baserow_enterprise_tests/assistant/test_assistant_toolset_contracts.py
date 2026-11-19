@@ -31,9 +31,11 @@ from pydantic_ai.toolsets import AbstractToolset
 from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.usage import RunUsage
 
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.automation.models import Automation
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.models import Workspace
+from baserow_enterprise.assistant.agents import dynamic_unavailable_tools, main_agent
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 from baserow_enterprise.assistant.model_profiles import (
     ResolvedAssistantModelProfile,
@@ -54,6 +56,9 @@ from baserow_enterprise.assistant.tools.toolset import (
     format_tool_arg_errors,
     inline_refs,
 )
+from baserow_enterprise.license_types import AdvancedLicenseType
+from baserow_premium.license.license_types import PremiumLicenseType
+from baserow_premium.license.plugin import LicensePlugin
 
 from .utils import create_fake_tool_helpers
 
@@ -138,7 +143,9 @@ def searchable_knowledge_base() -> Iterator[None]:
 
 
 @pytest.fixture
-def built(data_fixture: Any, searchable_knowledge_base: None) -> BuiltToolset:
+def built(
+    data_fixture: Any, searchable_knowledge_base: None, enable_enterprise, synced_roles
+) -> BuiltToolset:
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     return build_production_toolset(user, workspace)
@@ -170,6 +177,71 @@ def test_every_registered_tool_is_exposed_in_some_mode(built: BuiltToolset) -> N
         "baserow_enterprise.assistant.tools.routing._tool_routes."
     )
     assert exposed == set(REGISTERED_TOOLS)
+    assert dynamic_unavailable_tools(SimpleNamespace(deps=built.deps)) == ""
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_premium_seat", [False, True])
+def test_unlicensed_row_comments_are_explained_and_omitted_from_every_mode(
+    premium_data_fixture, settings, has_premium_seat
+):
+    settings.DEBUG = True
+    user = premium_data_fixture.create_user(has_active_premium_license=has_premium_seat)
+    workspace = premium_data_fixture.create_workspace(user=user)
+    built = build_production_toolset(user, workspace)
+    names = {"list_row_comments", "search_row_comments", "create_row_comments"}
+
+    for mode in ALL_MODES:
+        assert names.isdisjoint(built.managed_tools_in(mode))
+    assert all(name not in built.catalog for name in names)
+
+    def model(messages, info):
+        assert names.isdisjoint(tool.name for tool in info.function_tools)
+        instructions = messages[-1].instructions
+        assert all(name in instructions for name in names)
+        assert "this workspace lacks an Advanced or Enterprise license" in instructions
+        return ModelResponse(
+            parts=[
+                TextPart(
+                    content="Searching row comments requires an Advanced workspace license."
+                )
+            ]
+        )
+
+    main_agent.run_sync(
+        "Which row comments mention me?",
+        deps=built.deps,
+        model=FunctionModel(model),
+        toolsets=[built.toolset],
+    )
+
+
+@pytest.mark.django_db
+def test_advanced_unlocks_row_comment_tools_only_in_the_licensed_workspace(
+    data_fixture, mocker
+):
+    user = data_fixture.create_user()
+    advanced = data_fixture.create_workspace(user=user)
+    premium = data_fixture.create_workspace(user=user)
+    mocker.patch.object(
+        LicensePlugin,
+        "get_active_workspace_licenses",
+        side_effect=lambda workspace: [
+            AdvancedLicenseType() if workspace == advanced else PremiumLicenseType()
+        ],
+    )
+    for workspace, locked in [(advanced, False), (premium, True)]:
+        built = build_production_toolset(user, workspace)
+        tools = built.managed_tools_in(AgentMode.DATABASE)
+        for name in ("list_row_comments", "search_row_comments", "create_row_comments"):
+            assert (
+                agent_tool_type_registry.get(name).is_deactivated(workspace) == locked
+            )
+            assert (name in tools) == (not locked)
+            assert (name in built.catalog) == (not locked)
+        assert (
+            bool(dynamic_unavailable_tools(SimpleNamespace(deps=built.deps))) == locked
+        )
 
 
 @pytest.mark.django_db
@@ -490,6 +562,7 @@ TOOL_VISIBILITY: dict[str, frozenset[AgentMode]] = {
     "load_row_tools": frozenset({DATABASE}),
     "move_elements": frozenset({APPLICATION}),
     "navigate": EVERYWHERE,
+    "search_row_comments": EVERYWHERE,
     "search_user_docs": EVERYWHERE,
     "set_field_visibility": frozenset({DATABASE}),
     "add_row_colours": frozenset({DATABASE}),

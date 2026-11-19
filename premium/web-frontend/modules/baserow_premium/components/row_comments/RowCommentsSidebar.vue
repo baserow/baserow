@@ -75,7 +75,9 @@
             <RichTextEditor
               v-model="comment"
               editor-class="rich-text-editor__content--comment"
-              :mentionable-users="workspace.users"
+              :mentionable-users="
+                $store.getters['workspace/getCollaborators'](workspace.id)
+              "
               :placeholder="$t('rowCommentSidebar.comment')"
               :enter-stop-edit="true"
               @stop-edit="postComment()"

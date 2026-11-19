@@ -1,7 +1,9 @@
+import { getFieldCollaborators } from '@baserow/modules/core/utils/collaborator'
+
 export default {
   computed: {
     workspaceCollaborators() {
-      return this.field.available_collaborators
+      return getFieldCollaborators(this.$store, this.field, this.workspaceId)
     },
     availableCollaborators() {
       // When converting from a CollaboratorField to another field it can happen

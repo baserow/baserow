@@ -71,6 +71,8 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
+    CONVERSATION_USER_NAME_MAX_LENGTH,
+    DEACTIVATED_TOOLS_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
     HISTORY_MESSAGE_LIMIT,
     REJECTED_TOOL_CALL_NOTE,
@@ -106,6 +108,7 @@ from .types import (
     AgentConfigurationUpdated,
     AgentConversationCursor,
     AgentConversationUpdated,
+    AgentConversationUser,
     AgentMessageCreated,
     AgentPausedRun,
     AgentReplyRequest,
@@ -128,7 +131,7 @@ class AgentHandler:
     configuration_fields = ["instructions", "provider_type", "model_identifier"]
     conversation_fields = ["title", "pinned"]
     run_as_fields = ["run_as_subject_type", "run_as_subject_id"]
-    option_fields = ["web_search_enabled", "reasoning_effort"]
+    option_fields = ["web_search_enabled", "web_fetch_enabled", "reasoning_effort"]
 
     def get_agent(self, agent_id: int, for_update: bool = False) -> AgentApplication:
         """
@@ -172,11 +175,13 @@ class AgentHandler:
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
-        tools = self.get_tool_configuration(agent)
+        deactivated = self.get_deactivated_tools(agent)
+        tools = self.get_tool_configuration(agent, deactivated)
         with_tools = (
             (run_as.status == AgentRunAsState.ACTIVE and bool(tools["allowed_tools"]))
             or self.has_mcp_tools(agent)
             or bool(AgentActionHandler().get_callable_actions(agent))
+            or agent.web_fetch_enabled
         )
         web_search_tool = self._get_web_search_tool(agent, with_tools)
         return AgentConfiguration(
@@ -190,11 +195,13 @@ class AgentHandler:
             ),
             run_as=run_as,
             **tools,
+            deactivated_tools=deactivated,
             web_search_enabled=agent.web_search_enabled,
             web_search_available=web_search_tool is not None,
             web_search_blocked_by_tools=web_search_tool is None
             and with_tools
             and self._get_web_search_tool(agent, False) is not None,
+            web_fetch_enabled=agent.web_fetch_enabled,
             available_trigger_types=AgentTriggerHandler().available_trigger_types(
                 agent
             ),
@@ -296,16 +303,23 @@ class AgentHandler:
             readiness = AgentReadinessState.READY
         return readiness, errors
 
-    def get_tool_configuration(self, agent: AgentApplication) -> AgentToolConfiguration:
+    def get_deactivated_tools(self, agent: AgentApplication) -> list[str]:
         """
-        Return the tools the Agent may call and those that wait for the owner's
-        approval, leaving out tools no longer registered.
-
         :param agent: The Agent to read.
-        :return: The allowed tool names and the ask first tool names, in registry
-            order. An unavailable selected identity retains its settings, but no
-            selected identity means tools are off.
+        :return: The names of the registered tools the Agent's workspace can't
+            use, in registry order.
         """
+
+        return [
+            tool_type.type
+            for tool_type in agent_tool_type_registry.get_all()
+            if tool_type.is_deactivated(agent.workspace)
+        ]
+
+    def get_stored_tool_configuration(
+        self, agent: AgentApplication
+    ) -> AgentToolConfiguration:
+        """Read the Agent's saved grants, including temporarily locked tools."""
 
         if not agent.run_as_subject_type or not agent.run_as_subject_id:
             return {"allowed_tools": [], "ask_first_tools": []}
@@ -316,6 +330,25 @@ class AgentHandler:
         return {
             "allowed_tools": allowed_tools,
             "ask_first_tools": [name for name in allowed_tools if ask_first[name]],
+        }
+
+    def get_tool_configuration(
+        self, agent: AgentApplication, deactivated: list[str] | None = None
+    ) -> AgentToolConfiguration:
+        """Return only the saved grants available under the workspace licence."""
+
+        stored = self.get_stored_tool_configuration(agent)
+        if not stored["allowed_tools"]:
+            return stored
+        if deactivated is None:
+            deactivated = self.get_deactivated_tools(agent)
+        return {
+            "allowed_tools": [
+                name for name in stored["allowed_tools"] if name not in deactivated
+            ],
+            "ask_first_tools": [
+                name for name in stored["ask_first_tools"] if name not in deactivated
+            ],
         }
 
     def set_allowed_tools(
@@ -512,9 +545,10 @@ class AgentHandler:
         run_as = [values.get(field) for field in self.run_as_fields]
         if any(run_as) and not self.get_usable_run_as_subject(*run_as, agent.workspace):
             raise AgentRunAsSubjectDoesNotExist()
+        stored_tools = self.get_stored_tool_configuration(agent)
         original_values = {
             **{field: getattr(agent, field) for field in allowed_fields},
-            **self.get_tool_configuration(agent),
+            **stored_tools,
         }
         changed_fields = []
         for field, value in values.items():
@@ -539,14 +573,14 @@ class AgentHandler:
             agent.save(update_fields=[*changed_fields, "updated_on"])
         if tools_changed or not has_run_as or not had_run_as:
             self.set_allowed_tools(agent, allowed_tools, ask_first_tools)
+            stored_tools = self.get_stored_tool_configuration(agent)
         configuration = self.get_configuration(agent)
         return AgentConfigurationUpdated(
             agent=agent,
             original_values=original_values,
             new_values={
                 **{field: getattr(agent, field) for field in allowed_fields},
-                "allowed_tools": configuration.allowed_tools,
-                "ask_first_tools": configuration.ask_first_tools,
+                **stored_tools,
             },
             configuration=configuration,
         )
@@ -1330,8 +1364,9 @@ class AgentHandler:
         )
         # A generation keeps its selected identity and tools until it ends or is
         # stopped. Configuration edits apply when the next generation is prepared.
+        deactivated = self.get_deactivated_tools(agent) if acting_subject else []
         tools: AgentToolConfiguration = (
-            self.get_tool_configuration(agent)
+            self.get_tool_configuration(agent, deactivated)
             if acting_subject
             else {"allowed_tools": [], "ask_first_tools": []}
         )
@@ -1360,10 +1395,18 @@ class AgentHandler:
         prompt, history = (
             (None, []) if resume is not None else self._get_reply_prompt(reply)
         )
+        # Like search, a resumed run keeps opening pages only if it did before it
+        # paused and the setting is still on.
+        web_fetch_enabled = agent.web_fetch_enabled and (
+            transcript is None or transcript.paused_web_fetch
+        )
         web_search_tool = (
             self._get_web_search_tool(
                 agent,
-                bool(tools["allowed_tools"]) or bool(mcp_servers) or bool(action_tools),
+                bool(tools["allowed_tools"])
+                or bool(mcp_servers)
+                or bool(action_tools)
+                or web_fetch_enabled,
             )
             if agent.web_search_enabled
             and (transcript is None or transcript.paused_web_search)
@@ -1373,6 +1416,9 @@ class AgentHandler:
             reply_id=reply.id,
             workspace=agent.workspace,
             instructions=agent.instructions,
+            unavailable_tool_messages=self._get_unavailable_tool_messages(
+                agent, deactivated
+            ),
             provider_type=agent.provider_type,
             model_identifier=agent.model_identifier,
             prompt=prompt,
@@ -1385,11 +1431,13 @@ class AgentHandler:
             ask_first_tool_names=tools["ask_first_tools"],
             action_tools=action_tools,
             timezone=self._get_reply_timezone(conversation),
+            conversation_user=self._get_conversation_user(conversation),
             mcp_servers=mcp_servers,
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
             started_by_trigger=conversation.is_shared,
+            web_fetch_enabled=web_fetch_enabled,
         )
 
     def has_mcp_tools(self, agent: AgentApplication) -> bool:
@@ -1464,6 +1512,48 @@ class AgentHandler:
             return conversation.owner_user.profile.timezone
         return trigger_timezone_name(conversation.trigger.service.specific)
 
+    def _get_unavailable_tool_messages(
+        self, agent: AgentApplication, deactivated: list[str]
+    ) -> list[str]:
+        """
+        :param agent: The Agent to read.
+        :param deactivated: The tools its workspace can't use, in registry order.
+        :return: One instruction per reason, naming the tools the Agent was
+            allowed and its workspace can't use.
+        """
+
+        if not deactivated:
+            return []
+        lost = set(
+            agent.allowed_tools.filter(name__in=deactivated).values_list(
+                "name", flat=True
+            )
+        )
+        names_by_reason: dict[str, list[str]] = defaultdict(list)
+        for name in deactivated:
+            reason = agent_tool_type_registry.get(name).unavailable_reason
+            if name in lost and reason:
+                names_by_reason[reason].append(name)
+        return [
+            DEACTIVATED_TOOLS_INSTRUCTIONS.format(reason=reason, tools=", ".join(names))
+            for reason, names in names_by_reason.items()
+        ]
+
+    def _get_conversation_user(
+        self, conversation: AgentConversation
+    ) -> AgentConversationUser | None:
+        """
+        :param conversation: The conversation the reply is written in.
+        :return: The person it is with, named on one short line as the name ends
+            up in the instructions, or None when a trigger started it.
+        """
+
+        if conversation.is_shared:
+            return None
+        owner = conversation.owner_user
+        name = " ".join(owner.first_name.split())
+        return AgentConversationUser(owner.id, name[:CONVERSATION_USER_NAME_MAX_LENGTH])
+
     def _get_paused_transcript(
         self, reply: AgentMessage
     ) -> AgentReplyTranscript | None:
@@ -1480,6 +1570,7 @@ class AgentHandler:
             .only(
                 "paused_conversation",
                 "paused_web_search",
+                "paused_web_fetch",
                 "paused_run_as_subject_type",
                 "paused_run_as_subject_id",
             )
@@ -1733,6 +1824,7 @@ class AgentHandler:
             return {
                 "paused_conversation": None,
                 "paused_web_search": False,
+                "paused_web_fetch": False,
                 "paused_run_as_subject_type": None,
                 "paused_run_as_subject_id": None,
             }
@@ -1742,6 +1834,7 @@ class AgentHandler:
                 paused_run.conversation
             ),
             "paused_web_search": paused_run.web_search,
+            "paused_web_fetch": paused_run.web_fetch,
             "paused_run_as_subject_type": None
             if run_as is None
             else subject_type_registry.get_by_model(run_as).type,

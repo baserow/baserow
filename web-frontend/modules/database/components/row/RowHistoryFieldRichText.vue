@@ -7,7 +7,9 @@
         <RichTextEditor
           :editable="false"
           :enable-rich-text-formatting="true"
-          :mentionable-users="workspace.users"
+          :mentionable-users="
+            $store.getters['workspace/getCollaborators'](workspace.id)
+          "
           :model-value="beforeValue"
         ></RichTextEditor>
       </div>
@@ -19,7 +21,9 @@
         <RichTextEditor
           :editable="false"
           :enable-rich-text-formatting="true"
-          :mentionable-users="workspace.users"
+          :mentionable-users="
+            $store.getters['workspace/getCollaborators'](workspace.id)
+          "
           :model-value="afterValue"
         ></RichTextEditor>
       </div>

@@ -237,7 +237,7 @@ class InstallTemplateJobType(JobType):
         root = UserTemplateHandler().get_user_template_root(values["template_id"])
         # With the feature off, a user template is looked up like an official one
         # below, which doesn't find it.
-        if root is not None and feature_flag_is_enabled(FF_USER_TEMPLATES):
+        if root is not None and feature_flag_is_enabled(FF_USER_TEMPLATES, user=user):
             # The resolved revision is pinned, so that an update of the template
             # before the job runs doesn't change what's installed.
             template = UserTemplateHandler().get_installable_revision(

@@ -32,6 +32,7 @@ EXPECTED = {
     "undo": (False, True),
     "redo": (False, True),
     "list_row_comments": (True, False),
+    "search_row_comments": (True, False),
     "create_row_comments": (False, False),
     "set_view_sorts": (False, True),
     "set_field_visibility": (False, False),

@@ -179,7 +179,9 @@ class WorkspaceIdentitiesView(APIView, SearchableViewMixin, SortableViewMixin):
     def post(self, request, data, workspace_id):
         """Creates a new identity in the workspace."""
 
-        feature_flag_is_enabled(FF_IDENTITIES, raise_if_disabled=True)
+        feature_flag_is_enabled(
+            FF_IDENTITIES, user=request.user, raise_if_disabled=True
+        )
         workspace = CoreHandler().get_workspace(workspace_id)
         identity = action_type_registry.get_by_type(CreateIdentityActionType).do(
             request.user, workspace, **data

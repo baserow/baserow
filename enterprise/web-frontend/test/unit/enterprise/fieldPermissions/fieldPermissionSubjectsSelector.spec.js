@@ -178,8 +178,12 @@ describe('FieldPermissionSubjectsSelector', () => {
     const identityOption = wrapper.find(
       '.field-permission-subjects__dropdown-option'
     )
-    expect(identityOption.find('.identity-avatar .iconoir-lock').exists()).toBe(
-      true
+    const { identityIconClass } = useNuxtApp().$registry.get(
+      'subject',
+      'auth.User'
+    )
+    expect(identityOption.get('.identity-avatar i').classes()).toContain(
+      identityIconClass
     )
     expect(identityOption.find('.avatar-stub').classes()).not.toContain(
       'rounded'
@@ -192,8 +196,8 @@ describe('FieldPermissionSubjectsSelector', () => {
     const selected = wrapper.findAll('.field-permission-subjects__item')
     expect(selected).toHaveLength(2)
     expect(selected[1].text()).toContain('Import identity')
-    expect(selected[1].find('.identity-avatar .iconoir-lock').exists()).toBe(
-      true
+    expect(selected[1].get('.identity-avatar i').classes()).toContain(
+      identityIconClass
     )
     expect(selected[1].find('small').text()).toContain('subjectType.identity')
     await wrapper.find('.dropdown__selected').trigger('click')
@@ -227,9 +231,9 @@ describe('FieldPermissionSubjectsSelector', () => {
     )
     expect(
       wrapper
-        .find('.field-permission-subjects__item .identity-avatar .iconoir-lock')
-        .exists()
-    ).toBe(true)
+        .get('.field-permission-subjects__item .identity-avatar i')
+        .classes()
+    ).toContain(identityIconClass)
     expect(
       wrapper.find('.field-permission-subjects__item small').text()
     ).toContain('subjectType.identity')

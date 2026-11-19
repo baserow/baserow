@@ -13,6 +13,9 @@ class RowCommentSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(
         max_length=32, source="user.first_name", required=False
     )
+    user_type = serializers.CharField(
+        source="user.profile.user_type", read_only=True, allow_null=True
+    )
     edited = serializers.SerializerMethodField()
     message = serializers.SerializerMethodField()
 
@@ -30,6 +33,7 @@ class RowCommentSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "user_id",
+            "user_type",
             "first_name",
             "table_id",
             "row_id",

@@ -26,7 +26,7 @@ from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.validator import ensure_string
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace, WorkspaceUser
+from baserow.core.models import Workspace
 from baserow.core.registries import (
     ImportExportConfig,
     OperationType,
@@ -451,14 +451,9 @@ class ViewType(
                 )
 
             if owned_by_workspace is not None:
-                workspaceusers_from_workspace = WorkspaceUser.objects.filter(
-                    workspace_id=owned_by_workspace.id
-                ).select_related("user")
-
-                for workspaceuser in workspaceusers_from_workspace:
-                    id_mapping["owned_by"][workspaceuser.user.email] = (
-                        workspaceuser.user
-                    )
+                id_mapping["owned_by"] = CoreHandler.get_user_email_mapping(
+                    owned_by_workspace.id, []
+                )
 
         try:
             ownership_type = view_ownership_type_registry.get(

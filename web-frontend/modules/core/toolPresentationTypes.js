@@ -64,6 +64,14 @@ export class ToolPresentationType extends Registerable {
     return ''
   }
 
+  /**
+   * @returns {Array|null} The modal, and its props, that says why a tool the
+   *   workspace can't use is locked, or null without one.
+   */
+  getDeactivatedClickModal() {
+    return null
+  }
+
   /** Receives explicitly approved display input and facts, never raw results. */
   getActivity(step, t) {
     return t(`toolPresentation.${step.status}`)

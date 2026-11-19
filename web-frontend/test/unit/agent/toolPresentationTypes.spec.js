@@ -5,6 +5,7 @@ import coreEn from '@baserow/modules/core/locales/en.json'
 import agentEn from '@baserow/modules/agent/locales/en.json'
 import integrationsEn from '@baserow/modules/integrations/locales/en.json'
 import { groupAgentTools } from '@baserow/modules/agent/agentTools'
+import { agentToolPresentationTypes } from '@baserow/modules/agent/toolPresentationTypes'
 import { actionFieldLabel } from '@baserow/modules/agent/utils/actionLabels'
 import { STEP_ERROR_CODE } from '@baserow/modules/core/chatRuns/constants'
 import {
@@ -59,13 +60,19 @@ describe('Agent tool presentations', () => {
     expect(
       registry
         .getList('toolPresentation')
+        // The other editions pin the presenters they register.
+        .filter((presenter) =>
+          agentToolPresentationTypes.some((Type) => presenter instanceof Type)
+        )
         .map((presenter) => presenter.getType())
-        // The provider runs web search, so the backend has no agent tool for it.
+        // These have no agent tool type: the provider runs web search, Baserow
+        // opens web pages itself, and the others come from servers or actions.
         .filter(
           (type) =>
             ![
               'mcp_server_tool',
               'web_search',
+              'web_fetch',
               'smtp_email',
               'http_request',
             ].includes(type)
@@ -642,4 +649,20 @@ describe('Agent tool presentations', () => {
     )
     expect(activity.title).toBe(title)
   })
+
+  test.each([
+    ['running', 'Opening a web page: https://x.test'],
+    ['done', 'Opened a web page: https://x.test'],
+    ['failed', 'Open a web page: https://x.test'],
+  ])(
+    'shows a %s page Baserow opened like one the provider opened',
+    (status, title) => {
+      const activity = toolActivity(
+        step('web_fetch', status, { input: { url: 'https://x.test' } }),
+        registry,
+        t
+      )
+      expect(activity.title).toBe(title)
+    }
+  )
 })

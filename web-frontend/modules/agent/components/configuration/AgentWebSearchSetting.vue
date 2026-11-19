@@ -1,18 +1,18 @@
 <template>
-  <div class="agent-web-search">
-    <div class="agent-web-search__head">
+  <div class="agent-web-setting">
+    <div class="agent-web-setting__head">
       <div>
-        <div class="agent-web-search__title">{{ $t('agent.webSearch') }}</div>
-        <div class="agent-web-search__description">
+        <div class="agent-web-setting__title">{{ $t('agent.webSearch') }}</div>
+        <div class="agent-web-setting__description">
           {{ $t('agent.webSearchDescription') }}
         </div>
       </div>
-      <div class="agent-web-search__controls">
+      <div class="agent-web-setting__controls">
         <Badge v-if="inactive" color="yellow" size="small" indicator>
           {{ $t('agent.webSearchUnavailableBadge') }}
         </Badge>
         <SwitchInput
-          class="agent-web-search__switch"
+          class="agent-web-setting__switch"
           small
           :model-value="configuration.web_search_enabled"
           :disabled="!canChange"
@@ -24,13 +24,13 @@
     <Alert
       v-if="inactive"
       type="warning"
-      class="agent-web-search__unavailable margin-top-1"
+      class="agent-web-setting__unavailable margin-top-1"
     >
       {{ unavailableMessage }}
     </Alert>
     <div
       v-else-if="!available && modelChosen"
-      class="agent-web-search__unavailable"
+      class="agent-web-setting__unavailable"
     >
       {{ unavailableMessage }}
     </div>

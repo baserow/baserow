@@ -13,6 +13,7 @@
       :enable-rich-text-formatting="true"
       :enable-images="enableImages"
       :mentionable-users="mentionableUsers"
+      :allow-identity-suggestions="false"
       :menu-container="getMenuContainer"
       :scrollable-area-element="getScrollableAreaElement"
       :clipboard-markdown-resolver="resolveClipboardMarkdown"
@@ -67,7 +68,9 @@ export default {
       return this.$store.getters['workspace/get'](this.workspaceId)
     },
     mentionableUsers() {
-      return this.enableMentions && this.workspace ? this.workspace.users : null
+      return this.enableMentions && this.workspace
+        ? this.$store.getters['workspace/getCollaborators'](this.workspace.id)
+        : null
     },
   },
   watch: {

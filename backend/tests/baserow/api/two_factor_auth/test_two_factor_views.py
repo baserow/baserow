@@ -473,6 +473,7 @@ def test_verify_totp_code_view(api_client, data_fixture):
         assert response_json == {
             "access_token": AnyStr(),
             "active_licenses": {"instance_wide": {}, "per_workspace": {}},
+            "feature_flags": [],
             "permissions": AnyList(),
             "refresh_token": AnyStr(),
             "token": AnyStr(),
@@ -559,6 +560,7 @@ def test_verify_totp_backup_code_view(api_client, data_fixture):
     assert response_json == {
         "access_token": AnyStr(),
         "active_licenses": {"instance_wide": {}, "per_workspace": {}},
+        "feature_flags": [],
         "permissions": AnyList(),
         "refresh_token": AnyStr(),
         "token": AnyStr(),

@@ -6,7 +6,6 @@ from django.db import transaction
 from baserow.contrib.agent.models import AgentAction, AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.operations import UpdateApplicationOperationType
@@ -136,7 +135,6 @@ class AgentActionService:
         :return: The new action.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.agent_service.get_authorized_agent(
             user, agent_id, *WRITE_OPERATIONS, for_update=True
         )
@@ -179,7 +177,6 @@ class AgentActionService:
         :return: The action and what changed.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         action = self._get_authorized_action(
             user, agent_id, action_id, *WRITE_OPERATIONS, for_update=True
         )
@@ -212,7 +209,6 @@ class AgentActionService:
         :return: The trashed action.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         action = self._get_authorized_action(
             user, agent_id, action_id, *WRITE_OPERATIONS, for_update=True
         )

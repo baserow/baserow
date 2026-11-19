@@ -52,7 +52,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
     )
     assert response.status_code == HTTP_403_FORBIDDEN
 
-    with django_assert_num_queries(6):
+    with django_assert_num_queries(4):
         response = api_client.get(
             reverse("api:admin:workspaces:list"),
             format="json",
@@ -289,7 +289,7 @@ def test_admin_list_workspaces_as_options(api_client, data_fixture):
 
     # searching by name should return only the correct workspace
     response = api_client.get(
-        reverse("api:admin:workspaces:options") + "?search=1",
+        reverse("api:admin:workspaces:options") + "?search=workspace 1",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {admin_token}",
     )
@@ -300,6 +300,16 @@ def test_admin_list_workspaces_as_options(api_client, data_fixture):
         "previous": None,
         "results": [{"id": workspace_1.id, "value": workspace_1.name}],
     }
+
+    response = api_client.get(
+        reverse("api:admin:workspaces:options") + f"?search={workspace_2.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["results"] == [
+        {"id": workspace_2.id, "value": workspace_2.name}
+    ]
 
 
 @pytest.mark.django_db
@@ -406,3 +416,30 @@ def test_admin_list_workspaces_as_options_filter_by_invalid_ids(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_workspace_options_use_the_estimated_count(api_client, data_fixture, mocker):
+    _, token = data_fixture.create_user_and_token(is_staff=True)
+    workspaces = [
+        data_fixture.create_workspace(name=f"workspace {i:03}") for i in range(101)
+    ]
+    template_workspace = data_fixture.create_workspace(name="workspace 000 template")
+    data_fixture.create_template(workspace=template_workspace)
+    data_fixture.create_workspace(name="workspace 000 trashed", trashed=True)
+    estimate = mocker.patch(
+        "baserow.api.pagination.get_approximate_row_count", return_value=100_000
+    )
+    response = api_client.get(
+        reverse("api:admin:workspaces:options"),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["count"] == 100_000
+    assert response.json()["next"] is not None
+    assert response.json()["previous"] is None
+    assert response.json()["results"] == [
+        {"id": workspace.id, "value": workspace.name} for workspace in workspaces[:100]
+    ]
+    estimate.assert_called_once()

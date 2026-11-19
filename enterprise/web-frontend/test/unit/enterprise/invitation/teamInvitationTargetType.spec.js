@@ -137,6 +137,32 @@ describe('TeamInvitationTargetType', () => {
       { name: 'New' }
     )
 
+    // The lock of a link only sends its password, also to remove it.
+    await linkTarget.updateInvitationLink(workspace, target, link, {
+      password: 'correct horse',
+    })
+    expect(app.$client.patch).toHaveBeenLastCalledWith(
+      '/teams/3/invitation-links/9/',
+      { password: 'correct horse' }
+    )
+    await linkTarget.updateInvitationLink(workspace, target, link, {
+      password: '',
+    })
+    expect(app.$client.patch).toHaveBeenLastCalledWith(
+      '/teams/3/invitation-links/9/',
+      { password: '' }
+    )
+
+    // A link to a team has no role of its own to change.
+    await linkTarget.updateInvitationLink(workspace, target, link, {
+      name: 'Fair',
+      permissions: 'ADMIN',
+    })
+    expect(app.$client.patch).toHaveBeenLastCalledWith(
+      '/teams/3/invitation-links/9/',
+      { name: 'Fair' }
+    )
+
     await linkTarget.deleteInvitationLink(workspace, target, link)
     expect(app.$client.delete).toHaveBeenCalledWith(
       '/teams/3/invitation-links/9/'

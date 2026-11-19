@@ -30,7 +30,11 @@ describe('selectAgentApplication', () => {
     // Opening from All workspaces starts before workspace permissions load.
     const $hasPermission = () => workspace._.permissionsLoaded && canRead
     return selectAgentApplication(
-      { $store: testApp.store, $hasPermission },
+      {
+        $store: testApp.store,
+        $hasPermission,
+        $featureFlagIsEnabled: () => true,
+      },
       { params: { agentId: '10' } }
     )
   }

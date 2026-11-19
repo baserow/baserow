@@ -888,22 +888,32 @@ class TeamHandler:
         user: AbstractUser,
         team: Team,
         invitation_link: WorkspaceInvitationLink,
-        name: str,
+        name: Optional[str] = None,
+        password: Optional[str] = None,
     ) -> WorkspaceInvitationLink:
         """
-        Changes the name of a link to a team.
+        Changes the name of a link to a team or its password.
 
         :param user: The user on whose behalf the link is updated.
         :param team: The team of the link.
         :param invitation_link: The link that must be updated.
-        :param name: The new name of the link.
+        :param name: The new name of the link, if it changes.
+        :param password: The new password of the link, or an empty string to
+            remove it. Changing it invalidates the access tokens handed out for
+            the previous password.
         :return: The updated invitation link.
         """
 
         self._check_invitation_link_permissions(user, team)
 
-        invitation_link.name = name
-        invitation_link.save(update_fields=["name", "updated_on"])
+        update_fields = ["updated_on"]
+        if name is not None:
+            invitation_link.name = name
+            update_fields.append("name")
+        if password is not None:
+            invitation_link.set_password(password)
+            update_fields.append("password")
+        invitation_link.save(update_fields=update_fields)
         return invitation_link
 
     def delete_team_invitation_link(

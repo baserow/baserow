@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from typing import Optional, Protocol
 
+from django.core.paginator import Page
 from django.core.paginator import Paginator as DjangoPaginator
 
 from rest_framework import serializers
@@ -225,6 +226,31 @@ class ApproximateCountPaginator(Paginator):
     @cached_property
     def count(self):
         return get_approximate_row_count(self.object_list)
+
+    def page(self, number: int | str) -> Page:
+        """
+        Returns the requested page and corrects the estimated count with the rows
+        actually fetched, because clients derive the reachable pages from the count
+        and a wrong estimate would hide existing pages or show empty ones.
+
+        :param number: The 1-based page number to return.
+        :return: The requested page.
+        """
+
+        number = self.validate_number(number)
+        start = (number - 1) * self.per_page
+        # One extra row tells whether a next page exists without counting.
+        rows = list(self.object_list[start : start + self.per_page + 1])
+        if len(rows) > self.per_page:
+            self.count = max(self.count, start + len(rows))
+        elif rows or number == 1:
+            self.count = start + len(rows)
+        else:
+            # An empty page past the end doesn't prove every earlier page was full.
+            self.count = min(self.count, start)
+        # DRF resolves "last" from the raw estimate before fetching the page.
+        self.__dict__.pop("num_pages", None)
+        return self._get_page(rows[: self.per_page], number, self)
 
 
 class PageNumberPaginationWithApproximateCount(PageNumberPagination):

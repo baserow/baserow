@@ -18,6 +18,7 @@ from baserow.core.exceptions import (
     FeatureDisabledException,
     PermissionDenied,
     WorkspaceInvitationLinkDoesNotExist,
+    WorkspaceInvitationLinkPasswordRequired,
     WorkspaceInvitationLinkSignupsDisabled,
 )
 from baserow.core.handler import CoreHandler
@@ -330,6 +331,163 @@ def test_team_link_actions_are_recorded(action_done_mock, data_fixture):
 
 
 @pytest.mark.django_db
+def test_password_protect_a_team_link(data_fixture):
+    admin, workspace, _, team, _ = setup_workspace(data_fixture)
+    handler = TeamHandler()
+    invitation_link = handler.create_team_invitation_link(admin, team, "Fair")
+
+    handler.update_team_invitation_link(
+        admin, team, invitation_link, password="correct horse"
+    )
+    invitation_link.refresh_from_db()
+    # Only the password changes, and it is stored hashed.
+    assert invitation_link.name == "Fair"
+    assert invitation_link.has_password
+    assert invitation_link.password != "correct horse"
+    assert invitation_link.check_password("correct horse")
+
+    with pytest.raises(WorkspaceInvitationLinkPasswordRequired):
+        CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug)
+    access_token = CoreHandler().encode_invitation_link_access_token(invitation_link)
+    assert (
+        CoreHandler().get_workspace_invitation_link_by_slug(
+            invitation_link.slug, access_token=access_token
+        )
+        == invitation_link
+    )
+
+    handler.update_team_invitation_link(admin, team, invitation_link, password="")
+    invitation_link.refresh_from_db()
+    assert not invitation_link.has_password
+    assert (
+        CoreHandler().get_workspace_invitation_link_by_slug(invitation_link.slug)
+        == invitation_link
+    )
+
+
+@pytest.mark.django_db
+@patch("baserow.core.action.signals.action_done.send")
+def test_team_link_password_changes_are_recorded_without_the_password(
+    action_done_mock, data_fixture
+):
+    admin, workspace, _, team, _ = setup_workspace(data_fixture)
+    invitation_link = CreateTeamInvitationLinkActionType.do(admin, team, "Fair")
+
+    UpdateTeamInvitationLinkActionType.do(
+        admin, team, invitation_link, password="correct horse"
+    )
+    UpdateTeamInvitationLinkActionType.do(
+        admin, team, invitation_link, password="battery staple"
+    )
+    UpdateTeamInvitationLinkActionType.do(admin, team, invitation_link, password="")
+    UpdateTeamInvitationLinkActionType.do(admin, team, invitation_link, "Partners")
+
+    params = [
+        call.kwargs["action_params"] for call in action_done_mock.call_args_list[1:]
+    ]
+    assert [param["password_change"] for param in params] == [
+        "added",
+        "changed",
+        "removed",
+        "",
+    ]
+    assert all("correct horse" not in str(param) for param in params)
+    assert UpdateTeamInvitationLinkActionType.get_long_description(params[0]) == (
+        f'Invitation link ({invitation_link.id}) renamed from "Fair" to "Fair" '
+        f'in team "Sales" ({team.id}) Password protection added.'
+    )
+    assert UpdateTeamInvitationLinkActionType.get_long_description(params[3]) == (
+        f'Invitation link ({invitation_link.id}) renamed from "Fair" to "Partners" '
+        f'in team "Sales" ({team.id}) '
+    )
+    # Entries recorded before links to a team could have a password.
+    legacy_params = {**params[3]}
+    del legacy_params["password_change"]
+    assert UpdateTeamInvitationLinkActionType.get_long_description(
+        legacy_params
+    ) == UpdateTeamInvitationLinkActionType.get_long_description(params[3])
+
+
+@pytest.mark.django_db
+def test_password_protect_a_team_link_through_the_api(api_client, data_fixture):
+    admin, workspace, _, team, _ = setup_workspace(data_fixture)
+    token = data_fixture.generate_token(admin)
+    invitation_link = TeamHandler().create_team_invitation_link(admin, team, "Fair")
+    detail_url = reverse(
+        "api:enterprise:teams:invitation-link-detail",
+        kwargs={"team_id": team.id, "invitation_link_id": invitation_link.id},
+    )
+
+    # Too short.
+    response = api_client.patch(
+        detail_url,
+        {"password": "short"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+    # The password alone is enough, which is what the lock of the link sends.
+    response = api_client.patch(
+        detail_url,
+        {"password": "correct horse"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["has_password"] is True
+    assert data["name"] == "Fair"
+    assert "password" not in data
+
+    slug_url = reverse(
+        "api:workspaces:invitation_links:slug", kwargs={"slug": invitation_link.slug}
+    )
+    response = api_client.get(slug_url)
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert (
+        response.json()["error"] == "ERROR_WORKSPACE_INVITATION_LINK_PASSWORD_REQUIRED"
+    )
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitation_links:auth",
+            kwargs={"slug": invitation_link.slug},
+        ),
+        {"password": "correct horse"},
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    response = api_client.get(
+        slug_url,
+        HTTP_BASEROW_INVITATION_LINK_AUTHORIZATION=(
+            f"JWT {response.json()['access_token']}"
+        ),
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["scope_name"] == "Sales"
+
+    response = api_client.get(
+        reverse(
+            "api:enterprise:teams:invitation-link-list", kwargs={"team_id": team.id}
+        ),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert [link["has_password"] for link in response.json()] == [True]
+
+    response = api_client.patch(
+        detail_url,
+        {"password": ""},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["has_password"] is False
+    assert api_client.get(slug_url).status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
 def test_manage_team_links_through_the_api(api_client, data_fixture):
     admin, workspace, _, team, other_team = setup_workspace(data_fixture)
     token = data_fixture.generate_token(admin)
@@ -352,6 +510,7 @@ def test_manage_team_links_through_the_api(api_client, data_fixture):
         "team_id": team.id,
         "name": "Fair",
         "slug": invitation_link.slug,
+        "has_password": False,
         "created_on": data["created_on"],
     }
     # A link to a team never stores the role that may be sent along.

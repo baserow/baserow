@@ -1018,3 +1018,29 @@ def test_identity_notification_recipients_are_ignored(data_fixture, grouped):
         "first_name": identity.first_name,
         "user_type": "identity",
     }
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("grouped", [False, True])
+def test_notification_without_a_human_recipient_is_not_created(data_fixture, grouped):
+    human = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=human)
+    identity = data_fixture.create_identity(workspace=workspace)
+    with custom_notification_types_registered() as (notification_type, _):
+        if grouped:
+            grouper = UserNotificationsGrouper()
+            notification = NotificationHandler.construct_notification(
+                notification_type.type, data={}, sender=human, workspace=workspace
+            )
+            grouper.add(notification, [identity.id])
+            grouper.create_all_notifications_and_trigger_task()
+        else:
+            NotificationHandler.create_direct_notification_for_users(
+                notification_type.type,
+                [identity],
+                data={},
+                sender=human,
+                workspace=workspace,
+            )
+
+    assert not Notification.objects.exists()

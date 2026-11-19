@@ -7,7 +7,6 @@ from baserow.contrib.agent.models import AgentTrigger
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.types import AgentTriggerTypeOptions, AgentTriggerUpdated
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.registries import service_type_registry
@@ -166,7 +165,6 @@ class AgentTriggerService:
         :return: The created trigger, armed when its service is configured.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.agent_service.get_authorized_agent(
             user, agent_id, *WRITE_OPERATIONS, for_update=True
         )
@@ -237,7 +235,6 @@ class AgentTriggerService:
         :return: The updated trigger and the names of the parts that changed.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         # Locked so two debounced saves of one card can't lose each other's fields.
         trigger = self._get_authorized_trigger(
             user, agent_id, trigger_id, *WRITE_OPERATIONS, for_update=True
@@ -292,7 +289,6 @@ class AgentTriggerService:
         :return: The trashed trigger.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         trigger = self._get_authorized_trigger(
             user, agent_id, trigger_id, *WRITE_OPERATIONS, for_update=True
         )

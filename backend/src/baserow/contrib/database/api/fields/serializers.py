@@ -30,6 +30,8 @@ from baserow.contrib.database.fields.utils.duration import (
     postgres_interval_to_seconds,
     prepare_duration_value_for_db,
 )
+from baserow.core.handler import CoreHandler
+from baserow.core.user.identity import is_human, is_identity
 from baserow.core.utils import split_comma_separated_string
 
 
@@ -607,9 +609,13 @@ class CollaboratorRequestSerializer(serializers.ListSerializer):
     child = CollaboratorField()
 
 
+class AvailableCollaboratorSerializer(CollaboratorSerializer):
+    user_type = serializers.CharField(read_only=True)
+
+
 class AvailableCollaboratorsSerializer(serializers.ListField):
     def __init__(self, **kwargs):
-        kwargs["child"] = CollaboratorSerializer()
+        kwargs["child"] = AvailableCollaboratorSerializer()
         kwargs["read_only"] = True
         kwargs["source"] = "*"
         kwargs["help_text"] = "A list of all the available collaborators."
@@ -626,11 +632,24 @@ class AvailableCollaboratorsSerializer(serializers.ListField):
 
         workspace = instance.table.database.workspace
         if not hasattr(workspace, "available_collaborators"):
-            workspace.available_collaborators = workspace.users.order_by("first_name")
-
-        return [
-            CollaboratorSerializer(user).data
+            workspace.available_collaborators = (
+                CoreHandler()
+                .get_workspace_collaborators(workspace, include_identities=True)
+                .filter(profile__to_be_deleted=False)
+                .order_by("first_name")
+            )
+        # Only a field with the option can leave identities out of its values.
+        include_identities = getattr(instance, "include_identities", True)
+        people = [user for user in workspace.available_collaborators if is_human(user)]
+        identities = [
+            user
             for user in workspace.available_collaborators
+            if include_identities and is_identity(user)
+        ]
+        return [
+            {"id": user.id, "name": user.first_name, "user_type": user_type}
+            for users, user_type in ((people, "human"), (identities, "identity"))
+            for user in users
         ]
 
 
