@@ -4,6 +4,14 @@ import IntegrationCreateEditModal from '@baserow/modules/core/components/integra
 import { SlackBotIntegrationType } from '@baserow/modules/integrations/slack/integrationTypes'
 
 const APPLICATION = { id: 100, type: 'database', integrations: [] }
+const SHARED_APPLICATION_ID = 99
+
+// What the API returns: `application_id` tells the levels apart.
+const own = (values) => ({ application_id: APPLICATION.id, ...values })
+const ofWorkspace = (values) => ({
+  application_id: SHARED_APPLICATION_ID,
+  ...values,
+})
 
 describe('IntegrationDropdown', () => {
   let testApp = null
@@ -49,7 +57,7 @@ describe('IntegrationDropdown', () => {
     const wrapper = await mountDropdown({ autoSelectFirst: true })
 
     await wrapper.setProps({
-      integrations: [{ id: 9, name: 'Only bot' }],
+      integrations: [own({ id: 9, name: 'Only bot' })],
     })
     await wrapper.vm.$nextTick()
 
@@ -73,7 +81,7 @@ describe('IntegrationDropdown', () => {
     // `$attrs`, so it no longer falls through to the dropdown below. This
     // component has to re-emit it or the list stops selecting anything.
     const wrapper = await mountDropdown({
-      integrations: [{ id: 9, name: 'Bot' }],
+      integrations: [own({ id: 9, name: 'Bot' })],
     })
 
     wrapper.findComponent({ name: 'Dropdown' }).vm.$emit('input', 9)
@@ -90,7 +98,7 @@ describe('IntegrationDropdown', () => {
       modelValue: 3,
     })
 
-    await wrapper.setProps({ integrations: [{ id: 9, name: 'Only bot' }] })
+    await wrapper.setProps({ integrations: [own({ id: 9, name: 'Only bot' })] })
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
@@ -101,7 +109,7 @@ describe('IntegrationDropdown', () => {
     // unusable. A database has no integration settings page, so without this
     // there is nowhere to paste a new token.
     const wrapper = await mountDropdown({
-      integrations: [{ id: 9, name: 'Bot', token: '' }],
+      integrations: [own({ id: 9, name: 'Bot', token: '' })],
       modelValue: 9,
       allowEditing: true,
     })
@@ -117,7 +125,7 @@ describe('IntegrationDropdown', () => {
     // Builder, automation and dashboard all have one. A second, less
     // discoverable route into the same modal is not worth having.
     const wrapper = await mountDropdown({
-      integrations: [{ id: 9, name: 'Bot', token: '' }],
+      integrations: [own({ id: 9, name: 'Bot', token: '' })],
       modelValue: 9,
     })
     await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
@@ -129,7 +137,7 @@ describe('IntegrationDropdown', () => {
 
   test('nothing selected offers no edit', async () => {
     const wrapper = await mountDropdown({
-      integrations: [{ id: 9, name: 'Bot', token: '' }],
+      integrations: [own({ id: 9, name: 'Bot', token: '' })],
       allowEditing: true,
     })
     await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
@@ -137,5 +145,118 @@ describe('IntegrationDropdown', () => {
 
     const modals = wrapper.findAllComponents(IntegrationCreateEditModal)
     expect(modals.every((modal) => modal.props('create'))).toBe(true)
+  })
+
+  const sections = (wrapper) =>
+    wrapper
+      .findAllComponents({ name: 'DropdownSection' })
+      .map((section) => [
+        section.props('title'),
+        section
+          .findAllComponents({ name: 'DropdownItem' })
+          .map((item) => item.props('name')),
+      ])
+
+  test('the workspace integrations are listed apart from the own ones', async () => {
+    const wrapper = await mountDropdown({
+      integrations: [
+        own({ id: 9, name: 'Bot' }),
+        ofWorkspace({ id: 12, name: 'Team bot' }),
+        own({ id: 10, name: 'Alerts' }),
+      ],
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    expect(sections(wrapper)).toEqual([
+      ['integrationDropdown.applicationIntegrations', ['Bot', 'Alerts']],
+      ['integrationDropdown.workspaceIntegrations', ['Team bot']],
+    ])
+  })
+
+  test('the list looks as before when the workspace has none', async () => {
+    const wrapper = await mountDropdown({
+      integrations: [
+        own({ id: 9, name: 'Bot' }),
+        own({ id: 10, name: 'Alerts' }),
+      ],
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    expect(sections(wrapper)).toEqual([])
+    expect(
+      wrapper
+        .findAllComponents({ name: 'DropdownItem' })
+        .map((item) => item.props('name'))
+    ).toEqual(['Bot', 'Alerts'])
+  })
+
+  test('only the workspace section shows when the application has none', async () => {
+    const wrapper = await mountDropdown({
+      integrations: [ofWorkspace({ id: 12, name: 'Team bot' })],
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    expect(sections(wrapper)).toEqual([
+      ['integrationDropdown.workspaceIntegrations', ['Team bot']],
+    ])
+  })
+
+  test('a workspace integration says who it runs as', async () => {
+    // It acts the same in every application, so whoever picks it should know
+    // whose access it uses.
+    const wrapper = await mountDropdown({
+      integrationType: testApp.store.$registry.get(
+        'integration',
+        'local_baserow'
+      ),
+      integrations: [
+        own({ id: 9, name: 'Own data' }),
+        ofWorkspace({
+          id: 12,
+          name: 'Team data',
+          authorized_subject: {
+            id: 1,
+            type: 'auth.User',
+            first_name: 'Ada',
+            username: 'ada@example.com',
+          },
+        }),
+      ],
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    const descriptions = Object.fromEntries(
+      wrapper
+        .findAllComponents({ name: 'DropdownItem' })
+        .map((item) => [item.props('name'), item.props('description')])
+    )
+    expect(descriptions).toEqual({
+      'Own data': null,
+      'Team data': 'localBaserowIntegrationType.localBaserowWorkspaceHint',
+    })
+  })
+
+  test('a selected workspace integration is not edited from here', async () => {
+    // Editing it changes it for every application, which is done from the
+    // workspace settings, by an Admin.
+    const wrapper = await mountDropdown({
+      integrations: [
+        own({ id: 9, name: 'Bot', token: '' }),
+        ofWorkspace({ id: 12, name: 'Team bot', token: '' }),
+      ],
+      modelValue: 12,
+      allowEditing: true,
+    })
+    await wrapper.findComponent({ name: 'Dropdown' }).vm.show()
+    await wrapper.vm.$nextTick()
+
+    const modals = wrapper.findAllComponents(IntegrationCreateEditModal)
+    expect(modals.every((modal) => modal.props('create'))).toBe(true)
+    // Creating one still makes it the application's own.
+    expect(modals[0].props('application')).toMatchObject({ id: APPLICATION.id })
   })
 })

@@ -1367,7 +1367,9 @@
     "noIntegrations": "No integrations found.",
     "selectTypeFirst": "Choose the type first",
     "integrationPlaceholder": "Select an integration",
-    "editIntegration": "Edit integration"
+    "editIntegration": "Edit integration",
+    "applicationIntegrations": "This application",
+    "workspaceIntegrations": "Workspace"
   },
   "dropdown": {
     "empty": "No items available",

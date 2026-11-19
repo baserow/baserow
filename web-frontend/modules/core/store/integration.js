@@ -293,6 +293,65 @@ const actions = {
     // caller does not remember a load that did not happen.
     return null
   },
+  /**
+   * Loads the workspace integrations the application can use, at most once per
+   * workspace: realtime events keep them current after that. Nothing is loaded
+   * when the user can't list them, like a user with a role on some
+   * applications only, or isn't a member of the workspace, like the one of a
+   * template preview.
+   *
+   * @param {Object} application An application of the workspace.
+   * @returns {Promise<Array|null>} The workspace integrations, or null when
+   *   their list changed under the fetch and it gave up, like `fetch`.
+   */
+  async fetchWorkspaceIntegrationsOnce(
+    { dispatch, getters, rootGetters },
+    { application }
+  ) {
+    const workspace =
+      application.workspace &&
+      rootGetters['workspace/get'](application.workspace.id)
+    if (
+      !workspace ||
+      !this.app.$hasPermission(
+        'workspace.list_integrations',
+        workspace,
+        workspace.id
+      )
+    ) {
+      return []
+    }
+
+    const sharedApplication = await dispatch(
+      'application/fetchSharedApplication',
+      workspace,
+      { root: true }
+    )
+    if (!sharedApplication) {
+      return []
+    }
+    if (sharedApplication._integrationsLoadedOnce) {
+      return getters.getIntegrations(sharedApplication)
+    }
+
+    const integrations = await dispatch('fetch', {
+      application: sharedApplication,
+    })
+    // Left unmarked, so the next application that asks fetches again.
+    if (integrations === null) {
+      return null
+    }
+    // `forceSetAll` can have replaced the object while the fetch was open.
+    const current = rootGetters['application/get'](sharedApplication.id)
+    if (current) {
+      await dispatch(
+        'application/forceUpdate',
+        { application: current, data: { _integrationsLoadedOnce: true } },
+        { root: true }
+      )
+    }
+    return integrations
+  },
   async duplicate({ getters, dispatch }, { application, integrationId }) {
     const integration = getters.getIntegrations.find(
       (e) => e.id === integrationId
@@ -306,8 +365,40 @@ const actions = {
 }
 
 const getters = {
+  /**
+   * The integrations the application owns. A settings page lists these, while a
+   * picker offers `getUsableIntegrations`.
+   */
   getIntegrations: (state) => (application) => {
     return application?.integrations || []
+  },
+  /**
+   * The integrations of the application's workspace, which every application of
+   * the workspace can use. Empty for the shared application itself, which owns
+   * them, and until `fetchWorkspaceIntegrationsOnce` loaded them.
+   */
+  getWorkspaceIntegrations:
+    (state, getters, rootState, rootGetters) => (application) => {
+      if (!application?.workspace) {
+        return []
+      }
+      const sharedApplication = rootGetters['application/getSharedApplication'](
+        application.workspace
+      )
+      if (!sharedApplication || sharedApplication.id === application.id) {
+        return []
+      }
+      return getters.getIntegrations(sharedApplication)
+    },
+  /**
+   * The integrations the application can use: its own, then the workspace ones.
+   * Their `application_id` tells them apart.
+   */
+  getUsableIntegrations: (state, getters) => (application) => {
+    return [
+      ...getters.getIntegrations(application),
+      ...getters.getWorkspaceIntegrations(application),
+    ]
   },
   /**
    * A number that changes with every change to the integrations of the
@@ -316,10 +407,14 @@ const getters = {
   getGeneration: (state) => (application) => {
     return state.generation[application.id] || 0
   },
-  getIntegrationById: (state) => (application, id) => {
-    return application?.integrations?.find(
-      (integration) => integration.id === id
-    )
+  /**
+   * One of the integrations the application can use, its own or a workspace
+   * one, so a service using a workspace integration finds it too.
+   */
+  getIntegrationById: (state, getters) => (application, id) => {
+    return getters
+      .getUsableIntegrations(application)
+      .find((integration) => integration.id === id)
   },
 }
 
