@@ -517,7 +517,7 @@ class UserTemplateHandler:
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
-        CoreHandler().import_applications_to_workspace(
+        copied, _ = CoreHandler().import_applications_to_workspace(
             workspace,
             serialized,
             files,
@@ -526,6 +526,12 @@ class UserTemplateHandler:
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,
         )
+        if len(copied) < len(serialized):
+            # The check above covers what imports leave out today. This one keeps
+            # a later reason from silently shrinking the template.
+            raise TemplateHasNothingToInstall(
+                "Some of the selected applications can't be copied into a template."
+            )
 
         return workspace
 
