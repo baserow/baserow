@@ -50,6 +50,19 @@ const mutations = {
       application.integrations.splice(index, 1)
     }
   },
+  MOVE_ITEM_APPLICATION(
+    state,
+    { applicationSource, applicationDest, integrationId }
+  ) {
+    const index = applicationSource.integrations.findIndex(
+      (integration) => integration.id === integrationId
+    )
+    if (index > -1) {
+      const [integration] = applicationSource.integrations.splice(index, 1)
+      integration.application_id = applicationDest.id
+      applicationDest.integrations.push(integration)
+    }
+  },
   MOVE_ITEM(state, { application, index, oldIndex }) {
     application.integrations.splice(
       index,
@@ -95,6 +108,23 @@ const actions = {
       commit('MOVE_ITEM', { application, index, oldIndex })
     }
     commit('BUMP_GENERATION', { application })
+  },
+  /**
+   * Moves the integration to the list of another application, like a promotion to
+   * the shared application of the workspace and its undo do. It goes last, where
+   * the backend orders it.
+   */
+  forceMoveToApplication(
+    { commit },
+    { applicationSource, applicationDest, integrationId }
+  ) {
+    commit('MOVE_ITEM_APPLICATION', {
+      applicationSource,
+      applicationDest,
+      integrationId,
+    })
+    commit('BUMP_GENERATION', { application: applicationSource })
+    commit('BUMP_GENERATION', { application: applicationDest })
   },
   async create(
     { dispatch },
