@@ -40,6 +40,13 @@
       header-no-padding
       content-no-x-padding
     >
+      <Tab title="ChatGPT">
+        <MarkdownIt
+          class="mcp-oauth-connections__instructions"
+          data-test="mcp-oauth-chatgpt"
+          :content="$t('mcpOAuthConnections.chatGptInstructions')"
+        ></MarkdownIt>
+      </Tab>
       <Tab title="Claude Code">
         <MarkdownIt
           class="mcp-oauth-connections__instructions margin-bottom-1"

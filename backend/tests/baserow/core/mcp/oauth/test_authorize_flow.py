@@ -108,6 +108,30 @@ def test_authorize_rejects_foreign_resource(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("suffix", ["", "/"])
+def test_authorize_accepts_the_old_endpoint_url_as_resource(client, settings, suffix):
+    # The consent page then offers only that endpoint's tools.
+    client_id = cimd_client(client)
+    _, challenge = pkce_pair()
+    old_url = f"{settings.MCP_RESOURCE_URL}/some-endpoint-key/sse{suffix}"
+    query = (
+        authorize_query(client_id, challenge) + "&" + urlencode({"resource": old_url})
+    )
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert "/mcp-authorize/" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_authorize_rejects_two_old_endpoint_urls(client, settings):
+    client_id = cimd_client(client)
+    _, challenge = pkce_pair()
+    resources = [("resource", f"{settings.MCP_RESOURCE_URL}/{key}/sse") for key in "ab"]
+    query = authorize_query(client_id, challenge) + "&" + urlencode(resources)
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert_consent_page_error(response, "invalid_target")
+
+
+@pytest.mark.django_db
 def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)

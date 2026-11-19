@@ -47,6 +47,10 @@
     "invalidMessage": "Try connecting again from the app. If it keeps happening, remove the Baserow server from the app and add it again.",
     "unknownClient": "This app's sign-in registration is unknown or has expired. Remove the Baserow server from the app and add it again.",
     "clientRejected": "This app can't sign in to this Baserow server. A Baserow administrator can find the reason in the server log.",
+    "invalidTarget": "This server URL can't be used to sign in. Copy the URL from the OAuth tab in your Baserow MCP settings and add the server to the app again.",
+    "legacyWarning": "You connected through the old MCP endpoint, so only these tools are available. Use the URL from the OAuth tab in your Baserow MCP settings to access all tools.",
+    "legacyTools": "Tools",
+    "legacyEndpointNotFound": "This old MCP endpoint URL doesn't exist or isn't yours. Use the URL from the OAuth tab in your Baserow MCP settings instead.",
     "loadFailed": "Couldn't load this sign-in request.",
     "loadFailedMessage": "Check your connection and reload the page to try again.",
     "failed": "Could not complete the connection.",
@@ -1820,7 +1824,9 @@
     "backToOverview": "Back",
     "noEndpointsMessage": "No MCP (Model Context Protocol) server endpoints have been added. These can be used to directly integrate with an LLM like Claude, and let the LLM perform actions directly in Baserow. Create a server endpoint to get started.",
     "oauthTab": "OAuth",
-    "endpointTab": "Endpoint"
+    "endpointTab": "Endpoint",
+    "configOnlyTitle": "Only for config files",
+    "configOnlyMessage": "These endpoint URLs only work when added to a config file, such as in Claude Desktop, Cursor or Windsurf. Apps that ask you to sign in, like ChatGPT and claude.ai, need the URL from the OAuth tab."
   },
   "mcpOAuthConnections": {
     "title": "Connect an AI tool",
@@ -1830,6 +1836,7 @@
     "setupStepsLink": "Baserow docs",
     "claudeCodePluginInstructions": "Install the Baserow plugin. It adds the server and skills that teach Claude how to use Baserow. When it asks for the URL, paste the one above. Then run `/mcp` to sign in.",
     "claudeCodeServerInstructions": "Or add only the server:",
+    "chatGptInstructions": "1. In ChatGPT, open **Plugins**, click **Add** in the top right and choose **Add custom MCP server**.\n1. Give it a name and paste the URL above as the server URL.\n1. Pick **OAuth** as authentication, tick the box to confirm and click **Create as a plugin**.\n1. Sign in to Baserow and pick the workspace when ChatGPT asks.",
     "addToCursor": "Add to Cursor",
     "cursorInstructions": "Or add this to `~/.cursor/mcp.json`. Cursor asks you to sign in when it connects.",
     "addToVsCode": "Add to VS Code",

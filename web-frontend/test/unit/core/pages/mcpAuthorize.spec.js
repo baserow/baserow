@@ -527,6 +527,62 @@ describe('MCP authorize page', () => {
     expect(wrapper.text()).not.toContain('mcpAuthorize.invalidMessage')
   })
 
+  test('a rejected resource points to the URL in the MCP settings', async () => {
+    const wrapper = await testApp.mount(MCPAuthorize, {
+      route: '/mcp-authorize?error=invalid_target',
+    })
+    await flushPromises()
+    expect(wrapper.text()).toContain('mcpAuthorize.invalidTarget')
+    expect(wrapper.text()).not.toContain('mcpAuthorize.invalidMessage')
+    expect(consentRequests()).toEqual([])
+  })
+
+  test('the old endpoint URL shows its tools read-only with a warning', async () => {
+    testApp.mock
+      .onPost('/mcp/oauth/consent/', {
+        query,
+        allow: true,
+        workspace_id: 1,
+        tools: ['list_tables', 'create_rows'],
+      })
+      .reply(200, { redirect_url: 'https://chatgpt.com/cb?code=l' })
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(200, {
+        ...consent,
+        workspaces: [consent.workspaces[0]],
+        tools: consent.tools.slice(0, 2),
+        legacy_endpoint: { name: 'Old', workspace_id: 1 },
+      })
+    const assign = stubLocation()
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+
+    expect(
+      wrapper.find('[data-test="mcp-authorize-legacy-warning"]').exists()
+    ).toBe(true)
+    expect(
+      wrapper.find('[data-test="mcp-authorize-legacy-tools"]').text()
+    ).toContain('Create rows')
+    expect(wrapper.find('[data-test^="mcp-tool-picker-tool-"]').exists()).toBe(
+      false
+    )
+    await wrapper.find('[data-test="mcp-authorize-allow"]').trigger('click')
+    await flushPromises()
+    expect(assign).toHaveBeenCalledWith('https://chatgpt.com/cb?code=l')
+  })
+
+  test("an old endpoint URL that is not the user's shows its own message", async () => {
+    testApp.mock
+      .onGet('/mcp/oauth/consent/', { params: { query } })
+      .reply(400, { error: 'legacy_endpoint_not_found', detail: 'raw' })
+    stubLocation()
+    const wrapper = await testApp.mount(MCPAuthorize, { route })
+    await flushPromises()
+    expect(wrapper.text()).toContain('mcpAuthorize.legacyEndpointNotFound')
+    expect(wrapper.text()).not.toContain('raw')
+  })
+
   test('an unknown error code shows the generic message', async () => {
     const wrapper = await testApp.mount(MCPAuthorize, {
       route: '/mcp-authorize?error=made_up',

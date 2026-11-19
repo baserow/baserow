@@ -1,5 +1,5 @@
 from unittest.mock import patch
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from django.conf import settings as django_settings
 from django.shortcuts import reverse
@@ -210,3 +210,112 @@ def test_consent_flags_loopback_only_clients(client, api_client, data_fixture):
     )
     assert loopback.json()["loopback_only"] is True
     assert hosted.json()["loopback_only"] is False
+
+
+def _legacy_query(client, key):
+    """The authorize query of a client given the old `/mcp/<key>/sse` URL."""
+
+    resource = f"{django_settings.MCP_RESOURCE_URL}/{key}/sse"
+    return _query(client) + "&" + urlencode({"resource": resource})
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_offers_only_its_workspace_and_tools(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["list_databases", "list_tables"]
+    )
+
+    response = api_client.get(
+        reverse(URL),
+        {"query": _legacy_query(client, legacy.key)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["legacy_endpoint"] == {
+        "name": legacy.name,
+        "workspace_id": workspace.id,
+    }
+    assert [w["id"] for w in data["workspaces"]] == [workspace.id]
+    assert [t["name"] for t in data["tools"]] == ["list_databases", "list_tables"]
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_of_a_null_endpoint_offers_the_legacy_tools(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    legacy = data_fixture.create_mcp_endpoint(user=user, allowed_tools=None)
+
+    response = api_client.get(
+        reverse(URL),
+        {"query": _legacy_query(client, legacy.key)},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == 200
+    assert {t["name"] for t in response.json()["tools"]} == set(
+        LEGACY_DEFAULT_TOOLS
+    ) & set(enabled_tool_names())
+
+
+@pytest.mark.django_db
+def test_consent_for_the_url_of_another_users_endpoint_is_rejected(
+    client, api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token()
+    other = data_fixture.create_mcp_endpoint()
+
+    for key in [other.key, "does-not-exist"]:
+        query = _legacy_query(client, key)
+        get = api_client.get(
+            reverse(URL), {"query": query}, HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+        post = api_client.post(
+            reverse(URL),
+            {
+                "query": query,
+                "allow": True,
+                "workspace_id": other.workspace_id,
+                "tools": ["list_databases"],
+            },
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        for response in [get, post]:
+            assert response.status_code == 400
+            assert response.json()["error"] == "legacy_endpoint_not_found"
+    assert not MCPEndpoint.objects.filter(oauth_client_id__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_consent_for_the_old_url_grants_its_workspace_and_tools(
+    client, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    other_workspace = data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["list_databases"]
+    )
+
+    # The form's choice is ignored: the client connects with the old key.
+    response = _post(
+        api_client,
+        token,
+        _legacy_query(client, legacy.key),
+        other_workspace,
+        tools=enabled_tool_names(),
+    )
+
+    assert response.status_code == 200
+    assert "code=" in response.json()["redirect_url"]
+    grant = MCPEndpoint.objects.get(oauth_client_id__isnull=False)
+    assert grant.workspace_id == workspace.id
+    assert grant.allowed_tools == ["list_databases"]

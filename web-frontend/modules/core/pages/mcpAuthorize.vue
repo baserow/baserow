@@ -74,6 +74,13 @@
         >
           {{ $t('mcpAuthorize.loopbackWarning') }}
         </div>
+        <div
+          v-if="consent.legacy_endpoint"
+          class="mcp-authorize__warning"
+          data-test="mcp-authorize-legacy-warning"
+        >
+          {{ $t('mcpAuthorize.legacyWarning') }}
+        </div>
         <FormGroup :label="$t('mcpAuthorize.workspace')" required>
           <p
             v-if="!consent.workspaces.length"
@@ -93,7 +100,26 @@
             />
           </Dropdown>
         </FormGroup>
+        <FormGroup
+          v-if="consent.legacy_endpoint"
+          :label="$t('mcpAuthorize.legacyTools')"
+          required
+        >
+          <ul
+            class="mcp-authorize__tools"
+            data-test="mcp-authorize-legacy-tools"
+          >
+            <li
+              v-for="tool in consent.tools"
+              :key="tool.name"
+              class="mcp-authorize__tool"
+            >
+              {{ tool.title }}
+            </li>
+          </ul>
+        </FormGroup>
         <McpToolPicker
+          v-else
           v-model="selectedTools"
           :tools="consent.tools"
           :groups="consent.groups || []"
@@ -187,6 +213,8 @@ const error = ref({ visible: false, title: '', message: '' })
 const ERROR_MESSAGES = {
   unknown_client: 'mcpAuthorize.unknownClient',
   client_rejected: 'mcpAuthorize.clientRejected',
+  invalid_target: 'mcpAuthorize.invalidTarget',
+  legacy_endpoint_not_found: 'mcpAuthorize.legacyEndpointNotFound',
 }
 const routeError = route.query.error
 if (routeError) {
@@ -233,7 +261,9 @@ const { data: consent } = useAsyncData(
           : {
               visible: true,
               title: t('mcpAuthorize.invalid'),
-              message: response.data?.detail || response.data?.error || '',
+              message: Object.hasOwn(ERROR_MESSAGES, response.data?.error)
+                ? t(ERROR_MESSAGES[response.data.error])
+                : response.data?.detail || response.data?.error || '',
             }
       return null
     }
@@ -261,6 +291,11 @@ function applyDefaults(value) {
 function tickFor(id, value = consent.value) {
   // The watcher below can run before the data is stored.
   if (!value) {
+    return
+  }
+  // The old endpoint URL connects with its own tools, which can't be changed here.
+  if (value.legacy_endpoint) {
+    selectedTools.value = value.tools.map((tool) => tool.name)
     return
   }
   const existing = value.grants?.[id]

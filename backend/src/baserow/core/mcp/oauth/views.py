@@ -10,7 +10,7 @@ from oauth2_provider.exceptions import OAuthToolkitError
 from oauth2_provider.views import OAuthProtectedResourceMetadataView
 from oauthlib.oauth2.rfc6749.errors import InvalidClientIdError
 
-from .authorize import validate_query
+from .authorize import legacy_resource_key, validate_query
 from .throttling import MCPOAuthAuthorizeRateThrottle, rate_limited
 from .validators import MCP_SCOPE
 
@@ -75,9 +75,29 @@ class MCPAuthorizeRedirectView(View):
 
 class MCPProtectedResourceMetadataView(OAuthProtectedResourceMetadataView):
     """
-    Lists only `mcp`: `offline_access` is requested from the authorization server
-    and has no meaning for the resource itself.
+    Served for `/mcp` and for the old `/mcp/<key>/sse` URL, each naming itself as
+    the resource. Clients accept the `/mcp` document for any URL under it, so the
+    old URL gets its own: the client then asks to sign in for it, and the consent
+    page offers only that endpoint's tools. Lists only `mcp`: `offline_access` is
+    requested from the authorization server and has no meaning for the resource
+    itself.
     """
+
+    def get(self, request, *args, resource_path=None, **kwargs):
+        if resource_path is None:
+            self.resource = settings.MCP_RESOURCE_URL
+        else:
+            resource = f"{settings.MCP_AUTHORIZATION_SERVER_URL}/{resource_path}"
+            resource = resource.rstrip("/")
+            if resource != settings.MCP_RESOURCE_URL and (
+                legacy_resource_key(resource) is None
+            ):
+                raise Http404()
+            self.resource = resource
+        return super().get(request, *args, **kwargs)
+
+    def get_resource(self, request):
+        return self.resource
 
     def get_scopes_supported(self):
         return [MCP_SCOPE]
