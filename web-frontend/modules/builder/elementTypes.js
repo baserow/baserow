@@ -320,9 +320,57 @@ export class ElementType extends Registerable {
    * Should return whether this element is visible.
    * @param {Object} element the element to check
    * @param {Object} applicationContext the applicationContext
-   * @returns
+   * @param {boolean} checkAncestors include ancestor visibility and configuration errors
+   * @param {boolean} includeSelf also check this element when checkAncestors is true
+   * @returns {boolean}
    */
-  isVisible({ element, applicationContext }) {
+  isVisible({
+    element,
+    applicationContext,
+    checkAncestors = false,
+    includeSelf = true,
+  }) {
+    if (checkAncestors) {
+      const elements = this.app.$store.getters['element/getAncestors'](
+        applicationContext.page,
+        element,
+        { includeSelf }
+      )
+      return elements.every((currentElement) => {
+        const elementType = this.app.$registry.get(
+          'element',
+          currentElement.type
+        )
+        const context = {
+          ...applicationContext,
+          element: currentElement,
+          dataScope: DATA_SCOPES.EXCLUDE_TARGET_SUBTREE,
+        }
+        if (context.recordIndexPath) {
+          // An ancestor's condition runs outside its own repeated rows.
+          const collectionDepth = elementType.getCollectionAncestry({
+            page: context.page,
+            element: currentElement,
+            dataScope: context.dataScope,
+          }).length
+          context.recordIndexPath = context.recordIndexPath.slice(
+            0,
+            collectionDepth
+          )
+        }
+        if (
+          context.mode !== 'editing' &&
+          elementType.isInError(currentElement, context)
+        ) {
+          return false
+        }
+        return elementType.isVisible({
+          element: currentElement,
+          applicationContext: context,
+        })
+      })
+    }
+
     const { builder } = applicationContext
 
     const user = this.app.$store.getters['userSourceUser/getUser'](builder)

@@ -678,9 +678,17 @@ export class FormDataProviderType extends DataProviderType {
             elementId
           )
           const elementType = this.app.$registry.get('element', element.type)
-          return !elementType.isDeactivated({
-            workspace: applicationContext.workspace,
-          })
+          return (
+            !elementType.isDeactivated({
+              workspace: applicationContext.workspace,
+            }) &&
+            elementType.isVisible({
+              checkAncestors: true,
+              element,
+              applicationContext,
+              includeSelf: false,
+            })
+          )
         })
         .map(([elementId, value]) => {
           const element = this.app.$store.getters['element/getElementById'](

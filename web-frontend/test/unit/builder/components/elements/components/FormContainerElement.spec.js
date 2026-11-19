@@ -17,12 +17,27 @@ describe('FormContainerElement', () => {
     vi.restoreAllMocks()
   })
 
-  const mountForm = async ({ mode = 'public', nameOverrides = {} } = {}) => {
+  /** Mount a real form, optionally nesting its input under conditional containers. */
+  const mountForm = async ({
+    mode = 'public',
+    nameOverrides = {},
+    nested = false,
+    parentOverrides = {},
+  } = {}) => {
     const { $store: store } = useNuxtApp()
     const page = reactive({
       id: 1,
       elements: [],
-      workflowActions: [],
+      workflowActions: [
+        {
+          id: 1,
+          element_id: 41,
+          event: 'submit',
+          type: 'notification',
+          _: { dispatching: false },
+          title: { formula: "'Submitted'" },
+        },
+      ],
       graph: {
         0: 41,
         41: { children: { '': [42] } },
@@ -79,7 +94,32 @@ describe('FormContainerElement', () => {
       },
       ...nameOverrides,
     }
-    for (const element of [form, type, name]) {
+    const columns = [44, 45].map((id) => ({
+      ...common,
+      id,
+      type: id === 44 ? 'column' : 'simple_container',
+      column_amount: 1,
+      column_gap: 0,
+      column_weights: [1],
+      column_stacking: {},
+      alignment: 'top',
+      ...(id === 44
+        ? {
+            visibility_condition: {
+              formula: "get('form_data.42') = '1'",
+              mode: 'advanced',
+            },
+            ...parentOverrides,
+          }
+        : {}),
+    }))
+    if (nested) {
+      page.graph[42] = { next: { '': [44] } }
+      page.graph[44] = { children: { 0: [45] } }
+      page.graph[45] = { children: { '': [43] } }
+      name.visibility_condition = { formula: '' }
+    }
+    for (const element of [form, type, ...(nested ? columns : []), name]) {
       await store.dispatch('element/forceCreate', { page, element })
     }
     const workspace = {}
@@ -178,6 +218,61 @@ describe('FormContainerElement', () => {
     await wrapper.get('button').trigger('click')
 
     expect(wrapper.find('.ab-form-group__error-message').exists()).toBe(false)
+    expect(submit).toHaveBeenCalledOnce()
+  })
+
+  test.each([
+    ['public', true],
+    ['preview', true],
+    ['public', false],
+  ])(
+    'submits with an invalid %s field hidden by an ancestor (required=%s)',
+    async (mode, required) => {
+      await mountForm({
+        mode,
+        nested: true,
+        nameOverrides: {
+          required,
+          validation_type: 'email',
+          default_value: { formula: "'invalid-email'" },
+        },
+      })
+      await selectType(0)
+      expect(wrapper.get('input[type="text"]').element.value).toBe(
+        'invalid-email'
+      )
+      await wrapper.get('button').trigger('click')
+      expect(submit).not.toHaveBeenCalled()
+      expect(wrapper.find('.ab-form-group__error-message').exists()).toBe(true)
+
+      await selectType(1)
+      expect(wrapper.find('input[type="text"]').exists()).toBe(false)
+      await wrapper.get('button').trigger('click')
+      expect(submit).toHaveBeenCalledOnce()
+
+      await selectType(0)
+      expect(wrapper.find('.ab-form-group__error-message').exists()).toBe(false)
+      await wrapper.get('button').trigger('click')
+      expect(submit).toHaveBeenCalledOnce()
+      await wrapper.get('input[type="text"]').setValue('ada@example.com')
+      await wrapper.get('button').trigger('click')
+      expect(submit).toHaveBeenCalledTimes(2)
+    }
+  )
+
+  test('submits when an ancestor has an invalid visibility formula', async () => {
+    await mountForm({
+      nested: true,
+      parentOverrides: {
+        visibility_condition: {
+          formula: 'unknown_function()',
+          mode: 'advanced',
+        },
+      },
+    })
+    await selectType(0)
+    expect(wrapper.find('input[type="text"]').exists()).toBe(false)
+    await wrapper.get('button').trigger('click')
     expect(submit).toHaveBeenCalledOnce()
   })
 })

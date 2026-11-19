@@ -22,6 +22,7 @@ import {
   IFRAME_SOURCE_TYPES,
   IMAGE_SOURCE_TYPES,
   PAGE_ELEMENT_BEHAVIOURS,
+  SHARE_TYPES,
 } from '@baserow/modules/builder/enums'
 import { LocalBaserowListRowsServiceType } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 
@@ -478,6 +479,79 @@ describe('elementTypes tests', () => {
     })
   })
   describe('elementType isVisible', () => {
+    test.each(['heading', 'header'])(
+      '%s checks ancestors only when requested, including shared element overrides',
+      (type) => {
+        const parent = {
+          id: 1,
+          page_id: 1,
+          type: 'column',
+          visibility_condition: { formula: 'false' },
+        }
+        const element = {
+          id: 2,
+          page_id: 1,
+          type,
+          value: { formula: "'Heading'" },
+          share_type: SHARE_TYPES.ONLY,
+          pages: [1],
+        }
+        const child = {
+          id: 3,
+          page_id: 1,
+          type: 'heading',
+          value: { formula: "'Child'" },
+        }
+        const page = {
+          id: 1,
+          workflowActions: [],
+          elementMap: { 1: parent, 2: element, 3: child },
+          graph: {
+            0: 1,
+            1: { children: { '': [2] } },
+            2: type === 'header' ? { children: { '': [3] } } : {},
+            3: {},
+          },
+        }
+        const applicationContext = {
+          page,
+          builder: { id: 1, pages: [page] },
+          workspace: {},
+          mode: 'public',
+          element,
+        }
+        const elementType = testApp.$registry.get('element', type)
+        expect(elementType.isVisible({ element, applicationContext })).toBe(
+          true
+        )
+        expect(
+          elementType.isVisible({
+            element,
+            applicationContext,
+            checkAncestors: true,
+          })
+        ).toBe(false)
+        parent.visibility_condition.formula = 'true'
+        expect(
+          elementType.isVisible({
+            element,
+            applicationContext,
+            checkAncestors: true,
+          })
+        ).toBe(true)
+        if (type === 'header') {
+          element.pages = []
+          expect(
+            elementType.isVisible({
+              element,
+              applicationContext,
+              checkAncestors: true,
+            })
+          ).toBe(false)
+        }
+      }
+    )
+
     test('HeadingElementType isVisible', () => {
       const elementType = testApp.$registry.get('element', 'heading')
 
