@@ -394,6 +394,53 @@ def test_undo_router_insert_refuses_to_hang_default_nodes_on_a_router_mid_chain(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("at_head", [True, False])
+def test_undo_router_insert_refuses_when_another_node_joined_the_branch(
+    automation_ctx, at_head
+):
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
+    (email,) = add_nodes(ctx, workflow.id, [_email(previous=str(trigger.id))])[
+        "created_nodes"
+    ]
+    (router,) = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="router",
+                type="router",
+                previous_node_ref=str(trigger.id),
+                edges=[{"label": "Match", "condition": "true"}],
+                shifted_node_edge_label="Match",
+            )
+        ],
+    )["created_nodes"]
+    (edge,) = AutomationNode.objects.get(id=router["id"]).service.specific.edges.all()
+    # Another editor adds a step on the branch, so it runs only on a match.
+    workflow.reload_graph()
+    slack = create_node(
+        ctx.user,
+        workflow,
+        "smtp_email",
+        label="Slack",
+        reference_node_id=router["id"] if at_head else email["id"],
+        output=str(edge.uid) if at_head else "",
+    )
+    workflow.reload_graph()
+    before = deepcopy(workflow.graph)
+    scope = [WorkflowActionScopeType.value(workflow.id)]
+    session = get_untrusted_client_session_id(ctx.user)
+
+    (action,) = ActionHandler.undo(ctx.user, scope, session)
+
+    assert "AutomationNodeNotDeletable" in action.error
+    assert f"node {slack.id}" in action.error
+    workflow.reload_graph()
+    assert workflow.graph == before
+
+
+@pytest.mark.django_db
 def test_undo_router_insert_checks_the_chain_under_the_graph_lock(automation_ctx):
     ctx, automation, table, _ = automation_ctx
     workflow, trigger = create_workflow(ctx.user, automation, "Flow", table)
