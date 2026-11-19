@@ -581,7 +581,7 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     [
         ("cancelled", "cancelled", ""),
         ("timeout", "failed", "timeout"),
-        (None, "failed", "failed"),
+        (None, "failed", "provider_rate_limited"),
     ],
 )
 def test_unfinished_replies_log_error_details_only_in_debug_mode(
@@ -647,6 +647,32 @@ def test_unfinished_replies_log_error_details_only_in_debug_mode(
         assert logs[0].record["exception"] is None
     else:
         assert logs == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "error,error_code",
+    [
+        (ModelHTTPError(401, "m"), "provider_auth_failed"),
+        (ModelHTTPError(400, "m"), "failed"),
+        (RuntimeError("boom"), "failed"),
+    ],
+)
+def test_failed_reply_takes_the_provider_failure_as_error_code(
+    reply_run, mocker, error, error_code
+):
+    async def stream(messages, info):
+        raise error
+        yield "never"
+
+    mocker.patch(
+        "baserow.contrib.agent.chat_run_type.create_reply_model",
+        return_value=(FunctionModel(stream_function=stream), {}),
+    )
+
+    run_reply(reply_run)
+
+    assert reply_state(reply_run.context["reply_id"]) == ("failed", error_code, "")
 
 
 @pytest.mark.django_db

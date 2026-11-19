@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, get_args, get_origin
 from django.conf import settings
 
 from loguru import logger
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 
 from baserow.core.ai_provider.constants import (
     AI_PROVIDER_TYPES,
@@ -25,7 +26,7 @@ from baserow.core.ai_provider.resolution import (
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
-from .constants import REASONING_EFFORTS, ReasoningEffort
+from .constants import REASONING_EFFORTS, ProviderFailure, ReasoningEffort
 from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
 from .lifecycle import run_agent_sync_with_model
 
@@ -924,6 +925,28 @@ class GenerativeAIModelType(Instance):
         """
 
         return self.get_model_configuration(model_name).output_validator
+
+    def get_provider_failure(self, error: BaseException) -> ProviderFailure | None:
+        """
+        Name why the provider failed a request, when a user can act on it. Override
+        for a provider that reports such a failure in its own way.
+
+        :param error: What the model raised.
+        :return: The failure, or None when it is none of the named ones.
+        """
+
+        if isinstance(error, ModelHTTPError):
+            if error.status_code in (401, 403):
+                return ProviderFailure.AUTH_FAILED
+            if error.status_code == 429:
+                return ProviderFailure.RATE_LIMITED
+            if error.status_code == 408 or error.status_code >= 500:
+                return ProviderFailure.UNAVAILABLE
+            return None
+        # Without a status the request got no answer: a broken connection or stream.
+        if isinstance(error, ModelAPIError):
+            return ProviderFailure.UNAVAILABLE
+        return None
 
     def _prepare_model_settings(
         self, temperature: Optional[float] = None

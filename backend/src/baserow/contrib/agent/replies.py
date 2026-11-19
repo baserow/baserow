@@ -709,16 +709,30 @@ class AgentResponder:
             return ChatRunOutcome(
                 ChatRunStatus.FAILED, ChatRunErrorCode.TIMEOUT, result
             )
-        if not work.cancelled() and work.exception() is not None:
+        error = None if work.cancelled() else work.exception()
+        if error is not None:
             logger.error(
                 "Agent reply {} failed: run_id={}, provider={!r}, model={!r}, {}",
                 self._request.reply_id,
                 self._journal.run.id,
                 self._request.provider_type[:128],
                 self._request.model_identifier[:128],
-                _describe_failure(work.exception()),
+                _describe_failure(error),
             )
-        return ChatRunOutcome(ChatRunStatus.FAILED, ChatRunErrorCode.FAILED, result)
+        return ChatRunOutcome(
+            ChatRunStatus.FAILED, self._failure_error_code(error), result
+        )
+
+    def _failure_error_code(self, error: BaseException | None) -> str:
+        """
+        :param error: What ended the reply, if anything was raised.
+        :return: The provider's failure when it names one, else a plain failure.
+        """
+
+        if error is None:
+            return ChatRunErrorCode.FAILED
+        model_type = generative_ai_model_type_registry.get(self._request.provider_type)
+        return model_type.get_provider_failure(error) or ChatRunErrorCode.FAILED
 
     def _reply_result(self) -> AgentReplyResult:
         """
