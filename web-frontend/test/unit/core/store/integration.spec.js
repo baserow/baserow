@@ -505,4 +505,84 @@ describe('workspace integrations in the integration store', () => {
     ])
     expect(testApp.mock.history.get).toHaveLength(0)
   })
+
+  const own = (id) => store.getters['integration/getIntegrations'](get(id))
+  const generation = (id) => store.getters['integration/getGeneration'](get(id))
+  const moveToShared = (integrationId) =>
+    store.dispatch('integration/moveToApplication', {
+      application: get(100),
+      applicationDest: get(SHARED_APPLICATION.id),
+      integrationId,
+    })
+
+  test('a promotion moves the integration once the backend accepted it', async () => {
+    await store.dispatch('application/forceCreate', { ...SHARED_APPLICATION })
+    await store.dispatch('integration/forceCreate', {
+      application: get(100),
+      integration: {
+        ...integration(1, 100, 'Rows'),
+        type: 'local_baserow',
+        authorized_subject_id: 5,
+      },
+    })
+    await store.dispatch('integration/forceCreate', {
+      application: get(SHARED_APPLICATION.id),
+      integration: integration(2, SHARED_APPLICATION.id, 'Team'),
+    })
+    const generations = [generation(100), generation(SHARED_APPLICATION.id)]
+    // The backend authorizes it as the user promoting it.
+    const response = held({
+      ...integration(1, SHARED_APPLICATION.id, 'Rows'),
+      type: 'local_baserow',
+      authorized_subject_id: 6,
+    })
+    testApp.mock.onPatch('integration/1/').replyOnce(response.reply)
+
+    const moving = moveToShared(1)
+    await flushPromises()
+
+    // Nothing moves before the backend accepted it.
+    expect(names(own(100))).toEqual(['Rows'])
+    expect(own(100)[0].application_id).toBe(100)
+    expect(JSON.parse(testApp.mock.history.patch[0].data)).toEqual({
+      application_id: SHARED_APPLICATION.id,
+    })
+
+    response.release()
+    await moving
+
+    expect(own(100)).toEqual([])
+    // Last, where the backend orders it, with the values the move changed.
+    expect(own(SHARED_APPLICATION.id)).toMatchObject([
+      { id: 2 },
+      {
+        id: 1,
+        application_id: SHARED_APPLICATION.id,
+        authorized_subject_id: 6,
+      },
+    ])
+    // So the settings pages listing either list refresh.
+    expect(generation(100)).toBeGreaterThan(generations[0])
+    expect(generation(SHARED_APPLICATION.id)).toBeGreaterThan(generations[1])
+    // The application still uses it, now as a workspace integration.
+    expect(usable(100)).toEqual(['Team', 'Rows'])
+  })
+
+  test('a refused promotion leaves the integration where it was', async () => {
+    testApp.dontFailOnErrorResponses()
+    await store.dispatch('application/forceCreate', { ...SHARED_APPLICATION })
+    await store.dispatch('integration/forceCreate', {
+      application: get(100),
+      integration: integration(1, 100, 'Mailer'),
+    })
+    testApp.mock.onPatch('integration/1/').replyOnce(401, {
+      error: 'ERROR_PERMISSION_DENIED',
+      detail: 'Permission denied',
+    })
+
+    await expect(moveToShared(1)).rejects.toThrow()
+
+    expect(own(100)).toMatchObject([{ id: 1, application_id: 100 }])
+    expect(own(SHARED_APPLICATION.id)).toEqual([])
+  })
 })

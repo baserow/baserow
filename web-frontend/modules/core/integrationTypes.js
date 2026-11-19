@@ -50,6 +50,19 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * Return a sentence that tells what the integration will act as once it's made
+   * available to the whole workspace, when the type has such an identity, or
+   * null. It's shown before an app-level integration is promoted, so the admin
+   * knows what every application of the workspace will use.
+   *
+   * @param {object} integration The app-level integration to promote.
+   * @returns {string|null} The hint, if any.
+   */
+  getPromotionHint(integration) {
+    return null
+  }
+
+  /**
    * Returns why this integration can't be used as it is, or null when it's
    * valid. Services, applications and settings built on top of an integration
    * use this to show the user where a misconfiguration comes from.

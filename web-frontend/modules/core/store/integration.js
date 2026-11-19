@@ -126,6 +126,40 @@ const actions = {
     commit('BUMP_GENERATION', { application: applicationSource })
     commit('BUMP_GENERATION', { application: applicationDest })
   },
+  /**
+   * Moves the integration to another application of the workspace, which the
+   * backend only accepts towards the workspace's shared application: a
+   * promotion. Unlike `update`, the list only changes once the backend accepted
+   * the move, and with the values the move changed, like the person a Local
+   * Baserow integration was authorized as. The tab moving it receives no
+   * realtime event of its own move.
+   */
+  async moveToApplication(
+    { dispatch, getters },
+    { application, applicationDest, integrationId }
+  ) {
+    const { data: movedIntegration } = await IntegrationService(
+      this.$client
+    ).update(integrationId, { application_id: applicationDest.id })
+
+    const integration = getters
+      .getIntegrations(application)
+      .find(({ id }) => id === integrationId)
+    if (integration) {
+      await dispatch('forceUpdate', {
+        application,
+        integration,
+        values: movedIntegration,
+      })
+      await dispatch('forceMoveToApplication', {
+        applicationSource: application,
+        applicationDest,
+        integrationId,
+      })
+    }
+
+    return movedIntegration
+  },
   async create(
     { dispatch },
     { application, integrationType, values, beforeId = null }
