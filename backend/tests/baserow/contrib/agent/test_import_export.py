@@ -1548,5 +1548,19 @@ def test_creating_a_user_template_with_nothing_to_copy_says_why():
         TemplateHasNothingToInstall
     ) < list(CreateUserTemplateJobType.job_exceptions_map).index(TemplateHasNoContent)
     assert message == (
-        "None of the selected applications can be copied into a template."
+        "Some of the selected applications can't be copied into a template."
     )
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_user_template_missing_an_agent_the_owner_cant_import_fails(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    database = data_fixture.create_database_application(workspace=agent.workspace)
+    settings.FEATURE_FLAGS = []
+
+    with pytest.raises(TemplateHasNothingToInstall):
+        UserTemplateHandler().copy_applications(owner, [database, agent], name="Copy")

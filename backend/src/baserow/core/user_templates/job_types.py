@@ -160,7 +160,7 @@ class CreateUserTemplateJobType(JobType):
         "updated. Please try again.",
         # A subclass comes before its parent, the first match wins.
         TemplateHasNothingToInstall: (
-            "None of the selected applications can be copied into a template."
+            "Some of the selected applications can't be copied into a template."
         ),
         TemplateHasNoContent: "The content of the template was removed.",
         TemplateBlocked: "The template is blocked, so it can't be made public.",
