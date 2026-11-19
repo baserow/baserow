@@ -30,7 +30,10 @@ from baserow_enterprise.assistant.evals.registry import (
     register_case,
     register_scenario,
 )
-from baserow_enterprise.assistant.evals.scenarios import build_database_ui_context
+from baserow_enterprise.assistant.evals.scenarios import (
+    EvalFixtures,
+    build_database_ui_context,
+)
 from baserow_enterprise.assistant.evals.types import (
     CheckResult,
     CheckSuite,
@@ -1490,12 +1493,10 @@ def _grant_premium(user: AbstractUser) -> None:
 
 
 @register_scenario("database-row-comments")
-def _row_comments_scenario(fx: Fixtures) -> EvalScenario:
-    from baserow_enterprise_tests.enterprise_fixtures import EnterpriseFixtures
-
+def _row_comments_scenario(fx: EvalFixtures) -> EvalScenario:
     from baserow_premium.row_comments.models import RowComment
 
-    EnterpriseFixtures().enable_enterprise()
+    fx.enable_enterprise()
     user = fx.create_user(first_name="Anna")
     bob = fx.create_user(first_name="Bob")
     workspace = fx.create_workspace(users=[user, bob])
