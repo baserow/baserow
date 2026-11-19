@@ -2,6 +2,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from django.db import transaction
 from django.db.models import Prefetch
 
 from rest_framework import serializers
@@ -40,6 +41,7 @@ from baserow.contrib.database.fields.models import (
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.rows.operations import ReadDatabaseRowOperationType
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
@@ -382,26 +384,32 @@ class LocalBaserowTableDataSyncType(DataSyncType):
     def import_serialized(
         self, table, serialized_values, id_mapping, import_export_config
     ):
-        if serialized_values["source_table_id"] in id_mapping["database_tables"]:
-            return self._import_data_sync(
+        if (
+            serialized_values["source_table_id"] in id_mapping["database_tables"]
+            or import_export_config.keeps_unmapped_references
+        ):
+            data_sync = self._import_data_sync(
                 table, serialized_values, id_mapping, import_export_config
             )
+            if data_sync is None:
+                self._unlock_fields(table)
+            return data_sync
 
         # Unlocked until the data sync exists: if the import fails before that, the
         # table must stay a regular editable table, not locked fields with no sync.
         fields = list(table.field_set.all())
-        table.field_set.all().update(
-            read_only=False, immutable_type=False, immutable_properties=False
-        )
+        self._unlock_fields(table)
 
         def import_data_sync():
-            data_sync = self._import_data_sync(
-                table, serialized_values, id_mapping, import_export_config
-            )
-            if data_sync is not None:
-                Field.objects.bulk_update(
-                    fields, ["read_only", "immutable_type", "immutable_properties"]
+            with transaction.atomic():
+                data_sync = self._import_data_sync(
+                    table, serialized_values, id_mapping, import_export_config
                 )
+                if data_sync is not None:
+                    Field.objects.bulk_update(
+                        fields, ["read_only", "immutable_type", "immutable_properties"]
+                    )
+                    invalidate_table_in_model_cache(table.id)
             return data_sync
 
         if is_deferred_callback_context_active():
@@ -409,6 +417,12 @@ class LocalBaserowTableDataSyncType(DataSyncType):
             return None
 
         return import_data_sync()
+
+    def _unlock_fields(self, table):
+        table.field_set.all().update(
+            read_only=False, immutable_type=False, immutable_properties=False
+        )
+        invalidate_table_in_model_cache(table.id)
 
     def _import_data_sync(
         self, table, serialized_values, id_mapping, import_export_config
@@ -420,14 +434,18 @@ class LocalBaserowTableDataSyncType(DataSyncType):
         source_table_id = serialized_copy["source_table_id"]
 
         if source_table_id in id_mapping["database_tables"]:
-            # The source table was exported too, so the copy syncs from it; a view
-            # that wasn't imported (e.g. someone's personal view) is cleared.
+            # A source view that wasn't copied is never cleared: syncing without its
+            # filters would copy rows and fields the view excluded.
+            view_id = serialized_copy.get("source_table_view_id")
+            if view_id is not None:
+                new_view_id = id_mapping.get("database_views", {}).get(view_id)
+                if new_view_id is not None:
+                    serialized_copy["source_table_view_id"] = new_view_id
+                elif not import_export_config.keeps_unmapped_references:
+                    return None
             serialized_copy["source_table_id"] = id_mapping["database_tables"][
                 source_table_id
             ]
-            serialized_copy["source_table_view_id"] = id_mapping.get(
-                "database_views", {}
-            ).get(serialized_copy.get("source_table_view_id"))
             data_sync = super().import_serialized(
                 table, serialized_copy, id_mapping, import_export_config
             )
@@ -442,8 +460,19 @@ class LocalBaserowTableDataSyncType(DataSyncType):
                     if new_field_id is None:
                         continue
                     data_sync_property.key = f"field_{new_field_id}"
+                    mapping = (data_sync_property.metadata or {}).get(
+                        "select_options_mapping"
+                    )
+                    if mapping:
+                        options = id_mapping.get("database_field_select_options", {})
+                        data_sync_property.metadata["select_options_mapping"] = {
+                            str(options.get(int(source), source)): target
+                            for source, target in mapping.items()
+                        }
                     properties_to_update.append(data_sync_property)
-            DataSyncSyncedProperty.objects.bulk_update(properties_to_update, ["key"])
+            DataSyncSyncedProperty.objects.bulk_update(
+                properties_to_update, ["key", "metadata"]
+            )
 
             return data_sync
 
