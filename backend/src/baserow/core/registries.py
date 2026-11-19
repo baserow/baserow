@@ -140,6 +140,13 @@ class ImportExportConfig:
     ensures that sensitive data are excluded from the exported workspace file.
     """
 
+    imported_by: Optional["AbstractUser"] = None
+    """
+    The user the import is for, when there is one: installing a template or
+    importing a file. Application types behind a feature flag that can be granted
+    per user check it.
+    """
+
     copied_by: Optional["AbstractUser"] = None
     """
     Who asked for this copy, on the paths where a person did: duplicating a

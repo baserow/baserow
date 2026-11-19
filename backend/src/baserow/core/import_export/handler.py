@@ -1210,6 +1210,7 @@ class ImportExportHandler:
                     include_permission_data=False,
                     reduce_disk_space_usage=False,
                     only_structure=only_structure,
+                    imported_by=user,
                 )
 
                 imported_applications = self.import_multiple_applications(

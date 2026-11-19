@@ -498,7 +498,10 @@ class UserTemplateHandler:
             serialized,
             files,
             dataclasses.replace(
-                config, user_files_belong_to_workspace=True, is_template_storage=True
+                config,
+                user_files_belong_to_workspace=True,
+                is_template_storage=True,
+                imported_by=owner,
             ),
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
@@ -680,7 +683,7 @@ class UserTemplateHandler:
         # Unlike the copy into the template, the installed tables are used right
         # away, so their search data is filled in like with the official install.
         config = dataclasses.replace(
-            user_template_copy_config(), reduce_disk_space_usage=False
+            user_template_copy_config(), reduce_disk_space_usage=False, imported_by=user
         )
         applications, _ = CoreHandler().import_applications_to_workspace(
             workspace,

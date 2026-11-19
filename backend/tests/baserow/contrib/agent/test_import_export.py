@@ -33,10 +33,10 @@ from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
 from baserow.core.job_types import DuplicateApplicationJobType, InstallTemplateJobType
-from baserow.core.jobs.constants import JOB_FAILED
+from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Template, WorkspaceUser
-from baserow.core.registries import ImportExportConfig
+from baserow.core.registries import ImportExportConfig, Plugin, plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.user_templates.exceptions import TemplateHasNoContent
@@ -1391,3 +1391,89 @@ def test_installing_a_user_template_of_only_agents_with_the_flag_off_fails(
         UserTemplateHandler().install_template_content(owner, target, revision, content)
 
     assert not target.application_set.exists()
+
+
+class GrantAgentBuilderPlugin(Plugin):
+    type = "test_grant_agent_builder"
+
+    def get_user_feature_flags(self, user):
+        return {FF_AGENT_BUILDER}
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_template_install_keeps_agents_for_a_user_granted_the_flag(
+    data_fixture, configured_agent, settings, tmp_path
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    (tmp_path / "agent-only.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent only",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": export_for_template([agent]),
+            }
+        )
+    )
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    CoreHandler().sync_templates(pattern="agent-only")
+    template = Template.objects.get(slug="agent-only")
+    workspace = data_fixture.create_workspace(user=user)
+    settings.FEATURE_FLAGS = []
+    plugin = GrantAgentBuilderPlugin()
+
+    with patch.dict(plugin_registry.registry, {plugin.type: plugin}):
+        job = JobHandler().create_and_start_job(
+            user,
+            InstallTemplateJobType.type,
+            sync=True,
+            workspace_id=workspace.id,
+            template_id=template.id,
+        )
+
+    job.refresh_from_db()
+    assert job.state == JOB_FINISHED
+    assert AgentApplication.objects.filter(workspace=workspace).count() == 1
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_zip_import_keeps_agents_for_a_user_granted_the_flag(
+    data_fixture, configured_agent, settings, use_tmp_media_root
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    export_path = data_fixture.export_workspace_applications_file([agent])
+    settings.FEATURE_FLAGS = []
+    plugin = GrantAgentBuilderPlugin()
+
+    with patch.dict(plugin_registry.registry, {plugin.type: plugin}):
+        applications = data_fixture.import_workspace_applications_file(export_path)
+
+    assert [application.get_type().type for application in applications] == ["agent"]
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_user_template_keeps_agents_for_a_user_granted_the_flag(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    target = data_fixture.create_workspace(user=owner)
+    settings.FEATURE_FLAGS = []
+    plugin = GrantAgentBuilderPlugin()
+
+    with patch.dict(plugin_registry.registry, {plugin.type: plugin}):
+        copy = UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+        revision = data_fixture.create_template(workspace=copy)
+        content = UserTemplateHandler().serialize_template_content(revision)
+        applications = UserTemplateHandler().install_template_content(
+            owner, target, revision, content
+        )
+
+    assert AgentApplication.objects.filter(workspace=copy).count() == 1
+    assert [application.get_type().type for application in applications] == ["agent"]

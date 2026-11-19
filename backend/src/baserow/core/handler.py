@@ -3204,6 +3204,7 @@ class CoreHandler:
                 reduce_disk_space_usage=False,
                 is_duplicate=True,
                 is_template=True,
+                imported_by=user,
             ),
             storage=storage,
             progress_builder=progress_builder,

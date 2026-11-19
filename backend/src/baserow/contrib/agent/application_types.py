@@ -102,7 +102,9 @@ class AgentApplicationType(ApplicationType):
         """
 
         return import_export_config.keeps_unmapped_references or (
-            feature_flag_is_enabled(FF_AGENT_BUILDER)
+            feature_flag_is_enabled(
+                FF_AGENT_BUILDER, user=import_export_config.imported_by
+            )
         )
 
     @staticmethod
