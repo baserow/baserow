@@ -688,16 +688,15 @@ class AgentHandler:
         has_pending_approvals: bool | None = None,
     ) -> QuerySet[AgentConversation]:
         """
-        Return the conversations the user sees in the agent: their own and the
-        shared ones a trigger started.
+        Return shared conversations and private conversations that include the user.
 
         :param agent: The agent the conversations belong to.
-        :param user: The user whose own conversations are included.
+        :param user: The user whose private conversations are included.
         :param cursor: The last conversation of the previous page, to continue after.
         :param pinned: Only pinned or unpinned conversations, or both when omitted.
         :param has_pending_approvals: Only conversations with or without pending calls.
         :return: The conversations, pinned first, then most recently active, with
-            the trigger that started each shared one.
+            the trigger when it started the conversation.
         """
 
         conversations = (
@@ -1284,7 +1283,7 @@ class AgentHandler:
         Count the held calls waiting for each user's decision in their untrashed
         conversations with each Agent.
 
-        :param user_ids: The ids of the users who own the conversations.
+        :param user_ids: The ids of the participants to count for.
         :param agent_ids: The ids of the Agents to count in.
         :return: The number of pending approvals by Agent id, by user id, leaving
             out users and Agents with none.

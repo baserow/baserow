@@ -7,7 +7,9 @@ from baserow.contrib.agent.operations import (
     ApproveAgentToolCallsOperationType,
     CreateAgentMessageOperationType,
 )
+from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.triggers.service import AgentTriggerService
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow_enterprise.agent_permissions.models import AgentParticipationRule
@@ -149,3 +151,48 @@ def test_internal_agent_copies_preserve_rules_and_scope_subjects(
         )
         is None
     )
+
+
+@pytest.mark.django_db
+def test_removing_approval_permission_keeps_history_but_blocks_resume(
+    enterprise_data_fixture, synced_roles, api_client, settings
+):
+    settings.DEBUG = True
+    fixture = enterprise_data_fixture
+    author, token = fixture.create_user_and_token()
+    reviewer = fixture.create_user()
+    workspace = fixture.create_workspace(user=author, members=[reviewer])
+    agent = fixture.create_agent_application(workspace=workspace)
+    conversation = fixture.create_agent_conversation(agent=agent, user=author)
+    approval = fixture.create_agent_tool_approval(conversation=conversation)
+    headers = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+    url = reverse("api:enterprise:agent_rules", args=[agent.pk]) + "approve/"
+    custom = {
+        "role": "CUSTOM",
+        "subjects": [{"subject_type": "auth.User", "subject_id": reviewer.pk}],
+    }
+
+    assert api_client.put(url, custom, format="json", **headers).status_code == 402
+    fixture.enable_enterprise()
+    RoleAssignmentHandler().assign_role(
+        reviewer, workspace, Role.objects.get(uid="EDITOR")
+    )
+    assert api_client.put(url, custom, format="json", **headers).status_code == 200
+    service = AgentService()
+    service.request_approval(
+        author, agent.pk, conversation.uuid, approval.reply.uuid, [reviewer.pk]
+    )
+    response = api_client.put(url, {"role": "NOBODY"}, format="json", **headers)
+    assert response.status_code == 200
+    assert service.can_follow_conversation(reviewer, conversation.pk)
+    with pytest.raises(PermissionDenied):
+        service.decide_approvals(
+            reviewer,
+            agent.pk,
+            conversation.uuid,
+            [{"id": approval.pk, "approved": True}],
+        )
+    with pytest.raises(PermissionDenied):
+        service.prepare_reply(approval.reply.pk, approval_actor_id=reviewer.pk)
+    approval.refresh_from_db()
+    assert approval.status == approval.Status.PENDING

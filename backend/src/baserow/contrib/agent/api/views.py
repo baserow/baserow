@@ -355,7 +355,7 @@ class AgentConversationsView(RealtimeRecoveryPrimaryReadMixin, APIView):
         description=(
             "Lists private conversations the user participates in and all shared "
             "conversations of the agent, pinned first, then most recently active "
-            "within each group. Each includes its number of tool calls waiting for the "
+            "within each group. Each includes its number of tool calls waiting for "
             "a decision."
         ),
         parameters=[
@@ -662,7 +662,15 @@ def _serialize_conversation(conversation):
 
 
 class ShareAgentConversationView(APIView):
-    @extend_schema(request=None, responses=AgentConversationSerializer)
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="share_agent_conversation",
+        description="The author permanently makes the conversation visible to all "
+        "users who can read the agent's conversations.",
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        request=None,
+        responses={200: AgentConversationSerializer, **CONVERSATION_READ_ERRORS},
+    )
     @map_exceptions(AGENT_EXCEPTIONS)
     def post(self, request, agent_id, conversation_uuid):
         conversation = AgentService().share_conversation(
@@ -697,7 +705,18 @@ class AgentApprovalRecipientsView(APIView):
         )
 
     @extend_schema(
-        request=RequestAgentApprovalSerializer, responses=AgentConversationSerializer
+        tags=["Agent applications"],
+        operation_id="request_agent_tool_approval",
+        description="The author adds the selected eligible reviewers to a private "
+        "conversation. They can read its history and future messages.",
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        request=RequestAgentApprovalSerializer,
+        responses={
+            200: AgentConversationSerializer,
+            400: get_error_schema(["ERROR_REQUEST_BODY_VALIDATION"]),
+            409: get_error_schema(["ERROR_AGENT_TOOL_APPROVAL_NOT_PENDING"]),
+            **CONVERSATION_READ_ERRORS,
+        },
     )
     @map_exceptions(AGENT_EXCEPTIONS)
     @validate_body(RequestAgentApprovalSerializer, return_validated=True)
@@ -709,7 +728,15 @@ class AgentApprovalRecipientsView(APIView):
 
 
 class LeaveAgentConversationView(APIView):
-    @extend_schema(request=None, responses=LeaveAgentConversationSerializer)
+    @extend_schema(
+        tags=["Agent applications"],
+        operation_id="leave_private_agent_conversation",
+        description="Removes the author's access to their private conversation. "
+        "When the author is the last participant, moves the conversation to Trash.",
+        parameters=[AGENT_ID_PATH_PARAMETER],
+        request=None,
+        responses={200: LeaveAgentConversationSerializer, **CONVERSATION_READ_ERRORS},
+    )
     @map_exceptions(AGENT_EXCEPTIONS)
     def post(self, request, agent_id, conversation_uuid):
         conversation = AgentService().delete_for_me(

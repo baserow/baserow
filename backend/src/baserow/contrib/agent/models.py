@@ -275,7 +275,7 @@ class AgentMessage(BigAutoFieldMixin, CreatedAndUpdatedOnMixin, models.Model):
 
 
 class AgentToolApproval(BigAutoFieldMixin, models.Model):
-    """A held tool call of a reply, waiting for or decided by the owner."""
+    """A held tool call of a reply and its approval decision."""
 
     class Status(models.TextChoices):
         PENDING = "pending"
