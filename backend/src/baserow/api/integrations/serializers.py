@@ -65,9 +65,16 @@ class CreateIntegrationSerializer(serializers.ModelSerializer):
 
 
 class UpdateIntegrationSerializer(serializers.ModelSerializer):
+    application_id = serializers.IntegerField(
+        required=False,
+        help_text="Moves the integration to this application, which can only be the "
+        "shared application of its workspace: the integration becomes a workspace "
+        "integration, usable by every application of the workspace.",
+    )
+
     class Meta:
         model = Integration
-        fields = ("name",)
+        fields = ("name", "application_id")
         extra_kwargs = {
             "name": {"required": False},
         }

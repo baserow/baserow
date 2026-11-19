@@ -39,6 +39,29 @@ def test_integration_updated(mock_broadcast, data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
+def test_integration_updated_when_promoted(mock_broadcast, data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_builder_application(workspace=workspace),
+        user=user,
+    )
+
+    IntegrationService().update_integration(
+        user, integration, application_id=shared_application.id
+    )
+
+    # Tells the clients where the integration is now.
+    mock_broadcast.delay.assert_called_once()
+    args = mock_broadcast.delay.call_args
+    assert args[0][0] == workspace.id
+    assert args[0][4]["type"] == "integration_updated"
+    assert args[0][4]["integration"]["application_id"] == shared_application.id
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
 def test_integration_deleted(mock_broadcast, data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_local_baserow_integration(user=user)

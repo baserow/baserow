@@ -12,6 +12,11 @@ class SharedApplicationType(ApplicationType):
     Baserow keeps one per workspace: nobody creates, renames, duplicates, deletes,
     snapshots or exports it, and the frontend doesn't show it. Its integrations
     travel in exports as copies owned by the applications that use them.
+
+    It accepts every integration type that doesn't limit itself to some
+    applications. An MCP server does: only the agent that owns it reads it, so at
+    the workspace level it would do nothing, and promoting one would take it away
+    from its agent.
     """
 
     type = "shared"
@@ -19,11 +24,6 @@ class SharedApplicationType(ApplicationType):
     supports_snapshots = False
     supports_integrations = True
     is_user_managed = False
-
-    def supports_integration_type(self, integration_type) -> bool:
-        """Every integration type, so that any application can use it."""
-
-        return True
 
     def export_safe_transaction_context(self, application: SharedApplication) -> Atomic:
         return transaction.atomic()

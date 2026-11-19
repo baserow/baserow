@@ -3,6 +3,9 @@ from io import BytesIO
 import pytest
 
 from baserow.contrib.database.models import Database
+from baserow.contrib.integrations.mcp.integration_types import (
+    MCPServerIntegrationType,
+)
 from baserow.core.application_types import SharedApplicationType
 from baserow.core.exceptions import ApplicationOperationNotSupported, PermissionDenied
 from baserow.core.handler import CoreHandler
@@ -67,14 +70,17 @@ def test_objects_without_shared_leave_the_shared_application_out(data_fixture):
     ]
 
 
-def test_shared_application_type_supports_every_integration_type():
+def test_shared_application_type_supports_the_integration_types_of_a_workspace():
     shared_application_type = application_type_registry.get(SharedApplicationType.type)
 
     assert not shared_application_type.supports_user_sources
     assert not shared_application_type.supports_snapshots
     assert not shared_application_type.is_user_managed
     for integration_type in integration_type_registry.get_all():
-        assert shared_application_type.supports_integration_type(integration_type)
+        # Only the agent that owns an MCP server reads it.
+        assert shared_application_type.supports_integration_type(integration_type) == (
+            integration_type.type != MCPServerIntegrationType.type
+        )
 
 
 @pytest.mark.django_db

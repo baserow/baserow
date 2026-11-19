@@ -12,6 +12,12 @@ ERROR_INTEGRATION_NOT_IN_SAME_APPLICATION = (
     "The given integrations do not belong to the same application.",
 )
 
+ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION = (
+    "ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION",
+    HTTP_400_BAD_REQUEST,
+    "An integration can only be moved to the shared application of its workspace.",
+)
+
 ERROR_INTEGRATION_CREDENTIAL_REQUIRED = (
     "ERROR_INTEGRATION_CREDENTIAL_REQUIRED",
     HTTP_400_BAD_REQUEST,
