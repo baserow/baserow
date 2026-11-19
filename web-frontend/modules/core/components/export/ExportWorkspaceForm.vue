@@ -76,9 +76,7 @@ export default {
         const allApplications = this.$store.getters[
           'application/getAllOfWorkspace'
         ](this.workspace).filter((application) =>
-          this.$registry
-            .get('application', application.type)
-            .isVisible(application)
+          this.$registry.get('application', application.type).canBeCreated()
         )
         this.values.application_ids = allApplications.map((app) => app.id)
         this.$emit('update', this.values.application_ids)

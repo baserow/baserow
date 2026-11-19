@@ -97,11 +97,22 @@ const selectedWorkspace = computed(
  * Explains why the content can't be copied from the workspace, or is null when
  * it can.
  */
+/**
+ * The applications the selector shows: not those of a type the user can't use,
+ * like Agents without their feature flag, so that one can't stay selected.
+ */
+function getCopyableApplications(workspace) {
+  return $store.getters['application/getAllOfWorkspace'](workspace).filter(
+    (application) =>
+      $registry.get('application', application.type).canBeCreated()
+  )
+}
+
 function getDisabledReason(workspace) {
   if (workspace === null) {
     return ''
   }
-  if ($store.getters['application/getAllOfWorkspace'](workspace).length === 0) {
+  if (getCopyableApplications(workspace).length === 0) {
     return $i18n.t('userTemplateContentForm.workspaceEmpty')
   }
   if (!$hasPermission('workspace.export', workspace, workspace.id)) {
@@ -138,13 +149,8 @@ function update(values) {
 
 function getApplicationIds(workspaceId) {
   const workspace = workspaces.value.find(({ id }) => id === workspaceId)
-  // Only those the selector shows, so a hidden one can't stay selected.
   return workspace
-    ? $store.getters['application/getAllOfWorkspace'](workspace)
-        .filter((application) =>
-          $registry.get('application', application.type).isVisible(application)
-        )
-        .map((application) => application.id)
+    ? getCopyableApplications(workspace).map((application) => application.id)
     : []
 }
 

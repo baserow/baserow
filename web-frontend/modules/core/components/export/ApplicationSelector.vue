@@ -125,14 +125,12 @@ export default {
   },
   computed: {
     applications() {
-      // Applications the sidebar hides, like Agents without their feature flag,
-      // can't be exported or copied into a template either.
+      // Types the user can't use, like Agents without their feature flag, can't
+      // be exported or copied into a template either.
       return this.$store.getters['application/getAllOfWorkspace'](
         this.workspace
       ).filter((application) =>
-        this.$registry
-          .get('application', application.type)
-          .isVisible(application)
+        this.$registry.get('application', application.type).canBeCreated()
       )
     },
     applicationGroups() {

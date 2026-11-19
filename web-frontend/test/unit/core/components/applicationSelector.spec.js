@@ -61,7 +61,7 @@ describe('ApplicationSelector', () => {
     expect(wrapper.emitted('update')).toBeUndefined()
   })
 
-  test('leaves out applications the sidebar hides', async () => {
+  test("leaves out applications of a type the user can't use", async () => {
     for (const [id, name, type] of [
       [11, 'CRM', 'database'],
       [12, 'Ticket triage', 'agent'],
@@ -76,7 +76,7 @@ describe('ApplicationSelector', () => {
     }
     vi.spyOn(
       testApp.$registry.get('application', 'agent'),
-      'isVisible'
+      'canBeCreated'
     ).mockReturnValue(false)
     const wrapper = await mountComponent()
 
