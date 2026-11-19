@@ -11,6 +11,7 @@ from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.registries import service_type_registry
 
+from .exceptions import AgentTriggerTypeNotAvailable
 from .handler import AgentTriggerHandler
 
 WRITE_OPERATIONS = (
@@ -158,7 +159,7 @@ class AgentTriggerService:
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
         :raises AgentTriggerTypeNotAvailable: When the type isn't one the Agent's
-            configuration offers.
+            configuration offers or the workspace's license locks it.
         :raises ServiceMisconfigured: When the service values are invalid.
         :raises AgentTriggerNoAccess: When the Agent's run identity can't read what
             the trigger watches; nothing is saved.
@@ -168,7 +169,7 @@ class AgentTriggerService:
         agent = self.agent_service.get_authorized_agent(
             user, agent_id, *WRITE_OPERATIONS, for_update=True
         )
-        self.handler.check_type_available(agent, service_type_name)
+        self.handler.check_type_usable(agent, service_type_name)
         service_type = service_type_registry.get(service_type_name)
         prepared_service_values = self.handler.prepare_service_values(
             service_type, service_values or {}, user
@@ -227,8 +228,10 @@ class AgentTriggerService:
             is trashed.
         :raises PermissionException: When the user may not update the Agent or read
             its configuration.
-        :raises AgentTriggerTypeNotAvailable: When it would change to, switch on or
-            reschedule a type the Agent's configuration doesn't offer.
+        :raises AgentTriggerTypeNotAvailable: When it would switch on or change
+            the settings of a type the workspace's license locks, or change to,
+            switch on or reschedule a type the Agent's configuration doesn't offer.
+            A locked trigger may still be renamed or given another type.
         :raises ServiceMisconfigured: When the service values are invalid.
         :raises AgentTriggerNoAccess: When a new service or a switch-on isn't
             readable by the Agent's run identity; nothing is saved.
@@ -241,9 +244,19 @@ class AgentTriggerService:
         )
         service_type = trigger.service.get_type()
         changes_type = service_type_name not in (None, service_type.type)
+        locked_change = enabled or any(
+            value is not None
+            for value in (message, service_values, on_overlap, batch_size)
+        )
+        if (
+            not changes_type
+            and locked_change
+            and service_type.is_deactivated(trigger.agent.workspace)
+        ):
+            raise AgentTriggerTypeNotAvailable(service_type.type)
         prepared_service_values = None
         if changes_type:
-            self.handler.check_type_available(trigger.agent, service_type_name)
+            self.handler.check_type_usable(trigger.agent, service_type_name)
             service_type = service_type_registry.get(service_type_name)
             prepared_service_values = self.handler.prepare_service_values(
                 service_type, service_values or {}, user

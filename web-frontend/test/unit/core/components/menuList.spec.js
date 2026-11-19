@@ -111,6 +111,25 @@ describe('MenuList', () => {
     expect(wrapper.emitted('select')).toBeUndefined()
   })
 
+  test('marks only the items a paid plan unlocks with the lock badge', () => {
+    const wrapper = mountComponent({
+      items: [
+        {
+          id: 'paid',
+          label: 'Paid',
+          value: 'paid',
+          disabled: true,
+          locked: true,
+        },
+        { id: 'off', label: 'Off', value: 'off', disabled: true },
+      ],
+    })
+
+    const [paid, off] = wrapper.findAll('.menu-list__item-button')
+    expect(paid.find('.deactivated-label.iconoir-lock').exists()).toBe(true)
+    expect(off.find('.deactivated-label').exists()).toBe(false)
+  })
+
   test('emits close when Escape is pressed', async () => {
     const wrapper = mountComponent()
 

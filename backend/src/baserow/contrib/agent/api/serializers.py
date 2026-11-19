@@ -151,8 +151,8 @@ class AgentConfigurationSerializer(serializers.Serializer):
     )
     available_trigger_types = serializers.ListField(
         child=serializers.CharField(),
-        help_text="The trigger types that can be added to the agent on this "
-        "instance, as service type names.",
+        help_text="The trigger types offered on this instance, as service type "
+        "names, including the ones the workspace's license locks.",
     )
     available_action_types = serializers.ListField(
         child=serializers.CharField(),

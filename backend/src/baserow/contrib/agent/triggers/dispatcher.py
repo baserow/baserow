@@ -139,9 +139,7 @@ class AgentTriggerDispatcher:
             reason = "it is disabled"
         elif not self._agent_is_live(agent):
             reason = "its agent is trashed or is a snapshot"
-        elif service_type.type not in AgentTriggerHandler().available_trigger_types(
-            agent
-        ):
+        elif not AgentTriggerHandler().is_type_usable(agent, service_type.type):
             reason = "its type isn't available"
         elif (
             AgentHandler().get_configuration_readiness(agent)[0]

@@ -1,4 +1,10 @@
+import { ref } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
+import AgentServicePicker from '@baserow/modules/agent/components/configuration/AgentServicePicker'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
 import LocalBaserowTableSelector from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowTableSelector'
 import en from '@baserow_enterprise/locales/en.json'
 
@@ -136,5 +142,88 @@ describe('Row comment posted trigger', () => {
     for (const name of ['user_name', 'row_id', 'table_id', 'text']) {
       expect(formula).toContain(`get('trigger.${name}')`)
     }
+  })
+  test('an unlicensed agent trigger shows switched off with read-only settings that open the upgrade modal, and can still be renamed or replaced', async () => {
+    const card = await testApp.mount(AgentTriggerCard, {
+      props: {
+        trigger: {
+          id: 1,
+          type,
+          name: '',
+          enabled: true,
+          message: { formula: '', mode: 'simple' },
+          on_overlap: 'wait',
+          batch_size: 20,
+          service: { table_id: 5, only_when_mentioned: false },
+        },
+        workspace: { id: 1 },
+        editable: true,
+        expanded: true,
+        runAsActive: true,
+        typeOptions: { form_choices: { databases } },
+        availableTypes: [type],
+      },
+      global: {
+        mocks: { $t: t },
+        provide: { agentApplication: ref({ id: 10, type: 'agent' }) },
+      },
+    })
+    const modal = card.getComponent(PaidFeaturesModal)
+    const opened = vi.spyOn(modal.vm.$refs.modal, 'show')
+
+    expect(card.get('[role="switch"]').attributes('aria-checked')).toBe('false')
+    expect(card.findAll('.agent-trigger-card__section[inert]')).toHaveLength(3)
+    expect(
+      card.get('.agent-trigger-card__name').attributes('readonly')
+    ).toBeUndefined()
+    expect(
+      card.get('.agent-trigger-card__type').attributes('disabled')
+    ).toBeUndefined()
+    await card.get('[role="switch"]').trigger('click')
+    await card.get('.agent-trigger-card__lock').trigger('click')
+    await card.get('.agent-trigger-card__body').trigger('click')
+    expect(opened).toHaveBeenCalledTimes(3)
+    expect(modal.vm.selectedType).toBe('row_comment_trigger')
+    expect(card.emitted('update')).toBeUndefined()
+    expect(card.find('.agent-trigger-card__delete').exists()).toBe(true)
+  })
+
+  test('the agent picker lists the unlicensed trigger locked and opens its upgrade modal', async () => {
+    const picker = await testApp.mount(AgentServicePicker, {
+      props: {
+        searchPlaceholder: '',
+        emptyText: '',
+        availableTypes: [type],
+        workspace: { id: 1 },
+      },
+      global: { mocks: { $t: t } },
+    })
+    picker.vm.toggle(document.body)
+    await flushPromises()
+    const modal = picker.getComponent(PaidFeaturesModal)
+    const opened = vi.spyOn(modal.vm.$refs.modal, 'show')
+    const item = picker.get('.grouped-menu__actions .menu-list__item-button')
+    expect(item.text()).toContain('Row comment is posted')
+    expect(item.find('.deactivated-label.iconoir-lock').exists()).toBe(true)
+    await item.trigger('click')
+    expect(opened).toHaveBeenCalledOnce()
+    expect(picker.emitted('select')).toBeUndefined()
+  })
+  test('the automation trigger menu keeps the icon and adds the lock badge', async () => {
+    const menu = await testApp.mount(WorkflowAddNodeMenu, {
+      props: { onlyTrigger: true },
+      global: {
+        mocks: { $t: t },
+        provide: {
+          automation: { id: 1 },
+          workflow: { id: 1, nodes: [] },
+          workspace: { id: 1 },
+        },
+      },
+    })
+    await menu.get('.menu-search__input').setValue('Row comment is posted')
+    const item = menu.get('.grouped-menu__actions .menu-list__item-button')
+    expect(item.find('.iconoir-chat-bubble').exists()).toBe(true)
+    expect(item.find('.deactivated-label.iconoir-lock').exists()).toBe(true)
   })
 })

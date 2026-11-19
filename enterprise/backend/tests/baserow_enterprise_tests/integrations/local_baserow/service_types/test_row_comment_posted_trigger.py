@@ -6,6 +6,8 @@ import pytest
 from baserow_premium_tests.row_comments.utils import create_comment_scenario
 
 from baserow.contrib.agent.models import AgentMessage
+from baserow.contrib.agent.triggers.exceptions import AgentTriggerTypeNotAvailable
+from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.contrib.agent.triggers.service import AgentTriggerService
 from baserow.contrib.agent.triggers.tasks import start_trigger_conversations
 from baserow.contrib.automation.api.nodes.serializers import AutomationNodeSerializer
@@ -236,6 +238,54 @@ def test_only_committed_licensed_posts_are_dispatched(
         enterprise_data_fixture.delete_all_licenses()
         invalidate_cached_instance_wide_licenses()
     dispatch.assert_not_called()
+
+
+def test_an_unlicensed_agent_trigger_can_only_be_renamed_or_replaced(
+    scenario, enterprise_data_fixture
+):
+    fixture = enterprise_data_fixture
+    reviewer = fixture.create_identity(
+        workspace=scenario.ctx.workspace, name="Reviewer", role_uid="EDITOR"
+    )
+    agent = fixture.create_agent_application(
+        workspace=scenario.ctx.workspace,
+        run_as_subject_type="auth.User",
+        run_as_subject_id=reviewer.id,
+    )
+    host = AgentTriggerService()
+    trigger = host.create_trigger(
+        scenario.ctx.user,
+        agent.id,
+        TYPE,
+        service_values={"table_id": scenario.tasks.id},
+    )
+    fixture.delete_all_licenses()
+    invalidate_cached_instance_wide_licenses()
+
+    assert TYPE in AgentTriggerHandler().available_trigger_types()
+    assert not AgentTriggerHandler().is_type_usable(agent, TYPE)
+    with pytest.raises(AgentTriggerTypeNotAvailable):
+        host.create_trigger(scenario.ctx.user, agent.id, TYPE)
+    for change in (
+        {"enabled": True},
+        {"message": "Changed"},
+        {"service_values": {"only_when_mentioned": True}},
+        {"on_overlap": "skip"},
+    ):
+        with pytest.raises(AgentTriggerTypeNotAvailable):
+            host.update_trigger(scenario.ctx.user, agent.id, trigger.id, **change)
+    host.update_trigger(scenario.ctx.user, agent.id, trigger.id, name="Renamed")
+    trigger.refresh_from_db()
+    assert trigger.enabled and trigger.name == "Renamed"
+
+    replaced = host.update_trigger(
+        scenario.ctx.user, agent.id, trigger.id, service_type_name="periodic"
+    ).trigger
+    assert replaced.service.get_type().type == "periodic"
+
+    fixture.enable_enterprise()
+    invalidate_cached_instance_wide_licenses()
+    assert AgentTriggerHandler().is_type_usable(agent, TYPE)
 
 
 def test_agent_api_defaults_to_all_posts_and_can_enable_mention_filter(

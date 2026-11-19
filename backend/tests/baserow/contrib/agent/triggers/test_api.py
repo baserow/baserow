@@ -63,19 +63,18 @@ def test_configuration_lists_the_available_trigger_types(
         "local_baserow_rows_updated",
         "local_baserow_rows_deleted",
     ]
-    assert api_client.get(url).json()["available_trigger_types"] == [
+    offered = [
         *row_types,
         "http_trigger",
         "periodic",
+        "local_baserow_row_comment_posted",
     ]
+    assert api_client.get(url).json()["available_trigger_types"] == offered
 
     mocker.patch.object(
         CorePeriodicTriggerServiceType, "is_deactivated", return_value=True
     )
-    assert api_client.get(url).json()["available_trigger_types"] == [
-        *row_types,
-        "http_trigger",
-    ]
+    assert api_client.get(url).json()["available_trigger_types"] == offered
 
 
 @pytest.mark.django_db
@@ -863,6 +862,7 @@ def test_trigger_types_offer_what_the_run_identity_reads(
         "local_baserow_rows_deleted",
         "http_trigger",
         "periodic",
+        "local_baserow_row_comment_posted",
     ]
     assert by_type["periodic"] == {
         "type": "periodic",
