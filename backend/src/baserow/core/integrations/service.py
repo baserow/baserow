@@ -306,7 +306,12 @@ class IntegrationService:
 
         # Soft-delete (trash) the integration so it can be restored via undo. The
         # `integration_deleted` realtime signal is emitted by the trashable item type.
-        TrashHandler.trash(user, application.workspace, application, integration)
+        # A workspace integration is trashed in the workspace, so it's listed and
+        # emptied with the workspace's trash, never with the shared application's.
+        trash_application = (
+            None if self.handler.is_shared_application(application) else application
+        )
+        TrashHandler.trash(user, application.workspace, trash_application, integration)
 
     def move_integration(
         self,

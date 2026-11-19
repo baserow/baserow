@@ -1,7 +1,11 @@
 from typing import TYPE_CHECKING, Any, Optional
 
+from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
-from baserow.core.integrations.operations import RestoreIntegrationOperationType
+from baserow.core.integrations.operations import (
+    RestoreIntegrationOperationType,
+    RestoreWorkspaceIntegrationOperationType,
+)
 from baserow.core.integrations.signals import (
     integration_created,
     integration_deleted,
@@ -10,19 +14,28 @@ from baserow.core.models import TrashEntry
 from baserow.core.trash.registries import TrashableItemType
 
 if TYPE_CHECKING:
-    from baserow.core.models import Application
+    from baserow.core.models import Application, Workspace
 
 
 class IntegrationTrashableItemType(TrashableItemType):
+    """
+    A workspace integration is trashed under its workspace, never under the hidden
+    shared application that owns it, and only those allowed to manage it can
+    restore it.
+    """
+
     type = "integration"
     model_class = Integration
 
-    def get_parent(self, trashed_item: Integration) -> "Application":
-        return trashed_item.application
+    def get_parent(self, trashed_item: Integration) -> "Application | Workspace":
+        application = trashed_item.application
+        if IntegrationHandler().is_shared_application(application):
+            return application.workspace
+        return application
 
     def get_name(self, trashed_item: Integration) -> str:
-        # The application is already shown as the trash entry's parent (get_parent
-        # returns it), so it isn't repeated here.
+        # The application or the workspace is already shown as the trash entry's
+        # parent (get_parent returns it), so it isn't repeated here.
         return f"{trashed_item.name} ({trashed_item.id})"
 
     def trash(
@@ -56,3 +69,16 @@ class IntegrationTrashableItemType(TrashableItemType):
 
     def get_restore_operation_type(self) -> str:
         return RestoreIntegrationOperationType.type
+
+    def get_restore_operation_types(self, trashed_item: Integration) -> list[str]:
+        """
+        A workspace integration is restored with the workspace operation, for the
+        same reason it is deleted with one, see `IntegrationService`.
+
+        :param trashed_item: The trashed integration.
+        :return: The restore operation to check on the integration.
+        """
+
+        if IntegrationHandler().is_shared_application(trashed_item.application):
+            return [RestoreWorkspaceIntegrationOperationType.type]
+        return [self.get_restore_operation_type()]
