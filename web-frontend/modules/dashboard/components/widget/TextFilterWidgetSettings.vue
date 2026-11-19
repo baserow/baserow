@@ -331,16 +331,11 @@
         :dashboard="dashboard"
         :target="target"
         :source="source"
+        :store-prefix="storePrefix"
         :link="link"
-        :fields="fields"
-        :readonly-groups="readonlyGroups"
-        :fields-loading="fieldsLoading"
         :unavailable-reason="
           !canFilter(target) ? unavailableTargetReason(target) : null
         "
-        :fields-error="fieldsError"
-        :has-incompatible-conditions="hasIncompatibleConditions"
-        @retry="loadFields(source?.table_id)"
         @update="updateLink"
       />
     </FormSection>
@@ -355,19 +350,15 @@ import DashboardFormulaInput from '@baserow/modules/dashboard/components/Dashboa
 import ConfigureFilterTargetModal from '@baserow/modules/dashboard/components/widget/ConfigureFilterTargetModal'
 import CreateWidgetModal from '@baserow/modules/dashboard/components/CreateWidgetModal'
 import WidgetFilterConfigurationModal from '@baserow/modules/dashboard/components/widget/WidgetFilterConfigurationModal'
-import FieldService from '@baserow/modules/database/services/field'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import {
-  getWidgetFilterGroups,
-  getTextFilterDefaultValue,
-} from '@baserow/modules/dashboard/utils/widgetFilters'
+import { getTextFilterDefaultValue } from '@baserow/modules/dashboard/utils/widgetFilters'
 
 const props = defineProps({
   widget: { type: Object, required: true },
   dashboard: { type: Object, required: true },
   storePrefix: { type: String, default: '' },
 })
-const { $store, $client, $registry, $i18n } = useNuxtApp()
+const { $store, $registry, $i18n } = useNuxtApp()
 const { optionState, options } = useWidgetOptions(props)
 const defaultValue = computed(() => getTextFilterDefaultValue(props.widget))
 const hasDefaultValue = computed(() => defaultValue.value.length > 0)
@@ -378,9 +369,6 @@ const defaultValueLabel = computed(() =>
 )
 const targetId = ref(null)
 const groupModal = ref(null)
-const fields = ref([])
-const fieldsLoading = ref(false)
-const fieldsError = ref(false)
 const targetPicker = ref(null)
 const targetMenu = ref(null)
 const menuTarget = ref(null)
@@ -426,35 +414,41 @@ async function createTarget(variation) {
   }
 }
 
+/** Save a missing association using the filter's current links for undo. */
+async function ensureTargetLinked(filterId, targetId) {
+  const prefix = `${props.storePrefix}dashboardApplication`
+  const filter = $store.getters[`${prefix}/getWidgets`].find(
+    (widget) => widget.id === filterId
+  )
+  if (!filter) return false
+  const links = filter.target_filters || []
+  if (!links.some((link) => link.target_widget_id === targetId)) {
+    await $store.dispatch(`${prefix}/updateWidget`, {
+      widgetId: filterId,
+      values: {
+        target_filters: [
+          ...links,
+          {
+            target_widget_id: targetId,
+            enabled: true,
+            empty_behavior: 'apply_nothing',
+            group: emptyGroup(),
+          },
+        ],
+      },
+      originalValues: { target_filters: links },
+    })
+  }
+  return true
+}
+
 /** Link the configured widget, then return directly to its filter conditions. */
 async function finishTargetCreation(created) {
   const context = configuringTarget.value
   if (!context || linkingTarget.value || !canFilter(created)) return
   linkingTarget.value = true
   try {
-    const prefix = `${props.storePrefix}dashboardApplication`
-    const current = $store.getters[`${prefix}/getWidgets`].find(
-      (widget) => widget.id === context.filterId
-    )
-    if (!current) return
-    const links = current.target_filters || []
-    if (!links.some((link) => link.target_widget_id === created.id)) {
-      await $store.dispatch(`${prefix}/updateWidget`, {
-        widgetId: current.id,
-        values: {
-          target_filters: [
-            ...links,
-            {
-              target_widget_id: created.id,
-              enabled: true,
-              empty_behavior: 'apply_nothing',
-              group: emptyGroup(),
-            },
-          ],
-        },
-        originalValues: { target_filters: links },
-      })
-    }
+    if (!(await ensureTargetLinked(context.filterId, created.id))) return
     if (
       disposed ||
       configuringTarget.value !== context ||
@@ -506,29 +500,6 @@ const target = computed(() =>
   )
 )
 const source = computed(() => target.value && getSource(target.value))
-const hasConditions = (group) => Boolean(group?.filters?.length)
-/** Show existing source and other owners' contributions without granting edit access. */
-const readonlyGroups = computed(() => {
-  const groups = hasConditions(source.value)
-    ? [
-        {
-          key: 'permanent',
-          title: $i18n.t('textFilterWidget.permanentGroup'),
-          group: source.value,
-          owner: null,
-        },
-      ]
-    : []
-  return [
-    ...groups,
-    ...getWidgetFilterGroups(
-      $store.getters[`${props.storePrefix}dashboardApplication/getWidgets`],
-      targetId.value,
-      $registry,
-      props.widget.id
-    ),
-  ]
-})
 const linkedTargets = computed(() =>
   targets.value.filter((widget) => configured(widget.id))
 )
@@ -573,19 +544,6 @@ watch(target, (value) => {
   if (!value) groupModal.value?.hide()
 })
 
-const hasIncompatibleConditions = computed(() =>
-  [link.value.group, link.value.alternative_group]
-    .filter(Boolean)
-    .some((group) =>
-      group.filters.some((condition) => {
-        const field = fields.value.find((field) => field.id === condition.field)
-        return (
-          !field ||
-          !$registry.get('viewFilter', condition.type).fieldIsCompatible(field)
-        )
-      })
-    )
-)
 const link = computed(
   () =>
     (props.widget.target_filters || []).find(
@@ -607,26 +565,6 @@ watch(
     targetPicker.value?.hide()
   }
 )
-let fieldsRequest = 0
-async function loadFields(tableId) {
-  const request = ++fieldsRequest
-  fields.value = []
-  fieldsError.value = false
-  fieldsLoading.value = Boolean(tableId)
-  if (!tableId) return
-  try {
-    const { data } = await FieldService($client).fetchAll(tableId)
-    if (request === fieldsRequest) fields.value = data
-  } catch (error) {
-    if (request === fieldsRequest) fieldsError.value = true
-  } finally {
-    if (request === fieldsRequest) fieldsLoading.value = false
-  }
-}
-watch(() => source.value?.table_id, loadFields)
-onBeforeUnmount(() => {
-  fieldsRequest++
-})
 const updateLink = (value) =>
   updateSetting('target_filters', [
     ...(props.widget.target_filters || []).filter(
@@ -655,18 +593,13 @@ async function addTarget(id) {
   const filterId = props.widget.id
   targetsSaving.value = true
   try {
-    const saved = await updateSetting('target_filters', [
-      ...(props.widget.target_filters || []),
-      {
-        target_widget_id: candidate.id,
-        group: emptyGroup(),
-        empty_behavior: 'apply_nothing',
-      },
-    ])
+    const saved = await ensureTargetLinked(filterId, candidate.id)
     if (saved && !disposed && props.widget.id === filterId) {
       targetPicker.value?.hide()
       await openFilters(candidate)
     }
+  } catch (error) {
+    notifyIf(error, 'dashboard')
   } finally {
     targetsSaving.value = false
   }
