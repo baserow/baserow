@@ -204,6 +204,7 @@ export default {
         'settings-members',
         'settings-teams',
         'settings-identities',
+        'settings-integrations',
       ].includes(this.$route.name)
     },
     sidebarWorkspaceComponents() {

@@ -198,6 +198,24 @@ export const actions = {
     }
     return getters.get(app.id)
   },
+  /**
+   * Returns the shared application of the workspace. When the store doesn't have
+   * it, for example because the workspace was created after the applications were
+   * loaded, the applications of the workspace are fetched and only the shared one
+   * is added.
+   */
+  async fetchSharedApplication({ dispatch, getters }, workspace) {
+    const sharedApplication = getters.getSharedApplication(workspace)
+    if (sharedApplication) {
+      return sharedApplication
+    }
+
+    const { data } = await ApplicationService(this.$client).fetchAll(
+      workspace.id
+    )
+    const fetched = data.find(isSharedApplication)
+    return fetched ? dispatch('forceCreate', fetched) : undefined
+  },
   async refreshPermissions(
     { dispatch, getters, rootGetters },
     applicationOrId

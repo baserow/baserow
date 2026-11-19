@@ -41,6 +41,28 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     })
   }
 
+  getWorkspaceHint(integration) {
+    const subject = integration.authorized_subject
+    // Not configured, the summary and the error message already say so.
+    if (!subject || subject.trashed) {
+      return null
+    }
+
+    const subjectType = this.app.$registry.get('subject', subject.type)
+    const name = subjectType.getDisplayName(subject)
+    if (subject.user_type === 'identity') {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowWorkspaceSubjectHint',
+        { type: subjectType.getTypeDisplayName(subject), name }
+      )
+    }
+
+    return this.app.$i18n.t(
+      'localBaserowIntegrationType.localBaserowWorkspaceHint',
+      { name }
+    )
+  }
+
   get formComponent() {
     return LocalBaserowForm
   }
