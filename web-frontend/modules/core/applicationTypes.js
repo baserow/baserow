@@ -260,3 +260,44 @@ export class ApplicationType extends Registerable {
     return 50
   }
 }
+
+/**
+ * The hidden application of a workspace that owns its workspace integrations.
+ * Baserow keeps one per workspace and nobody creates, opens or deletes it, so it's
+ * never shown. The application store leaves it out of its lists and returns it with
+ * `getSharedApplication`, and the integration store keeps the workspace
+ * integrations on it like on any other application.
+ */
+export class SharedApplicationType extends ApplicationType {
+  static getType() {
+    return 'shared'
+  }
+
+  getIconClass() {
+    return 'iconoir-ev-plug'
+  }
+
+  getName() {
+    return this.app.$i18n.t('applicationType.shared')
+  }
+
+  supportsTrash() {
+    return false
+  }
+
+  populate(application) {
+    const values = super.populate(application)
+    if (!values.integrations) {
+      values.integrations = []
+    }
+    return values
+  }
+
+  isVisible(application) {
+    return false
+  }
+
+  canBeCreated() {
+    return false
+  }
+}

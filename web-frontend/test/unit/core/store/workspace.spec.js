@@ -624,6 +624,29 @@ describe('Workspace store', () => {
     expect(workspaces.map((workspace) => workspace.id)).toEqual([2])
   })
 
+  test('forceDelete removes the shared application of the workspace too', async () => {
+    // Deleting the workspace also cleans up the application store.
+    const store = testApp.store
+    const workspace = { id: 1, name: 'Workspace 1', _: { selected: false } }
+    store.replaceState({
+      ...store.state,
+      workspace: { ...workspaceStore.state(), items: [workspace] },
+    })
+    await store.dispatch('application/forceSetAll', {
+      applications: [
+        { id: 1, type: 'database', workspace: { id: 1 }, tables: [] },
+        { id: 2, type: 'shared', workspace: { id: 1 } },
+        { id: 3, type: 'shared', workspace: { id: 2 } },
+      ],
+    })
+
+    await store.dispatch('workspace/forceDelete', workspace)
+
+    expect(store.getters['application/get'](1)).toBeUndefined()
+    expect(store.getters['application/get'](2)).toBeUndefined()
+    expect(store.getters['application/get'](3)).toBeDefined()
+  })
+
   test('forceDeleteUser deletes all workspace users across all workspaces', async () => {
     const state = {
       ...workspaceStore.state(),

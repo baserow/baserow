@@ -492,7 +492,11 @@ export const actions = {
   async forceDelete({ commit, dispatch, rootGetters }, workspace) {
     dispatch('job/deleteForWorkspace', workspace, { root: true })
     this.$bus.$emit('workspace-deleted', { workspace })
-    const applications = rootGetters['application/getAllOfWorkspace'](workspace)
+    // The shared application isn't in the list, but it goes with the workspace too.
+    const applications = [
+      ...rootGetters['application/getAllOfWorkspace'](workspace),
+      rootGetters['application/getSharedApplication'](workspace),
+    ].filter(Boolean)
     applications.forEach((application) => {
       return dispatch('application/forceDelete', application, { root: true })
     })
