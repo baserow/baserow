@@ -7,6 +7,14 @@ import path from 'path'
 // forwarded to the web-frontend.
 export const routes = [
   {
+    name: 'google-oauth-callback',
+    path: '/google-oauth-callback',
+    file: path.resolve(
+      __dirname,
+      '../integrations/google/pages/oauthCallback.vue'
+    ),
+  },
+  {
     name: 'index',
     path: '',
     file: path.resolve(__dirname, 'pages/index.vue'),

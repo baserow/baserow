@@ -9,6 +9,12 @@ class IntegrationsConfig(AppConfig):
         from baserow.contrib.integrations.core.integration_types import (
             SMTPIntegrationType,
         )
+        from baserow.contrib.integrations.google.integration_types import (
+            GoogleIntegrationType,
+        )
+        from baserow.contrib.integrations.google.service_types import (
+            GoogleGmailSendEmailServiceType,
+        )
         from baserow.contrib.integrations.local_baserow.integration_types import (
             LocalBaserowIntegrationType,
         )
@@ -21,6 +27,8 @@ class IntegrationsConfig(AppConfig):
         from baserow.core.integrations.registries import integration_type_registry
         from baserow.core.services.registries import service_type_registry
 
+        integration_type_registry.register(GoogleIntegrationType())
+        service_type_registry.register(GoogleGmailSendEmailServiceType())
         integration_type_registry.register(LocalBaserowIntegrationType())
         integration_type_registry.register(SMTPIntegrationType())
         integration_type_registry.register(AIIntegrationType())

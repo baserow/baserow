@@ -1,3 +1,14 @@
+import {
+  GoogleGmailSendEmailWorkflowActionType,
+  OpenUrlWorkflowActionType,
+  LocalBaserowCreateRowWorkflowActionType,
+  LocalBaserowUpdateRowWorkflowActionType,
+  LocalBaserowDeleteRowWorkflowActionType,
+  CoreHTTPRequestWorkflowActionType,
+  CoreSMTPEmailWorkflowActionType,
+  SlackWriteMessageWorkflowActionType,
+  CoreStartWorkflowWorkflowActionType,
+} from '@baserow/modules/database/workflowActionTypes'
 import { defineNuxtPlugin } from '#app'
 import { DatabaseViewsAdminType } from '@baserow/modules/database/adminTypes'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
@@ -387,16 +398,6 @@ import {
   DatabaseRowSearchType,
 } from '@baserow/modules/database/searchTypes'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
-import {
-  OpenUrlWorkflowActionType,
-  LocalBaserowCreateRowWorkflowActionType,
-  LocalBaserowUpdateRowWorkflowActionType,
-  LocalBaserowDeleteRowWorkflowActionType,
-  CoreHTTPRequestWorkflowActionType,
-  CoreSMTPEmailWorkflowActionType,
-  SlackWriteMessageWorkflowActionType,
-  CoreStartWorkflowWorkflowActionType,
-} from '@baserow/modules/database/workflowActionTypes'
 
 export default defineNuxtPlugin({
   name: 'database',
@@ -1185,6 +1186,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'databaseWorkflowActionType',
       new SlackWriteMessageWorkflowActionType(context)
+    )
+    $registry.register(
+      'databaseWorkflowActionType',
+      new GoogleGmailSendEmailWorkflowActionType(context)
     )
     $registry.register(
       'databaseWorkflowActionType',

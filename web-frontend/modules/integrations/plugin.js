@@ -1,3 +1,5 @@
+import { GoogleIntegrationType } from '@baserow/modules/integrations/google/integrationTypes'
+import { GoogleGmailSendEmailServiceType } from '@baserow/modules/integrations/google/serviceTypes'
 import { defineNuxtPlugin } from '#app'
 
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
@@ -47,6 +49,8 @@ export default defineNuxtPlugin({
 
     $registry.register('integration', new LocalBaserowIntegrationType(context))
     $registry.register('integration', new SMTPIntegrationType(context))
+    $registry.register('integration', new GoogleIntegrationType(context))
+    $registry.register('service', new GoogleGmailSendEmailServiceType(context))
     $registry.register('integration', new AIIntegrationType(context))
     $registry.register('integration', new SlackBotIntegrationType(context))
 

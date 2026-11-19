@@ -771,3 +771,42 @@ def test_update_nodes_keeps_a_branch_listed_without_a_condition(automation_ctx):
         for edge in router.service.specific.edges.all()
     }
     assert edges == {"Big": "true", "Small": ""}
+
+
+@pytest.mark.django_db
+def test_google_gmail_node_tools_keep_integration_and_compose_fields(automation_ctx):
+    """Creating and editing Gmail with tools must keep the selected account."""
+    from baserow.contrib.integrations.google.models import GoogleIntegration
+
+    ctx, automation, table, _ = automation_ctx
+    workflow, trigger = create_workflow(ctx.user, automation, "Gmail", table)
+    integration = GoogleIntegration.objects.create(application=automation)
+    result = add_nodes(
+        ctx,
+        workflow.id,
+        [
+            ActionNodeCreate(
+                ref="gmail",
+                type="google_gmail_send_email",
+                previous_node_ref=str(trigger.id),
+                integration_id=integration.id,
+                to_emails="team@example.com",
+                subject="Hello",
+                body="Body",
+            )
+        ],
+    )
+    assert not result.get("errors")
+    node_id = result["created_nodes"][0]["id"]
+    result = update_nodes(
+        ctx,
+        workflow.id,
+        [NodeUpdate(node_id=node_id, subject="Changed", body_type="html")],
+    )
+    assert not result.get("errors")
+
+    service = AutomationNode.objects.get(id=node_id).service.specific
+    assert service.integration_id == integration.id
+    assert service.to_emails["formula"] == "'team@example.com'"
+    assert service.subject["formula"] == "'Changed'"
+    assert service.body_type == "html"

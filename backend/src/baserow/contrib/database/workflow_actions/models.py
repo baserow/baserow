@@ -180,3 +180,6 @@ class ButtonFieldDispatchJob(JobWithUserIpAddress, JobWithUndoRedoIds, Job):
                 if not field.primary_key and field.name != "field"
             ]
         super().save(*args, **kwargs)
+
+
+class GoogleGmailSendEmailWorkflowAction(DatabaseWorkflowServiceAction): ...

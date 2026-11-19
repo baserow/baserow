@@ -478,5 +478,32 @@
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects with IDs",
     "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
+  },
+  "googleIntegration": {
+    "name": "Google",
+    "disconnected": "Google account disconnected",
+    "clientMode": "OAuth client",
+    "defaultClient": "Baserow client",
+    "customClient": "Custom client",
+    "clientId": "Client ID",
+    "clientSecret": "Client secret (leave empty to keep)",
+    "redirectUri": "Authorized redirect URI",
+    "saveFirst": "Save this integration, then edit it to connect your Google account.",
+    "saveChanges": "Save client changes before connecting. Changing the OAuth client requires reconnecting.",
+    "connect": "Connect Google",
+    "reconnect": "Reconnect Google",
+    "disconnect": "Disconnect",
+    "failed": "Google sign-in failed. Check the configuration and try again.",
+    "connecting": "Connecting Google\u2026",
+    "connected": "Google account connected. You can close this window."
+  },
+  "googleGmail": {
+    "name": "Gmail send email",
+    "description": "Send an email from a connected Google account.",
+    "integrationRequired": "Select a Google integration.",
+    "recipientRequired": "Enter at least one recipient.",
+    "consentRequired": "Connect Google and grant permission to send Gmail messages.",
+    "messageId": "Message ID",
+    "threadId": "Thread ID"
   }
 }

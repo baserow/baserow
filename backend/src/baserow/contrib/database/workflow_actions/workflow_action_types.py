@@ -35,6 +35,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
 )
+from baserow.contrib.integrations.google.service_types import (
+    GoogleGmailSendEmailServiceType,
+)
 from baserow.contrib.integrations.local_baserow.mixins import (
     UpdateRowRequiresRowIdMixin,
 )
@@ -64,6 +67,8 @@ from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import is_hostname_safe
 from baserow.core.workflow_actions.models import WorkflowAction
+
+from .models import GoogleGmailSendEmailWorkflowAction
 
 if TYPE_CHECKING:
     from baserow.contrib.automation.workflows.models import AutomationWorkflow
@@ -883,3 +888,17 @@ class OpenUrlWorkflowActionType(DatabaseWorkflowActionType):
     class SerializedDict(DatabaseWorkflowActionDict):
         url: str
         target: str
+
+
+class GoogleGmailSendEmailWorkflowActionType(DatabaseWorkflowServiceActionType):
+    type = "google_gmail_send_email"
+    model_class = GoogleGmailSendEmailWorkflowAction
+    service_type = GoogleGmailSendEmailServiceType.type
+    allowed_integration_types = ["google"]
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "service": pytest_data_fixture.create_service(
+                GoogleGmailSendEmailServiceType.model_class, integration=None
+            )
+        }

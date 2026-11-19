@@ -1,16 +1,5 @@
-import { defineNuxtPlugin } from '#app'
 import {
-  GeneralAutomationSettingsType,
-  IntegrationsAutomationSettingsType,
-} from '@baserow/modules/automation/automationSettingTypes'
-
-import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
-import { AutomationWorkflowLastViewedItemType } from '@baserow/modules/automation/lastViewedItemTypes'
-import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
-import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
-import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
-import automationHistoryStore from '@baserow/modules/automation/store/automationHistory'
-import {
+  GoogleGmailSendEmailActionNodeType,
   LocalBaserowCreateRowActionNodeType,
   LocalBaserowCreateRowsActionNodeType,
   LocalBaserowUpdateRowActionNodeType,
@@ -39,6 +28,18 @@ import {
   AIAgentActionNodeType,
   SlackWriteMessageActionNodeType,
 } from '@baserow/modules/automation/nodeTypes'
+import { defineNuxtPlugin } from '#app'
+import {
+  GeneralAutomationSettingsType,
+  IntegrationsAutomationSettingsType,
+} from '@baserow/modules/automation/automationSettingTypes'
+
+import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
+import { AutomationWorkflowLastViewedItemType } from '@baserow/modules/automation/lastViewedItemTypes'
+import automationApplicationStore from '@baserow/modules/automation/store/automationApplication'
+import automationWorkflowStore from '@baserow/modules/automation/store/automationWorkflow'
+import automationWorkflowNodeStore from '@baserow/modules/automation/store/automationWorkflowNode'
+import automationHistoryStore from '@baserow/modules/automation/store/automationHistory'
 import {
   ForLoopNodeRecipeType,
   WhileLoopNodeRecipeType,
@@ -148,6 +149,7 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreCSVFileReaderActionNodeType(context))
     $registry.register('node', new CoreStartWorkflowActionNodeType(context))
     $registry.register('node', new SlackWriteMessageActionNodeType(context))
+    $registry.register('node', new GoogleGmailSendEmailActionNodeType(context))
     $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
     $registry.register('node', new LocalBaserowGetRowActionNodeType(context))
     $registry.register('node', new LocalBaserowListRowsActionNodeType(context))

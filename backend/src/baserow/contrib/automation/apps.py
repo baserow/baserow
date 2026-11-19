@@ -32,6 +32,7 @@ class AutomationConfig(AppConfig):
             CoreSMTPEmailActionNodeType,
             CoreStartWorkflowActionNodeType,
             CoreWaitActionNodeType,
+            GoogleGmailSendEmailActionNodeType,
             LocalBaserowAggregateRowsActionNodeType,
             LocalBaserowCreateRowActionNodeType,
             LocalBaserowCreateRowsActionNodeType,
@@ -250,6 +251,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CoreManualTriggerNodeType())
         automation_node_type_registry.register(AIAgentActionNodeType())
         automation_node_type_registry.register(SlackWriteMessageActionNodeType())
+        automation_node_type_registry.register(GoogleGmailSendEmailActionNodeType())
 
         from baserow.core.trash.registries import trash_operation_type_registry
 
