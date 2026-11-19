@@ -459,3 +459,20 @@ def test_a_new_workflow_refuses_before_node_id():
             },
             nodes=[_email(previous=None, before_node_id=5)],
         )
+
+
+def test_a_new_workflow_node_without_previous_node_ref_names_only_it():
+    with pytest.raises(PydanticValidationError) as error:
+        WorkflowCreate(
+            name="Orders",
+            trigger={
+                "ref": "trigger",
+                "type": "rows_created",
+                "rows_triggers_settings": {"table_id": 1},
+            },
+            nodes=[_email(previous=None)],
+        )
+
+    assert "previous_node_ref" in str(error.value)
+    assert "before_node_id" not in str(error.value)
+    assert "before_node_id" not in str(WorkflowCreate.model_json_schema())

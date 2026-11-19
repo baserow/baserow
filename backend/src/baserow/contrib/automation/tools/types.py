@@ -12,7 +12,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 from pydantic import BaseModel as PydanticBaseModel
-from pydantic import ConfigDict, Field, PrivateAttr, model_validator
+from pydantic import ConfigDict, Field, PrivateAttr, field_validator, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.tools.formulas import (
@@ -1039,23 +1040,50 @@ _TO_UPDATE_SERVICE: dict[str, Callable] = {
 # ---------------------------------------------------------------------------
 
 
+class WorkflowNodeCreate(ActionNodeCreate):
+    """
+    An action node of a new workflow. It follows a node by ref: there is no
+    existing node to insert it before.
+    """
+
+    previous_node_ref: str = Field(
+        ...,
+        description="The ref of the node this one follows: the trigger or a node "
+        "defined earlier in the workflow.",
+    )
+    before_node_id: SkipJsonSchema[int | None] = None
+
+    @field_validator("before_node_id")
+    @classmethod
+    def _refuse_before_node_id(cls, value):
+        if value is not None:
+            raise ValueError(
+                "A new workflow has no node to insert before: place each node "
+                "with previous_node_ref."
+            )
+        return value
+
+
 class WorkflowCreate(BaseModel):
     """A workflow to create, with its trigger and the nodes after it."""
 
     name: str = Field(..., max_length=255, description="Workflow name.")
     trigger: TriggerNodeCreate = Field(..., description="The trigger node.")
-    nodes: list[ActionNodeCreate] = Field(
+    nodes: list[WorkflowNodeCreate] = Field(
         default_factory=list,
         description="Action nodes executed after the trigger. Each node has one previous_node_ref.",
     )
 
-    @model_validator(mode="after")
-    def _validate_nodes_follow_refs(self):
-        # A new workflow has no existing node to insert before.
-        for node in self.nodes:
-            if node.before_node_id is not None:
-                raise ValueError(
-                    f"Node '{node.ref}' has before_node_id: in a new workflow, "
-                    "place each node with previous_node_ref."
-                )
-        return self
+    @field_validator("nodes", mode="before")
+    @classmethod
+    def _accept_action_nodes(cls, nodes):
+        # Callers in code build the nodes as ActionNodeCreate.
+        if not isinstance(nodes, list):
+            return nodes
+        return [
+            node.model_dump(exclude_unset=True)
+            if isinstance(node, ActionNodeCreate)
+            and not isinstance(node, WorkflowNodeCreate)
+            else node
+            for node in nodes
+        ]
