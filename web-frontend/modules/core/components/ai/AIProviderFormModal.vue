@@ -121,6 +121,71 @@
       </template>
     </FormGroup>
 
+    <FormGroup
+      v-if="canEditExclusions"
+      :label="$t('aiProviderAdmin.excludedWorkspaces')"
+      small-label
+      class="margin-bottom-2"
+    >
+      <PaginatedDropdown
+        ref="excludedWorkspaceDropdown"
+        class="ai-provider-form__workspace-dropdown"
+        :value="null"
+        :fetch-page="fetchWorkspaces"
+        :add-empty-item="false"
+        :not-selected-text="$t('aiProviderAdmin.addExcludedWorkspace')"
+        include-display-name-in-selected-event
+        fetch-on-open
+        fixed-items
+        @input="addExcludedWorkspace"
+      >
+        <template #items="{ results }">
+          <DropdownItem
+            v-for="workspace in results"
+            :key="workspace.id"
+            :name="`${workspace.value} (${workspace.id})`"
+            :value="workspace.id"
+            :disabled="excludedWorkspaceIds.has(workspace.id)"
+          >
+            <span class="select__item-name-text" :title="workspace.value">{{
+              workspace.value
+            }}</span>
+            <span class="ai-provider-form__workspace-id"
+              >({{ workspace.id }})</span
+            >
+          </DropdownItem>
+        </template>
+      </PaginatedDropdown>
+      <ul v-if="excludedWorkspaces.length" class="ai-provider-form__workspaces">
+        <li
+          v-for="workspace in excludedWorkspaces"
+          :key="workspace.id"
+          class="ai-provider-form__workspace"
+        >
+          <span
+            class="ai-provider-form__workspace-name"
+            :title="`${workspace.name} (${workspace.id})`"
+            >{{ workspace.name }}</span
+          >
+          <button
+            type="button"
+            class="ai-provider-form__workspace-remove"
+            :aria-label="
+              $t('aiProviderAdmin.removeExcludedWorkspace', {
+                name: workspace.name,
+              })
+            "
+            @click="removeExcludedWorkspace(workspace.id)"
+          >
+            <i class="iconoir-cancel" />
+          </button>
+        </li>
+      </ul>
+      <template #helper>{{
+        $t('aiProviderAdmin.excludedWorkspacesHelp')
+      }}</template>
+    </FormGroup>
+
     <div class="actions margin-bottom-0">
       <ul class="action__links">
         <li>
@@ -137,7 +202,9 @@
 <script>
 import AIProviderModelCombobox from '@baserow/modules/core/components/ai/AIProviderModelCombobox'
 import AIProviderModelFeatureSelector from '@baserow/modules/core/components/ai/AIProviderModelFeatureSelector'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import modal from '@baserow/modules/core/mixins/modal'
+import { fetchWorkspaceOptions } from '@baserow/modules/core/services/admin/workspaces'
 
 const defaultFeatureTypes = (registry) =>
   registry
@@ -146,7 +213,11 @@ const defaultFeatureTypes = (registry) =>
 
 export default {
   name: 'AIProviderFormModal',
-  components: { AIProviderModelCombobox, AIProviderModelFeatureSelector },
+  components: {
+    AIProviderModelCombobox,
+    AIProviderModelFeatureSelector,
+    PaginatedDropdown,
+  },
   mixins: [modal],
   props: {
     provider: { type: Object, default: null },
@@ -159,6 +230,7 @@ export default {
       this.provider?.provider_type || this.providerTypes[0]?.type
     return {
       loading: false,
+      excludedWorkspaces: [...(this.provider?.excluded_workspaces || [])],
       providerTypeError: '',
       apiKeyEditing: false,
       discoveryLoading: false,
@@ -182,6 +254,15 @@ export default {
     }
   },
   computed: {
+    excludedWorkspaceIds() {
+      return new Set(this.excludedWorkspaces.map(({ id }) => id))
+    },
+    canEditExclusions() {
+      return (
+        this.workspaceId === null &&
+        (!this.provider || Array.isArray(this.provider.excluded_workspaces))
+      )
+    },
     selectedType() {
       return this.providerTypes.find(
         (providerType) => providerType.type === this.values.provider_type
@@ -241,6 +322,19 @@ export default {
     },
   },
   methods: {
+    removeExcludedWorkspace(workspaceId) {
+      this.excludedWorkspaces = this.excludedWorkspaces.filter(
+        ({ id }) => id !== workspaceId
+      )
+    },
+    fetchWorkspaces(page, search) {
+      return fetchWorkspaceOptions(this.$client, page, search)
+    },
+    addExcludedWorkspace({ item }) {
+      this.excludedWorkspaces.push({ id: item.id, name: item.value })
+      // The dropdown stores the picked name after emitting, so reset it later.
+      this.$nextTick(() => this.$refs.excludedWorkspaceDropdown.clear())
+    },
     emptyModel() {
       return {
         model_identifier: '',
@@ -318,6 +412,11 @@ export default {
       this.loading = true
       const values = {
         extra_settings: this.getExtraSettings(),
+      }
+      if (this.canEditExclusions) {
+        values.excluded_workspace_ids = this.excludedWorkspaces.map(
+          ({ id }) => id
+        )
       }
       if (this.provider) {
         if (this.apiKeyEditing) values.api_key = this.values.api_key

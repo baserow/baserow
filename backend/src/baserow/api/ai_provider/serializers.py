@@ -55,8 +55,16 @@ class AIProviderModelSerializer(serializers.ModelSerializer):
         )
 
 
+class AIProviderExcludedWorkspaceSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
+    name = serializers.CharField(read_only=True)
+
+
 class AIProviderConfigSerializer(serializers.ModelSerializer):
     models = AIProviderModelSerializer(many=True, read_only=True)
+    excluded_workspaces = AIProviderExcludedWorkspaceSerializer(
+        many=True, read_only=True
+    )
 
     class Meta:
         model = AIProviderConfig
@@ -66,6 +74,7 @@ class AIProviderConfigSerializer(serializers.ModelSerializer):
             "extra_settings",
             "is_active",
             "models",
+            "excluded_workspaces",
         )
         read_only_fields = fields
 
@@ -131,6 +140,10 @@ class AIProviderFeatureModelSerializer(serializers.Serializer):
 
 class AIProviderFeatureSettingSerializer(serializers.Serializer):
     feature_type = serializers.CharField()
+    can_inherit = serializers.BooleanField(
+        help_text="Whether the workspace can clear its override and follow the "
+        "instance setting, even if its provider excludes this workspace."
+    )
     mode = serializers.ChoiceField(choices=AI_PROVIDER_FEATURE_MODES)
     state = serializers.ChoiceField(
         choices=(
@@ -196,6 +209,9 @@ class AIProviderCreateSerializer(serializers.Serializer):
     )
     extra_settings = serializers.DictField(required=False, default=dict)
     models = AIProviderModelWriteSerializer(many=True, required=False, default=list)
+    excluded_workspace_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False
+    )
 
 
 class AIProviderUpdateSerializer(serializers.Serializer):
@@ -204,6 +220,9 @@ class AIProviderUpdateSerializer(serializers.Serializer):
     )
     extra_settings = serializers.DictField(required=False)
     is_active = serializers.BooleanField(required=False)
+    excluded_workspace_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), required=False
+    )
 
 
 class AIProviderModelsTestRequestSerializer(serializers.Serializer):
