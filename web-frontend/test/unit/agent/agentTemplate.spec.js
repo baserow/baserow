@@ -18,12 +18,23 @@ describe('Agent template preview', () => {
   })
 
   test('the agent type opens a template page for each agent', () => {
-    const type = new AgentApplicationType({ app: {} })
+    const type = new AgentApplicationType({
+      app: { $featureFlagIsEnabled: () => true },
+    })
     const agent = { ...agentData }
 
     expect(type.getTemplateSidebarComponent()).toBe(AgentTemplateSidebar)
     expect(type.getTemplatesPageComponent()).toBe(AgentTemplate)
     expect(type.getTemplatePage(agent)).toEqual({ agent })
+  })
+
+  test('the agent type leaves agents out of a template without the flag', () => {
+    const type = new AgentApplicationType({
+      app: { $featureFlagIsEnabled: () => false },
+    })
+
+    expect(type.getTemplateSidebarComponent()).toBeNull()
+    expect(type.getTemplatePage({ ...agentData })).toBeNull()
   })
 
   test('selecting the agent in the template sidebar opens its page', async () => {
