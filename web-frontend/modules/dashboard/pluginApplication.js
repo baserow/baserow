@@ -1,10 +1,26 @@
+import {
+  WidgetDataProviderType,
+  DashboardDataSourceContextDataProviderType,
+} from '@baserow/modules/dashboard/dataProviderTypes'
 import dashboardApplicationStore from '@baserow/modules/dashboard/store/dashboardApplication'
-import { SummaryWidgetType } from '@baserow/modules/dashboard/widgetTypes'
+import {
+  SummaryWidgetType,
+  TextFilterWidgetType,
+} from '@baserow/modules/dashboard/widgetTypes'
 
 /** Register this feature only when its application is used. */
 export default async function register(nuxtApp) {
   const { $registry, $store } = nuxtApp
   const context = { app: nuxtApp }
+  $registry.registerNamespace('dashboardDataProvider')
+  $registry.register(
+    'dashboardDataProvider',
+    new WidgetDataProviderType(context)
+  )
+  $registry.register(
+    'dashboardDataProvider',
+    new DashboardDataSourceContextDataProviderType(context)
+  )
   if (!$store.hasModule('dashboardApplication')) {
     $store.registerModuleNuxtSafe(
       'dashboardApplication',
@@ -16,5 +32,6 @@ export default async function register(nuxtApp) {
     )
   }
   $registry.registerNamespace('dashboardWidget')
+  $registry.register('dashboardWidget', new TextFilterWidgetType(context))
   $registry.register('dashboardWidget', new SummaryWidgetType(context))
 }

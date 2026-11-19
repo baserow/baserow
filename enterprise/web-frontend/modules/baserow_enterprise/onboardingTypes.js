@@ -54,7 +54,10 @@ export class AIPromptOnboardingType extends OnboardingType {
       }),
     ].join(' ')
 
-    callback(null, getFeatureComponent(this.app, 'onboarding', 'AssistantOnboardingMessage'))
+    callback(
+      null,
+      getFeatureComponent(this.app, 'onboarding', 'AssistantOnboardingMessage')
+    )
     return await this.handOff(message, workspace)
   }
 
