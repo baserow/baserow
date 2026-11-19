@@ -1515,6 +1515,12 @@ describe('Agent configuration', () => {
     configuration.available_tools.find(
       ({ name }) => name === 'delete_rows'
     ).deactivated = true
+    configuration.available_tools.push({
+      name: 'locked_without_modal',
+      group: 'database',
+      changes_data: true,
+      deactivated: true,
+    })
     mockConfiguration(testApp, configuration)
     const wrapper = await mount()
     await openSection(wrapper, 'agent.workspaceAccess')
@@ -1531,8 +1537,11 @@ describe('Agent configuration', () => {
         '.agent-tool-permissions__locked'
       )
     expect(lock('agent.toolCreateRows')).toBeNull()
-    // A lock stands where the tool would be allowed.
+    // A lock stands where the tool would be allowed and asked first.
     expect(toolInput('agent.toolDeleteRows', 'allow')).toBeNull()
+    expect(toolInput('agent.toolDeleteRows', 'ask-first')).toBeNull()
+    expect(lock('agent.toolDeleteRows').tagName).toBe('BUTTON')
+    expect(lock('locked_without_modal').tagName).toBe('I')
 
     lock('agent.toolDeleteRows').click()
     await flushPromises()

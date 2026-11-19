@@ -54,31 +54,38 @@
             </div>
             <div class="agent-tool-permissions__columns">
               <button
-                v-if="tool.deactivated"
+                v-if="tool.deactivatedClickModal"
                 type="button"
-                class="agent-tool-permissions__locked"
+                class="agent-tool-permissions__locked agent-tool-permissions__locked--button"
                 :aria-label="$t('agent.toolLocked', { name: tool.label })"
-                @click="deactivatedModals[tool.name]?.show()"
+                @click="deactivatedModals[tool.name].show()"
               >
                 <i class="iconoir-lock" aria-hidden="true"></i>
               </button>
-              <Checkbox
-                v-else
-                class="agent-tool-permissions__allow"
-                :model-value="picked.has(tool.name)"
-                :disabled="!editable"
-                @update:model-value="allow(tool.name, $event)"
-                >{{ tool.label }}</Checkbox
-              >
-              <Checkbox
-                class="agent-tool-permissions__ask-first"
-                :model-value="askFirst.has(tool.name)"
-                :disabled="!editable || !picked.has(tool.name)"
-                @update:model-value="setAskFirst(tool.name, $event)"
-                >{{
-                  $t('agent.toolAskFirstLabel', { name: tool.label })
-                }}</Checkbox
-              >
+              <i
+                v-else-if="tool.deactivated"
+                class="agent-tool-permissions__locked iconoir-lock"
+                role="img"
+                :aria-label="$t('agent.toolLocked', { name: tool.label })"
+              ></i>
+              <template v-else>
+                <Checkbox
+                  class="agent-tool-permissions__allow"
+                  :model-value="picked.has(tool.name)"
+                  :disabled="!editable"
+                  @update:model-value="allow(tool.name, $event)"
+                  >{{ tool.label }}</Checkbox
+                >
+                <Checkbox
+                  class="agent-tool-permissions__ask-first"
+                  :model-value="askFirst.has(tool.name)"
+                  :disabled="!editable || !picked.has(tool.name)"
+                  @update:model-value="setAskFirst(tool.name, $event)"
+                  >{{
+                    $t('agent.toolAskFirstLabel', { name: tool.label })
+                  }}</Checkbox
+                >
+              </template>
             </div>
             <component
               :is="tool.deactivatedClickModal[0]"
