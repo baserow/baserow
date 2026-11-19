@@ -14,12 +14,6 @@
       "
       @click="$refs.editRoleContext.toggle($event.currentTarget)"
     />
-    <span
-      v-if="teamRoleText"
-      class="members-role-field__team-role"
-      :title="teamRoleText"
-      >{{ teamRoleText }}</span
-    >
     <EditRoleContext
       ref="editRoleContext"
       :subject="row"
@@ -28,6 +22,12 @@
       role-value-column="role_uid"
       @update-role="roleUpdate($event)"
     ></EditRoleContext>
+    <HelpIcon
+      v-if="teamRoleText"
+      class="members-role-field__team-role"
+      icon="iconoir-community"
+      :tooltip="teamRoleText"
+    />
     <HelpIcon
       v-if="roleUidSelected === 'NO_ACCESS'"
       :tooltip="$t('membersRoleField.noAccessHelpText')"

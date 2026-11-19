@@ -38,7 +38,10 @@ async function mountField(row) {
       },
       stubs: {
         EditRoleContext: { template: '<div />', methods: { toggle() {} } },
-        HelpIcon: { template: '<i />' },
+        HelpIcon: {
+          props: ['tooltip', 'icon'],
+          template: '<i :class="icon">{{ tooltip }}</i>',
+        },
       },
     },
   })
@@ -58,6 +61,10 @@ test('shows the workspace role a member with no role takes from a team', async (
     },
   })
 
+  // Shown as the tooltip of a team icon next to the role.
+  expect(wrapper.find('.members-role-field__team-role').classes()).toContain(
+    'iconoir-community'
+  )
   expect(teamRoleText(wrapper)).toBe('Editor, through team Ops')
 })
 
