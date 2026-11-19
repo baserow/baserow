@@ -1135,6 +1135,21 @@ class InvitationLinkScopeType(Instance, abc.ABC):
         :param invitation_link: The link that targets an object of this type.
         """
 
+    def get_usable_invitation_links(
+        self, invitation_links: List["WorkspaceInvitationLink"]
+    ) -> List["WorkspaceInvitationLink"]:
+        """
+        Returns the links among the given ones that people can join through, like
+        `is_usable` does for one link. Types can override it to check all the links
+        of a workspace at once.
+
+        :param invitation_links: Links of one workspace that target an object of
+            this type, with their `scope` loaded.
+        :return: The usable links, in the same order.
+        """
+
+        return [link for link in invitation_links if self.is_usable(link)]
+
     @abc.abstractmethod
     def get_newcomer_permissions(
         self, invitation_link: "WorkspaceInvitationLink"
@@ -1187,6 +1202,40 @@ class InvitationLinkScopeType(Instance, abc.ABC):
         :param user: The member who joins through the link.
         :param invitation_link: The link that targets an object of this type.
         """
+
+    @abc.abstractmethod
+    def get_manage_permission_checks(
+        self, user: "AbstractUser", invitation_link: "WorkspaceInvitationLink"
+    ) -> List[PermissionCheck]:
+        """
+        Returns the permission checks that the user must all pass to manage the
+        link, the same ones that guard changing and deleting it. They let the links
+        of a workspace that the user can manage be listed with one batched check.
+
+        :param user: The user who wants to manage the link.
+        :param invitation_link: The link that targets an object of this type.
+        :return: The checks that must all be allowed.
+        """
+
+    def get_scope_data(
+        self, invitation_links: List["WorkspaceInvitationLink"]
+    ) -> Dict[int, Dict[str, Any]]:
+        """
+        Returns what the frontend needs to show the object of each link, like its
+        name, by link id. The links all target an object of this type and have
+        their `scope` loaded.
+
+        :param invitation_links: The links that target an object of this type.
+        :return: A dict with the data of the object of each link, by link id.
+        """
+
+        return {
+            invitation_link.id: {
+                "id": invitation_link.scope_id,
+                "name": invitation_link.scope.name,
+            }
+            for invitation_link in invitation_links
+        }
 
 
 class InvitationLinkScopeTypeRegistry(Registry[InvitationLinkScopeType]):

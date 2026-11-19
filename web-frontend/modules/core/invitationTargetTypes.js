@@ -138,6 +138,31 @@ export class InvitationTargetType extends Registerable {
   }
 
   /**
+   * Whether the user can manage invitation links of this kind of target
+   * somewhere in the workspace, which shows the invitation links settings page.
+   */
+  canManageInvitationLinks(workspace) {
+    return false
+  }
+
+  /**
+   * The target of an invitation link as listed by the invitation links settings
+   * page, built from the `scope_type` and `scope` of the link, or null when the
+   * link doesn't target this kind of target.
+   */
+  getTargetFromInvitationLink(workspace, invitationLink) {
+    return null
+  }
+
+  /**
+   * What a link of the target joins people to, like "Workspace" or
+   * "Table: Customers", shown in the invitation links settings page.
+   */
+  getInvitationLinkTargetName(workspace, target) {
+    return this.getNavigationLabel(workspace, target)
+  }
+
+  /**
    * What deleting a link of the target means, shown before it is deleted.
    */
   getInvitationLinkDeleteWarning(workspace, target) {
@@ -195,5 +220,21 @@ export class WorkspaceInvitationTargetType extends InvitationTargetType {
     await WorkspaceService(this.app.$client).deleteInvitationLink(
       invitationLink.id
     )
+  }
+
+  canManageInvitationLinks(workspace) {
+    return this.app.$hasPermission(
+      'workspace.list_invitation_links',
+      workspace,
+      workspace.id
+    )
+  }
+
+  getTargetFromInvitationLink(workspace, invitationLink) {
+    return invitationLink.scope_type === null ? { type: this.getType() } : null
+  }
+
+  getInvitationLinkTargetName(workspace, target) {
+    return this.$t('invitationLinksSettings.workspaceTarget')
   }
 }

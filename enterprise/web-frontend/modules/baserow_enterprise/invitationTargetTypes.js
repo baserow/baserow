@@ -3,6 +3,17 @@ import RoleAssignmentsService from '@baserow_enterprise/services/roleAssignments
 import TeamService from '@baserow_enterprise/services/team'
 import { filterRoles } from '@baserow_enterprise/utils/roles'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
+import EnterpriseFeatures from '@baserow_enterprise/features'
+
+/** The kinds of objects that invitation links can give a role on. */
+const SCOPE_TYPES = ['application', 'database_table', 'database_view']
+
+/** The operations that let someone manage the roles, and links, of an object. */
+const SCOPE_ROLE_UPDATE_OPERATIONS = [
+  'application.update_role',
+  'database.table.update_role',
+  'database.table.view.update_role',
+]
 
 /**
  * Invites people to one object of the workspace: an application, a table or a
@@ -146,6 +157,42 @@ export class ScopeInvitationTargetType extends InvitationTargetType {
     )
   }
 
+  /**
+   * Admins of an object can manage its links without being admins of the
+   * workspace, so the links settings page is there for anyone who can change
+   * the roles on at least one object.
+   */
+  canManageInvitationLinks(workspace) {
+    const roleManager = this.app.$store.getters['workspace/getAllPermissions'](
+      workspace.id
+    )?.find(({ name }) => name === 'role')
+    if (!roleManager) {
+      return false
+    }
+    return SCOPE_ROLE_UPDATE_OPERATIONS.some((operation) => {
+      const policy = roleManager.permissions[operation]
+      return Boolean(policy && (policy.default || policy.exceptions.length > 0))
+    })
+  }
+
+  getTargetFromInvitationLink(workspace, invitationLink) {
+    if (!SCOPE_TYPES.includes(invitationLink.scope_type)) {
+      return null
+    }
+    return {
+      type: this.getType(),
+      scopeType: invitationLink.scope_type,
+      scope: invitationLink.scope,
+    }
+  }
+
+  getInvitationLinkTargetName(workspace, { scopeType, scope }) {
+    return this.$t('scopeInvitationTarget.targetName', {
+      type: this.getScopeTypeName(scopeType, scope),
+      name: scope.name,
+    })
+  }
+
   getInvitationLinkAdminWarning(workspace, { scope }) {
     return this.$t('scopeInvitationTarget.linkAdminWarning', {
       name: scope.name,
@@ -274,6 +321,24 @@ export class TeamInvitationTargetType extends InvitationTargetType {
       team.id,
       invitationLink.id
     )
+  }
+
+  canManageInvitationLinks(workspace) {
+    return (
+      this.app.$hasFeature(EnterpriseFeatures.TEAMS, workspace.id) &&
+      this.supportsInvitationLinks(workspace)
+    )
+  }
+
+  getTargetFromInvitationLink(workspace, invitationLink) {
+    if (invitationLink.scope_type !== 'team') {
+      return null
+    }
+    return { type: this.getType(), team: invitationLink.scope }
+  }
+
+  getInvitationLinkTargetName(workspace, { team }) {
+    return this.$t('teamInvitationTarget.targetName', { name: team.name })
   }
 
   getInvitationLinkRole(workspace, { team }) {

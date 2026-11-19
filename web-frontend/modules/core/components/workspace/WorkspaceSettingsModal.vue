@@ -30,6 +30,7 @@
 
 <script>
 import modal from '@baserow/modules/core/mixins/modal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'WorkspaceSettingsModal',
@@ -49,7 +50,7 @@ export default {
     registeredSettings() {
       return this.$registry
         .getOrderedList('workspaceSettings')
-        .filter((settings) => settings.isEnabled() === true)
+        .filter((settings) => settings.isEnabled(this.workspace) === true)
     },
     settingPageComponent() {
       const active = Object.values(
@@ -59,9 +60,7 @@ export default {
     },
   },
   mounted() {
-    this.setPage(
-      Object.values(this.$registry.getOrderedList('workspaceSettings'))[0].type
-    )
+    this.setPage(this.registeredSettings[0]?.type ?? '')
   },
   methods: {
     setPage(page) {
@@ -72,14 +71,27 @@ export default {
     },
     show(page = null, ...args) {
       if (page === null) {
-        const settings = Object.values(
-          this.$registry.getAll('workspaceSettings')
-        )
-        this.page = settings.length > 0 ? settings[0].type : ''
+        // The first page the workspace has, as some are only there for people
+        // who can use them.
+        this.page = this.registeredSettings[0]?.type ?? ''
       } else {
         this.page = page
       }
+      this.fetchRolesAndPermissions()
       return modal.methods.show.call(this, ...args)
+    },
+    /**
+     * Some pages are only there for people who can use them, which the
+     * permissions of the workspace tell. They aren't loaded yet when the modal is
+     * opened outside the workspace, like from the list of all workspaces.
+     */
+    async fetchRolesAndPermissions() {
+      try {
+        await this.$store.dispatch('workspace/fetchPermissions', this.workspace)
+        await this.$store.dispatch('workspace/fetchRoles', this.workspace)
+      } catch (error) {
+        notifyIf(error, 'workspace')
+      }
     },
   },
 }

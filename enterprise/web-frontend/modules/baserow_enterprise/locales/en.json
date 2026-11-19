@@ -420,7 +420,8 @@
     "navigationLabel": "team",
     "linkRoleHelpText": "People new to the workspace get the role of the team, which you can change in the team's settings. Existing members keep their own workspace role.",
     "linkAdminWarning": "Anyone with this link joins {name}, which gives admin access to the whole workspace, including its members and invite links. Only share it with people you trust.",
-    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to join the team through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it stay in the team."
+    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to join the team through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it stay in the team.",
+    "targetName": "Team: {name}"
   },
   "teamMembersRoute": {
     "name": "Team members",
@@ -450,7 +451,8 @@
     "table": "Table",
     "view": "View",
     "linkAdminWarning": "Anyone with this link becomes an admin of {name}, and admins can manage everything in it, including who has access to it and its invite links. Only share it with people you trust.",
-    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to get access through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it keep their access."
+    "linkDeleteWarning": "Are you sure that you want to delete this invite link to {name}? After deleting, it will not be possible to get access through this link. Everyone that you have shared the link with won't be able to use it anymore. People who already joined through it keep their access.",
+    "targetName": "{type}: {name}"
   },
   "shareScope": {
     "pendingNoWorkspaceRole": "No workspace role",
