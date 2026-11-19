@@ -71,7 +71,8 @@ MentionedUsers = Annotated[
     Field(
         max_length=MAX_USER_REFERENCES,
         description="Only the comments that mention one of these users. Each is a "
-        "user ID, 0 for the user these tools act as, or part of a name.",
+        "user ID, 0 for the user these tools act as, or part of a name, which "
+        "matches everyone whose name contains it.",
     ),
 ]
 CommentAuthors = Annotated[
@@ -159,6 +160,16 @@ def list_row_comments(
     }
 
 
+def parse_user_reference(reference: int | str) -> int | str:
+    """
+    :param reference: A user as a search names them.
+    :return: The user's ID, which can be ``ACTING_USER``, or the part of a name.
+    """
+
+    text = str(reference).strip()
+    return int(text) if text.isdecimal() else text
+
+
 def _user_ids(ctx: ToolContext, users: list[int | str] | None) -> list[int] | None:
     """
     The IDs of the users a search names, or None when it names none.
@@ -174,10 +185,9 @@ def _user_ids(ctx: ToolContext, users: list[int | str] | None) -> list[int] | No
     )
     user_ids = set()
     for user in users:
-        reference = str(user).strip()
-        if reference.isdecimal():
-            user_id = int(reference)
-            user_ids.add(ctx.user.id if user_id == ACTING_USER else user_id)
+        reference = parse_user_reference(user)
+        if isinstance(reference, int):
+            user_ids.add(ctx.user.id if reference == ACTING_USER else reference)
             continue
         named = list(
             collaborators.filter(first_name__icontains=reference).values_list(

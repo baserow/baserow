@@ -104,6 +104,11 @@ def test_an_identity_uses_the_row_comment_tools_with_a_workspace_licence(
     assert list_request["values"] == {"table": "Tasks", "row": "Call"}
     assert listed.metadata == {"facts": {"count": 2}}
 
+    search = agent_tool_type_registry.get("search_row_comments")
+    spelled_out = {"database_id": scenario.database.id, "authors": ["0", "Bob"]}
+    assert search.get_step_preview(ctx, spelled_out).to_input()["values"][
+        "authors"
+    ] == ["Helper", "Bob"]
     for name, arguments in (
         ("search_row_comments", {"database_id": scenario.database.id}),
         ("list_row_comments", {"table_id": scenario.tasks.id, "row_id": row.id}),

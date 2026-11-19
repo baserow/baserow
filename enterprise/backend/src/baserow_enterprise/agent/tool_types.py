@@ -60,7 +60,9 @@ class SearchRowCommentsAgentToolType(RowCommentAgentToolType):
         for users in ("mentioned_users", "authors"):
             if arguments.get(users):
                 values[users] = [
-                    ctx.user.first_name if user == tools.ACTING_USER else user
+                    ctx.user.first_name
+                    if tools.parse_user_reference(user) == tools.ACTING_USER
+                    else user
                     for user in arguments[users]
                 ]
         for moment in ("created_after", "created_before"):
