@@ -648,6 +648,20 @@ def test_add_nodes_rejects_a_shifted_node_edge_label_the_router_lacks():
         )
 
 
+@pytest.mark.parametrize("shifted", ["default", "Default"])
+def test_add_nodes_rejects_default_when_a_branch_is_named_default(shifted):
+    # A branch named Default would hide the default branch: there would be no way
+    # left to shift the node onto the default branch.
+    with pytest.raises(PydanticValidationError, match="Rename that branch"):
+        ActionNodeCreate(
+            ref="router",
+            type="router",
+            previous_node_ref="1",
+            edges=[{"label": "Default", "condition": "true"}],
+            shifted_node_edge_label=shifted,
+        )
+
+
 @pytest.mark.django_db
 def test_add_nodes_after_the_last_node_shifts_nothing(automation_ctx):
     ctx, automation, table, _ = automation_ctx

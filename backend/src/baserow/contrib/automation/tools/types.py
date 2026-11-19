@@ -621,11 +621,20 @@ class ActionNodeCreate(BaseModel):
             raise ValueError("Each router branch needs its own label.")
         if self.type == "router" and self.edges is not None and not labels:
             raise ValueError("router requires at least one branch in edges")
+        shifted = self.shifted_node_edge_label
         if (
-            self.shifted_node_edge_label
+            shifted
             and self.type == "router"
-            and self.shifted_node_edge_uid() is None
+            and shifted.lower() == DEFAULT_BRANCH
+            and DEFAULT_BRANCH in labels
         ):
+            raise ValueError(
+                f"shifted_node_edge_label '{shifted}' could mean the default branch "
+                f"or the branch named '{shifted}'. Rename that branch, then use "
+                f"'{DEFAULT_BRANCH}' for the default branch or the new name for the "
+                "branch."
+            )
+        if shifted and self.type == "router" and self.shifted_node_edge_uid() is None:
             raise ValueError(
                 f"shifted_node_edge_label '{self.shifted_node_edge_label}' is not a "
                 f"branch of this router. Use {self.branch_choices()}."
@@ -655,12 +664,12 @@ class ActionNodeCreate(BaseModel):
         label = self.shifted_node_edge_label
         if self.type != "router" or not label:
             return None
+        # No branch is named like it: the validation refuses that.
+        if label.lower() == DEFAULT_BRANCH:
+            return ""
         edges = self.edges or []
-        # A branch of that name wins over the default branch's marker.
         matches = matching_branches([edge.label for edge in edges], label)
-        if len(matches) == 1:
-            return edges[matches[0]]._uid
-        return "" if label.lower() == DEFAULT_BRANCH else None
+        return edges[matches[0]]._uid if len(matches) == 1 else None
 
     def branch_choices(self) -> str:
         """The values shifted_node_edge_label takes, for an error."""
