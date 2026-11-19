@@ -83,7 +83,7 @@
     </FormSection>
     <DashboardServiceRefinementForms
       v-if="values.table_id && !fieldHasErrors('table_id')"
-      small
+      :small="small"
       :values="values"
       :table-fields="tableFields"
       :widget="widget"
@@ -149,6 +149,10 @@ export default {
   },
   mixins: [form, tableFields],
   props: {
+    small: {
+      type: Boolean,
+      default: true,
+    },
     dashboard: {
       type: Object,
       required: true,

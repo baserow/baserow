@@ -80,8 +80,6 @@ describe('WidgetContext', () => {
       dashboard: { id: 7, workspace: { id: 1 } },
       widget: expect.objectContaining({
         type: 'text_filter',
-        // The filter is set up for the table of the widget it was added from.
-        filter_table_id: 5,
         target_filters: [
           expect.objectContaining({
             target_widget_id: 1,

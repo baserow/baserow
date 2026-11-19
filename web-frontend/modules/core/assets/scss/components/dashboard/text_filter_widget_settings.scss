@@ -23,18 +23,11 @@
   line-height: 20px;
 }
 
-.filter-table-setup__help {
-  margin: 0 0 12px;
-  color: $palette-neutral-900;
-  font-size: 12px;
-  line-height: 18px;
-}
-
 .dashboard-widget-filter-targets__apply-new {
   align-items: flex-start;
   margin-top: 14px;
 
-  // The label names the table and how new widgets are filtered: it wraps
+  // The label explains how new widgets are filtered: it wraps
   // rather than being cut off.
   .checkbox__label {
     overflow: visible;

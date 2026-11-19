@@ -53,15 +53,6 @@ export class ChartWidgetType extends DataSourceWidgetType {
     ]
   }
 
-  getDataSourceValuesForTable(tableId, fields) {
-    // Like choosing the table in the settings: the chart starts with one series
-    // to fill in, which the settings form expects to exist.
-    return {
-      ...super.getDataSourceValuesForTable(tableId, fields),
-      aggregation_series: [{ field_id: null, aggregation_type: '' }],
-    }
-  }
-
   async dataSourceUpdated(widget, data) {
     // If widget series configuration is missing for any existing
     // series we will create a series configuration reflecting the

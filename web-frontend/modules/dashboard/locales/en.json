@@ -132,7 +132,7 @@
     "configureSourceFirst": "Choose a data source for this widget first.",
     "unsupportedTarget": "This widget does not have a filterable data source.",
     "targetsHelp": "Open a widget to change its conditions.",
-    "addWidgets": "Add widgets",
+    "addWidgets": "Add a widget",
     "noTargets": "This filter doesn't apply to any widget yet. Add existing widgets, or create one.",
     "noAvailableTargets": "No matching widgets available.",
     "setUpConditions": "Set up conditions",
@@ -145,11 +145,10 @@
     "editWidgetConditions": "Edit these conditions in the widget’s data source settings.",
     "fieldsError": "Could not load the fields. Try again.",
     "description": "Lets viewers narrow down the other widgets on this dashboard by typing or picking a value.",
-    "whatItFilters": "What it filters",
     "howItLooks": "How it looks",
     "notApplied": "Not applied",
     "notAppliedHelp": "This filter doesn't filter any widget yet. Select it to choose what it filters.",
-    "applyToNewWidgets": "Also filter widgets of {table} added later, like the last one",
+    "applyToNewWidgets": "Also filter widgets added later, using the conditions for their table",
     "createWidget": "Create widget",
     "placeholderPlaceholder": "For example: Search by name",
     "defaultValuePlaceholder": "Empty: widgets show everything",
@@ -167,20 +166,15 @@
     "conditionSummary": "{conditions}, {match}",
     "anyCanMatch": "any can match",
     "allMustMatch": "all must match",
-    "whenEmptyCount": "1 condition when empty | {count} conditions when empty"
+    "whenEmptyCount": "1 condition when empty | {count} conditions when empty",
+    "configureNewWidget": "Configure new widget",
+    "addToFilter": "Add to filter",
+    "configurationSaveFailed": "Some changes could not be saved. Update the affected settings and try again."
   },
   "dashboardDataProviderType": {
     "widgetData": "Filter widgets"
   },
   "dashboardServiceRefinementForms": {
     "dashboardFilters": "Dashboard filters"
-  },
-  "filterTableSetup": {
-    "question": "Which table do you want to filter?",
-    "questionHelp": "Viewers will pick or type a value, and the widgets showing this table are filtered on it.",
-    "noTables": "Add a table to a database in this workspace first, then choose it here.",
-    "table": "Table",
-    "chooseTable": "Choose a table",
-    "usedByWidgets": "Used by 1 widget | Used by {count} widgets"
   }
 }

@@ -7,6 +7,7 @@
     :data-source="dataSource"
     :default-values="dataSource"
     :store-prefix="storePrefix"
+    :small="small"
     :loading="loading"
     @values-changed="onDataSourceValuesChanged"
     @widget-values-changed="widgetValuesChanged"
@@ -23,6 +24,11 @@ export default {
   components: { GroupedAggregateRowsDataSourceForm },
   mixins: [error],
   props: {
+    excludeFilterWidgetId: { type: Number, default: null },
+    small: {
+      type: Boolean,
+      default: true,
+    },
     dashboard: {
       type: Object,
       required: true,
@@ -55,6 +61,15 @@ export default {
     },
   },
   methods: {
+    /** Validate all data settings before completing guided widget creation. */
+    validate() {
+      const form = this.$refs.dataSourceForm
+      if (!form) return false
+      form.touch(true)
+      const valid = form.isFormValid(true)
+      if (!valid) form.focusOnFirstError()
+      return valid
+    },
     async onDataSourceValuesChanged(changedDataSourceValues) {
       const aggSeries = changedDataSourceValues.aggregation_series
       if (
@@ -74,6 +89,9 @@ export default {
           {
             dataSourceId: this.dataSource.id,
             values: changedDataSourceValues,
+            ...(this.excludeFilterWidgetId == null
+              ? {}
+              : { excludeFilterWidgetId: this.excludeFilterWidgetId }),
             widget: this.widget,
           }
         )

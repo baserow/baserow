@@ -125,20 +125,12 @@ class TextFilterWidget(Widget):
 
     placeholder = models.TextField(blank=True, default="", db_default="")
     default_value = models.JSONField(blank=True, default=str, db_default="")
-    filter_table = models.ForeignKey(
-        "database.Table",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-        help_text="The table whose rows the filter narrows down.",
-    )
     apply_to_new_widgets = models.BooleanField(
-        default=False,
-        db_default=False,
+        default=True,
+        db_default=True,
         help_text=(
-            "Also filter widgets that start showing the filter's table, with the "
-            "conditions of the last widget it filters on that table."
+            "Also filter widgets that start showing a table this filter already "
+            "applies to, using the first widget's conditions on that table."
         ),
     )
 

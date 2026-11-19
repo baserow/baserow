@@ -175,3 +175,30 @@ test('does not merge a new edit into a request already sent to the server', asyn
   await first
   expect(firstDone).toHaveBeenCalledOnce()
 })
+
+test.each([null, 1])(
+  'source updates forward only the requested filter exclusion (%s)',
+  async (excludeFilterWidgetId) => {
+    store.commit('dashboardApplication/SET_DATA_SOURCES', [
+      { id: 7, table_id: 3 },
+    ])
+    patch.mockResolvedValue({ data: { id: 7, table_id: 3, field_id: 4 } })
+    store.$client.post = vi.fn().mockResolvedValue({ data: { result: 2 } })
+    store.$registry.getAll = () => ({})
+    store.$config = { public: {} }
+    await store.dispatch('dashboardApplication/updateDataSource', {
+      dataSourceId: 7,
+      values: { field_id: 4 },
+      excludeFilterWidgetId,
+    })
+    expect(patch).toHaveBeenCalledWith('/dashboard/data-sources/7/', {
+      field_id: 4,
+      ...(excludeFilterWidgetId == null
+        ? {}
+        : { exclude_filter_widget_id: excludeFilterWidgetId }),
+    })
+    expect(
+      store.getters['dashboardApplication/getDataSourceById'](7)
+    ).not.toHaveProperty('exclude_filter_widget_id')
+  }
+)
