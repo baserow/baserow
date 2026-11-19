@@ -1,11 +1,9 @@
-import { BaserowPlugin } from '@baserow/modules/core/plugins'
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
+import { PremiumRuntimePlugin } from '@baserow_premium/pluginsRuntime'
 import Impersonate from '@baserow_premium/components/sidebar/Impersonate'
 import HighestLicenseTypeBadge from '@baserow_premium/components/sidebar/HighestLicenseTypeBadge'
-import PremiumViewOptions from '@baserow_premium/components/views/PremiumViewOptions'
-import PublicViewExportMenuItem from '@baserow_premium/components/views/PublicViewExportMenuItem'
-import PremiumDashboardShareOptions from '@baserow_premium/components/dashboard/PremiumDashboardShareOptions'
 
-export class PremiumPlugin extends BaserowPlugin {
+export class PremiumPlugin extends PremiumRuntimePlugin {
   static getType() {
     return 'premium'
   }
@@ -19,19 +17,29 @@ export class PremiumPlugin extends BaserowPlugin {
   }
 
   getAdditionalShareLinkOptions() {
-    return [PremiumViewOptions]
+    return [getApplicationComponent(this.app, 'database', 'PremiumViewOptions')]
   }
 
   getAdditionalDashboardShareLinkOptions() {
-    return [PremiumDashboardShareOptions]
+    return [
+      getApplicationComponent(
+        this.app,
+        'dashboard',
+        'PremiumDashboardShareOptions'
+      ),
+    ]
   }
 
   getAdditionalPublicViewMenuItems(view) {
-    return view.allow_public_export ? [PublicViewExportMenuItem] : []
-  }
-
-  hasFeature(feature, forSpecificWorkspace) {
-    return this.app.$licenseHandler.hasFeature(feature, forSpecificWorkspace)
+    return view.allow_public_export
+      ? [
+          getApplicationComponent(
+            this.app,
+            'database',
+            'PublicViewExportMenuItem'
+          ),
+        ]
+      : []
   }
 
   /**

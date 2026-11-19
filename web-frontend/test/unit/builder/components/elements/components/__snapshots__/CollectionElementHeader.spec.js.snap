@@ -1,0 +1,5 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CollectionElementHeader > does not mount refinement UI when every capability is disabled 1`] = `"<!--v-if-->"`;
+
+exports[`CollectionElementHeader > renders enabled refinements and forwards their search event 1`] = `"<button class="collection-element__header margin-bottom-1">Search</button>"`;

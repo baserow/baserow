@@ -1,6 +1,13 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import { IntegrationType } from '@baserow/modules/core/integrationTypes'
-import LocalBaserowForm from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowForm'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
+
+// Editor controls load together, independently of the published runtime.
+const LocalBaserowForm = lazyComponent(() =>
+  import('@baserow/modules/integrations/components/authoringBundle').then(
+    (bundle) => bundle.integrationTypesLocalBaserowForm
+  )
+)
 
 export class LocalBaserowIntegrationType extends IntegrationType {
   static getType() {

@@ -1,14 +1,17 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { ApplicationType } from '@baserow/modules/core/applicationTypes'
-import ApplicationContext from '@baserow/modules/dashboard/components/application/ApplicationContext'
-import DashboardForm from '@baserow/modules/dashboard/components/form/DashboardForm'
-import SidebarComponentDashboard from '@baserow/modules/dashboard/components/sidebar/SidebarComponentDashboard'
-import DashboardTemplateSidebar from '@baserow/modules/dashboard/components/sidebar/DashboardTemplateSidebar'
-import DashboardTemplate from '@baserow/modules/dashboard/components/DashboardTemplate'
+
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
 
 export class DashboardApplicationType extends ApplicationType {
+  /** Applications without child navigation open their page from the sidebar. */
+  async selectFromSidebar(application) {
+    await this.app.$store.dispatch('application/select', application)
+    await this.select(application, this.app)
+  }
+
   static getType() {
     return 'dashboard'
   }
@@ -51,23 +54,31 @@ export class DashboardApplicationType extends ApplicationType {
   }
 
   getApplicationContextComponent() {
-    return ApplicationContext
+    return getApplicationComponent(this.app, 'dashboard', 'ApplicationContext')
   }
 
   getApplicationFormComponent() {
-    return DashboardForm
+    return getApplicationComponent(this.app, 'dashboard', 'DashboardForm')
   }
 
   getSidebarComponent() {
-    return SidebarComponentDashboard
+    return getApplicationComponent(
+      this.app,
+      'dashboard',
+      'SidebarComponentDashboard'
+    )
   }
 
   getTemplateSidebarComponent() {
-    return DashboardTemplateSidebar
+    return getApplicationComponent(
+      this.app,
+      'dashboard',
+      'DashboardTemplateSidebar'
+    )
   }
 
   getTemplatesPageComponent() {
-    return DashboardTemplate
+    return getApplicationComponent(this.app, 'dashboard', 'DashboardTemplate')
   }
 
   getTemplatePage(application) {

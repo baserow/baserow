@@ -7,6 +7,10 @@ import {
 
 export default defineNuxtRouteMiddleware(async (to) => {
   const nuxtApp = useNuxtApp()
+  // Sign-in keeps administrator sessions; published runtimes use user sources.
+  if (nuxtApp.$isApplicationShell === false && !nuxtApp.$isAuthenticationPage)
+    return
+
   const store = nuxtApp.$store
   const event = import.meta.server ? useRequestEvent() : null
 

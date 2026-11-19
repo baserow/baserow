@@ -39,7 +39,10 @@ beforeEach(() => {
     summary: new SummaryWidgetType({ app }),
   }
   store.$registry = {
-    get: (namespace, type) => widgetTypes[type],
+    get: (namespace, type) =>
+      namespace === 'service'
+        ? { prepareResult: async () => {} }
+        : widgetTypes[type],
     getAll: () => [new WidgetDataProviderType({ app: { $store: store } })],
   }
   store.commit('dashboardApplication/SET_DASHBOARD_ID', 42)

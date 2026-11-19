@@ -135,7 +135,7 @@ describe('Agent triggers', () => {
   })
 
   // A test mocks the trigger types before mounting to answer differently first.
-  const mountSection = (
+  const mountSection = async (
     triggers,
     availableTypes = ['periodic'],
     editable = true,
@@ -146,7 +146,7 @@ describe('Agent triggers', () => {
     testApp.mock
       .onGet('/agent/10/trigger-types/')
       .reply(200, availableTypes.map(triggerTypeOf))
-    return testApp.mount(AgentWhenItRunsSection, {
+    const wrapper = await testApp.mount(AgentWhenItRunsSection, {
       props: {
         configuration: completeConfiguration({
           available_trigger_types: availableTypes,
@@ -158,6 +158,9 @@ describe('Agent triggers', () => {
       },
       global: { provide: { agentApplication: ref(agent) } },
     })
+    await vi.dynamicImportSettled()
+    await flushPromises()
+    return wrapper
   }
 
   const chooseTriggerType = async (card, type) => {

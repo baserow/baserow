@@ -12,3 +12,8 @@ export const routes = [
     file: path.resolve(__dirname, 'pages/agent.vue'),
   },
 ]
+
+// Each route initializes its application before selecting data or rendering UI.
+for (const route of routes) {
+  route.meta = { ...route.meta, applicationBundle: 'agent' }
+}

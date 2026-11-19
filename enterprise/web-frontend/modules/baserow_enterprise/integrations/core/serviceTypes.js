@@ -1,3 +1,4 @@
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
 import {
   DataSourceServiceTypeMixin,
   getFilesGroup,
@@ -5,13 +6,27 @@ import {
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
-import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import {
   CodeRunnerPaidFeature,
   XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
-import CoreCodeServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreCodeServiceForm.vue'
-import CoreXLSFileReaderServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreXLSFileReaderServiceForm.vue'
+
+// Editor controls load together, independently of the published runtime.
+const PaidFeaturesModal = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesPaidFeaturesModal
+  )
+)
+const CoreCodeServiceForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreCodeServiceForm
+  )
+)
+const CoreXLSFileReaderServiceForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesCoreXLSFileReaderServiceForm
+  )
+)
 
 export const CORE_CODE_SERVICE_DEFAULT_CODE = `function main(context) {
   return {

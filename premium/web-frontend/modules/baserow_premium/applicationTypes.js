@@ -1,8 +1,12 @@
+import { getApplicationComponent } from '@baserow/modules/core/utils/applicationBundles'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
-import GridViewRowExpandButtonWithCommentCount from '@baserow_premium/components/row_comments/GridViewRowExpandButtonWithCommentCount'
 
 export class PremiumDatabaseApplicationType extends DatabaseApplicationType {
   getRowExpandButtonComponent() {
-    return GridViewRowExpandButtonWithCommentCount
+    return getApplicationComponent(
+      this.app,
+      'database',
+      'GridViewRowExpandButtonWithCommentCount'
+    )
   }
 }

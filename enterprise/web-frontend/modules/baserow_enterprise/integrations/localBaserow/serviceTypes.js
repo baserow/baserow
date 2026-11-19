@@ -2,7 +2,13 @@ import { LocalBaserowListRowsServiceType } from '@baserow/modules/integrations/l
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { SemanticSearchPaidFeature } from '@baserow_enterprise/paidFeatures'
-import LocalBaserowSemanticSearchServiceForm from '@baserow_enterprise/integrations/localBaserow/components/services/LocalBaserowSemanticSearchServiceForm'
+import { lazyComponent } from '@baserow/modules/core/utils/lazyComponent'
+
+const LocalBaserowSemanticSearchServiceForm = lazyComponent(() =>
+  import('@baserow_enterprise/components/authoringBundle').then(
+    (bundle) => bundle.serviceTypesLocalBaserowSemanticSearchServiceForm
+  )
+)
 
 export class LocalBaserowSemanticSearchServiceType extends LocalBaserowListRowsServiceType {
   static getType() {

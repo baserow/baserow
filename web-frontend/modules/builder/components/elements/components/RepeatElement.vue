@@ -130,9 +130,12 @@
 </template>
 
 <script>
-import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
-import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
+import {
+  ElementPreview,
+  AddElementZone,
+  AddElementModal,
+} from '@baserow/modules/builder/components/editorRendering'
+
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { ensureString } from '@baserow/modules/core/utils/validator'
 import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
