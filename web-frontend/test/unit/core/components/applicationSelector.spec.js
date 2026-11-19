@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import { TestApp } from '@baserow/test/helpers/testApp'
 import ApplicationSelector from '@baserow/modules/core/components/export/ApplicationSelector'
@@ -59,5 +59,32 @@ describe('ApplicationSelector', () => {
     await buttons[1].trigger('click')
 
     expect(wrapper.emitted('update')).toBeUndefined()
+  })
+
+  test('leaves out applications the sidebar hides', async () => {
+    for (const [id, name, type] of [
+      [11, 'CRM', 'database'],
+      [12, 'Ticket triage', 'agent'],
+    ]) {
+      await testApp.store.dispatch('application/forceCreate', {
+        id,
+        name,
+        type,
+        tables: [],
+        workspace: { id: 1 },
+      })
+    }
+    vi.spyOn(
+      testApp.$registry.get('application', 'agent'),
+      'isVisible'
+    ).mockReturnValue(false)
+    const wrapper = await mountComponent()
+
+    expect(wrapper.text()).toContain('CRM')
+    expect(wrapper.text()).not.toContain('Ticket triage')
+    await wrapper
+      .findAll('.application-selector__action-btn')[0]
+      .trigger('click')
+    expect(wrapper.emitted('update')).toEqual([[[11]]])
   })
 })

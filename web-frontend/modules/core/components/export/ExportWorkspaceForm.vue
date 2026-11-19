@@ -75,7 +75,11 @@ export default {
       if (this.values.application_ids.length === 0) {
         const allApplications = this.$store.getters[
           'application/getAllOfWorkspace'
-        ](this.workspace)
+        ](this.workspace).filter((application) =>
+          this.$registry
+            .get('application', application.type)
+            .isVisible(application)
+        )
         this.values.application_ids = allApplications.map((app) => app.id)
         this.$emit('update', this.values.application_ids)
       }

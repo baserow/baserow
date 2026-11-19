@@ -79,7 +79,7 @@ const props = defineProps({
 // `update:valid` tells whether the content can be submitted.
 const emit = defineEmits(['update:modelValue', 'update:valid'])
 
-const { $store, $hasPermission, $i18n } = useNuxtApp()
+const { $store, $hasPermission, $i18n, $registry } = useNuxtApp()
 
 // Whether the user picked the workspace, which must then stay selected.
 const workspaceChosen = ref(false)
@@ -138,10 +138,13 @@ function update(values) {
 
 function getApplicationIds(workspaceId) {
   const workspace = workspaces.value.find(({ id }) => id === workspaceId)
+  // Only those the selector shows, so a hidden one can't stay selected.
   return workspace
-    ? $store.getters['application/getAllOfWorkspace'](workspace).map(
-        (application) => application.id
-      )
+    ? $store.getters['application/getAllOfWorkspace'](workspace)
+        .filter((application) =>
+          $registry.get('application', application.type).isVisible(application)
+        )
+        .map((application) => application.id)
     : []
 }
 
