@@ -294,20 +294,29 @@ class WidgetHandler:
 
         return widget
 
-    def update_widget(self, widget: WidgetForUpdate, **kwargs) -> UpdatedWidget:
+    def update_widget(
+        self, widget: WidgetForUpdate, replay: bool = False, **kwargs
+    ) -> UpdatedWidget:
         """
         Updates a widget with values if the values are allowed
         to be set on the widget.
 
         :param widget: The widget that should be updated.
+        :param replay: Whether undo or redo is replaying saved values, which are
+            restored as they were instead of being prepared like an edit.
         :param kwargs: The values that should be set on the widget.
         :return: The updated widget.
         """
 
-        allowed_values = extract_allowed(kwargs, widget.get_type().allowed_fields)
-        allowed_values = widget.get_type().prepare_value_for_db(
+        widget_type = widget.get_type()
+        allowed_values = extract_allowed(kwargs, widget_type.allowed_fields)
+        allowed_values = widget_type.prepare_value_for_db(
             allowed_values, instance=widget
         )
+        if not replay:
+            allowed_values = widget_type.prepare_edited_values(
+                allowed_values, instance=widget
+            )
 
         original_widget_values = widget.get_type().export_prepared_values(
             instance=widget

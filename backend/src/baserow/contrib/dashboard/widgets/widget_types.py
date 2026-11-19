@@ -197,15 +197,23 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 ),
                 values.get("multiple", getattr(instance, "multiple", False)),
             )
-        values = super().prepare_value_for_db(values, instance)
-        if instance is not None and "target_filters" in values:
+        return super().prepare_value_for_db(values, instance)
+
+    def prepare_edited_values(self, values, instance):
+        """
+        Widgets the editor links without conditions get the conditions of the
+        first widget of their table. Undo and redo restore links as they were,
+        including links deliberately left without conditions.
+        """
+
+        if "target_filters" in values:
             from .filter_setup import copy_new_target_conditions
 
             links = copy_new_target_conditions(instance, values["target_filters"])
             if links != values["target_filters"]:
                 self.validate_target_filters(links, instance.dashboard_id)
                 values["target_filters"] = links
-        return values
+        return super().prepare_edited_values(values, instance)
 
     def normalize_default_value(self, value, mode, multiple):
         """Store a list for multiple dropdowns and one string for other modes."""
