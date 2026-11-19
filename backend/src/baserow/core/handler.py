@@ -2840,7 +2840,7 @@ class CoreHandler:
             default=F("updated_on"),
         )
         # The actor's own come first in the listing.
-        is_own = Value(False)
+        order = [changed_on.desc(nulls_last=True), "-id"]
         if listed and actor.is_authenticated:
             is_own = Case(
                 When(
@@ -2850,18 +2850,14 @@ class CoreHandler:
                 ),
                 default=Value(False),
             )
-        templates = templates.alias(list_is_own=is_own, list_changed_on=changed_on)
+            order.insert(0, is_own.desc())
         if category_id is not None:
             # The categories of the listed row itself, which an edit can change.
             templates = templates.filter(categories__id=category_id)
         return (
             templates.select_related("author", "root__author")
             .prefetch_related("categories")
-            .order_by(
-                F("list_is_own").desc(),
-                F("list_changed_on").desc(nulls_last=True),
-                "-id",
-            )
+            .order_by(*order)
         )
 
     def list_public_template_categories(

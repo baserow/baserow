@@ -1,4 +1,5 @@
 import { AGENT_APPLICATION_TYPE } from '@baserow/modules/agent/constants'
+import { FF_AGENT_BUILDER } from '@baserow/modules/core/plugins/featureFlags'
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import {
@@ -593,6 +594,14 @@ export class RealTimeHandler {
       Object.prototype.hasOwnProperty.call(data, 'type') &&
       Object.prototype.hasOwnProperty.call(this.events, data.type)
     ) {
+      if (
+        (data.type.startsWith('agent_') ||
+          data.run_type === AGENT_APPLICATION_TYPE ||
+          data.parameters?.run_type === AGENT_APPLICATION_TYPE) &&
+        !this.context.app.$featureFlagIsEnabled(FF_AGENT_BUILDER)
+      ) {
+        return
+      }
       for (const callback of this.events[data.type]) {
         callback(this.context, data)
       }

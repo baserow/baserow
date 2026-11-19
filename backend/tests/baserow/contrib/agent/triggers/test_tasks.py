@@ -108,12 +108,8 @@ def clear_the_model(agent: AgentApplication, settings) -> None:
     AgentApplication.objects.filter(id=agent.id).update(model_identifier="")
 
 
-def switch_agents_off(agent: AgentApplication, settings) -> None:
-    settings.FEATURE_FLAGS = []
-
-
 @pytest.mark.django_db
-@pytest.mark.parametrize("hold_back", [clear_the_model, switch_agents_off])
+@pytest.mark.parametrize("hold_back", [clear_the_model])
 def test_a_trigger_that_cant_fire_keeps_its_queue_through_hand_offs_and_sweeps(
     data_fixture, configured_agent, settings, hold_back
 ):

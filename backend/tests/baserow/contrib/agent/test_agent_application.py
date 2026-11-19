@@ -1,5 +1,3 @@
-from contextlib import nullcontext
-
 from django.urls import reverse
 from django.utils import timezone
 
@@ -10,8 +8,6 @@ from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.core.action.registries import ActionType, action_type_registry
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
-from baserow.core.exceptions import FeatureDisabledException
-from baserow.core.feature_flags import FF_AGENT_BUILDER
 from baserow.core.handler import CoreHandler
 from baserow.core.import_export.handler import ImportExportHandler
 from baserow.core.last_viewed.handler import LastViewedHandler, LastViewedUpdate
@@ -62,21 +58,6 @@ AGENT_ACTION_TYPES = [
 @pytest.mark.parametrize("action_type", AGENT_ACTION_TYPES, ids=lambda t: t.type)
 def test_every_agent_action_type_is_registered(action_type: type[ActionType]):
     assert isinstance(action_type_registry.get(action_type.type), action_type)
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize("enabled", [True, False])
-def test_agent_creation_requires_feature_flag(data_fixture, settings, enabled):
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    settings.FEATURE_FLAGS = [FF_AGENT_BUILDER] if enabled else []
-
-    with nullcontext() if enabled else pytest.raises(FeatureDisabledException):
-        CoreHandler().create_application(user, workspace, "agent", name="Agent")
-
-    assert list(AgentApplication.objects.values_list("workspace", "name")) == (
-        [(workspace.id, "Agent")] if enabled else []
-    )
 
 
 @pytest.mark.django_db

@@ -5,7 +5,6 @@ from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import F, QuerySet
 
 from baserow.core.exceptions import PermissionDenied
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
@@ -498,7 +497,6 @@ class AgentService:
             are new.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.get_authorized_agent(
             user,
             agent_id,
@@ -557,7 +555,6 @@ class AgentService:
             is new.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         agent = self.get_authorized_agent(
             user, agent_id, CreateAgentMessageOperationType.type
         )
@@ -618,7 +615,6 @@ class AgentService:
             first.
         """
 
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         operations = [CreateAgentMessageOperationType.type]
         if always_allow:
             operations += [

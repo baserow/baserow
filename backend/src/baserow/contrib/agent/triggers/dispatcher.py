@@ -11,7 +11,6 @@ from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
 from baserow.core.exceptions import SubjectTypeNotExist
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.registries import subject_type_registry
 from baserow.core.services.models import Service
 from baserow.core.services.registries import service_type_registry
@@ -62,9 +61,6 @@ class AgentTriggerDispatcher:
         except Exception as e:
             logger.exception("Could not match agent triggers.")
             exception_capturer(e)
-            return []
-        if not feature_flag_is_enabled(FF_AGENT_BUILDER):
-            logger.debug("Agent triggers skipped: the agent builder is off.")
             return []
         for trigger in triggers:
             if (
@@ -139,9 +135,7 @@ class AgentTriggerDispatcher:
         service_type = service_type_registry.get_by_model(
             trigger.service.specific_class
         )
-        if not feature_flag_is_enabled(FF_AGENT_BUILDER):
-            reason = "the agent builder is off"
-        elif not trigger.enabled:
+        if not trigger.enabled:
             reason = "it is disabled"
         elif not self._agent_is_live(agent):
             reason = "its agent is trashed or is a snapshot"

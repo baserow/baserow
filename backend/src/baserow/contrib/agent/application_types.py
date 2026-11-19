@@ -22,7 +22,6 @@ from baserow.contrib.agent.registries import (
 )
 from baserow.contrib.agent.triggers.handler import AgentTriggerHandler
 from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
-from baserow.core.feature_flags import FF_AGENT_BUILDER, feature_flag_is_enabled
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
@@ -160,7 +159,6 @@ class AgentApplicationType(ApplicationType):
         init_with_data: bool = False,
         **kwargs,
     ) -> AgentApplication:
-        feature_flag_is_enabled(FF_AGENT_BUILDER, raise_if_disabled=True)
         models = generative_ai_model_type_registry.get_enabled_models_per_type(
             workspace, feature_type=AI_PROVIDER_FEATURE_AI_AGENT
         )
