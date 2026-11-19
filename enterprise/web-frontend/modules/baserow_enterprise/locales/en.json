@@ -668,7 +668,8 @@
     "no_records": "No teams"
   },
   "snapshotModalWarning": {
-    "message": "Please be aware that a snapshot will include any permissions set on the application and its tables."
+    "messageApplication": "Includes the permissions set on the {applicationTypeName}.",
+    "messageDatabase": "Includes the permissions set on the database, its tables and its views."
   },
   "exportWorkspaceModalWarning": {
     "message": "Please be aware that an export will not include any permissions set on the application and its tables."
