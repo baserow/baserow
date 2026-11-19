@@ -18,7 +18,7 @@ const makeStore = (getterOverrides = {}) => ({
 
 const prepareConfig = (
   url,
-  previewSsrAuth = {},
+  previewSsrCookieHeader = null,
   getterOverrides = {},
   configOverrides = {}
 ) => {
@@ -31,7 +31,7 @@ const prepareConfig = (
   }
 
   // Axios executes request interceptors in reverse registration order.
-  config = prepareBuilderPreviewRequest(previewSsrAuth)(config)
+  config = prepareBuilderPreviewRequest(previewSsrCookieHeader)(config)
   config = prepareUserSourceRequestHeaders(store)(config)
   return prepareRequestHeaders(store)(config)
 }
@@ -65,7 +65,7 @@ describe('builder preview request headers', () => {
     const application = { id: 123 }
     const config = prepareConfig(
       'builder/preview/123/data-sources/456/dispatch/',
-      {},
+      null,
       {
         'userSourceUser/getCurrentApplication': application,
         'userSourceUser/isAuthenticated': () => true,
@@ -85,7 +85,7 @@ describe('builder preview request headers', () => {
     const application = { id: 123 }
     const config = prepareConfig(
       'builder/domains/published/page/456/elements/',
-      {},
+      null,
       {
         'userSourceUser/getCurrentApplication': application,
         'userSourceUser/isAuthenticated': () => true,
@@ -105,7 +105,7 @@ describe('builder preview request headers', () => {
     const application = { id: 123 }
     const config = prepareConfig(
       'builder/preview/123/grant/',
-      {},
+      null,
       {
         'userSourceUser/getCurrentApplication': application,
         'userSourceUser/isAuthenticated': () => true,
@@ -124,16 +124,13 @@ describe('builder preview request headers', () => {
   })
 
   test('forwards only the companion credential for preview-auth SSR requests', () => {
-    const previewSsrAuth = {
-      backendCookieName: 'test_baserow_builder_preview',
-      session: 'signed-session',
-    }
+    const previewSsrCookieHeader = 'test_baserow_builder_preview=signed-session'
 
     const previewUrl = 'builder/preview/123/pages/456/elements/'
-    const previewConfig = prepareConfig(previewUrl, previewSsrAuth)
+    const previewConfig = prepareConfig(previewUrl, previewSsrCookieHeader)
     const unmarkedConfig = prepareConfig(
       'builder/domains/published/page/456/elements/',
-      previewSsrAuth
+      previewSsrCookieHeader
     )
 
     expect(previewConfig.headers.Cookie).toBe(

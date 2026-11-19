@@ -1,18 +1,13 @@
 import {
   defineNuxtPlugin,
-  useCookie,
   useRequestEvent,
   useResponseHeader,
   useRuntimeConfig,
 } from '#imports'
-import {
-  getBuilderPreviewApiPath,
-  getBuilderPreviewCookieName,
-  getBuilderPreviewSsrCookieName,
-} from '@baserow/modules/builder/utils/preview'
+import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
 
 export async function fetchBuilderHeadHtml(
-  { builder, mode, requestUrl, config, previewSession },
+  { builder, mode, requestUrl, config, previewSsrCookieHeader },
   fetch = $fetch
 ) {
   if (builder.untrusted_content || !builder.custom_code?.has_html) {
@@ -28,11 +23,11 @@ export async function fetchBuilderHeadHtml(
     if (
       previewUrl.hostname === editorUrl.hostname ||
       requestUrl.origin !== previewUrl.origin ||
-      !previewSession
+      !previewSsrCookieHeader
     ) {
       return ''
     }
-    headers.Cookie = `${getBuilderPreviewCookieName(config)}=${previewSession}`
+    headers.Cookie = previewSsrCookieHeader
     path = getBuilderPreviewApiPath(builder.id, 'custom-code/html/')
   } else if (mode === 'public') {
     path = `custom_code/${builder.id}/html/public/`
@@ -56,27 +51,28 @@ export async function fetchBuilderHeadHtml(
   }
 }
 
-export default defineNuxtPlugin((nuxtApp) => {
-  const event = useRequestEvent()
-  const config = useRuntimeConfig()
-  const cacheControl = useResponseHeader('Cache-Control')
-  const previewCookie = useCookie(getBuilderPreviewSsrCookieName(config), {
-    readonly: true,
-  })
+export default defineNuxtPlugin({
+  name: 'builder-head-html',
+  dependsOn: ['builder-preview-client-handler'],
+  setup(nuxtApp) {
+    const event = useRequestEvent()
+    const config = useRuntimeConfig()
+    const cacheControl = useResponseHeader('Cache-Control')
 
-  nuxtApp.hook('builder:render', async ({ builder, mode, requestUrl }) => {
-    const fragment = await fetchBuilderHeadHtml({
-      builder,
-      mode,
-      requestUrl,
-      config,
-      previewSession: previewCookie.value,
-    })
-    if (fragment) {
-      event.context.baserowBuilderHeadHtml = fragment
-      if (mode === 'preview') {
-        cacheControl.value = 'private, no-store'
+    nuxtApp.hook('builder:render', async ({ builder, mode, requestUrl }) => {
+      const fragment = await fetchBuilderHeadHtml({
+        builder,
+        mode,
+        requestUrl,
+        config,
+        previewSsrCookieHeader: nuxtApp.$builderPreviewSsrCookieHeader,
+      })
+      if (fragment) {
+        event.context.baserowBuilderHeadHtml = fragment
+        if (mode === 'preview') {
+          cacheControl.value = 'private, no-store'
+        }
       }
-    }
-  })
+    })
+  },
 })

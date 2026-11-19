@@ -48,23 +48,24 @@ export const makeBuilderPreviewSessionErrorInterceptor = (
 /**
  * Sends browser or SSR preview-session credentials only to preview API URLs.
  */
-export const prepareBuilderPreviewRequest = (previewSsrAuth) => (config) => {
-  if (
-    config.skipBuilderPreviewRequestHandling ||
-    getBuilderPreviewIdFromApiUrl(config.url) === null
-  ) {
+export const prepareBuilderPreviewRequest =
+  (previewSsrCookieHeader) => (config) => {
+    if (
+      config.skipBuilderPreviewRequestHandling ||
+      getBuilderPreviewIdFromApiUrl(config.url) === null
+    ) {
+      return config
+    }
+
+    config.withCredentials = true
+    config.userSourceAuthAsPrimary = true
+    config.headers ||= {}
+    if (previewSsrCookieHeader) {
+      config.headers.Cookie = previewSsrCookieHeader
+    }
+
     return config
   }
-
-  config.withCredentials = true
-  config.userSourceAuthAsPrimary = true
-  config.headers ||= {}
-  if (previewSsrAuth.session) {
-    config.headers.Cookie = `${previewSsrAuth.backendCookieName}=${previewSsrAuth.session}`
-  }
-
-  return config
-}
 
 export default defineNuxtPlugin({
   name: 'builder-preview-client-handler',
@@ -72,25 +73,34 @@ export default defineNuxtPlugin({
   setup(nuxtApp) {
     const runtimeConfig = useRuntimeConfig()
     const route = useRoute()
-    const previewSsrAuth = {}
+    let previewSsrCookieHeader
 
     if (import.meta.server) {
       const builderId = Number(route.params.builderId)
       if (Number.isInteger(builderId)) {
-        previewSsrAuth.session = useCookie(
-          getBuilderPreviewSsrCookieName(runtimeConfig)
+        const session = useCookie(
+          getBuilderPreviewSsrCookieName(runtimeConfig),
+          { readonly: true }
         ).value
-        previewSsrAuth.backendCookieName =
-          getBuilderPreviewCookieName(runtimeConfig)
+        if (session) {
+          previewSsrCookieHeader = `${getBuilderPreviewCookieName(runtimeConfig)}=${session}`
+        }
       }
     }
 
     nuxtApp.$client.interceptors.request.use(
-      prepareBuilderPreviewRequest(previewSsrAuth)
+      prepareBuilderPreviewRequest(previewSsrCookieHeader)
     )
     nuxtApp.$client.interceptors.response.use(
       null,
       makeBuilderPreviewSessionErrorInterceptor(nuxtApp.$i18n, showError)
     )
+
+    if (import.meta.server) {
+      // Share the scoped credential with optional reads in the same request.
+      return {
+        provide: { builderPreviewSsrCookieHeader: previewSsrCookieHeader },
+      }
+    }
   },
 })

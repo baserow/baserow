@@ -7,14 +7,13 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
     public: {
       publicWebFrontendUrl: 'https://editor.example.com',
       builderPreviewUrl: 'https://preview.example.com',
-      baserowFrontendCookiePrefix: 'test_',
     },
   }
   const previewOptions = {
     builder,
     config,
     mode: 'preview',
-    previewSession: 'signed-session',
+    previewSsrCookieHeader: 'test_baserow_builder_preview=signed-session',
     requestUrl: new URL('https://preview.example.com/builder/preview/42'),
   }
 
@@ -57,7 +56,7 @@ describe('Fetching Custom Code HTML during a Builder render', () => {
       'empty content',
       { builder: { id: 42, custom_code: { has_html: false } } },
     ],
-    ['no Preview session', { previewSession: undefined }],
+    ['no Preview session', { previewSsrCookieHeader: undefined }],
     [
       'a different request origin',
       { requestUrl: new URL('https://other.example.com') },
