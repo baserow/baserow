@@ -11,51 +11,97 @@
           }}
         </p>
       </div>
-      <section class="configure-filter-target__widget">
-        <h3 class="configure-filter-target__section-title">
-          {{ $t('configureFilterTargetModal.widget') }}
-        </h3>
-        <WidgetSettings
-          ref="settings"
-          :widget="widget"
-          :dashboard="dashboard"
-          :store-prefix="storePrefix"
-          :link-filter-widget-id="filter.id"
-          :show-own-filters="false"
-        />
+      <section class="configure-filter-target__section">
+        <button
+          type="button"
+          class="configure-filter-target__section-header"
+          :aria-expanded="open === 'widget'"
+          :aria-controls="`${id}-widget`"
+          @click="open = 'widget'"
+        >
+          <span
+            class="configure-filter-target__section-icon configure-filter-target__section-icon--widget"
+          >
+            <i class="iconoir-view-grid"></i>
+          </span>
+          <span class="configure-filter-target__section-text">
+            <span class="configure-filter-target__section-title">
+              {{ $t('configureFilterTargetModal.widget') }}
+            </span>
+            <span
+              v-if="open !== 'widget'"
+              class="configure-filter-target__section-summary"
+              >{{ widgetSummary }}</span
+            >
+          </span>
+          <i
+            class="configure-filter-target__section-chevron iconoir-nav-arrow-down"
+          ></i>
+        </button>
+        <div
+          v-show="open === 'widget'"
+          :id="`${id}-widget`"
+          class="configure-filter-target__section-body configure-filter-target__widget"
+        >
+          <WidgetSettings
+            ref="settings"
+            :widget="widget"
+            :dashboard="dashboard"
+            :store-prefix="storePrefix"
+            :link-filter-widget-id="filter.id"
+            :show-own-filters="false"
+          />
+        </div>
       </section>
       <section
         v-if="link && source"
-        class="configure-filter-target__conditions"
+        class="configure-filter-target__section configure-filter-target__section--conditions"
       >
-        <div class="configure-filter-target__conditions-header">
-          <span class="configure-filter-target__conditions-icon">
+        <button
+          type="button"
+          class="configure-filter-target__section-header"
+          :aria-expanded="open === 'conditions'"
+          :aria-controls="`${id}-conditions`"
+          @click="open = 'conditions'"
+        >
+          <span class="configure-filter-target__section-icon">
             <i class="iconoir-filter"></i>
           </span>
-          <div>
-            <h3 class="configure-filter-target__conditions-title">
+          <span class="configure-filter-target__section-text">
+            <span class="configure-filter-target__section-title">
               {{
                 $t('configureFilterTargetModal.conditions', {
                   filter: filter.title,
                 })
               }}
-            </h3>
-            <p class="configure-filter-target__conditions-help">
-              {{ $t('configureFilterTargetModal.conditionsHelp') }}
-            </p>
-          </div>
+            </span>
+            <span class="configure-filter-target__section-summary">{{
+              open === 'conditions'
+                ? $t('configureFilterTargetModal.conditionsHelp')
+                : conditionsSummary
+            }}</span>
+          </span>
+          <i
+            class="configure-filter-target__section-chevron iconoir-nav-arrow-down"
+          ></i>
+        </button>
+        <div
+          v-show="open === 'conditions'"
+          :id="`${id}-conditions`"
+          class="configure-filter-target__section-body"
+        >
+          <WidgetFilterConditions
+            :key="source.table_id"
+            :widget="filter"
+            :dashboard="dashboard"
+            :target="widget"
+            :source="source"
+            :store-prefix="storePrefix"
+            :link="link"
+            add-first-filter
+            @update="updateLink"
+          />
         </div>
-        <WidgetFilterConditions
-          :key="source.table_id"
-          :widget="filter"
-          :dashboard="dashboard"
-          :target="widget"
-          :source="source"
-          :store-prefix="storePrefix"
-          :link="link"
-          add-first-filter
-          @update="updateLink"
-        />
       </section>
       <Alert v-if="failedSaves.size" type="error" class="margin-top-2">
         {{ $t('configureFilterTargetModal.saveFailed') }}
@@ -94,7 +140,7 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
 })
 const emit = defineEmits(['configured', 'hidden'])
-const { $store, $registry } = useNuxtApp()
+const { $store, $registry, $i18n } = useNuxtApp()
 const modal = ref(null)
 const settings = ref(null)
 const pending = reactive(new Set())
@@ -123,6 +169,36 @@ const link = computed(() =>
     : null
 )
 const busy = computed(() => props.loading || pending.size > 0)
+provide('refinementsBelowButtons', true)
+const id = useId()
+/** The section shown in full; the other one only shows a summary. */
+const open = ref('widget')
+const tableName = computed(() => {
+  const integration = $store.getters[`${prefix.value}/getIntegrationById`](
+    source.value?.integration_id
+  )
+  return (integration?.context_data?.databases || [])
+    .flatMap((database) => database.tables)
+    .find((table) => table.id === source.value?.table_id)?.name
+})
+const widgetSummary = computed(() =>
+  tableName.value
+    ? $i18n.t('configureFilterTargetModal.widgetSummary', {
+        title: widget.value.title,
+        table: tableName.value,
+      })
+    : widget.value.title
+)
+const conditionsSummary = computed(() => {
+  const count = [link.value?.group, link.value?.alternative_group].reduce(
+    (total, group) => total + (group?.filters?.length || 0),
+    0
+  )
+  return $i18n.t('configureFilterTargetModal.conditionsSummary', {
+    conditions: $i18n.t('textFilterWidget.conditionCount', { count }, count),
+    empty: $i18n.t(`textFilterWidget.${link.value?.empty_behavior}`),
+  })
+})
 watch([widget, filter], ([target, owner]) => {
   if (!target || !owner) modal.value?.hide()
 })
@@ -183,8 +259,11 @@ async function updateLink(value) {
 async function finish() {
   // Let blur/change handlers start their save before checking pending work.
   await nextTick()
-  if (busy.value || failedSaves.size || !settings.value?.validate()) return
-  if (!link.value) return
+  if (busy.value || failedSaves.size) return
+  if (!settings.value?.validate() || !link.value) {
+    open.value = 'widget'
+    return
+  }
   added = true
   emit('configured', widget.value)
 }
