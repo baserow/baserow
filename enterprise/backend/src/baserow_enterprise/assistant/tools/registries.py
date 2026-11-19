@@ -38,6 +38,8 @@ class AssistantToolType(Instance):
     """
 
     type: str = ""
+    unavailable_message: str = ""
+    """Optional model instruction when this group is unavailable."""
 
     def can_use(self, user: "AbstractUser", workspace: "Workspace") -> bool:
         """
@@ -122,15 +124,19 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
         toolsets: list[AbstractToolset] = []
         tool_names: set[str] = set()
+        unavailable_messages = []
 
         for tool_type in self.get_all():
             if not tool_type.can_use(user, workspace):
+                if tool_type.unavailable_message:
+                    unavailable_messages.append(tool_type.unavailable_message)
                 continue
             toolsets.append(tool_type.get_toolset())
             tool_names.update(
                 function.__name__ for function in tool_type.get_tool_functions()
             )
 
+        deps.unavailable_tool_messages = unavailable_messages
         combined = CombinedToolset(toolsets)
         inlined = InlineRefsToolset(combined, model=model, model_profile=model_profile)
         routed = ModeAwareToolset(inlined, deps)

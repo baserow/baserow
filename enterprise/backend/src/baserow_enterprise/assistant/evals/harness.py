@@ -24,7 +24,7 @@ from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.assistant import build_agent_run_context
 from baserow_enterprise.assistant.deps import ToolHelpers, bind_tool_helpers
 from baserow_enterprise.assistant.evals.registry import get_scenario, load_all
-from baserow_enterprise.assistant.evals.scenarios import make_fixtures
+from baserow_enterprise.assistant.evals.scenarios import EvalFixtures, make_fixtures
 from baserow_enterprise.assistant.evals.types import (
     CheckResult,
     EvalCase,
@@ -352,17 +352,28 @@ def run_case(
 ) -> tuple[EvalRunOutput, list[CheckResult]]:
     """Build the scenario, run ``main_agent``, and execute the case's checks.
 
-    Performs no teardown and no chat persistence — the eval DB is disposable.
+    Keeps the scenario's data and persists no chat — the eval DB is disposable.
+    Only an instance-wide licence the scenario added is removed again.
     Raises ``EvalCaseTimeout`` after cancellation and bounded tool cleanup.
     If a tool cannot finish, ``EvalCaseCleanupError`` blocks further cases
     until the eval process is restarted, preserving shared prompt state.
     """
 
-    global _cleanup_error
-
     ensure_worker_safe()
     load_all()
-    scenario = get_scenario(case.scenario)(make_fixtures())
+    fixtures = make_fixtures()
+    try:
+        return _run_scenario(case, model, fixtures)
+    finally:
+        fixtures.remove_added_licence()
+
+
+def _run_scenario(
+    case: EvalCase, model: str | Model, fixtures: EvalFixtures
+) -> tuple[EvalRunOutput, list[CheckResult]]:
+    global _cleanup_error
+
+    scenario = get_scenario(case.scenario)(fixtures)
     model_profile = resolve_assistant_model(
         workspace=scenario.workspace,
         model=model if isinstance(model, str) else model.model_name,

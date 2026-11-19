@@ -376,6 +376,7 @@ EXPECTED_CASE_IDS = {
         "database/creates-view-kanban",
         "database/creates-view-timeline",
         "database/deletes-field",
+        "database/finds-comments-mentioning-me",
         "database/reads-row-comments",
         "database/renames-field",
         "database/sorts-view",
@@ -548,7 +549,7 @@ class TestDatasetCounts:
         grouped = cases_by_dataset()
 
         assert len(grouped["kuma-core"]) == 11
-        assert len(grouped["kuma-database"]) == 25
+        assert len(grouped["kuma-database"]) == 26
         assert len(grouped["kuma-docs"]) == 64
         assert len(grouped["kuma-builder"]) == 39
         assert len(grouped["kuma-automation"]) == 13
