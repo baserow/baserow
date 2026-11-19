@@ -651,9 +651,16 @@ export const actions = {
         batch.started = true
         const { values, originalValues, request } = batch
         try {
-          await WidgetService($client).update(widgetId, values)
+          const { data } = await WidgetService($client).update(widgetId, values)
           if (updates.get(widgetId) === batch) updates.delete(widgetId)
           if (isDashboardRequestCurrent(state, request)) {
+            // Server normalization can populate copied filter conditions. Apply
+            // it before callers open the editor, without overwriting newer edits.
+            if (
+              state.widgetSaveGenerations[widgetId] === batch.saveGeneration
+            ) {
+              applyWidgetUpdate(context, $registry, { widgetId, values: data })
+            }
             const widget = state.widgets.find(
               (widget) => widget.id === widgetId
             )
