@@ -1407,7 +1407,7 @@ def list_row_comments(
     thought: Annotated[
         str, Field(description="Brief reasoning for calling this tool.")
     ],
-    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    page: shared_row_comments.CommentPage = 1,
     size: Annotated[
         int,
         Field(
@@ -1445,7 +1445,7 @@ def search_row_comments(
     authors: shared_row_comments.CommentAuthors = None,
     created_after: shared_row_comments.CreatedAfter = None,
     created_before: shared_row_comments.CreatedBefore = None,
-    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    page: shared_row_comments.CommentPage = 1,
     size: Annotated[
         int,
         Field(

@@ -3,6 +3,7 @@ from django.urls import reverse
 import pytest
 from asgiref.sync import async_to_sync
 from baserow_premium_tests.row_comments.utils import create_comment_scenario
+from pydantic import ValidationError
 from pydantic_ai import ToolReturn
 from pydantic_ai.models.function import FunctionModel
 from rest_framework.status import HTTP_402_PAYMENT_REQUIRED
@@ -17,6 +18,7 @@ from baserow.core.tools import ToolContext
 from baserow_premium.license.cache import invalidate_cached_instance_wide_licenses
 from baserow_premium.license.features import PREMIUM
 from baserow_premium.license.handler import LicenseHandler
+from baserow_premium.row_comments.tools import MAX_PAGE
 
 ROW_COMMENT_TOOLS = {
     "list_row_comments": False,
@@ -101,6 +103,13 @@ def test_an_identity_uses_the_row_comment_tools_with_a_workspace_licence(
     assert found.metadata == {"facts": {"count": 1}}
     assert list_request["values"] == {"table": "Tasks", "row": "Call"}
     assert listed.metadata == {"facts": {"count": 2}}
+
+    for name, arguments in (
+        ("search_row_comments", {"database_id": scenario.database.id}),
+        ("list_row_comments", {"table_id": scenario.tasks.id, "row_id": row.id}),
+    ):
+        with pytest.raises(ValidationError):
+            call_tool(name, ctx, {**arguments, "page": MAX_PAGE + 1})
 
 
 def test_row_comment_tool_names_and_whether_they_change_data_stay_the_same():

@@ -40,6 +40,8 @@ from baserow_premium.row_comments.handler import (
 from baserow_premium.row_comments.models import RowComment
 
 MAX_PAGE_SIZE = 100
+# A search reads the comments up to its page in every table.
+MAX_PAGE = 100
 # A comment costs about nine queries and its own transaction, and can notify people.
 MAX_COMMENTS_PER_CALL = 100
 # A search reads every table on its own, so a call stays bounded.
@@ -53,6 +55,9 @@ UserReference = (
         str, StringConstraints(strip_whitespace=True, min_length=1, max_length=150)
     ]
 )
+CommentPage = Annotated[
+    int, Field(ge=1, le=MAX_PAGE, description="The page to return.")
+]
 SearchedTableIds = Annotated[
     list[int] | None,
     Field(
@@ -131,7 +136,7 @@ def list_row_comments(
     ctx: ToolContext,
     table_id: Annotated[int, Field(description="The ID of the row's table.")],
     row_id: Annotated[int, Field(description="The ID of the row.")],
-    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    page: CommentPage = 1,
     size: Annotated[
         int,
         Field(ge=1, le=MAX_PAGE_SIZE, description="The number of comments a page."),
@@ -286,7 +291,7 @@ def search_row_comments(
     authors: CommentAuthors = None,
     created_after: CreatedAfter = None,
     created_before: CreatedBefore = None,
-    page: Annotated[int, Field(ge=1, description="The page to return.")] = 1,
+    page: CommentPage = 1,
     size: Annotated[
         int,
         Field(ge=1, le=MAX_PAGE_SIZE, description="The number of comments a page."),
@@ -296,7 +301,8 @@ def search_row_comments(
     Find the comments on the rows of a database, newest first, each with its table
     and row. Narrow them down by table, by who they mention, by who wrote them and
     by when they were written. has_more means there are more candidates. Pages can
-    be short or empty if comments or their rows were removed.
+    be short or empty if comments or their rows were removed. Go past the last page
+    with created_before.
     """
 
     LicenseHandler.raise_if_user_doesnt_have_feature(PREMIUM, ctx.user, ctx.workspace)

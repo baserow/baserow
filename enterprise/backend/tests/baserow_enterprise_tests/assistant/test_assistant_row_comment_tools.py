@@ -17,6 +17,7 @@ from baserow_enterprise.assistant.tools.database.tools import (
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.row_comments.tools import (
     MAX_COMMENTS_PER_CALL,
+    MAX_PAGE,
     MAX_SEARCHED_TABLES,
     MAX_USER_REFERENCES,
     RowCommentCreate,
@@ -154,3 +155,10 @@ def test_kuma_search_row_comments_limits_its_lists():
     assert max_items("table_ids") == MAX_SEARCHED_TABLES
     assert max_items("mentioned_users") == MAX_USER_REFERENCES
     assert max_items("authors") == MAX_USER_REFERENCES
+
+
+@pytest.mark.parametrize("tool", [list_row_comments, search_row_comments])
+def test_kuma_row_comment_tools_limit_the_page(tool):
+    schema = Tool(tool, takes_ctx=True).function_schema.json_schema
+
+    assert schema["properties"]["page"]["maximum"] == MAX_PAGE
