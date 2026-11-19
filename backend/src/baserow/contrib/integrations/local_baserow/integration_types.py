@@ -142,6 +142,28 @@ class LocalBaserowIntegrationType(IntegrationType):
             values, user, application=application, instance=instance
         )
 
+    def before_application_change(
+        self,
+        integration: LocalBaserowIntegration,
+        application: Application,
+        user: AbstractUser,
+    ):
+        """
+        A person can only authorize an integration as themselves (see
+        `prepare_values`), and the move changes which applications act as them, so
+        an integration authorized as another person is authorized as the user
+        moving it instead. An identity belongs to the workspace and is kept.
+        """
+
+        if (
+            integration.authorized_subject_type == "auth.User"
+            and integration.authorized_subject_id != user.id
+            and not is_identity(integration.authorized_subject_including_trash)
+        ):
+            subject_type = subject_type_registry.get_by_model(user)
+            integration.authorized_subject_type = subject_type.type
+            integration.authorized_subject_id = user.id
+
     def export_serialized(
         self,
         instance: LocalBaserowIntegration,

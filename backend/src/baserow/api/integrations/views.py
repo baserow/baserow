@@ -19,6 +19,7 @@ from baserow.api.decorators import (
     validate_body_custom_fields,
 )
 from baserow.api.integrations.errors import (
+    ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION,
     ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
     ERROR_INTEGRATION_DOES_NOT_EXIST,
     ERROR_INTEGRATION_NOT_IN_SAME_APPLICATION,
@@ -48,6 +49,7 @@ from baserow.core.integrations.actions import (
     UpdateIntegrationActionType,
 )
 from baserow.core.integrations.exceptions import (
+    IntegrationCannotMoveToApplication,
     IntegrationCredentialRequired,
     IntegrationDoesNotExist,
     IntegrationNotInSameApplication,
@@ -190,7 +192,12 @@ class IntegrationView(APIView):
         ],
         tags=["Integrations"],
         operation_id="update_application_integration",
-        description="Updates an existing integration.",
+        description=(
+            "Updates an existing integration. Sending the id of the shared "
+            "application of its workspace as `application_id` promotes it: it "
+            "becomes a workspace integration, which every application of the "
+            "workspace can use."
+        ),
         request=CustomFieldRegistryMappingSerializer(
             integration_type_registry,
             UpdateIntegrationSerializer,
@@ -205,11 +212,14 @@ class IntegrationView(APIView):
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_INTEGRATION_CREDENTIAL_REQUIRED",
+                    "ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION",
+                    "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED",
                 ]
             ),
             404: get_error_schema(
                 [
                     "ERROR_INTEGRATION_DOES_NOT_EXIST",
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
                 ]
             ),
         },
@@ -219,6 +229,11 @@ class IntegrationView(APIView):
         {
             IntegrationDoesNotExist: ERROR_INTEGRATION_DOES_NOT_EXIST,
             IntegrationCredentialRequired: ERROR_INTEGRATION_CREDENTIAL_REQUIRED,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            IntegrationCannotMoveToApplication: (
+                ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION
+            ),
+            ApplicationOperationNotSupported: ERROR_APPLICATION_OPERATION_NOT_SUPPORTED,
         }
     )
     @require_request_data_type(dict)
@@ -239,6 +254,15 @@ class IntegrationView(APIView):
             partial=True,
             return_validated=True,
         )
+
+        application_id = data.get("application_id")
+        if application_id is not None and application_id != integration.application_id:
+            # The API only promotes: it moves an integration to a shared
+            # application, which the handler checks is the one of its workspace.
+            # Only undoing a promotion moves the integration back.
+            target = CoreHandler().get_application(application_id)
+            if not IntegrationHandler().is_shared_application(target):
+                raise IntegrationCannotMoveToApplication()
 
         integration_updated = UpdateIntegrationActionType.do(
             request.user, integration, **data

@@ -150,3 +150,40 @@ def test_only_admins_restore_a_workspace_integration(
         id__in=[workspace_integration.id, application_integration.id]
     )
     assert restored.count() == 2
+
+
+@pytest.mark.django_db
+def test_only_admins_promote_an_integration(
+    data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    builder = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[builder])
+    RoleAssignmentHandler().assign_role(
+        builder, workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=builder
+    )
+    service = IntegrationService()
+    handler = IntegrationHandler()
+
+    # A Builder may update the integration, but not create one in the workspace.
+    with pytest.raises(PermissionException):
+        service.update_integration(
+            builder,
+            handler.get_integration_for_update(integration.id),
+            application_id=shared_application.id,
+        )
+    service.update_integration(
+        admin,
+        handler.get_integration_for_update(integration.id),
+        application_id=shared_application.id,
+    )
+
+    assert (
+        Integration.objects.get(id=integration.id).application_id
+        == shared_application.id
+    )

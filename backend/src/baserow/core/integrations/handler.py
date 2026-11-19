@@ -10,6 +10,7 @@ from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.integrations.exceptions import (
+    IntegrationCannotMoveToApplication,
     IntegrationDoesNotExist,
     IntegrationNotInApplication,
     IntegrationNotInWorkspace,
@@ -419,16 +420,30 @@ class IntegrationHandler:
         self,
         integration_type: IntegrationType,
         integration: IntegrationForUpdate,
+        application: Optional[Application] = None,
         **kwargs,
     ) -> Integration:
         """
         Updates and integration with values. Will also check if the values are allowed
         to be set on the integration first.
 
+        :param integration_type: The type of the integration.
         :param integration: The integration that should be updated.
-        :param values: The values that should be set on the integration.
+        :param application: The application to move the integration to, if any. It
+            only moves between an application and the shared application of the
+            same workspace, and is placed last there.
+        :param kwargs: The values that should be set on the integration.
+        :raises IntegrationCannotMoveToApplication: When it can't move to the
+            application.
+        :raises ApplicationOperationNotSupported: When the application doesn't
+            accept integrations of its type.
         :return: The updated integration.
         """
+
+        if application is not None and application.id != integration.application_id:
+            self._check_application_change(integration_type, integration, application)
+            integration.application = application
+            integration.order = Integration.get_last_order(application)
 
         shared_allowed_fields = ["name"]
         allowed_updates = extract_allowed(
@@ -441,6 +456,43 @@ class IntegrationHandler:
         integration.save()
 
         return integration
+
+    def _check_application_change(
+        self,
+        integration_type: IntegrationType,
+        integration: Integration,
+        application: Application,
+    ):
+        """
+        Checks that the integration can move to the given application: only
+        between an application and the shared application of the same workspace,
+        which is promoting it or undoing that. The integration of a published copy
+        or a snapshot has no workspace, so it never moves.
+
+        :param integration_type: The type of the integration.
+        :param integration: The integration, still in its current application.
+        :param application: The application it moves to.
+        :raises IntegrationCannotMoveToApplication: When it can't move there.
+        :raises ApplicationOperationNotSupported: When the application doesn't
+            accept integrations of its type.
+        """
+
+        current = integration.application
+        if (
+            current.workspace_id is None
+            or application.workspace_id != current.workspace_id
+            or not (
+                self.is_shared_application(current)
+                or self.is_shared_application(application)
+            )
+        ):
+            raise IntegrationCannotMoveToApplication()
+
+        application_type = application_type_registry.get_by_model(
+            application.specific_class
+        )
+        if not application_type.supports_integration_type(integration_type):
+            raise ApplicationOperationNotSupported()
 
     def move_integration(
         self, integration: IntegrationForUpdate, before: Optional[Integration] = None

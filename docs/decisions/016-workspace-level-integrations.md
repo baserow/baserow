@@ -94,11 +94,13 @@ This retains a common export/import path and avoids leaving services without int
 
 Workspace-scoped permissions will allow Builders to list and select workspace integrations, while only Admins may create, update, order, delete or restore them. The operations are separate from app-level integration permissions: because the shared application belongs to the workspace, reusing existing Builder-level operations could unintentionally grant management rights over integrations used by other apps.
 
-### 7. Every integration type is allowed at the workspace level
+### 7. Every integration type an app can use from the workspace is allowed
 
-The shared application will support all integration types. In particular, a Local Baserow integration authorised as a person will make that identity clear wherever it is selected (for example, “Runs as [person] in all applications in this workspace”).
+The shared application will support every integration type that isn't limited to particular applications. In particular, a Local Baserow integration authorised as a person will make that identity clear wherever it is selected (for example, “Runs as [person] in all applications in this workspace”).
 
 This deliberately makes an authorised identity usable across applications: a Builder who can select the integration may use capabilities available through that identity. The Admin-only management rule and visible identity are the v1 controls; this broader reach is an accepted security consequence.
+
+The only type limited to particular applications today is the MCP server: an agent only reads the MCP servers it owns, so a workspace MCP server would do nothing, and promoting one would take it away from its agent.
 
 ### 8. Promotion only, as a one-row move
 

@@ -249,12 +249,21 @@ class IntegrationService:
         Updates and integration with values. Will also check if the values are allowed
         to be set on the integration first.
 
+        An `application_id` other than the integration's moves it to that
+        application. That's how it's promoted to the shared application of its
+        workspace, and how undoing the promotion moves it back. Moving it also
+        needs the permission to create an integration in that application.
+
         :param user: The user trying to update the integration.
         :param integration: The integration that should be updated.
         :param kwargs: Additional attributes of the integration.
         :return: The updated integration together with the values that changed.
         :raises IntegrationCredentialRequired: When a request-target field changes
             without its credential.
+        :raises ApplicationDoesNotExist: When the application to move it to
+            doesn't exist.
+        :raises IntegrationCannotMoveToApplication: When it can't move to that
+            application.
         """
 
         self.check_integration_permission(
@@ -263,6 +272,22 @@ class IntegrationService:
             UpdateIntegrationOperationType.type,
             UpdateWorkspaceIntegrationOperationType.type,
         )
+
+        application_id = kwargs.pop("application_id", None)
+        target_application = None
+        if application_id is not None and application_id != integration.application_id:
+            target_application = CoreHandler().get_application(application_id)
+            operation_name, context = self._get_operation_and_context(
+                target_application,
+                CreateIntegrationOperationType.type,
+                CreateIntegrationWorkspaceOperationType.type,
+            )
+            CoreHandler().check_permissions(
+                user,
+                operation_name,
+                workspace=target_application.workspace,
+                context=context,
+            )
 
         integration_type = integration.get_type()
 
@@ -275,12 +300,22 @@ class IntegrationService:
             integration, kwargs, integration_type.get_action_log_excluded_fields()
         )
 
+        if target_application is not None:
+            original_values["application_id"] = integration.application_id
+            new_values["application_id"] = target_application.id
+            integration_type.before_application_change(
+                integration, target_application, user
+            )
+
         prepared_values = integration_type.prepare_values(
             kwargs, user, application=integration.application, instance=integration
         )
 
         integration = self.handler.update_integration(
-            integration_type, integration, **prepared_values
+            integration_type,
+            integration,
+            application=target_application,
+            **prepared_values,
         )
 
         integration_updated.send(self, integration=integration, user=user)

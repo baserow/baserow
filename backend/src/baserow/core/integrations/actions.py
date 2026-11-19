@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -16,13 +16,16 @@ from baserow.core.action.scopes import (
     ApplicationActionScopeType,
     WorkspaceActionScopeType,
 )
+from baserow.core.integrations.exceptions import IntegrationUsedSincePromotion
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import IntegrationType
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.integrations.trash_types import IntegrationTrashableItemType
 from baserow.core.models import Application
+from baserow.core.services.models import Service
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.user_sources.models import UserSource
 
 INTEGRATION_ACTION_CONTEXT = _(
     'in application "%(application_name)s" (%(application_id)s).'
@@ -137,6 +140,11 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
     target a credential protects, are never logged, so a replay cannot re-point
     a stored password. If a replay does trip `IntegrationCredentialRequired`,
     the action handler rolls it back and records the error on the action.
+
+    An update that promotes the integration also records the services and user
+    sources using it. Undoing moves it back to its application, where any that
+    started using it since, maybe from other applications, couldn't use it any
+    more, so the undo fails then and the integration stays in the workspace.
     """
 
     type = "update_integration"
@@ -155,6 +163,24 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
         integration_new_params: Dict[str, Any]
         workspace_id: Optional[int] = None
         workspace_name: Optional[str] = None
+        # Set when the update moved the integration to another application.
+        service_ids: Optional[List[int]] = None
+        user_source_ids: Optional[List[int]] = None
+
+    @classmethod
+    def _get_using_ids(cls, integration_id: int) -> Tuple[List[int], List[int]]:
+        """
+        :param integration_id: The ID of the integration.
+        :return: The IDs of the services and of the user sources using it,
+            trashed ones included, as they use it again once restored.
+        """
+
+        services = Service.objects_and_trash.filter(integration=integration_id)
+        user_sources = UserSource.objects_and_trash.filter(integration=integration_id)
+        return (
+            list(services.values_list("id", flat=True)),
+            list(user_sources.values_list("id", flat=True)),
+        )
 
     @classmethod
     def do(
@@ -164,6 +190,10 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
         **kwargs,
     ) -> Integration:
         updated = IntegrationService().update_integration(user, integration, **kwargs)
+
+        service_ids, user_source_ids = None, None
+        if "application_id" in updated.new_values:
+            service_ids, user_source_ids = cls._get_using_ids(updated.integration.id)
 
         application = updated.integration.application
         cls.register_action(
@@ -175,6 +205,8 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
                 updated.original_values,
                 updated.new_values,
                 **cls.get_workspace_params(application),
+                service_ids=service_ids,
+                user_source_ids=user_source_ids,
             ),
             scope=cls.scope(application),
             workspace=application.workspace,
@@ -186,6 +218,14 @@ class UpdateIntegrationActionType(IntegrationActionTypeMixin, UndoableActionType
         integration = IntegrationHandler().get_integration_for_update(
             params.integration_id
         )
+
+        if params.service_ids is not None:
+            service_ids, user_source_ids = cls._get_using_ids(integration.id)
+            new_service_ids = set(service_ids) - set(params.service_ids)
+            new_user_source_ids = set(user_source_ids) - set(params.user_source_ids)
+            if new_service_ids or new_user_source_ids:
+                raise IntegrationUsedSincePromotion()
+
         IntegrationService().update_integration(
             user, integration, **params.integration_original_params
         )
