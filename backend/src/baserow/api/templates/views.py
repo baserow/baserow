@@ -553,6 +553,15 @@ class AsyncInstallTemplateView(APIView):
                 "template was updated since, nothing is installed. Ignored for "
                 "official templates.",
             ),
+            OpenApiParameter(
+                name="create_identities",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.BOOL,
+                description="Creates an identity for each installed application "
+                "that acts as one, like an Agent, with access to only the installed "
+                "databases, and makes the application act as it. Needs the "
+                "permission to create identities and assign their roles.",
+            ),
             TEMPLATE_PRIVATE_LINK_SCHEMA_PARAMETER,
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -613,6 +622,7 @@ class AsyncInstallTemplateView(APIView):
             template_id=template_id,
             latest=query_params["latest"],
             revision_id=query_params.get("revision_id"),
+            create_identities=query_params["create_identities"],
         )
 
         serializer = job_type_registry.get_serializer(job, JobSerializer)

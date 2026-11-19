@@ -1690,6 +1690,12 @@ class InstallTemplateJob(
         help_text="The template that is installed.",
     )
     installed_applications = models.JSONField(default=list)
+    create_identities = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether an identity is created for each installed application "
+        "that acts as one, with access to only the installed applications.",
+    )
 
 
 class DefaultImportExportResourceManager(models.Manager):

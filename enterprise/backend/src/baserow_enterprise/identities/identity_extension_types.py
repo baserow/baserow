@@ -12,11 +12,19 @@ from baserow.core.action.registries import action_type_registry
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.registries import IdentityExtensionType
-from baserow.core.models import User
+from baserow.core.models import Application, User
 from baserow.core.types import PermissionCheck
 from baserow_enterprise.features import RBAC, TEAMS
+from baserow_enterprise.role.actions import BatchAssignRoleActionType
+from baserow_enterprise.role.constants import (
+    EDITOR_ROLE_UID,
+    NO_ACCESS_ROLE_UID,
+    VIEWER_ROLE_UID,
+)
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.operations import AssignRoleWorkspaceOperationType
+from baserow_enterprise.role.types import NewRoleAssignment
 from baserow_enterprise.teams.actions import (
     CreateTeamSubjectActionType,
     DeleteTeamSubjectActionType,
@@ -105,6 +113,45 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
         if LicenseHandler.workspace_has_feature(RBAC, workspace):
             return "NO_ACCESS"
         return None
+
+    def can_scope_to_applications(self, user, workspace):
+        """With roles, an identity can have no access except on some applications."""
+
+        return LicenseHandler.user_has_feature(
+            RBAC, user, workspace
+        ) and CoreHandler().check_permissions(
+            user,
+            AssignRoleWorkspaceOperationType.type,
+            workspace=workspace,
+            context=workspace,
+            raise_permission_exceptions=False,
+        )
+
+    def scope_to_applications(self, identity, applications, can_change_data, user):
+        """
+        Gives the identity the editor or viewer role on each application, through
+        the action the role endpoints use, so the user's permissions to assign each
+        of them are checked and the assignments show in the audit log.
+        """
+
+        workspace = IdentityHandler().get_workspace(identity)
+        # A new identity has no access with roles. Scoping one that has more would
+        # leave it access to the whole workspace.
+        if IdentityHandler.get_role_uid(identity) != NO_ACCESS_ROLE_UID:
+            raise ValidationError("Only an identity without access can be scoped.")
+        role = RoleAssignmentHandler().get_role_by_uid(
+            EDITOR_ROLE_UID if can_change_data else VIEWER_ROLE_UID
+        )
+        # Roles on applications are stored for the base model, which the role
+        # endpoints resolve the `application` scope to.
+        scopes = Application.objects.filter(
+            workspace=workspace, id__in=[application.id for application in applications]
+        ).order_by("id")
+        assignments = [NewRoleAssignment(identity, role, scope) for scope in scopes]
+        if assignments:
+            action_type_registry.get_by_type(BatchAssignRoleActionType).do(
+                user, assignments, workspace
+            )
 
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user

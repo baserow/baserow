@@ -64,6 +64,7 @@ class UpdateTemplateSerializer(serializers.Serializer):
 class InstallTemplateQueryParamSerializer(serializers.Serializer):
     latest = serializers.BooleanField(required=False, default=False)
     revision_id = serializers.IntegerField(required=False)
+    create_identities = serializers.BooleanField(required=False, default=False)
 
 
 class DownloadTemplateSerializer(serializers.Serializer):

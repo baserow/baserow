@@ -159,6 +159,19 @@ class AgentApplicationType(ApplicationType):
         default = self._default_model(enabled)
         return default if default[0] else author_model
 
+    def create_install_identities(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        applications: list[AgentApplication],
+        installed_applications: list,
+    ) -> None:
+        from baserow.contrib.agent.service import AgentService
+
+        AgentService().create_install_identities(
+            user, workspace, applications, installed_applications
+        )
+
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""
 

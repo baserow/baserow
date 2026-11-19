@@ -28,6 +28,33 @@ class IdentityExtensionType(Instance):
     def get_default_role_uid(self, workspace):
         return None
 
+    def can_scope_to_applications(self, user, workspace) -> bool:
+        """
+        Whether the user can give a new identity of the workspace access to only
+        some of its applications through this extension. Without one, an identity
+        is a member of the whole workspace.
+
+        :param user: The user who would create and scope the identity.
+        :param workspace: The workspace of the identity.
+        :return: True if `scope_to_applications` can be called for the user.
+        """
+
+        return False
+
+    def scope_to_applications(self, identity, applications, can_change_data, user):
+        """
+        Gives a new identity, which has no access by default, access to the given
+        applications only. Only called when `can_scope_to_applications` is True,
+        and must check the user's permissions itself.
+
+        :param identity: The identity to give access to.
+        :param applications: The applications it may access.
+        :param can_change_data: Whether it may change their data or only read it.
+        :param user: The user who scopes the identity.
+        """
+
+        raise NotImplementedError()
+
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user
     ):
@@ -69,6 +96,21 @@ class IdentityExtensionTypeRegistry(Registry[IdentityExtensionType]):
                 workspace, identities, serialized_identities, user
             )
         return serialized_identities
+
+    def get_application_scoper(self, user, workspace):
+        """
+        :return: The extension that can scope a new identity of the workspace to
+            some applications for the user, or None.
+        """
+
+        return next(
+            (
+                extension
+                for extension in self.get_all()
+                if extension.can_scope_to_applications(user, workspace)
+            ),
+            None,
+        )
 
     def get_default_role_uid(self, workspace):
         for extension in self.get_all():

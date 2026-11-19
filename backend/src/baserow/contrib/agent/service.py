@@ -4,12 +4,16 @@ from django.contrib.auth.models import AbstractUser
 from django.db import DEFAULT_DB_ALIAS, transaction
 from django.db.models import F, QuerySet
 
+from loguru import logger
+
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.service import IdentityService
+from baserow.core.models import Application, Workspace
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.signals import application_pending_count_updated, application_updated
+from baserow.core.subjects import UserSubjectType
 from baserow.core.types import PermissionCheck
 
 from .action_tools.handler import AgentActionHandler
@@ -31,6 +35,7 @@ from .operations import (
     ReadAgentConversationsOperationType,
     UpdateAgentConversationOperationType,
 )
+from .registries import agent_tool_type_registry
 from .signals import (
     agent_conversation_activity,
     agent_conversation_deleted,
@@ -160,6 +165,77 @@ class AgentService:
             # Open pages refresh readiness from this public application payload.
             application_updated.send(self, application=agent, user=user)
         return updated
+
+    def create_install_identities(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        agents: list[AgentApplication],
+        installed_applications: list[Application],
+    ) -> None:
+        """
+        Make each installed Agent with pending tool choices act as a new identity
+        named after it, with access to only the databases of the same install: the
+        editor role if one of its tools changes data, otherwise the viewer role.
+        Binding it turns the pending tools on, as when an identity is picked.
+
+        An Agent whose identity can't be created, scoped or bound stays installed
+        with its pending choices, and the failure is logged: the identity is a
+        shortcut that the installer can still take by hand, so it doesn't fail
+        the install. Each Agent is done in a savepoint, so a failure never leaves
+        an identity behind.
+
+        :param user: The user who installs the template.
+        :param workspace: The workspace the template is installed into.
+        :param agents: The installed Agents.
+        :param installed_applications: Every installed application.
+        """
+
+        from baserow.contrib.database.models import Database
+
+        # The access may have changed since the install was requested.
+        if not IdentityService().can_create_scoped_identity(user, workspace):
+            logger.warning(
+                "Not creating identities for the Agents installed in workspace "
+                "{} by user {}: they can't create scoped identities.",
+                workspace.id,
+                user.id,
+            )
+            return
+        databases = [
+            application
+            for application in installed_applications
+            if isinstance(application, Database)
+        ]
+        for agent in agents:
+            pending = self.handler.get_pending_tool_configuration(agent)
+            if not pending["allowed_tools"]:
+                continue
+            can_change_data = any(
+                agent_tool_type_registry.get(name).changes_data
+                for name in pending["allowed_tools"]
+            )
+            try:
+                with transaction.atomic():
+                    identity = IdentityService().create_scoped_identity(
+                        user,
+                        workspace,
+                        # The longest name an identity can have.
+                        name=agent.name[:150],
+                        applications=databases,
+                        can_change_data=can_change_data,
+                    )
+                    self.update_configuration(
+                        user,
+                        agent.id,
+                        run_as_subject_type=UserSubjectType.type,
+                        run_as_subject_id=identity.id,
+                    )
+            except Exception:
+                logger.exception(
+                    "Could not create the identity of the installed Agent {}.",
+                    agent.id,
+                )
 
     def list_conversations(
         self,
