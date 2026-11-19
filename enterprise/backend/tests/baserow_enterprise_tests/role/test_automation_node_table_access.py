@@ -1,12 +1,11 @@
 from unittest.mock import patch
 
-from django.db import connection
+from django.db import connection, transaction
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
 
-from baserow.contrib.automation.nodes.access import AutomationNodeAccess
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -1178,7 +1177,9 @@ def test_node_events_are_hidden_after_the_node_between_is_deleted(
 def test_test_run_data_is_hidden_after_the_table_is_permanently_deleted(
     api_client, workflow_on_a_secret_table, test_run_nodes
 ):
-    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
     _, iterator, email = test_run_nodes
     table = trigger.service.specific.table
     TrashHandler.trash(
@@ -1197,6 +1198,10 @@ def test_test_run_data_is_hidden_after_the_table_is_permanently_deleted(
     for node in (trigger, iterator, email):
         assert services[node.id]["sample_data"] is None
     assert services[iterator.id]["schema"] is None
+    # Who may see a table that is gone can't be told, so nobody sees its data.
+    response, services = _nodes_as(api_client, workflow, admin_token)
+    assert "Paid 250k" not in response.content.decode()
+    assert services[iterator.id]["sample_data"] is None
 
 
 @pytest.mark.django_db
@@ -1287,29 +1292,6 @@ def test_run_message_of_a_failed_node_the_user_may_see_is_shown(
 
     (entry,) = response.json()["results"]
     assert entry["message"] == run.message
-
-
-@pytest.mark.django_db
-def test_test_run_data_built_through_another_node_keeps_the_tables_of_both(
-    workflow_on_a_secret_table, nodes_after_a_secret_trigger
-):
-    """
-    The data of a node holds what the nodes it read held, whatever those read
-    when they were run.
-    """
-
-    _, _, trigger, _, _, _ = workflow_on_a_secret_table
-    iterator, email, unrelated = nodes_after_a_secret_trigger
-    table_id = trigger.service.specific.table_id
-    iterator.service.specific.sample_data_table_ids = [table_id]
-    iterator.service.specific.save()
-    # Reads the iterator only, which reads the trigger's table.
-    service = unrelated.service.specific
-    service.body = _formula(f"get('previous_node.{iterator.id}.0.Salary')")
-    service.save()
-
-    assert AutomationNodeAccess(None).sample_table_ids(unrelated) == {table_id}
-    assert AutomationNodeAccess(None).data_table_ids(email) == {table_id}
 
 
 @pytest.mark.django_db
@@ -1426,7 +1408,9 @@ def test_past_run_results_stay_hidden_after_the_formula_reading_the_table_is_edi
 def test_past_run_results_stay_hidden_after_the_table_is_permanently_deleted(
     api_client, workflow_on_a_secret_table, test_run_nodes
 ):
-    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
     _, iterator, _ = test_run_nodes
     histories = _run_results(workflow)
     table = trigger.service.specific.table
@@ -1435,3 +1419,263 @@ def test_past_run_results_stay_hidden_after_the_table_is_permanently_deleted(
 
     for node in (trigger, iterator):
         assert _result_as(api_client, histories[node.id], restricted_token) is None
+        assert _result_as(api_client, histories[node.id], admin_token) is None
+
+
+def _forget_stored_tables(workflow):
+    """
+    Leaves the test run data and the run history of the workflow as they were
+    stored before the tables they were built from were kept.
+    """
+
+    from baserow.contrib.automation.history.models import AutomationNodeHistory
+    from baserow.core.services.models import Service
+
+    Service.objects.filter(
+        id__in=AutomationNode.objects_and_trash.filter(workflow=workflow).values(
+            "service_id"
+        )
+    ).update(sample_data_table_ids=None)
+    AutomationNodeHistory.objects.filter(workflow_history__workflow=workflow).update(
+        read_table_ids=None
+    )
+
+
+@pytest.mark.django_db
+def test_data_stored_before_the_tables_were_kept_stays_hidden_after_an_edit(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    from baserow.contrib.automation.nodes.backfill import fill_missing_table_ids
+
+    admin, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    histories = _run_results(workflow)
+    _forget_stored_tables(workflow)
+
+    assert fill_missing_table_ids() == 1
+    AutomationNodeService().update_node(
+        admin, iterator.id, service={"source": _formula("'nothing'")}
+    )
+
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+    assert "Paid 250k" not in response.content.decode()
+    assert services[iterator.id]["sample_data"] is None
+    assert _result_as(api_client, histories[iterator.id], restricted_token) is None
+    _, services = _nodes_as(api_client, workflow, admin_token)
+    assert "Paid 250k" in str(services[iterator.id]["sample_data"])
+    assert "Paid 250k" in str(
+        _result_as(api_client, histories[iterator.id], admin_token)
+    )
+
+
+@pytest.mark.django_db
+def test_filling_the_tables_keeps_those_already_stored(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    from baserow.contrib.automation.nodes.backfill import fill_missing_table_ids
+
+    _, workflow, _, _, _, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    service = iterator.service.specific
+    service.sample_data_table_ids = [999]
+    service.save()
+
+    assert fill_missing_table_ids() == 0
+
+    service.refresh_from_db()
+    assert service.sample_data_table_ids == [999]
+
+
+@pytest.mark.django_db
+def test_a_test_run_after_the_iterator_is_edited_keeps_its_rows_hidden(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table, test_run_nodes
+):
+    """
+    The nodes before the tested one answer with their stored test run data, so
+    the run history and the test run data built from it keep its tables.
+    """
+
+    from baserow.contrib.automation.history.models import AutomationNodeHistory
+
+    _, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, email = test_run_nodes
+    service = email.service.specific
+    service.body = _formula(f"get('previous_node.{iterator.id}')")
+    service.save()
+    response = api_client.patch(
+        reverse("api:automation:nodes:item", kwargs={"node_id": iterator.id}),
+        {"service": {"source": _formula("'nothing'")}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+    assert response.status_code == 200, response.json()
+    last_history = AutomationNodeHistory.objects.order_by("-id").first().id
+
+    _test_run(enterprise_data_fixture, workflow, email)
+
+    replayed = AutomationNodeHistory.objects.get(
+        id__gt=last_history, node=iterator, node_results__isnull=False
+    )
+    assert _result_as(api_client, replayed, restricted_token) is None
+    assert "Paid 250k" in str(_result_as(api_client, replayed, admin_token))
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+    assert "Paid 250k" not in response.content.decode()
+    assert services[email.id]["sample_data"] is None
+    _, services = _nodes_as(api_client, workflow, admin_token)
+    assert services[email.id]["sample_data"] is not None
+
+
+@pytest.mark.django_db
+def test_the_error_of_a_failed_test_run_keeps_its_tables(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table, test_run_nodes
+):
+    admin, workflow, trigger, _, restricted_token, _ = workflow_on_a_secret_table
+    failing = _add_node(
+        admin,
+        workflow,
+        "smtp_email",
+        trigger,
+        use_instance_smtp_settings=True,
+        from_email=_formula("'from@example.com'"),
+        to_emails=_formula("''"),
+        subject=_formula("'Report'"),
+        body=_formula(f"get('previous_node.{trigger.id}.0.Salary')"),
+    )
+    _test_run(enterprise_data_fixture, workflow, failing)
+    assert "_error" in failing.service.specific.sample_data
+
+    AutomationNodeService().update_node(
+        admin, failing.id, service={"body": _formula("'Weekly report'")}
+    )
+
+    _, services = _nodes_as(api_client, workflow, restricted_token)
+    assert services[failing.id]["sample_data"] is None
+
+
+@pytest.mark.django_db
+def test_a_built_path_is_refused_when_only_the_stored_tables_are_hidden(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    admin, workflow, trigger, _, _, restricted = workflow_on_a_secret_table
+    _, iterator, email = test_run_nodes
+    # The trigger is the only node on the table, and reads of it are gone.
+    AutomationNodeService().update_node(
+        admin, iterator.id, service={"source": _formula("'nothing'")}
+    )
+    AutomationNodeService().update_node(
+        admin, email.id, service={"body": _formula("'Weekly report'")}
+    )
+    table = trigger.service.specific.table
+    TrashHandler.trash(admin, workflow.automation.workspace, table.database, table)
+    TrashHandler.permanently_delete(table)
+    ctx = ToolContext(user=restricted, workspace=workflow.automation.workspace)
+
+    result = update_nodes(
+        ctx,
+        workflow.id,
+        [
+            NodeUpdate(
+                node_id=email.id,
+                subject=f"get(concat('previous_node.', '{iterator.id}', '.0.x'))",
+            )
+        ],
+    )
+
+    (error,) = result["formula_errors"]
+    assert "builds" in error["error"]
+
+
+@broadcast_node_events
+@pytest.mark.django_db(transaction=True)
+def test_node_events_show_nobody_the_data_of_a_deleted_table(
+    django_capture_on_commit_callbacks, workflow_on_a_secret_table, test_run_nodes
+):
+    admin, workflow, trigger, _, _, restricted = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    table = trigger.service.specific.table
+    with transaction.atomic():
+        TrashHandler.trash(admin, workflow.automation.workspace, table.database, table)
+        TrashHandler.permanently_delete(table)
+
+    sent = _broadcast_node_events(
+        django_capture_on_commit_callbacks,
+        lambda: AutomationNodeService().update_node(admin, iterator.id, label="New"),
+    )
+
+    for user in (admin, restricted):
+        (payload,) = sent[user.id]
+        assert "Paid 250k" not in str(payload)
+        assert payload["node"]["service"]["sample_data"] is None
+
+
+@pytest.mark.django_db
+def test_a_node_waiting_for_another_run_keeps_the_tables_that_run_read(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    """
+    A start workflow node returns what the run it started answered, which is
+    built from the tables that run read.
+    """
+
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
+    start = _add_node(admin, workflow, "start_workflow", trigger)
+    run = fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow
+    )
+    waiting = fixture.create_automation_node_history(
+        workflow_history=run, node=start, read_table_ids=[]
+    )
+    other_workflow = AutomationWorkflowService().create_workflow(
+        admin, workflow.automation.id, "Other"
+    )
+    started = fixture.create_automation_workflow_history(
+        workflow=other_workflow, original_workflow=other_workflow
+    )
+    fixture.create_automation_node_history(
+        workflow_history=started,
+        node=trigger,
+        read_table_ids=[trigger.service.specific.table_id],
+    )
+
+    AutomationNodeHandler().complete_deferred_node(
+        waiting.id, started.id, "", timed_out=True
+    )
+
+    waiting.refresh_from_db()
+    assert waiting.read_table_ids == [trigger.service.specific.table_id]
+    assert _result_as(api_client, waiting, restricted_token) is None
+    assert _result_as(api_client, waiting, admin_token) is not None
+
+
+@pytest.mark.django_db
+def test_the_tables_are_filled_after_the_migrate_that_adds_them(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    from baserow.contrib.automation.nodes.backfill import (
+        fill_missing_table_ids_after_migrate,
+    )
+
+    _, workflow, trigger, _, _, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    _forget_stored_tables(workflow)
+
+    class Migration:
+        def __init__(self, app_label, name):
+            self.app_label, self.name = app_label, name
+
+    other = Migration(
+        "automation", "0045_automationworkflowhistory_triggered_by_user_type"
+    )
+    fill_missing_table_ids_after_migrate(plan=[(other, False)])
+    iterator.service.specific.refresh_from_db()
+    assert iterator.service.specific.sample_data_table_ids is None
+
+    adding = Migration("automation", "0046_node_history_read_table_ids")
+    fill_missing_table_ids_after_migrate(plan=[(adding, False)])
+    iterator.service.specific.refresh_from_db()
+    assert iterator.service.specific.sample_data_table_ids == [
+        trigger.service.specific.table_id
+    ]

@@ -10,10 +10,12 @@ reads, directly or through other nodes, isn't shown the data built from it.
 
 What a test run data was built from is decided when it is stored: the service
 keeps the IDs of the tables of the node and of the nodes it read in
-`sample_data_table_ids`. A table that no longer exists counts as one the user may
-not see. The formulas of today only decide for test run data stored before the
-IDs were kept, as editing a formula or deleting a node doesn't change the data
-already built.
+`sample_data_table_ids`, and each node history keeps those of its dispatch in
+`read_table_ids`. A table that no longer exists counts as one nobody may see, as
+who was allowed to see it can't be told any more. The data stored before the IDs
+were kept gets them once, after the migrate that adds them, from what the
+formulas read then. The formulas of today only decide where they are still
+missing.
 """
 
 import copy
@@ -220,9 +222,9 @@ class AutomationNodeAccess:
         return self
 
     def _nodes_of(self, node: AutomationNode) -> dict[int, AutomationNode]:
-        return self._nodes_of_workflow(node.workflow)
+        return self.nodes_of_workflow(node.workflow)
 
-    def _nodes_of_workflow(self, workflow) -> dict[int, AutomationNode]:
+    def nodes_of_workflow(self, workflow) -> dict[int, AutomationNode]:
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
         if workflow.id not in self._workflow_nodes:
@@ -243,7 +245,7 @@ class AutomationNodeAccess:
         the other nodes of the workflow. A node that isn't found is hidden.
         """
 
-        node = self._nodes_of_workflow(workflow).get(node_id)
+        node = self.nodes_of_workflow(workflow).get(node_id)
         return node is None or self.node_hidden(node)
 
     def dispatch_table_ids(self, node: AutomationNode) -> set[int]:
@@ -314,7 +316,7 @@ class AutomationNodeAccess:
         return next(
             (
                 node
-                for node in self._nodes_of_workflow(workflow).values()
+                for node in self.nodes_of_workflow(workflow).values()
                 if node.service_id == service.id
             ),
             None,
@@ -369,7 +371,7 @@ class AutomationNodeAccess:
             )
             for service in (
                 other.service.specific
-                for other in self._nodes_of_workflow(workflow).values()
+                for other in self.nodes_of_workflow(workflow).values()
             )
         )
 

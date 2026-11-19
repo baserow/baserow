@@ -296,6 +296,18 @@ class AutomationConfig(AppConfig):
 
         connect_to_node_pre_delete_signal()
 
+        from django.db.models.signals import post_migrate
+
+        from baserow.contrib.automation.nodes.backfill import (
+            fill_missing_table_ids_after_migrate,
+        )
+
+        post_migrate.connect(
+            fill_missing_table_ids_after_migrate,
+            sender=self,
+            dispatch_uid="baserow_automation_fill_missing_table_ids",
+        )
+
         from baserow.contrib.automation.search_types import AutomationSearchType
         from baserow.core.search.registries import workspace_search_registry
 
