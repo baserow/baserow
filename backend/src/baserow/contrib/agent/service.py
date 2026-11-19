@@ -191,6 +191,7 @@ class AgentService:
         :param installed_applications: Every installed application.
         """
 
+        from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
         from baserow.contrib.database.models import Database
 
         # The access may have changed since the install was requested.
@@ -229,7 +230,8 @@ class AgentService:
                         applications=databases,
                         can_change_data=can_change_data,
                     )
-                    self.update_configuration(
+                    # Audited, because the Agent gets the identity's access.
+                    UpdateAgentConfigurationActionType.do(
                         user,
                         agent.id,
                         run_as_subject_type=UserSubjectType.type,

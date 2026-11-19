@@ -7,6 +7,7 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_202_ACCEPTED
 
+from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import AgentApplication
 from baserow.contrib.database.models import Database
@@ -23,6 +24,7 @@ from baserow.core.models import Template, User
 from baserow.core.registries import ImportExportConfig
 from baserow.core.subjects import UserSubjectType
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow_enterprise.audit_log.models import AuditLogEntry
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role, RoleAssignment
 
@@ -147,6 +149,11 @@ def test_install_scopes_a_new_identity_to_the_template_databases(
         "ask_first_tools": ["create_rows"],
     }
     assert agent.pending_tool_choices is None
+    # Binding gives the identity's access to the Agent, so it's audited.
+    assert AuditLogEntry.objects.filter(
+        action_type=UpdateAgentConfigurationActionType.type,
+        workspace_id=workspace.id,
+    ).exists()
 
 
 @pytest.mark.django_db(transaction=True)
