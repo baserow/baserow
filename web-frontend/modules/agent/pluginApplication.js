@@ -1,4 +1,10 @@
 import {
+  HTTPAgentTriggerType,
+  RowsCreatedAgentTriggerType,
+  RowsDeletedAgentTriggerType,
+  RowsUpdatedAgentTriggerType,
+} from '@baserow/modules/agent/agentTriggerTypes'
+import {
   TriggerDataProviderType,
   ActionInputDataProviderType,
 } from '@baserow/modules/agent/dataProviderTypes'
@@ -22,6 +28,16 @@ export default async function register(nuxtApp) {
   }
   nuxtApp.$registry.registerNamespace('agentConfigurationSection')
   $registry.registerNamespace('agentDataProvider')
+  nuxtApp.$registry.registerNamespace('agentTriggerType')
+  for (const TriggerType of [
+    HTTPAgentTriggerType,
+    RowsCreatedAgentTriggerType,
+    RowsUpdatedAgentTriggerType,
+    RowsDeletedAgentTriggerType,
+  ]) {
+    nuxtApp.$registry.register('agentTriggerType', new TriggerType(context))
+  }
+
   $registry.register('agentDataProvider', new TriggerDataProviderType(context))
   $registry.register(
     'agentDataProvider',

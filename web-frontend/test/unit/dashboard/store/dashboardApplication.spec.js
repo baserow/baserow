@@ -237,7 +237,6 @@ describe('Dashboard application store', () => {
       }
       return actions.dispatchDataSource.call(
         {
-          $registry: resultRegistry,
           $client: {},
           $registry: providerRegistry,
           $config: {
@@ -533,7 +532,10 @@ describe('Dashboard application store', () => {
       dispatch: vi.fn().mockResolvedValue({ data: { result: '30' } }),
     })
     const dispatch = actions.dispatchDataSource.call(
-      { $client: {}, $registry: { get: () => ({ prepareResult }) } },
+      {
+        $client: {},
+        $registry: { ...providerRegistry, get: () => ({ prepareResult }) },
+      },
       { state: dashboardState, commit: applyCommit(dashboardState) },
       1
     )

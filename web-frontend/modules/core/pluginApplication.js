@@ -42,7 +42,7 @@ import {
 } from '@baserow/modules/core/adminTypes'
 import {
   MembersWorkspaceSettingsPageType,
-  AgentsWorkspaceSettingsPageType,
+  IdentitiesWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -55,11 +55,10 @@ import {
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
 import {
-  GeneralAgentSettingsType,
-  McpServerAgentSettingsType,
-} from '@baserow/modules/core/agentSettingsTypes'
+  GeneralIdentitySettingsType,
+  McpServerIdentitySettingsType,
+} from '@baserow/modules/core/identitySettingsTypes'
 import {
-  AgentSubjectType,
   AnonymousUserSubjectType,
   UserSubjectType,
 } from '@baserow/modules/core/subjectTypes.jsx'
@@ -78,15 +77,20 @@ export default async function register(nuxtApp) {
 
   registry.register('subject', new UserSubjectType(context))
   registry.register('subject', new AnonymousUserSubjectType(context))
-  registry.register('subject', new AgentSubjectType(context))
   registry.register('invitationRoute', new EmailInvitationRouteType(context))
   registry.register('invitationRoute', new LinkInvitationRouteType(context))
   registry.register(
     'invitationTarget',
     new WorkspaceInvitationTargetType(context)
   )
-  registry.register('agentSettings', new GeneralAgentSettingsType(context))
-  registry.register('agentSettings', new McpServerAgentSettingsType(context))
+  registry.register(
+    'identitySettings',
+    new GeneralIdentitySettingsType(context)
+  )
+  registry.register(
+    'identitySettings',
+    new McpServerIdentitySettingsType(context)
+  )
   registry.register('settings', new AccountSettingsType(context))
   registry.register('settings', new PasswordSettingsType(context))
   registry.register('settings', new EmailSettingsType(context))
@@ -129,7 +133,7 @@ export default async function register(nuxtApp) {
   )
   registry.register(
     'workspaceSettingsPage',
-    new AgentsWorkspaceSettingsPageType(context)
+    new IdentitiesWorkspaceSettingsPageType(context)
   )
   registry.register(
     'notification',

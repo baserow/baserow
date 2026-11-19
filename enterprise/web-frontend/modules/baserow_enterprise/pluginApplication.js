@@ -1,3 +1,8 @@
+import { AssistantChatRunType } from '@baserow_enterprise/chatRunTypes'
+import {
+  storeChatUuid,
+  storeOnboardingRunId,
+} from '@baserow_enterprise/utils/assistantTabStorage'
 import { KumaAIProviderModelFeatureType } from '@baserow_enterprise/aiProviderModelFeatureTypes'
 import {
   AuditLogExportJobType,
@@ -12,10 +17,10 @@ import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
 import { TeamsWorkspaceSettingsPageType } from '@baserow_enterprise/workspaceSettingsPageTypes'
 import {
-  EnterpriseRolesAgentExtensionType,
-  EnterpriseTeamsAgentExtensionType,
-} from '@baserow_enterprise/agentExtensionTypes'
-import { EnterpriseTeamsAgentSettingsType } from '@baserow_enterprise/agentSettingsTypes'
+  EnterpriseRolesIdentityExtensionType,
+  EnterpriseTeamsIdentityExtensionType,
+} from '@baserow_enterprise/identityExtensionTypes'
+import { EnterpriseTeamsIdentitySettingsType } from '@baserow_enterprise/identitySettingsTypes'
 import { TeamSubjectType } from '@baserow_enterprise/subjectTypes.jsx'
 import {
   ScopeInvitationTargetType,
@@ -66,6 +71,22 @@ export default async function register(nuxtApp) {
   $registry.register('plugin', new EnterprisePlugin(context))
   $store.registerModuleNuxtSafe('authProviderAdmin', authProviderAdminStore)
   $store.registerModuleNuxtSafe('assistant', assistantStore)
+  $registry.register('chatRunType', new AssistantChatRunType(context))
+  if (import.meta.client) {
+    $store.watch(
+      (_, getters) => getters['auth/isAuthenticated'],
+      (authenticated) => {
+        if (!authenticated) {
+          storeChatUuid(null)
+          storeOnboardingRunId(null)
+          $store.dispatch('assistant/reset')
+          $store.commit('assistant/SET_UI_LOCATION', null)
+        }
+      },
+      { flush: 'sync' }
+    )
+  }
+
   $registry.register('admin', new AuthProvidersType(context))
   $registry.register('admin', new AuditLogType(context))
   $registry.register('admin', new DataScannerType(context))
@@ -79,16 +100,16 @@ export default async function register(nuxtApp) {
     new TeamsWorkspaceSettingsPageType(context)
   )
   $registry.register(
-    'agentExtension',
-    new EnterpriseTeamsAgentExtensionType(context)
+    'identityExtension',
+    new EnterpriseTeamsIdentityExtensionType(context)
   )
   $registry.register(
-    'agentExtension',
-    new EnterpriseRolesAgentExtensionType(context)
+    'identityExtension',
+    new EnterpriseRolesIdentityExtensionType(context)
   )
   $registry.register(
-    'agentSettings',
-    new EnterpriseTeamsAgentSettingsType(context)
+    'identitySettings',
+    new EnterpriseTeamsIdentitySettingsType(context)
   )
   $registry.register('subject', new TeamSubjectType(context))
   $registry.register('invitationTarget', new ScopeInvitationTargetType(context))
