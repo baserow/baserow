@@ -3,11 +3,14 @@ from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.urls import reverse
 
 import pytest
 from freezegun import freeze_time
 from mcp.server.fastmcp import FastMCP
+from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import AgentRunAsState
@@ -39,11 +42,17 @@ from baserow.core.models import Template, WorkspaceUser
 from baserow.core.registries import ImportExportConfig, Plugin, plugin_registry
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
-from baserow.core.user_templates.exceptions import TemplateHasNoContent
+from baserow.core.user_templates.exceptions import (
+    TemplateHasNoContent,
+    TemplateHasNothingToInstall,
+)
 from baserow.core.user_templates.handler import UserTemplateHandler
+from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow.core.utils import Progress
 
 from ..integrations.mcp.utils import serve
+
+User = get_user_model()
 
 INTERNAL_COPY = {"is_duplicate": True, "exclude_sensitive_data": False}
 INTERNAL_CONFIG = ImportExportConfig(include_permission_data=False, **INTERNAL_COPY)
@@ -1477,3 +1486,67 @@ def test_a_user_template_keeps_agents_for_a_user_granted_the_flag(
 
     assert AgentApplication.objects.filter(workspace=copy).count() == 1
     assert [application.get_type().type for application in applications] == ["agent"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_signing_up_with_a_template_of_only_agents_with_the_flag_off_works(
+    data_fixture, configured_agent, settings, tmp_path, api_client
+):
+    data_fixture.create_password_provider()
+    author = data_fixture.create_user()
+    agent = configured_agent(user=author)
+    (tmp_path / "agent-only.json").write_text(
+        json.dumps(
+            {
+                "baserow_template_version": 1,
+                "name": "Agent only",
+                "icon": "iconoir-shop",
+                "keywords": [],
+                "categories": ["Agents"],
+                "export": export_for_template([agent]),
+            }
+        )
+    )
+    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
+    CoreHandler().sync_templates(pattern="agent-only")
+    template = Template.objects.get(slug="agent-only")
+    settings.FEATURE_FLAGS = []
+
+    response = api_client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Visitor",
+            "email": "visitor@example.com",
+            "password": "thisIsAValidPassword",
+            "template_id": template.id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == HTTP_200_OK, response.json()
+    user = User.objects.get(email="visitor@example.com")
+    workspace = WorkspaceUser.objects.get(user=user).workspace
+    assert user.profile.completed_onboarding
+    assert not workspace.application_set.exists()
+
+
+@pytest.mark.django_db
+def test_a_user_template_of_only_agents_the_owner_cant_import_fails(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner)
+    settings.FEATURE_FLAGS = []
+
+    with pytest.raises(TemplateHasNothingToInstall):
+        UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+
+
+def test_creating_a_user_template_with_nothing_to_copy_says_why():
+    message = CreateUserTemplateJobType.job_exceptions_map[TemplateHasNothingToInstall]
+    assert list(CreateUserTemplateJobType.job_exceptions_map).index(
+        TemplateHasNothingToInstall
+    ) < list(CreateUserTemplateJobType.job_exceptions_map).index(TemplateHasNoContent)
+    assert message == (
+        "None of the selected applications can be copied into a template."
+    )

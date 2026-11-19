@@ -465,6 +465,8 @@ class UserTemplateHandler:
             progress.
         :param track_content: Called with the content created so far as keyword
             arguments.
+        :raises TemplateHasNothingToInstall: If none of the applications can be
+            copied, for example Agents the owner can't import.
         :return: The workspace holding the copy.
         """
 
@@ -493,7 +495,7 @@ class UserTemplateHandler:
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
-        CoreHandler().import_applications_to_workspace(
+        copied, _ = CoreHandler().import_applications_to_workspace(
             workspace,
             serialized,
             files,
@@ -507,6 +509,13 @@ class UserTemplateHandler:
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,
         )
+        if not copied and serialized:
+            # Every application was left out, for example Agents the owner can't
+            # import because of their feature flag. A template of nothing could
+            # never be installed.
+            raise TemplateHasNothingToInstall(
+                "None of the selected applications can be copied into a template."
+            )
 
         return workspace
 
