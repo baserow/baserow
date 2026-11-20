@@ -708,6 +708,167 @@ describe('CoreSMTPEmailWorkflowActionType', () => {
   })
 })
 
+describe('an action sending through a workspace integration', () => {
+  let testApp = null
+
+  beforeAll(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  const DATABASE_ID = 1
+  const SHARED_APPLICATION_ID = 99
+  const INTEGRATION_ID = 3
+
+  const typeFor = (type) =>
+    testApp._app.$registry.get('databaseWorkflowActionType', type)
+
+  // Complete apart from the integration, so the integration is the only thing
+  // left to warn about.
+  const ACTIONS = {
+    smtp_email: {
+      id: 1,
+      type: 'smtp_email',
+      service: {
+        use_instance_smtp_settings: false,
+        integration_id: INTEGRATION_ID,
+        from_email: { formula: "'f@example.com'" },
+        to_emails: { formula: "'a'" },
+      },
+    },
+    slack_write_message: {
+      id: 1,
+      type: 'slack_write_message',
+      service: {
+        integration_id: INTEGRATION_ID,
+        channel: 'general',
+        text: { formula: "'hi'" },
+      },
+    },
+  }
+
+  // What a workspace export leaves of each, and what promoting it keeps.
+  const EMPTY_INTEGRATIONS = {
+    smtp_email: { id: INTEGRATION_ID, type: 'smtp', name: 'SMTP', host: '' },
+    slack_write_message: {
+      id: INTEGRATION_ID,
+      type: 'slack_bot',
+      name: 'Bot',
+      has_token: false,
+    },
+  }
+
+  /**
+   * The database and the shared application of its workspace, each holding
+   * its integrations, the way the button field editor leaves them once
+   * `fetchIntegrationsOnce` loaded both lists.
+   *
+   * @returns {Object} The context the action list passes.
+   */
+  const seed = async ({ own = [], workspace = [], loaded = true } = {}) => {
+    await testApp.store.dispatch('application/forceSetAll', {
+      applications: [
+        {
+          id: DATABASE_ID,
+          name: 'Customers',
+          type: 'database',
+          workspace: { id: 1 },
+          tables: [],
+          integrations: own.map((integration) => ({
+            ...integration,
+            application_id: DATABASE_ID,
+          })),
+        },
+        {
+          id: SHARED_APPLICATION_ID,
+          name: '__shared__',
+          type: 'shared',
+          order: 0,
+          workspace: { id: 1 },
+          integrations: workspace.map((integration) => ({
+            ...integration,
+            application_id: SHARED_APPLICATION_ID,
+          })),
+        },
+      ],
+    })
+    if (loaded) {
+      await testApp.store.dispatch('application/forceUpdate', {
+        application: testApp.store.getters['application/get'](DATABASE_ID),
+        data: { _integrationsLoadedOnce: true },
+      })
+    }
+    return { database: testApp.store.getters['application/get'](DATABASE_ID) }
+  }
+
+  test.each([
+    ['smtp_email', 'own', 'smtpIntegrationIncomplete'],
+    ['smtp_email', 'workspace', 'smtpWorkspaceIntegrationIncomplete'],
+    ['slack_write_message', 'own', 'slackTokenMissing'],
+    ['slack_write_message', 'workspace', 'slackWorkspaceTokenMissing'],
+  ])(
+    '%s through an empty %s integration says so',
+    async (type, level, message) => {
+      const context = await seed({ [level]: [EMPTY_INTEGRATIONS[type]] })
+
+      expect(typeFor(type).getErrorMessage(ACTIONS[type], context)).toBe(
+        `databaseWorkflowActionType.${message}`
+      )
+    }
+  )
+
+  test.each(['smtp_email', 'slack_write_message'])(
+    '%s says nothing until both lists are loaded',
+    async (type) => {
+      // An empty list is what a load still running looks like.
+      const context = await seed({
+        workspace: [EMPTY_INTEGRATIONS[type]],
+        loaded: false,
+      })
+
+      expect(typeFor(type).getErrorMessage(ACTIONS[type], context)).toBeNull()
+    }
+  )
+
+  test.each(['smtp_email', 'slack_write_message'])(
+    '%s stops warning once an admin completes the workspace integration',
+    async (type) => {
+      const context = await seed({ workspace: [EMPTY_INTEGRATIONS[type]] })
+      const actionType = typeFor(type)
+      expect(actionType.getErrorMessage(ACTIONS[type], context)).not.toBeNull()
+
+      // What the realtime update from the workspace settings does.
+      const sharedApplication = testApp.store.getters['application/get'](
+        SHARED_APPLICATION_ID
+      )
+      await testApp.store.dispatch('integration/forceUpdate', {
+        application: sharedApplication,
+        integration: sharedApplication.integrations[0],
+        values: { host: 'smtp.example.com', has_token: true },
+      })
+
+      expect(actionType.getErrorMessage(ACTIONS[type], context)).toBeNull()
+    }
+  )
+
+  test('the messages send the reader to a workspace admin', () => {
+    // The button can't edit a workspace integration: its dropdown edits the
+    // database's own ones only.
+    for (const key of [
+      'smtpWorkspaceIntegrationIncomplete',
+      'slackWorkspaceTokenMissing',
+    ]) {
+      expect(en.databaseWorkflowActionType[key]).toContain('workspace admin')
+      expect(en.databaseWorkflowActionType[key]).toContain(
+        'workspace settings, under Integrations'
+      )
+    }
+  })
+})
+
 describe('row actions writing to a trashed field', () => {
   let testApp = null
 
