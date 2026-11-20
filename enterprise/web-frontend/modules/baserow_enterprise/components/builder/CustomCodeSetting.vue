@@ -28,6 +28,9 @@
             @update:model-value="onHtmlChanged"
             @blur="autosaveHtml.flush()"
           />
+          <template v-if="headHtmlHiddenInPreview" #helper>
+            {{ $t('customCodeSettingForm.customHtmlNotInPreview') }}
+          </template>
           <template #error>
             <span role="alert">{{ htmlErrorMessage }}</span>
           </template>
@@ -44,6 +47,7 @@ import ApplicationUntrustedContentAlert from '@baserow/modules/core/components/a
 import CodeEditor from '@baserow/modules/core/components/CodeEditor.vue'
 import { clone, isSubObject } from '@baserow/modules/core/utils/object'
 import CustomCodeSettingForm from '@baserow_enterprise/components/builder/CustomCodeSettingForm.vue'
+import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
 
 const htmlDrafts = new WeakMap()
 const AUTOSAVE_DELAY = 500
@@ -81,6 +85,9 @@ export default {
     return { htmlState }
   },
   computed: {
+    headHtmlHiddenInPreview() {
+      return previewSharesEditorHostname(this.$config.public)
+    },
     htmlErrorMessage() {
       return this.htmlState.error
         ? this.$t('customCodeSettingForm.customHtmlSaveError')

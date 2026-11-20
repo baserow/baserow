@@ -1,6 +1,7 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { reactive } from 'vue'
+import { useRuntimeConfig } from '#imports'
 
 import CustomCodeSetting from '@baserow_enterprise/components/builder/CustomCodeSetting'
 
@@ -156,4 +157,36 @@ test('persists a revert to the original HTML while a different value is saving',
   })
   expect(builder.head_html).toBe(savedHtml)
   expect(html.element.value).toBe(savedHtml)
+})
+
+describe('Preview notice', () => {
+  // Test locales are empty, so $t renders the key.
+  const notice = 'customCodeSettingForm.customHtmlNotInPreview'
+  let publicConfig
+  let original
+
+  beforeEach(() => {
+    publicConfig = useRuntimeConfig().public
+    original = {
+      builderPreviewUrl: publicConfig.builderPreviewUrl,
+      publicWebFrontendUrl: publicConfig.publicWebFrontendUrl,
+    }
+  })
+
+  afterEach(() => {
+    Object.assign(publicConfig, original)
+  })
+
+  test.each([
+    ['shares the editor hostname', 'http://localhost:3001', true],
+    ['has its own hostname', 'http://preview.localhost:3000', false],
+  ])('when Preview %s', async (_, builderPreviewUrl, shown) => {
+    Object.assign(publicConfig, {
+      builderPreviewUrl,
+      publicWebFrontendUrl: 'http://localhost:3000',
+    })
+    const { wrapper } = await mountSetting()
+
+    expect(wrapper.text().includes(notice)).toBe(shown)
+  })
 })

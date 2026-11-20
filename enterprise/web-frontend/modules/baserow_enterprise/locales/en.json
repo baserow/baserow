@@ -899,6 +899,7 @@
     "customJS": "Custom JavaScript",
     "customHtml": "Custom HTML in head",
     "customHtmlSaveError": "Could not save the HTML. Edit the field to try again.",
+    "customHtmlNotInPreview": "Head HTML isn’t shown in Preview on this instance. It’s added to published sites.",
     "customCSSPlaceholder": "Enter some custom CSS code...",
     "customJSPlaceholder": "Enter some custom JS code...",
     "customHtmlPlaceholder": "Enter some custom HTML code...",

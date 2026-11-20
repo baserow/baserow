@@ -5,6 +5,7 @@ import {
   useRuntimeConfig,
 } from '#imports'
 import { getBuilderPreviewApiPath } from '@baserow/modules/builder/utils/preview'
+import { previewSharesEditorHostname } from '@baserow_enterprise/utils/builderHeadHtml'
 
 export async function fetchBuilderHeadHtml(
   { builder, mode, requestUrl, config, previewSsrCookieHeader },
@@ -17,12 +18,9 @@ export async function fetchBuilderHeadHtml(
   const headers = { Accept: 'application/json' }
   let path
   if (mode === 'preview') {
-    const previewUrl = new URL(config.public.builderPreviewUrl)
-    const editorUrl = new URL(config.public.publicWebFrontendUrl)
-    // The editor's cookies are scoped by hostname, independent of ports.
     if (
-      previewUrl.hostname === editorUrl.hostname ||
-      requestUrl.origin !== previewUrl.origin ||
+      previewSharesEditorHostname(config.public) ||
+      requestUrl.origin !== new URL(config.public.builderPreviewUrl).origin ||
       !previewSsrCookieHeader
     ) {
       return ''
