@@ -81,7 +81,7 @@ def test_integration_updated_when_moved_back_from_the_workspace(
 
     # Like the undo of a promotion.
     IntegrationService().update_integration(
-        user, integration, application_id=application.id
+        user, integration, allow_demotion=True, application_id=application.id
     )
 
     # Everyone who saw it in the workspace learns where it went, not only those

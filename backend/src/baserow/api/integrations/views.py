@@ -249,8 +249,9 @@ class IntegrationView(APIView):
             "Updates an existing integration. Sending the id of the shared "
             "application of its workspace as `application_id` promotes it: it "
             "becomes a workspace integration, which every application of the "
-            "workspace can use. The integration of a dashboard can't be "
-            "promoted, because every data source of a dashboard uses the "
+            "workspace can use. Any other application is refused: only undoing "
+            "the promotion moves it back. The integration of a dashboard can't "
+            "be promoted, because every data source of a dashboard uses the "
             "dashboard's own integration."
         ),
         request=CustomFieldRegistryMappingSerializer(
@@ -309,15 +310,6 @@ class IntegrationView(APIView):
             partial=True,
             return_validated=True,
         )
-
-        application_id = data.get("application_id")
-        if application_id is not None and application_id != integration.application_id:
-            # The API only promotes: it moves an integration to a shared
-            # application, which the handler checks is the one of its workspace.
-            # Only undoing a promotion moves the integration back.
-            target = CoreHandler().get_application(application_id)
-            if not IntegrationHandler().is_shared_application(target):
-                raise IntegrationCannotMoveToApplication()
 
         integration_updated = UpdateIntegrationActionType.do(
             request.user, integration, **data

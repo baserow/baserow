@@ -141,6 +141,34 @@ def test_an_integration_only_moves_between_an_application_and_its_workspace(
 
 
 @pytest.mark.django_db
+def test_only_undoing_a_promotion_moves_an_integration_back(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+
+    # Other applications may use it by now, and only the undo checks they don't.
+    with pytest.raises(IntegrationCannotMoveToApplication):
+        UpdateIntegrationActionType.do(
+            user,
+            IntegrationHandler().get_integration_for_update(workspace_integration.id),
+            application_id=builder.id,
+        )
+    assert _application_id(workspace_integration) == shared_application.id
+
+    IntegrationService().update_integration(
+        user,
+        IntegrationHandler().get_integration_for_update(workspace_integration.id),
+        allow_demotion=True,
+        application_id=builder.id,
+    )
+    assert _application_id(workspace_integration) == builder.id
+
+
+@pytest.mark.django_db
 def test_an_mcp_server_stays_with_its_agent(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -181,6 +209,7 @@ def test_a_dashboard_keeps_its_integration(data_fixture):
             workspace_integration.get_type(),
             IntegrationHandler().get_integration_for_update(workspace_integration.id),
             application=dashboard,
+            allow_demotion=True,
         )
 
     assert _application_id(integration) == dashboard.id
