@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import { ref } from 'vue'
+import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
+import AgentPendingApprovalsContext from '@baserow/modules/agent/components/AgentPendingApprovalsContext'
 import * as vueI18n from 'vue-i18n'
 import service from '@baserow/modules/core/services/chatRuns'
 import { registerRealtimeEvents } from '@baserow/modules/agent/realtime'
@@ -218,10 +221,14 @@ describe('Agent tool approvals', () => {
     )
     expect(item.find('pre').exists()).toBe(false)
     await item.get('.agent-approval__details-toggle').trigger('click')
-    expect(JSON.parse(item.get('pre').text())).toEqual({
-      database: 'Marketing Ops',
-      new_name: 'Growth Team',
-    })
+    expect(
+      item
+        .findAll('tr')
+        .map((row) => [row.get('th').text(), row.get('td').text()])
+    ).toEqual([
+      ['database', 'Marketing Ops'],
+      ['new_name', 'Growth Team'],
+    ])
   })
 
   test.each(['approved', 'rejected'])(
@@ -435,7 +442,7 @@ describe('Agent tool approvals', () => {
     expect(item.get('.agent-approval__tool').text()).toBe('create_rows')
     expect(item.find('pre').exists()).toBe(false)
     await item.get('.agent-approval__details-toggle').trigger('click')
-    expect(item.get('pre').text()).toContain('Company 1')
+    expect(item.get('table').text()).toContain('Company 1')
     expect(item.get('.agent-approval__details-toggle').text()).toBe(
       'agent.hideDetails'
     )
@@ -568,6 +575,9 @@ describe('Agent tool approvals', () => {
         .findAll('button:not(.agent-approval__details-toggle)')
         .map((button) => button.element.disabled)
     ).toEqual(Array(7).fill(true))
+    expect(
+      card(wrapper).get('.agent-approval__saving').attributes('role')
+    ).toBe('status')
     const approved = [approval(1, 'approved'), approval(2, 'approved')]
     decision.resolve(200, reply('running', approved, { runId: 'run-2' }))
     await flushPromises()
@@ -625,6 +635,7 @@ describe('Agent tool approvals', () => {
     )
     expect(alwaysAllow(wrapper).attributes('title')).toBeUndefined()
 
+    expect(alwaysAllow(wrapper).element.tagName).toBe('BUTTON')
     await alwaysAllow(wrapper).trigger('click')
     await flushPromises()
 
@@ -919,117 +930,151 @@ describe('Agent tool approvals', () => {
     expect(waitingDot(wrapper)).toBe(true)
   })
 
-  test('the header pill cycles loaded waiting conversations when none wait beyond them', async () => {
-    const row = (uuid, updatedOn, count) => ({
-      ...conversation(uuid, uuid, updatedOn),
-      pending_approval_count: count,
-    })
-    const loaded = [
-      row('newest', '2026-10-14T10:00:03Z', 1),
-      row('idle', '2026-10-14T10:00:02Z', 0),
-      row('middle', '2026-10-14T10:00:01Z', 2),
-    ]
-    mockConversations(testApp, conversationsPage(loaded, 'next'))
-    for (const { uuid } of loaded) mockMessages(testApp, uuid, page([]))
-    await testApp.store.dispatch('application/forceUpdate', {
-      application: agent,
-      data: { pending_count: 3 },
-    })
-    const wrapper = await mount()
-    const pill = () => wrapper.find('.agent-application__approvals')
-    expect(pill().text()).toBe('agent.approvalsWaiting - 3')
-
-    const opened = []
-    for (let click = 0; click < 6; click++) {
-      await pill().trigger('click')
-      await flushPromises()
-      opened.push(
-        selected(wrapper).get('.agent-conversations__item-name').text()
-      )
+  test('the header lists and decides pending approvals without switching conversations', async () => {
+    const idle = conversation('idle', 'Idle')
+    const waiting = conversation('waiting', 'Waiting')
+    const pending = {
+      ...reply('waiting', [approval(1)]),
+      conversation: waiting,
     }
-
-    expect(opened).toEqual([
-      'newest',
-      'middle',
-      'newest',
-      'middle',
-      'newest',
-      'middle',
-    ])
-    expect(
-      testApp.mock.history.get.filter(
-        ({ url }) => url === '/agent/10/conversations/'
-      )
-    ).toHaveLength(1)
-    await testApp.store.dispatch('application/forceUpdate', {
-      application: agent,
-      data: { pending_count: 0 },
-    })
-    await flushPromises()
-    expect(pill().exists()).toBe(false)
-  })
-
-  test('the pill loads older pages until it reaches a waiting conversation', async () => {
-    const idle = { ...conversation('idle', 'Idle'), pending_approval_count: 0 }
-    const older = {
-      ...conversation('older', 'Older'),
-      pending_approval_count: 0,
-    }
-    const waiting = {
-      ...conversation('waiting', 'Waiting'),
-      pending_approval_count: 1,
-    }
-    mockConversations(
-      testApp,
-      conversationsPage([idle], 'p2'),
-      conversationsPage([older], 'p3'),
-      conversationsPage([waiting])
-    )
-    for (const { uuid } of [idle, older, waiting])
-      mockMessages(testApp, uuid, page([]))
-    await testApp.store.dispatch('application/forceUpdate', {
-      application: agent,
-      data: { pending_count: 1 },
-    })
-    const wrapper = await mount()
-    await selectConversation(wrapper, 'Idle')
-    const listReads = () =>
-      testApp.mock.history.get.filter(
-        ({ url }) => url === '/agent/10/conversations/'
-      ).length
-
-    for (let click = 0; click < 2; click++) {
-      await wrapper.get('.agent-application__approvals').trigger('click')
-      await flushPromises()
-      expect(
-        selected(wrapper).get('.agent-conversations__item-name').text()
-      ).toBe('Waiting')
-    }
-    expect(listReads()).toBe(3)
-  })
-
-  test('the pill stops loading and keeps the selection when a page fails', async () => {
-    const idle = { ...conversation('idle', 'Idle'), pending_approval_count: 0 }
-    mockConversations(testApp, conversationsPage([idle], 'p2'), [500, {}])
+    mockConversations(testApp, conversationsPage([idle, waiting]))
     mockMessages(testApp, idle.uuid, page([]))
+    const decision = deferredReply()
+    mockApprovals(testApp, waiting.uuid, decision.reply)
+    testApp.mock
+      .onGet('/agent/10/pending-approvals/')
+      .replyOnce(200, page([pending]))
+      .onGet('/agent/10/pending-approvals/')
+      .reply(200, page([]))
     await testApp.store.dispatch('application/forceUpdate', {
       application: agent,
       data: { pending_count: 1 },
     })
-    const wrapper = await mount()
+    const wrapper = await mount({ stubs: { Teleport: false } })
     await selectConversation(wrapper, 'Idle')
-
     await wrapper.get('.agent-application__approvals').trigger('click')
     await flushPromises()
+    const menu = testApp.body.get('.agent-pending-approvals')
+    expect(menu.text()).toContain('Waiting')
+    const approve = menu.get('.agent-approval__actions button:last-child')
+    await approve.trigger('mousedown')
+    await approve.trigger('click')
+    await flushPromises()
+    expect(menu.find('.agent-approval__saving').exists()).toBe(true)
+    decision.resolve(200, reply('running', [approval(1, 'approved')]))
+    await flushPromises()
+    expect(sentBodies(testApp)).toEqual([
+      { decisions: [{ id: 1, approved: true }] },
+    ])
+    expect(menu.text()).toContain('agent.pendingApprovalsEmpty')
+    expect(selected(wrapper).text()).toContain('Idle')
+  })
 
-    expect(
-      selected(wrapper).get('.agent-conversations__item-name').text()
-    ).toBe('Idle')
-    expect(
-      testApp.mock.history.get.filter(
-        ({ url }) => url === '/agent/10/conversations/'
+  test.each([
+    [
+      false,
+      [
+        'agent.alwaysAllowAllPendingTools',
+        'agent.rejectAll',
+        'agent.approveAll',
+      ],
+    ],
+    [true, ['agent.alwaysAllow', 'agent.reject', 'agent.approve']],
+  ])(
+    'a compact card (%s) keeps short header labels',
+    async (compact, labels) => {
+      const items = ['create_rows', 'delete_rows'].map((tool, index) => ({
+        id: index + 1,
+        status: 'pending',
+        tool,
+        title: tool,
+      }))
+      const card = await testApp.mount(AgentApprovalCard, {
+        props: { items, canAlwaysAllow: true, compact },
+        global: { provide: { agentApplication: ref(agent) } },
+      })
+      const header = card.get('.agent-approval__header')
+      expect(header.findAll('button').map((button) => button.text())).toEqual(
+        labels
       )
-    ).toHaveLength(2)
+      expect(card.classes('agent-approval--compact')).toBe(compact)
+    }
+  )
+
+  test('retries a failed page of approvals and keeps earlier replies', async () => {
+    testApp.dontFailOnErrorResponses()
+    const url = '/agent/10/pending-approvals/'
+    const first = { ...reply('waiting', [approval(1)]), conversation: chat }
+    const second = {
+      ...reply('waiting', [approval(2)]),
+      uuid: 'reply-3',
+      conversation: conversation('next', 'Next conversation'),
+    }
+    testApp.mock
+      .onGet(url)
+      .replyOnce(200, page([first], 'page=2'))
+      .onGet(url)
+      .replyOnce(500, {})
+      .onGet(url)
+      .replyOnce(200, page([first, second]))
+    const menu = await testApp.mount(AgentPendingApprovalsContext, {
+      props: {
+        agent,
+        canDecide: true,
+        decidingReplies: new Set(),
+        decide: vi.fn(),
+      },
+      global: {
+        provide: { agentApplication: ref(agent) },
+        stubs: {
+          Context: { name: 'Context', template: '<div><slot /></div>' },
+        },
+      },
+    })
+    menu.getComponent({ name: 'Context' }).vm.$emit('shown')
+    await flushPromises()
+    const click = async (label) => {
+      await menu
+        .findAll('button')
+        .find((btn) => btn.text() === label)
+        .trigger('click')
+      await flushPromises()
+    }
+    await click('agent.moreApprovals')
+    expect(menu.text()).toContain('agent.pendingApprovalsLoadError')
+    await click('action.retry')
+    expect(menu.findAll('.agent-pending-approvals__reply')).toHaveLength(2)
+    expect(menu.text()).toContain('Next conversation')
+    expect(
+      testApp.mock.history.get
+        .filter((r) => r.url === url)
+        .map((r) => r.params.page)
+    ).toEqual([1, 2, 2])
+
+    // Updating the first page must not drop the second while it reconciles.
+    const refreshed = deferredReply()
+    testApp.mock
+      .onGet(url)
+      .replyOnce(200, page([first], 'page=2'))
+      .onGet(url)
+      .replyOnce(refreshed.reply)
+    await menu.setProps({
+      agent: { ...agent, pending_count: agent.pending_count + 1 },
+    })
+    await flushPromises()
+    expect(menu.text()).toContain('Next conversation')
+    refreshed.resolve(
+      200,
+      page([
+        {
+          ...second,
+          conversation: conversation('next', 'Renamed conversation'),
+        },
+      ])
+    )
+    await flushPromises()
+    expect(menu.findAll('.agent-pending-approvals__reply')).toHaveLength(2)
+    expect(menu.text()).toContain('Renamed conversation')
   })
 
   test('a list read started before a decision keeps the decided count', async () => {

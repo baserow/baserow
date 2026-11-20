@@ -5,6 +5,7 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 import AgentConnectedAppsSection from '@baserow/modules/agent/components/configuration/AgentConnectedAppsSection'
 import { MCP_OAUTH_MESSAGE_TYPE } from '@baserow/modules/agent/constants'
 import { registerRealtimeEvents } from '@baserow/modules/builder/realtime'
+import { deferredReply } from './helpers'
 
 const tool = (name, extra = {}) => ({
   name,
@@ -93,9 +94,10 @@ describe('Agent connected apps', () => {
     testApp.mock
       .onPost(/application\/10\/integrations/)
       .reply(200, server({ has_auth_header_value: true }))
+    const discovery = deferredReply()
     testApp.mock
       .onPost('/integrations/mcp/5/refresh-tools/')
-      .reply(200, server({ tools: [tool('search'), tool('delete')] }))
+      .reply(discovery.reply)
     testApp.mock
       .onPatch('/integrations/mcp/5/tools/')
       .reply(200, server({ tools: [tool('search', { enabled: true })] }))
@@ -124,19 +126,33 @@ describe('Agent connected apps', () => {
       '/integrations/mcp/5/refresh-tools/'
     )
 
-    // New tools start off and ask first. Ask first only applies to an
-    // allowed tool: turn on the first one and let it run without asking.
-    const rows = inBody('.agent-mcp-tools__columns').slice(1)
-    expect(rows).toHaveLength(2)
-    const askFirst = () =>
-      inBody('.agent-mcp-tools__columns')[1].querySelectorAll('.checkbox')[1]
-    expect(askFirst().classList).toContain('checkbox--disabled')
-    rows[0].querySelector('.checkbox').click()
+    expect(inBody('.modal__box h2')[0].textContent).toContain(
+      'agent.connectedAppAdd'
+    )
+    expect(buttonInBody('agent.connectedAppConnect').disabled).toBe(true)
+    expect(buttonInBody('agent.connectedAppRemove')).toBeUndefined()
+    discovery.resolve(200, server({ tools: [tool('search'), tool('delete')] }))
     await flushPromises()
-    expect(askFirst().classList).not.toContain('checkbox--disabled')
+
+    // Preselection is a draft until Save. Bulk selection preserves Ask first.
+    const rows = () => inBody('.agent-mcp-tools__tool')
+    const enabled = () =>
+      rows().map((row) => row.querySelector('input').checked)
+    const askFirst = () => rows()[0].querySelectorAll('.checkbox')[1]
+    expect(enabled()).toEqual([true, true])
+    expect(testApp.mock.history.patch).toHaveLength(0)
+    buttonInBody('agent.deselectAllTools').click()
+    await flushPromises()
+    expect(enabled()).toEqual([false, false])
+    expect(askFirst().classList).toContain('checkbox--disabled')
+    buttonInBody('agent.selectAllTools').click()
+    await flushPromises()
+    expect(enabled()).toEqual([true, true])
+    rows()[1].querySelector('.checkbox').click()
+    await flushPromises()
     askFirst().click()
     await flushPromises()
-    buttonInBody('agent.toolsDone').click()
+    buttonInBody('action.save').click()
     await flushPromises()
 
     expect(body(testApp.mock.history.patch[0])).toEqual({
@@ -229,6 +245,9 @@ describe('Agent connected apps', () => {
     await flushPromises()
 
     expect(inBody('.modal__box .agent-tool-permissions__tool')).toHaveLength(1)
+    expect(
+      inBody('.modal__box .agent-tool-permissions__allow input')[0].checked
+    ).toBe(false)
   })
 
   test('an unreachable server is explained in the tools modal', async () => {
@@ -351,10 +370,10 @@ describe('Agent connected apps', () => {
       .findAll('.agent-connected-apps__server button')[0]
       .trigger('click')
     await flushPromises()
-    buttonInBody('agent.connectedAppToolParameters').click()
+    buttonInBody('agent.connectedAppToolSchema').click()
     await flushPromises()
 
-    const schema = inBody('.modal__box .agent-mcp-tools__schema pre')
+    const schema = inBody('.modal__box .agent-mcp-tools__schema')
     expect(JSON.parse(schema[0].textContent)).toEqual(update.input_schema)
   })
 
@@ -443,7 +462,7 @@ describe('Agent connected apps', () => {
       }
     )
     await flushPromises()
-    buttonInBody('agent.toolsDone').click()
+    buttonInBody('action.save').click()
     await flushPromises()
 
     expect(body(testApp.mock.history.patch[0])).toEqual({
@@ -473,7 +492,7 @@ describe('Agent connected apps', () => {
     buttonInBody('agent.connectedAppRefresh').click()
     await flushPromises()
 
-    const rows = inBody('.agent-mcp-tools__columns').slice(1)
+    const rows = inBody('.agent-mcp-tools__tool')
     expect(rows).toHaveLength(2)
     expect(rows[1].querySelectorAll('.checkbox')).toHaveLength(2)
   })

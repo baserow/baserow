@@ -1098,6 +1098,24 @@ class AgentHandler:
 
         return AgentToolApproval.objects.filter(status=AgentToolApproval.Status.PENDING)
 
+    def list_pending_replies(
+        self, conversations: QuerySet[AgentConversation]
+    ) -> QuerySet[AgentMessage]:
+        """Load pending approvals and their steps for the given conversations."""
+
+        pending = self._pending_approvals()
+        return (
+            AgentMessage.objects.filter(
+                Exists(pending.filter(reply_id=OuterRef("pk"))),
+                conversation__in=conversations,
+            )
+            .only("uuid", "steps", "conversation")
+            .select_related("conversation__trigger__service")
+            .prefetch_related(
+                Prefetch("approvals", queryset=pending, to_attr="pending_approvals")
+            )
+        )
+
     def get_conversation_pending_approval_counts(
         self, conversation_ids: list[int]
     ) -> dict[int, int]:

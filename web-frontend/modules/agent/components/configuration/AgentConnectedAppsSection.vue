@@ -74,7 +74,7 @@
       :connect="connect"
       :disconnect="disconnect"
       :refresh="refreshTools"
-      @created="toolsModal.show($event)"
+      @created="(server, options) => toolsModal.show(server, options)"
     />
     <AgentMCPToolsModal
       ref="toolsModal"

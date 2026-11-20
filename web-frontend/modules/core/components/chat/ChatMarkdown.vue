@@ -8,15 +8,41 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 
+function parseUrl(href) {
+  try {
+    return new URL(href)
+  } catch {
+    return null
+  }
+}
+
 // A rendered image would load any URL, which can carry conversation data away.
 const markdown = new MarkdownIt({ html: false, linkify: true }).disable('image')
+markdown.renderer.rules.link_open = (tokens, index, options, env, renderer) => {
+  const token = tokens[index]
+  const href = token.attrGet('href')
+  if (env.agentLinks && /^https?:\/\//i.test(href)) {
+    const url = parseUrl(href)
+    if (url) {
+      token.attrSet('rel', 'noopener noreferrer')
+      url.searchParams.set('utm_source', 'baserow.io')
+      token.attrSet('href', url.href)
+    }
+  }
+  return renderer.renderToken(tokens, index, options)
+}
 </script>
 
 <script setup>
-const props = defineProps({ content: { type: String, default: '' } })
+const props = defineProps({
+  content: { type: String, default: '' },
+  agentLinks: Boolean,
+})
 
 const router = useRouter()
-const html = computed(() => markdown.render(props.content))
+const html = computed(() =>
+  markdown.render(props.content, { agentLinks: props.agentLinks })
+)
 
 /** App links open in the router, other web links in a new tab. */
 function followLink(event) {
@@ -28,8 +54,8 @@ function followLink(event) {
     event.shiftKey ||
     event.altKey
   if (!link || modified) return
-  const url = new URL(link.href)
-  if (!['http:', 'https:'].includes(url.protocol)) return
+  const url = parseUrl(link.href)
+  if (!url || !['http:', 'https:'].includes(url.protocol)) return
   event.preventDefault()
   const path = url.pathname + url.search + url.hash
   if (

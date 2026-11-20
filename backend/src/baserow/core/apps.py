@@ -235,6 +235,7 @@ class CoreConfig(AppConfig):
 
         from .ai_provider.operations import ManageAIProvidersOperationType
         from .identities.operations import (
+            BindIdentityOperationType,
             CreateIdentityOperationType,
             DeleteIdentityOperationType,
             ListIdentitiesWorkspaceOperationType,
@@ -332,6 +333,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(CreateIdentityOperationType())
         operation_type_registry.register(UpdateIdentityOperationType())
         operation_type_registry.register(DeleteIdentityOperationType())
+        operation_type_registry.register(BindIdentityOperationType())
 
         from baserow.core.actions import (
             AcceptWorkspaceInvitationActionType,

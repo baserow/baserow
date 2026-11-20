@@ -21,3 +21,7 @@ class UpdateIdentityOperationType(IdentityOperationType):
 
 class DeleteIdentityOperationType(IdentityOperationType):
     type = "identity.delete"
+
+
+class BindIdentityOperationType(IdentityOperationType):
+    type = "identity.bind"

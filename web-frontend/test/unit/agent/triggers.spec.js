@@ -182,7 +182,7 @@ describe('Agent triggers', () => {
     const wrapper = await mountSection([periodicTrigger()])
     const card = wrapper.get('.agent-trigger-card')
 
-    expect(card.get('.agent-trigger-card__name').text()).toBe(
+    expect(card.get('.agent-trigger-card__name').element.value).toBe(
       'serviceType.corePeriodicNameHour'
     )
     expect(
@@ -483,6 +483,33 @@ describe('Agent triggers', () => {
     )
   })
 
+  test('a failed delete restores the open trigger and saves its pending edit', async () => {
+    useFakeTimers()
+    testApp.dontFailOnErrorResponses()
+    const deletion = deferredReply()
+    const url = '/agent/10/triggers/1/'
+    testApp.mock.onDelete(url).reply(deletion.reply)
+    testApp.mock.onPatch(url).reply(200, periodicTrigger())
+    const wrapper = await mountSection([periodicTrigger()])
+    await choose(
+      wrapper.get('.agent-trigger-card .dropdown'),
+      'periodicForm.everyDay'
+    )
+    await wrapper.get('.agent-trigger-card__delete').trigger('click')
+    await vi.advanceTimersByTimeAsync(800)
+    expect(patches(testApp)).toEqual([])
+    expect(wrapper.find('.agent-trigger-card').exists()).toBe(false)
+    deletion.resolve(503, {})
+    await flushPromises()
+    expect(
+      wrapper.get('.agent-trigger-card__toggle').attributes('aria-expanded')
+    ).toBe('true')
+    await vi.advanceTimersByTimeAsync(500)
+    expect(patches(testApp)).toEqual([
+      [url, { service: { type: 'periodic', interval: 'DAY' } }],
+    ])
+  })
+
   test('a trigger deleted elsewhere stays removed after its delete fails', async () => {
     testApp.dontFailOnErrorResponses()
     testApp.mock.onDelete('/agent/10/triggers/1/').reply(404, {
@@ -518,7 +545,7 @@ describe('Agent triggers', () => {
       periodicTrigger({ type: 'removed_plugin_trigger' }),
     ])
 
-    expect(wrapper.get('.agent-trigger-card__name').text()).toBe(
+    expect(wrapper.get('.agent-trigger-card__name').element.value).toBe(
       'removed_plugin_trigger'
     )
     await wrapper.get('.agent-trigger-card__delete').trigger('click')
@@ -791,13 +818,10 @@ describe('Agent triggers', () => {
   test('cuts a long name by characters, never inside an emoji', async () => {
     testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
     const wrapper = await mountSection([periodicTrigger()])
-    const name = wrapper.get('.agent-trigger-card__name-text')
+    const name = wrapper.get('.agent-trigger-card__name')
     const kept = `${'x'.repeat(74)}😀`
 
-    await wrapper.get('.agent-trigger-card__rename').trigger('click')
-    name.element.textContent = `${kept}😀`
-    await name.trigger('input')
-    await name.trigger('keydown', { key: 'Enter' })
+    await name.setValue(`${kept}😀`)
     await flushPromises()
 
     expect(patches(testApp)).toEqual([
@@ -1027,11 +1051,8 @@ describe('Agent triggers', () => {
     )
     const card = wrapper.get('.agent-trigger-card')
 
-    await card.get('.agent-trigger-card__rename').trigger('click')
-    const name = card.get('.agent-trigger-card__name-text')
-    name.element.textContent = 'Renamed trigger'
-    await name.trigger('input')
-    await name.trigger('keydown', { key: 'Enter' })
+    const name = card.get('.agent-trigger-card__name')
+    await name.setValue('Renamed trigger')
     await flushPromises()
 
     expect(
@@ -1071,11 +1092,8 @@ describe('Agent triggers', () => {
     )
     const card = wrapper.get('.agent-trigger-card')
 
-    await card.get('.agent-trigger-card__rename').trigger('click')
-    const name = card.get('.agent-trigger-card__name-text')
-    name.element.textContent = 'Renamed trigger'
-    await name.trigger('input')
-    await name.trigger('keydown', { key: 'Enter' })
+    const name = card.get('.agent-trigger-card__name')
+    await name.setValue('Renamed trigger')
     await chooseTriggerType(card, 'http_trigger')
     first.resolve(200, periodicTrigger({ name: 'Renamed trigger' }))
     await flushPromises()
@@ -1602,7 +1620,9 @@ describe('Agent triggers', () => {
     )
 
     expect(
-      wrapper.findAll('.agent-trigger-card__name').map((name) => name.text())
+      wrapper
+        .findAll('.agent-trigger-card__name')
+        .map((name) => name.element.value)
     ).toEqual([
       'serviceType.corePeriodicNameHour',
       'Morning digest',
@@ -1617,28 +1637,19 @@ describe('Agent triggers', () => {
       .replyOnce(200, periodicTrigger({ name: 'Morning digest' }))
     testApp.mock.onPatch('/agent/10/triggers/1/').reply(200, periodicTrigger())
     const wrapper = await mountSection([periodicTrigger()])
-    const name = wrapper.get('.agent-trigger-card__name-text')
-    const rename = async (text, endKey) => {
-      await wrapper.get('.agent-trigger-card__rename').trigger('click')
-      name.element.textContent = text
-      await name.trigger('input')
-      await (endKey
-        ? name.trigger('keydown', { key: endKey })
-        : name.trigger('focusout'))
-      await flushPromises()
-    }
-
-    await rename('  Morning digest ', 'Enter')
-
-    expect(name.text()).toBe('Morning digest')
-
-    await rename('', null)
+    const name = wrapper.get('.agent-trigger-card__name')
+    expect(name.element.value).toBe('serviceType.corePeriodicNameHour')
+    await name.setValue('  Morning digest ')
+    await flushPromises()
+    expect(name.element.value).toBe('Morning digest')
+    await name.setValue('')
+    await flushPromises()
 
     expect(patches(testApp)).toEqual([
       ['/agent/10/triggers/1/', { name: 'Morning digest' }],
       ['/agent/10/triggers/1/', { name: '' }],
     ])
-    expect(name.text()).toBe('serviceType.corePeriodicNameHour')
+    expect(name.element.value).toBe('serviceType.corePeriodicNameHour')
   })
 
   test('a trigger still on its default message gets the rows one, with its batch size and recommended rule', async () => {

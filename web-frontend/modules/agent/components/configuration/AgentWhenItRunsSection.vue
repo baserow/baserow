@@ -9,6 +9,8 @@
         button-type="button"
         icon="iconoir-plus"
         class="agent-triggers__add"
+        :disabled="creating"
+        :loading="creating"
         aria-haspopup="menu"
         @click="picker.toggle($event.currentTarget)"
       >
@@ -50,10 +52,11 @@
     <p v-else-if="!triggers.length" class="agent-triggers__empty">
       {{ $t('agent.noTriggers') }}
     </p>
-    <div v-else class="agent-triggers__list">
+    <div v-else ref="list" class="agent-triggers__list">
       <AgentTriggerCard
         v-for="trigger in triggers"
         :key="trigger.id"
+        :data-card-id="trigger.id"
         :expanded="expandedIds.has(trigger.id)"
         :trigger="trigger"
         :workspace="workspace"
@@ -77,7 +80,7 @@
       ref="picker"
       :available-types="availableTypes"
       :workspace="workspace"
-      @select="addTrigger"
+      @select="addItem"
     />
   </section>
 </template>
@@ -85,7 +88,7 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue'
 import { useStore } from 'vuex'
-import { useExpandedItems } from '@baserow/modules/agent/composables/useExpandedItems'
+import { useAgentCardList } from '@baserow/modules/agent/composables/useExpandedItems'
 import ButtonText from '@baserow/modules/core/components/ButtonText'
 import AgentCardListHeader from '@baserow/modules/agent/components/configuration/AgentCardListHeader'
 import AgentTriggerCard from '@baserow/modules/agent/components/configuration/AgentTriggerCard'
@@ -115,6 +118,7 @@ const runAsActive = computed(
 )
 const {
   triggers,
+  allTriggers,
   triggerTypes,
   typesVersion,
   loading,
@@ -129,16 +133,19 @@ const {
   changeTriggerType,
   deleteTrigger,
 } = useAgentTriggers(agent, () => props.configuration.run_as)
-const { expandedIds, allExpanded, toggle, toggleAll } =
-  useExpandedItems(triggers)
+const { expandedIds, allExpanded, toggle, toggleAll, list, creating, addItem } =
+  useAgentCardList(triggers, createTrigger, allTriggers)
 watch(
   () => agent.value?.id,
   () => expandedIds.clear()
 )
-async function addTrigger(type) {
-  const item = await createTrigger(type)
-  if (item) expandedIds.add(item.id)
-}
+// Initialize once per successful opening, preserving later manual toggles.
+let initializedFor = null
+watch([loading, () => agent.value?.id], ([busy, id]) => {
+  if (busy || loadError.value || !id || initializedFor === id) return
+  initializedFor = id
+  if (triggers.value.length === 1) expandedIds.add(triggers.value[0].id)
+})
 // A trigger added before the list loaded would be dropped by the list reply.
 const canAddTriggers = computed(
   () =>

@@ -33,7 +33,10 @@
         size="small"
         @update:active-index="choosePreset"
       />
-      <div class="agent-workspace-tools__ask">
+      <div
+        v-if="presetIndex === PRESET.EVERYTHING"
+        class="agent-workspace-tools__ask"
+      >
         <div class="agent-workspace-tools__ask-text">
           <div class="agent-workspace-tools__ask-title">
             {{ $t('agent.askBeforeChanges') }}
@@ -177,13 +180,14 @@ const presets = computed(() => [
   { label: t('agent.toolsCustom') },
 ])
 
+const PRESET = { EVERYTHING: 0, READ_ONLY: 1, CUSTOM: 2 }
 const isExactly = (names) =>
   names.length === props.allowedTools.length &&
   names.every((name) => props.allowedTools.includes(name))
 const presetIndex = computed(() => {
-  if (isExactly(allTools.value)) return 0
-  if (isExactly(readTools.value)) return 1
-  return 2
+  if (isExactly(allTools.value)) return PRESET.EVERYTHING
+  if (isExactly(readTools.value)) return PRESET.READ_ONLY
+  return PRESET.CUSTOM
 })
 const countIn = (group, names) =>
   group.tools.filter((tool) => names.includes(tool.name)).length
@@ -202,8 +206,8 @@ function allow(names) {
 
 function choosePreset(index) {
   if (!props.editable) return
-  if (index === 0) allow(allTools.value)
-  else if (index === 1) allow(readTools.value)
+  if (index === PRESET.EVERYTHING) allow(allTools.value)
+  else if (index === PRESET.READ_ONLY) allow(readTools.value)
   else permissions.value.show()
 }
 

@@ -174,13 +174,14 @@ export async function createAgentPage() {
     testApp,
     agent,
     allowed,
-    mount: ({ mixins = [] } = {}) =>
+    mount: ({ mixins = [], stubs = {} } = {}) =>
       testApp.mount(AgentApplicationContent, {
         props: { agent },
         global: {
           provide: { [matchedRouteKey]: ref(route) },
           plugins: [{ install: (app) => (app.$nuxt = permissionApp) }],
           mixins,
+          stubs,
         },
       }),
     leave: () => [...route.leaveGuards][0](),
@@ -365,8 +366,8 @@ export async function chooseFromMenu(wrapper, title, action) {
     .get('.agent-conversations__options')
     .trigger('click')
   await wrapper
-    .findComponent(Context)
-    .findAll('.context__menu-item-link')
+    .findAllComponents(Context)
+    .flatMap((menu) => menu.findAll('.context__menu-item-link'))
     .find((link) => link.text().includes(action))
     .trigger('click')
   await flushPromises()
