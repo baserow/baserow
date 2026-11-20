@@ -623,7 +623,7 @@ def test_export_referenced_workspace_integrations(data_fixture):
     used = data_fixture.create_local_baserow_integration(
         application=shared_application, name="Used"
     )
-    data_fixture.create_local_baserow_integration(
+    unused = data_fixture.create_local_baserow_integration(
         application=shared_application, name="Unused"
     )
     trashed = data_fixture.create_local_baserow_integration(
@@ -639,6 +639,8 @@ def test_export_referenced_workspace_integrations(data_fixture):
         {"nested": [{"integration_id": used.id}, {"integration_id": trashed.id}]},
         {"integration_id": own.id},
         {"integration_id": other_workspace_integration.id},
+        # Sample data is what a test dispatch returned, not a reference.
+        {"sample_data": {"data": {"body": {"integration_id": unused.id}}}},
         # A boolean would otherwise read as the integration with ID 1.
         {"integration_id": True},
         {"integration_id": None},
