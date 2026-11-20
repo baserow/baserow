@@ -114,13 +114,6 @@ class ImportExportConfig:
 
     user_files_belong_to_workspace: bool = False
 
-    is_template_storage: bool = False
-    """
-    The import stores content for a template (a template workspace or a user
-    template copy), not for use. Settings that depend on the destination, like
-    an AI model, are resolved when the template is installed instead.
-    """
-
     is_publishing: bool = False
     """
     Indicates whether or not we are currently publishing. This class is used
@@ -138,13 +131,6 @@ class ImportExportConfig:
     When True, during an export any sensitive fields defined in the
     `sensitive_fields` list will have their serialized values set to None. This
     ensures that sensitive data are excluded from the exported workspace file.
-    """
-
-    imported_by: Optional["AbstractUser"] = None
-    """
-    The user the import is for, when there is one: installing a template or
-    importing a file. Application types behind a feature flag that can be granted
-    per user check it.
     """
 
     copied_by: Optional["AbstractUser"] = None
@@ -179,6 +165,13 @@ class ImportExportConfig:
     """
     Who restores a snapshot. Kept apart from `copied_by` so a restore carries
     every credential the snapshot holds.
+    """
+
+    is_template_storage: bool = False
+    """
+    The import stores content for a template (a template workspace or a user
+    template copy), not for use. Settings that depend on the destination, like
+    an AI model, are resolved when the template is installed instead.
     """
 
 
@@ -409,18 +402,6 @@ class ApplicationType(
     # The data provider type registry applicable to this type. Must be set
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
-
-    def can_import(self, import_export_config: ImportExportConfig) -> bool:
-        """
-        Whether applications of this type are imported when a workspace import,
-        such as a template install or a file import, holds them. Those that
-        return False are left out and the rest is imported.
-
-        :param import_export_config: How the applications are imported.
-        :return: False to leave the application out of the import.
-        """
-
-        return True
 
     def create_install_identities(
         self,

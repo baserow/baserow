@@ -144,6 +144,7 @@ class AssistantDeps:
     dynamic_tools: list[Tool] = field(default_factory=list)
     resource_changes: ResourceChanges = field(default_factory=ResourceChanges)
     tool_catalog: str = ""
+    unavailable_tool_messages: list[str] = field(default_factory=list)
     verified_tool_outcomes: list[dict[str, Any]] = field(default_factory=list)
     pending_question: str | None = None
 

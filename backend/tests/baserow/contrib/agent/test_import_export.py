@@ -3,14 +3,9 @@ from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
-from django.db import transaction
-from django.urls import reverse
-
 import pytest
 from freezegun import freeze_time
 from mcp.server.fastmcp import FastMCP
-from rest_framework.status import HTTP_200_OK
 
 from baserow.contrib.agent.application_types import AgentApplicationType
 from baserow.contrib.agent.constants import AgentRunAsState
@@ -31,28 +26,19 @@ from baserow.contrib.integrations.mcp.handler import MCPServerHandler
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration, MCPServerTool
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.exceptions import PermissionDenied
-from baserow.core.feature_flags import FF_AGENT_BUILDER
 from baserow.core.handler import CoreHandler
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.integrations.operations import ReadIntegrationOperationType
-from baserow.core.job_types import DuplicateApplicationJobType, InstallTemplateJobType
-from baserow.core.jobs.constants import JOB_FAILED, JOB_FINISHED
+from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Template, WorkspaceUser
-from baserow.core.registries import ImportExportConfig, Plugin, plugin_registry
+from baserow.core.registries import ImportExportConfig
 from baserow.core.services.registries import service_type_registry
 from baserow.core.snapshots.handler import SnapshotHandler
-from baserow.core.user_templates.exceptions import (
-    TemplateHasNoContent,
-    TemplateHasNothingToInstall,
-)
 from baserow.core.user_templates.handler import UserTemplateHandler
-from baserow.core.user_templates.job_types import CreateUserTemplateJobType
 from baserow.core.utils import Progress
 
 from ..integrations.mcp.utils import serve
-
-User = get_user_model()
 
 INTERNAL_COPY = {"is_duplicate": True, "exclude_sensitive_data": False}
 INTERNAL_CONFIG = ImportExportConfig(include_permission_data=False, **INTERNAL_COPY)
@@ -975,11 +961,11 @@ TEMPLATE_INSTALL_CONFIG = ImportExportConfig(
 
 
 @pytest.mark.django_db
-def test_template_install_skips_agents_when_the_flag_is_off(
+def test_template_install_keeps_agents_when_the_flag_is_off(
     data_fixture, configured_agent, settings
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(user=user, instructions="Triage new tickets.")
     database = data_fixture.create_database_application(workspace=agent.workspace)
     exported = export_for_template([database, agent])
     settings.FEATURE_FLAGS = []
@@ -989,46 +975,34 @@ def test_template_install_skips_agents_when_the_flag_is_off(
         workspace, exported, None, TEMPLATE_INSTALL_CONFIG
     )
 
-    assert [application.get_type().type for application in applications] == ["database"]
-    assert not AgentApplication.objects.filter(workspace=workspace).exists()
-    assert agent.id not in id_mapping["applications"]
+    assert sorted(application.get_type().type for application in applications) == [
+        "agent",
+        "database",
+    ]
+    installed = AgentApplication.objects.get(id=id_mapping["applications"][agent.id])
+    assert installed.workspace_id == workspace.id
+    assert installed.instructions == "Triage new tickets."
 
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
-def test_zip_import_skips_agents_when_the_flag_is_off(
+def test_zip_import_keeps_agents_when_the_flag_is_off(
     data_fixture, configured_agent, settings, use_tmp_media_root
 ):
     user = data_fixture.create_user()
-    agent = configured_agent(user=user)
+    agent = configured_agent(user=user, instructions="Triage new tickets.")
     database = data_fixture.create_database_application(workspace=agent.workspace)
     export_path = data_fixture.export_workspace_applications_file([database, agent])
     settings.FEATURE_FLAGS = []
 
     applications = data_fixture.import_workspace_applications_file(export_path)
 
-    assert [application.get_type().type for application in applications] == ["database"]
-    assert not AgentApplication.objects.filter(
-        workspace=applications[0].workspace
-    ).exists()
+    imported = AgentApplication.objects.get(workspace=applications[0].workspace)
+    assert imported.instructions == "Triage new tickets."
 
 
 @pytest.mark.django_db
-def test_duplicate_keeps_agents_when_the_flag_is_off(
-    data_fixture, configured_agent, settings
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    settings.FEATURE_FLAGS = []
-
-    copied = CoreHandler().duplicate_application(user, agent).specific
-
-    assert isinstance(copied, AgentApplication)
-    assert copied.id != agent.id
-
-
-@pytest.mark.django_db
-def test_sync_template_maps_an_open_agent_to_none_when_the_flag_is_off(
+def test_sync_template_keeps_an_open_agent_when_the_flag_is_off(
     data_fixture, configured_agent, settings, tmp_path
 ):
     user = data_fixture.create_user()
@@ -1054,8 +1028,30 @@ def test_sync_template_maps_an_open_agent_to_none_when_the_flag_is_off(
     CoreHandler().sync_templates(pattern="agent-check")
 
     template = Template.objects.get(slug="agent-check")
-    assert template.open_application is None
-    assert not AgentApplication.objects.filter(workspace=template.workspace).exists()
+    synced = AgentApplication.objects.get(workspace=template.workspace)
+    assert template.open_application == synced.id
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
+def test_a_user_template_keeps_agents_when_the_flag_is_off(
+    data_fixture, configured_agent, settings
+):
+    owner = data_fixture.create_user()
+    agent = configured_agent(user=owner, instructions="Triage new tickets.")
+    target = data_fixture.create_workspace(user=owner)
+    settings.FEATURE_FLAGS = []
+
+    copy = UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
+    revision = data_fixture.create_template(workspace=copy)
+    content = UserTemplateHandler().serialize_template_content(revision)
+    applications = UserTemplateHandler().install_template_content(
+        owner, target, revision, content
+    )
+
+    assert AgentApplication.objects.filter(workspace=copy).count() == 1
+    assert [application.get_type().type for application in applications] == ["agent"]
+    assert applications[0].specific.instructions == "Triage new tickets."
 
 
 def import_agent_with_models(data_fixture, agent, config, enabled, mocker):
@@ -1257,38 +1253,6 @@ def test_user_template_requires_reading_the_agent_configuration(
 
 
 @pytest.mark.django_db
-def test_a_template_synced_with_the_flag_off_gets_its_agent_once_it_is_on(
-    data_fixture, configured_agent, settings, tmp_path
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    database = data_fixture.create_database_application(workspace=agent.workspace)
-    (tmp_path / "agent-check.json").write_text(
-        json.dumps(
-            {
-                "baserow_template_version": 1,
-                "name": "Agent check",
-                "icon": "iconoir-shop",
-                "keywords": [],
-                "categories": ["Agents"],
-                "export": export_for_template([database, agent]),
-                "open_application": agent.id,
-            }
-        )
-    )
-    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
-    settings.FEATURE_FLAGS = []
-    CoreHandler().sync_templates(pattern="agent-check")
-
-    settings.FEATURE_FLAGS = [FF_AGENT_BUILDER]
-    CoreHandler().sync_templates(pattern="agent-check")
-
-    template = Template.objects.get(slug="agent-check")
-    synced = AgentApplication.objects.get(workspace=template.workspace)
-    assert template.open_application == synced.id
-
-
-@pytest.mark.django_db
 def test_installed_tools_that_change_data_ask_first(data_fixture, configured_agent):
     user = data_fixture.create_user()
     agent = agent_with_tools(data_fixture, configured_agent, user)
@@ -1340,227 +1304,3 @@ def test_duplicate_without_its_identity_keeps_tools_pending(
         "allowed_tools": ["list_tables", "create_rows"],
         "ask_first_tools": ["create_rows"],
     }
-
-
-@pytest.mark.django_db(transaction=True)
-def test_installing_a_template_of_only_agents_with_the_flag_off_fails(
-    data_fixture, configured_agent, settings, tmp_path
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    (tmp_path / "agent-only.json").write_text(
-        json.dumps(
-            {
-                "baserow_template_version": 1,
-                "name": "Agent only",
-                "icon": "iconoir-shop",
-                "keywords": [],
-                "categories": ["Agents"],
-                "export": export_for_template([agent]),
-            }
-        )
-    )
-    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
-    CoreHandler().sync_templates(pattern="agent-only")
-    template = Template.objects.get(slug="agent-only")
-    settings.FEATURE_FLAGS = []
-    workspace = data_fixture.create_workspace(user=user)
-
-    job = JobHandler().create_and_start_job(
-        user,
-        InstallTemplateJobType.type,
-        sync=True,
-        workspace_id=workspace.id,
-        template_id=template.id,
-    )
-    job.refresh_from_db()
-
-    assert job.state == JOB_FAILED
-    assert job.human_readable_error == (
-        "None of the applications in this template can be installed here."
-    )
-
-    assert not workspace.application_set.exists()
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_installing_a_user_template_of_only_agents_with_the_flag_off_fails(
-    data_fixture, configured_agent, settings
-):
-    owner = data_fixture.create_user()
-    agent = configured_agent(user=owner)
-    copy = UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
-    revision = data_fixture.create_template(workspace=copy)
-    content = UserTemplateHandler().serialize_template_content(revision)
-    settings.FEATURE_FLAGS = []
-    target = data_fixture.create_workspace(user=owner)
-
-    with pytest.raises(TemplateHasNoContent), transaction.atomic():
-        UserTemplateHandler().install_template_content(owner, target, revision, content)
-
-    assert not target.application_set.exists()
-
-
-class GrantAgentBuilderPlugin(Plugin):
-    type = "test_grant_agent_builder"
-
-    def get_user_feature_flags(self, user):
-        return {FF_AGENT_BUILDER}
-
-
-@pytest.mark.django_db(transaction=True)
-def test_a_template_install_keeps_agents_for_a_user_granted_the_flag(
-    data_fixture, configured_agent, settings, tmp_path
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    (tmp_path / "agent-only.json").write_text(
-        json.dumps(
-            {
-                "baserow_template_version": 1,
-                "name": "Agent only",
-                "icon": "iconoir-shop",
-                "keywords": [],
-                "categories": ["Agents"],
-                "export": export_for_template([agent]),
-            }
-        )
-    )
-    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
-    CoreHandler().sync_templates(pattern="agent-only")
-    template = Template.objects.get(slug="agent-only")
-    workspace = data_fixture.create_workspace(user=user)
-    settings.FEATURE_FLAGS = []
-    plugin = GrantAgentBuilderPlugin()
-
-    with patch.dict(plugin_registry.registry, {plugin.type: plugin}):
-        job = JobHandler().create_and_start_job(
-            user,
-            InstallTemplateJobType.type,
-            sync=True,
-            workspace_id=workspace.id,
-            template_id=template.id,
-        )
-
-    job.refresh_from_db()
-    assert job.state == JOB_FINISHED
-    assert AgentApplication.objects.filter(workspace=workspace).count() == 1
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_a_zip_import_keeps_agents_for_a_user_granted_the_flag(
-    data_fixture, configured_agent, settings, use_tmp_media_root
-):
-    user = data_fixture.create_user()
-    agent = configured_agent(user=user)
-    export_path = data_fixture.export_workspace_applications_file([agent])
-    settings.FEATURE_FLAGS = []
-    plugin = GrantAgentBuilderPlugin()
-
-    with patch.dict(plugin_registry.registry, {plugin.type: plugin}):
-        applications = data_fixture.import_workspace_applications_file(export_path)
-
-    assert [application.get_type().type for application in applications] == ["agent"]
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_a_user_template_keeps_agents_for_a_user_granted_the_flag(
-    data_fixture, configured_agent, settings
-):
-    owner = data_fixture.create_user()
-    agent = configured_agent(user=owner)
-    target = data_fixture.create_workspace(user=owner)
-    settings.FEATURE_FLAGS = []
-    plugin = GrantAgentBuilderPlugin()
-
-    with patch.dict(plugin_registry.registry, {plugin.type: plugin}):
-        copy = UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
-        revision = data_fixture.create_template(workspace=copy)
-        content = UserTemplateHandler().serialize_template_content(revision)
-        applications = UserTemplateHandler().install_template_content(
-            owner, target, revision, content
-        )
-
-    assert AgentApplication.objects.filter(workspace=copy).count() == 1
-    assert [application.get_type().type for application in applications] == ["agent"]
-
-
-@pytest.mark.django_db(transaction=True)
-def test_signing_up_with_a_template_of_only_agents_with_the_flag_off_works(
-    data_fixture, configured_agent, settings, tmp_path, api_client
-):
-    data_fixture.create_password_provider()
-    author = data_fixture.create_user()
-    agent = configured_agent(user=author)
-    (tmp_path / "agent-only.json").write_text(
-        json.dumps(
-            {
-                "baserow_template_version": 1,
-                "name": "Agent only",
-                "icon": "iconoir-shop",
-                "keywords": [],
-                "categories": ["Agents"],
-                "export": export_for_template([agent]),
-            }
-        )
-    )
-    settings.APPLICATION_TEMPLATES_DIR = str(tmp_path)
-    CoreHandler().sync_templates(pattern="agent-only")
-    template = Template.objects.get(slug="agent-only")
-    settings.FEATURE_FLAGS = []
-
-    response = api_client.post(
-        reverse("api:user:index"),
-        {
-            "name": "Visitor",
-            "email": "visitor@example.com",
-            "password": "thisIsAValidPassword",
-            "template_id": template.id,
-        },
-        format="json",
-    )
-
-    assert response.status_code == HTTP_200_OK, response.json()
-    user = User.objects.get(email="visitor@example.com")
-    workspace = WorkspaceUser.objects.get(user=user).workspace
-    assert user.profile.completed_onboarding
-    assert not workspace.application_set.exists()
-
-
-@pytest.mark.django_db
-def test_a_user_template_of_only_agents_the_owner_cant_import_fails(
-    data_fixture, configured_agent, settings
-):
-    owner = data_fixture.create_user()
-    agent = configured_agent(user=owner)
-    settings.FEATURE_FLAGS = []
-
-    with pytest.raises(TemplateHasNothingToInstall):
-        UserTemplateHandler().copy_applications(owner, [agent], name="Copy")
-
-
-def test_creating_a_user_template_with_nothing_to_copy_says_why():
-    message = CreateUserTemplateJobType.job_exceptions_map[TemplateHasNothingToInstall]
-    assert list(CreateUserTemplateJobType.job_exceptions_map).index(
-        TemplateHasNothingToInstall
-    ) < list(CreateUserTemplateJobType.job_exceptions_map).index(TemplateHasNoContent)
-    assert message == (
-        "Some of the selected applications can't be copied into a template."
-    )
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db(transaction=True)
-def test_a_user_template_missing_an_agent_the_owner_cant_import_fails(
-    data_fixture, configured_agent, settings
-):
-    owner = data_fixture.create_user()
-    agent = configured_agent(user=owner)
-    database = data_fixture.create_database_application(workspace=agent.workspace)
-    settings.FEATURE_FLAGS = []
-
-    with pytest.raises(TemplateHasNothingToInstall):
-        UserTemplateHandler().copy_applications(owner, [database, agent], name="Copy")

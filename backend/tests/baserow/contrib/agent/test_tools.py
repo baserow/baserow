@@ -193,6 +193,8 @@ def test_tool_names_and_whether_they_change_data_stay_the_same():
     assert {
         tool_type.type: tool_type.changes_data
         for tool_type in agent_tool_type_registry.get_all()
+        # The other editions pin the tools they register.
+        if type(tool_type).__module__.startswith("baserow.")
     } == {name: changes_data for name, (changes_data, _) in TOOLS.items()}
     assert set(PRESENTATIONS) == set(TOOLS)
     assert list(ToolErrorCode) == PRESENTATION_CONTRACT["step_error_codes"]

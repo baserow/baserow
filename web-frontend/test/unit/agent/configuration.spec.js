@@ -1549,6 +1549,51 @@ describe('Agent configuration', () => {
     }
   )
 
+  test('locks a tool the workspace cannot use and explains why instead of allowing it', async () => {
+    const show = vi.fn()
+    const LockedModal = { methods: { show }, render: () => null }
+    vi.spyOn(
+      testApp.getRegistry().get('toolPresentation', 'delete_rows'),
+      'getDeactivatedClickModal'
+    ).mockReturnValue([LockedModal, {}])
+    const configuration = withTools(['list_tables', 'create_rows'])
+    configuration.available_tools.find(
+      ({ name }) => name === 'delete_rows'
+    ).deactivated = true
+    configuration.available_tools.push({
+      name: 'locked_without_modal',
+      group: 'database',
+      changes_data: true,
+      deactivated: true,
+    })
+    mockConfiguration(testApp, configuration)
+    const wrapper = await mount()
+    await openSection(wrapper, 'agent.workspaceAccess')
+    const tools = wrapper.get('.agent-workspace-tools')
+
+    // Every tool the workspace can use is allowed, so the preset is Everything.
+    expect(tools.get('.segment-control__button--active').text()).toBe(
+      'agent.toolsEverything'
+    )
+    await tools.get('button.agent-workspace-tools__group').trigger('click')
+    await flushPromises()
+    const lock = (tool) =>
+      inModal('.agent-tool-permissions__tool', tool).querySelector(
+        '.agent-tool-permissions__locked'
+      )
+    expect(lock('agent.toolCreateRows')).toBeNull()
+    // A lock stands where the tool would be allowed and asked first.
+    expect(toolInput('agent.toolDeleteRows', 'allow')).toBeNull()
+    expect(toolInput('agent.toolDeleteRows', 'ask-first')).toBeNull()
+    expect(lock('agent.toolDeleteRows').tagName).toBe('BUTTON')
+    expect(lock('locked_without_modal').tagName).toBe('I')
+
+    lock('agent.toolDeleteRows').click()
+    await flushPromises()
+
+    expect(show).toHaveBeenCalledTimes(1)
+  })
+
   test('enables database listing and asks before newly allowed database changes', async () => {
     const availableTools = [
       { name: 'list_databases', group: 'database', changes_data: false },

@@ -538,7 +538,16 @@ export const MultiPageElementTypeMixin = (Base) =>
       return true
     }
 
-    isVisible({ element, applicationContext }) {
+    /** Apply page sharing rules locally, or delegate ancestor checks to the base. */
+    isVisible({ element, applicationContext, checkAncestors = false }) {
+      if (checkAncestors) {
+        // The traversal calls this override for each element in its own context.
+        return super.isVisible({
+          element,
+          applicationContext,
+          checkAncestors,
+        })
+      }
       if (!super.isVisible({ element, applicationContext })) {
         return false
       }

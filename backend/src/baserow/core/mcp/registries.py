@@ -12,12 +12,14 @@ from typing import (
     Union,
     get_type_hints,
 )
+from uuid import uuid4
 
 from django.core.exceptions import ImproperlyConfigured
 
 from asgiref.sync import sync_to_async
 from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 
+from baserow.core.action.context import undo_redo_session
 from baserow.core.mcp.constants import LEGACY_DEFAULT_TOOLS
 from baserow.core.mcp.exceptions import MCPToolInputError, format_validation_error
 from baserow.core.mcp.models import MCPEndpoint
@@ -26,6 +28,15 @@ from baserow.core.registry import Instance, Registry
 if TYPE_CHECKING:
     from mcp import Tool
     from mcp.types import EmbeddedResource, ImageContent, TextContent
+
+
+def _call_in_undo_session(
+    endpoint: MCPEndpoint, action_group_id: str, function: Callable, *args
+) -> Any:
+    # Set on the thread that runs the call, because a cancelled call still runs
+    # to the end there after the async side has stopped waiting for it.
+    with undo_redo_session(endpoint.user, endpoint.undo_session_id, action_group_id):
+        return function(*args)
 
 
 class MCPTool(Instance):
@@ -145,7 +156,11 @@ class MCPTool(Instance):
                 raise MCPToolInputError(format_validation_error(exc)) from exc
         else:
             args = call_arguments
-        result = await sync_to_async(self._sync_call)(endpoint, args)
+        # Like a browser tab, so the `undo` tool can find what the call
+        # changed. Each call is its own group, so one undo takes it all back.
+        result = await sync_to_async(_call_in_undo_session)(
+            endpoint, str(uuid4()), self._sync_call, endpoint, args
+        )
         text = result if isinstance(result, str) else json.dumps(result)
         return [TextContent(type="text", text=text)]
 

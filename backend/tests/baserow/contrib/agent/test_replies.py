@@ -40,6 +40,7 @@ from baserow.contrib.agent.actions import (
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
 from baserow.contrib.agent.constants import (
     ASK_FIRST_INSTRUCTIONS,
+    CONVERSATION_USER_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
@@ -92,7 +93,7 @@ from baserow.core.tools.errors import ToolInputError
 from baserow.core.trash.handler import TrashHandler
 
 from ..integrations.mcp.utils import serve
-from .utils import agent_url, new_conversation, run_reply
+from .utils import agent_url, new_conversation, queued_reply, run_reply
 
 
 def start(user: AbstractUser, agent: AgentApplication) -> AgentMessageCreated:
@@ -405,7 +406,7 @@ def test_listed_replies_have_their_run_or_are_read_again(
 def test_the_model_gets_the_instructions_and_recent_history(
     data_fixture, configured_agent, mocker
 ):
-    user = data_fixture.create_user()
+    user = data_fixture.create_user(first_name="Ada \n Lovelace")
     agent = configured_agent(user=user, instructions="Be brief.")
     conversation = data_fixture.create_agent_conversation(user=user, agent=agent)
     step = {"id": "s", "input": {}, "facts": {}}
@@ -466,7 +467,22 @@ def test_the_model_gets_the_instructions_and_recent_history(
         ),
         ("ModelRequest", "Now?"),
     ]
-    assert seen[-1].instructions == "Be brief."
+    # The owner is named on one line, whatever their name holds.
+    assert seen[-1].instructions.startswith(
+        "Be brief.\n\n"
+        + CONVERSATION_USER_INSTRUCTIONS.format(name="Ada Lovelace", user_id=user.id)
+    )
+
+
+@pytest.mark.django_db
+def test_a_conversation_started_by_a_trigger_names_nobody_to_the_model(
+    data_fixture, configured_agent
+):
+    reply = queued_reply(data_fixture.create_agent_trigger(agent=configured_agent()))
+
+    request = AgentHandler().get_reply_request(AgentHandler().get_reply(reply.id))
+
+    assert request.conversation_user is None
 
 
 @pytest.mark.django_db
@@ -571,7 +587,11 @@ def test_workspace_identity_context_is_refreshed_for_each_reply(
     run_reply(ChatRun.objects.get(id=next_reply.run_id))
 
     assert "workspace access is no longer available" in seen[0]
-    assert seen[1] == "Be brief."
+    assert "workspace access is no longer available" not in seen[1]
+    assert seen[1].startswith(
+        "Be brief.\n\n"
+        + CONVERSATION_USER_INSTRUCTIONS.format(name=user.first_name, user_id=user.id)
+    )
 
 
 @pytest.mark.django_db

@@ -351,16 +351,7 @@ class UserHandler:
         user.default_workspace = workspace
 
         if not invited_to_workspace and template and workspace:
-            from baserow.core.user_templates.exceptions import (
-                TemplateHasNothingToInstall,
-            )
-
-            try:
-                core_handler.install_template(user, workspace, template)
-            except TemplateHasNothingToInstall:
-                # For example a template of only Agents while their feature flag
-                # is off. The account is still created, with an empty workspace.
-                pass
+            core_handler.install_template(user, workspace, template)
 
         if (
             # If the user accepted an invitation, then a workspace already exists

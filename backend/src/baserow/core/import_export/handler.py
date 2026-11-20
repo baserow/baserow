@@ -947,15 +947,6 @@ class ImportExportHandler:
             manifest = filtered_manifest
             prioritized_applications = list(filtered_manifest["applications"].keys())
 
-        # Types that can't be imported here are left out, the rest is imported.
-        prioritized_applications = [
-            application_type
-            for application_type in prioritized_applications
-            if application_type_registry.get(application_type).can_import(
-                import_export_config
-            )
-        ]
-
         application_count = sum(
             len(manifest["applications"][application_type]["items"])
             for application_type in prioritized_applications
@@ -1210,7 +1201,6 @@ class ImportExportHandler:
                     include_permission_data=False,
                     reduce_disk_space_usage=False,
                     only_structure=only_structure,
-                    imported_by=user,
                 )
 
                 imported_applications = self.import_multiple_applications(

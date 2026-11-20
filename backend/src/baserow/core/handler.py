@@ -2686,6 +2686,9 @@ class CoreHandler:
                 "Imports into a template workspace must provide the files."
             )
 
+        progress = ChildProgressBuilder.build(
+            progress_builder, len(exported_applications) * 1000
+        )
         id_mapping: Dict[str, Any] = {}
         if not import_export_config.keeps_unmapped_references:
             # The applications may come without the ones they reference, for example
@@ -2705,18 +2708,7 @@ class CoreHandler:
             ).import_application_priority
 
         prioritized_applications = sorted(
-            [
-                application
-                for application in exported_applications
-                if application_type_registry.get(application["type"]).can_import(
-                    import_export_config
-                )
-            ],
-            key=application_priority_sort,
-            reverse=True,
-        )
-        progress = ChildProgressBuilder.build(
-            progress_builder, len(prioritized_applications) * 1000
+            exported_applications, key=application_priority_sort, reverse=True
         )
 
         # If files_buffer is a bytes object, decompress it. Otherwise, use it directly
@@ -3025,19 +3017,6 @@ class CoreHandler:
             (t for t in installed_templates if t.slug == slug), None
         )
         hash_json = json.dumps(parsed_json["export"])
-        # A template synced without some of its applications, like ones behind a
-        # disabled feature flag, must be synced again once they can be imported.
-        left_out_types = sorted(
-            {
-                application["type"]
-                for application in parsed_json["export"]
-                if not application_type_registry.get(application["type"]).can_import(
-                    config
-                )
-            }
-        )
-        if left_out_types:
-            hash_json += json.dumps(left_out_types)
         export_hash = hashlib.sha256(hash_json.encode("utf-8")).hexdigest()
         keywords = (
             ",".join(parsed_json["keywords"]) if "keywords" in parsed_json else ""
@@ -3204,7 +3183,6 @@ class CoreHandler:
                 reduce_disk_space_usage=False,
                 is_duplicate=True,
                 is_template=True,
-                imported_by=user,
             ),
             storage=storage,
             progress_builder=progress_builder,
@@ -3212,17 +3190,6 @@ class CoreHandler:
 
         if files_buffer:
             files_buffer.close()
-
-        if not applications and parsed_json["export"]:
-            from baserow.core.user_templates.exceptions import (
-                TemplateHasNothingToInstall,
-            )
-
-            # Every application was left out, for example Agents behind a
-            # disabled feature flag. Reporting that as installed would be wrong.
-            raise TemplateHasNothingToInstall(
-                "No application of the template can be installed."
-            )
 
         self.mark_applications_installed_from_template(user, applications, template)
 

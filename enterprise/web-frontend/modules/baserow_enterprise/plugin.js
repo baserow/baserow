@@ -51,6 +51,11 @@ import {
   EnterpriseLicenseType,
   EnterpriseWithoutSupportLicenseType,
 } from '@baserow_enterprise/licenseTypes'
+import {
+  CreateRowCommentsToolPresentationType,
+  ListRowCommentsToolPresentationType,
+  SearchRowCommentsToolPresentationType,
+} from '@baserow_enterprise/agent/toolPresentationTypes'
 import { EnterprisePlugin } from '@baserow_enterprise/plugins'
 import { LocalBaserowUserSourceType } from '@baserow_enterprise/integrations/userSourceTypes'
 import {
@@ -367,6 +372,19 @@ export default defineNuxtPlugin({
     $registry.register(
       'webhookEvent',
       new RowsEnterViewWebhookEventType(context)
+    )
+
+    $registry.register(
+      'toolPresentation',
+      new ListRowCommentsToolPresentationType(context)
+    )
+    $registry.register(
+      'toolPresentation',
+      new SearchRowCommentsToolPresentationType(context)
+    )
+    $registry.register(
+      'toolPresentation',
+      new CreateRowCommentsToolPresentationType(context)
     )
 
     $registry.register('paidFeature', new SSOPaidFeature(context))

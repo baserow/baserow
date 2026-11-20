@@ -148,13 +148,12 @@ export default {
 
         // A template can optionally have a preferred application that must be opened
         // first in the preview. Try to select that one, and if that's not possible,
-        // then try to select the first application of the template.
+        // for example because its type is hidden, then try to select the first
+        // application of the template.
         const openApplication = this.applications.find(
           (a) => a.id === template.open_application
         )
-        if (openApplication) {
-          this.selectApplication(openApplication)
-        } else {
+        if (!openApplication || !this.selectApplication(openApplication)) {
           // Check if there is an application that can give us an initial page. The
           // database application type would for example return the first table as page.
           for (let i = 0; i < this.applications.length; i++) {

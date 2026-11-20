@@ -8,12 +8,14 @@ from asgiref.sync import async_to_sync, sync_to_async
 from loguru import logger
 from pydantic_ai import RunContext, Tool, ToolReturn
 from pydantic_ai.exceptions import ApprovalRequired
+from rest_framework.exceptions import PermissionDenied as DRFPermissionDenied
 
 from baserow.core.cache import local_cache
 from baserow.core.chat_runs.steps import ToolCallInputEvent
 from baserow.core.db import with_usable_db_connection
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.formula.registries import DataProviderTypeRegistry
+from baserow.core.models import Workspace
 from baserow.core.registries import subject_type_registry
 from baserow.core.registry import Instance, Registry
 from baserow.core.tools import ToolContext
@@ -107,6 +109,7 @@ def _call_tool(
     function = type(tool_type).function
     try:
         with local_cache.context():
+            tool_type.raise_if_deactivated(ctx.workspace)
             ctx = act_as_identity(ctx)
             if preview := tool_type.get_step_preview_input(ctx, arguments):
                 show_input(preview)
@@ -156,6 +159,7 @@ def hold_call(
 
     try:
         with local_cache.context():
+            tool_type.raise_if_deactivated(ctx.workspace)
             ctx = act_as_identity(ctx)
             if preview := tool_type.get_step_preview_input(ctx, arguments):
                 show_input(preview)
@@ -216,6 +220,31 @@ class AgentToolType(Instance):
     changes_data: bool = False
     """True when the tool creates, changes or deletes data. It then runs alone, and
     new Agents start without it."""
+
+    unavailable_reason: str = ""
+    """Why a workspace can't use the tool, worded to follow "because". The model of
+    an Agent that was allowed the tool is told, and nothing is told without one."""
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Whether the tool can't be used in a workspace, for lack of a licence for
+        example. A deactivated tool stays listed, so it can be offered locked.
+
+        :param workspace: The workspace of the Agent.
+        :return: True when the Agent can't be allowed the tool and can't call it.
+        """
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        """
+        :param workspace: The workspace of the Agent.
+        :raises PermissionDenied: When the tool is deactivated there. A type can
+            raise its own error instead, like the one for a missing licence.
+        """
+
+        if self.is_deactivated(workspace):
+            raise DRFPermissionDenied("This tool is deactivated.")
 
     def hold_call(
         self,

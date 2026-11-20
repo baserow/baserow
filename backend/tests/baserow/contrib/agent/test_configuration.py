@@ -19,6 +19,7 @@ from baserow.contrib.agent.constants import (
     AgentRunAsState,
 )
 from baserow.contrib.agent.handler import AgentHandler
+from baserow.contrib.agent.registries import agent_tool_type_registry
 from baserow.contrib.agent.types import AgentConfiguration
 from baserow.core.action.registries import action_type_registry
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
@@ -739,6 +740,7 @@ def test_allowed_tools_are_replaced_and_validated(
         "name": write_tool,
         "group": "database",
         "changes_data": True,
+        "deactivated": False,
     } in response.json()["available_tools"]
 
     response = api_client.patch(
@@ -748,6 +750,38 @@ def test_allowed_tools_are_replaced_and_validated(
     assert api_client.get(url).json()["allowed_tools"] == expected
 
     assert api_client.patch(url, {"allowed_tools": []}).json()["allowed_tools"] == []
+
+
+@pytest.mark.django_db
+def test_a_deactivated_tool_stays_listed_and_is_no_longer_allowed(
+    configured_agent, api_client, api_user, mocker
+):
+    agent = configured_agent(user=api_user)
+    identity = IdentityHandler().create_identity(
+        workspace=agent.workspace, name="Investor"
+    )
+    agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
+    agent.save()
+    AgentHandler().set_allowed_tools(agent, ["list_tables", "list_views"])
+    mocker.patch.object(
+        type(agent_tool_type_registry.get("list_views")),
+        "is_deactivated",
+        return_value=True,
+    )
+
+    url = agent_url(agent, "configuration")
+
+    configuration = api_client.get(url).json()
+    response = api_client.patch(url, {"allowed_tools": ["list_views"]})
+
+    assert {
+        "name": "list_views",
+        "group": "database",
+        "changes_data": False,
+        "deactivated": True,
+    } in configuration["available_tools"]
+    assert configuration["allowed_tools"] == ["list_tables"]
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db

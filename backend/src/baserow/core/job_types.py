@@ -88,7 +88,6 @@ from baserow.core.user_files.handler import delete_new_files_on_error
 from baserow.core.user_templates.exceptions import (
     TemplateBlocked,
     TemplateHasNoContent,
-    TemplateHasNothingToInstall,
     TemplateUpdated,
 )
 from baserow.core.user_templates.handler import UserTemplateHandler
@@ -190,9 +189,6 @@ class InstallTemplateJobType(JobType):
         PermissionException: ERROR_PERMISSION_DENIED[2],
         TemplateDoesNotExist: ERROR_TEMPLATE_DOES_NOT_EXIST[2],
         TemplateBlocked: ERROR_TEMPLATE_BLOCKED[2],
-        TemplateHasNothingToInstall: (
-            "None of the applications in this template can be installed here."
-        ),
         TemplateHasNoContent: "The content of the template was removed.",
         InstallTemplateMaxLocksExceededException: InstallTemplateMaxLocksExceededException.message,
     }

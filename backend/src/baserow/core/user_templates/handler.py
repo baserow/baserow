@@ -76,7 +76,6 @@ from baserow.core.user_templates.exceptions import (
     TemplateBlockReasonRequired,
     TemplateChangedDuringUpdate,
     TemplateHasNoContent,
-    TemplateHasNothingToInstall,
     TemplateNotReviewable,
     TemplateRejectReasonRequired,
     TemplateSlugGenerationFailed,
@@ -465,8 +464,6 @@ class UserTemplateHandler:
             progress.
         :param track_content: Called with the content created so far as keyword
             arguments.
-        :raises TemplateHasNothingToInstall: If any of the applications can't be
-            copied, for example an Agent the owner can't import.
         :return: The workspace holding the copy.
         """
 
@@ -495,27 +492,17 @@ class UserTemplateHandler:
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
         )
-        copied, _ = CoreHandler().import_applications_to_workspace(
+        CoreHandler().import_applications_to_workspace(
             workspace,
             serialized,
             files,
             dataclasses.replace(
-                config,
-                user_files_belong_to_workspace=True,
-                is_template_storage=True,
-                imported_by=owner,
+                config, user_files_belong_to_workspace=True, is_template_storage=True
             ),
             storage=storage,
             progress_builder=progress.create_child_builder(represents_progress=50),
             atomic_per_application=True,
         )
-        if len(copied) < len(serialized):
-            # An application was left out, for example an Agent the owner can't
-            # import because of its feature flag. The template would silently miss
-            # it, and every update of the same selection would miss it again.
-            raise TemplateHasNothingToInstall(
-                "Some of the selected applications can't be copied into a template."
-            )
 
         return workspace
 
@@ -684,15 +671,13 @@ class UserTemplateHandler:
         :param content: The content returned by `serialize_template_content`.
         :param progress_builder: A progress builder that allows for publishing
             progress.
-        :raises TemplateHasNothingToInstall: If none of its applications can be
-            installed here.
         :return: The installed applications.
         """
 
         # Unlike the copy into the template, the installed tables are used right
         # away, so their search data is filled in like with the official install.
         config = dataclasses.replace(
-            user_template_copy_config(), reduce_disk_space_usage=False, imported_by=user
+            user_template_copy_config(), reduce_disk_space_usage=False
         )
         applications, _ = CoreHandler().import_applications_to_workspace(
             workspace,
@@ -702,12 +687,6 @@ class UserTemplateHandler:
             storage=content.files.storage,
             progress_builder=progress_builder,
         )
-        if not applications and content.applications:
-            # Every application was left out, for example Agents behind a
-            # disabled feature flag, so there is no install to count.
-            raise TemplateHasNothingToInstall(
-                "No application of the template can be installed."
-            )
 
         CoreHandler().mark_applications_installed_from_template(
             user, applications, revision

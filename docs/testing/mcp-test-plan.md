@@ -126,6 +126,7 @@ The following tools are currently enabled:
 | `delete_rows` | Delete rows by ID |
 | `list_views` | List the views of a table |
 | `list_row_comments` | List a row's comments (premium) |
+| `search_row_comments` | Find the comments of a database by table, mention, author and date (premium) |
 | `create_row_comments` | Post comments on rows (premium) |
 | `create_database` | Create one database |
 | `update_database` | Rename a database |
@@ -347,9 +348,9 @@ Expected: `create_database`, `create_automation`, `create_dashboard` and
 sidebar. Ask Claude to rename each one: the matching `update_` tool is called
 and the sidebar shows the new name. A name of only spaces is refused.
 
-These writes can't be undone with Ctrl+Z in Baserow, because the action is
-stored without a client session id. Delete the application to take it back; it
-goes to the trash.
+These writes can't be undone with Ctrl+Z in Baserow, which only undoes the
+browser's own changes. With the `undo` tool turned on, ask Claude to undo the
+last rename: the old name is back in the sidebar.
 
 ### Create a new application website
 
