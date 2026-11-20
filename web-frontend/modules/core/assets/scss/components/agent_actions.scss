@@ -68,6 +68,39 @@
   }
 }
 
+.agent-action-card__lock {
+  display: flex;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $palette-neutral-700;
+  cursor: pointer;
+
+  @include rounded($rounded);
+
+  &:hover {
+    color: $palette-neutral-1200;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $palette-blue-500;
+    outline-offset: 2px;
+  }
+}
+
+.agent-action-card__switch--locked {
+  opacity: 0.5;
+}
+
+.agent-action-card__settings--locked > * {
+  opacity: 0.6;
+}
+
+.agent-action-card__settings--upgradable {
+  cursor: pointer;
+}
+
 .agent-action-card__misconfigured-context {
   max-width: min(320px, calc(100vw - 24px));
   padding: 12px;

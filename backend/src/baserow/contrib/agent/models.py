@@ -71,7 +71,7 @@ class AgentAction(TrashableModelMixin, CreatedAndUpdatedOnMixin, models.Model):
     description = models.TextField(blank=True, default="")
     inputs = models.JSONField(default=list, blank=True)
     enabled = models.BooleanField(default=True, db_default=True)
-    # An action acts outside Baserow, so like a tool that changes data it asks first.
+    # An action acts outside Baserow, so it asks first unless its type only reads.
     ask_first = models.BooleanField(default=True, db_default=True)
 
     class Meta:

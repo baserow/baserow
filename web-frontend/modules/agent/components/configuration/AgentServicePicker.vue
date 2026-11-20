@@ -87,8 +87,10 @@ async function focusMenu() {
 }
 
 function showLockedModal(item) {
+  const modal = lockedModals[item.value]
+  if (!modal) return
   context.value.hide()
-  lockedModals[item.value]?.show()
+  modal.show()
 }
 
 function select(item) {

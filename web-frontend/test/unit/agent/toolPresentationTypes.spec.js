@@ -56,7 +56,7 @@ describe('Agent tool presentations', () => {
           .failureHint
       ).toBeTruthy()
     }
-    // Connected app tools are named at runtime and claimed by prefix.
+    // Connected app tools and actions are named at runtime.
     expect(
       registry
         .getList('toolPresentation')

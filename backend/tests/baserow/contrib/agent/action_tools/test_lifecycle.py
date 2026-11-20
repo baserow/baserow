@@ -6,6 +6,7 @@ from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 
+from baserow.contrib.agent.action_tools.action_types import SMTPEmailAgentActionType
 from baserow.contrib.agent.action_tools.actions import (
     CreateAgentActionActionType,
     UpdateAgentActionActionType,
@@ -164,6 +165,24 @@ def test_duplicate_names_and_unregistered_types_are_rejected(
     assert AgentAction.objects.count() == 1
 
 
+@pytest.mark.django_db
+@pytest.mark.parametrize("changes_data", [True, False])
+def test_a_new_action_asks_first_when_its_type_changes_data(
+    data_fixture, mocker, changes_data
+):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    mocker.patch.object(SMTPEmailAgentActionType, "changes_data", changes_data)
+    service = AgentActionService()
+    assert service.create_action(user, agent.id, "smtp_email").ask_first is (
+        changes_data
+    )
+    explicit = service.create_action(
+        user, agent.id, "smtp_email", ask_first=not changes_data
+    )
+    assert explicit.ask_first is not changes_data
+
+
 def call(name, user, agent, action):
     service = AgentActionService()
     return {
@@ -306,17 +325,40 @@ def test_configuration_events_only_reach_configuration_readers(
 
 
 @pytest.mark.django_db
-def test_configuration_offers_only_registered_available_actions(
+def test_a_locked_action_type_is_listed_but_only_renamed_switched_or_deleted(
     data_fixture, api_client, api_user, mocker
 ):
     agent = data_fixture.create_agent_application(user=api_user)
-    assert api_client.get(agent_url(agent, "configuration")).json()[
-        "available_action_types"
-    ] == ["smtp_email", "http_request"]
+    action = data_fixture.create_agent_action(agent=agent)
     mocker.patch.object(CoreSMTPEmailServiceType, "is_deactivated", return_value=True)
-    assert api_client.get(agent_url(agent, "configuration")).json()[
-        "available_action_types"
-    ] == ["http_request"]
+    assert (
+        "smtp_email"
+        in api_client.get(agent_url(agent, "configuration")).json()[
+            "available_action_types"
+        ]
+    )
+    response = api_client.post(agent_url(agent, "actions:list"), {"type": "smtp_email"})
+    assert response.json()["error"] == "ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE"
+    for payload in (
+        {"description": "Other"},
+        {"ask_first": False},
+        {"inputs": []},
+        {"service": {"subject": {"formula": "'Hi'"}}},
+    ):
+        response = api_client.patch(action_url(agent, action), payload, format="json")
+        assert response.json()["error"] == "ERROR_AGENT_ACTION_TYPE_NOT_AVAILABLE"
+    response = api_client.patch(
+        action_url(agent, action), {"name": "renamed", "enabled": False}, format="json"
+    )
+    assert response.status_code == 200, response.json()
+    assert (response.json()["name"], response.json()["enabled"]) == ("renamed", False)
+    response = api_client.patch(
+        action_url(agent, action), {"enabled": True}, format="json"
+    )
+    assert response.json()["enabled"] is True
+    assert response.json()["errors"]["type"] == "unavailable"
+    assert AgentActionHandler().get_callable_actions(agent) == []
+    assert api_client.delete(action_url(agent, action)).status_code == 204
 
 
 @pytest.mark.django_db

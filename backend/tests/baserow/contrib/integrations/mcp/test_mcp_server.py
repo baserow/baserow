@@ -204,10 +204,10 @@ def test_mcp_servers_can_only_be_added_to_agents(data_fixture):
         integration_type, agent, url="https://mcp.example.com/mcp"
     )
     assert created.application_id == agent.id
-    # And an Agent holds nothing but MCP servers.
+    # An Agent holds only MCP servers and the integrations of its actions.
     with pytest.raises(ApplicationOperationNotSupported):
         IntegrationHandler().create_integration(
-            integration_type_registry.get("local_baserow"), agent
+            integration_type_registry.get("slack_bot"), agent
         )
 
 
