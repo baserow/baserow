@@ -96,6 +96,24 @@ describe('TemplatePage', () => {
     expect(wrapper.find('.list').isVisible()).toBe(false)
   })
 
+  test.each([true, false])(
+    'shows the tabs to the public templates, user_templates: %s',
+    async (enabled) => {
+      testApp.mock
+        .onGet('/templates/project-tracker/')
+        .reply(200, projectTracker)
+      testApp.mock.onGet('/templates/').reply(200, categories)
+      const wrapper = await testApp.mount(TemplatePage, {
+        route: '/template/project-tracker',
+        global: { stubs, mocks: { $featureFlagIsEnabled: () => enabled } },
+      })
+
+      await wrapper.find('.details__back').trigger('click')
+
+      expect(wrapper.find('.segment-control').exists()).toBe(enabled)
+    }
+  )
+
   test('shows the toasts, as it has no app layout', async () => {
     const wrapper = await mountPage('project-tracker')
 
@@ -355,7 +373,11 @@ describe('TemplatePage', () => {
       workspace: { id: workspaceId },
       tables: [],
     })
-    testApp.authenticate({ id: 1, preferences: {}, completed_onboarding: true })
+    testApp.authenticate({
+      id: 1,
+      preferences: {},
+      completed_onboarding: false,
+    })
     testApp.dontFailOnErrorResponses()
     testApp.mock.onGet('/workspaces/').reply(200, [{ id: 1, name: 'First' }])
     testApp.mock.onGet('/applications/').reply(200, [])
@@ -462,6 +484,28 @@ describe('TemplatePage', () => {
 
     expect(wrapper.find('.details').text()).toBe('Project Tracker:')
   })
+
+  test.each([
+    ['official', 'TemplatePreview', projectTracker],
+    ['user', 'TemplatePage', crm],
+  ])(
+    'LegacyTemplatePage shows an %s template in %s',
+    async (_type, shown, template) => {
+      testApp.mock.onGet(`/templates/${template.slug}/`).reply(200, template)
+
+      const wrapper = await testApp.mount(LegacyTemplatePage, {
+        route: `/template/${template.slug}`,
+        global: {
+          stubs: {
+            TemplatePage: { template: '<div class="TemplatePage" />' },
+            TemplatePreview: { template: '<div class="TemplatePreview" />' },
+          },
+        },
+      })
+
+      expect(wrapper.find(`.${shown}`).exists()).toBe(true)
+    }
+  )
 
   test.each([
     ['TemplatePage', TemplatePage],

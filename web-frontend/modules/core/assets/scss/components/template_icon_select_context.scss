@@ -4,16 +4,19 @@
 
 .template-icon-select-context__icons {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
   max-height: 200px;
   padding: 8px;
-  overflow-y: auto;
+  overflow: hidden auto;
 }
 
 .template-icon-select-context__icon {
   @include center-text(32px, 16px);
 
+  width: 100%;
+  max-width: 32px;
+  justify-self: center;
   border: none;
   background: none;
   color: $palette-neutral-1200;

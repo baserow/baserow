@@ -2,6 +2,7 @@ import path from 'path'
 import {
   defineNuxtModule,
   addPlugin,
+  addNitroPlugin,
   createResolver,
   extendPages,
   addRouteMiddleware,
@@ -72,6 +73,9 @@ export default defineNuxtModule({
     addPlugin({
       src: resolve('./plugins/extraClientScriptUrls.js'),
     })
+
+    addPlugin(resolve('./plugins/builderHeadHtml.server.js'))
+    addNitroPlugin(resolve('./server/plugins/builderHeadHtml.js'))
 
     addRouteMiddleware({
       name: 'enterpriseExtraClientScripts',

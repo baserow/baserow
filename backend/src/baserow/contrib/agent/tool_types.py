@@ -186,8 +186,17 @@ class CreateTablesAgentToolType(DatabaseAgentToolType):
     def get_step_facts(
         self, ctx: ToolContext, arguments: dict[str, Any], result: Any
     ) -> dict[str, Any]:
-        names = [table["name"] for table in result["created_tables"]]
-        return {"count": len(names), **({"table": ", ".join(names)} if names else {})}
+        tables = result["created_tables"]
+        if not tables:
+            return {"count": 0}
+        return {
+            "count": len(tables),
+            "table": ", ".join(table["name"] for table in tables),
+            "database_id": arguments["database_id"],
+            "created_tables": [
+                {"id": table["id"], "name": table["name"]} for table in tables
+            ],
+        }
 
 
 class CreateFieldsAgentToolType(DatabaseAgentToolType):

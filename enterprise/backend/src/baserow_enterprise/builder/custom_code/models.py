@@ -32,6 +32,13 @@ class BuilderCustomCode(models.Model):
 
     js = models.TextField(help_text="Custom JavaScript code.", blank=True)
 
+    html = models.TextField(
+        help_text="Custom HTML for the document head.",
+        blank=True,
+        default="",
+        db_default="",
+    )
+
 
 class BuilderCustomScript(models.Model):
     builder = models.ForeignKey(

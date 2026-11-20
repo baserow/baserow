@@ -17,6 +17,17 @@
       <McpOAuthConnections v-show="showOAuth" @loaded="oauthLoaded" />
       <div v-if="!oauthStatusLoaded" class="loading"></div>
       <div v-show="showEndpoints" data-test="mcp-endpoint-list">
+        <Alert
+          v-if="oauthEnabled"
+          type="warning"
+          class="margin-bottom-2"
+          data-test="mcp-endpoint-config-only"
+        >
+          <template #title>{{
+            $t('mcpEndpointSettings.configOnlyTitle')
+          }}</template>
+          {{ $t('mcpEndpointSettings.configOnlyMessage') }}
+        </Alert>
         <div class="align-right">
           <a class="button button--primary" @click.prevent="page = 'create'">
             {{ $t('mcpEndpointSettings.createEndpoint') }}

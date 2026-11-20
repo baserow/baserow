@@ -6,7 +6,7 @@
       </div>
       <div class="templates__header-title">
         {{ template.name }}
-        <small v-if="category !== null">{{ category.name }}</small>
+        <small v-if="category !== null">{{ categoryName(category) }}</small>
       </div>
       <div class="templates__install">
         <Dropdown
@@ -37,6 +37,7 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import TemplateService from '@baserow/modules/core/services/template'
+import { getCategoryName } from '@baserow/modules/core/utils/templateCategory'
 
 export default {
   name: 'LegacyTemplateHeader',
@@ -87,6 +88,9 @@ export default {
     },
   },
   methods: {
+    categoryName(category) {
+      return getCategoryName(category, { t: this.$t, te: this.$te })
+    },
     async install(template) {
       this.installing = true
       const workspaceId = this.targetWorkspaceId

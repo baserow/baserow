@@ -192,15 +192,7 @@ class AgentConfigurationSerializer(serializers.Serializer):
             Agent's workspace can't use it.
         """
 
-        return [
-            {
-                "name": tool_type.type,
-                "group": tool_type.group,
-                "changes_data": tool_type.changes_data,
-                "deactivated": tool_type.type in configuration.deactivated_tools,
-            }
-            for tool_type in agent_tool_type_registry.get_all()
-        ]
+        return AgentHandler().get_available_tools(configuration.deactivated_tools)
 
     @extend_schema_field(AgentRunAsSerializer(allow_null=True))
     def get_run_as(self, configuration: AgentConfiguration) -> dict | None:
@@ -464,6 +456,23 @@ class AgentToolApprovalSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentToolApproval
         fields = ("id", "step_id", "pause", "tool", "status", "reason")
+
+
+class AgentPendingReplySerializer(serializers.ModelSerializer):
+    conversation = AgentConversationSerializer(read_only=True)
+    approvals = AgentToolApprovalSerializer(source="pending_approvals", many=True)
+    steps = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AgentMessage
+        fields = ("uuid", "conversation", "approvals", "steps")
+
+    @extend_schema_field(AgentMessageStepSerializer(many=True))
+    def get_steps(self, reply):
+        pending = {item.step_id for item in reply.pending_approvals}
+        return AgentMessageStepSerializer(
+            [step for step in reply.steps or [] if step["id"] in pending], many=True
+        ).data
 
 
 class AgentMessageSerializer(serializers.ModelSerializer):

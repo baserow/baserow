@@ -180,7 +180,7 @@ describe('Agent components', () => {
       },
     })
     const header = wrapper.get('.agent-trigger-start__header')
-    const text = () => wrapper.get('.agent-trigger-start__text').text()
+    const card = wrapper.get('.agent-trigger-start')
 
     expect(wrapper.find('.chat-message__bubble').exists()).toBe(false)
     expect(header.get('.agent-trigger-start__icon').classes()).toContain(
@@ -190,11 +190,12 @@ describe('Agent components', () => {
       'agent.startedBy'
     )
     expect(header.attributes('aria-expanded')).toBe('false')
-    expect(text()).toBe('Trigger data:')
+    expect(card.classes()).toContain('agent-trigger-start--collapsed')
     await header.trigger('click')
 
     expect(header.attributes('aria-expanded')).toBe('true')
-    expect(text()).toBe(content)
+    expect(card.classes()).not.toContain('agent-trigger-start--collapsed')
+    expect(card.get('.agent-trigger-start__text').text()).toBe(content)
     expect(
       wrapper.get('.chat-message__footer time').attributes('datetime')
     ).toBe('2026-11-03T10:00:00Z')

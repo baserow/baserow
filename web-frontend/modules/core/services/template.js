@@ -38,7 +38,7 @@ export default (client) => {
       })
     },
     fetch(slug) {
-      return client.get(`/templates/${slug}/`)
+      return client.get(`/templates/${encodeURIComponent(slug)}/`)
     },
     install(workspaceId, templateId) {
       return client.post(`/templates/install/${workspaceId}/${templateId}/`)

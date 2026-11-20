@@ -16,6 +16,10 @@ class CustomCodeSerializer(serializers.ModelSerializer):
         fields = ["css", "js"]
 
 
+class CustomHtmlSerializer(serializers.Serializer):
+    html = serializers.CharField(read_only=True)
+
+
 class CustomScriptSerializer(serializers.ModelSerializer):
     class Meta:
         model = BuilderCustomScript
@@ -30,6 +34,11 @@ class EnterpriseBuilderCustomCodeSerializer(serializers.Serializer):
     scripts = serializers.SerializerMethodField(
         help_text="Scripts to embed for this application"
     )
+    head_html = serializers.CharField(source="custom_code.html", read_only=True)
+    has_head_html = serializers.SerializerMethodField()
+
+    def get_has_head_html(self, instance: Builder) -> bool:
+        return bool(instance.custom_code.html)
 
     class Meta:
         ref_name = "EnterpriseBuilderCustomCodeApplication"

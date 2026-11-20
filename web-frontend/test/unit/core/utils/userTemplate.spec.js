@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import {
   canMakePrivate,
   canMakePublic,
+  getPublicAgainKey,
   makePublicResubmits,
 } from '@baserow/modules/core/utils/userTemplate'
 
@@ -28,4 +29,20 @@ describe('userTemplate visibility actions', () => {
       canMakePrivate(template),
     ]).toStrictEqual(expected)
   })
+})
+
+describe('getPublicAgainKey', () => {
+  test.each([
+    [false, 'public', 'publicAgainAnyTime'],
+    [false, 'rejected', 'publicAgainNeedsApproval'],
+    [false, 'in_review', 'publicAgainNeedsApproval'],
+    [true, 'public', 'publicAgainNeedsApproval'],
+  ])(
+    'with approval required %s, a %s template says %s',
+    (requireApproval, state, expected) => {
+      expect(getPublicAgainKey({ state }, requireApproval)).toBe(
+        `updateUserTemplateModal.${expected}`
+      )
+    }
+  )
 })

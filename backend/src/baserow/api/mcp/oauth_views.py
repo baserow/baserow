@@ -30,6 +30,7 @@ from baserow.core.mcp.oauth.authorize import (
     error_redirect_url,
     is_redirectable,
     issue_code,
+    requested_legacy_key,
     validate_query,
 )
 from baserow.core.mcp.oauth.throttling import MCPOAuthConsentRateThrottle
@@ -135,6 +136,54 @@ def _serialize_groups(tools) -> list[dict]:
     ]
 
 
+LEGACY_ENDPOINT_NOT_FOUND = "legacy_endpoint_not_found"
+
+
+class LegacyEndpointNotFound(Exception):
+    """The old endpoint URL's key matches none of the user's own endpoints."""
+
+
+def _legacy_endpoint(authorize_request, user) -> MCPEndpoint | None:
+    """
+    The user's own old endpoint whose `/mcp/<key>/sse` URL the client asked to
+    sign in for. The client keeps connecting to that URL with the key, so it only
+    ever gets this endpoint's workspace and tools.
+
+    :raises LegacyEndpointNotFound: When the key matches none of the user's own
+        endpoints.
+    :return: The endpoint, or None when the client asked for `/mcp`.
+    """
+
+    key = requested_legacy_key(authorize_request)
+    if key is None:
+        return None
+    endpoint = (
+        MCPEndpoint.objects.select_related("workspace")
+        .filter(key=key, user=user, oauth_client_id__isnull=True)
+        .first()
+    )
+    if endpoint is None or not CoreHandler().check_permissions(
+        user,
+        CreateMCPEndpointOperationType.type,
+        workspace=endpoint.workspace,
+        context=endpoint.workspace,
+        raise_permission_exceptions=False,
+    ):
+        raise LegacyEndpointNotFound()
+    return endpoint
+
+
+def _legacy_endpoint_not_found() -> Response:
+    # The same answer whether the key doesn't exist or is someone else's.
+    return Response(
+        {
+            "error": LEGACY_ENDPOINT_NOT_FOUND,
+            "detail": "The MCP endpoint of this URL doesn't exist or isn't yours.",
+        },
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
 class MCPOAuthConsentView(APIView):
     permission_classes = (IsAuthenticated,)
     throttle_classes = (*APIView.throttle_classes, MCPOAuthConsentRateThrottle)
@@ -143,9 +192,16 @@ class MCPOAuthConsentView(APIView):
         _require_oauth_enabled()
         query = request.query_params.get("query", "")
         try:
-            _, credentials = validate_query(request, request.user, query)
+            authorize_request, credentials = validate_query(
+                request, request.user, query
+            )
         except OAuthToolkitError as error:
             return _invalid_request(error)
+
+        try:
+            legacy = _legacy_endpoint(authorize_request, request.user)
+        except LegacyEndpointNotFound:
+            return _legacy_endpoint_not_found()
 
         workspace_users = list(
             WorkspaceUser.objects.filter(user=request.user)
@@ -164,6 +220,10 @@ class MCPOAuthConsentView(APIView):
                 raise_permission_exceptions=False,
             )
         ]
+        if legacy:
+            workspace_users = [
+                wu for wu in workspace_users if wu.workspace_id == legacy.workspace_id
+            ]
         grants = {
             str(endpoint.workspace_id): mcp_tool_registry.get_allowed_names(endpoint)
             for endpoint in MCPEndpoint.objects.filter(
@@ -172,7 +232,11 @@ class MCPOAuthConsentView(APIView):
                 workspace_id__in=[wu.workspace_id for wu in workspace_users],
             )
         }
-        tools = mcp_tool_registry.get_enabled_tools()
+        tools = (
+            mcp_tool_registry.get_allowed_tools(legacy)
+            if legacy
+            else mcp_tool_registry.get_enabled_tools()
+        )
         database_model = application_type_registry.get("database").model_class
         database_counts = dict(
             CoreService()
@@ -200,6 +264,13 @@ class MCPOAuthConsentView(APIView):
                 "grants": grants,
                 "tools": [_serialize_tool(tool) for tool in tools],
                 "groups": _serialize_groups(tools),
+                # Set when the client was given an old endpoint URL. It connects
+                # with that endpoint's key, so only its workspace and tools apply.
+                "legacy_endpoint": (
+                    {"name": legacy.name, "workspace_id": legacy.workspace_id}
+                    if legacy
+                    else None
+                ),
             }
         )
 
@@ -226,8 +297,36 @@ class MCPOAuthConsentView(APIView):
         if not data["allow"]:
             return Response({"redirect_url": deny_url(authorize_request, credentials)})
 
-        workspace = CoreHandler().get_workspace(data["workspace_id"])
+        try:
+            legacy = _legacy_endpoint(authorize_request, request.user)
+        except LegacyEndpointNotFound:
+            return _legacy_endpoint_not_found()
         client = _client_info(credentials)
+        if legacy:
+            # The client connects with the old endpoint's key, so the grant gets
+            # what that connection gets, whatever the form sent. A grant the
+            # client already has in the workspace keeps its tools, so signing in
+            # with the old URL never narrows a connection made through `/mcp`.
+            # Only enabled tools can be granted, so names of disabled tools are
+            # dropped, like when the client signs in again through `/mcp`.
+            workspace = legacy.workspace
+            existing = MCPEndpoint.objects.filter(
+                user=request.user,
+                workspace=workspace,
+                oauth_client_id=client["client_id"],
+            ).first()
+            tools = [
+                tool.name
+                for tool in mcp_tool_registry.get_allowed_tools(existing or legacy)
+            ]
+            if not tools:
+                # The form can't send an empty list, so this one can't be either.
+                raise MCPToolsNotAvailable(
+                    mcp_tool_registry.get_allowed_names(existing or legacy)
+                )
+        else:
+            workspace = CoreHandler().get_workspace(data["workspace_id"])
+            tools = data["tools"]
         try:
             # The grant only persists if a code was issued for it.
             with transaction.atomic():
@@ -238,7 +337,7 @@ class MCPOAuthConsentView(APIView):
                     client["client_name"][
                         : MCPEndpoint._meta.get_field("name").max_length
                     ],
-                    data["tools"],
+                    tools,
                 )
                 redirect_url = issue_code(authorize_request, credentials, endpoint)
         except OAuthToolkitError as error:

@@ -12,7 +12,7 @@ from oauthlib.oauth2.rfc6749.errors import InvalidClientIdError
 
 from .authorize import validate_query
 from .throttling import MCPOAuthAuthorizeRateThrottle, rate_limited
-from .validators import MCP_SCOPE
+from .validators import MCP_SCOPE, legacy_resource_key
 
 # The consent page shows its own text for these codes. Re-adding the server
 # registers an unknown client again; a rejected CIMD client fails the same way
@@ -75,9 +75,28 @@ class MCPAuthorizeRedirectView(View):
 
 class MCPProtectedResourceMetadataView(OAuthProtectedResourceMetadataView):
     """
-    Lists only `mcp`: `offline_access` is requested from the authorization server
-    and has no meaning for the resource itself.
+    Served for `/mcp` and for the old `/mcp/<key>/sse` URL, each naming itself as
+    the resource. Clients accept the `/mcp` document for any URL under it, so the
+    old URL gets its own: the client then asks to sign in for it, and the consent
+    page offers only that endpoint's tools. Lists only `mcp`: `offline_access` is
+    requested from the authorization server and has no meaning for the resource
+    itself.
     """
+
+    def get(self, request, *args, resource_path=None, **kwargs):
+        # Any other path gets the `/mcp` document, as before old URLs had their own.
+        # The old URL keeps the spelling it was asked for, because the client
+        # checks the document names the URL it was given.
+        resource = f"{settings.MCP_AUTHORIZATION_SERVER_URL}/{resource_path or ''}"
+        self.resource = (
+            resource
+            if legacy_resource_key(resource) is not None
+            else settings.MCP_RESOURCE_URL
+        )
+        return super().get(request, *args, **kwargs)
+
+    def get_resource(self, request):
+        return self.resource
 
     def get_scopes_supported(self):
         return [MCP_SCOPE]

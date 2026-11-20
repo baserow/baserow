@@ -191,13 +191,13 @@
 
 .agent-conversations__options {
   position: absolute;
-  top: 4px;
-  right: 0;
+  top: 6px;
+  right: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -243,6 +243,9 @@
 }
 
 .agent-conversations__private {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
   color: $palette-neutral-600;
   font-size: 12px;
 }
@@ -384,6 +387,12 @@
   padding: 8px 16px;
   border-bottom: 1px solid $palette-neutral-200;
   background: $palette-neutral-50;
+}
+
+.agent-approval__saving {
+  flex-shrink: 0;
+
+  @include loading-spinner($palette-neutral-700, 16px);
 }
 
 .agent-approval__icon {
@@ -1049,6 +1058,10 @@
   flex: 1;
 }
 
+.agent-mcp-tools__select-all {
+  margin-inline: auto 12px;
+}
+
 .agent-mcp-tools__head {
   display: flex;
   align-items: flex-start;
@@ -1074,7 +1087,11 @@
 }
 
 .agent-mcp-tools__tool-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   min-width: 0;
+  overflow-wrap: anywhere;
 
   .agent-tool-permissions__tool-name {
     display: flex;
@@ -1084,19 +1101,20 @@
   }
 }
 
-.agent-mcp-tools__tool-description {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
 .agent-mcp-tools__tool--removed {
   opacity: 0.6;
 }
 
-.agent-mcp-tools__parameters-toggle {
+.agent-mcp-tools__toggle {
+  align-self: flex-start;
   margin-top: 4px;
+}
+
+.agent-mcp-tools__description {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: $palette-neutral-900;
 }
 
 .agent-mcp-tools__parameters {
@@ -1136,24 +1154,16 @@
 }
 
 .agent-mcp-tools__schema {
-  margin-top: 4px;
+  max-height: 240px;
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  overflow: auto;
+  border-radius: 6px;
+  background-color: $palette-neutral-50;
   font-size: 12px;
   color: $palette-neutral-900;
-
-  summary {
-    cursor: pointer;
-  }
-
-  pre {
-    max-height: 240px;
-    margin: 4px 0 0;
-    padding: 8px 12px;
-    overflow: auto;
-    border-radius: 6px;
-    background-color: $palette-neutral-50;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .agent-connected-apps__auth {
@@ -1199,4 +1209,59 @@
 .agent-chat__shared-text {
   flex: 1;
   min-width: 0;
+}
+
+.agent-pending-approvals {
+  width: min(550px, calc(100vw - 24px));
+  max-height: min(65vh, 540px);
+  padding: 12px;
+  overflow: auto;
+}
+
+.agent-pending-approvals__reply + .agent-pending-approvals__reply {
+  margin-top: 8px;
+}
+
+.agent-approval--compact {
+  .agent-approval__header {
+    flex-wrap: nowrap;
+  }
+
+  .agent-approval__title {
+    flex-basis: 0;
+    display: flex;
+  }
+
+  .agent-approval__always-allow.button {
+    flex-shrink: 0;
+  }
+}
+
+.agent-pending-approvals__conversation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: $palette-neutral-1200;
+  cursor: pointer;
+
+  &:hover .agent-pending-approvals__conversation-name {
+    text-decoration: underline;
+  }
+
+  i {
+    flex-shrink: 0;
+    font-size: 16px;
+    color: $palette-neutral-700;
+  }
+}
+
+.agent-pending-approvals__conversation-name {
+  @extend %ellipsis;
 }

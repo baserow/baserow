@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useNuxtApp } from '#app'
 import { useStore } from 'vuex'
 import { useI18n } from 'vue-i18n'
@@ -38,6 +38,7 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
   const actions = ref([])
   const loading = ref(false)
   const loadError = ref(false)
+  const deletingIds = reactive(new Set())
   const savingIds = reactive(new Set())
   const saveErrors = reactive({})
   const saved = new Map()
@@ -265,14 +266,20 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
 
   async function deleteAction(action) {
     const entry = saved.get(action.id)
-    if (!entry) return
+    if (!entry || deletingIds.has(action.id)) return
+    deletingIds.add(action.id)
     entry.schedule.cancel()
     try {
       await service.delete(entry.agentId, action.id)
       if (saved.get(action.id) === entry) remove(action.id)
     } catch (error) {
       if (missing(error) && saved.get(action.id) === entry) remove(action.id)
-      else notifyIf(error, 'action')
+      else {
+        notifyIf(error, 'action')
+        if (saved.get(action.id) === entry) entry.schedule()
+      }
+    } finally {
+      deletingIds.delete(action.id)
     }
   }
 
@@ -322,7 +329,10 @@ export function useAgentActions(agent, onCallableChange = () => {}) {
   onBeforeUnmount(flushScheduledSaves)
 
   return {
-    actions,
+    actions: computed(() =>
+      actions.value.filter((action) => !deletingIds.has(action.id))
+    ),
+    allActions: actions,
     loading,
     loadError,
     savingIds,

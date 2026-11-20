@@ -17,9 +17,24 @@ from .validators import (
     OFFLINE_ACCESS_SCOPE,
     endpoint_scope,
     is_allowed_redirect_uri,
+    legacy_resource_key,
 )
 
 AUTHORIZE_PATH = "/oauth/authorize/"
+
+
+def requested_legacy_key(request: HttpRequest) -> str | None:
+    """
+    The endpoint key of the old endpoint URL the client asked to sign in for, or
+    None when it asked for `/mcp` or no resource. The request has been validated
+    by `validate_query`, so all its resources name the same key.
+    """
+
+    for resource in request.GET.getlist("resource"):
+        key = legacy_resource_key(resource)
+        if key is not None:
+            return key
+    return None
 
 
 def _authorize_request(original_request, user, query: str) -> HttpRequest:
@@ -102,8 +117,14 @@ def _validate(request: HttpRequest):
         )
 
     # The token audience is pinned to the MCP resource; a client asking for any other
-    # resource is rejected, a missing one is accepted.
-    if any(r != settings.MCP_RESOURCE_URL for r in request.GET.getlist("resource")):
+    # resource is rejected, a missing one is accepted. The old endpoint URL is
+    # accepted too, so the consent page can offer only that endpoint's tools.
+    resources = request.GET.getlist("resource")
+    legacy_keys = {legacy_resource_key(r) for r in resources} - {None}
+    if len(legacy_keys) > 1 or any(
+        r != settings.MCP_RESOURCE_URL and legacy_resource_key(r) is None
+        for r in resources
+    ):
         raise OAuthToolkitError(
             error=CustomOAuth2Error(
                 error="invalid_target",

@@ -142,7 +142,8 @@ describe('UserTemplatePrivateLinkContext', () => {
 
     expect(testApp.store.state.toast.items[0]).toMatchObject({
       type: 'error',
-      title: 'copied.linkFailed',
+      title: 'copied.linkFailedTitle',
+      message: 'copied.linkFailedMessage',
     })
     expect(wrapper.find('.copied--show').exists()).toBe(false)
   })

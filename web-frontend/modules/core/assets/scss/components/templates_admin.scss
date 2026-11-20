@@ -92,10 +92,27 @@
 .templates-admin-tabs {
   padding: 0 24px;
   margin-bottom: 24px;
+
+  .tabs__header {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
 }
 
 @media screen and (max-width: 600px) {
   .templates-admin-tabs {
     padding: 0 16px;
   }
+}
+
+.templates-admin-private-link {
+  font-size: 18px;
+}
+
+.templates-admin-private-link--on {
+  color: $palette-green-600;
+}
+
+.templates-admin-private-link--off {
+  color: $palette-red-500;
 }

@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal" small>
+  <Modal ref="modal" wide>
     <template #content>
       <template v-if="server">
         <h2 class="box__title">
@@ -15,6 +15,7 @@
             size="small"
             icon="iconoir-refresh"
             :loading="refreshing"
+            :disabled="saving"
             @click="refreshTools"
           >
             {{ $t('agent.connectedAppRefresh') }}
@@ -30,6 +31,21 @@
         <div v-else class="agent-tool-permissions__list">
           <div class="agent-tool-permissions__list-head">
             <span>{{ $t('agent.connectedAppTool') }}</span>
+            <Button
+              v-if="editable && availableTools.length"
+              type="secondary"
+              size="small"
+              class="agent-mcp-tools__select-all"
+              :disabled="saving || refreshing"
+              @click="selectAll(!allSelected)"
+              >{{
+                $t(
+                  allSelected
+                    ? 'agent.deselectAllTools'
+                    : 'agent.selectAllTools'
+                )
+              }}</Button
+            >
             <span class="agent-mcp-tools__columns">
               <span>{{ $t('agent.toolAllow') }}</span>
               <span>{{ $t('agent.toolAskFirst') }}</span>
@@ -55,36 +71,32 @@
                   {{ $t('agent.connectedAppToolRemoved') }}
                 </Badge>
               </div>
-              <div
+              <ButtonText
                 v-if="tool.description"
-                class="agent-tool-permissions__tool-description agent-mcp-tools__tool-description"
-                :title="tool.description"
+                v-bind="disclosure(tool, 'description')"
+              >
+                {{ $t('agent.toolDescription') }}
+              </ButtonText>
+              <p
+                v-if="tool.description && isOpen(tool, 'description')"
+                class="agent-mcp-tools__description"
               >
                 {{ tool.description }}
-              </div>
+              </p>
               <ButtonText
-                v-if="hasSchema(tool)"
-                class="agent-mcp-tools__parameters-toggle"
-                size="small"
-                :icon="
-                  expanded[tool.name]
-                    ? 'iconoir-nav-arrow-down'
-                    : 'iconoir-nav-arrow-right'
-                "
-                @click="toggle(tool.name)"
+                v-if="parameters(tool).length"
+                v-bind="disclosure(tool, 'parameters')"
               >
                 {{
-                  parameters(tool).length
-                    ? $t(
-                        'agent.connectedAppToolParameters',
-                        { count: parameters(tool).length },
-                        parameters(tool).length
-                      )
-                    : $t('agent.connectedAppToolSchema')
+                  $t(
+                    'agent.connectedAppToolParameters',
+                    { count: parameters(tool).length },
+                    parameters(tool).length
+                  )
                 }}
               </ButtonText>
               <ul
-                v-if="expanded[tool.name] && parameters(tool).length"
+                v-if="parameters(tool).length && isOpen(tool, 'parameters')"
                 class="agent-mcp-tools__parameters"
               >
                 <li
@@ -108,26 +120,36 @@
                   >
                 </li>
               </ul>
-              <details
-                v-if="expanded[tool.name]"
-                class="agent-mcp-tools__schema"
+              <ButtonText
+                v-if="hasSchema(tool)"
+                v-bind="disclosure(tool, 'schema')"
               >
-                <summary>{{ $t('agent.connectedAppToolSchema') }}</summary>
-                <pre>{{ JSON.stringify(tool.input_schema, null, 2) }}</pre>
-              </details>
+                {{ $t('agent.connectedAppToolSchema') }}
+              </ButtonText>
+              <pre
+                v-if="hasSchema(tool) && isOpen(tool, 'schema')"
+                class="agent-mcp-tools__schema"
+                >{{ JSON.stringify(tool.input_schema, null, 2) }}</pre
+              >
             </div>
             <span class="agent-mcp-tools__columns">
               <Checkbox
                 class="agent-tool-permissions__allow"
                 :model-value="choice(tool).enabled"
-                :disabled="!editable || tool.removed"
+                :disabled="!editable || saving || refreshing || tool.removed"
                 @update:model-value="set(tool, 'enabled', $event)"
                 >{{ tool.title || tool.name }}</Checkbox
               >
               <Checkbox
                 class="agent-tool-permissions__ask-first"
                 :model-value="choice(tool).ask_first"
-                :disabled="!editable || tool.removed || !choice(tool).enabled"
+                :disabled="
+                  !editable ||
+                  saving ||
+                  refreshing ||
+                  tool.removed ||
+                  !choice(tool).enabled
+                "
                 @update:model-value="set(tool, 'ask_first', $event)"
                 >{{
                   $t('agent.toolAskFirstLabel', {
@@ -144,11 +166,11 @@
           </Button>
           <Button
             type="primary"
-            :disabled="!editable || !tools.length"
+            :disabled="!editable || refreshing || !tools.length"
             :loading="saving"
             @click="done"
           >
-            {{ $t('agent.toolsDone') }}
+            {{ $t('action.save') }}
           </Button>
         </div>
       </template>
@@ -213,8 +235,23 @@ function hasSchema(tool) {
   return Object.keys(tool.input_schema ?? {}).some((key) => key !== 'type')
 }
 
-function toggle(name) {
-  expanded.value = { ...expanded.value, [name]: !expanded.value[name] }
+const isOpen = (tool, part) => Boolean(expanded.value[`${tool.name}:${part}`])
+
+function toggle(tool, part) {
+  const key = `${tool.name}:${part}`
+  expanded.value = { ...expanded.value, [key]: !expanded.value[key] }
+}
+
+/** Props and click handler for one collapsible part of a tool. */
+function disclosure(tool, part) {
+  const open = isOpen(tool, part)
+  return {
+    class: 'agent-mcp-tools__toggle',
+    size: 'small',
+    'aria-expanded': open,
+    icon: open ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right',
+    onClick: () => toggle(tool, part),
+  }
 }
 
 /**
@@ -237,7 +274,7 @@ function reset(next) {
   server.value = next
 }
 
-function show(next) {
+function show(next, { firstConnection = false } = {}) {
   opening++
   picked.value = {}
   expanded.value = {}
@@ -245,6 +282,7 @@ function show(next) {
   refreshing.value = false
   saving.value = false
   reset(next)
+  if (firstConnection) selectAll(true)
   modal.value.show()
 }
 
@@ -254,6 +292,23 @@ function set(tool, key, value) {
     ...picked.value,
     [tool.name]: { ...choice(tool), [key]: value },
   }
+}
+
+const availableTools = computed(() =>
+  tools.value.filter((tool) => !tool.removed)
+)
+const allSelected = computed(() =>
+  availableTools.value.every((tool) => choice(tool).enabled)
+)
+
+function selectAll(enabled) {
+  if (!props.editable) return
+  picked.value = Object.fromEntries(
+    availableTools.value.map((tool) => [
+      tool.name,
+      { ...choice(tool), enabled },
+    ])
+  )
 }
 
 async function refreshTools() {
@@ -278,8 +333,7 @@ async function done() {
   try {
     await props.save(
       server.value,
-      tools.value
-        .filter((tool) => !tool.removed)
+      availableTools.value
         // The server keeps a tool that changed since its pick as it is.
         .map((tool) => ({ name: tool.name, ...choice(tool) }))
     )

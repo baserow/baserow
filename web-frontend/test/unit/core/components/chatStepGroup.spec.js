@@ -101,18 +101,25 @@ describe('ChatStepGroup', () => {
     expect(wrapper.get(`[id="${detailsId}"]`).text()).toContain(
       'toolPresentation.input'
     )
-    expect(wrapper.get('pre').text()).toBe(JSON.stringify(values, null, 2))
+    const rows = wrapper.findAll('.chat-tool-input__table tr')
+    expect(rows.map((row) => row.get('th').text())).toEqual([
+      'table_id',
+      'rows',
+    ])
+    expect(rows[1].get('pre').text()).toBe(JSON.stringify(values.rows, null, 2))
     expect(wrapper.find('img').exists()).toBe(false)
-    expect(wrapper.get('pre').attributes('tabindex')).toBe('0')
+    expect(wrapper.get('.chat-tool-input__values').attributes('tabindex')).toBe(
+      '0'
+    )
     expect(wrapper.get('.chat-tool-input__note').text()).toBe(
       'toolPresentation.inputTruncated'
     )
 
     await wrapper.setProps({ status: 'done', title: 'Added 1 row' })
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.get('pre').text()).toContain('Amount')
+    expect(wrapper.get('.chat-tool-input__table').text()).toContain('Amount')
     await wrapper.get('button').trigger('click')
-    expect(wrapper.find('pre').exists()).toBe(false)
+    expect(wrapper.find('.chat-tool-input').exists()).toBe(false)
   })
 
   test('does not add a toggle without input', () => {

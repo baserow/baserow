@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.http import HttpRequest
 from django.shortcuts import reverse
 
 import pytest
@@ -60,7 +61,7 @@ def test_rolled_back_consent_leaves_no_audit_log_entry(
     with (
         patch(
             "baserow.api.mcp.oauth_views.validate_query",
-            return_value=(None, credentials),
+            return_value=(HttpRequest(), credentials),
         ),
         patch("baserow.api.mcp.oauth_views.issue_code", side_effect=error),
     ):

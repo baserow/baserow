@@ -919,13 +919,17 @@
     "remove": "Remove {subject}"
   },
   "builderSettingTypes": {
-    "customCode": "Custom CSS/JS"
+    "customCode": "Custom code"
   },
   "customCodeSettingForm": {
     "customCSS": "Custom CSS",
     "customJS": "Custom JavaScript",
+    "customHtml": "Custom HTML in head",
+    "customHtmlSaveError": "Could not save the HTML. Edit the field to try again.",
+    "customHtmlNotInPreview": "Head HTML isn’t shown in Preview on this instance. It’s added to published sites.",
     "customCSSPlaceholder": "Enter some custom CSS code...",
     "customJSPlaceholder": "Enter some custom JS code...",
+    "customHtmlPlaceholder": "Enter some custom HTML code...",
     "externalScripts": "External scripts / stylesheets",
     "noScript": "Enhance your application with external scripts or stylesheets",
     "customCodeTitle": "Custom code",

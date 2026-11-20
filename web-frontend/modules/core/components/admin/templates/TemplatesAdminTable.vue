@@ -84,6 +84,7 @@ import TemplateAuthorField from '@baserow/modules/core/components/admin/template
 import TemplateReasonField from '@baserow/modules/core/components/admin/templates/fields/TemplateReasonField'
 import TemplateSubmittedField from '@baserow/modules/core/components/admin/templates/fields/TemplateSubmittedField'
 import TemplateUsedField from '@baserow/modules/core/components/admin/templates/fields/TemplateUsedField'
+import TemplatePrivateLinkField from '@baserow/modules/core/components/admin/templates/fields/TemplatePrivateLinkField'
 import TemplateReviewActionsField from '@baserow/modules/core/components/admin/templates/fields/TemplateReviewActionsField'
 import RejectTemplateModal from '@baserow/modules/core/components/admin/templates/RejectTemplateModal'
 import TemplateReviewModal from '@baserow/modules/core/components/admin/templates/TemplateReviewModal'
@@ -117,6 +118,11 @@ const TABS = [
     state: 'blocked',
     name: 'templatesAdmin.blockedTab',
     empty: 'templatesAdmin.blockedEmpty',
+  },
+  {
+    state: 'private',
+    name: 'templatesAdmin.privateTab',
+    empty: 'templatesAdmin.privateEmpty',
   },
 ]
 
@@ -278,22 +284,35 @@ async function focusRow(id) {
 }
 
 const STATE_COLUMNS = {
-  in_review: () =>
+  in_review: () => [
     new CrudTableColumn(
       'submitted',
       () => $i18n.t('templatesAdmin.submitted'),
       TemplateSubmittedField,
       true
     ),
-  public: () =>
+  ],
+  public: () => [usedColumn()],
+  rejected: () => [reasonColumn()],
+  blocked: () => [reasonColumn()],
+  private: () => [
     new CrudTableColumn(
-      'used',
-      () => $i18n.t('templatesAdmin.used'),
-      TemplateUsedField,
+      'private_link',
+      () => $i18n.t('templatesAdmin.privateLink'),
+      TemplatePrivateLinkField,
       true
     ),
-  rejected: reasonColumn,
-  blocked: reasonColumn,
+    usedColumn(),
+  ],
+}
+
+function usedColumn() {
+  return new CrudTableColumn(
+    'used',
+    () => $i18n.t('templatesAdmin.used'),
+    TemplateUsedField,
+    true
+  )
 }
 
 function reasonColumn() {
@@ -318,7 +337,7 @@ const columns = computed(() => [
     TemplateAuthorField,
     true
   ),
-  STATE_COLUMNS[state.value](),
+  ...STATE_COLUMNS[state.value](),
   new CrudTableColumn(
     'actions',
     '',

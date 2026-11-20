@@ -41,7 +41,7 @@
               @click="selectCategory(category.id)"
               @keydown.enter.prevent="selectCategory(category.id)"
               @keydown.space.prevent="selectCategory(category.id)"
-              >{{ category.name }}</a
+              >{{ categoryName(category) }}</a
             >
           </li>
         </ul>
@@ -150,6 +150,10 @@ import TemplateService from '@baserow/modules/core/services/template'
 import { getHumanAgoLabel } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { isOwnTemplate } from '@baserow/modules/core/utils/userTemplate'
+import {
+  getCategoryName,
+  sortCategories,
+} from '@baserow/modules/core/utils/templateCategory'
 import InfiniteScroll from '@baserow/modules/core/components/helpers/InfiniteScroll'
 import TemplateEmptyState from '@baserow/modules/core/components/template/TemplateEmptyState'
 
@@ -176,12 +180,19 @@ const { $client, $i18n, $priorityBus } = useNuxtApp()
 
 const allTemplates = computed(() => $i18n.t('templateCategories.allTemplates'))
 
+function categoryName(category) {
+  return getCategoryName(category, $i18n)
+}
+
 // Shown on hover too, because the date is cut when the card is narrow.
 const updatedLabel = (t, updatedOn) =>
   t('publicTemplateList.updated', { ago: getHumanAgoLabel(t, updatedOn) })
 
 // The categories holding a public template.
-const categories = ref([])
+const fetchedCategories = ref([])
+const categories = computed(() =>
+  sortCategories(fetchedCategories.value, $i18n)
+)
 const searchInput = ref(null)
 const search = ref(props.initialSearch)
 const categoryId = ref(null)
@@ -262,7 +273,7 @@ async function fetchCategories() {
     if (request !== lastCategoriesRequest) {
       return
     }
-    categories.value = data
+    fetchedCategories.value = data
     // The chosen category is gone once it holds no public template, for example
     // after the user's template was made private, so all templates are shown.
     if (

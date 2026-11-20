@@ -148,15 +148,36 @@ describe('UpdateUserTemplateModal', () => {
     }
   )
 
-  test('tells nothing of the review when the template is made private', async () => {
-    const wrapper = await mountAndShow(
-      'details',
-      userTemplate({ state: 'public', listed: true, update_needs_review: true })
-    )
-    await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
+  test.each([
+    [true, true, 'publicAgainNeedsApproval'],
+    [true, false, 'publicAgainAnyTime'],
+    [false, true, null],
+  ])(
+    'tells what Private costs a listed (%s) template, approval required: %s',
+    async (listed, requireApproval, notice) => {
+      testApp.store.commit('settings/UPDATE_SETTINGS', {
+        user_templates_require_approval: requireApproval,
+      })
+      const wrapper = await mountAndShow(
+        'details',
+        userTemplate({
+          state: listed ? 'public' : 'private',
+          listed,
+          update_needs_review: true,
+        })
+      )
+      const notices = () => wrapper.findAll('.alert p').map((p) => p.text())
+      const before = notices()
+      await chooseVisibility(wrapper, 'userTemplateVisibilityForm.private')
 
-    expect(wrapper.findAll('.alert p')).toHaveLength(0)
-  })
+      expect(notices()).toStrictEqual(
+        notice ? [`updateUserTemplateModal.${notice}`] : []
+      )
+      if (notice) {
+        expect(before).not.toContain(`updateUserTemplateModal.${notice}`)
+      }
+    }
+  )
 
   describe('details', () => {
     test('are prefilled from the template', async () => {
@@ -234,6 +255,50 @@ describe('UpdateUserTemplateModal', () => {
         ['Personal', false],
         ['Retired', true],
       ])
+    })
+
+    test('drop the categories authors cannot pick, and keep hidden ones', async () => {
+      let request = null
+      testApp.mock.onPost('/jobs/').reply((config) => {
+        request = JSON.parse(config.data)
+        return [200, runningJob()]
+      })
+      const wrapper = await testApp.mount(UpdateUserTemplateModal, {
+        props: {
+          template: userTemplate({
+            categories: [
+              { id: 4, name: 'Most Popular', user_selectable: false },
+              { id: 2, name: 'Personal', user_selectable: true },
+              { id: 5, name: 'Retired', user_selectable: true },
+              { id: 6, name: 'Baserow', user_selectable: false },
+            ],
+          }),
+          mode: 'details',
+          categories: [
+            ...categories,
+            { id: 4, name: 'Most Popular', user_selectable: false },
+          ],
+        },
+        global: { stubs: { Modal: ModalStub } },
+      })
+      await wrapper.vm.show()
+      await flushPromises()
+
+      expect(
+        wrapper
+          .findAll('.chips')
+          .map((chip) => [chip.text(), chip.classes('chips--active')])
+      ).toStrictEqual([
+        ['Business', false],
+        ['Personal', true],
+        ['Retired', true],
+      ])
+
+      await wrapper.find('input').setValue('Sprints')
+      await saveButton(wrapper).trigger('click')
+      await flushPromises()
+
+      expect(request.category_ids).toStrictEqual([2, 5])
     })
 
     test('send the template and the details', async () => {
@@ -349,7 +414,8 @@ describe('UpdateUserTemplateModal', () => {
 
       expect(testApp.store.state.toast.items[0]).toMatchObject({
         type: 'warning',
-        title: 'updateUserTemplateModal.failedPublicAfterUpdated',
+        title: 'updateUserTemplateModal.failedPublicAfterUpdatedTitle',
+        message: 'updateUserTemplateModal.failedPublicAfterUpdatedMessage',
       })
     })
 
@@ -711,7 +777,7 @@ describe('UpdateUserTemplateModal', () => {
       ['TemplateBlocked', 'blockedAfterUpdated'],
     ])(
       'is handled as updated when it failed after the revision (%s)',
-      async (code, title) => {
+      async (code, toast) => {
         const wrapper = await startContentUpdate()
 
         await updateJob(testApp.store, 7, {
@@ -725,7 +791,8 @@ describe('UpdateUserTemplateModal', () => {
         expect(wrapper.emitted('updated')).toHaveLength(1)
         expect(testApp.store.state.toast.items[0]).toMatchObject({
           type: 'warning',
-          title: `updateUserTemplateModal.${title}`,
+          title: `updateUserTemplateModal.${toast}Title`,
+          message: `updateUserTemplateModal.${toast}Message`,
         })
         expect(refreshed).toBe(1)
       }

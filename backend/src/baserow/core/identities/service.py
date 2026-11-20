@@ -6,6 +6,7 @@ from baserow.core.handler import CoreHandler
 from baserow.core.identities.exceptions import IdentityRoleDoesNotExist
 from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.operations import (
+    BindIdentityOperationType,
     CreateIdentityOperationType,
     DeleteIdentityOperationType,
     ListIdentitiesWorkspaceOperationType,
@@ -168,9 +169,9 @@ class IdentityService:
         raise_permission_exceptions: bool = True,
     ) -> bool:
         """
-        Checks whether the user may make an application act as an identity of the
-        workspace. Everyone who can edit that application then uses the identity's
-        access, so binding takes the permission to manage identities. Keeping or
+        Checks whether the user may make an application act as an existing identity
+        of the workspace. Builders may, although the identity can reach data they
+        can't; creating and managing identities stays with admins. Keeping or
         clearing an existing binding needs no check.
 
         :param user: The user binding the identity.
@@ -183,7 +184,7 @@ class IdentityService:
 
         return CoreHandler().check_permissions(
             user,
-            UpdateIdentityOperationType.type,
+            BindIdentityOperationType.type,
             workspace=workspace,
             context=workspace,
             raise_permission_exceptions=raise_permission_exceptions,

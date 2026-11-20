@@ -50,8 +50,10 @@ The backend emits `step` events and saves the same steps on the assistant messag
   runs, before the tool changes anything; see
   [Readable requests](#readable-requests).
 - `facts` are confirmed after an authorized success: a count, and the names of
-  created or read tables. A requested count doesn't prove how many items
-  changed. A batch that partly fails is `done` with the count the tool reports.
+  created or read tables. Successful table creation also records the database ID
+  and each created table's ID and name so the card can link to the table.
+  A requested count doesn't prove how many items changed. A batch that partly
+  fails is `done` with the count the tool reports.
 - `error_code` is set on failed steps: `not_found`, `permission_denied`,
   `invalid_input`, `invalid_formula`, `conflict`, `failed` or `not_run`, for a
   held call that ended without running. For an exception
@@ -97,7 +99,8 @@ failed steps too.
   written.
 - Reads of one table name only the table, so a held read shows what it reads.
 
-The card shows `values` as indented JSON, collapsed by default.
+Tool details start collapsed. Objects with keys are shown as a two-column table.
+Nested objects, arrays and other JSON values retain their JSON formatting.
 
 ### Configured actions
 

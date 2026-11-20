@@ -37,6 +37,7 @@ import { TEMPLATE_MODERATION } from '@baserow/modules/core/composables/useTempla
 import { useUserTemplateDownload } from '@baserow/modules/core/composables/useUserTemplateDownload'
 import { useCopyLink } from '@baserow/modules/core/composables/useCopyLink'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { getTemplateLinkUrl } from '@baserow/modules/core/utils/userTemplate'
 
 const TEMPLATE_ADMIN_MENU_ITEMS = {
   in_review: [
@@ -62,6 +63,12 @@ const TEMPLATE_ADMIN_MENU_ITEMS = {
     { name: 'preview' },
     { name: 'download' },
     { name: 'unblock', separator: true },
+    { name: 'delete', separator: true },
+  ],
+  private: [
+    { name: 'preview' },
+    { name: 'download' },
+    { name: 'block', separator: true },
     { name: 'delete', separator: true },
   ],
 }
@@ -136,13 +143,11 @@ const ACTIONS = {
   },
   copyLink() {
     return copyLink(
-      new URL(
-        router.resolve({
-          name: 'template',
-          params: { slug: props.template.slug },
-        }).href,
+      getTemplateLinkUrl(
+        props.template,
+        router,
         config.public.publicWebFrontendUrl
-      ).toString(),
+      ),
       copied
     )
   },

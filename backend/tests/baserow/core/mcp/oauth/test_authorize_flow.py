@@ -108,6 +108,30 @@ def test_authorize_rejects_foreign_resource(client):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("suffix", ["", "/"])
+def test_authorize_accepts_the_old_endpoint_url_as_resource(client, settings, suffix):
+    # The consent page then offers only that endpoint's tools.
+    client_id = cimd_client(client)
+    _, challenge = pkce_pair()
+    old_url = f"{settings.MCP_RESOURCE_URL}/some-endpoint-key/sse{suffix}"
+    query = (
+        authorize_query(client_id, challenge) + "&" + urlencode({"resource": old_url})
+    )
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert "/mcp-authorize/" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_authorize_rejects_two_old_endpoint_urls(client, settings):
+    client_id = cimd_client(client)
+    _, challenge = pkce_pair()
+    resources = [("resource", f"{settings.MCP_RESOURCE_URL}/{key}/sse") for key in "ab"]
+    query = authorize_query(client_id, challenge) + "&" + urlencode(resources)
+    response = client.get(f"/oauth/authorize/?{query}")
+    assert_consent_page_error(response, "invalid_target")
+
+
+@pytest.mark.django_db
 def test_consent_post_rejects_plain_challenge_method(client, api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -664,3 +688,56 @@ def test_deny_replaces_an_iss_the_redirect_uri_carries(
     query = parse_qs(urlparse(response.json()["redirect_url"]).query)
     assert query["iss"] == [ISSUER]
     assert query["error"] == ["access_denied"]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("suffix", ["", "/"])
+def test_full_flow_with_the_old_endpoint_url_as_resource(
+    client, api_client, data_fixture, suffix
+):
+    # Clients send the URL they were given as the resource of the authorize,
+    # token and refresh requests alike.
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    legacy = data_fixture.create_mcp_endpoint(
+        user=user, workspace=workspace, allowed_tools=["list_databases"]
+    )
+    old_url = f"{settings.MCP_RESOURCE_URL}/{legacy.key}/sse{suffix}"
+    verifier, challenge = pkce_pair()
+    client_id = cimd_client(client)
+    query = authorize_query(client_id, challenge).replace(
+        urlencode({"resource": settings.MCP_RESOURCE_URL}),
+        urlencode({"resource": old_url}),
+    )
+    response = post_consent(api_client, token, allow_body(query, workspace))
+    assert response.status_code == 200, response.content
+    code = parse_qs(urlparse(response.json()["redirect_url"]).query)["code"][0]
+
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+            "client_id": client_id,
+            "code_verifier": verifier,
+            "resource": old_url,
+        },
+    )
+    assert response.status_code == 200, response.content
+    tokens = response.json()
+    checksum = hashlib.sha256(tokens["access_token"].encode()).hexdigest()
+    assert AccessToken.objects.get(token_checksum=checksum).resource == [
+        settings.MCP_RESOURCE_URL
+    ]
+
+    response = client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": client_id,
+            "resource": old_url,
+        },
+    )
+    assert response.status_code == 200, response.content

@@ -32,6 +32,7 @@
         :modal-title="$t('customCodeSettingForm.customJS')"
       />
     </FormGroup>
+    <slot name="head-html" />
     <hr class="margin-top-3 margin-bottom-3" />
     <div class="custom-code__add-script">
       <ButtonText
