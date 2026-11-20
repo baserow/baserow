@@ -453,7 +453,10 @@ def started_table_ids(node: AutomationNode, _visited: set[int] = None) -> set[in
     for workflow in AutomationWorkflow.objects_and_trash.filter(
         Q(id=service.workflow_id) | Q(automation__published_from_id=service.workflow_id)
     ):
-        for other in AutomationNodeHandler().get_nodes(workflow, with_cache=False):
+        # Trashed too, as they can have run in the answers of runs made before.
+        for other in AutomationNodeHandler().get_nodes(
+            workflow, base_queryset=AutomationNode.objects_and_trash.all()
+        ):
             table_ids |= node_table_ids(other) | started_table_ids(other, visited)
     return table_ids
 

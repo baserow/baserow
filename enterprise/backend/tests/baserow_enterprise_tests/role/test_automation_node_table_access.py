@@ -1971,3 +1971,192 @@ def test_the_fill_can_be_run_again_by_hand(workflow_on_a_secret_table, test_run_
     assert not AutomationNodeHistory.objects.filter(
         workflow_history__workflow=workflow, read_table_ids__isnull=True
     ).exists()
+
+
+@pytest.mark.django_db
+def test_a_workflow_imported_without_the_tables_gets_them(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+    from baserow.core.integrations.models import Integration
+
+    admin, workflow, trigger, admin_token, _, _ = workflow_on_a_secret_table
+    _fill()
+    serialized = AutomationWorkflowHandler().export_workflow(workflow)
+    for node in serialized["nodes"]:
+        # As exported before the tables were kept.
+        node["service"].pop("sample_data_table_ids", None)
+    integrations = Integration.objects.filter(application=workflow.automation)
+    imported = AutomationWorkflowHandler().import_workflow(
+        workflow.automation,
+        serialized,
+        {
+            "integrations": {
+                integration.id: integration.id for integration in integrations
+            }
+        },
+    )
+
+    table = trigger.service.specific.table
+    TrashHandler.trash(admin, workflow.automation.workspace, table.database, table)
+    TrashHandler.permanently_delete(table)
+
+    response, _ = _nodes_as(api_client, imported, admin_token)
+    assert "Paid 250k" not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_test_run_data_without_tables_is_filled_before_an_edit_after_the_fill(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    from baserow.core.services.models import Service
+
+    _, workflow, _, _, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, email = test_run_nodes
+    _fill()
+    Service.objects.filter(id__in=[iterator.service_id, email.service_id]).update(
+        sample_data_table_ids=None
+    )
+
+    response = api_client.patch(
+        reverse("api:automation:nodes:item", kwargs={"node_id": iterator.id}),
+        {"service": {"source": _formula("'nothing'")}},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {restricted_token}",
+    )
+    assert response.status_code == 200, response.json()
+
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+    assert "Paid 250k" not in response.content.decode()
+    assert services[iterator.id]["sample_data"] is None
+
+
+@pytest.mark.django_db
+def test_a_workflow_that_keeps_failing_doesnt_keep_the_fill_from_being_done(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    from django.db import OperationalError
+
+    from baserow.contrib.automation.nodes import backfill
+
+    _, workflow, _, _, _, _ = workflow_on_a_secret_table
+    _forget_stored_tables(workflow)
+
+    with patch(
+        "baserow.contrib.automation.nodes.backfill.fill_workflow_table_ids",
+        side_effect=OperationalError("broken"),
+    ):
+        for _ in range(backfill.BACKFILL_MAX_ATTEMPTS - 1):
+            _fill()
+            assert not backfill.missing_table_ids_filled()
+        _fill()
+
+    assert backfill.missing_table_ids_filled()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["delete", "replace"])
+def test_data_stored_before_the_tables_were_kept_stays_hidden_after_the_step_between_is_removed(
+    api_client, workflow_on_a_secret_table, test_run_rows_and_iterator, change
+):
+    admin, workflow, _, admin_token, restricted_token, _ = workflow_on_a_secret_table
+    rows, iterator = test_run_rows_and_iterator
+    _forget_stored_tables(workflow)
+
+    if change == "delete":
+        AutomationNodeService().delete_node(admin, rows.id)
+    else:
+        AutomationNodeService().replace_node(admin, rows.id, "smtp_email")
+
+    response, services = _nodes_as(api_client, workflow, restricted_token)
+    assert "Paid 250k" not in response.content.decode()
+    assert services[iterator.id]["sample_data"] is None
+    _, services = _nodes_as(api_client, workflow, admin_token)
+    assert "Paid 250k" in str(services[iterator.id]["sample_data"])
+
+
+@pytest.mark.django_db
+def test_the_fill_doesnt_hide_the_runs_of_a_node_whose_table_was_never_picked(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table
+):
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, _, _ = workflow_on_a_secret_table
+    create_row = _add_node(admin, workflow, "local_baserow_create_row", trigger)
+    run = fixture.create_automation_workflow_history(
+        workflow=workflow, original_workflow=workflow
+    )
+    entry = fixture.create_automation_node_history(
+        workflow_history=run,
+        node=create_row,
+        message="The table is not set.",
+        read_table_ids=None,
+    )
+
+    _fill()
+
+    response = api_client.get(
+        reverse(
+            "api:automation:history:node_histories",
+            kwargs={"workflow_history_id": run.id},
+        ),
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == 200, response.json()
+    (shown,) = [item for item in response.json() if item["id"] == entry.id]
+    assert shown["message"] == "The table is not set."
+
+
+def _start_history_before_the_upgrade(fixture, start):
+    """A run of the starting workflow from before the tables were kept."""
+
+    run = fixture.create_automation_workflow_history(
+        workflow=start.workflow, original_workflow=start.workflow
+    )
+    entry = fixture.create_automation_node_history(
+        workflow_history=run, node=start, read_table_ids=None
+    )
+    fixture.create_automation_node_result(
+        node_history=entry,
+        result={"status_code": 200, "body": SECRET_ROWS["results"]},
+    )
+    return entry
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("change", ["edit", "trash"])
+def test_a_started_workflow_changed_before_the_fill_keeps_the_answers_hidden(
+    api_client, enterprise_data_fixture, workflow_on_a_secret_table, change
+):
+    fixture = enterprise_data_fixture
+    admin, workflow, trigger, admin_token, restricted_token, restricted = (
+        workflow_on_a_secret_table
+    )
+    other, rows = _workflow_answering_with_the_secret_rows(admin, workflow, trigger)
+    _, _, start, _ = _workflow_starting(fixture, admin, other)
+    entry = _start_history_before_the_upgrade(fixture, start)
+
+    if change == "edit":
+        # A table the restricted user may see.
+        visible = fixture.create_database_table(
+            database=fixture.create_database_application(
+                workspace=workflow.automation.workspace
+            )
+        )
+        RoleAssignmentHandler().assign_role(
+            restricted,
+            workflow.automation.workspace,
+            role=Role.objects.get(uid="VIEWER"),
+            scope=visible.database.application_ptr,
+        )
+        AutomationNodeService().update_node(
+            admin, rows.id, service={"table_id": visible.id}
+        )
+    else:
+        # Trashed before the upgrade.
+        TrashHandler.trash(
+            admin, workflow.automation.workspace, workflow.automation, rows
+        )
+    _fill()
+
+    assert _result_as(api_client, entry, restricted_token) is None
+    assert "Paid 250k" in str(_result_as(api_client, entry, admin_token))

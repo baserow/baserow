@@ -49,8 +49,8 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             instance, self.context.get("run_workflow")
         ):
             # An error can name the fields and values of the table it read, and
-            # the edge label comes from the result: which branch a condition on
-            # that data took, or any value a node answered with in its place.
+            # the edge label is read from the result, where a node can put any
+            # value it read. Which branch ran still shows in the nodes after it.
             data["message"] = ""
             data["edge_label"] = ""
         return data

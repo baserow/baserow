@@ -17,7 +17,7 @@ class Command(BaseCommand):
 
         # Looks again, even when a previous pass marked the fill done.
         cache.delete(BACKFILL_DONE_CACHE_KEY)
-        if fill_missing_table_ids():
+        if fill_missing_table_ids(give_up=False):
             self.stdout.write("All table IDs are filled.")
         else:
             self.stdout.write(
