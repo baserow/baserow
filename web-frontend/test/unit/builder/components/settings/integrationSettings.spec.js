@@ -34,6 +34,13 @@ const smtpIntegration = {
   port: 587,
 }
 
+const workspaceSmtpIntegration = {
+  ...smtpIntegration,
+  id: 21,
+  application_id: SHARED_ID,
+  name: 'Team mail',
+}
+
 describe('Builder IntegrationSettings', () => {
   let testApp = null
   let store = null
@@ -53,10 +60,20 @@ describe('Builder IntegrationSettings', () => {
 
   const promoteButtons = (wrapper) => wrapper.findAll('.iconoir-community')
 
-  const mountSettings = async ({ permissions, show = () => {} }) => {
+  const mountSettings = async ({
+    permissions,
+    show = () => {},
+    workspaceIntegrations = [],
+  }) => {
     testApp.mock
       .onGet(`application/${BUILDER_ID}/integrations/`)
       .replyOnce(200, [smtpIntegration])
+    testApp.mock
+      .onGet(`application/${BUILDER_ID}/workspace-integrations/`)
+      .replyOnce(200, {
+        shared_application: sharedApplication,
+        integrations: workspaceIntegrations,
+      })
     const wrapper = await testApp.mount(IntegrationSettings, {
       props: { builder: store.getters['application/get'](BUILDER_ID) },
       global: {
@@ -64,6 +81,11 @@ describe('Builder IntegrationSettings', () => {
           $hasPermission: (operation) => permissions.includes(operation),
         },
         stubs: {
+          NuxtLink: {
+            name: 'NuxtLink',
+            props: ['to'],
+            template: '<a><slot /></a>',
+          },
           PromoteIntegrationModal: {
             name: 'PromoteIntegrationModal',
             props: ['application', 'integration'],
@@ -108,5 +130,83 @@ describe('Builder IntegrationSettings', () => {
     expect(show).toHaveBeenCalled()
     // Nothing moves before the confirmation.
     expect(testApp.mock.history.patch).toHaveLength(0)
+  })
+
+  const sectionTitles = (wrapper) =>
+    wrapper
+      .findAll('.integration-settings__section-title')
+      .map((title) => title.text())
+  const rows = (wrapper) =>
+    wrapper.findAll('.integration-settings__integration')
+
+  test('lists the workspace integrations read-only above its own', async () => {
+    const wrapper = await mountSettings({
+      permissions: ['workspace.create_integration'],
+      workspaceIntegrations: [workspaceSmtpIntegration],
+    })
+
+    expect(sectionTitles(wrapper)).toEqual([
+      'applicationIntegrationSettings.workspaceIntegrations',
+      'applicationIntegrationSettings.applicationIntegrations',
+    ])
+    const [workspaceRow, ownRow] = rows(wrapper)
+    expect(workspaceRow.text()).toContain('Team mail')
+    expect(
+      workspaceRow.find('.integration-settings__integration-actions').exists()
+    ).toBe(false)
+    expect(ownRow.text()).toContain('Mail server')
+    expect(
+      ownRow.find('.integration-settings__integration-actions').exists()
+    ).toBe(true)
+    // Only its own can be made available to the whole workspace.
+    expect(promoteButtons(wrapper)).toHaveLength(1)
+  })
+
+  test('has no sections while the workspace has no integrations', async () => {
+    const wrapper = await mountSettings({ permissions: [] })
+
+    expect(sectionTitles(wrapper)).toEqual([])
+    expect(rows(wrapper)).toHaveLength(1)
+  })
+
+  test.each([
+    [['workspace.list_integrations'], true],
+    [[], false],
+  ])(
+    'links to the workspace settings for who can open them: %s',
+    async (permissions, linked) => {
+      const wrapper = await mountSettings({
+        permissions,
+        workspaceIntegrations: [workspaceSmtpIntegration],
+      })
+
+      const link = wrapper.findComponent({ name: 'NuxtLink' })
+      expect(link.exists()).toBe(linked)
+      if (linked) {
+        expect(link.props('to')).toEqual({
+          name: 'settings-integrations',
+          params: { workspaceId: WORKSPACE.id },
+        })
+      }
+    }
+  )
+
+  test('shows a promoted integration in the workspace section', async () => {
+    const wrapper = await mountSettings({
+      permissions: ['workspace.create_integration'],
+    })
+
+    await store.dispatch('integration/forceMoveToApplication', {
+      applicationSource: store.getters['application/get'](BUILDER_ID),
+      applicationDest: store.getters['application/get'](SHARED_ID),
+      integrationId: smtpIntegration.id,
+    })
+    await flushPromises()
+
+    expect(sectionTitles(wrapper)).toHaveLength(2)
+    expect(rows(wrapper)).toHaveLength(1)
+    expect(rows(wrapper)[0].text()).toContain('Mail server')
+    expect(promoteButtons(wrapper)).toHaveLength(0)
+    expect(wrapper.text()).toContain('integrationSettings.noIntegrationMessage')
   })
 })

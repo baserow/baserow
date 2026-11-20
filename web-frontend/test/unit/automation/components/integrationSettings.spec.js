@@ -49,6 +49,9 @@ describe('Automation IntegrationSettings', () => {
     testApp.mock
       .onGet(`application/${AUTOMATION_ID}/integrations/`)
       .replyOnce(200, [smtpIntegration])
+    testApp.mock
+      .onGet(`application/${AUTOMATION_ID}/workspace-integrations/`)
+      .replyOnce(200, { shared_application: null, integrations: [] })
     const wrapper = await testApp.mount(IntegrationSettings, {
       props: {
         automation: store.getters['application/get'](AUTOMATION_ID),

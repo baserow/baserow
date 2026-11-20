@@ -402,6 +402,9 @@ class IntegrationService:
             kwargs, user, application=integration.application, instance=integration
         )
 
+        previous_application = (
+            integration.application if target_application is not None else None
+        )
         integration = self.handler.update_integration(
             integration_type,
             integration,
@@ -409,7 +412,12 @@ class IntegrationService:
             **prepared_values,
         )
 
-        integration_updated.send(self, integration=integration, user=user)
+        integration_updated.send(
+            self,
+            integration=integration,
+            user=user,
+            previous_application=previous_application,
+        )
 
         return UpdatedIntegration(integration, original_values, new_values)
 

@@ -68,6 +68,35 @@ def test_integration_updated_when_promoted(
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
 @patch("baserow.core.integrations.ws.signals.broadcast_to_workspace_integration_users")
+def test_integration_updated_when_moved_back_from_the_workspace(
+    mock_workspace_broadcast, mock_broadcast, data_fixture
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+
+    # Like the undo of a promotion.
+    IntegrationService().update_integration(
+        user, integration, application_id=application.id
+    )
+
+    # Everyone who saw it in the workspace learns where it went, not only those
+    # who can see it in its application now.
+    mock_broadcast.delay.assert_not_called()
+    mock_workspace_broadcast.delay.assert_called_once()
+    args = mock_workspace_broadcast.delay.call_args
+    assert args[0][0] == workspace.id
+    assert args[0][1]["type"] == "integration_updated"
+    assert args[0][1]["integration"]["application_id"] == application.id
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.integrations.ws.signals.broadcast_to_permitted_users")
+@patch("baserow.core.integrations.ws.signals.broadcast_to_workspace_integration_users")
 def test_workspace_integration_events_go_to_whoever_can_see_them_from_an_application(
     mock_workspace_broadcast, mock_broadcast, data_fixture
 ):

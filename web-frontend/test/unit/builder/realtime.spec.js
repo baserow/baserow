@@ -597,6 +597,28 @@ describe('builder realtime integration promotion', () => {
     expect(own(SHARED_ID)).toEqual(['Renamed', 'Mail'])
     expect(usable(100)).toEqual(['Renamed', 'Mail'])
   })
+
+  test('undoing a promotion to an application not loaded here takes it out of the workspace', async () => {
+    await add(SHARED_ID, integration(1, SHARED_ID, 'Team'))
+    await add(SHARED_ID, integration(5, SHARED_ID, 'Mail'))
+    const before = generation(SHARED_ID)
+
+    // Like a builder of another application: 300 isn't in this store.
+    updated(integration(5, 300, 'Mail'))
+
+    expect(own(SHARED_ID)).toEqual(['Team'])
+    expect(usable(100)).toEqual(['Team'])
+    // So a settings page listing the workspace ones refreshes.
+    expect(generation(SHARED_ID)).toBeGreaterThan(before)
+  })
+
+  test('an update of an integration this store holds nowhere is ignored', async () => {
+    await add(SHARED_ID, integration(1, SHARED_ID, 'Team'))
+
+    updated(integration(5, 300, 'Mail'))
+
+    expect(own(SHARED_ID)).toEqual(['Team'])
+  })
 })
 
 describe('builder realtime user source events', () => {

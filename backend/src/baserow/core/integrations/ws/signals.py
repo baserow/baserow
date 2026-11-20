@@ -27,12 +27,16 @@ def _broadcast_on_commit(
     operation_type: str,
     scope_name: str,
     scope_id: int,
+    previous_application: Application | None = None,
 ):
     """
     Broadcasts an event about an integration of the given application once the
     transaction commits, to the users permitted the operation on the scope. The
     event of a workspace integration goes instead to everyone who can see it from
-    any application, see `broadcast_to_workspace_integration_users`.
+    any application, see `broadcast_to_workspace_integration_users`. So does the
+    event of one that just left the workspace, like after the undo of a
+    promotion, so that it leaves their lists too: those who can see it in its
+    application are among them.
 
     :param application: The application that holds the integration.
     :param user: The user who made the change, whose web socket is skipped.
@@ -40,10 +44,16 @@ def _broadcast_on_commit(
     :param operation_type: The operation the recipients are permitted.
     :param scope_name: The scope type the operation is checked on.
     :param scope_id: The id of the scope.
+    :param previous_application: The application that held the integration
+        before this change moved it, if it did.
     """
 
     workspace_id = application.workspace_id
-    is_workspace_integration = IntegrationHandler().is_shared_application(application)
+    handler = IntegrationHandler()
+    is_workspace_integration = handler.is_shared_application(application) or (
+        previous_application is not None
+        and handler.is_shared_application(previous_application)
+    )
     web_socket_id = getattr(user, "web_socket_id", None)
 
     def broadcast():
@@ -86,7 +96,13 @@ def integration_created(
 
 
 @receiver(integration_signals.integration_updated)
-def integration_updated(sender, integration: Integration, user: AbstractUser, **kwargs):
+def integration_updated(
+    sender,
+    integration: Integration,
+    user: AbstractUser,
+    previous_application: Application | None = None,
+    **kwargs,
+):
     serializer = integration_type_registry.get_serializer(
         integration, IntegrationSerializer
     )
@@ -100,6 +116,7 @@ def integration_updated(sender, integration: Integration, user: AbstractUser, **
         ReadIntegrationOperationType.type,
         IntegrationObjectScopeType.type,
         integration.id,
+        previous_application=previous_application,
     )
 
 

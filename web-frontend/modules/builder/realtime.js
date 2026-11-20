@@ -31,6 +31,24 @@ const getApplicationContext = (store, applicationId) => {
 }
 
 /**
+ * Returns the shared application, of any workspace in the store, whose list holds
+ * the integration, or undefined.
+ */
+const getSharedApplicationHoldingIntegration = (store, integrationId) => {
+  return store.getters['workspace/getAll']
+    .map((workspace) =>
+      store.getters['application/getSharedApplication'](workspace)
+    )
+    .find(
+      (application) =>
+        application &&
+        store.getters['integration/getIntegrations'](application).some(
+          (integration) => integration.id === integrationId
+        )
+    )
+}
+
+/**
  * Returns the application of the workspace, its shared application included, whose
  * list holds the integration, or undefined.
  */
@@ -402,7 +420,22 @@ export const registerRealtimeEvents = (realtime) => {
 
   realtime.registerEvent('integration_updated', ({ store }, data) => {
     const ctx = getApplicationContext(store, data.integration.application_id)
-    if (!ctx) return
+    if (!ctx) {
+      // Moved out of the workspace to an application this tab doesn't have, like
+      // the undo of a promotion seen by a builder of another application. It no
+      // longer belongs in the workspace list, which offers it everywhere.
+      const sharedApplication = getSharedApplicationHoldingIntegration(
+        store,
+        data.integration.id
+      )
+      if (sharedApplication) {
+        store.dispatch('integration/forceDelete', {
+          application: sharedApplication,
+          integrationId: data.integration.id,
+        })
+      }
+      return
+    }
 
     // A promotion, and its undo, move the integration between an application and
     // the shared application of its workspace, so another application can still
