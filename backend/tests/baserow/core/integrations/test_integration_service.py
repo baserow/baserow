@@ -273,7 +273,10 @@ def test_update_integration(integration_updated_mock, data_fixture):
     )
 
     integration_updated_mock.send.assert_called_once_with(
-        service, integration=integration_updated.integration, user=user
+        service,
+        integration=integration_updated.integration,
+        user=user,
+        previous_application=None,
     )
 
 

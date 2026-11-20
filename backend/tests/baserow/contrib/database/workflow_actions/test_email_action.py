@@ -205,8 +205,7 @@ def test_an_email_action_refuses_an_smtp_integration_the_user_cannot_read(
     # Asked of the type directly: through the service, its own permission
     # check would be the one refused.
     with patch(
-        "baserow.contrib.database.workflow_actions.workflow_action_types"
-        ".CoreHandler.check_permissions",
+        "baserow.core.integrations.service.CoreHandler.check_permissions",
         side_effect=refused,
     ):
         with pytest.raises(PermissionException) as raised:
@@ -302,8 +301,7 @@ def test_choosing_the_instance_works_when_the_integration_is_unreadable(
 
     # Asked of the type directly, as in the read test above.
     with patch(
-        "baserow.contrib.database.workflow_actions.workflow_action_types"
-        ".CoreHandler.check_permissions",
+        "baserow.core.integrations.service.CoreHandler.check_permissions",
         side_effect=PermissionException("cannot read"),
     ):
         values = _email_type().prepare_values(
