@@ -2,8 +2,8 @@ import { randomUUID } from "crypto";
 import type { Page } from "@playwright/test";
 import { getClient } from "../../client";
 import {
-  createAgent,
   createAgentIdentity,
+  createSupportAgent,
   setAgentRunIdentity,
 } from "../../fixtures/agent/agent";
 import {
@@ -48,22 +48,6 @@ async function joinWorkspace(
   }
 }
 
-async function supportAgent(workspace: Workspace) {
-  const client = getClient(workspace.user);
-  await client.post(`ai-providers/?workspace_id=${workspace.id}`, {
-    provider_type: "ollama",
-    extra_settings: { host: modelHost },
-    models: [{ model_identifier: "kuma-e2e", feature_types: ["ai_agent"] }],
-  });
-  const agent = await createAgent("Customer support", workspace);
-  await client.patch(`agent/${agent.id}/configuration/`, {
-    instructions: "Help customers with support requests.",
-    provider_type: "ollama",
-    model_identifier: "kuma-e2e",
-  });
-  return agent;
-}
-
 async function send(page: Page, message: string) {
   const input = page.getByPlaceholder("Send a message to Customer support…");
   await input.fill(message);
@@ -94,7 +78,7 @@ test("sharing requires confirmation and lets members continue until a manager de
   const member = await createUser();
   try {
     await joinWorkspace(workspace, [member], "MEMBER");
-    const agent = await supportAgent(workspace);
+    const agent = await createSupportAgent(workspace);
     const agentPage = new AgentPage({ page, goto }, agent);
     await agentPage.goto();
     const title = "Where is my shipment?";
@@ -169,7 +153,7 @@ test("a support team can approve privately after the author leaves", async ({
         subject_type: "auth.User",
       });
     }
-    const agent = await supportAgent(workspace);
+    const agent = await createSupportAgent(workspace);
     await setAgentRunIdentity(
       agent,
       await createAgentIdentity("Support assistant", workspace, "BUILDER")
@@ -261,7 +245,7 @@ test("a triggered conversation appears shared and a teammate can continue it onc
     const member = await createUser();
     try {
       await joinWorkspace(workspace, [member], "EDITOR");
-      const agent = await supportAgent(workspace);
+      const agent = await createSupportAgent(workspace);
       const agentPage = new AgentPage({ page, goto }, agent);
       await agentPage.goto();
       const section = await agentPage.openSection("Permissions");
