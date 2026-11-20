@@ -31,6 +31,11 @@
           "
         ></DropdownItem>
       </Dropdown>
+      <div v-if="canCreateIdentities" class="template-install__identities">
+        <Checkbox v-model="createIdentities">
+          {{ $t('templateInstall.createIdentities') }}
+        </Checkbox>
+      </div>
     </template>
     <div class="template-install__actions">
       <template v-if="installable">
@@ -155,6 +160,13 @@ const props = defineProps({
     required: false,
     default: false,
   },
+  // The applications of the template, which tell whether an identity can be
+  // created for each installed Agent.
+  applications: {
+    type: Array,
+    required: false,
+    default: () => [],
+  },
 })
 
 // `outdated` tells that the template was updated since it was shown, and must
@@ -165,7 +177,7 @@ const slots = useSlots()
 const store = useStore()
 const router = useRouter()
 const config = useRuntimeConfig()
-const { $client, $hasPermission, $i18n } = useNuxtApp()
+const { $client, $hasPermission, $i18n, $registry } = useNuxtApp()
 const { copyLink } = useCopyLink()
 
 const moreButton = ref(null)
@@ -240,6 +252,32 @@ const selectedWorkspace = computed(
     workspaces.value.find(({ id }) => id === selectedWorkspaceId.value) || null
 )
 
+// Off by default: the Agents then wait for an identity to be picked.
+const createIdentities = ref(false)
+
+/**
+ * Whether an identity with access to only the installed databases can be created
+ * for each installed Agent. That takes roles, and the permissions to create
+ * identities and assign their roles, which the backend checks again.
+ */
+const canCreateIdentities = computed(() => {
+  const workspace = selectedWorkspace.value
+  if (!isAuthenticated.value || workspace === null) {
+    return false
+  }
+  const types = props.applications
+    .filter((application) => $registry.exists('application', application.type))
+    .map((application) => $registry.get('application', application.type))
+  return (
+    types.some((type) => type.createsIdentityOnInstall()) &&
+    // The identity gets access to the other applications only.
+    types.some((type) => !type.createsIdentityOnInstall()) &&
+    Object.values($registry.getAll('plugin')).some((plugin) =>
+      plugin.canCreateScopedIdentities(workspace)
+    )
+  )
+})
+
 function chooseWorkspace(workspaceId) {
   workspaceChosen.value = true
   selectedWorkspaceId.value = workspaceId
@@ -289,7 +327,11 @@ async function use() {
     const { data } = await TemplateService($client).asyncInstall(
       workspaceId,
       props.template.id,
-      { latest: props.latest, revisionId: props.template.revision_id ?? null }
+      {
+        latest: props.latest,
+        revisionId: props.template.revision_id ?? null,
+        createIdentities: canCreateIdentities.value && createIdentities.value,
+      }
     )
     // The user logged out while installing.
     if (!isSameUser()) {

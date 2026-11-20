@@ -57,6 +57,7 @@ from baserow.core.exceptions import (
     is_max_lock_exceeded_exception,
 )
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.service import IdentityService
 from baserow.core.import_export.exceptions import (
     ImportExportApplicationIdsNotFound,
     ImportExportResourceDoesNotExist,
@@ -258,9 +259,21 @@ class InstallTemplateJobType(JobType):
             template = handler.get_template(values["template_id"])
             handler.get_valid_template_path_or_raise(template)
 
+        create_identities = bool(values.get("create_identities", False))
+        # Refused upfront, so that the installer isn't told it worked while the
+        # Agents wait for an identity. Checked again when the job runs.
+        if create_identities and not IdentityService().can_create_scoped_identity(
+            user, workspace
+        ):
+            raise PermissionDenied(
+                "The user can't create identities with access to only the "
+                "installed applications."
+            )
+
         return {
             "workspace": workspace,
             "template": template,
+            "create_identities": create_identities,
         }
 
     def enhance_queryset(self, queryset):
@@ -291,7 +304,13 @@ class InstallTemplateJobType(JobType):
 
         installed_applications = action_type_registry.get_by_type(
             InstallTemplateActionType
-        ).do(job.user, job.workspace, job.template, progress_builder=progress_builder)
+        ).do(
+            job.user,
+            job.workspace,
+            job.template,
+            progress_builder=progress_builder,
+            create_identities=job.create_identities,
+        )
 
         job.installed_applications = [app.id for app in installed_applications]
         job.save(update_fields=("installed_applications",))
@@ -335,6 +354,7 @@ class InstallTemplateJobType(JobType):
                         represents_progress=50
                     ),
                     content=content,
+                    create_identities=job.create_identities,
                 )
                 self._commit_install(job, installed_applications)
         except BaseException as exc:

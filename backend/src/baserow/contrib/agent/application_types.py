@@ -25,6 +25,7 @@ from baserow.core.ai_provider.constants import AI_PROVIDER_FEATURE_AI_AGENT
 from baserow.core.generative_ai.constants import ReasoningEffort
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.handler import CoreHandler
+from baserow.core.identities.registries import identity_extension_type_registry
 from baserow.core.identities.service import IdentityService
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -45,6 +46,8 @@ class AgentApplicationType(ApplicationType):
     request_serializer_field_names = ["name"]
     request_serializer_mixins = []
     supports_integrations = True
+    # After the applications its identity has roles on, so their ids are mapped.
+    import_application_priority = -1
 
     @staticmethod
     def _includes_conversations(import_export_config: ImportExportConfig) -> bool:
@@ -93,6 +96,62 @@ class AgentApplicationType(ApplicationType):
         if resolution.status in {AgentRunAsState.ACTIVE, AgentRunAsState.TRASHED}:
             return run_as
         return None, None
+
+    @staticmethod
+    def _exported_identity_roles(
+        application: AgentApplication, import_export_config: ImportExportConfig
+    ) -> list[list] | None:
+        """
+        The roles that the identity the Agent acts as has on single applications,
+        for an install to give a new identity the same access.
+
+        :param application: The exported Agent.
+        :param import_export_config: How the Agent is exported.
+        :return: (application id, role uid) pairs, or None when its access can't be
+            exported this way.
+        """
+
+        resolution = AgentHandler().resolve_run_as_subject(
+            application.run_as_subject_type,
+            application.run_as_subject_id,
+            application.workspace,
+        )
+        if resolution.status != AgentRunAsState.ACTIVE:
+            return None
+        roles = identity_extension_type_registry.get_application_roles(
+            resolution.subject, import_export_config.exported_by
+        )
+        return None if roles is None else [list(role) for role in roles]
+
+    @staticmethod
+    def _imported_identity_roles(
+        serialized_values: dict, id_mapping: dict
+    ) -> list[list] | None:
+        """
+        The exported roles of the Agent's identity on the applications imported
+        with it, by their new ids. Entries that aren't an application id and a role
+        uid are left out, so a malformed export can't fail the import.
+
+        :param serialized_values: The exported Agent.
+        :param id_mapping: The export-to-import id map.
+        :return: (application id, role uid) pairs, or None when none were exported.
+        """
+
+        exported = serialized_values.get("run_as_identity_roles")
+        if exported is None:
+            return None
+        if not isinstance(exported, list):
+            return []
+        applications = id_mapping.get("applications", {})
+        return [
+            [applications[entry[0]], entry[1]]
+            for entry in exported
+            if isinstance(entry, list)
+            and len(entry) == 2
+            and type(entry[0]) is int
+            and isinstance(entry[1], str)
+            and entry[0] in applications
+        ]
 
     @staticmethod
     def _enabled_models(workspace: Workspace) -> dict[str, list[str]]:
@@ -145,6 +204,19 @@ class AgentApplicationType(ApplicationType):
             return author_model
         default = self._default_model(enabled)
         return default if default[0] else author_model
+
+    def create_install_identities(
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        applications: list[AgentApplication],
+        installed_applications: list,
+    ) -> None:
+        from baserow.contrib.agent.service import AgentService
+
+        AgentService().create_install_identities(
+            user, workspace, applications, installed_applications
+        )
 
     def supports_integration_type(self, integration_type) -> bool:
         """MCP servers, and the integrations its action types' services use."""
@@ -306,6 +378,12 @@ class AgentApplicationType(ApplicationType):
                 run_as_subject_type=application.run_as_subject_type,
                 run_as_subject_id=application.run_as_subject_id,
             )
+        else:
+            identity_roles = self._exported_identity_roles(
+                application, import_export_config
+            )
+            if identity_roles is not None:
+                serialized["run_as_identity_roles"] = identity_roles
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
@@ -394,6 +472,11 @@ class AgentApplicationType(ApplicationType):
                     ),
                 ],
             )
+            identity_roles = self._imported_identity_roles(
+                serialized_values, id_mapping
+            )
+            if identity_roles is not None:
+                application.pending_tool_choices["identity_roles"] = identity_roles
             application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
             IntegrationHandler().import_integration(

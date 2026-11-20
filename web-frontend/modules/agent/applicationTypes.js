@@ -66,6 +66,10 @@ export class AgentApplicationType extends ApplicationType {
     return this.canBeCreated() ? { agent: application } : null
   }
 
+  createsIdentityOnInstall() {
+    return true
+  }
+
   get developmentStage() {
     return DEVELOPMENT_STAGES.BETA
   }

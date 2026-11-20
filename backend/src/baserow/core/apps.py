@@ -237,6 +237,7 @@ class CoreConfig(AppConfig):
         from .identities.operations import (
             BindIdentityOperationType,
             CreateIdentityOperationType,
+            CreateScopedIdentityOperationType,
             DeleteIdentityOperationType,
             ListIdentitiesWorkspaceOperationType,
             UpdateIdentityOperationType,
@@ -334,6 +335,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(UpdateIdentityOperationType())
         operation_type_registry.register(DeleteIdentityOperationType())
         operation_type_registry.register(BindIdentityOperationType())
+        operation_type_registry.register(CreateScopedIdentityOperationType())
 
         from baserow.core.actions import (
             AcceptWorkspaceInvitationActionType,

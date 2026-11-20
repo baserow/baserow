@@ -125,6 +125,14 @@ export class ApplicationType extends Registerable {
   }
 
   /**
+   * Whether an installed application of this type can act as an identity that
+   * the install creates for it, with access to only the installed applications.
+   */
+  createsIdentityOnInstall() {
+    return false
+  }
+
+  /**
    * Should return an array where the first element is the describing name of the
    * dependents in singular and the second element in plural. Can be null if there
    * aren't any dependants.

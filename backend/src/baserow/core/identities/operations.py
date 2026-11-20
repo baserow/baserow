@@ -25,3 +25,14 @@ class DeleteIdentityOperationType(IdentityOperationType):
 
 class BindIdentityOperationType(IdentityOperationType):
     type = "identity.bind"
+
+
+class CreateScopedIdentityOperationType(IdentityOperationType):
+    """
+    Creating an identity with no workspace access and a role on only some
+    applications the user may change, as a template install does for its Agents.
+    It never reaches more than the user can, so builders may, unlike creating or
+    managing identities.
+    """
+
+    type = "identity.create_scoped"

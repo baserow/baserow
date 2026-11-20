@@ -403,6 +403,25 @@ class ApplicationType(
     # by subclasses for runtime formula validation to work correctly.
     data_provider_type_registry = None
 
+    def create_install_identities(
+        self,
+        user: "AbstractUser",
+        workspace: "Workspace",
+        applications: List["Application"],
+        installed_applications: List["Application"],
+    ) -> None:
+        """
+        Called in the transaction of a template install when the installer asked
+        for an identity for each installed application that acts as one, with
+        access to only the installed applications. A type that acts as an identity
+        creates and binds them through the permission checked identity service.
+
+        :param user: The user who installs the template.
+        :param workspace: The workspace the template is installed into.
+        :param applications: The installed applications of this type.
+        :param installed_applications: Every installed application.
+        """
+
     def supports_integration_type(self, integration_type) -> bool:
         """
         Whether this application accepts an integration of the given type.
