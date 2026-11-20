@@ -359,20 +359,27 @@ const actions = {
   },
   /**
    * Loads the workspace integrations the application can use, at most once per
-   * workspace: realtime events keep them current after that. They're fetched
-   * through the application, so that a user with a role on that application
-   * only gets them too, with the shared application that owns them, which the
-   * application listing leaves out for that user. Nothing is loaded when the
-   * user can't list the integrations of the application, or isn't a member of
-   * the workspace, like the one of a template preview.
+   * workspace unless forced. Realtime events keep the list and what's stored on
+   * each integration current, but not what the backend works out when it sends
+   * them, like the tables and views a Local Baserow integration can reach
+   * (`context_data`). So the panels that offer them fetch them again through
+   * `fetchUsable`, like they fetch the application's own integrations again.
+   *
+   * They're fetched through the application, so that a user with a role on that
+   * application only gets them too, with the shared application that owns them,
+   * which the application listing leaves out for that user. Nothing is loaded
+   * when the user can't list the integrations of the application, or isn't a
+   * member of the workspace, like the one of a template preview.
    *
    * @param {Object} application An application of the workspace.
+   * @param {boolean} force Fetches them even when they were loaded already. A
+   *   forced fetch that gives up keeps the list it would have replaced.
    * @returns {Promise<Array|null>} The workspace integrations, or null when
    *   their list changed under the fetch and it gave up, like `fetch`.
    */
-  async fetchWorkspaceIntegrationsOnce(
+  async fetchWorkspaceIntegrations(
     { commit, dispatch, getters, state, rootGetters },
-    { application }
+    { application, force = false }
   ) {
     const workspace =
       application.workspace &&
@@ -389,7 +396,7 @@ const actions = {
     }
 
     const known = rootGetters['application/getSharedApplication'](workspace)
-    if (known?._integrationsLoadedOnce) {
+    if (!force && known?._integrationsLoadedOnce) {
       return getters.getIntegrations(known)
     }
 
@@ -427,6 +434,8 @@ const actions = {
       data.integrations.forEach((integration) =>
         commit('ADD_ITEM', { application: current, integration })
       )
+      // Never unset: it says the list was loaded at least once, which stays
+      // true when a later forced fetch gives up.
       await dispatch(
         'application/forceUpdate',
         { application: current, data: { _integrationsLoadedOnce: true } },
@@ -437,6 +446,33 @@ const actions = {
 
     // Left unmarked, so the next application that asks fetches again.
     return null
+  },
+  /**
+   * Loads the workspace integrations once, for the paths that load an
+   * application, see `fetchWorkspaceIntegrations`.
+   */
+  fetchWorkspaceIntegrationsOnce({ dispatch }, { application }) {
+    return dispatch('fetchWorkspaceIntegrations', { application })
+  },
+  /**
+   * Fetches again every integration the application can use, its own and the
+   * workspace ones, for a panel that offers them with what they can reach, like
+   * the tables and views of a Local Baserow integration. Those change with no
+   * realtime event about the integration, like when a table is created.
+   *
+   * @param {Object} application The application the integrations are used from.
+   * @returns {Promise<Array|null>} The usable integrations, or null when either
+   *   list changed under its fetch and it gave up.
+   */
+  async fetchUsable({ dispatch }, { application }) {
+    const [own, workspace] = await Promise.all([
+      dispatch('fetch', { application }),
+      dispatch('fetchWorkspaceIntegrations', { application, force: true }),
+    ])
+    if (own === null || workspace === null) {
+      return null
+    }
+    return [...own, ...workspace]
   },
   async duplicate({ getters, dispatch }, { application, integrationId }) {
     const integration = getters.getIntegrations.find(
@@ -461,7 +497,7 @@ const getters = {
   /**
    * The integrations of the application's workspace, which every application of
    * the workspace can use. Empty for the shared application itself, which owns
-   * them, and until `fetchWorkspaceIntegrationsOnce` loaded them.
+   * them, and until `fetchWorkspaceIntegrations` loaded them.
    */
   getWorkspaceIntegrations:
     (state, getters, rootState, rootGetters) => (application) => {

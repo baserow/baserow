@@ -191,6 +191,28 @@ describe('Builder IntegrationSettings', () => {
     }
   )
 
+  test('fetches the workspace integrations again every time it opens', async () => {
+    // What a workspace integration can reach, like the tables of a Local
+    // Baserow one, changes with no realtime event about it, so the second
+    // opening must not keep the first answer. A new name stands in for that.
+    await mountSettings({
+      permissions: [],
+      workspaceIntegrations: [workspaceSmtpIntegration],
+    })
+    const wrapper = await mountSettings({
+      permissions: [],
+      workspaceIntegrations: [
+        { ...workspaceSmtpIntegration, name: 'Team mail, now' },
+      ],
+    })
+
+    const workspaceRequests = testApp.mock.history.get.filter(
+      ({ url }) => url === `application/${BUILDER_ID}/workspace-integrations/`
+    )
+    expect(workspaceRequests).toHaveLength(2)
+    expect(rows(wrapper)[0].text()).toContain('Team mail, now')
+  })
+
   test('shows a promoted integration in the workspace section', async () => {
     const wrapper = await mountSettings({
       permissions: ['workspace.create_integration'],

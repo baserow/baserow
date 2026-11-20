@@ -171,14 +171,10 @@ export default {
   },
   async mounted() {
     try {
-      await Promise.all([
-        this.$store.dispatch('integration/fetch', {
-          application: this.application,
-        }),
-        this.$store.dispatch('integration/fetchWorkspaceIntegrationsOnce', {
-          application: this.application,
-        }),
-      ])
+      // Both lists, so the workspace ones show what they can reach now too.
+      await this.$store.dispatch('integration/fetchUsable', {
+        application: this.application,
+      })
     } catch (error) {
       notifyIf(error)
     }

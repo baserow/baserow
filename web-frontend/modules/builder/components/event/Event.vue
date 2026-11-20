@@ -176,7 +176,7 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionFetchIntegrations: 'integration/fetch',
+      actionFetchIntegrations: 'integration/fetchUsable',
       actionCreateWorkflowAction: 'builderWorkflowAction/create',
       actionDeleteWorkflowAction: 'builderWorkflowAction/delete',
       actionOrderWorkflowActions: 'builderWorkflowAction/order',
