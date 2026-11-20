@@ -25,6 +25,7 @@ const RUN_ERROR_KEYS = {
   persist_failed: 'assistant.runErrorPersistFailed',
   model_unavailable: 'assistant.runErrorModelUnavailable',
   access_lost: 'assistant.runErrorAccessLost',
+  usage_limit_exceeded: 'assistant.runErrorUsageLimitExceeded',
 }
 
 /**

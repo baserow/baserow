@@ -32,6 +32,7 @@ from baserow.contrib.agent.actions import (
     UpdateAgentConfigurationActionType,
     UpdateAgentConversationActionType,
 )
+from baserow.contrib.agent.constants import AGENT_MESSAGE_USAGE_REFERENCE
 from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
     AgentConversationReadOnly,
@@ -42,13 +43,14 @@ from baserow.contrib.agent.exceptions import (
     AgentToolApprovalNotPending,
 )
 from baserow.contrib.agent.handler import AgentHandler
-from baserow.contrib.agent.models import AgentApplication
+from baserow.contrib.agent.models import AgentApplication, AgentMessage
 from baserow.contrib.agent.service import AgentService
 from baserow.contrib.agent.signals import agent_loaded
 from baserow.contrib.agent.types import AgentMessageCreated
 from baserow.core.action.registries import action_type_registry
 from baserow.core.chat_runs.exceptions import ChatRunAlreadyActive, ChatRunLimitReached
 from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.generative_ai.usage import get_ai_usage_plugin_data
 from baserow.core.pagination import KeysetCursor
 from baserow.core.service import CoreService
 
@@ -514,7 +516,19 @@ class AgentMessagesView(RealtimeRecoveryPrimaryReadMixin, APIView):
         page = handler.refresh_unfinished_replies(page, active_runs)
         return paginator.get_paginated_response(
             AgentMessageSerializer(
-                list(reversed(page)), many=True, context={"active_runs": active_runs}
+                list(reversed(page)),
+                many=True,
+                context={
+                    "active_runs": active_runs,
+                    "plugin_data": get_ai_usage_plugin_data(
+                        AGENT_MESSAGE_USAGE_REFERENCE,
+                        [
+                            message.id
+                            for message in page
+                            if message.role == AgentMessage.Role.ASSISTANT
+                        ],
+                    ),
+                },
             ).data
         )
 

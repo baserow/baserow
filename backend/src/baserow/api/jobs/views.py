@@ -32,6 +32,7 @@ from .serializers import (
     JobSerializer,
     ListJobQuerySerializer,
     ListJobsResponseSerializer,
+    get_jobs_plugin_data,
 )
 
 
@@ -82,16 +83,20 @@ class JobsView(APIView):
             job_type = job_type_registry.get_by_model(model)
             return job_type.enhance_queryset(queryset)
 
+        jobs = list(
+            specific_iterator(
+                jobs, per_content_type_queryset_hook=enhance_specific_queryset
+            )
+        )
+        # Once for the page, because it's polled while jobs run.
+        plugin_data = get_jobs_plugin_data(jobs)
         serialized_jobs = [
             job_type_registry.get_serializer(
                 job,
                 JobSerializer,
-                context={"request": request},
+                context={"request": request, "plugin_data": plugin_data},
             ).data
-            for job in specific_iterator(
-                jobs,
-                per_content_type_queryset_hook=enhance_specific_queryset,
-            )
+            for job in jobs
         ]
         return Response({"jobs": serialized_jobs, "count": count})
 

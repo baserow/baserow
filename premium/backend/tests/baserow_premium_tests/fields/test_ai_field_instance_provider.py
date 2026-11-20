@@ -4,10 +4,12 @@ from unittest.mock import patch
 
 from django.db import connection
 from django.shortcuts import reverse
+from django.test.utils import CaptureQueriesContext
 
 import pytest
 from openai.resources.files import Files
 from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
@@ -17,10 +19,17 @@ from baserow.core.ai_provider.handler import AIProviderHandler
 from baserow.core.ai_provider.models import AIProviderConfig, AIProviderModel
 from baserow.core.generative_ai.exceptions import ModelDoesNotBelongToType
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_AI_FIELD,
+    AI_USAGE_KEY_SCOPE_INSTANCE,
+    ai_request_starting,
+)
+from baserow.core.jobs.handler import JobHandler
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.core.storage import get_default_storage
 from baserow_premium.fields.handler import AIFieldHandler
 from baserow_premium.fields.job_types import AIValueGenerator
-from baserow_premium.fields.models import AIField
+from baserow_premium.fields.models import AIField, GenerateAIValuesJob
 from baserow_premium.fields.pydantic_models import BaserowFormulaModel
 
 
@@ -465,3 +474,164 @@ def test_ai_field_rejects_models_not_available_from_the_effective_provider(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_ai_field_reports_its_usage_with_the_instance_credentials(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    row = RowHandler().create_row(user, table, {})
+    model_type = generative_ai_model_type_registry.get("openai")
+    scopes = []
+
+    def receiver(sender, scope, **kwargs):
+        scopes.append(scope)
+
+    ai_request_starting.connect(receiver, weak=False)
+    try:
+        with patch.object(
+            model_type,
+            "get_ai_model",
+            return_value=FunctionModel(
+                lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+            ),
+        ):
+            assert AIFieldHandler.generate_value_with_ai(field, row) == "Hi"
+    finally:
+        ai_request_starting.disconnect(receiver)
+
+    (scope,) = scopes
+    assert scope.feature == AI_USAGE_FEATURE_AI_FIELD
+    # The settings are resolved before prompting, so the context tells whose
+    # credentials they are.
+    assert scope.key_scope == AI_USAGE_KEY_SCOPE_INSTANCE
+    assert (scope.reference_type, scope.reference_id) == ("ai_field", str(field.id))
+    assert scope.workspace == table.database.workspace
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_generating_values_reports_the_usage_on_the_job(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    row = RowHandler().create_row(user, table, {})
+    model_type = generative_ai_model_type_registry.get("openai")
+    references = []
+
+    def receiver(sender, scope, **kwargs):
+        references.append((scope.reference_type, scope.reference_id))
+
+    ai_request_starting.connect(receiver, weak=False)
+    try:
+        with patch.object(
+            model_type,
+            "get_ai_model",
+            return_value=FunctionModel(
+                lambda messages, info: ModelResponse(parts=[TextPart(content="Hi")])
+            ),
+        ):
+            job = JobHandler().create_and_start_job(
+                user,
+                "generate_ai_values",
+                sync=True,
+                field_id=field.id,
+                row_ids=[row.id],
+            )
+    finally:
+        ai_request_starting.disconnect(receiver)
+
+    assert references == [("generate_ai_values_job", str(job.id))]
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            assert reference_type == "generate_ai_values_job"
+            return {reference_id: {"credits": 2} for reference_id in reference_ids}
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        response = api_client.get(
+            reverse("api:jobs:item", kwargs={"job_id": job.id}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["plugin_data"] == {"cost": {"credits": 2}}
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_listing_jobs_gets_the_data_of_plugins_once_per_page(
+    premium_data_fixture, api_client
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    _, instance_model = create_instance_openai_provider()
+    field = FieldHandler().create_field(
+        user,
+        table,
+        "ai",
+        name="AI",
+        ai_generative_ai_type="openai",
+        ai_generative_ai_model=instance_model.model_identifier,
+        ai_prompt="'Hello'",
+    )
+    calls = []
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            calls.append(reference_ids)
+            # Like a plugin reading the usage of all the jobs at once.
+            list(GenerateAIValuesJob.objects.filter(id__in=reference_ids))
+            return {reference_id: {"credits": 2} for reference_id in reference_ids}
+
+    def list_jobs():
+        with CaptureQueriesContext(connection) as queries:
+            response = api_client.get(
+                reverse("api:jobs:list"), HTTP_AUTHORIZATION=f"JWT {token}"
+            )
+        assert response.status_code == HTTP_200_OK
+        return response.json()["jobs"], len(queries)
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        GenerateAIValuesJob.objects.create(user=user, field=field)
+        jobs, queries_for_one_job = list_jobs()
+        for _ in range(3):
+            GenerateAIValuesJob.objects.create(user=user, field=field)
+        more_jobs, queries_for_more_jobs = list_jobs()
+
+    assert jobs[0]["plugin_data"] == {"cost": {"credits": 2}}
+    assert [job["plugin_data"] for job in more_jobs] == [{"cost": {"credits": 2}}] * 4
+    assert queries_for_more_jobs == queries_for_one_job
+    assert [len(ids) for ids in calls] == [1, 4]

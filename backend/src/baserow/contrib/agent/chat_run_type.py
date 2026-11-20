@@ -14,11 +14,13 @@ from baserow.core.chat_runs.steps import stop_running_steps
 from baserow.core.chat_runs.stream import fold_output
 from baserow.core.chat_runs.types import ChatRunOutcome
 from baserow.core.exceptions import PermissionException
+from baserow.core.generative_ai.usage import get_ai_usage_plugin_data
 from baserow.core.models import Workspace
 from baserow.core.signals import application_pending_count_updated
 
 from .api.serializers import AgentMessageSerializer
 from .constants import (
+    AGENT_MESSAGE_USAGE_REFERENCE,
     AGENT_NOT_ALLOWED,
     AGENT_NOT_READY,
     AGENT_RUN_TYPE,
@@ -170,4 +172,10 @@ class AgentChatRunType(ChatRunType):
                 application=conversation.agent,
                 user_ids=conversation.pending_count_user_ids,
             )
-        return dict(AgentMessageSerializer(reply).data)
+        # The usage of the reply is complete, so its cost shows without a reload.
+        plugin_data = get_ai_usage_plugin_data(
+            AGENT_MESSAGE_USAGE_REFERENCE, [reply.id]
+        )
+        return dict(
+            AgentMessageSerializer(reply, context={"plugin_data": plugin_data}).data
+        )

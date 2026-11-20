@@ -107,6 +107,16 @@ class RolePermissionManagerType(PermissionManagerType):
             .operations.all()
         )
 
+    def prefetch_for_workspaces(self, actor, workspaces: List[Workspace]):
+        # The batched resolution only knows how to read the workspace role of users.
+        if subject_type_registry.get_by_model(actor).type != UserSubjectType.type:
+            return
+        rbac_workspaces = [w for w in workspaces if self.is_enabled(w)]
+        if rbac_workspaces:
+            RoleAssignmentHandler().get_roles_per_scope_for_workspaces(
+                rbac_workspaces, actor
+            )
+
     def check_multiple_permissions(
         self, checks: List[PermissionCheck], workspace=None, include_trash=False
     ):
@@ -129,6 +139,15 @@ class RolePermissionManagerType(PermissionManagerType):
         result = {}
         roles_per_scope_by_actor = {}
         for actor_subject_type, actors in actors_by_subject_type.items():
+            if len(actors) == 1 and actor_subject_type.type == UserSubjectType.type:
+                # Goes through the request cache that `prefetch_for_workspaces` primes.
+                (actor,) = actors
+                roles_per_scope_by_actor[actor] = (
+                    RoleAssignmentHandler().get_roles_per_scope(
+                        workspace, actor, include_trash=include_trash
+                    )
+                )
+                continue
             roles_per_scope_by_actor.update(
                 RoleAssignmentHandler().get_roles_per_scope_for_actors(
                     workspace, actor_subject_type, actors, include_trash=include_trash

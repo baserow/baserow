@@ -57,10 +57,14 @@
       {{ $t(outcome.note) }}
     </div>
     <template v-if="shown.content && !shown.replying" #actions>
-      <ChatMessageFooter
-        :text="shown.content"
-        :timestamp="message.created_on"
-      />
+      <ChatMessageFooter :text="shown.content" :timestamp="message.created_on">
+        <component
+          :is="component"
+          v-for="(component, index) in aiUsageComponents"
+          :key="index"
+          :plugin-data="message.plugin_data || {}"
+        />
+      </ChatMessageFooter>
     </template>
   </ChatMessage>
 </template>
@@ -207,4 +211,9 @@ const toolRunning = computed(() =>
   steps.value?.some((step) => step.status === STEP_STATUS.RUNNING)
 )
 const outcome = computed(() => replyOutcome(shown.value))
+const aiUsageComponents = computed(() =>
+  Object.values($registry.getAll('plugin')).flatMap((plugin) =>
+    plugin.getAIUsageComponents()
+  )
+)
 </script>

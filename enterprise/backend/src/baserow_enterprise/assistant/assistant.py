@@ -38,6 +38,11 @@ from baserow.core.chat_runs.constants import (
 )
 from baserow.core.chat_runs.models import ChatRunStatus
 from baserow.core.chat_runs.types import ChatRunOutcome
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_ASSISTANT,
+    AIUsageLimitExceeded,
+    ai_usage_context,
+)
 from baserow.core.models import Workspace
 from baserow.core.utils import exception_capturer
 from baserow_enterprise.assistant.action_memory import get_verified_tool_outcomes
@@ -64,6 +69,7 @@ from baserow_enterprise.assistant.model_profiles import (
 )
 from baserow_enterprise.assistant.runs import (
     CHAT_TITLE_EVENT,
+    ERROR_USAGE_LIMIT_EXCEEDED,
     NAVIGATION_EVENT,
     AssistantRunResult,
 )
@@ -80,6 +86,7 @@ from baserow_premium.license.registries import LicenseType, license_type_registr
 from .messages import list_chat_messages as read_chat_messages
 from .models import AssistantChat
 from .types import (
+    ASSISTANT_MESSAGE_USAGE_REFERENCE,
     AiMessage,
     AiMessageChunk,
     AiReasoningChunk,
@@ -499,6 +506,9 @@ class Assistant:
                         ModelMessagesTypeAdapter.dump_json(history),
                         queue,
                     )
+        except AIUsageLimitExceeded as exc:
+            # Not an error of the agent: a plugin refused the request.
+            queue.put_nowait(exc)
         except Exception as exc:
             # Provider errors and diagnostic tracebacks can contain private inputs.
             logger.warning(
@@ -675,6 +685,8 @@ class BackgroundAssistant(Assistant):
         self._answer: AgentAnswer | None = None
         self._title: str | None = None
         self._onboarding_target: dict[str, Any] | None = None
+        self._human_message_id: int | None = None
+        self._usage_limit_exceeded = False
         self._tool_executor = ToolExecutor()
         super().__init__(chat, model_profile=model_profile)
         self._toolset = ShieldedToolset(self._toolset, self._tool_executor)
@@ -722,7 +734,11 @@ class BackgroundAssistant(Assistant):
             return await super()._stream_agent_run(user_prompt, message_history, queue)
 
     async def answer(
-        self, prompt: str, ui_context: UIContext, generate_title: bool
+        self,
+        prompt: str,
+        ui_context: UIContext,
+        generate_title: bool,
+        human_message_id: int | None = None,
     ) -> ChatRunOutcome:
         """
         Answers the prompt until it is done or the journal asks the run to stop.
@@ -731,9 +747,12 @@ class BackgroundAssistant(Assistant):
         :param prompt: The human message the run answers.
         :param ui_context: What the user was looking at when sending it.
         :param generate_title: Whether to replace the chat's provisional title.
+        :param human_message_id: The id of that message, which the AI usage of
+            the run is reported with.
         :return: How the run ended, with an `AssistantRunResult`.
         """
 
+        self._human_message_id = human_message_id
         work = asyncio.create_task(self._produce(prompt, ui_context, generate_title))
         stop = asyncio.create_task(self._journal.wait_for_stop())
         try:
@@ -747,11 +766,14 @@ class BackgroundAssistant(Assistant):
         else:
             await self._wind_down(work)
         if not work.cancelled() and work.exception() is not None:
-            logger.warning(
-                "Kuma could not answer in chat {} ({})",
-                self._chat.id,
-                type(work.exception()).__name__,
-            )
+            if isinstance(work.exception(), AIUsageLimitExceeded):
+                self._usage_limit_exceeded = True
+            else:
+                logger.warning(
+                    "Kuma could not answer in chat {} ({})",
+                    self._chat.id,
+                    type(work.exception()).__name__,
+                )
         return self._outcome(prompt)
 
     async def _wind_down(self, work: asyncio.Task[None]) -> None:
@@ -804,9 +826,17 @@ class BackgroundAssistant(Assistant):
         self._loaded_history = await self._load_message_history() or []
 
         queue: asyncio.Queue[AssistantQueueEvent] = asyncio.Queue()
-        agent_task = asyncio.create_task(
-            self._run_agent(prompt, self._loaded_history or None, queue)
-        )
+        # The task copies the context, so the AI usage of the agent and its
+        # sub-agents is reported with the message. The title isn't, it's
+        # generated outside of it.
+        with ai_usage_context(
+            feature=AI_USAGE_FEATURE_ASSISTANT,
+            reference_type=ASSISTANT_MESSAGE_USAGE_REFERENCE,
+            reference_id=self._human_message_id,
+        ):
+            agent_task = asyncio.create_task(
+                self._run_agent(prompt, self._loaded_history or None, queue)
+            )
         try:
             while True:
                 match await queue.get():
@@ -896,9 +926,13 @@ class BackgroundAssistant(Assistant):
                 status=ChatRunStatus.COMPLETED,
                 result=self._result(self._answer.answer, self._answer.messages_json),
             )
-        status, error_code = _STOPPED_RUN_OUTCOMES.get(
-            self._journal.stop_reason, (ChatRunStatus.FAILED, ChatRunErrorCode.FAILED)
-        )
+        if self._usage_limit_exceeded:
+            status, error_code = ChatRunStatus.FAILED, ERROR_USAGE_LIMIT_EXCEEDED
+        else:
+            status, error_code = _STOPPED_RUN_OUTCOMES.get(
+                self._journal.stop_reason,
+                (ChatRunStatus.FAILED, ChatRunErrorCode.FAILED),
+            )
         return ChatRunOutcome(
             status=status,
             error_code=error_code,

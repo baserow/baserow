@@ -36,7 +36,10 @@
     cursor: not-allowed;
     background: $palette-neutral-100 !important;
     color: $palette-neutral-700;
-    border: none;
+
+    // Transparent instead of removed, so that the size doesn't change when the
+    // button is enabled.
+    border-color: transparent;
   }
 }
 

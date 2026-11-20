@@ -21,6 +21,12 @@ from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
     generative_ai_model_type_registry,
 )
+from baserow.core.generative_ai.usage import (
+    AI_USAGE_FEATURE_AI_NODE,
+    AI_USAGE_FEATURE_BUILDER_AI_ACTION,
+    AI_USAGE_KEY_SCOPE_INTEGRATION,
+    ai_usage_context,
+)
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.models import Workspace
@@ -388,8 +394,11 @@ class AIAgentServiceType(ServiceType):
         if service.ai_temperature is not None:
             kwargs["temperature"] = service.ai_temperature
 
+        usage_context = self._get_ai_usage_context(dispatch_context)
         if settings_override is not None:
             kwargs["settings_override"] = settings_override
+            # The credentials of the integration are owned by the workspace.
+            usage_context["key_scope"] = AI_USAGE_KEY_SCOPE_INTEGRATION
 
         try:
             if service.ai_output_type == AIOutputType.CHOICE:
@@ -402,17 +411,41 @@ class AIAgentServiceType(ServiceType):
 
                 kwargs["output_type"] = choices
 
-            result = ai_model_type.prompt(
-                model=service.ai_generative_ai_model,
-                prompt=prompt,
-                workspace=workspace,
-                **kwargs,
-            )
+            with ai_usage_context(**usage_context):
+                result = ai_model_type.prompt(
+                    model=service.ai_generative_ai_model,
+                    prompt=prompt,
+                    workspace=workspace,
+                    **kwargs,
+                )
             return {"result": result}
         except GenerativeAIPromptError as e:
             raise RuntimeDispatchException(
                 f"AI prompt execution failed: {str(e)}"
             ) from e
+
+    @staticmethod
+    def _get_ai_usage_context(dispatch_context: DispatchContext) -> Dict[str, Any]:
+        """
+        Describes what the prompt is used for, so that the usage can be
+        attributed to the Builder action or the Automation workflow run.
+        """
+
+        if getattr(dispatch_context, "page", None) is not None:
+            return {
+                "feature": AI_USAGE_FEATURE_BUILDER_AI_ACTION,
+                "reference_type": "builder_page",
+                "reference_id": dispatch_context.page.id,
+            }
+
+        history = getattr(dispatch_context, "history", None)
+        return {
+            "feature": AI_USAGE_FEATURE_AI_NODE,
+            "reference_type": (
+                "automation_workflow_history" if history is not None else None
+            ),
+            "reference_id": history.id if history is not None else None,
+        }
 
     def dispatch_transform(self, data: Dict[str, Any]) -> DispatchResult:
         return DispatchResult(data=data)

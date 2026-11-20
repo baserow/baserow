@@ -817,6 +817,16 @@ class CoreConfig(AppConfig):
 
         plugin_dir.register(ChatRunsHealthCheck)
         page_registry.register(ChatRunsPageType())
+
+        from baserow.api.generative_ai.errors import ERROR_AI_USAGE_LIMIT_EXCEEDED
+        from baserow.api.registries import RegisteredException, api_exception_registry
+        from baserow.core.generative_ai.usage import AIUsageLimitExceeded
+
+        # Registered for every API view, because a plugin can refuse the AI
+        # request of any of them, with a message that's meant for the user.
+        api_exception_registry.register(
+            RegisteredException(AIUsageLimitExceeded, ERROR_AI_USAGE_LIMIT_EXCEEDED)
+        )
         register_async_stream_path("api:chat_runs:stream", methods=("GET",))
 
         import baserow.core.import_export.tasks  # noqa: F403, F401

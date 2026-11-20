@@ -13,6 +13,7 @@ from rest_framework import serializers
 
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST, ERROR_USER_NOT_IN_GROUP
 from baserow.api.generative_ai.errors import ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE
+from baserow.api.jobs.serializers import JobPluginDataSerializerMixin
 from baserow.config.db_routers import set_db_alias
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DOES_NOT_EXIST
 from baserow.contrib.database.api.views.errors import ERROR_VIEW_DOES_NOT_EXIST
@@ -35,6 +36,7 @@ from baserow.core.generative_ai.exceptions import (
     ModelDoesNotBelongToType,
     get_user_friendly_error_message,
 )
+from baserow.core.generative_ai.usage import AIUsageLimitExceeded
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
@@ -43,6 +45,7 @@ from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
 from baserow_premium.api.fields.errors import ERROR_AI_FIELD_PROMPT_INVALID
 
+from .constants import GENERATE_AI_VALUES_JOB_USAGE_REFERENCE
 from .exceptions import AIFieldEmptyPromptError, AIFieldPromptInvalidError
 from .handler import AIFieldHandler
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
@@ -60,6 +63,7 @@ class GenerateAIValuesJobType(JobType):
     type = "generate_ai_values"
     model_class = GenerateAIValuesJob
     max_count = 3
+    ai_usage_reference_type = GENERATE_AI_VALUES_JOB_USAGE_REFERENCE
 
     api_exceptions_map = {
         UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
@@ -69,14 +73,16 @@ class GenerateAIValuesJobType(JobType):
         AIFieldPromptInvalidError: ERROR_AI_FIELD_PROMPT_INVALID,
         ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
     }
-    serializer_field_names = [
+    request_serializer_field_names = [
         "field_id",
         "row_ids",
         "view_id",
         "only_empty",
         "is_auto_update",
     ]
-    serializer_field_overrides = {
+    serializer_field_names = [*request_serializer_field_names, "plugin_data"]
+    serializer_mixins = [JobPluginDataSerializerMixin]
+    request_serializer_field_overrides = {
         "field_id": serializers.IntegerField(
             help_text="The ID of the AI field to generate values for.",
         ),
@@ -102,6 +108,10 @@ class GenerateAIValuesJobType(JobType):
             help_text="Indicates if the job has been created because values in a "
             "dependent field changed.",
         ),
+    }
+    serializer_field_overrides = {
+        **request_serializer_field_overrides,
+        "plugin_data": JobPluginDataSerializerMixin.plugin_data_field(),
     }
 
     def _get_running_jobs(self, job) -> JobQuerySet:
@@ -350,7 +360,14 @@ class GenerateAIValuesJobType(JobType):
                 # it, so we skip it.
                 return
 
-        generator = AIValueGenerator(user, ai_field, self, on_progress)
+        # The AI usage is attributed to the job, so that it can be shown per run.
+        generator = AIValueGenerator(
+            user,
+            ai_field,
+            self,
+            on_progress,
+            usage_reference=(GENERATE_AI_VALUES_JOB_USAGE_REFERENCE, job.id),
+        )
         generator.process(rows.order_by("id"))
 
 
@@ -376,6 +393,7 @@ class AIValueGenerator:
         ai_field: AIField,
         signal_sender: GenerateAIValuesJob | Any | None = None,
         on_progress: Callable[[AIValueUpdate], None] | None = None,
+        usage_reference: tuple[str, Any] | None = None,
     ):
         self.user = user
 
@@ -383,6 +401,7 @@ class AIValueGenerator:
         self.table = table = ai_field.table
         self.model = table.get_model()
         self.signal_sender = signal_sender
+        self.usage_reference = usage_reference
         self.workspace = table.database.workspace
         # Rows are generated on worker threads, so resolve the provider state
         # once here rather than letting every row resolve it again.
@@ -447,11 +466,18 @@ class AIValueGenerator:
         start = datetime.now(tz=timezone.utc)
         try:
             result = AIFieldHandler.generate_value_with_ai(
-                self.ai_field, row, self.ai_provider_state
+                self.ai_field,
+                row,
+                self.ai_provider_state,
+                usage_reference=self.usage_reference,
             )
         except AIFieldEmptyPromptError:
             # Empty prompt — preserve existing value.
             result = getattr(row, self.ai_field.db_column, None)
+        except AIUsageLimitExceeded as exc:
+            # A refusal by a plugin isn't a failure, so it's not logged with a
+            # stack trace.
+            result = exc
         except Exception as exc:
             logger.exception(f"Value generation for row {row} failed: {exc}")
             result = exc

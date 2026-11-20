@@ -8,6 +8,7 @@ from django.urls import reverse
 import pytest
 from freezegun import freeze_time
 
+from baserow.core.registries import Plugin, plugin_registry
 from baserow.test_utils.helpers import AnyStr
 from baserow_enterprise.assistant.models import (
     AssistantChat,
@@ -1226,3 +1227,43 @@ def test_cancel_message_requires_workspace_access(api_client, enterprise_data_fi
 
     assert rsp.status_code == 404
     assert rsp.json()["error"] == "ERROR_ASSISTANT_CHAT_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_messages_includes_the_data_of_plugins(api_client, enterprise_data_fixture):
+    user, token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user)
+    enterprise_data_fixture.enable_enterprise()
+    chat = AssistantChat.objects.create(user=user, workspace=workspace)
+    question = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.HUMAN, content="Question"
+    )
+    answer = AssistantChatMessage.objects.create(
+        chat=chat, role=AssistantChatMessage.Role.AI, content="Answer"
+    )
+    AssistantChatPrediction.objects.create(
+        human_message=question, ai_response=answer, prediction={}
+    )
+
+    class CostPlugin(Plugin):
+        type = "cost"
+
+        def get_ai_usage_plugin_data(self, reference_type, reference_ids):
+            # The usage of an answer is reported with the question it answers.
+            assert (reference_type, reference_ids) == (
+                "assistant_chat_message",
+                [str(question.id)],
+            )
+            return {str(question.id): {"credits": 2}}
+
+    with patch.dict(plugin_registry.registry, {"cost": CostPlugin()}):
+        rsp = api_client.get(
+            reverse("assistant:chat_messages", kwargs={"chat_uuid": str(chat.uuid)}),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    messages = rsp.json()["messages"]
+    assert "plugin_data" not in messages[0]
+    assert messages[1]["plugin_data"] == {"cost": {"credits": 2}}
+    assert "human_message_id" not in messages[1]

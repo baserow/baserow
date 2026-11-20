@@ -1,9 +1,11 @@
 """Read and project saved Kuma messages without constructing a model client."""
 
-from typing import Any
+from typing import Any, Iterable
+
+from baserow.core.generative_ai.usage import get_ai_usage_plugin_data
 
 from .models import AssistantChat, AssistantChatMessage
-from .types import AiMessage, HumanMessage
+from .types import ASSISTANT_MESSAGE_USAGE_REFERENCE, AiMessage, HumanMessage
 
 
 def to_assistant_message(message: AssistantChatMessage) -> HumanMessage | AiMessage:
@@ -30,6 +32,7 @@ def to_assistant_message(message: AssistantChatMessage) -> HumanMessage | AiMess
         error_code=run_state.get("error_code"),
         onboarding_target=message.artifacts.get("onboarding_target"),
         can_submit_feedback=prediction is not None,
+        human_message_id=prediction.human_message_id if prediction else None,
         human_sentiment=prediction.get_human_sentiment_display()
         if prediction
         else None,
@@ -45,7 +48,9 @@ def assistant_message_payload(message: AssistantChatMessage) -> dict[str, Any]:
     :return: The message as a JSON-serializable dict.
     """
 
-    return to_assistant_message(message).model_dump(mode="json")
+    projected = to_assistant_message(message)
+    add_ai_usage([projected])
+    return projected.model_dump(mode="json")
 
 
 def list_chat_messages(
@@ -63,3 +68,24 @@ def list_chat_messages(
     if last_message_id is not None:
         queryset = queryset.filter(id__lt=last_message_id)
     return [to_assistant_message(message) for message in reversed(queryset[:limit])]
+
+
+def add_ai_usage(messages: Iterable[HumanMessage | AiMessage]) -> None:
+    """
+    Adds what plugins provide about the AI usage of each answer, like its cost.
+    The usage of a run is reported with the human message it answers.
+
+    :param messages: The messages, of which the answers get their `plugin_data`.
+    """
+
+    answers = [
+        message
+        for message in messages
+        if isinstance(message, AiMessage) and message.human_message_id is not None
+    ]
+    plugin_data = get_ai_usage_plugin_data(
+        ASSISTANT_MESSAGE_USAGE_REFERENCE,
+        [answer.human_message_id for answer in answers],
+    )
+    for answer in answers:
+        answer.plugin_data = plugin_data.get(str(answer.human_message_id), {})

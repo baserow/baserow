@@ -8,6 +8,8 @@ NAVIGATION_EVENT = "navigation"
 CHAT_TITLE_EVENT = "chat.title"
 ERROR_MODEL_UNAVAILABLE = "model_unavailable"
 ERROR_ACCESS_LOST = "access_lost"
+# A plugin refused an AI request of the run, for example because of a usage limit.
+ERROR_USAGE_LIMIT_EXCEEDED = "usage_limit_exceeded"
 NOTHING_RAN_ERROR_CODES = frozenset(
     {ChatRunErrorCode.NOT_STARTED, ERROR_MODEL_UNAVAILABLE, ERROR_ACCESS_LOST}
 )

@@ -1,6 +1,8 @@
 import inspect
 from typing import NamedTuple
 
+from django.db.models import Prefetch
+
 import pytest
 
 from baserow.core.models import User, UserProfile, Workspace, WorkspaceUser
@@ -149,3 +151,96 @@ def test_specific_user_subject_types_override_every_forwarded_method(specific_ty
     # A forwarded method that is not overridden would call itself forever.
     assert forwarded
     assert [name for name in forwarded if name not in vars(specific_type)] == []
+
+
+@pytest.mark.django_db
+def test_user_subject_type_get_workspace_role_uids_uses_prefetched_memberships(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=admin, permissions="ADMIN"
+    )
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+
+    with django_assert_num_queries(0):
+        assert UserSubjectType().get_workspace_role_uids(
+            [admin, member], workspace
+        ) == {admin.id: "ADMIN", member.id: "MEMBER"}
+
+
+@pytest.mark.django_db
+def test_user_subject_type_get_workspace_role_uids_queries_missing_from_prefetch(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    non_member = data_fixture.create_user()
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=admin, permissions="ADMIN"
+    )
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    # A prefetch filtered on one user, like a listing of that user's workspaces does.
+    workspace = Workspace.objects.prefetch_related(
+        Prefetch("workspaceuser_set", queryset=WorkspaceUser.objects.filter(user=admin))
+    ).get(id=workspace.id)
+
+    with django_assert_num_queries(1):
+        assert UserSubjectType().get_workspace_role_uids(
+            [admin, member, non_member], workspace
+        ) == {admin.id: "ADMIN", member.id: "MEMBER"}
+
+
+@pytest.mark.django_db
+def test_user_subject_type_get_workspace_role_uids_skips_trashed_users_in_prefetch(
+    data_fixture,
+):
+    workspace = data_fixture.create_workspace()
+    admin = data_fixture.create_user()
+    trashed = data_fixture.create_user()
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=admin, permissions="ADMIN"
+    )
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=trashed, permissions="MEMBER"
+    )
+    UserProfile.objects.filter(user=trashed).update(trashed=True)
+    trashed.refresh_from_db()
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+
+    assert UserSubjectType().get_workspace_role_uids([admin, trashed], workspace) == {
+        admin.id: "ADMIN"
+    }
+
+
+@pytest.mark.django_db
+def test_user_subject_type_get_workspace_role_uids_ignores_prefetch_with_trash(
+    data_fixture, django_assert_num_queries
+):
+    workspace = data_fixture.create_workspace()
+    admin = data_fixture.create_user()
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=admin, permissions="ADMIN"
+    )
+    workspace = Workspace.objects.prefetch_related("workspaceuser_set").get(
+        id=workspace.id
+    )
+    workspace.trashed = True
+    workspace.save(update_fields=("trashed",))
+
+    with django_assert_num_queries(1):
+        assert UserSubjectType().get_workspace_role_uids(
+            [admin], workspace, include_trash=True
+        ) == {admin.id: "ADMIN"}

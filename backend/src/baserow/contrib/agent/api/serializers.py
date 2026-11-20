@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -475,6 +476,9 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "and in the response that started it."
         )
     )
+    plugin_data = serializers.SerializerMethodField(
+        help_text="Data that plugins provide for this message, keyed by plugin type."
+    )
 
     class Meta:
         model = AgentMessage
@@ -489,12 +493,17 @@ class AgentMessageSerializer(serializers.ModelSerializer):
             "run_id",
             "steps",
             "approvals",
+            "plugin_data",
         )
         read_only_fields = ("id",)
 
     @extend_schema_field(serializers.UUIDField(allow_null=True))
     def get_run_id(self, message: AgentMessage) -> UUID | None:
         return self.context.get("active_runs", {}).get(message.id)
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_plugin_data(self, message: AgentMessage) -> dict:
+        return self.context.get("plugin_data", {}).get(str(message.id), {})
 
 
 class AgentMessageContentSerializer(

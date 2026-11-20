@@ -67,6 +67,15 @@ class JobType(
     starts.
     """
 
+    ai_usage_reference_type: str | None = None
+
+    """
+    The `AIUsageScope.reference_type` the AI usage of a job of this type is
+    reported with, the job id being the reference id. When set, plugins can
+    provide data about it, like what the job cost, see
+    `Plugin.get_ai_usage_plugin_data`.
+    """
+
     def can_schedule_or_raise(self, job: Job) -> None:
         """
         Checks whether ``job`` can be scheduled for the given user. Splits into

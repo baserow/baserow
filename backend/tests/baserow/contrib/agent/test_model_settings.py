@@ -74,7 +74,8 @@ def test_other_agent_models_keep_provider_defaults(
     if effort is not None:
         assert "thinking" in model_settings
     if provider == "groq":
-        assert type(model) is GroqModel
+        # Replies are wrapped to report their AI usage.
+        assert type(model.wrapped) is GroqModel
 
 
 @pytest.mark.django_db
@@ -128,7 +129,7 @@ def test_groq_agent_tool_round_preserves_native_reasoning(
 
     monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", send)
     model, model_settings = configured_reply_model("groq", model_name, "high")
-    assert type(model) is GroqGPTOSSModel
+    assert type(model.wrapped) is GroqGPTOSSModel
 
     async def run():
         async with model:

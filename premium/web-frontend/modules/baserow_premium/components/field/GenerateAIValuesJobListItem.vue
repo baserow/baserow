@@ -33,6 +33,12 @@
       <span>
         {{ $t(`generateAIValuesModal.${job.state}`) }} {{ timeAgo }}
       </span>
+      <component
+        :is="component"
+        v-for="(component, index) in aiUsageComponents"
+        :key="index"
+        :plugin-data="job.plugin_data || {}"
+      />
     </div>
   </div>
 </template>
@@ -65,6 +71,11 @@ export default {
   computed: {
     isRunning() {
       return ['pending', 'started'].includes(this.job?.state)
+    },
+    aiUsageComponents() {
+      return Object.values(this.$registry.getAll('plugin')).flatMap((plugin) =>
+        plugin.getAIUsageComponents()
+      )
     },
     jobName() {
       let name = ''

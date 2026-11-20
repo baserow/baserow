@@ -424,6 +424,27 @@ class CoreHandler:
 
         return [actor for (actor, _, _), result in checked.items() if result is True]
 
+    def prefetch_permissions_for_workspaces(
+        self, actor: Actor, workspaces: List[Workspace]
+    ):
+        """
+        Lets every permission manager load and cache, for the rest of the request,
+        what it needs to check the permissions of the actor in the given workspaces.
+        Call it before checking permissions in a loop over many workspaces to keep the
+        number of queries independent of the number of workspaces. The workspaces
+        should also have the actor's `workspaceuser_set` membership prefetched.
+
+        :param actor: The actor whose permissions will be checked.
+        :param workspaces: The workspaces the permissions will be checked in.
+        """
+
+        for permission_manager_name in settings.PERMISSION_MANAGERS:
+            permission_manager_type = permission_manager_type_registry.get(
+                permission_manager_name
+            )
+            if permission_manager_type.actor_is_supported(actor):
+                permission_manager_type.prefetch_for_workspaces(actor, workspaces)
+
     @baserow_trace(tracer, allow_nested=True)
     def check_permissions(
         self,

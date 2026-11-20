@@ -1,7 +1,9 @@
 import { flushPromises } from '@vue/test-utils'
 import { routerKey } from 'vue-router'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import AssistantMessageList from '@baserow_enterprise/components/assistant/AssistantMessageList'
 import assistantService from '@baserow_enterprise/services/assistant'
 
@@ -284,5 +286,46 @@ describe('AssistantMessageList', () => {
     expect(wrapper.find('.assistant__disclaimer').exists()).toBe(false)
     expect(wrapper.findAll('button[aria-label="action.copy"]')).toHaveLength(2)
     expect(wrapper.find('[aria-busy="true"]').exists()).toBe(false)
+  })
+})
+
+describe('AssistantMessageList AI usage', () => {
+  let testApp
+
+  const AIUsage = defineComponent({
+    props: { pluginData: { type: Object, required: true } },
+    setup(props) {
+      return () => h('span', { class: 'test-ai-usage' }, props.pluginData.cost)
+    },
+  })
+
+  class AIUsagePlugin extends BaserowPlugin {
+    static getType() {
+      return 'test_ai_usage'
+    }
+
+    getAIUsageComponents() {
+      return [AIUsage]
+    }
+  }
+
+  beforeEach(() => {
+    testApp = new TestApp()
+    testApp.getRegistry().register('plugin', new AIUsagePlugin())
+  })
+
+  afterEach(async () => {
+    testApp.getRegistry().unregister('plugin', 'test_ai_usage')
+    await testApp.afterEach()
+  })
+
+  test('shows the AI usage of an answer in its footer', async () => {
+    const wrapper = await testApp.mount(AssistantMessageList, {
+      props: { messages: [answer({ plugin_data: { cost: '2 credits' } })] },
+    })
+
+    expect(wrapper.get('.chat-message__footer .test-ai-usage').text()).toBe(
+      '2 credits'
+    )
   })
 })
