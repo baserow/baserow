@@ -24,6 +24,7 @@ from baserow.core.exceptions import (
 from baserow.core.feature_flags import FF_RBAC_IMPROVEMENTS, feature_flag_is_enabled
 from baserow.core.handler import CoreHandler
 from baserow.core.models import (
+    Application,
     User,
     Workspace,
     WorkspaceInvitation,
@@ -1267,7 +1268,7 @@ class RoleAssignmentHandler:
         :raise SubjectUnsupported: If at least one of the subjects is unsupported by
             role assignments.
         :raise ScopeNotExist: If at least one of the scopes is not a child of the
-            workspace.
+            workspace, or can't get a role (see `is_role_assignable_scope`).
         :raise CannotAssignRoleToSelf: If the user assigns a role to themselves, on
             the workspace or on anything inside it.
         :return: A list of the result of each assignment. Each result can be a
@@ -1324,6 +1325,8 @@ class RoleAssignmentHandler:
             are_scopes_in_workspace = scope_type.are_objects_child_of(scopes, workspace)
             if not all(are_scopes_in_workspace):
                 raise ScopeNotExist()
+            if not all(self.is_role_assignable_scope(scope) for scope in scopes):
+                raise ScopeNotExist()
 
         # Do we have the permission to change roles for all scopes
         if check_role_permissions:
@@ -1335,6 +1338,21 @@ class RoleAssignmentHandler:
                 raise PermissionDenied()
 
         return self.assign_role_batch(workspace, new_role_assignments)
+
+    def is_role_assignable_scope(self, scope: ScopeObject) -> bool:
+        """
+        Says whether a role can be given on the scope. An application that people
+        don't manage themselves, like the shared application that holds the
+        workspace integrations, can't get one. Listing, creating and ordering the
+        workspace integrations are workspace operations, while updating, deleting
+        and restoring one resolve through the shared application, so a role on it
+        would grant or take away only the second half.
+
+        :param scope: The scope a role would be given on.
+        :return: True when a role can be given on the scope.
+        """
+
+        return not isinstance(scope, Application) or scope.get_type().is_user_managed
 
     def get_scopes(self, content_type_id, scope_ids) -> QuerySet[ScopeObject]:
         """
@@ -1821,7 +1839,8 @@ class RoleAssignmentHandler:
         """
         Runs the checks that guard managing scoped invitations: the RBAC licence, the
         scope being a role assignable object inside the workspace other than the
-        workspace itself, and the user holding the scope's role operation.
+        workspace itself (see `is_role_assignable_scope`), and the user holding the
+        scope's role operation.
 
         :param user: The user managing the scoped invitation.
         :param workspace: The workspace the scope belongs to.
@@ -1836,8 +1855,10 @@ class RoleAssignmentHandler:
         LicenseHandler.raise_if_user_doesnt_have_feature(RBAC, user, workspace)
 
         scope_type = object_scope_type_registry.get_by_model(scope)
-        if scope_type.type not in ROLE_ASSIGNABLE_OBJECT_MAP or isinstance(
-            scope, Workspace
+        if (
+            scope_type.type not in ROLE_ASSIGNABLE_OBJECT_MAP
+            or isinstance(scope, Workspace)
+            or not self.is_role_assignable_scope(scope)
         ):
             raise ScopeNotExist()
         if not scope_type.are_objects_child_of([scope], workspace)[0]:

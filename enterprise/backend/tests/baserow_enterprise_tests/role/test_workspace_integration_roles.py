@@ -1,6 +1,9 @@
 from unittest.mock import patch
 
+from django.shortcuts import reverse
+
 import pytest
+from rest_framework.status import HTTP_404_NOT_FOUND
 
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
@@ -10,9 +13,13 @@ from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
 from baserow.core.integrations.tasks import broadcast_to_workspace_integration_users
+from baserow.core.models import WorkspaceInvitation, WorkspaceInvitationLink
+from baserow.core.subjects import UserSubjectType
 from baserow.core.trash.handler import TrashHandler
+from baserow_enterprise.exceptions import ScopeNotExist
 from baserow_enterprise.role.handler import RoleAssignmentHandler
-from baserow_enterprise.role.models import Role
+from baserow_enterprise.role.models import Role, RoleAssignment
+from baserow_enterprise.role.types import NewRoleAssignment
 
 
 def _ordered_ids(application):
@@ -369,3 +376,73 @@ def test_new_nodes_preselect_a_workspace_integration_for_application_builders(
         create_node(app_builder, service={"integration_id": workspace_integration.id})
         == workspace_integration.id
     )
+
+
+@pytest.mark.django_db
+def test_no_role_can_be_given_on_the_shared_application(
+    data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    admin_role = Role.objects.get(uid="ADMIN")
+    handler = RoleAssignmentHandler()
+
+    # The API resolves the scope as the base application, so both are refused.
+    for scope in [shared_application, shared_application.application_ptr]:
+        with pytest.raises(ScopeNotExist):
+            handler.assign_role_batch_for_user(
+                admin, workspace, [NewRoleAssignment(member, admin_role, scope)]
+            )
+        with pytest.raises(ScopeNotExist):
+            handler.create_scoped_invitation(
+                admin, workspace, "invited@example.com", admin_role, scope
+            )
+        with pytest.raises(ScopeNotExist):
+            handler.create_scoped_invitation_link(admin, workspace, scope, admin_role)
+
+    assert not RoleAssignment.objects.filter(subject_id=member.id).exists()
+    assert not WorkspaceInvitation.objects.filter(workspace=workspace).exists()
+    assert not WorkspaceInvitationLink.objects.filter(workspace=workspace).exists()
+
+    # Any other application still gets one.
+    handler.assign_role_batch_for_user(
+        admin,
+        workspace,
+        [NewRoleAssignment(member, admin_role, application.application_ptr)],
+    )
+    assert (
+        handler.get_current_role_assignment(
+            member, workspace, scope=application.application_ptr
+        ).role
+        == admin_role
+    )
+
+
+@pytest.mark.django_db
+def test_assign_a_role_on_the_shared_application(
+    api_client, data_fixture, enable_enterprise, synced_roles
+):
+    admin, token = data_fixture.create_user_and_token()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[member])
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+
+    response = api_client.post(
+        reverse("api:enterprise:role:list", kwargs={"workspace_id": workspace.id}),
+        {
+            "scope_id": shared_application.id,
+            "scope_type": "application",
+            "subject_id": member.id,
+            "subject_type": UserSubjectType.type,
+            "role": "ADMIN",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_SCOPE_DOES_NOT_EXIST"
+    assert not RoleAssignment.objects.filter(subject_id=member.id).exists()
