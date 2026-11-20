@@ -83,6 +83,16 @@ class AbstractSemanticSearchChunk(models.Model):
         "aren't embedded again.",
     )
     embedding = VectorField(dimensions=DEFAULT_EMBEDDING_DIMENSIONS)
+    content = models.TextField(
+        null=True,
+        help_text="The text of the chunk, so that a match can show what matched. "
+        "Null until the cell is indexed again.",
+    )
+    source = models.TextField(
+        null=True,
+        help_text="The part of the cell the text comes from, like the name of a "
+        "file, if the field type names the parts of a value.",
+    )
 
     class Meta:
         abstract = True

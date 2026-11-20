@@ -46,7 +46,15 @@ ROW_PROPERTY = "row"
 SCORE_PROPERTY = "score"
 SIMILARITY_PROPERTY = "similarity"
 MATCHED_FIELD_PROPERTY = "matched_field"
-RESULT_PROPERTIES = [SCORE_PROPERTY, SIMILARITY_PROPERTY, MATCHED_FIELD_PROPERTY]
+MATCHED_TEXT_PROPERTY = "matched_text"
+MATCHED_SOURCE_PROPERTY = "matched_source"
+RESULT_PROPERTIES = [
+    SCORE_PROPERTY,
+    SIMILARITY_PROPERTY,
+    MATCHED_FIELD_PROPERTY,
+    MATCHED_TEXT_PROPERTY,
+    MATCHED_SOURCE_PROPERTY,
+]
 
 
 class LocalBaserowSemanticSearchServiceType(
@@ -474,6 +482,16 @@ class LocalBaserowSemanticSearchServiceType(
                     "title": "Matched field",
                     **not_refinable,
                 },
+                MATCHED_TEXT_PROPERTY: {
+                    "type": "string",
+                    "title": "Matched text",
+                    **not_refinable,
+                },
+                MATCHED_SOURCE_PROPERTY: {
+                    "type": "string",
+                    "title": "Matched source",
+                    **not_refinable,
+                },
             },
         )
 
@@ -595,6 +613,7 @@ class LocalBaserowSemanticSearchServiceType(
             )
         rows_by_id = rows.in_bulk([match.row_id for match in page])
         field_names = {field.id: field.name for field in fields}
+        quotable_field_ids = self._get_quotable_field_ids(service, fields)
         return {
             "results": [
                 (
@@ -602,6 +621,11 @@ class LocalBaserowSemanticSearchServiceType(
                     match.relevance,
                     match.similarity,
                     field_names[match.field_id],
+                    *(
+                        (match.text, match.source)
+                        if match.field_id in quotable_field_ids
+                        else (None, None)
+                    ),
                 )
                 for match in page
                 if match.row_id in rows_by_id
@@ -610,6 +634,22 @@ class LocalBaserowSemanticSearchServiceType(
             "baserow_table_model": table_model,
             "field_ids": field_ids,
         }
+
+    def _get_quotable_field_ids(
+        self, service: LocalBaserowSemanticSearch, fields: List[Field]
+    ) -> set[int]:
+        """
+        :param service: The dispatched service.
+        :param fields: The searched fields.
+        :return: The searched fields of which a result may show the matching
+            text: the ones the service returns. The values of the others must
+            stay hidden.
+        """
+
+        field_ids = {field.id for field in fields}
+        if service.include_all_fields:
+            return field_ids
+        return field_ids & set(service.included_field_ids)
 
     def _get_returned_field_ids(
         self, service: LocalBaserowSemanticSearch, dispatch_context: DispatchContext
@@ -651,10 +691,17 @@ class LocalBaserowSemanticSearchServiceType(
                         SCORE_PROPERTY: relevance,
                         SIMILARITY_PROPERTY: similarity,
                         MATCHED_FIELD_PROPERTY: matched_field,
+                        MATCHED_TEXT_PROPERTY: matched_text,
+                        MATCHED_SOURCE_PROPERTY: matched_source,
                     }
-                    for row, (_, relevance, similarity, matched_field) in zip(
-                        rows, dispatch_data["results"]
-                    )
+                    for row, (
+                        _,
+                        relevance,
+                        similarity,
+                        matched_field,
+                        matched_text,
+                        matched_source,
+                    ) in zip(rows, dispatch_data["results"])
                 ],
                 "has_next_page": dispatch_data["has_next_page"],
             }

@@ -7,8 +7,14 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.core.registry import Instance, Registry
 
 
+class SemanticSearchText(NamedTuple):
+    content: str
+    # Names the part of the value the text comes from, like a file of the cell.
+    source: Optional[str] = None
+
+
 class SemanticSearchTexts(NamedTuple):
-    texts: list[str]
+    texts: list[SemanticSearchText]
     # False if a part of the value couldn't be read, like a file of which the
     # storage was unavailable, so that the value is read again by a later update.
     complete: bool = True

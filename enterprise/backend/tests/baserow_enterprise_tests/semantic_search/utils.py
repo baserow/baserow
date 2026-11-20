@@ -28,5 +28,16 @@ def get_chunk_counts(field) -> dict[int, int]:
     )
 
 
+def get_chunk_texts(field) -> set[tuple[str | None, str | None]]:
+    """Returns the `(content, source)` of the stored chunks of the field."""
+
+    vector_table = SemanticSearchVectorTable(field.table.database.workspace_id)
+    return set(
+        vector_table.model.objects.filter(field_id=field.id).values_list(
+            "content", "source"
+        )
+    )
+
+
 def index(table, seconds: float = 60) -> bool:
     return SemanticSearchHandler().index_table(table, time.monotonic() + seconds)
