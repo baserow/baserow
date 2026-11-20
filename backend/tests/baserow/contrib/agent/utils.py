@@ -1,10 +1,9 @@
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
-from time import monotonic, sleep
 from typing import TypeVar
 from uuid import uuid4
 
-from django.db import connection, connections, transaction
+from django.db import connections, transaction
 from django.urls import reverse
 
 from baserow.contrib.agent.constants import AGENT_RUN_TYPE
@@ -70,21 +69,3 @@ def in_another_connection(work: Callable[[], T]) -> Future[T]:
     future = executor.submit(run)
     executor.shutdown(wait=False)
     return future
-
-
-def wait_for_a_lock_waiter() -> None:
-    """Return once another connection waits for a lock this transaction holds."""
-
-    deadline = monotonic() + 10
-    with connection.cursor() as cursor:
-        while monotonic() < deadline:
-            # Statistics views keep their first snapshot for the whole transaction.
-            cursor.execute("SELECT pg_stat_clear_snapshot()")
-            cursor.execute(
-                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
-                "WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid)))"
-            )
-            if cursor.fetchone()[0]:
-                return
-            sleep(0.01)
-    raise AssertionError("Nothing waited for a lock")

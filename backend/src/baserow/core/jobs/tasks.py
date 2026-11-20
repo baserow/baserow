@@ -6,7 +6,7 @@ from django.db import transaction
 from loguru import logger
 
 from baserow.config.celery import app
-from baserow.core.jobs.constants import JOB_CANCELLED
+from baserow.core.jobs.constants import JOB_CANCELLED, JOB_FINISHED
 from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.sentry import setup_user_in_sentry
@@ -55,16 +55,21 @@ def run_async_job(self, job_id: int):
             with job_type.transaction_atomic_context(job):
                 JobHandler.run(job)
 
-            job.set_state_finished()
-            job.save()
+            # Not cached until saved, because the save can still turn into a
+            # failure, on a required relation whose object is being deleted, or
+            # into a cancellation.
+            job.state = JOB_FINISHED
+            JobHandler.save_ended_job(job, job_type, finished=True)
         except JobCancelled:
             # It shouldn't be necessary because the JobHandler shouldn't call
             # job.save(), but this guarantees that the job is in the cancelled state
             # at the end.
             job.set_state_cancelled()
-            job.save()
+            JobHandler.save_ended_job(job, job_type)
             job_type.on_cancelled(job)
-        except BaseException as e:
+        except BaseException as caught:
+            e = JobHandler.get_deleted_required_relation_error(job, job_type) or caught
+
             # BaseException allows catching SystemExit exceptions and all other possible
             # exceptions to set the job state in a failed state.
             error = f"Something went wrong during the {job_type.type} job execution."
@@ -87,7 +92,7 @@ def run_async_job(self, job_id: int):
                     break
 
             job.set_state_failed(str(e), error, error_code)
-            job.save()
+            JobHandler.save_ended_job(job, job_type)
 
             try:
                 job_type.on_error(job, e)

@@ -174,13 +174,6 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
 
         self.set_state(JOB_STARTED)
 
-    def set_state_finished(self):
-        """
-        Mark job as started
-        """
-
-        self.set_state(JOB_FINISHED)
-
     @property
     def last_updated_on(self) -> datetime | None:
         return self.get_from_cached_value_or_from_self("updated_on")

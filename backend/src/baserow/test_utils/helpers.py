@@ -4,12 +4,13 @@ import uuid
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta, timezone
 from decimal import Decimal
+from time import monotonic, sleep
 from typing import Any, Dict, Generator, List, Optional, Type, Union
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
-from django.db import connection
+from django.db import connection, transaction
 from django.test import override_settings
 from django.utils.dateparse import parse_date, parse_datetime
 
@@ -30,6 +31,7 @@ from baserow.core.action.registries import ActionType
 from baserow.core.cache import invalidate_cached_settings, set_cached_settings
 from baserow.core.models import Settings, Workspace
 from baserow.core.psycopg import psycopg
+from baserow.core.trash.handler import TrashHandler
 
 User = get_user_model()
 
@@ -800,3 +802,28 @@ class ReplayValues:
         self.stored = []
         self.recorded = []
         self.i = iter(counter_int())
+
+
+def wait_for_a_lock_waiter() -> None:
+    """Return once another connection waits for a lock this transaction holds."""
+
+    deadline = monotonic() + 10
+    with connection.cursor() as cursor:
+        while monotonic() < deadline:
+            # Statistics views keep their first snapshot for the whole transaction.
+            cursor.execute("SELECT pg_stat_clear_snapshot()")
+            cursor.execute(
+                "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                "WHERE pg_backend_pid() = ANY(pg_blocking_pids(pid)))"
+            )
+            if cursor.fetchone()[0]:
+                return
+            sleep(0.01)
+    raise AssertionError("Nothing waited for a lock")
+
+
+def permanently_delete_workspace(workspace: Workspace) -> None:
+    """Permanently delete the workspace in a transaction of its own."""
+
+    with transaction.atomic():
+        TrashHandler.permanently_delete(workspace)
