@@ -1397,7 +1397,10 @@ class RoleAssignmentHandler:
         return role_assignments
 
     def get_effective_access(
-        self, workspace: Workspace, scope: ScopeObject
+        self,
+        workspace: Workspace,
+        scope: ScopeObject,
+        subjects: Optional[List[Subject]] = None,
     ) -> List[EffectiveAccess]:
         """
         Resolves the role every user and identity of the workspace effectively holds on
@@ -1408,7 +1411,8 @@ class RoleAssignmentHandler:
         it, that holds a role for the subject once the admin precedence is applied.
         The subject holds that role themselves, by their stored workspace role or a
         role assignment of their own, or otherwise through the teams they belong to
-        that hold a role there.
+        that hold the effective role there. Roles of several teams on the same scope
+        add up, so only the teams holding the role that wins are named.
 
         Subjects without access are left out: those resolving to no access, which
         includes being blocked on a scope above, and those only reaching the scope
@@ -1416,6 +1420,8 @@ class RoleAssignmentHandler:
 
         :param workspace: The workspace the scope belongs to.
         :param scope: The scope to resolve the access on.
+        :param subjects: Resolves only these users and identities of the workspace
+            when given, rather than all of them.
         :return: The effective access of every subject with access, ordered by
             subject type priority.
         """
@@ -1441,14 +1447,23 @@ class RoleAssignmentHandler:
             subject_type = subject_type_registry.get(subject_type_name)
             if not subject_type.has_direct_workspace_roles:
                 continue
-            subjects = list(subject_type.get_workspace_subjects(workspace))
-            if not subjects:
+            if subjects is None:
+                type_subjects = list(subject_type.get_workspace_subjects(workspace))
+            else:
+                type_subjects = [
+                    subject
+                    for subject in subjects
+                    if isinstance(subject, subject_type.model_class)
+                ]
+            if not type_subjects:
                 continue
             roles_per_scope_per_subject = self.get_roles_per_scope_for_actors(
-                workspace, subject_type, subjects
+                workspace, subject_type, type_subjects
             )
-            stored_role_uids = subject_type.get_workspace_role_uids(subjects, workspace)
-            for subject in subjects:
+            stored_role_uids = subject_type.get_workspace_role_uids(
+                type_subjects, workspace
+            )
+            for subject in type_subjects:
                 source = None
                 for source_scope, roles in roles_per_scope_per_subject[subject]:
                     # Ordered from the workspace down, so the last match is the most
@@ -1484,22 +1499,27 @@ class RoleAssignmentHandler:
         }:
             source_scopes_q |= Q(scope_type_id=scope_type_id, scope_id=scope_id)
         own_keys = set()
-        team_ids_per_scope_key = defaultdict(set)
-        for subject_type_id, subject_id, scope_type_id, scope_id in (
+        team_ids_per_scope_and_role_key = defaultdict(set)
+        for subject_type_id, subject_id, scope_type_id, scope_id, role_id in (
             RoleAssignment.objects.filter(workspace=workspace)
             .filter(source_scopes_q)
             .exclude(self._direct_workspace_roles_q())
             .exclude(role__uid__in=[NO_ROLE_LOW_PRIORITY_ROLE_UID, *INTERNAL_ROLE_UIDS])
-            .values_list("subject_type_id", "subject_id", "scope_type_id", "scope_id")
+            .values_list(
+                "subject_type_id", "subject_id", "scope_type_id", "scope_id", "role_id"
+            )
         ):
             scope_key = (scope_type_id, scope_id)
             if subject_type_id == team_content_type.id:
-                team_ids_per_scope_key[scope_key].add(subject_id)
+                team_ids_per_scope_and_role_key[(scope_key, role_id)].add(subject_id)
             else:
                 own_keys.add((subject_type_id, subject_id, scope_key))
 
-        team_ids = set().union(*team_ids_per_scope_key.values())
+        team_ids = set().union(*team_ids_per_scope_and_role_key.values())
         teams_by_id = Team.objects.filter(id__in=team_ids).in_bulk()
+        for team in teams_by_id.values():
+            # Spares a query per team to whoever checks permissions on them.
+            team.workspace = workspace
         team_ids_per_subject_key = defaultdict(set)
         for subject_type_id, subject_id, team_id in TeamSubject.objects.filter(
             team_id__in=team_ids
@@ -1519,7 +1539,9 @@ class RoleAssignmentHandler:
                 teams = sorted(
                     (
                         teams_by_id[team_id]
-                        for team_id in team_ids_per_scope_key[scope_key]
+                        for team_id in team_ids_per_scope_and_role_key[
+                            (scope_key, role.id)
+                        ]
                         & team_ids_per_subject_key[(subject_type_id, subject.id)]
                     ),
                     key=lambda team: (team.name, team.id),
