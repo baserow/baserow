@@ -15,6 +15,9 @@ class IntegrationsConfig(AppConfig):
         from baserow.contrib.integrations.mcp.integration_types import (
             MCPServerIntegrationType,
         )
+        from baserow.contrib.integrations.microsoft.integration_types import (
+            MicrosoftIntegrationType,
+        )
         from baserow.contrib.integrations.slack.integration_types import (
             SlackBotIntegrationType,
         )
@@ -26,6 +29,7 @@ class IntegrationsConfig(AppConfig):
         integration_type_registry.register(AIIntegrationType())
         integration_type_registry.register(SlackBotIntegrationType())
         integration_type_registry.register(MCPServerIntegrationType())
+        integration_type_registry.register(MicrosoftIntegrationType())
 
         from baserow.contrib.integrations.mcp.actions import (
             ConnectMCPServerAccountActionType,
