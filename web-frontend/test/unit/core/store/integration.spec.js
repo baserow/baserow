@@ -532,6 +532,180 @@ describe('workspace integrations in the integration store', () => {
     expect(testApp.mock.history.get).toHaveLength(0)
   })
 
+  const WORKSPACE_INTEGRATIONS_URL = 'application/100/workspace-integrations/'
+  const fetchForced = (id) =>
+    store.dispatch('integration/fetchWorkspaceIntegrations', {
+      application: get(id),
+      force: true,
+    })
+  // A Local Baserow workspace integration, with the tables the backend found
+  // it can reach when it sent it.
+  const localBaserow = (tables) => ({
+    ...integration(2, SHARED_APPLICATION.id, 'Team'),
+    type: 'local_baserow',
+    context_data: {
+      databases: [
+        {
+          id: 7,
+          name: 'Sales',
+          tables: tables.map((name, index) => ({ id: index + 1, name })),
+          views: [],
+        },
+      ],
+    },
+  })
+  const reachableTables = (id) =>
+    store.getters['integration/getUsableIntegrations'](get(id)).flatMap(
+      ({ context_data: contextData }) =>
+        contextData.databases.flatMap(({ tables }) =>
+          tables.map(({ name }) => name)
+        )
+    )
+  const requested = (url) =>
+    testApp.mock.history.get.filter((request) => request.url === url)
+
+  test('a forced fetch loads the workspace integrations again', async () => {
+    testApp.mock
+      .onGet(WORKSPACE_INTEGRATIONS_URL)
+      .replyOnce(
+        200,
+        workspaceIntegrations([localBaserow(['Leads'])], SHARED_APPLICATION)
+      )
+    // A table created since, which no realtime event about the integration
+    // tells the store.
+    testApp.mock
+      .onGet(WORKSPACE_INTEGRATIONS_URL)
+      .replyOnce(
+        200,
+        workspaceIntegrations(
+          [localBaserow(['Leads', 'Deals'])],
+          SHARED_APPLICATION
+        )
+      )
+
+    await fetchOnce(100)
+    expect(reachableTables(100)).toEqual(['Leads'])
+
+    expect(names(await fetchForced(100))).toEqual(['Team'])
+
+    expect(requested(WORKSPACE_INTEGRATIONS_URL)).toHaveLength(2)
+    expect(reachableTables(100)).toEqual(['Leads', 'Deals'])
+  })
+
+  test('loading once fetches nothing after a forced fetch', async () => {
+    testApp.mock
+      .onGet(WORKSPACE_INTEGRATIONS_URL)
+      .replyOnce(
+        200,
+        workspaceIntegrations([localBaserow(['Leads'])], SHARED_APPLICATION)
+      )
+
+    await fetchForced(100)
+    expect(names(await fetchOnce(100))).toEqual(['Team'])
+
+    expect(requested(WORKSPACE_INTEGRATIONS_URL)).toHaveLength(1)
+  })
+
+  test('a forced fetch that gave up keeps the list it would have replaced', async () => {
+    testApp.mock
+      .onGet(WORKSPACE_INTEGRATIONS_URL)
+      .replyOnce(
+        200,
+        workspaceIntegrations([localBaserow(['Leads'])], SHARED_APPLICATION)
+      )
+    await fetchOnce(100)
+    const shared = get(SHARED_APPLICATION.id)
+    testApp.mock.onGet(WORKSPACE_INTEGRATIONS_URL).reply(() => {
+      // Renamed through a realtime event during every attempt, so no answer
+      // is ever current.
+      store.dispatch('integration/forceUpdate', {
+        application: shared,
+        integration: store.getters['integration/getIntegrations'](shared)[0],
+        values: { name: 'Renamed' },
+      })
+      return [
+        200,
+        workspaceIntegrations(
+          [localBaserow(['Leads', 'Deals'])],
+          SHARED_APPLICATION
+        ),
+      ]
+    })
+
+    expect(await fetchForced(100)).toBeNull()
+
+    expect(usable(100)).toEqual(['Renamed'])
+    expect(reachableTables(100)).toEqual(['Leads'])
+    // Still loaded, so loading once doesn't ask again.
+    const requests = testApp.mock.history.get.length
+    expect(names(await fetchOnce(100))).toEqual(['Renamed'])
+    expect(testApp.mock.history.get).toHaveLength(requests)
+  })
+
+  const OWN_INTEGRATIONS_URL = 'application/100/integrations/'
+  const fetchUsable = (id) =>
+    store.dispatch('integration/fetchUsable', { application: get(id) })
+
+  test('every integration an application can use is fetched again', async () => {
+    testApp.mock
+      .onGet(OWN_INTEGRATIONS_URL)
+      .reply(200, [integration(1, 100, 'Own')])
+    testApp.mock
+      .onGet(WORKSPACE_INTEGRATIONS_URL)
+      .reply(
+        200,
+        workspaceIntegrations(
+          [integration(2, SHARED_APPLICATION.id, 'Team')],
+          SHARED_APPLICATION
+        )
+      )
+
+    expect(names(await fetchUsable(100))).toEqual(['Own', 'Team'])
+    expect(names(await fetchUsable(100))).toEqual(['Own', 'Team'])
+
+    expect(requested(OWN_INTEGRATIONS_URL)).toHaveLength(2)
+    expect(requested(WORKSPACE_INTEGRATIONS_URL)).toHaveLength(2)
+    expect(usable(100)).toEqual(['Own', 'Team'])
+  })
+
+  test.each([
+    ['its own', OWN_INTEGRATIONS_URL, 100],
+    ['the workspace ones', WORKSPACE_INTEGRATIONS_URL, SHARED_APPLICATION.id],
+  ])(
+    'nothing usable is returned when %s keep changing under the fetch',
+    async (_, changingUrl, changingApplicationId) => {
+      await store.dispatch('application/forceCreate', { ...SHARED_APPLICATION })
+      let created = 0
+      const answer = (url, body) =>
+        testApp.mock.onGet(url).reply(() => {
+          if (url === changingUrl) {
+            // Created through a realtime event during every attempt, so no
+            // answer is ever current.
+            created += 1
+            store.dispatch('integration/forceCreate', {
+              application: get(changingApplicationId),
+              integration: integration(
+                100 + created,
+                changingApplicationId,
+                'New'
+              ),
+            })
+          }
+          return [200, body]
+        })
+      answer(OWN_INTEGRATIONS_URL, [integration(1, 100, 'Own')])
+      answer(
+        WORKSPACE_INTEGRATIONS_URL,
+        workspaceIntegrations(
+          [integration(2, SHARED_APPLICATION.id, 'Team')],
+          SHARED_APPLICATION
+        )
+      )
+
+      expect(await fetchUsable(100)).toBeNull()
+    }
+  )
+
   const own = (id) => store.getters['integration/getIntegrations'](get(id))
   const generation = (id) => store.getters['integration/getGeneration'](get(id))
   const moveToShared = (integrationId) =>

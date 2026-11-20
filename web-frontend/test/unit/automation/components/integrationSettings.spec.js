@@ -86,6 +86,34 @@ describe('Automation IntegrationSettings', () => {
     expect(testApp.mock.history.patch).toHaveLength(0)
   })
 
+  test('fetches the workspace integrations again every time it opens', async () => {
+    // What a workspace integration can reach, like the tables of a Local
+    // Baserow one, changes with no realtime event about it.
+    await store.dispatch('workspace/forceCreate', { ...WORKSPACE })
+    const workspaceUrl = `application/${AUTOMATION_ID}/workspace-integrations/`
+    const sharedApplication = {
+      id: 20,
+      type: 'shared',
+      name: '__shared__',
+      order: 0,
+      workspace: { id: WORKSPACE.id, name: WORKSPACE.name },
+    }
+    const answer = (name) => ({
+      shared_application: sharedApplication,
+      integrations: [{ ...smtpIntegration, id: 21, application_id: 20, name }],
+    })
+    testApp.mock.onGet(workspaceUrl).replyOnce(200, answer('Team mail'))
+    testApp.mock.onGet(workspaceUrl).replyOnce(200, answer('Team mail, now'))
+
+    await mountSettings()
+    const wrapper = await mountSettings()
+
+    expect(
+      testApp.mock.history.get.filter(({ url }) => url === workspaceUrl)
+    ).toHaveLength(2)
+    expect(wrapper.text()).toContain('Team mail, now')
+  })
+
   test('offers no promotion outside a workspace of the user', async () => {
     // Like a template preview.
     const wrapper = await mountSettings()

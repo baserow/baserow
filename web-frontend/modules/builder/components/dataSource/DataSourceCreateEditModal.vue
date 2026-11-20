@@ -152,7 +152,6 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionFetchIntegrations: 'integration/fetch',
       actionCreateDataSource: 'dataSource/create',
       actionUpdateDataSource: 'dataSource/update',
     }),
