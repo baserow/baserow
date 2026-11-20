@@ -3,6 +3,7 @@ from functools import partial
 from typing import Any, Dict, Iterable
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 
 from loguru import logger
 from rest_framework import serializers
@@ -23,6 +24,7 @@ from baserow.api.templates.errors import (
     ERROR_TEMPLATE_HAS_NO_CONTENT,
     ERROR_TEMPLATE_UPDATED,
 )
+from baserow.api.user.errors import ERROR_USER_NOT_FOUND
 from baserow.core.action.registries import action_type_registry
 from baserow.core.context import get_private_link_token
 from baserow.core.exceptions import (
@@ -38,6 +40,7 @@ from baserow.core.jobs.exceptions import JobCancelled
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
+from baserow.core.user.exceptions import UserNotFound
 from baserow.core.user_templates.actions import (
     CreateUserTemplateActionType,
     UpdateUserTemplateActionType,
@@ -144,6 +147,7 @@ class CreateUserTemplateJobType(JobType):
         UserTemplatePublicListingConsentRequired: (
             ERROR_PUBLIC_LISTING_CONSENT_REQUIRED
         ),
+        UserNotFound: ERROR_USER_NOT_FOUND,
     }
 
     job_exceptions_map = {
@@ -231,6 +235,18 @@ class CreateUserTemplateJobType(JobType):
             help_text="The ID of the revision the job committed, if any.",
         ),
     }
+
+    def can_schedule_or_raise(self, job: CreateUserTemplateJob) -> None:
+        """
+        Locks the row of the user before counting their jobs. The jobs endpoint
+        keeps the lock until its job is committed, so that a simultaneous request
+        waits for it and counts it.
+        """
+
+        with transaction.atomic():
+            if not UserTemplateHandler().lock_user(job.user, no_key=True):
+                raise UserNotFound("The user was deleted.")
+            super().can_schedule_or_raise(job)
 
     def transaction_atomic_context(self, job: CreateUserTemplateJob):
         """
