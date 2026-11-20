@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Keeps dashboard widgets visible while refreshing, with smooth chart transitions",
+    "issue_origin": "github",
+    "issue_number": 6796,
+    "domain": "dashboard",
+    "bullet_points": [],
+    "created_at": "2026-11-19"
+}

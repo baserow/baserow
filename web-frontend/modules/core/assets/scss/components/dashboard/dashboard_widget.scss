@@ -276,3 +276,20 @@ body.dashboard-widget-grid--resizing * {
   box-shadow: none;
   overflow: visible;
 }
+
+.dashboard-widget__refreshing {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-color: rgba($palette-neutral-900, 0.06);
+  pointer-events: none;
+
+  &::after {
+    @include loading(12px);
+
+    content: '';
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+  }
+}

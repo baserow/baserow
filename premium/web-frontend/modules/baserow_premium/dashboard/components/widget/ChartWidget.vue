@@ -13,7 +13,7 @@
         >
           <Chart
             v-if="chartReady"
-            :key="chartKey"
+            :key="dataSource?.id"
             :data="chartData"
             @rendered="chartRendered = true"
           >
@@ -72,11 +72,6 @@ export default {
     isChartLoading() {
       return !this.chartRendered
     },
-    chartKey() {
-      return `${this.dataSource?.id}-${JSON.stringify(
-        this.dataForDataSource?.results || []
-      )}`
-    },
     chartData() {
       return getDashboardChartData({
         dataSource: this.dataSource || {},
@@ -88,7 +83,7 @@ export default {
     },
   },
   watch: {
-    chartKey() {
+    'dataSource.id'() {
       this.chartRendered = false
     },
   },

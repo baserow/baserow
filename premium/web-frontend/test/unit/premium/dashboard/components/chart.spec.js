@@ -129,7 +129,7 @@ describe('Chart', () => {
     expect(resizeObservers).toHaveLength(1)
   })
 
-  test('preserves the current size when fresh data recreates the chart', async () => {
+  test('updates the existing canvas when fresh data arrives', async () => {
     const chartContainer = wrapper.find('.chart__container').element
     resizeObservers[0].callback([
       {
@@ -138,6 +138,7 @@ describe('Chart', () => {
       },
     ])
     barResize.mockClear()
+    const canvas = wrapper.get('canvas').element
 
     await wrapper.setProps({
       data: { datasets: [{ type: 'bar', data: [2] }] },
@@ -147,7 +148,8 @@ describe('Chart', () => {
     expect(
       wrapper.getComponent(BarComponentStub).props('data').datasets[0].data
     ).toEqual([2])
-    expect(barResize).toHaveBeenCalledWith(400, 200)
+    expect(wrapper.get('canvas').element).toBe(canvas)
+    expect(barResize).not.toHaveBeenCalled()
     expect(resizeObservers).toHaveLength(1)
     await vi.waitFor(() => {
       expect(wrapper.emitted('rendered')).toBeTruthy()
