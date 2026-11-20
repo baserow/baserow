@@ -49,6 +49,7 @@ class CreateAgentTriggerActionType(ActionType):
         on_overlap: str | None = None,
         batch_size: int = AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         name: str = "",
+        may_ask_person: bool = True,
     ) -> AgentTrigger:
         """
         Add a trigger to an Agent and audit its type.
@@ -64,6 +65,7 @@ class CreateAgentTriggerActionType(ActionType):
         :param batch_size: How many records of a list payload one conversation
             receives.
         :param name: The trigger's name, or blank for the type's default.
+        :param may_ask_person: Whether a run may pause to ask a person a question.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -85,6 +87,7 @@ class CreateAgentTriggerActionType(ActionType):
             on_overlap=on_overlap,
             batch_size=batch_size,
             name=name,
+            may_ask_person=may_ask_person,
         )
         cls.register_action(
             user,
@@ -138,6 +141,7 @@ class UpdateAgentTriggerActionType(ActionType):
         batch_size: int | None = None,
         name: str | None = None,
         service_type_name: str | None = None,
+        may_ask_person: bool | None = None,
     ) -> AgentTrigger:
         """
         Change a trigger and audit its changed parts and, on a type change, both
@@ -156,6 +160,8 @@ class UpdateAgentTriggerActionType(ActionType):
             it.
         :param service_type_name: The service type the trigger should have, whose
             service then starts from `service`, or None to keep its own.
+        :param may_ask_person: Whether a run may ask a person a question, or None to
+            keep it.
         :raises FeatureDisabledException: When Agents are disabled.
         :raises ApplicationDoesNotExist: When the Agent doesn't exist or is trashed.
         :raises PermissionException: When the user may not update the Agent or read
@@ -180,6 +186,7 @@ class UpdateAgentTriggerActionType(ActionType):
             batch_size=batch_size,
             name=name,
             service_type_name=service_type_name,
+            may_ask_person=may_ask_person,
         )
         trigger = updated.trigger
         if updated.changed_fields:

@@ -2593,7 +2593,7 @@ def test_an_unattended_reply_waits_for_a_member_to_approve_an_ask_first_call(
 
 
 @pytest.mark.django_db
-def test_only_a_reply_to_a_trigger_is_told_its_opening_message_is_data(
+def test_only_a_triggered_conversation_is_told_its_opening_message_is_data(
     data_fixture, configured_agent, mocker
 ):
     user = data_fixture.create_user()

@@ -767,6 +767,31 @@ def test_changing_to_a_type_the_agent_can_not_use_is_refused(
 
 
 @pytest.mark.django_db
+def test_a_trigger_may_ask_a_person_by_default_and_can_stop(
+    data_fixture, api_client, api_user, mocker
+):
+    agent = data_fixture.create_agent_application(user=api_user)
+    registered = mocker.spy(UpdateAgentTriggerActionType, "send_action_done_signal")
+    list_url = agent_url(agent, "triggers:list")
+
+    default = api_client.post(list_url, {"type": "periodic", "message": MESSAGE})
+    silent = api_client.post(
+        list_url, {"type": "periodic", "message": MESSAGE, "may_ask_person": False}
+    )
+
+    assert default.json()["may_ask_person"] is True
+    assert silent.json()["may_ask_person"] is False
+
+    url = agent_url(agent, "triggers:item", trigger_id=default.json()["id"])
+    updated = api_client.patch(url, {"may_ask_person": False})
+
+    assert updated.status_code == 200, updated.json()
+    assert updated.json()["may_ask_person"] is False
+    assert registered.call_args.args[1]["changed_fields"] == ["may_ask_person"]
+    assert AgentTrigger.objects.get(id=default.json()["id"]).may_ask_person is False
+
+
+@pytest.mark.django_db
 def test_a_trigger_saves_how_many_rows_each_conversation_gets(
     data_fixture, api_client, api_user, mocker
 ):

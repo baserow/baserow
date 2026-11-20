@@ -65,11 +65,14 @@ from baserow.core.generative_ai.output_validation import ModelOutputValidator
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.tools import ToolContext
 from baserow.core.tools.errors import ToolErrorCode
-from baserow.core.utils import remove_null_characters
+from baserow.core.utils import remove_null_characters, remove_unstorable_characters
 
 from .action_tools.tools import BoundActionTool
+from .ask_person import ask_person_toolset
 from .constants import (
     ASK_FIRST_INSTRUCTIONS,
+    ASK_PERSON_DISMISSED_HISTORY,
+    ASK_PERSON_TOOL_NAME,
     CONVERSATION_USER_INSTRUCTIONS,
     INTERRUPTED_CHANGES_NOTE,
     INTERRUPTED_REPLY_NOTE,
@@ -77,6 +80,10 @@ from .constants import (
     REPLY_REQUEST_LIMIT,
     TOOL_RETRIES,
     TRIGGER_CONVERSATION_INSTRUCTIONS,
+    UNATTENDED_ASK_PERSON_INSTRUCTIONS,
+    UNATTENDED_NO_PERSON_INSTRUCTIONS,
+    UNATTENDED_REPLY_INSTRUCTIONS,
+    UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS,
     UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS,
     WEB_FETCH_INSTRUCTIONS,
     WEB_SEARCH_FAILED_INSTRUCTIONS,
@@ -85,7 +92,7 @@ from .constants import (
     WEB_SEARCH_STEP_QUERY_MAX_LENGTH,
     WEB_SEARCH_UNAVAILABLE_INSTRUCTIONS,
 )
-from .models import AgentMessage
+from .models import AgentMessage, AgentToolApproval
 from .previews import arguments_preview
 from .registries import AgentToolType, agent_tool_type_registry, input_shower
 from .types import AgentPausedRun, AgentReplyRequest, AgentReplyResult
@@ -118,12 +125,56 @@ def _interruption_note(reply: AgentMessage) -> str:
     )
 
 
+def _question_turns(reply: AgentMessage) -> list[ModelMessage]:
+    """
+    Replay the decided questions of a reply as the agent asking and a person
+    answering, in the order the calls were held.
+
+    :param reply: An earlier reply, with its approvals prefetched when it has
+        questions, since the history is built inside the event loop.
+    :return: A response with each question followed by a request with its answer,
+        or the dismissal; questions without a saved step are left out.
+    """
+
+    questions = {
+        step.get("id"): (step.get("input") or {}).get("question")
+        for step in reply.steps or []
+        if isinstance(step, dict) and step.get("tool") == ASK_PERSON_TOOL_NAME
+    }
+    if not questions:
+        return []
+    decided = sorted(
+        (
+            approval
+            for approval in reply.approvals.all()
+            if approval.tool_name == ASK_PERSON_TOOL_NAME
+            and approval.status != AgentToolApproval.Status.PENDING
+            and questions.get(approval.step_id)
+        ),
+        key=lambda approval: (approval.pause, approval.id),
+    )
+    turns: list[ModelMessage] = []
+    for approval in decided:
+        answer = (
+            approval.answer
+            if approval.status == AgentToolApproval.Status.APPROVED
+            else ASK_PERSON_DISMISSED_HISTORY
+        )
+        turns.append(
+            ModelResponse(parts=[TextPart(content=questions[approval.step_id])])
+        )
+        turns.append(ModelRequest(parts=[UserPromptPart(content=answer)]))
+    return turns
+
+
 def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
     """
     Turn earlier prompts, sent by a person or a trigger, and replies into model
-    history, marking replies that did not complete.
+    history, marking replies that did not complete. Questions a reply asked a
+    person come before its text, as the agent asking and the person answering.
 
-    :param messages: Earlier messages of the conversation, oldest first.
+    :param messages: Earlier messages of the conversation, oldest first, with the
+        replies' approvals prefetched.
     :return: The history; replies before the first prompt in the window are left
         out, so it always starts with a prompt.
     """
@@ -136,6 +187,7 @@ def build_history(messages: list[AgentMessage]) -> list[ModelMessage]:
                 ModelRequest(parts=[UserPromptPart(content=message.content)])
             )
         elif history:
+            history.extend(_question_turns(message))
             text = message.content
             if message.status != ChatRunStatus.COMPLETED:
                 text = f"{text}\n\n{_interruption_note(message)}".strip()
@@ -308,6 +360,9 @@ class AgentResponder:
         self._web_search_tool: WebSearchTool | None = None
         # Fetched by Baserow rather than the provider, so every model can use it.
         self._web_fetch_tool = web_fetch_tool() if request.web_fetch_enabled else None
+        self._ask_person_toolset = (
+            ask_person_toolset() if request.may_ask_person else None
+        )
         self._response_calls: list[ToolCallPart] = []
         self._invalid_call_ids: set[str] = set()
         self._mcp_toolsets = [
@@ -351,6 +406,17 @@ class AgentResponder:
             self._web_fetch_tool is not None and name == self._web_fetch_tool.name
         ):
             return {"changes_data": False, "input": _web_search_step_input(arguments)}
+        if name == ASK_PERSON_TOOL_NAME and self._ask_person_toolset is not None:
+            question = arguments.get("question")
+            # Its step is where a person reads the question, so it's kept whole.
+            return {
+                "changes_data": False,
+                "input": {
+                    "question": remove_unstorable_characters(question)
+                    if isinstance(question, str)
+                    else None
+                },
+            }
         if name not in self._tools:
             return None
         tool = self._tools[name]
@@ -386,8 +452,8 @@ class AgentResponder:
 
     def _get_instructions(self, web_search_tool: WebSearchTool | None) -> str:
         """
-        Combine saved instructions with this reply's workspace access, trigger and
-        web context.
+        Combine saved instructions with this reply's workspace access, trigger,
+        whether anyone reads it as it's written, and web context.
 
         :param web_search_tool: The web search this attempt offers, if any.
         :return: The instructions.
@@ -404,6 +470,17 @@ class AgentResponder:
             instructions += f"\n\n{UNAVAILABLE_WORKSPACE_ACCESS_INSTRUCTIONS}"
         if request.started_by_trigger:
             instructions += f"\n\n{TRIGGER_CONVERSATION_INSTRUCTIONS}"
+        if request.unattended:
+            instructions += "\n\n" + (
+                UNATTENDED_REPLY_UNNAMED_INSTRUCTIONS
+                if request.trigger_name is None
+                else UNATTENDED_REPLY_INSTRUCTIONS.format(trigger=request.trigger_name)
+            )
+            instructions += "\n\n" + (
+                UNATTENDED_ASK_PERSON_INSTRUCTIONS
+                if request.may_ask_person
+                else UNATTENDED_NO_PERSON_INSTRUCTIONS
+            )
         if (
             request.resume is not None
             or (request.allowed_tool_names and request.ask_first_tool_names)
@@ -567,7 +644,8 @@ class AgentResponder:
     def _toolsets(self) -> list[AbstractToolset[None]]:
         """
         The tools the reply may call: Baserow's, acting as the Agent's identity,
-        web fetch when it's turned on, and those turned on for its MCP servers.
+        web fetch when it's turned on, the question to a person when the reply may
+        ask one, and those turned on for its MCP servers.
 
         :return: The toolsets, none when the reply may call no tool.
         """
@@ -592,6 +670,8 @@ class AgentResponder:
             )
         if self._web_fetch_tool is not None:
             toolsets.append(FunctionToolset([self._web_fetch_tool]))
+        if self._ask_person_toolset is not None:
+            toolsets.append(self._ask_person_toolset)
         return [
             *toolsets,
             *(
@@ -617,9 +697,10 @@ class AgentResponder:
 
     def _held_call_ids(self, calls: Iterable[ToolCallPart]) -> set[str]:
         """
-        Hold the ask first calls of a model response, and the changes after a held
-        call, so that changes still run in the order the model asked for them. A
-        call with invalid arguments is retried instead, so it holds nothing.
+        Hold the ask first calls and questions of a model response, and the changes
+        after a held call, so that changes still run in the order the model asked
+        for them. A call with invalid arguments is retried instead, so it holds
+        nothing.
 
         :param calls: The calls of one model response, in order.
         :return: The ids of its held calls.
@@ -637,6 +718,11 @@ class AgentResponder:
                 )
             elif snapshot := self._mcp_tool(call.tool_name):
                 changes_data, ask_first = snapshot.changes_data, snapshot.ask_first
+            elif (
+                call.tool_name == ASK_PERSON_TOOL_NAME
+                and self._ask_person_toolset is not None
+            ):
+                changes_data, ask_first = False, True
             else:
                 continue
             if ask_first or (held and changes_data):

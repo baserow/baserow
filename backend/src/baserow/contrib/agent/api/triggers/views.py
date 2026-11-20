@@ -171,6 +171,7 @@ class AgentTriggersView(RealtimeRecoveryPrimaryReadMixin, APIView):
             on_overlap=data.get("on_overlap"),
             batch_size=data["batch_size"],
             name=data["name"],
+            may_ask_person=data["may_ask_person"],
         )
         return Response(AgentTriggerSerializer(trigger).data)
 

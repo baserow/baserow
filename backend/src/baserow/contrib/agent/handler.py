@@ -71,6 +71,9 @@ from .action_tools.tools import BoundActionTool
 from .constants import (
     AGENT_RUN_LIMIT_REACHED,
     AGENT_RUN_TYPE,
+    ASK_PERSON_ANSWER_METADATA_KEY,
+    ASK_PERSON_DISMISSED_NOTE,
+    ASK_PERSON_TOOL_NAME,
     CONVERSATION_USER_NAME_MAX_LENGTH,
     DEACTIVATED_TOOLS_INSTRUCTIONS,
     DISALLOWED_TOOL_CALL_NOTE,
@@ -88,6 +91,7 @@ from .exceptions import (
     AgentMessageConflict,
     AgentRunAsSubjectDoesNotExist,
     AgentToolApprovalNotPending,
+    AgentToolDecisionInvalid,
 )
 from .models import (
     AgentAllowedTool,
@@ -1347,9 +1351,12 @@ class AgentHandler:
         :param conversation: The conversation, locked so its reply can't change.
         :param user: The user deciding.
         :param decisions: Whether each held call may run, by approval id, with the
-            reason for a rejection.
+            reason for a rejection or the answer to a question.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
+        :raises AgentToolDecisionInvalid: When a question is answered without an
+            answer or dismissed with a reason, or another call is decided with an
+            answer.
         :return: The reply with its approvals, the approvals just decided, and
             whether all of them are decided.
         """
@@ -1365,6 +1372,8 @@ class AgentHandler:
         }
         if not {decision["id"] for decision in decisions} <= pending.keys():
             raise AgentToolApprovalNotPending
+        for decision in decisions:
+            self._check_answer(pending[decision["id"]], decision)
         decided_on = timezone.now()
         decided = []
         for decision in decisions:
@@ -1375,14 +1384,39 @@ class AgentHandler:
                 else AgentToolApproval.Status.REJECTED
             )
             approval.reason = decision.get("reason", "")
+            approval.answer = decision.get("answer", "").strip()
             approval.decided_by = user
             approval.decided_on = decided_on
             decided.append(approval)
         AgentToolApproval.objects.bulk_update(
-            decided, ["status", "reason", "decided_by", "decided_on"]
+            decided, ["status", "reason", "answer", "decided_by", "decided_on"]
         )
         prefetch_related_objects([reply], "approvals")
         return reply, decided, not pending
+
+    def _check_answer(
+        self, approval: AgentToolApproval, decision: AgentToolDecision
+    ) -> None:
+        """
+        Accept an answer only for a question, answer a question only with one, and
+        dismiss it without a reason, which the agent would never read.
+
+        :param approval: The pending approval the decision decides.
+        :param decision: The decision.
+        :raises AgentToolDecisionInvalid: When the answer doesn't fit the held call.
+        """
+
+        is_question = approval.tool_name == ASK_PERSON_TOOL_NAME
+        if "answer" in decision and not is_question:
+            raise AgentToolDecisionInvalid
+        if is_question and "reason" in decision:
+            raise AgentToolDecisionInvalid
+        if (
+            is_question
+            and decision["approved"]
+            and not decision.get("answer", "").strip()
+        ):
+            raise AgentToolDecisionInvalid
 
     def resume_reply(self, reply: AgentMessage, actor: AbstractUser) -> ChatRun:
         """
@@ -1497,6 +1531,8 @@ class AgentHandler:
 
         conversation = reply.conversation
         agent = conversation.agent
+        trigger = conversation.trigger if reply.unattended else None
+        may_ask_person = trigger is not None and trigger.may_ask_person
         run_as = self.resolve_run_as_subject(
             agent.run_as_subject_type, agent.run_as_subject_id, agent.workspace
         )
@@ -1536,6 +1572,7 @@ class AgentHandler:
                         for name, tool in server.model_tool_names().items()
                     },
                     **{tool.type: tool.approval_key for tool in action_tools},
+                    **({ASK_PERSON_TOOL_NAME: ""} if may_ask_person else {}),
                 },
                 DISALLOWED_TOOL_CALL_NOTE
                 if acting_subject
@@ -1586,7 +1623,10 @@ class AgentHandler:
             reasoning_effort=agent.reasoning_effort,
             web_search_tool=web_search_tool,
             web_search_enabled=agent.web_search_enabled,
-            started_by_trigger=reply.unattended,
+            started_by_trigger=conversation.started_by_trigger,
+            unattended=reply.unattended,
+            trigger_name=None if trigger is None else trigger.name or None,
+            may_ask_person=may_ask_person,
             web_fetch_enabled=web_fetch_enabled,
         )
 
@@ -1727,12 +1767,15 @@ class AgentHandler:
         Find what a reply answers: the message right before it.
 
         :param reply: The reply.
-        :return: The prompt, and the recent messages before it, oldest first.
+        :return: The prompt, and the recent messages before it, oldest first, with
+            the approvals their questions are replayed from.
         """
 
-        prompt, *history = reply.conversation.messages.filter(id__lt=reply.id).order_by(
-            "-id"
-        )[: HISTORY_MESSAGE_LIMIT + 1]
+        prompt, *history = (
+            reply.conversation.messages.filter(id__lt=reply.id)
+            .order_by("-id")
+            .prefetch_related("approvals")[: HISTORY_MESSAGE_LIMIT + 1]
+        )
         return prompt.content, history[::-1]
 
     def _get_reply_resume(
@@ -1751,7 +1794,8 @@ class AgentHandler:
         :param callable_tools: The tools the reply may call now, with the
             approval key of the MCP ones and the actions.
         :param disallowed_note: Tells the model why an approved call can't run.
-        :return: The paused run with the decisions and the saved steps.
+        :return: The paused run with the decisions, the answers to its questions
+            and the saved steps.
         """
 
         held = paused_conversation.deferred_tool_requests
@@ -1770,11 +1814,24 @@ class AgentHandler:
             for tool_call_id, approval in approvals.items()
             if approval.status != AgentToolApproval.Status.PENDING
         }
+        answers = {
+            tool_call_id: {ASK_PERSON_ANSWER_METADATA_KEY: approval.answer}
+            for tool_call_id, approval in approvals.items()
+            if approval.tool_name == ASK_PERSON_TOOL_NAME
+            and approval.status == AgentToolApproval.Status.APPROVED
+        }
+        # A held action call sends the values kept when it was held.
+        metadata = {
+            tool_call_id: {
+                **held.metadata.get(tool_call_id, {}),
+                **answers.get(tool_call_id, {}),
+            }
+            for tool_call_id in held.metadata.keys() | answers.keys()
+        }
         return AgentReplyResume(
             paused_conversation=paused_conversation,
-            # A held action call sends the values kept when it was held.
             deferred_tool_results=held.build_results(
-                approvals=results, metadata=held.metadata
+                approvals=results, metadata=metadata
             ),
             saved_steps=reply.steps or [],
             held_step_ids={
@@ -1795,10 +1852,11 @@ class AgentHandler:
         disallowed_note: str,
     ) -> ToolApproved | ToolDenied:
         """
-        Tell the model what the owner decided about a held call. An approved call
-        to a tool the reply may no longer call, or to an MCP tool or action that
-        changed since it was held, is denied instead, and its step then shows a
-        permission failure rather than a rejection.
+        Tell the model what the owner decided about a held call, and that nobody
+        will answer a dismissed question. An approved call to a tool the reply may
+        no longer call, or to an MCP tool or action that changed since it was held,
+        is denied instead, and its step then shows a permission failure rather than
+        a rejection.
 
         :param approval: The decided approval of the call.
         :param callable_tools: The tools the reply may call now, with the
@@ -1807,6 +1865,9 @@ class AgentHandler:
         :return: Whether the call runs, or why it doesn't.
         """
 
+        is_question = approval.tool_name == ASK_PERSON_TOOL_NAME
+        if approval.status == AgentToolApproval.Status.REJECTED and is_question:
+            return ToolDenied(ASK_PERSON_DISMISSED_NOTE)
         if approval.status == AgentToolApproval.Status.REJECTED:
             return ToolDenied(
                 f"{REJECTED_TOOL_CALL_NOTE} Their reason: {approval.reason}"
@@ -1814,10 +1875,11 @@ class AgentHandler:
                 else REJECTED_TOOL_CALL_NOTE
             )
         if approval.tool_name not in callable_tools:
-            # An MCP tool or action doesn't act as the Agent's identity, so losing
-            # it isn't why.
+            # Only Baserow's tools act as the identity, so only they can lose it.
             return ToolDenied(
-                DISALLOWED_TOOL_CALL_NOTE if approval.tool_key else disallowed_note
+                DISALLOWED_TOOL_CALL_NOTE
+                if approval.tool_key or is_question
+                else disallowed_note
             )
         if callable_tools[approval.tool_name] != approval.tool_key:
             return ToolDenied(TOOL_CHANGED_CALL_NOTE)
