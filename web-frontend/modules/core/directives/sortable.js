@@ -270,6 +270,15 @@ export default {
       window.removeEventListener('click', preventOtherClickEvent, true)
     })
 
+    if (
+      el.parentElement !== parent ||
+      el.closest('[inert]') ||
+      el.getClientRects().length === 0 ||
+      getComputedStyle(el).visibility !== 'visible'
+    ) {
+      return
+    }
+
     const oldOrder = [...parent.childNodes]
       .filter((e) => e.nodeType === 1)
       .map((e) => e.sortableId)
