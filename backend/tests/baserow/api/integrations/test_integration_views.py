@@ -513,6 +513,28 @@ def test_promote_integration_of_a_type_the_workspace_does_not_support(
 
 
 @pytest.mark.django_db
+def test_promote_integration_of_a_dashboard(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+
+    response = api_client.patch(
+        reverse("api:integrations:item", kwargs={"integration_id": integration.id}),
+        {"application_id": shared_application.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED"
+    assert Integration.objects.get(id=integration.id).application_id == dashboard.id
+
+
+@pytest.mark.django_db
 def test_move_integration_empty_payload(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     application = data_fixture.create_builder_application(user=user)

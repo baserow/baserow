@@ -156,6 +156,37 @@ def test_an_mcp_server_stays_with_its_agent(data_fixture):
 
 
 @pytest.mark.django_db
+def test_a_dashboard_keeps_its_integration(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+
+    # Every new data source of a dashboard takes the dashboard's own integration,
+    # so promoting it would leave the dashboard's new widgets without one.
+    with pytest.raises(ApplicationOperationNotSupported):
+        _promote(user, integration, shared_application)
+
+    # Only undoing a promotion moves an integration back, and no promotion
+    # leaves a dashboard, so nothing moves into one either.
+    with pytest.raises(ApplicationOperationNotSupported):
+        IntegrationHandler().update_integration(
+            workspace_integration.get_type(),
+            IntegrationHandler().get_integration_for_update(workspace_integration.id),
+            application=dashboard,
+        )
+
+    assert _application_id(integration) == dashboard.id
+    assert _application_id(workspace_integration) == shared_application.id
+
+
+@pytest.mark.django_db
 def test_the_current_application_does_not_move_an_integration(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
