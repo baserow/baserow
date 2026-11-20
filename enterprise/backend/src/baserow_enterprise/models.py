@@ -24,6 +24,9 @@ from baserow_enterprise.integrations.core.models import (
 from baserow_enterprise.integrations.local_baserow.models import (
     LocalBaserowSemanticSearch,
 )
+from baserow_enterprise.integrations.microsoft_teams.models import (
+    MicrosoftTeamsWriteMessageService,
+)
 from baserow_enterprise.integrations.models import (
     LocalBaserowPasswordAppAuthProvider,
     LocalBaserowUserSource,
@@ -64,4 +67,5 @@ __all__ = [
     "LocalBaserowSemanticSearchActionNode",
     "SemanticSearchField",
     "SemanticSearchPendingUpdate",
+    "MicrosoftTeamsWriteMessageService",
 ]

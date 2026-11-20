@@ -9,14 +9,18 @@ from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
     CoreXLSFileReaderActionNode,
     LocalBaserowSemanticSearchActionNode,
+    MicrosoftTeamsWriteMessageActionNode,
 )
-from baserow_enterprise.features import CODE_RUNNER, XLS_FILE_READER
+from baserow_enterprise.features import CODE_RUNNER, MICROSOFT_TEAMS, XLS_FILE_READER
 from baserow_enterprise.integrations.core.service_types import (
     CoreCodeServiceType,
     CoreXLSFileReaderServiceType,
 )
 from baserow_enterprise.integrations.local_baserow.service_types import (
     LocalBaserowSemanticSearchServiceType,
+)
+from baserow_enterprise.integrations.microsoft_teams.service_types import (
+    MicrosoftTeamsWriteMessageServiceType,
 )
 from baserow_premium.license.handler import LicenseHandler
 
@@ -81,3 +85,22 @@ class LocalBaserowSemanticSearchActionNodeType(AutomationActionNodeType):
 
     def raise_if_deactivated(self, workspace) -> None:
         self.get_service_type().raise_if_deactivated(workspace)
+
+
+class MicrosoftTeamsWriteMessageActionNodeType(AutomationActionNodeType):
+    type = "microsoft_teams_write_message"
+    model_class = MicrosoftTeamsWriteMessageActionNode
+    service_type = MicrosoftTeamsWriteMessageServiceType.type
+    display_name = _("Send Teams message")
+
+    def get_pytest_params(self, pytest_data_fixture):
+        service = pytest_data_fixture.create_microsoft_teams_write_message_service()
+        return {"service": service}
+
+    def is_deactivated(self, workspace) -> bool:
+        return not LicenseHandler.workspace_has_feature(MICROSOFT_TEAMS, workspace)
+
+    def raise_if_deactivated(self, workspace) -> None:
+        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+            MICROSOFT_TEAMS, workspace
+        )
