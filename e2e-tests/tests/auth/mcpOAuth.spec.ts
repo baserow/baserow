@@ -181,7 +181,7 @@ test("An MCP client connects with OAuth and is disconnected in settings", async 
   await goto(`${frontendUrl}/workspace/${workspace.id}`, {
     waitUntil: "hydration",
   });
-  await page.locator(".sidebar__workspaces-selector-link").click();
+  await page.locator(".sidebar__account-trigger").click();
   await page.locator(".context__menu").getByText("My settings").click();
   await page.locator(".modal-sidebar__nav").getByText("MCP server").click();
 

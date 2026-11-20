@@ -1,9 +1,49 @@
 <template>
   <div class="sidebar__section sidebar__section--bottom">
     <div class="sidebar__foot">
-      <div class="sidebar__logo">
-        <ExternalLinkBaserowLogo />
-      </div>
+      <slot name="leading">
+        <template v-if="selectedWorkspace">
+          <button
+            type="button"
+            class="sidebar__account-trigger"
+            :aria-label="name"
+            :aria-expanded="accountContextOpen"
+            @click="
+              $refs.accountContext.toggle(
+                $event.currentTarget,
+                'top',
+                'left',
+                4
+              )
+            "
+          >
+            <Avatar
+              :initials="$filters.nameAbbreviation(name)"
+              color="purple"
+              rounded
+              aria-hidden="true"
+            ></Avatar>
+            <span v-show="!collapsed" class="sidebar__account-name">{{
+              firstName
+            }}</span>
+            <span
+              v-if="hasUnreadNotifications"
+              class="sidebar__unread-notifications-icon"
+            ></span>
+          </button>
+          <SidebarUserContext
+            ref="accountContext"
+            mode="account"
+            :selected-workspace="selectedWorkspace"
+            @toggle-admin="$emit('toggle-admin', $event)"
+            @shown="accountContextOpen = true"
+            @hidden="accountContextOpen = false"
+          ></SidebarUserContext>
+        </template>
+        <div v-else class="sidebar__logo">
+          <ExternalLinkBaserowLogo />
+        </div>
+      </slot>
       <div class="sidebar__foot-links">
         <a
           class="sidebar__foot-link"
@@ -41,14 +81,24 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import undoRedo from '@baserow/modules/core/mixins/undoRedo'
 import ExternalLinkBaserowLogo from '@baserow/modules/core/components/ExternalLinkBaserowLogo'
+import SidebarUserContext from '@baserow/modules/core/components/sidebar/SidebarUserContext'
 
 export default {
   name: 'SidebarFoot',
-  components: { ExternalLinkBaserowLogo },
+  components: { ExternalLinkBaserowLogo, SidebarUserContext },
   mixins: [undoRedo],
   props: {
+    selectedWorkspace: {
+      type: Object,
+      default: null,
+    },
+    hasUnreadNotifications: {
+      type: Boolean,
+      default: false,
+    },
     collapsed: {
       type: Boolean,
       required: false,
@@ -59,6 +109,15 @@ export default {
       required: true,
     },
   },
-  emits: ['set-col1-width'],
+  emits: ['set-col1-width', 'toggle-admin'],
+  data() {
+    return { accountContextOpen: false }
+  },
+  computed: {
+    ...mapGetters({ name: 'auth/getName' }),
+    firstName() {
+      return this.name.trim().split(/\s+/)[0]
+    },
+  },
 }
 </script>

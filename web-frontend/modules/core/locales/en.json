@@ -210,6 +210,7 @@
   "sidebar": {
     "createWorkspace": "Create workspace",
     "addNewWorkspace": "Add new workspace",
+    "workspaceActions": "{workspace} actions",
     "inviteOthers": "Invite others",
     "members": "Members",
     "logoff": "Log out",

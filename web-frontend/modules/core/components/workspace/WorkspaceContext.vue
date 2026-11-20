@@ -18,47 +18,61 @@
         v-if="$hasPermission('workspace.export', workspace, workspace.id)"
         class="context__menu-item"
       >
-        <a class="context__menu-item-link" @click="openExportData">
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
+          @click="openExportData"
+        >
           <i class="context__menu-item-icon iconoir-share-ios"></i>
           {{ $t('workspaceContext.exportWorkspace') }}
-        </a>
+        </button>
       </li>
       <li
         v-if="$hasPermission('workspace.export', workspace, workspace.id)"
         class="context__menu-item"
       >
-        <a class="context__menu-item-link" @click="openImportData">
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
+          @click="openImportData"
+        >
           <i class="context__menu-item-icon iconoir-import"></i>
           {{ $t('workspaceContext.importWorkspace') }}
-        </a>
+        </button>
       </li>
       <li
         v-if="$hasPermission('workspace.update', workspace, workspace.id)"
         class="context__menu-item"
       >
-        <a class="context__menu-item-link" @click="$emit('rename')">
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
+          @click="$emit('rename')"
+        >
           <i class="context__menu-item-icon iconoir-edit-pencil"></i>
           {{ $t('workspaceContext.renameWorkspace') }}
-        </a>
+        </button>
       </li>
       <li
         v-if="$hasPermission('workspace.update', workspace, workspace.id)"
         class="context__menu-item"
       >
-        <a
-          class="context__menu-item-link"
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
           @click="($refs.workspaceSettingsModal.show(), hide())"
         >
           <i class="context__menu-item-icon iconoir-settings"></i>
           {{ $t('workspaceContext.settings') }}
-        </a>
+        </button>
       </li>
       <li
         v-if="$hasPermission('invitation.read', workspace, workspace.id)"
         class="context__menu-item"
       >
-        <a
-          class="context__menu-item-link"
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
           @click="
             ($router.push({
               name: 'settings-members',
@@ -71,38 +85,44 @@
         >
           <i class="context__menu-item-icon baserow-icon-team"></i>
           {{ $t('workspaceContext.members') }}
-        </a>
+        </button>
       </li>
       <li
         v-if="$hasPermission('workspace.read_trash', workspace, workspace.id)"
         class="context__menu-item"
       >
-        <a class="context__menu-item-link" @click="showWorkspaceTrashModal">
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
+          @click="showWorkspaceTrashModal"
+        >
           <i class="context__menu-item-icon iconoir-refresh-double"></i>
           {{ $t('workspaceContext.viewTrash') }}
-        </a>
+        </button>
       </li>
       <li class="context__menu-item">
-        <a
-          class="context__menu-item-link"
+        <button
+          type="button"
+          class="context__menu-item-link workspace-context__action"
           @click="$refs.leaveWorkspaceModal.show()"
         >
           <i class="context__menu-item-icon iconoir-log-out"></i>
           {{ $t('workspaceContext.leaveWorkspace') }}
-        </a>
+        </button>
       </li>
       <li
         v-if="$hasPermission('workspace.delete', workspace, workspace.id)"
         class="context__menu-item context__menu-item--with-separator"
       >
-        <a
-          class="context__menu-item-link context__menu-item-link--delete"
+        <button
+          type="button"
+          class="context__menu-item-link context__menu-item-link--delete workspace-context__action"
           :class="{ 'context__menu-item-link--loading': loading }"
           @click="deleteWorkspace"
         >
           <i class="context__menu-item-icon iconoir-bin"></i>
           {{ $t('workspaceContext.deleteWorkspace') }}
-        </a>
+        </button>
       </li>
     </ul>
     <TrashModal

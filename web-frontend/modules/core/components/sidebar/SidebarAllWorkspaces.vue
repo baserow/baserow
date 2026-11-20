@@ -5,46 +5,28 @@
       v-for="(component, index) in impersonateComponent"
       :key="index"
     ></component>
-    <a
-      ref="userContextAnchor"
-      class="sidebar__workspaces-selector"
-      @click="
-        $refs.userContext.toggle(
-          $refs.userContextAnchor,
-          'bottom',
-          'left',
-          4,
-          16
-        )
-      "
+    <nuxt-link
+      class="sidebar__brand"
+      :to="{ name: 'all-workspaces' }"
+      :aria-label="$t('sidebar.allWorkspaces')"
     >
-      <Avatar :initials="$filters.nameAbbreviation(name)"></Avatar>
-      <span
-        v-show="!collapsed"
-        class="sidebar__workspaces-selector-selected-workspace"
-        >{{ name }}</span
-      >
-      <span
-        v-show="!collapsed"
-        v-if="unreadNotificationsInAnyWorkspace"
-        class="sidebar__unread-notifications-icon"
-      ></span>
-      <i
-        v-show="!collapsed"
-        class="sidebar__workspaces-selector-icon baserow-icon-up-down-arrows"
-      ></i>
-    </a>
-    <SidebarUserContext
-      ref="userContext"
-      :workspaces="workspaces"
-      :selected-workspace="selectedWorkspace"
-    ></SidebarUserContext>
+      <img
+        v-if="collapsed"
+        src="@baserow/modules/core/static/img/logoOnly.svg?url"
+        alt=""
+        width="16"
+        height="16"
+      />
+      <Logo v-else height="13" alt="" />
+    </nuxt-link>
 
     <SidebarAllWorkspacesMenu v-show="!collapsed"></SidebarAllWorkspacesMenu>
 
     <SidebarFoot
       :collapsed="collapsed"
       :width="width"
+      :selected-workspace="selectedWorkspace"
+      :has-unread-notifications="unreadNotificationsInAnyWorkspace"
       @set-col1-width="$emit('set-col1-width', $event)"
     ></SidebarFoot>
   </div>
@@ -53,22 +35,18 @@
 <script>
 import { mapGetters } from 'vuex'
 
-import SidebarUserContext from '@baserow/modules/core/components/sidebar/SidebarUserContext'
+import Logo from '@baserow/modules/core/components/Logo'
 import SidebarAllWorkspacesMenu from '@baserow/modules/core/components/sidebar/SidebarAllWorkspacesMenu'
 import SidebarFoot from '@baserow/modules/core/components/sidebar/SidebarFoot'
 
 export default {
   name: 'SidebarAllWorkspaces',
   components: {
-    SidebarUserContext,
+    Logo,
     SidebarAllWorkspacesMenu,
     SidebarFoot,
   },
   props: {
-    workspaces: {
-      type: Array,
-      required: true,
-    },
     selectedWorkspace: {
       type: Object,
       required: true,
@@ -92,7 +70,6 @@ export default {
         .filter((component) => component !== null)
     },
     ...mapGetters({
-      name: 'auth/getName',
       unreadNotificationsInAnyWorkspace: 'notification/anyWorkspaceWithUnread',
     }),
   },

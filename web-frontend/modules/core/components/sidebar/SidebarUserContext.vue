@@ -2,69 +2,60 @@
   <Context
     ref="context"
     max-height-if-outside-viewport
-    class="select"
+    :class="{
+      select: mode === 'account',
+      'sidebar-workspace-picker': mode === 'workspace',
+      'sidebar-account-menu': mode === 'account',
+    }"
     @shown="onShow"
+    @hidden="$emit('hidden')"
+    @keydown.esc="onEscape"
   >
-    <div class="select__search">
-      <i class="select__search-icon iconoir-search"></i>
-      <input
+    <template v-if="mode === 'workspace'">
+      <SelectSearch
         ref="search"
         v-model="query"
-        type="text"
-        class="select__search-input"
-        :placeholder="$t('action.search')"
-        tabindex="0"
+        :aria-label="$t('action.search')"
+        @keydown.down.up="onWorkspaceSearchKeydown"
       />
-    </div>
-    <ul
-      ref="dropdown"
-      v-auto-overflow-scroll
-      class="select__items select__items--no-max-height dashboard__user-workspaces"
-    >
-      <li
-        v-for="workspace in filteredWorkspaces"
-        :key="workspace.id"
-        class="select__item"
-        :class="{
-          'select__item--loading':
-            workspace._.loading || workspace._.additionalLoading,
-          active: workspace.id === selectedWorkspace.id,
-        }"
+      <ul
+        ref="workspaceOptions"
+        class="sidebar-workspace-picker__items"
+        @keydown="onWorkspaceOptionKeydown"
       >
-        <i
-          v-if="workspace.id === selectedWorkspace.id"
-          class="sidebar__workspace-active-icon iconoir-check"
-        ></i>
-        <a class="select__item-link" @click="selectWorkspace(workspace)">
-          <div class="select__item-name">
-            <Avatar
-              class="dashboard__user-workspace-avatar"
-              :initials="$filters.nameAbbreviation(workspace.name)"
-            ></Avatar>
-            {{ workspace.name }}
+        <SidebarWorkspacePickerRow
+          v-for="workspace in filteredWorkspaces"
+          :key="workspace.id"
+          :workspace="workspace"
+          :selected="workspace.id === selectedWorkspace.id"
+          :has-unread-notifications="hasUnreadNotifications(workspace.id)"
+          @select="selectWorkspace(workspace)"
+        />
+        <li v-if="$hasPermission('create_workspace')">
+          <button
+            ref="addWorkspace"
+            type="button"
+            class="sidebar-workspace-picker__add"
+            data-workspace-option
+            @click="$refs.createWorkspaceModal.show()"
+          >
             <span
-              v-if="hasUnreadNotifications(workspace.id)"
-              class="sidebar__unread-notifications-icon"
-            ></span>
-          </div>
-        </a>
-      </li>
-      <li v-if="$hasPermission('create_workspace')" class="select__item">
-        <a class="select__item-link" @click="$refs.createWorkspaceModal.show()">
-          <div class="select__item-name">
-            <ButtonIcon
-              tag="a"
-              size="small"
-              type="secondary"
-              icon="iconoir-plus"
-              style="pointer-events: none"
-            />
-            <span>{{ $t('sidebar.addNewWorkspace') }}</span>
-          </div>
-        </a>
-      </li>
-    </ul>
-    <div class="sidebar__user">
+              class="button-icon button-icon--small sidebar-workspace-picker__add-icon"
+              aria-hidden="true"
+            >
+              <i class="button-icon__icon iconoir-plus"></i>
+            </span>
+            {{ $t('sidebar.addNewWorkspace') }}
+          </button>
+        </li>
+      </ul>
+      <CreateWorkspaceModal
+        ref="createWorkspaceModal"
+        @created="hide()"
+        @hidden="onCreateWorkspaceHidden"
+      ></CreateWorkspaceModal>
+    </template>
+    <div v-else ref="accountMenu" class="sidebar__user">
       <div class="sidebar__user-info">
         <span class="sidebar__user-email">
           {{ email }}
@@ -80,28 +71,37 @@
 
       <ul class="context__menu margin-bottom-0">
         <li v-if="isStaff" class="context__menu-item">
-          <a class="context__menu-item-link" @click="admin">
+          <button
+            type="button"
+            class="context__menu-item-link sidebar-account-menu__action"
+            @click="admin"
+          >
             <i class="context__menu-item-icon iconoir-settings"></i>
             {{ $t('sidebar.adminTools') }}
-          </a>
+          </button>
         </li>
 
         <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
+          <button
+            type="button"
+            class="context__menu-item-link sidebar-account-menu__action"
             @click="$refs.settingsModal.show()"
           >
             <i class="context__menu-item-icon iconoir-user-circle"></i>
             {{ $t('sidebar.settings') }}
-          </a>
+          </button>
           <SettingsModal ref="settingsModal"></SettingsModal>
         </li>
 
         <li v-if="anyGuidedTourActive" class="context__menu-item">
-          <a class="context__menu-item-link" @click="replayGuidedTour()">
+          <button
+            type="button"
+            class="context__menu-item-link sidebar-account-menu__action"
+            @click="replayGuidedTour()"
+          >
             <i class="context__menu-item-icon iconoir-help-circle"></i>
             {{ $t('sidebar.replayGuidedTour') }}
-          </a>
+          </button>
         </li>
 
         <component
@@ -114,21 +114,18 @@
         <li
           class="context__menu-item context__menu-item--with-separator margin-bottom-0"
         >
-          <a
-            class="context__menu-item-link"
+          <button
+            type="button"
+            class="context__menu-item-link sidebar-account-menu__action"
             :class="{ 'context__menu-item-link--loading': logoffLoading }"
             @click="logoff()"
           >
             <i class="context__menu-item-icon iconoir-log-out"></i>
             {{ $t('sidebar.logoff') }}
-          </a>
+          </button>
         </li>
       </ul>
     </div>
-    <CreateWorkspaceModal
-      ref="createWorkspaceModal"
-      @created="hide()"
-    ></CreateWorkspaceModal>
   </Context>
 </template>
 
@@ -137,6 +134,8 @@ import { mapGetters } from 'vuex'
 
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import context from '@baserow/modules/core/mixins/context'
+import SelectSearch from '@baserow/modules/core/components/SelectSearch.vue'
+import SidebarWorkspacePickerRow from '@baserow/modules/core/components/sidebar/SidebarWorkspacePickerRow.vue'
 import SettingsModal from '@baserow/modules/core/components/settings/SettingsModal'
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
@@ -145,19 +144,29 @@ import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'SidebarUserContext',
-  components: { SettingsModal, CreateWorkspaceModal },
+  components: {
+    SelectSearch,
+    SettingsModal,
+    CreateWorkspaceModal,
+    SidebarWorkspacePickerRow,
+  },
   mixins: [context],
   props: {
     workspaces: {
       type: Array,
-      required: true,
+      default: () => [],
     },
     selectedWorkspace: {
       type: Object,
       required: true,
     },
+    mode: {
+      type: String,
+      default: 'workspace',
+      validator: (value) => ['workspace', 'account'].includes(value),
+    },
   },
-  emits: ['toggle-admin'],
+  emits: ['hidden', 'shown', 'toggle-admin'],
   setup() {
     const nuxtApp = useNuxtApp()
     return { nuxtApp }
@@ -213,16 +222,75 @@ export default {
     },
     ...mapGetters({
       isStaff: 'auth/isStaff',
-      name: 'auth/getName',
       email: 'auth/getUsername',
     }),
   },
   methods: {
+    getWorkspaceOptions() {
+      return Array.from(
+        this.$refs.workspaceOptions.querySelectorAll(
+          '[data-workspace-option]:not(:disabled)'
+        )
+      )
+    },
+    onWorkspaceSearchKeydown(event) {
+      if (!event.isComposing) {
+        event.preventDefault()
+        const index = event.key === 'ArrowDown' ? 0 : -1
+        this.getWorkspaceOptions().at(index)?.focus()
+      }
+    },
+    onWorkspaceOptionKeydown(event) {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        return
+      }
+
+      const options = this.getWorkspaceOptions()
+      const index = options.indexOf(event.target)
+      if (index === -1) {
+        return
+      }
+
+      const targets = {
+        ArrowDown: options[index + 1] ?? this.$refs.search,
+        ArrowUp: options[index - 1] ?? this.$refs.search,
+        Home: options[0],
+        End: options.at(-1),
+      }
+      event.preventDefault()
+      targets[event.key].focus()
+    },
+    onCreateWorkspaceHidden() {
+      if (this.$refs.context?.open) {
+        this.$refs.addWorkspace?.focus()
+      }
+    },
     onShow() {
       this.query = ''
+      this.$emit('shown')
       this.$nextTick(() => {
-        this.$refs.search.focus()
+        if (!this.$refs.context?.open) {
+          return
+        }
+        if (this.mode === 'account') {
+          this.$refs.accountMenu?.querySelector('button')?.focus()
+        } else {
+          this.$refs.search?.focus()
+        }
       })
+    },
+    onEscape(event) {
+      if (event.defaultPrevented) {
+        return
+      }
+      event.preventDefault()
+      event.stopPropagation()
+      this.hideAndFocusOpener()
+    },
+    hideAndFocusOpener() {
+      const opener = this.$refs.context.opener
+      this.hide()
+      opener?.focus()
     },
     async logoff() {
       this.logoffLoading = true
@@ -263,17 +331,20 @@ export default {
       if (!workspace._.selected) {
         await this.$store.dispatch('workspace/select', workspace)
       }
-      await this.$router.push({
+      const destination = {
         name: 'workspace',
         params: { workspaceId: workspace.id },
-      })
-      await pageFinished(this.nuxtApp)
-      await nextTick()
+      }
+      if (this.$route.fullPath !== this.$router.resolve(destination).fullPath) {
+        await this.$router.push(destination)
+        await pageFinished(this.nuxtApp)
+        await nextTick()
+      }
       // The navigation can replace the sidebar, and with it this context, for example
       // when selecting a workspace from the all workspaces homepage. It's then already
       // unmounted and doesn't have to be hidden anymore.
-      if (this.$refs.context) {
-        this.hide()
+      if (this.$refs.context?.open) {
+        this.hideAndFocusOpener()
       }
     },
   },

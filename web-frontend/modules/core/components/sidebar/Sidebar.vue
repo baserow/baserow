@@ -18,6 +18,79 @@
     </template>
     <template v-if="!showAdmin">
       <div
+        v-if="hasSelectedWorkspace"
+        class="sidebar__workspace-breadcrumb"
+        data-highlight="workspaces"
+      >
+        <div class="sidebar__workspace-home-slot">
+          <nuxt-link
+            v-tooltip="$t('sidebar.allWorkspaces')"
+            tooltip-position="right"
+            tooltip-no-arrow
+            tooltip-show-delay="500"
+            class="sidebar__workspace-home"
+            :aria-label="$t('sidebar.allWorkspaces')"
+            :to="{ name: 'all-workspaces' }"
+          >
+            <span
+              class="sidebar__workspace-home-icon"
+              aria-hidden="true"
+            ></span>
+          </nuxt-link>
+        </div>
+        <span
+          v-show="!collapsed"
+          class="sidebar__workspace-breadcrumb-separator"
+          aria-hidden="true"
+        ></span>
+        <button
+          type="button"
+          class="sidebar__workspace-trigger"
+          :aria-label="collapsed ? selectedWorkspace.name : undefined"
+          :aria-expanded="workspaceContextOpen"
+          @click="
+            $refs.workspacesContext.toggle(
+              $event.currentTarget,
+              'bottom',
+              'left',
+              4
+            )
+          "
+        >
+          <Avatar
+            v-if="collapsed"
+            :initials="$filters.nameAbbreviation(selectedWorkspace.name)"
+            aria-hidden="true"
+          ></Avatar>
+          <span v-show="!collapsed" class="sidebar__workspace-name">{{
+            selectedWorkspace.name
+          }}</span>
+          <span
+            v-show="!collapsed && width >= 200"
+            v-if="workspacePlanBadges.length"
+            class="sidebar__workspace-plan"
+          >
+            <component
+              :is="badge"
+              v-for="(badge, index) in workspacePlanBadges"
+              :key="index"
+              :workspace="selectedWorkspace"
+            ></component>
+          </span>
+          <span
+            v-show="!collapsed"
+            v-if="unreadNotificationsInOtherWorkspaces"
+            class="sidebar__unread-notifications-icon"
+          ></span>
+          <i
+            v-show="!collapsed"
+            class="sidebar__workspace-trigger-icon baserow-icon-up-down-arrows"
+            aria-hidden="true"
+          ></i>
+        </button>
+      </div>
+      <div
+        v-else
         ref="workspaceContextAnchor"
         class="sidebar__workspaces-selector"
         data-highlight="workspaces"
@@ -34,22 +107,18 @@
         >
           <i class="iconoir-nav-arrow-left"></i>
         </nuxt-link>
-        <a
+        <button
+          type="button"
           class="sidebar__workspaces-selector-link"
-          @click="
-            $refs.workspacesContext.toggle(
-              $refs.workspaceContextAnchor,
-              'bottom',
-              'left',
-              4,
-              16
-            )
-          "
+          :aria-label="selectedWorkspace.name || name"
+          :aria-expanded="workspaceContextOpen"
+          @click="toggleWorkspaceContext"
         >
           <Avatar
             :initials="
               $filters.nameAbbreviation(selectedWorkspace.name || name)
             "
+            aria-hidden="true"
           ></Avatar>
           <span
             v-show="!collapsed"
@@ -65,13 +134,14 @@
             v-show="!collapsed"
             class="sidebar__workspaces-selector-icon baserow-icon-up-down-arrows"
           ></i>
-        </a>
+        </button>
       </div>
       <SidebarUserContext
         ref="workspacesContext"
         :workspaces="workspaces"
         :selected-workspace="selectedWorkspace"
-        @toggle-admin="setShowAdmin($event)"
+        @shown="workspaceContextOpen = true"
+        @hidden="workspaceContextOpen = false"
       ></SidebarUserContext>
 
       <SidebarMenu
@@ -98,7 +168,9 @@
     <SidebarFoot
       :collapsed="collapsed"
       :width="width"
+      :selected-workspace="showAdmin ? null : selectedWorkspace"
       @set-col1-width="$emit('set-col1-width', $event)"
+      @toggle-admin="setShowAdmin($event)"
     ></SidebarFoot>
   </div>
 </template>
@@ -157,6 +229,7 @@ export default {
   data() {
     return {
       showAdmin: false,
+      workspaceContextOpen: false,
     }
   },
 
@@ -171,6 +244,11 @@ export default {
     },
     hasSelectedWorkspace() {
       return Object.prototype.hasOwnProperty.call(this.selectedWorkspace, 'id')
+    },
+    workspacePlanBadges() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .map((plugin) => plugin.getSidebarWorkspacePlanBadge())
+        .filter((component) => component !== null)
     },
     ...mapGetters({
       name: 'auth/getName',
@@ -190,6 +268,19 @@ export default {
     )
   },
   methods: {
+    toggleWorkspaceContext(event) {
+      const trigger = event.currentTarget
+      const anchorRect =
+        this.$refs.workspaceContextAnchor.getBoundingClientRect()
+      const triggerRect = trigger.getBoundingClientRect()
+      this.$refs.workspacesContext.toggle(
+        trigger,
+        'bottom',
+        'left',
+        4 + anchorRect.bottom - triggerRect.bottom,
+        16 + anchorRect.left - triggerRect.left
+      )
+    },
     setShowAdmin(value) {
       this.showAdmin = value
       this.$forceUpdate()

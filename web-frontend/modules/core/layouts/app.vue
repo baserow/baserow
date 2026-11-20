@@ -7,7 +7,6 @@
       <div class="layout__col-1" :style="{ width: col1Width + 'px' }">
         <SidebarAllWorkspaces
           v-if="sidebarType === SIDEBAR_TYPES.ALL_WORKSPACES"
-          :workspaces="workspaces"
           :selected-workspace="selectedWorkspace"
           :collapsed="isCollapsed"
           :width="col1Width"
