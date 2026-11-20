@@ -24,6 +24,7 @@
     >
       <template #head>
         <SegmentControl
+          v-if="$featureFlagIsEnabled(FF_USER_TEMPLATES)"
           :segments="tabs"
           :active-index="tabIndex"
           type="pills"
@@ -60,6 +61,7 @@ import TemplateDetails from '@baserow/modules/core/components/template/TemplateD
 import TemplateList from '@baserow/modules/core/components/template/TemplateList'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
 import TemplateService from '@baserow/modules/core/services/template'
+import { FF_USER_TEMPLATES } from '@baserow/modules/core/plugins/featureFlags'
 import { fetchWorkspacesAndApplications } from '@baserow/modules/core/utils/workspace'
 import { keyboardShortcutsToPriorityEventBus } from '@baserow/modules/core/utils/events'
 import { notifyIf } from '@baserow/modules/core/utils/error'

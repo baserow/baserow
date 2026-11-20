@@ -33,7 +33,6 @@ from django.utils.crypto import get_random_string
 from django_cte import CTEManager
 
 from baserow.core.context import PRIVATE_LINK_TOKEN_PATTERN
-from baserow.core.feature_flags import FF_USER_TEMPLATES, feature_flag_is_enabled
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -443,9 +442,7 @@ class Workspace(HierarchicalModelMixin, TrashableModelMixin, CreatedAndUpdatedOn
         template_types = self.get_template_types()
         if Template.Type.OFFICIAL in template_types:
             return True
-        if Template.Type.USER not in template_types or not feature_flag_is_enabled(
-            FF_USER_TEMPLATES, user=actor
-        ):
+        if Template.Type.USER not in template_types:
             return False
         # Not cached, because the state of a user template changes. The roots of the
         # revisions are selected along when the templates aren't prefetched.
@@ -1064,9 +1061,6 @@ class TemplateQuerySet(QuerySet):
         """
 
         official = _official_template_q()
-        if not feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor):
-            return self.filter(official)
-
         visible = template_root_q(
             public_revision=F("id"),
             blocked_at__isnull=True,
@@ -1425,9 +1419,7 @@ class Template(models.Model):
         if self.type in (None, Template.Type.OFFICIAL):
             return True
         root = self.get_root()
-        if root.marked_for_deletion_at is not None or not feature_flag_is_enabled(
-            FF_USER_TEMPLATES, user=actor
-        ):
+        if root.marked_for_deletion_at is not None:
             return False
         if root.public_revision_id == self.id and root.blocked_at is None:
             return True

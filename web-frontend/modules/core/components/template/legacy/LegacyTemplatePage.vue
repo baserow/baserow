@@ -1,8 +1,10 @@
 <template>
-  <TemplatePreview :template="template" />
+  <TemplatePage v-if="template.type === 'user'" />
+  <TemplatePreview v-else :template="template" />
 </template>
 
 <script setup>
+import TemplatePage from '@baserow/modules/core/components/template/TemplatePage'
 import TemplatePreview from '@baserow/modules/core/components/template/TemplatePreview'
 import TemplateService from '@baserow/modules/core/services/template'
 

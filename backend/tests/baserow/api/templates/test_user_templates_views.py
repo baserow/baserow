@@ -373,12 +373,22 @@ def test_list_templates_with_flag_off(api_client, data_fixture, settings):
     settings.FEATURE_FLAGS = []
     user, token = data_fixture.create_user_and_token()
     official = data_fixture.create_template()
+    category = data_fixture.create_template_category()
     create_own_template(data_fixture, user)
+    create_own_template(
+        data_fixture, data_fixture.create_user(), state="public", categories=[category]
+    )
 
     response = list_templates(api_client, token)
 
     assert response.status_code == HTTP_200_OK
     assert [t["id"] for t in response.json()["results"]] == [official.id]
+    response = list_templates(api_client, token, listed="true")
+    assert [t["id"] for t in response.json()["results"]] == [official.id]
+    response = list_templates(api_client, token, type="user", listed="true")
+    assert response.json()["results"] == []
+    response = list_templates(api_client, token, view="public_categories")
+    assert response.json() == []
 
 
 def test_list_templates_with_an_invalid_parameter(api_client, data_fixture):
@@ -1015,6 +1025,7 @@ def test_open_user_template(api_client, data_fixture, settings, user_templates_e
     tokens = [stranger_token, owner_token]
     official = data_fixture.create_template()
     user_template = data_fixture.create_user_template(user=owner)
+    public = create_own_template(data_fixture, owner, state="public")
     marked = data_fixture.create_user_template(
         user=owner, marked_for_deletion_at=datetime(2026, 10, 1, tzinfo=timezone.utc)
     )
@@ -1022,7 +1033,8 @@ def test_open_user_template(api_client, data_fixture, settings, user_templates_e
     # Anonymous, a stranger and the owner.
     for template, opens in [
         (official, (True, True, True)),
-        (user_template, (False, False, user_templates_enabled)),
+        (user_template, (False, False, True)),
+        (public, (True, True, True)),
         (marked, (False, False, False)),
     ]:
         grid = create_template_with_rows(data_fixture, template)

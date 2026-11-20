@@ -171,8 +171,8 @@ def test_download_admitted_through_private_link_when_the_link_changes(
         ("user", "public", True, None),
         ("user", "old", True, TemplateUpdated),
         ("owner", "old", False, None),
-        ("staff", "old", False, TemplateDoesNotExist),
-        ("user", "public", False, TemplateDoesNotExist),
+        ("staff", "old", False, None),
+        ("user", "public", False, None),
     ],
 )
 def test_get_downloadable_revision(
