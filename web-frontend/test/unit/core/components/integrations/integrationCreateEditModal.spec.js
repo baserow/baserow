@@ -1,5 +1,10 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
+import OAuthAccountForm from '@baserow/modules/integrations/oauthAccount/components/OAuthAccountForm'
+import {
+  TEST_OAUTH_TYPE,
+  registerTestOAuthType,
+} from '@baserow/test/unit/integrations/oauthAccount/testIntegrationType'
 
 describe('IntegrationCreateEditModal', () => {
   let testApp = null
@@ -78,5 +83,42 @@ describe('IntegrationCreateEditModal', () => {
       authorized_subject_id: 1,
       authorized_subject_type: 'auth.User',
     })
+  })
+
+  test('a type whose form creates the integration hides the create button', async () => {
+    const unregister = registerTestOAuthType(testApp)
+    const application = { id: 1, workspace: { id: 1 }, integrations: [] }
+    testApp.mock.onGet('/integrations/oauth/test_oauth/config/').reply(200, {
+      configured: true,
+      redirect_uri: 'https://b.io/integrations/test_oauth/oauth-callback',
+    })
+    const wrapper = await testApp.mount(IntegrationCreateEditModal, {
+      props: {
+        application,
+        create: true,
+        integrationType: testApp
+          .getRegistry()
+          .get('integration', TEST_OAUTH_TYPE),
+        serviceTypes: ['test_oauth_send_message'],
+      },
+    })
+
+    wrapper.vm.show()
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    const buttons = document.body.querySelectorAll('.actions--right button')
+    expect([...buttons].map((b) => b.textContent.trim())).not.toContain(
+      'action.create'
+    )
+    // The form gets what the sign-in needs.
+    const form = wrapper.findComponent(OAuthAccountForm)
+    expect(form.props('serviceTypes')).toEqual(['test_oauth_send_message'])
+    expect(form.props('integrationType').getType()).toBe(TEST_OAUTH_TYPE)
+
+    const integration = { id: 9, type: TEST_OAUTH_TYPE, name: 'Example' }
+    wrapper.vm.createdBySelf(integration)
+    expect(wrapper.emitted('created')).toEqual([[integration]])
+    unregister()
   })
 })

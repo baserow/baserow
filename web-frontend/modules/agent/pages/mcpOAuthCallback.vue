@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n'
 import MCPServerService from '@baserow/modules/agent/services/mcpServer'
 import { MCP_OAUTH_MESSAGE_TYPE } from '@baserow/modules/agent/constants'
 import { mcpErrorMessage } from '@baserow/modules/agent/utils/mcp'
+import { announceOAuthResult } from '@baserow/modules/core/utils/oauthPopup'
 
 definePageMeta({
   layout: 'login',
@@ -55,14 +56,7 @@ onMounted(async () => {
     integration,
     error: error.value,
   }
-  // The channel reaches the waiting page even when the provider cut this
-  // popup off from it; the opener is told too where it's still there.
-  const channel = new BroadcastChannel(MCP_OAUTH_MESSAGE_TYPE)
-  channel.postMessage(message)
-  channel.close()
-  if (window.opener) {
-    window.opener.postMessage(message, window.location.origin)
-  }
+  announceOAuthResult(message)
   window.close()
 })
 </script>
