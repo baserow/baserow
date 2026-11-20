@@ -20,12 +20,17 @@
         :application="application"
         :default-values="create ? getDefaultIntegrationValues() : integration"
         :integration-type="actualIntegrationType"
+        :service-types="serviceTypes"
         @submitted="submit"
+        @created="createdBySelf"
       />
 
       <Error :error="error"></Error>
 
-      <div class="actions actions--right">
+      <div
+        v-if="!create || !actualIntegrationType.createsItself"
+        class="actions actions--right"
+      >
         <Button
           size="large"
           :loading="loading"
@@ -70,6 +75,15 @@ export default {
       required: false,
       default: false,
     },
+    /**
+     * The service types the integration is used for. See
+     * `IntegrationEditForm`.
+     */
+    serviceTypes: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
   },
   emits: ['created'],
   data() {
@@ -106,6 +120,14 @@ export default {
       )
 
       return { name, ...this.actualIntegrationType.getDefaultValues() }
+    },
+    /**
+     * The integration's own form created it, e.g. after a sign-in, and stored
+     * it already.
+     */
+    createdBySelf(integration) {
+      this.$emit('created', integration)
+      this.hide()
     },
     async submit(values) {
       this.loading = true

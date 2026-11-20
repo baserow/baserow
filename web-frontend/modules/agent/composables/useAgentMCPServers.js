@@ -3,6 +3,10 @@ import { useNuxtApp } from '#app'
 import { useStore } from 'vuex'
 import MCPServerService from '@baserow/modules/agent/services/mcpServer'
 import {
+  openOAuthPopup,
+  waitForOAuthResult,
+} from '@baserow/modules/core/utils/oauthPopup'
+import {
   MCP_OAUTH_MESSAGE_TYPE,
   MCP_SERVER_INTEGRATION_TYPE,
 } from '@baserow/modules/agent/constants'
@@ -16,52 +20,23 @@ export { MCPSignInCancelled, MCPSignInError }
 // As long as the backend keeps a started sign-in.
 const SIGN_IN_TIMEOUT_MS = 600000
 
-/**
- * Open a sign-in popup. Call it straight from a click, before any request, or
- * the browser blocks it. Each gets its own name, so two sign-ins never share
- * one window.
- */
+/** Open a sign-in popup. Call it straight from a click, see `openOAuthPopup`. */
 export function openSignInPopup() {
-  const name = `baserow-mcp-oauth-${Math.random().toString(36).slice(2)}`
-  return window.open('', name, 'popup,width=520,height=720')
+  return openOAuthPopup('baserow-mcp-oauth')
 }
 
 /**
- * Resolve with the callback page's result for this sign-in. It's matched by
- * the sign-in's state, so another sign-in finishing doesn't end this one. The
- * popup closing isn't waited for: a provider page can cut it off from Baserow,
- * which then sees it as closed while the editor is still signing in.
+ * Resolve with the callback page's result for this sign-in.
  *
  * @param {string} state The state of the authorization URL.
  * @param {AbortSignal} signal Gives up on the sign-in.
  */
 function waitForSignIn(state, signal) {
-  return new Promise((resolve, reject) => {
-    const channel = new BroadcastChannel(MCP_OAUTH_MESSAGE_TYPE)
-    const finish = (settle) => {
-      channel.close()
-      window.removeEventListener('message', onWindowMessage)
-      signal?.removeEventListener('abort', onAbort)
-      clearTimeout(timer)
-      settle()
-    }
-    const onResult = (data) => {
-      if (data?.type === MCP_OAUTH_MESSAGE_TYPE && data.state === state) {
-        finish(() => resolve(data))
-      }
-    }
-    const onWindowMessage = (event) => {
-      if (event.origin === window.location.origin) onResult(event.data)
-    }
-    const onAbort = () => finish(() => reject(new MCPSignInCancelled()))
-    const timer = setTimeout(
-      () => finish(() => reject(new MCPSignInError(null))),
-      SIGN_IN_TIMEOUT_MS
-    )
-    channel.onmessage = (event) => onResult(event.data)
-    window.addEventListener('message', onWindowMessage)
-    signal?.addEventListener('abort', onAbort)
-    if (signal?.aborted) onAbort()
+  return waitForOAuthResult(MCP_OAUTH_MESSAGE_TYPE, state, {
+    signal,
+    timeoutMs: SIGN_IN_TIMEOUT_MS,
+    cancelled: () => new MCPSignInCancelled(),
+    timedOut: () => new MCPSignInError(null),
   })
 }
 

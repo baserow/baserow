@@ -75,6 +75,15 @@ export class IntegrationType extends Registerable {
   }
 
   /**
+   * Whether the integration's form creates the integration itself, e.g. once
+   * the person signed in with another service, instead of the create button
+   * of the modal around it. Such a form emits `created` with the integration.
+   */
+  get createsItself() {
+    return false
+  }
+
+  /**
    * Default values on integration creation.
    *
    * @returns an object with the default values.

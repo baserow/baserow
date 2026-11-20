@@ -478,5 +478,47 @@
     "rowsLabel": "Rows",
     "rowsPlaceholder": "Choose a list of row objects with IDs",
     "rowsHelper": "The expression must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
+  },
+  "oauthAccountIntegrationType": {
+    "summary": "{provider} - {email}",
+    "notConnectedSummary": "{provider} - Not connected",
+    "errorNotConnected": "The {provider} account must be connected again."
+  },
+  "oauthAccountForm": {
+    "intro": "Sign in with the {provider} account Baserow should use. You'll be asked to allow what each action needs when you first use it.",
+    "signIn": "Sign in with {provider}",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect",
+    "connected": "Connected",
+    "disconnected": "Not connected",
+    "connectedBy": "Connected by {name} on {date}",
+    "actsAsNote": "Actions using this integration act as the account you sign in with, whoever triggers them.",
+    "reconnectNote": "Reconnecting with another account makes actions act as that account from now on.",
+    "reconnectSameAccountNote": "Reconnect with the same account. To use another account, create another integration.",
+    "publishedNote": "Published applications and workflows keep using this account until they're published again, even after you disconnect it.",
+    "reconnectNeeded": "{provider} no longer accepts this account's sign-in, or it was disconnected. Reconnect it to use it again.",
+    "notConfiguredTitle": "{provider} isn't set up",
+    "notConfigured": "An admin of this Baserow installation must register an app with {provider} before {provider} accounts can be connected.",
+    "redirectUri": "Redirect URI to register:",
+    "signInFailedTitle": "The account wasn't connected",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied"
+  },
+  "oauthAccountCallback": {
+    "connecting": "Connecting your {provider} account...",
+    "connected": "Your {provider} account is connected. You can close this window.",
+    "adminApproved": "Baserow is approved for your organisation. Close this window and sign in again."
+  },
+  "oauthAccountErrors": {
+    "notConfigured": "This Baserow installation isn't set up to connect {provider} accounts.",
+    "stateInvalid": "This sign-in expired or was started elsewhere. Try again.",
+    "cancelled": "The sign-in was cancelled.",
+    "adminConsentRequired": "Your organisation only lets an admin approve Baserow. Send this link to your {provider} admin, then sign in again once they've approved it.",
+    "tenantNotAllowed": "This Baserow installation doesn't accept accounts of your organisation.",
+    "clientRejected": "{provider} refused the app this integration signs in through, maybe because its secret expired. Contact your Baserow admin.",
+    "accountMismatch": "You signed in with another account than the one connected. Create another integration to connect it.",
+    "serviceTypeNotAllowed": "The account can't be connected for this action.",
+    "failed": "The {provider} sign-in didn't complete. Try again.",
+    "popupBlocked": "Your browser blocked the {provider} sign-in window. Allow pop-ups for Baserow, then try again."
   }
 }
