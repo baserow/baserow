@@ -802,6 +802,7 @@ def test_triggers_are_copied_switched_off_and_unarmed(
         "message",
         "on_overlap",
         "batch_size",
+        "may_ask_person",
         "service",
     }
     assert copy.service_id != trigger.service_id
@@ -885,6 +886,42 @@ def test_a_trigger_batch_size_is_copied_and_invalid_values_get_the_default(
     )
 
     assert copy.triggers.get().batch_size == imported
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "exported,imported", [(False, False), (True, True), ("no", True)]
+)
+def test_a_trigger_may_ask_a_person_is_copied_and_invalid_values_get_true(
+    data_fixture, configured_agent, exported, imported
+):
+    agent = configured_agent()
+    data_fixture.create_agent_trigger(agent=agent, may_ask_person=False)
+    serialized = export_internal(agent)
+    assert serialized["triggers"][0]["may_ask_person"] is False
+    serialized["triggers"][0]["may_ask_person"] = exported
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.triggers.get().may_ask_person is imported
+
+
+@pytest.mark.django_db
+def test_an_export_without_may_ask_person_imports_a_trigger_that_may(
+    data_fixture, configured_agent
+):
+    agent = configured_agent()
+    data_fixture.create_agent_trigger(agent=agent, may_ask_person=False)
+    serialized = export_internal(agent)
+    del serialized["triggers"][0]["may_ask_person"]
+
+    copy = AgentApplicationType().import_serialized(
+        agent.workspace, serialized, INTERNAL_CONFIG, {}
+    )
+
+    assert copy.triggers.get().may_ask_person is True
 
 
 @pytest.mark.django_db

@@ -113,6 +113,7 @@ def test_partial_service_create_and_updates_preserve_input_bindings(
         {"name": "has spaces"},
         {"name": "create_rows"},
         {"name": "web_search"},
+        {"name": "ask_person"},
         {"name": "mcp12_search"},
         {
             "inputs": [

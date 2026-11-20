@@ -799,7 +799,7 @@ class AgentService:
         :param agent_id: The id of the agent.
         :param conversation_uuid: The uuid of the conversation.
         :param decisions: Whether each held call may run, by approval id, with the
-            reason for a rejection.
+            reason for a rejection or the answer to a question.
         :param always_allow: Whether the tools of the approved calls stop asking
             first, which needs the access of a configuration update.
         :raises FeatureDisabledException: When Agents are disabled.
@@ -809,6 +809,9 @@ class AgentService:
             with this uuid in the agent.
         :raises AgentToolApprovalNotPending: When an approval is decided already or
             isn't held by the reply waiting in the conversation.
+        :raises AgentToolDecisionInvalid: When a question is answered without an
+            answer or dismissed with a reason, or another call is decided with an
+            answer.
         :raises AgentNotReady: When the agent isn't ready to continue the reply.
         :raises ChatRunLimitReached: When a reply limit is reached.
         :return: The reply with its approvals, the run continuing it or None while

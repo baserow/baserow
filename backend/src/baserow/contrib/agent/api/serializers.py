@@ -6,6 +6,7 @@ from rest_framework import serializers
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
 from baserow.api.pagination import KeysetCursorField, PageNumberPagination
 from baserow.contrib.agent.constants import (
+    ASK_PERSON_ANSWER_MAX_LENGTH,
     RUN_AS_SUBJECT_TYPES,
     AgentConfigurationErrorCode,
     AgentReadinessState,
@@ -461,7 +462,7 @@ class AgentToolApprovalSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AgentToolApproval
-        fields = ("id", "step_id", "pause", "tool", "status", "reason")
+        fields = ("id", "step_id", "pause", "tool", "status", "reason", "answer")
 
 
 class AgentPendingReplySerializer(serializers.ModelSerializer):
@@ -576,15 +577,23 @@ class AgentToolDecisionSerializer(
         allow_blank=True,
         max_length=AGENT_REJECTION_REASON_MAX_LENGTH,
         help_text="Why the call is rejected, passed on to the agent. Only accepted "
-        "with a rejection.",
+        "with a rejection, and refused when dismissing a question.",
+    )
+    answer = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=ASK_PERSON_ANSWER_MAX_LENGTH,
+        help_text="The answer to a held question, passed on to the agent. Needed to "
+        "answer a question; only accepted with `approved` true.",
     )
 
     def validate(self, values: dict) -> dict:
         """
-        Accept a reason only for a rejection.
+        Accept a reason only for a rejection, and an answer only for an approval.
 
         :param values: The validated fields.
-        :raises ValidationError: When an approval has a reason.
+        :raises ValidationError: When an approval has a reason or a rejection has an
+            answer.
         :return: The validated fields.
         """
 
@@ -592,6 +601,10 @@ class AgentToolDecisionSerializer(
         if values["approved"] and "reason" in values:
             raise serializers.ValidationError(
                 {"reason": "Only a rejection has a reason."}
+            )
+        if not values["approved"] and "answer" in values:
+            raise serializers.ValidationError(
+                {"answer": "Only an approval has an answer."}
             )
         return values
 

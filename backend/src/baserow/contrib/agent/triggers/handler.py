@@ -185,6 +185,7 @@ class AgentTriggerHandler:
         on_overlap: str | None = None,
         batch_size: int = AGENT_TRIGGER_DEFAULT_BATCH_SIZE,
         name: str = "",
+        may_ask_person: bool = True,
     ) -> AgentTrigger:
         """
         Create a trigger with a new service of the given type and arm it.
@@ -200,6 +201,7 @@ class AgentTriggerHandler:
         :param batch_size: How many records of a list payload one conversation
             receives.
         :param name: The trigger's name, or blank for the type's default.
+        :param may_ask_person: Whether a run may pause to ask a person a question.
         :raises AgentTriggerTypeNotAvailable: When the type isn't available.
         :return: The created trigger, with its specific service.
         """
@@ -215,6 +217,7 @@ class AgentTriggerHandler:
             enabled=enabled,
             on_overlap=on_overlap or self.default_on_overlap(service_type),
             batch_size=batch_size,
+            may_ask_person=may_ask_person,
         )
         self.arm(trigger)
         return trigger
@@ -229,6 +232,7 @@ class AgentTriggerHandler:
         batch_size: int | None = None,
         name: str | None = None,
         service_type: TriggerServiceTypeMixin | None = None,
+        may_ask_person: bool | None = None,
     ) -> AgentTriggerUpdated:
         """
         Update a trigger, re-arming its service when its values change or the
@@ -256,11 +260,13 @@ class AgentTriggerHandler:
             it.
         :param service_type: The service type the trigger should have, or None to
             keep its own.
+        :param may_ask_person: Whether a run may ask a person a question, or None to
+            keep it.
         :raises AgentTriggerTypeNotAvailable: When it would re-arm a trigger of a
             type that isn't available.
         :return: The updated trigger and the names of the parts that changed:
             ``name``, ``enabled``, ``message``, ``on_overlap``, ``batch_size``,
-            ``type`` and ``service``.
+            ``may_ask_person``, ``type`` and ``service``.
         """
 
         replaced_service = None
@@ -295,6 +301,9 @@ class AgentTriggerHandler:
         if batch_size is not None and batch_size != trigger.batch_size:
             trigger.batch_size = batch_size
             changed_fields.append("batch_size")
+        if may_ask_person is not None and may_ask_person != trigger.may_ask_person:
+            trigger.may_ask_person = may_ask_person
+            changed_fields.append("may_ask_person")
         saved_fields = [*changed_fields]
         if replaced_service is not None:
             trigger.last_skipped_on, trigger.last_skipped_reason = None, ""
@@ -381,6 +390,14 @@ class AgentTriggerHandler:
         self.check_type_available(trigger.agent, service_type.type)
         service_type.arm(service)
 
+    def get_shown_name(self, trigger: AgentTrigger) -> str:
+        """
+        :param trigger: A trigger.
+        :return: Its name, or a generic one when it has none.
+        """
+
+        return trigger.name or "Trigger"
+
     def message_without_text(
         self,
         trigger: AgentTrigger,
@@ -400,8 +417,9 @@ class AgentTriggerHandler:
         """
 
         context = AgentTriggerDispatchContext(trigger, event_payload, fired_at)
-        name = trigger.name or "Trigger"
-        message = f"{name} fired at {context.get_fired_at_display()}"
+        message = (
+            f"{self.get_shown_name(trigger)} fired at {context.get_fired_at_display()}"
+        )
         if not BaserowFormulaObject.to_formula(trigger.message)["formula"].strip():
             service = context.service
             event_text = agent_trigger_type_registry.get_for_service_type(
@@ -729,6 +747,7 @@ class AgentTriggerHandler:
                 "message": trigger.message,
                 "on_overlap": trigger.on_overlap,
                 "batch_size": trigger.batch_size,
+                "may_ask_person": trigger.may_ask_person,
                 "service": service_handler.export_service(
                     trigger.service.specific,
                     import_export_config=import_export_config,
@@ -791,6 +810,9 @@ class AgentTriggerHandler:
                 or not 1 <= batch_size <= AGENT_TRIGGER_MAX_BATCH_SIZE
             ):
                 batch_size = AGENT_TRIGGER_DEFAULT_BATCH_SIZE
+            may_ask_person = serialized.get("may_ask_person")
+            if not isinstance(may_ask_person, bool):
+                may_ask_person = True
             name = serialized.get("name")
             trigger = AgentTrigger.objects.create(
                 agent=agent,
@@ -807,6 +829,7 @@ class AgentTriggerHandler:
                 ),
                 on_overlap=on_overlap,
                 batch_size=batch_size,
+                may_ask_person=may_ask_person,
             )
             trigger_ids[serialized["id"]] = trigger.id
             triggers.append(trigger)

@@ -22,5 +22,9 @@ class AgentToolApprovalNotPending(Exception):
     """The approval is decided or isn't held by the conversation's waiting reply."""
 
 
+class AgentToolDecisionInvalid(Exception):
+    """A decision's answer doesn't fit the held call it decides."""
+
+
 class AgentTriggerOff(Exception):
     """The trigger of a shared conversation is off or gone, so its reply stops."""

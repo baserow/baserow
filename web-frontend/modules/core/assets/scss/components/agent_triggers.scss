@@ -234,14 +234,14 @@
   color: $palette-neutral-700;
 }
 
-.agent-trigger-card__overlap-title {
+.agent-trigger-card__section-title {
   font-size: 13px;
   line-height: 20px;
   font-weight: 500;
   color: $palette-neutral-1200;
 }
 
-.agent-trigger-card__overlap-description {
+.agent-trigger-card__section-description {
   margin: 4px 0 0;
   font-size: 12px;
   line-height: 18px;
@@ -281,6 +281,21 @@
   font-size: 12px;
   line-height: 18px;
   color: $palette-neutral-900;
+}
+
+.agent-trigger-card__ask-person {
+  padding-bottom: 16px;
+}
+
+.agent-trigger-card__ask-person-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-trigger-card__ask-person-switch {
+  flex-shrink: 0;
 }
 
 .agent-trigger-card__skipped {
