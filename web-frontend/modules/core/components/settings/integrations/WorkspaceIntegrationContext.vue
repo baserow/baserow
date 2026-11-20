@@ -41,7 +41,8 @@ export default {
       this.$emit('edit')
     },
     // The table asks for a confirmation, because every application of the
-    // workspace that uses the integration loses it.
+    // workspace that uses the integration loses it. Published applications and
+    // workflows keep their own copy until they're published again.
     remove() {
       this.hide()
       this.$emit('delete')
