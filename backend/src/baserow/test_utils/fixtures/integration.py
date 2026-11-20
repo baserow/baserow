@@ -1,6 +1,7 @@
 from baserow.contrib.integrations.core.models import SMTPIntegration
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowIntegration
 from baserow.contrib.integrations.mcp.models import MCPServerIntegration
+from baserow.contrib.integrations.microsoft.models import MicrosoftIntegration
 from baserow.contrib.integrations.slack.models import SlackBotIntegration
 from baserow.core.integrations.registries import integration_type_registry
 
@@ -50,6 +51,29 @@ class IntegrationFixtures:
                 user=kwargs.pop("user", None)
             )
         return self.create_integration(MCPServerIntegration, **kwargs)
+
+    def create_microsoft_integration(self, connected=True, **kwargs):
+        """
+        A Microsoft integration. Connected, it has an account, tokens valid for
+        an hour and the base scopes, unless given.
+        """
+
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        kwargs.setdefault("name", "Microsoft")
+        if connected:
+            kwargs.setdefault("account_id", "00000000-0000-0000-0000-00000000a11c")
+            kwargs.setdefault("tenant_id", "11111111-1111-1111-1111-111111111111")
+            kwargs.setdefault("account_email", "alice@contoso.com")
+            kwargs.setdefault("account_name", "Alice")
+            kwargs.setdefault("scopes", ["openid", "profile", "email", "User.Read"])
+            kwargs.setdefault("access_token", "access-token")  # nosec B105
+            kwargs.setdefault("refresh_token", "refresh-token")  # nosec B105
+            kwargs.setdefault("expires_at", timezone.now() + timedelta(hours=1))
+            kwargs.setdefault("connected_at", timezone.now())
+        return self.create_integration(MicrosoftIntegration, **kwargs)
 
     def create_integration_with_first_type(self, **kwargs):
         first_type = list(integration_type_registry.get_all())[0]

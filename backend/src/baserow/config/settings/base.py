@@ -1759,6 +1759,30 @@ INTEGRATIONS_SLACK_API_URL = (
     os.getenv("BASEROW_INTEGRATIONS_SLACK_API_URL") or "https://slack.com/api"
 ).rstrip("/")
 
+# The Entra app Microsoft integrations sign in through. One per instance: the
+# people connecting their account never see it. Without a client id and secret,
+# Microsoft accounts can't be connected.
+INTEGRATIONS_MICROSOFT_CLIENT_ID = os.getenv(
+    "BASEROW_INTEGRATIONS_MICROSOFT_CLIENT_ID", ""
+)
+INTEGRATIONS_MICROSOFT_CLIENT_SECRET = os.getenv(
+    "BASEROW_INTEGRATIONS_MICROSOFT_CLIENT_SECRET", ""
+)
+# `common` accepts work, school and personal accounts. A single-tenant Entra app
+# sets its tenant id, or `organizations` for work and school accounts only.
+INTEGRATIONS_MICROSOFT_TENANT = (
+    os.getenv("BASEROW_INTEGRATIONS_MICROSOFT_TENANT") or "common"
+)
+# Only national clouds, or a stub in a stack without access to Microsoft, point
+# these somewhere else. Graph scopes are then asked for of that cloud's Graph.
+INTEGRATIONS_MICROSOFT_LOGIN_URL = (
+    os.getenv("BASEROW_INTEGRATIONS_MICROSOFT_LOGIN_URL")
+    or "https://login.microsoftonline.com"
+).rstrip("/")
+INTEGRATIONS_MICROSOFT_GRAPH_URL = (
+    os.getenv("BASEROW_INTEGRATIONS_MICROSOFT_GRAPH_URL")
+    or "https://graph.microsoft.com"
+).rstrip("/")
 # How often one user may start signing in to connect an account to an
 # integration, whatever the provider. Each start keeps a pending sign-in in the
 # cache for ten minutes.
