@@ -245,14 +245,17 @@ class AgentService:
             # An identity with access to nothing can't run the Agent's tools, so
             # the Agent waits for one to be picked instead.
             return
+        application_ids = {application.id for application in applications}
         for agent in agents:
             pending = self.handler.get_pending_tool_configuration(agent)
             if not pending["allowed_tools"]:
                 continue
-            can_change_data = any(
-                agent_tool_type_registry.get(name).changes_data
-                for name in pending["allowed_tools"]
-            )
+            roles = agent.pending_tool_choices.get("identity_roles")
+            if roles is not None:
+                roles = [tuple(role) for role in roles]
+                if not any(role[0] in application_ids for role in roles):
+                    # The template's identity could reach none of the applications.
+                    continue
             try:
                 with transaction.atomic():
                     identity = IdentityService().create_scoped_identity(
@@ -261,13 +264,11 @@ class AgentService:
                         # The longest name an identity can have.
                         name=agent.name[:150],
                         applications=applications,
-                        can_change_data=can_change_data,
-                        roles=[
-                            tuple(role)
-                            for role in agent.pending_tool_choices.get(
-                                "identity_roles", []
-                            )
-                        ],
+                        can_change_data=any(
+                            agent_tool_type_registry.get(name).changes_data
+                            for name in pending["allowed_tools"]
+                        ),
+                        roles=roles,
                     )
                     # Audited, because the Agent gets the identity's access.
                     UpdateAgentConfigurationActionType.do(

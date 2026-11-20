@@ -56,7 +56,10 @@ def make_agent(fixture, workspace, name, tools, identity=None):
         provider_type="openai",
         model_identifier="test-model",
     )
-    identity = identity or fixture.create_identity(workspace=workspace, name="Author")
+    # With workspace access, its roles aren't exported, so the tools pick them.
+    identity = identity or fixture.create_identity(
+        workspace=workspace, name="Author", role_uid="BUILDER"
+    )
     agent.run_as_subject_type, agent.run_as_subject_id = "auth.User", identity.id
     agent.save()
     allowed, ask_first = tools
@@ -383,6 +386,75 @@ def test_an_admin_role_on_an_application_isnt_recreated(
 
 
 @pytest.mark.django_db(transaction=True)
+def test_only_builder_and_viewer_roles_are_recreated(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    template = sync_template(
+        enterprise_data_fixture,
+        settings,
+        tmp_path,
+        [WRITE_TOOLS],
+        with_site=True,
+        source_roles={"CRM": "EDITOR", "Site": "COMMENTER"},
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    install(admin, workspace, template, create_identities=True)
+
+    identity = run_identity(AgentApplication.objects.get(workspace=workspace))
+    assert roles_of(identity) == {
+        (Database.objects.get(workspace=workspace).id, "BUILDER"),
+        (Builder.objects.get(workspace=workspace).id, "VIEWER"),
+    }
+
+
+@pytest.mark.django_db(transaction=True)
+def test_an_identity_without_application_roles_isnt_recreated(
+    enterprise_data_fixture, admin, settings, tmp_path
+):
+    # The template's identity could reach none of its applications.
+    template = sync_template(
+        enterprise_data_fixture,
+        settings,
+        tmp_path,
+        [WRITE_TOOLS],
+        source_roles={},
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED
+    agent = AgentApplication.objects.get(workspace=workspace)
+    assert agent.run_as_subject_id is None
+    assert agent.pending_tool_choices is not None
+    assert not IdentityHandler().get_queryset(workspace).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "roles",
+    [[[1]], ["x"], [[[], "VIEWER"]], [["1", "VIEWER"]], [[1, None]], {"a": 1}, "x"],
+)
+def test_malformed_exported_roles_are_ignored(
+    enterprise_data_fixture, admin, settings, tmp_path, roles
+):
+    template = sync_template(enterprise_data_fixture, settings, tmp_path, [WRITE_TOOLS])
+    path = tmp_path / "agent-kit.json"
+    content = json.loads(path.read_text())
+    for application in content["export"]:
+        if application["type"] == "agent":
+            application["run_as_identity_roles"] = roles
+    path.write_text(json.dumps(content))
+    workspace = enterprise_data_fixture.create_workspace(user=admin)
+
+    job = install(admin, workspace, template, create_identities=True)
+
+    assert job.state == JOB_FINISHED, job.human_readable_error
+    assert AgentApplication.objects.filter(workspace=workspace).exists()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_an_identity_with_workspace_access_exports_no_roles(
     enterprise_data_fixture, admin
 ):
@@ -401,7 +473,8 @@ def test_an_identity_with_workspace_access_exports_no_roles(
 
     (serialized,) = export_for_template([agent])
 
-    assert serialized["run_as_identity_roles"] == []
+    # Without the key, an install falls back to the roles the tools need.
+    assert "run_as_identity_roles" not in serialized
 
 
 @pytest.mark.django_db(transaction=True)
@@ -429,7 +502,7 @@ def test_exported_identity_roles_need_permission_to_read_them(
         return agent.get_type().export_serialized(agent, config)
 
     assert export(admin)["run_as_identity_roles"] == [[database.id, "VIEWER"]]
-    assert export(builder)["run_as_identity_roles"] == []
+    assert "run_as_identity_roles" not in export(builder)
 
 
 @pytest.mark.django_db(transaction=True)

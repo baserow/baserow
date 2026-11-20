@@ -55,12 +55,15 @@ class IdentityExtensionType(Instance):
             no usable `roles` are given.
         :param user: The user who scopes the identity.
         :param roles: The role uid to give on each application, by application id,
-            as returned by `get_application_roles` for another identity.
+            as returned by `get_application_roles` for another identity. When given,
+            the applications without one get no role.
         """
 
         raise NotImplementedError()
 
-    def get_application_roles(self, identity, user=None) -> list[tuple[int, str]]:
+    def get_application_roles(
+        self, identity, user=None
+    ) -> list[tuple[int, str]] | None:
         """
         The roles an identity with no workspace access has on single applications,
         for an export to recreate them with `scope_to_applications`.
@@ -68,10 +71,11 @@ class IdentityExtensionType(Instance):
         :param identity: The identity whose roles are exported.
         :param user: The user who exports them, if any, who must be allowed to see
             them.
-        :return: (application id, role uid) pairs.
+        :return: (application id, role uid) pairs, or None when its access can't be
+            exported this way.
         """
 
-        return []
+        return None
 
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user
@@ -130,17 +134,20 @@ class IdentityExtensionTypeRegistry(Registry[IdentityExtensionType]):
             None,
         )
 
-    def get_application_roles(self, identity, user=None) -> list[tuple[int, str]]:
+    def get_application_roles(
+        self, identity, user=None
+    ) -> list[tuple[int, str]] | None:
         """
         :return: The (application id, role uid) pairs that recreate the access of an
-            identity scoped to some applications.
+            identity scoped to some applications, or None when no extension can
+            export it.
         """
 
-        return [
-            role
-            for extension in self.get_all()
-            for role in extension.get_application_roles(identity, user)
-        ]
+        for extension in self.get_all():
+            roles = extension.get_application_roles(identity, user)
+            if roles is not None:
+                return roles
+        return None
 
     def get_default_role_uid(self, workspace):
         for extension in self.get_all():

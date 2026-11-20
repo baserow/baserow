@@ -39,14 +39,15 @@ from baserow_enterprise.teams.operations import (
 )
 from baserow_premium.license.handler import LicenseHandler
 
-# The roles an identity scoped to applications may get on them. Not the admin role,
-# with which it could give itself or others more.
-SCOPED_IDENTITY_ROLE_UIDS = [
-    VIEWER_ROLE_UID,
-    COMMENTER_ROLE_UID,
-    EDITOR_ROLE_UID,
-    BUILDER_ROLE_UID,
-]
+# The role an identity scoped to applications gets for a role it had on one: the
+# builder role if it could change it, otherwise the viewer role. Never the admin
+# role, with which it could give itself or others more.
+SCOPED_IDENTITY_ROLE_UIDS = {
+    VIEWER_ROLE_UID: VIEWER_ROLE_UID,
+    COMMENTER_ROLE_UID: VIEWER_ROLE_UID,
+    EDITOR_ROLE_UID: BUILDER_ROLE_UID,
+    BUILDER_ROLE_UID: BUILDER_ROLE_UID,
+}
 
 
 class IdentityTeamSummarySerializer(serializers.Serializer):
@@ -166,16 +167,16 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             workspace=workspace,
             raise_exception=True,
         )
-        role_uids = {
-            application_id: role_uid
-            for application_id, role_uid in roles or []
-            if role_uid in SCOPED_IDENTITY_ROLE_UIDS
-        }
-        if role_uids:
-            scopes = [scope for scope in scopes if scope.id in role_uids]
-        else:
+        if roles is None:
             default = BUILDER_ROLE_UID if can_change_data else VIEWER_ROLE_UID
             role_uids = {scope.id: default for scope in scopes}
+        else:
+            role_uids = {
+                application_id: SCOPED_IDENTITY_ROLE_UIDS[role_uid]
+                for application_id, role_uid in roles
+                if role_uid in SCOPED_IDENTITY_ROLE_UIDS
+            }
+            scopes = [scope for scope in scopes if scope.id in role_uids]
         role_by_uid = {
             role.uid: role
             for role in Role.objects.filter(uid__in=set(role_uids.values()))
@@ -192,9 +193,10 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
     def get_application_roles(self, identity, user=None):
         """
         Exports the roles of an identity without workspace access on single
-        applications. Nothing is exported for an identity with workspace access,
-        whose application roles alone don't say what it can reach, or when the
-        exporting user may not read the roles of an application.
+        applications, as the builder or viewer role it would get. Nothing is
+        exported for an identity with workspace access, whose application roles
+        alone don't say what it can reach, or when the exporting user may not read
+        its roles. The roles an exporting user may not read are left out.
         """
 
         workspace = IdentityHandler().get_workspace(identity)
@@ -202,14 +204,14 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             not LicenseHandler.workspace_has_feature(RBAC, workspace)
             or IdentityHandler.get_role_uid(identity) != NO_ACCESS_ROLE_UID
         ):
-            return []
+            return None
         assignments = list(
             RoleAssignment.objects.filter(
                 workspace=workspace,
                 subject_type=ContentType.objects.get_for_model(User),
                 subject_id=identity.id,
                 scope_type=ContentType.objects.get_for_model(Application),
-                role__uid__in=SCOPED_IDENTITY_ROLE_UIDS,
+                role__uid__in=list(SCOPED_IDENTITY_ROLE_UIDS),
             )
             .order_by("scope_id")
             .values_list("scope_id", "role__uid")
@@ -229,10 +231,15 @@ class EnterpriseIdentityExtensionType(IdentityExtensionType):
             allowed = {
                 check.context.id for check, result in readable.items() if result is True
             }
+            if assignments and not allowed:
+                return None
             assignments = [
                 assignment for assignment in assignments if assignment[0] in allowed
             ]
-        return [list(assignment) for assignment in assignments]
+        return [
+            [scope_id, SCOPED_IDENTITY_ROLE_UIDS[role_uid]]
+            for scope_id, role_uid in assignments
+        ]
 
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user

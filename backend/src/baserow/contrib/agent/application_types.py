@@ -100,14 +100,15 @@ class AgentApplicationType(ApplicationType):
     @staticmethod
     def _exported_identity_roles(
         application: AgentApplication, import_export_config: ImportExportConfig
-    ) -> list[list]:
+    ) -> list[list] | None:
         """
         The roles that the identity the Agent acts as has on single applications,
         for an install to give a new identity the same access.
 
         :param application: The exported Agent.
         :param import_export_config: How the Agent is exported.
-        :return: (application id, role uid) pairs.
+        :return: (application id, role uid) pairs, or None when its access can't be
+            exported this way.
         """
 
         resolution = AgentHandler().resolve_run_as_subject(
@@ -116,35 +117,40 @@ class AgentApplicationType(ApplicationType):
             application.workspace,
         )
         if resolution.status != AgentRunAsState.ACTIVE:
-            return []
-        return [
-            list(role)
-            for role in identity_extension_type_registry.get_application_roles(
-                resolution.subject, import_export_config.exported_by
-            )
-        ]
+            return None
+        roles = identity_extension_type_registry.get_application_roles(
+            resolution.subject, import_export_config.exported_by
+        )
+        return None if roles is None else [list(role) for role in roles]
 
     @staticmethod
     def _imported_identity_roles(
         serialized_values: dict, id_mapping: dict
-    ) -> list[list]:
+    ) -> list[list] | None:
         """
         The exported roles of the Agent's identity on the applications imported
-        with it, by their new ids.
+        with it, by their new ids. Entries that aren't an application id and a role
+        uid are left out, so a malformed export can't fail the import.
 
         :param serialized_values: The exported Agent.
         :param id_mapping: The export-to-import id map.
-        :return: (application id, role uid) pairs.
+        :return: (application id, role uid) pairs, or None when none were exported.
         """
 
+        exported = serialized_values.get("run_as_identity_roles")
+        if exported is None:
+            return None
+        if not isinstance(exported, list):
+            return []
         applications = id_mapping.get("applications", {})
         return [
-            [applications[application_id], role_uid]
-            for application_id, role_uid in serialized_values.get(
-                "run_as_identity_roles"
-            )
-            or []
-            if application_id in applications
+            [applications[entry[0]], entry[1]]
+            for entry in exported
+            if isinstance(entry, list)
+            and len(entry) == 2
+            and type(entry[0]) is int
+            and isinstance(entry[1], str)
+            and entry[0] in applications
         ]
 
     @staticmethod
@@ -373,9 +379,11 @@ class AgentApplicationType(ApplicationType):
                 run_as_subject_id=application.run_as_subject_id,
             )
         else:
-            serialized["run_as_identity_roles"] = self._exported_identity_roles(
+            identity_roles = self._exported_identity_roles(
                 application, import_export_config
             )
+            if identity_roles is not None:
+                serialized["run_as_identity_roles"] = identity_roles
         if self._includes_conversations(import_export_config):
             serialized["conversations"] = AgentHandler().export_conversations(
                 application
@@ -467,7 +475,7 @@ class AgentApplicationType(ApplicationType):
             identity_roles = self._imported_identity_roles(
                 serialized_values, id_mapping
             )
-            if identity_roles:
+            if identity_roles is not None:
                 application.pending_tool_choices["identity_roles"] = identity_roles
             application.save(update_fields=["pending_tool_choices"])
         for serialized_integration in serialized_integrations:
