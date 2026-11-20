@@ -5,6 +5,7 @@ from .views import (
     AssistantChatsView,
     AssistantChatView,
     AssistantOnboardingPromptSuggestionsView,
+    AssistantServiceFiltersView,
 )
 
 app_name = "baserow_enterprise.api.assistant"
@@ -34,5 +35,10 @@ urlpatterns = [
         "onboarding/prompt-suggestions/",
         AssistantOnboardingPromptSuggestionsView.as_view(),
         name="onboarding_prompt_suggestions",
+    ),
+    path(
+        "service-filters/",
+        AssistantServiceFiltersView.as_view(),
+        name="service_filters",
     ),
 ]

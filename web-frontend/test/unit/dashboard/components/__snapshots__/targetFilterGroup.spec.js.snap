@@ -364,6 +364,7 @@ exports[`adding conditions after a permanent group is saved keeps its persistent
       </button><button type="button" class="button button--regular button--secondary filters__add"><i class="button__icon iconoir-plus"></i><span class="button__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
         <!--v-if-->
       </button></div>
+    <!--v-if-->
   </div>
 </div>"
 `;

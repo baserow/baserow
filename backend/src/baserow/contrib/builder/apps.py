@@ -551,3 +551,14 @@ class BuilderConfig(AppConfig):
         from .abuse_reports import BuilderAbuseReportResourceType
 
         abuse_report_resource_type_registry.register(BuilderAbuseReportResourceType())
+
+        from baserow.contrib.builder.data_sources.service_filter_target_types import (
+            BuilderDataSourceServiceFilterTargetType,
+        )
+        from baserow.contrib.integrations.local_baserow.service_filters.registries import (
+            service_filter_target_type_registry,
+        )
+
+        service_filter_target_type_registry.register(
+            BuilderDataSourceServiceFilterTargetType()
+        )
