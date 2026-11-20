@@ -139,6 +139,7 @@ class AutomationNodeService:
         reference_node_id: int | None = None,
         position: GraphPointPositionType = "south",  # south, child
         output: str = "",
+        next_output: str = "",
         **kwargs,
     ) -> AutomationNode:
         """
@@ -150,6 +151,9 @@ class AutomationNodeService:
         :param reference_node_id: The node reference node for the position.
         :param position: The position relative to the reference node.
         :param output: The output of the reference node.
+        :param next_output: The output of the new node that the nodes it is
+            inserted before follow, the default one unless given. It is checked
+            once the node exists, so callers must run this in a transaction.
         :param kwargs: Additional attributes of the automation node.
         :return: The created automation node.
         """
@@ -200,7 +204,16 @@ class AutomationNodeService:
 
         node_type.after_create(new_node)
 
+        if next_output and next_output not in new_node.service.get_type().get_edges(
+            new_node.service.specific
+        ):
+            raise AutomationNodeMissingOutput(
+                f"Output {next_output} doesn't exist on node {new_node.id}"
+            )
+
         workflow.get_graph().insert(new_node, reference_node, position, output)
+        if next_output:
+            workflow.get_graph().move_next_points(new_node, "", next_output)
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)

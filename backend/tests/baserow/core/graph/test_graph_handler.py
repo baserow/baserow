@@ -1,3 +1,8 @@
+from copy import deepcopy
+
+import pytest
+
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition
 from tests.baserow.core.graph.fixtures import make_graph_model, make_point
@@ -1375,3 +1380,234 @@ def test_get_ordered_point_ids_follows_only_the_default_output():
 
     # A page renders only the default output, so the others are not reached.
     assert model.get_graph().get_ordered_point_ids() == [1, 2]
+
+
+def test_move_next_points_moves_a_chain_to_another_output():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+    graph = model.get_graph()
+
+    graph.move_next_points(model.points[1], "", "uid1")
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_move_next_points_refuses_an_output_that_has_points():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2], "uid1": [3]}}, "2": {}, "3": {}}
+    )
+
+    with pytest.raises(GraphPointReferencePointInvalid):
+        model.get_graph().move_next_points(model.points[1], "", "uid1")
+
+
+def test_move_next_points_with_nothing_to_move_changes_nothing():
+    graph_dict = {"0": 1, "1": {"next": {"": [2]}}, "2": {}}
+    model = make_graph_model(deepcopy(graph_dict))
+
+    model.get_graph().move_next_points(model.points[1], "uid1", "")
+
+    assert model.graph == graph_dict
+
+
+def test_join_next_points_keeps_the_points_on_the_target_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"uid1": [2], "": [4]}},
+            "2": {"next": {"": [3]}},
+            "3": {},
+            "4": {},
+        }
+    )
+
+    model.get_graph().join_next_points(model.points[1], "uid1", "")
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {"next": {"": [4]}},
+        "4": {},
+    }
+
+
+def test_join_next_points_moves_like_move_next_points_when_target_is_empty():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+
+    model.get_graph().join_next_points(model.points[1], "", "uid1")
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_split_next_points_leaves_the_points_after_the_given_ones():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [2, 3])
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2], "": [4]}},
+        "2": {"next": {"": [3]}},
+        "3": {"next": {}},
+        "4": {},
+    }
+
+
+def test_split_next_points_moves_the_whole_chain_when_all_are_given():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [2, 3])
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_split_next_points_stops_at_the_first_point_not_given():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [4]}},
+            "4": {"next": {"": [5]}},
+            "5": {},
+        }
+    )
+
+    # Point 3 is gone: the chain splits at 4, the first point not given.
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [2, 3, 5])
+
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"uid1": [2], "": [4]}},
+        "2": {"next": {}},
+        "4": {"next": {"": [5]}},
+        "5": {},
+    }
+
+
+def test_split_next_points_moves_nothing_when_the_chain_starts_with_another():
+    graph = {"0": 1, "1": {"next": {"": [3]}}, "3": {"next": {"": [2]}}, "2": {}}
+    model = make_graph_model(deepcopy(graph))
+
+    model.get_graph().split_next_points(model.points[1], "", "uid1", [2])
+
+    assert model.graph == graph
+
+
+def test_get_next_point_ids_returns_the_ids_on_one_output():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2], "uid1": [3]}},
+            "2": {"next": {"": [4]}},
+            "3": {},
+            "4": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.get_next_point_ids(model.points[1], "") == [2]
+    assert graph.get_next_point_ids(1, "uid1") == [3]
+    assert graph.get_next_point_ids(1, "uid2") == []
+    assert graph.get_next_point_ids(3, "") == []
+
+
+def test_get_branch_layout_covers_next_points_and_children():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"uid1": [2], "": [5]}},
+            "2": {"next": {"": [3]}},
+            "3": {"children": {"": [4]}},
+            "4": {},
+            "5": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.get_branch_layout(model.points[1], "uid1") == {
+        "first": "2",
+        "points": {"2": {"next": {"": ["3"]}}, "3": {"children": {"": ["4"]}}, "4": {}},
+    }
+    assert graph.get_branch_layout(model.points[1], "uid2") == {
+        "first": None,
+        "points": {},
+    }
+
+
+def test_get_branch_layout_differs_when_a_child_is_added():
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"children": [3]}, "3": {}, "4": {}}
+    )
+    graph = model.get_graph()
+    before = graph.get_branch_layout(model.points[1], "")
+
+    model.graph["3"] = {"next": {"": [4]}}
+
+    assert graph.get_branch_layout(model.points[1], "") != before
+
+
+def test_get_run_layout_stops_at_the_first_point_outside_the_run():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3], "uid1": [5]}},
+            "3": {"children": {"": [6]}, "next": {"": [4]}},
+            "4": {"next": {"": [7]}},
+            "5": {},
+            "6": {"next": {"": [8]}},
+            "7": {},
+            "8": {},
+        }
+    )
+
+    assert model.get_graph().get_run_layout(model.points[1], "", [2, 3]) == {
+        "run": ["2", "3"],
+        "points": {
+            "2": {"next": {"uid1": ["5"]}},
+            "3": {"children": {"": ["6"]}},
+            "5": {},
+            "6": {"next": {"": ["8"]}},
+            "8": {},
+        },
+        "after": "4",
+    }
+
+
+def test_get_run_layout_of_an_empty_run():
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}})
+
+    assert model.get_graph().get_run_layout(model.points[1], "", [3]) == {
+        "run": [],
+        "points": {},
+        "after": "2",
+    }

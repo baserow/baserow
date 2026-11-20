@@ -286,11 +286,11 @@ def table_field_ids() -> Callable[[int], set[int]]:
     return field_ids
 
 
-def node_refs(user: AbstractUser, workflow: AutomationWorkflow) -> NodeRefs:
+def node_refs(nodes: Iterable[AutomationNode]) -> NodeRefs:
     """The nodes of a workflow that a new node can follow, by their ID."""
 
     refs = NodeRefs()
-    for node in AutomationNodeService().get_nodes(user, workflow):
+    for node in nodes:
         edges = router_edges(node)
         refs.add(
             str(node.id),
@@ -310,8 +310,15 @@ def check_node_refs(refs: NodeRefs, nodes: list[ActionNodeCreate]) -> None:
     :raises DjangoValidationError: Naming the first unknown ref or branch.
     """
 
+    existing = refs.ids()
     for node in nodes:
-        refs.resolve(node.previous_node_ref, node.router_edge_label)
+        if node.before_node_id is None:
+            refs.resolve(node.previous_node_ref, node.router_edge_label)
+        elif existing.get(str(node.before_node_id)) != node.before_node_id:
+            raise DjangoValidationError(
+                f"before_node_id {node.before_node_id} is not the ID of a node in "
+                "the workflow."
+            )
         if node.ref in refs:
             raise DjangoValidationError(
                 f"ref '{node.ref}' is already the ref or ID of another node. Give "
@@ -348,6 +355,32 @@ class NodeCreation:
         )
 
 
+def check_shifted_branch_chosen(
+    spec: ActionNodeCreate,
+    shifted: list[int],
+    creation: NodeCreation,
+) -> None:
+    """
+    Refuse to insert a router before existing nodes without being told which of
+    its branches they move to: on the default branch they would run only when no
+    branch matches, the opposite of what a caller adding a condition means.
+
+    :param shifted: The IDs of the nodes the router is inserted before.
+    :raises DjangoValidationError: When there are such nodes.
+    """
+
+    if shifted:
+        # A node created earlier in the call is named by its ref: its ID goes
+        # with the rollback.
+        refs = {node.id: ref for ref, node in creation.nodes}
+        names = ", ".join(f"'{refs.get(node_id, node_id)}'" for node_id in shifted)
+        raise DjangoValidationError(
+            f"Router '{spec.ref}' would be inserted before node {names}. Set its "
+            "shifted_node_edge_label to the branch that node moves to: "
+            f"{spec.branch_choices()}."
+        )
+
+
 def create_node(
     ctx: ToolContext,
     workflow: AutomationWorkflow,
@@ -367,9 +400,31 @@ def create_node(
     if isinstance(spec, TriggerNodeCreate):
         data["service"] = spec.to_orm_service_dict()
     else:
-        data["reference_node_id"], data["output"] = refs.resolve(
-            spec.previous_node_ref, spec.router_edge_label
-        )
+        graph = workflow.get_graph()
+        if spec.before_node_id is not None:
+            # In the place of that node, whatever was added before it since the
+            # caller read the workflow.
+            if graph.graph.get(graph.GRAPH_ROOT_KEY) == spec.before_node_id:
+                raise DjangoValidationError(
+                    f"before_node_id {spec.before_node_id} is the trigger: nothing "
+                    "can run before it. Use previous_node_ref to add a node after "
+                    "it."
+                )
+            data["reference_node_id"] = spec.before_node_id
+            data["position"] = "north"
+            data["output"] = ""
+            shifted = [spec.before_node_id]
+        else:
+            data["reference_node_id"], data["output"] = refs.resolve(
+                spec.previous_node_ref, spec.router_edge_label
+            )
+            shifted = graph.get_next_point_ids(
+                data["reference_node_id"], data["output"]
+            )
+        next_output = spec.shifted_node_edge_uid()
+        if next_output is None and spec.type == "router":
+            check_shifted_branch_chosen(spec, shifted, creation)
+        data["next_output"] = next_output or ""
         data["service"] = spec.to_orm_service_dict(values)
     node = CreateAutomationNodeActionType.do(
         ctx.user, automation_node_type_registry.get(spec.type), workflow, data
@@ -400,6 +455,39 @@ def node_table_ids(nodes: list[TriggerNodeCreate | ActionNodeCreate]) -> set[int
     return table_ids
 
 
+def node_positions(
+    ordered: list[tuple[AutomationNode, AutomationNode | None, str]],
+) -> dict[int, tuple[int | None, str]]:
+    """The node each node follows, and on which output, by node ID."""
+
+    return {
+        node.id: (previous.id if previous is not None else None, output)
+        for node, previous, output in ordered
+    }
+
+
+def shifted_nodes(
+    user: AbstractUser,
+    workflow: AutomationWorkflow,
+    existing: list[AutomationNode],
+    positions: dict[int, tuple[int | None, str]],
+    creation: NodeCreation,
+) -> list[tuple[AutomationNode, AutomationNode | None, str]]:
+    """
+    The existing nodes that follow another node since the call, because a new
+    node was inserted before them, with the node they follow and on which output.
+    """
+
+    created = [node for _ref, node in creation.nodes]
+    ordered = nodes_in_order(user, workflow, existing + created)
+    now = node_positions(ordered)
+    return [
+        (node, previous, output)
+        for node, previous, output in ordered
+        if node.id in positions and positions[node.id] != now[node.id]
+    ]
+
+
 @tool_execution
 def add_nodes(
     ctx: ToolContext,
@@ -411,22 +499,34 @@ def add_nodes(
         Field(
             description="The nodes to add, in order. previous_node_ref is the ID of "
             "a node of the workflow, as a string, or the ref of a node earlier in "
-            "this list."
+            "this list. before_node_id is the ID of a node of the workflow to "
+            "insert the new node before."
         ),
     ],
 ) -> dict[str, Any]:
     """
     Add action and router nodes to a workflow, after existing nodes or after each
     other. Use list_nodes to find the IDs of the nodes to attach to, and
-    router_edge_label to attach to a router branch. A value that takes a formula
-    is a formula when it looks like one (get(...), concat(...), ...), otherwise a
-    literal; to store text that looks like a formula, send it as a quoted string
-    such as 'Call now()'. A formula reads an earlier node with
-    get('previous_node.<node id>...'), with a path list_nodes shows for that
-    node, and a node defined earlier in the call can be named by its ref there.
+    router_edge_label to attach to a router branch. A new node is inserted right
+    after the node it follows: the node that followed it there now follows the
+    new node, still connected and with its settings, and is listed in
+    shifted_nodes. To add a node before an existing one, set before_node_id to
+    that node's ID: the new node takes its place, on the same branch or first in
+    the same container, even when the workflow changed since list_nodes. Never
+    delete and recreate a node to make room. A new router inserted before a node
+    needs shifted_node_edge_label: the branch that node moves to, or 'default'.
+    To add several nodes in a row, chain them by ref. A value that takes a
+    formula is a formula when it looks like one (get(...), concat(...), ...),
+    otherwise a literal; to store text that looks like a formula, send it as a
+    quoted string such as 'Call now()'. A formula reads an
+    earlier node with get('previous_node.<node id>...'), with a path list_nodes
+    shows for that node, and a node defined earlier in the call can be named by
+    its ref there.
     A valid formula is stored as written. An invalid one leaves that value empty
-    and is returned in formula_errors with the reason: fix it with update_nodes. Nothing is written when a
-    previous_node_ref or branch is unknown, or a ref is used twice.
+    and is returned in formula_errors with the reason: fix it with update_nodes.
+    Nothing is written when a previous_node_ref, before_node_id or branch is
+    unknown, before_node_id is the trigger, a ref is used twice, or a router
+    inserted before a node has no shifted_node_edge_label.
     """
 
     if not nodes:
@@ -434,16 +534,31 @@ def add_nodes(
 
     workflow = get_workflow_in_workspace(ctx, workflow_id)
     check_tables_in_workspace(ctx, node_table_ids(nodes))
-    refs = node_refs(ctx.user, workflow)
-    check_node_refs(refs.copy(), nodes)
 
     creation = NodeCreation()
     field_ids = table_field_ids()
-    with transaction.atomic():
-        for node in nodes:
-            create_node(ctx, workflow, node, refs, creation, field_ids)
+    try:
+        with transaction.atomic():
+            # Read the nodes under the graph lock, so a concurrent change can't
+            # make shifted_nodes report a node this call didn't move.
+            AutomationNodeHandler().lock_graph(workflow)
+            existing = list(AutomationNodeService().get_nodes(ctx.user, workflow))
+            refs = node_refs(existing)
+            check_node_refs(refs.copy(), nodes)
+            positions = node_positions(nodes_in_order(ctx.user, workflow, existing))
+            for node in nodes:
+                create_node(ctx, workflow, node, refs, creation, field_ids)
+            # In the transaction, so a failure here can't leave nodes the caller
+            # doesn't know were created.
+            shifted = shifted_nodes(ctx.user, workflow, existing, positions, creation)
+    except Exception:
+        # The cached graph still holds the inserts the rollback undid.
+        AutomationNodeHandler().reload_graph(workflow)
+        raise
 
     result: dict[str, Any] = {"created_nodes": creation.describe()}
+    if shifted:
+        result["shifted_nodes"] = [describe_node(*entry) for entry in shifted]
     if creation.errors:
         result["errors"] = creation.errors
     if creation.formula_errors:
@@ -498,17 +613,6 @@ def update_node(
     if data:
         node = UpdateAutomationNodeActionType.do(ctx.user, node.id, data)
     return node, values, bool(data)
-
-
-def _reload_graph(workflow: AutomationWorkflow) -> None:
-    """
-    Read a workflow's graph again after a savepoint rolled back. The request's
-    cached graph still holds the changes the savepoint undid, and the next node
-    change would save them.
-    """
-
-    workflow.reload_graph()
-    AutomationNodeHandler().invalidate_node_cache(workflow)
 
 
 @tool_execution
@@ -567,7 +671,7 @@ def update_nodes(
             except PermissionException:
                 raise
             except Exception as exc:
-                _reload_graph(workflow)
+                AutomationNodeHandler().reload_graph(workflow)
                 errors.append(
                     f"Error updating node {node_update.node_id}: "
                     f"{item_error_message(exc)}"
@@ -621,7 +725,7 @@ def delete_nodes(
                     with transaction.atomic():
                         DeleteAutomationNodeActionType.do(ctx.user, node_id)
                 except Exception:
-                    _reload_graph(node.workflow)
+                    AutomationNodeHandler().reload_graph(node.workflow)
                     raise
             except PermissionException:
                 errors.append(
