@@ -4,6 +4,7 @@ from baserow.api.integrations.views import (
     IntegrationsView,
     IntegrationView,
     MoveIntegrationView,
+    WorkspaceIntegrationsView,
 )
 
 app_name = "baserow.api.integrations"
@@ -13,6 +14,11 @@ urlpatterns = [
         r"application/(?P<application_id>[0-9]+)/integrations/$",
         IntegrationsView.as_view(),
         name="list",
+    ),
+    re_path(
+        r"application/(?P<application_id>[0-9]+)/workspace-integrations/$",
+        WorkspaceIntegrationsView.as_view(),
+        name="list_workspace",
     ),
     re_path(
         r"integration/(?P<integration_id>[0-9]+)/$",

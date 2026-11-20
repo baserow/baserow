@@ -32,7 +32,7 @@ from baserow.core.integrations.signals import (
     integration_updated,
 )
 from baserow.core.integrations.types import IntegrationForUpdate, UpdatedIntegration
-from baserow.core.models import Application, Workspace
+from baserow.core.models import Application, SharedApplication, Workspace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import extract_undo_redo_values
 
@@ -147,6 +147,97 @@ class IntegrationService:
 
         return self.handler.get_integrations(
             application=application, base_queryset=user_integrations
+        )
+
+    def check_can_use_workspace_integrations(
+        self,
+        user: AbstractUser,
+        application: Application,
+        raise_permission_exceptions: bool = True,
+    ) -> bool:
+        """
+        Checks that the user may see and use the workspace integrations from the
+        given application. Whoever may list the integrations of an application may,
+        because every application of a workspace offers its workspace integrations
+        alongside its own. That includes a user with a role on that application
+        only, who can't list the workspace integrations in the workspace settings.
+
+        :param user: The user to check.
+        :param application: The application the workspace integrations are used
+            from.
+        :param raise_permission_exceptions: Whether to raise when the user isn't
+            allowed, rather than return False.
+        :raises PermissionException: When the user isn't allowed and
+            `raise_permission_exceptions` is set.
+        :return: Whether the user is allowed.
+        """
+
+        return CoreHandler().check_permissions(
+            user,
+            ListIntegrationsApplicationOperationType.type,
+            workspace=application.workspace,
+            context=application,
+            raise_permission_exceptions=raise_permission_exceptions,
+        )
+
+    def check_can_use_integration(
+        self,
+        user: AbstractUser,
+        integration: Integration,
+        application: Application,
+    ):
+        """
+        Checks that the user may use the integration from the given application:
+        read it when it is one of the application's own, and see the workspace
+        integrations from the application otherwise. The caller has already checked
+        that the application can use the integration, with
+        `IntegrationHandler.check_integration_usable`.
+
+        :param user: The user to check.
+        :param integration: The integration the user wants to use.
+        :param application: The application the integration is used from.
+        :raises PermissionException: When the user isn't allowed.
+        """
+
+        if integration.application_id == application.id:
+            CoreHandler().check_permissions(
+                user,
+                ReadIntegrationOperationType.type,
+                workspace=application.workspace,
+                context=integration,
+            )
+        else:
+            self.check_can_use_workspace_integrations(user, application)
+
+    def get_workspace_integrations(
+        self, user: AbstractUser, application: Application
+    ) -> Tuple[Optional[SharedApplication], List[Integration]]:
+        """
+        Gets the workspace integrations the given application can use, for a user
+        allowed to use them from it, see `check_can_use_workspace_integrations`.
+
+        :param user: The user trying to get the integrations.
+        :param application: The application the integrations are used from.
+        :return: The shared application that owns the workspace integrations, and
+            the integrations. None and no integrations when the workspace has no
+            shared application yet, or the application no workspace, like a
+            published copy.
+        """
+
+        self.check_can_use_workspace_integrations(user, application)
+
+        shared_application = (
+            SharedApplication.objects.filter(workspace_id=application.workspace_id)
+            .select_related("workspace")
+            .first()
+            if application.workspace_id is not None
+            else None
+        )
+        if shared_application is None:
+            return None, []
+
+        return shared_application, list(
+            self.handler.get_integrations(application=shared_application)
         )
 
     def create_integration(

@@ -422,44 +422,69 @@ describe('workspace integrations in the integration store', () => {
     expect(usable(200)).toEqual([])
   })
 
+  const workspaceIntegrations = (integrations, sharedApplication) => ({
+    shared_application: sharedApplication,
+    integrations,
+  })
+
   test('the workspace integrations are fetched once per workspace', async () => {
     await store.dispatch('application/forceCreate', database(101))
-    // The store doesn't have the shared application yet, like for a workspace
-    // created after the applications were loaded.
+    // The store doesn't have the shared application, like for a user with a
+    // role on some applications only, whose application listing leaves it out.
     testApp.mock
-      .onGet(`/applications/workspace/${WORKSPACE_ID}/`)
-      .reply(200, [{ ...SHARED_APPLICATION }, database(100), database(101)])
-    testApp.mock
-      .onGet(`application/${SHARED_APPLICATION.id}/integrations/`)
-      .reply(200, [integration(2, SHARED_APPLICATION.id, 'Team')])
+      .onGet('application/100/workspace-integrations/')
+      .reply(
+        200,
+        workspaceIntegrations(
+          [integration(2, SHARED_APPLICATION.id, 'Team')],
+          SHARED_APPLICATION
+        )
+      )
 
     expect(names(await fetchOnce(100))).toEqual(['Team'])
     expect(names(await fetchOnce(101))).toEqual(['Team'])
 
     expect(testApp.mock.history.get.map(({ url }) => url)).toEqual([
-      `/applications/workspace/${WORKSPACE_ID}/`,
-      `application/${SHARED_APPLICATION.id}/integrations/`,
+      'application/100/workspace-integrations/',
     ])
+    expect(
+      store.getters['application/getSharedApplication']({ id: WORKSPACE_ID })
+    ).toMatchObject({ id: SHARED_APPLICATION.id })
     expect(usable(101)).toEqual(['Team'])
+  })
+
+  test('nothing is loaded for a workspace without shared application', async () => {
+    testApp.mock
+      .onGet('application/100/workspace-integrations/')
+      .reply(200, workspaceIntegrations([], null))
+
+    expect(await fetchOnce(100)).toEqual([])
+    expect(
+      store.getters['application/getSharedApplication']({ id: WORKSPACE_ID })
+    ).toBeUndefined()
   })
 
   test('a fetch that gave up is asked again, one that loaded is not', async () => {
     await store.dispatch('application/forceCreate', { ...SHARED_APPLICATION })
     let settled = false
     let attempts = 0
-    testApp.mock
-      .onGet(`application/${SHARED_APPLICATION.id}/integrations/`)
-      .reply(() => {
-        attempts += 1
-        if (!settled) {
-          // Written to during every attempt, so no answer is ever current.
-          store.dispatch('integration/forceCreate', {
-            application: get(SHARED_APPLICATION.id),
-            integration: integration(attempts, SHARED_APPLICATION.id, 'New'),
-          })
-        }
-        return [200, [integration(2, SHARED_APPLICATION.id, 'Team')]]
-      })
+    testApp.mock.onGet('application/100/workspace-integrations/').reply(() => {
+      attempts += 1
+      if (!settled) {
+        // Written to during every attempt, so no answer is ever current.
+        store.dispatch('integration/forceCreate', {
+          application: get(SHARED_APPLICATION.id),
+          integration: integration(attempts, SHARED_APPLICATION.id, 'New'),
+        })
+      }
+      return [
+        200,
+        workspaceIntegrations(
+          [integration(2, SHARED_APPLICATION.id, 'Team')],
+          SHARED_APPLICATION
+        ),
+      ]
+    })
 
     expect(await fetchOnce(100)).toBeNull()
     settled = true
@@ -479,7 +504,7 @@ describe('workspace integrations in the integration store', () => {
   })
 
   test('nothing is fetched for a user who cannot list them', async () => {
-    // Like a user with a role on some applications of the workspace only.
+    // Like a user with a role on other applications of the workspace only.
     const app = store.app
     const asked = []
     store.app = Object.create(app, {
@@ -496,10 +521,11 @@ describe('workspace integrations in the integration store', () => {
       store.app = app
     }
 
+    // Asked about the application they're used from, not the workspace.
     expect(asked).toEqual([
       [
-        'workspace.list_integrations',
-        expect.objectContaining({ id: WORKSPACE_ID }),
+        'application.list_integrations',
+        expect.objectContaining({ id: 100 }),
         WORKSPACE_ID,
       ],
     ])

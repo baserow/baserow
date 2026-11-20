@@ -6,8 +6,7 @@ from django.db import transaction
 from baserow.contrib.agent.models import AgentAction, AgentApplication
 from baserow.contrib.agent.operations import ReadAgentConfigurationOperationType
 from baserow.contrib.agent.service import AgentService
-from baserow.core.handler import CoreHandler
-from baserow.core.integrations.operations import ReadIntegrationOperationType
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.operations import UpdateApplicationOperationType
 from baserow.core.services.models import Service
 from baserow.core.services.registries import ServiceType, service_type_registry
@@ -96,7 +95,7 @@ class AgentActionService:
         :param values: The service values to save.
         :param instance: The existing service, when it is updated.
         :return: The values prepared by the service type, whose integration
-            belongs to the Agent and is readable by the user.
+            the Agent and the user may use, its own or a workspace integration.
         """
 
         prepared = service_type.prepare_values(dict(values), user, instance)
@@ -106,12 +105,7 @@ class AgentActionService:
         # An integration's credentials stay within the application that owns it.
         service_type.check_integration(agent, {"integration": integration})
         if integration is not None:
-            CoreHandler().check_permissions(
-                user,
-                ReadIntegrationOperationType.type,
-                workspace=agent.workspace,
-                context=integration,
-            )
+            IntegrationService().check_can_use_integration(user, integration, agent)
         return prepared
 
     @transaction.atomic

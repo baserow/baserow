@@ -840,6 +840,7 @@ class CoreConfig(AppConfig):
 
         import baserow.core.import_export.tasks  # noqa: F403, F401
         import baserow.core.integrations.receivers  # noqa: F403, F401
+        import baserow.core.integrations.tasks  # noqa: F401
         import baserow.core.integrations.ws.signals  # noqa: F403, F401
         import baserow.core.user_sources.ws.signals  # noqa: F403, F401
 

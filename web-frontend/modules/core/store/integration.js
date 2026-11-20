@@ -359,17 +359,19 @@ const actions = {
   },
   /**
    * Loads the workspace integrations the application can use, at most once per
-   * workspace: realtime events keep them current after that. Nothing is loaded
-   * when the user can't list them, like a user with a role on some
-   * applications only, or isn't a member of the workspace, like the one of a
-   * template preview.
+   * workspace: realtime events keep them current after that. They're fetched
+   * through the application, so that a user with a role on that application
+   * only gets them too, with the shared application that owns them, which the
+   * application listing leaves out for that user. Nothing is loaded when the
+   * user can't list the integrations of the application, or isn't a member of
+   * the workspace, like the one of a template preview.
    *
    * @param {Object} application An application of the workspace.
    * @returns {Promise<Array|null>} The workspace integrations, or null when
    *   their list changed under the fetch and it gave up, like `fetch`.
    */
   async fetchWorkspaceIntegrationsOnce(
-    { dispatch, getters, rootGetters },
+    { commit, dispatch, getters, state, rootGetters },
     { application }
   ) {
     const workspace =
@@ -378,43 +380,63 @@ const actions = {
     if (
       !workspace ||
       !this.app.$hasPermission(
-        'workspace.list_integrations',
-        workspace,
+        'application.list_integrations',
+        application,
         workspace.id
       )
     ) {
       return []
     }
 
-    const sharedApplication = await dispatch(
-      'application/fetchSharedApplication',
-      workspace,
-      { root: true }
-    )
-    if (!sharedApplication) {
-      return []
-    }
-    if (sharedApplication._integrationsLoadedOnce) {
-      return getters.getIntegrations(sharedApplication)
+    const known = rootGetters['application/getSharedApplication'](workspace)
+    if (known?._integrationsLoadedOnce) {
+      return getters.getIntegrations(known)
     }
 
-    const integrations = await dispatch('fetch', {
-      application: sharedApplication,
-    })
-    // Left unmarked, so the next application that asks fetches again.
-    if (integrations === null) {
-      return null
-    }
-    // `forceSetAll` can have replaced the object while the fetch was open.
-    const current = rootGetters['application/get'](sharedApplication.id)
-    if (current) {
+    for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
+      // Taken for every application, as the shared one isn't known before the
+      // answer when the store doesn't have it.
+      const before = { ...state.generation }
+
+      const { data } = await IntegrationService(
+        this.$client
+      ).fetchAllOfWorkspace(application.id)
+      if (!data.shared_application) {
+        return []
+      }
+
+      const sharedApplicationId = data.shared_application.id
+      // Changed while this was open, see `fetch`.
+      if (
+        (state.generation[sharedApplicationId] || 0) !==
+        (before[sharedApplicationId] || 0)
+      ) {
+        continue
+      }
+
+      // Also replaced by `forceSetAll` while the fetch was open, or missing
+      // when the application listing leaves it out.
+      const current =
+        rootGetters['application/get'](sharedApplicationId) ||
+        (await dispatch('application/forceCreate', data.shared_application, {
+          root: true,
+        }))
+
+      // Committed for the same reason as in `fetch`.
+      commit('CLEAR_ITEMS', { application: current })
+      data.integrations.forEach((integration) =>
+        commit('ADD_ITEM', { application: current, integration })
+      )
       await dispatch(
         'application/forceUpdate',
         { application: current, data: { _integrationsLoadedOnce: true } },
         { root: true }
       )
+      return data.integrations
     }
-    return integrations
+
+    // Left unmarked, so the next application that asks fetches again.
+    return null
   },
   async duplicate({ getters, dispatch }, { application, integrationId }) {
     const integration = getters.getIntegrations.find(

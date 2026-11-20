@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
@@ -7,6 +9,7 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
 from baserow.core.integrations.service import IntegrationService
+from baserow.core.integrations.tasks import broadcast_to_workspace_integration_users
 from baserow.core.trash.handler import TrashHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -191,24 +194,145 @@ def test_only_admins_promote_an_integration(
     )
 
 
+def _application_builder(data_fixture, workspace, application, workspace_role):
+    """
+    Gives a new member of the workspace the given role on the workspace, and the
+    Builder role on the application only.
+    """
+
+    user = data_fixture.create_user()
+    data_fixture.create_user_workspace(workspace=workspace, user=user)
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=Role.objects.get(uid=workspace_role)
+    )
+    RoleAssignmentHandler().assign_role(
+        user,
+        workspace,
+        role=Role.objects.get(uid="BUILDER"),
+        scope=application.application_ptr,
+    )
+    return user
+
+
 @pytest.mark.django_db
-def test_new_nodes_only_preselect_workspace_integrations_for_who_may_list_them(
+@pytest.mark.parametrize("workspace_role", ["NO_ACCESS", "VIEWER", "EDITOR"])
+def test_application_builders_list_the_workspace_integrations_from_their_application(
+    data_fixture, enable_enterprise, synced_roles, workspace_role
+):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    other_application = data_fixture.create_builder_application(workspace=workspace)
+    app_builder = _application_builder(
+        data_fixture, workspace, application, workspace_role
+    )
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=admin
+    )
+    service = IntegrationService()
+
+    shared, integrations = service.get_workspace_integrations(app_builder, application)
+
+    assert shared.id == shared_application.id
+    assert [i.id for i in integrations] == [workspace_integration.id]
+    # Only from an application they build in.
+    with pytest.raises(PermissionException):
+        service.get_workspace_integrations(app_builder, other_application)
+    # The workspace settings stay for the workspace Builders and Admins.
+    with pytest.raises(PermissionException):
+        service.get_integrations(app_builder, shared_application)
+
+
+@pytest.mark.django_db
+def test_application_builders_use_the_workspace_integrations_from_their_application(
     data_fixture, enable_enterprise, synced_roles
 ):
     admin = data_fixture.create_user()
-    app_builder = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=admin, members=[app_builder])
+    workspace = data_fixture.create_workspace(user=admin)
+    database = data_fixture.create_database_application(workspace=workspace)
+    other_database = data_fixture.create_database_application(workspace=workspace)
+    app_builder = _application_builder(data_fixture, workspace, database, "NO_ACCESS")
+    editor = data_fixture.create_user()
+    data_fixture.create_user_workspace(workspace=workspace, user=editor)
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="EDITOR")
+    )
+    workspace_integration = data_fixture.create_slack_bot_integration(
+        application=data_fixture.create_shared_application(workspace=workspace)
+    )
+    own_integration = data_fixture.create_slack_bot_integration(application=database)
+    service = IntegrationService()
+
+    service.check_can_use_integration(app_builder, workspace_integration, database)
+    service.check_can_use_integration(app_builder, own_integration, database)
+    with pytest.raises(PermissionException):
+        service.check_can_use_integration(
+            app_builder, workspace_integration, other_database
+        )
+    # A user who builds nowhere doesn't use them.
+    with pytest.raises(PermissionException):
+        service.check_can_use_integration(editor, workspace_integration, database)
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_workspace_integration_events_reach_whoever_sees_them_from_an_application(
+    mock_broadcast_to_users, data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    builder = data_fixture.create_user()
+    editor = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[builder, editor])
+    RoleAssignmentHandler().assign_role(
+        builder, workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="EDITOR")
+    )
+    application = data_fixture.create_builder_application(workspace=workspace)
+    app_builder = _application_builder(
+        data_fixture, workspace, application, "NO_ACCESS"
+    )
+
+    broadcast_to_workspace_integration_users(workspace.id, {"type": "test"})
+
+    args, _ = mock_broadcast_to_users.call_args
+    assert set(args[0]) == {admin.id, builder.id, app_builder.id}
+
+
+@pytest.mark.django_db
+@patch("baserow.ws.tasks.broadcast_to_users")
+def test_workspace_integration_events_reach_the_workspace_builders_without_apps(
+    mock_broadcast_to_users, data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    builder = data_fixture.create_user()
+    editor = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin, members=[builder, editor])
+    RoleAssignmentHandler().assign_role(
+        builder, workspace, role=Role.objects.get(uid="BUILDER")
+    )
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=Role.objects.get(uid="EDITOR")
+    )
+    data_fixture.create_shared_application(workspace=workspace)
+
+    broadcast_to_workspace_integration_users(workspace.id, {"type": "test"})
+
+    args, _ = mock_broadcast_to_users.call_args
+    assert set(args[0]) == {admin.id, builder.id}
+
+
+@pytest.mark.django_db
+def test_new_nodes_preselect_a_workspace_integration_for_application_builders(
+    data_fixture, enable_enterprise, synced_roles
+):
+    admin = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
     automation = data_fixture.create_automation_application(workspace=workspace)
-    # Builder on the automation only, so the workspace integrations aren't listed.
-    RoleAssignmentHandler().assign_role(
-        app_builder, workspace, role=Role.objects.get(uid="EDITOR")
-    )
-    RoleAssignmentHandler().assign_role(
-        app_builder,
-        workspace,
-        role=Role.objects.get(uid="BUILDER"),
-        scope=automation.application_ptr,
-    )
+    # Builder on the automation only, so the workspace settings don't list them.
+    app_builder = _application_builder(data_fixture, workspace, automation, "EDITOR")
     # The manual trigger has no integration, so the automation starts with none.
     workflow = data_fixture.create_automation_workflow(
         automation=automation, trigger_type="manual"
@@ -232,7 +356,7 @@ def test_new_nodes_only_preselect_workspace_integrations_for_who_may_list_them(
         return node.service.integration_id
 
     assert create_node(admin) == workspace_integration.id
-    assert create_node(app_builder) is None
+    assert create_node(app_builder) == workspace_integration.id
 
     own = data_fixture.create_local_baserow_integration(
         application=automation, user=app_builder
