@@ -558,7 +558,9 @@ def _check_creates_dashboard(
     dashboards = list(Dashboard.objects.filter(workspace=workspace))
     applications = [
         application.name
-        for application in Application.objects.filter(workspace=workspace)
+        for application in Application.objects_without_shared.filter(
+            workspace=workspace
+        )
     ]
     return [
         CheckResult(
@@ -651,7 +653,9 @@ def _check_creates_several_applications(
     # The Shop builder and the three new applications, nothing else.
     applications = [
         application.name
-        for application in Application.objects.filter(workspace=workspace)
+        for application in Application.objects_without_shared.filter(
+            workspace=workspace
+        )
     ]
     checks.append(
         CheckResult(
@@ -691,7 +695,9 @@ def _renames_automation_scenario(fx: Fixtures) -> EvalScenario:
         ui_context=build_database_ui_context(user, workspace, database),
         refs={"database": database, "automation": automation},
         pre_state={
-            "applications": Application.objects.filter(workspace=workspace).count()
+            "applications": Application.objects_without_shared.filter(
+                workspace=workspace
+            ).count()
         },
     )
 
@@ -719,7 +725,9 @@ def _check_renames_automation(
         ),
         CheckResult(
             "no new application",
-            Application.objects.filter(workspace=scenario.workspace).count()
+            Application.objects_without_shared.filter(
+                workspace=scenario.workspace
+            ).count()
             == scenario.pre_state["applications"],
             hint=f"tools called: {output.tool_calls}",
         ),

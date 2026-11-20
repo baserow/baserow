@@ -69,15 +69,16 @@ export function urlWithAllowedProtocol(url) {
 const inFlightIntegrations = new WeakMap()
 
 /**
- * Fetches a database's integrations, at most once per database. A database has
- * no single entry point the way a builder does, so the first editor to need
- * them asks. Loading is remembered on the application, so a refetch that
- * replaces it asks again, and a failure is reported here rather than by the
- * caller, since several callers can await one request.
+ * Fetches a database's integrations, and the workspace ones it can use, at most
+ * once per database. A database has no single entry point the way a builder
+ * does, so the first editor to need them asks. Loading is remembered on the
+ * application, so a refetch that replaces it asks again, and a failure is
+ * reported here rather than by the caller, since several callers can await one
+ * request.
  *
  * @param {Object} store The Vuex store.
  * @param {Number} applicationId The database whose integrations are wanted.
- * @return {Promise<Boolean>} Whether the list was loaded.
+ * @return {Promise<Boolean>} Whether both lists were loaded.
  */
 export function fetchIntegrationsOnce(store, applicationId) {
   const current = () => store.getters['application/get'](applicationId)
@@ -98,15 +99,20 @@ export function fetchIntegrationsOnce(store, applicationId) {
       }
       let loaded
       try {
-        loaded = await store.dispatch('integration/fetch', { application })
+        loaded = await Promise.all([
+          store.dispatch('integration/fetch', { application }),
+          store.dispatch('integration/fetchWorkspaceIntegrationsOnce', {
+            application,
+          }),
+        ])
       } catch (error) {
         // Once for the request, whoever is waiting on it.
         notifyIf(error, 'application')
         return false
       }
-      // Backed off because the list changed under it, so what is there now is
+      // Backed off because a list changed under it, so what is there now is
       // not the whole list. Left unmarked, so the next ask fetches again.
-      if (loaded === null) {
+      if (loaded.includes(null)) {
         return false
       }
       const settled = current()

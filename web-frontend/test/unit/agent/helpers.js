@@ -143,6 +143,29 @@ export const mockApprovals = (testApp, uuid, ...responses) =>
     ...responses
   )
 
+/**
+ * Mocks the integrations of the Agent and of its workspace, which the action
+ * forms offer too. The workspace's shared application is put in the store, as
+ * the application listing would.
+ */
+export async function mockIntegrations(testApp) {
+  const sharedApplication = {
+    id: 99,
+    name: '__shared__',
+    type: 'shared',
+    order: 0,
+    workspace: { id: workspace.id },
+  }
+  await testApp.store.dispatch('application/forceCreate', sharedApplication)
+  testApp.mock
+    .onGet(`application/${agentData.id}/workspace-integrations/`)
+    .reply(200, {
+      shared_application: sharedApplication,
+      integrations: [],
+    })
+  testApp.mock.onGet(`application/${agentData.id}/integrations/`).reply(200, [])
+}
+
 export const sentBodies = (testApp) =>
   testApp.mock.history.post.map(({ data }) => JSON.parse(data))
 

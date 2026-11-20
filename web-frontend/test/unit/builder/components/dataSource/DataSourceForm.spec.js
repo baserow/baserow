@@ -163,17 +163,21 @@ const hiddenServiceType = {
   isDeactivatedReason: () => null,
 }
 
+const BUILDER_ID = 1
+// The shared application owning the workspace integrations.
+const SHARED_APPLICATION_ID = 99
+
 async function mountComponent({
   serviceTypes = [serviceType],
   create = true,
   dataSource = {},
   defaultValues = {},
   storeDispatch = () => Promise.resolve(),
+  integrations = [
+    { id: 1, type: 'local_baserow', application_id: BUILDER_ID },
+    { id: 2, type: 'other', application_id: BUILDER_ID },
+  ],
 } = {}) {
-  const integrations = [
-    { id: 1, type: 'local_baserow' },
-    { id: 2, type: 'other' },
-  ]
   const registry = {
     getOrderedList(namespace) {
       return namespace === 'service'
@@ -190,7 +194,7 @@ async function mountComponent({
 
   return await mountSuspended(DataSourceForm, {
     props: {
-      builder: { id: 1, workspace: { id: 1 } },
+      builder: { id: BUILDER_ID, workspace: { id: 1 } },
       page: { id: 1 },
       integrations,
       create,
@@ -267,9 +271,65 @@ describe('DataSourceForm', () => {
 
     const connectionDropdown = wrapper.findComponent(IntegrationDropdownStub)
     expect(connectionDropdown.props('integrations')).toEqual([
-      { id: 1, type: 'local_baserow' },
+      { id: 1, type: 'local_baserow', application_id: BUILDER_ID },
     ])
     expect(connectionDropdown.props('modelValue')).toBe(1)
+  })
+
+  async function selectServiceType(wrapper) {
+    wrapper
+      .findComponent(GroupedDropdownStub)
+      .vm.$emit('update:modelValue', serviceType.getType())
+    await nextTick()
+    return wrapper.findComponent(IntegrationDropdownStub).props('modelValue')
+  }
+
+  const own = (id) => ({
+    id,
+    type: 'local_baserow',
+    application_id: BUILDER_ID,
+  })
+  const ofWorkspace = (id) => ({
+    id,
+    type: 'local_baserow',
+    application_id: SHARED_APPLICATION_ID,
+  })
+
+  test('auto-selects the builder connection before a workspace one', async () => {
+    const wrapper = await mountComponent({
+      integrations: [ofWorkspace(3), own(1)],
+    })
+
+    expect(await selectServiceType(wrapper)).toBe(1)
+  })
+
+  test('auto-selects the only workspace connection when the builder has none', async () => {
+    const wrapper = await mountComponent({
+      integrations: [ofWorkspace(3), { ...own(2), type: 'other' }],
+    })
+
+    expect(await selectServiceType(wrapper)).toBe(3)
+  })
+
+  test.each([
+    ['of the builder', [own(1), own(2), ofWorkspace(3)]],
+    ['of the workspace', [ofWorkspace(3), ofWorkspace(4)]],
+  ])(
+    'auto-selects nothing when several connections %s fit',
+    async (_, integrations) => {
+      const wrapper = await mountComponent({ integrations })
+
+      expect(await selectServiceType(wrapper)).toBe(null)
+    }
+  )
+
+  test('keeps a selected workspace connection that fits the new action', async () => {
+    const wrapper = await mountComponent({
+      integrations: [own(1), ofWorkspace(3)],
+      defaultValues: { integration_id: 3 },
+    })
+
+    expect(await selectServiceType(wrapper)).toBe(3)
   })
 
   test('groups service types without an integration under their own group', async () => {

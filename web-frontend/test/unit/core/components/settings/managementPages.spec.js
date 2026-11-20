@@ -191,6 +191,7 @@ describe('Management pages', () => {
     ['settings-members', true],
     ['settings-teams', true],
     ['settings-identities', true],
+    ['settings-integrations', true],
     ['dashboard', false],
   ])('Members sidebar selection on %s is %s', async (name, active) => {
     const wrapper = mount(SidebarMenu, {

@@ -1,7 +1,10 @@
 import pytest
 
 from baserow.core.integrations.models import Integration
-from baserow.core.integrations.operations import RestoreIntegrationOperationType
+from baserow.core.integrations.operations import (
+    RestoreIntegrationOperationType,
+    RestoreWorkspaceIntegrationOperationType,
+)
 from baserow.core.integrations.trash_types import IntegrationTrashableItemType
 from baserow.core.models import TrashEntry
 
@@ -25,6 +28,19 @@ def test_integration_trashable_get_parent(data_fixture):
     result = IntegrationTrashableItemType().get_parent(integration)
 
     assert result == integration.application
+
+
+@pytest.mark.django_db
+def test_workspace_integration_trashable_get_parent(data_fixture):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+
+    result = IntegrationTrashableItemType().get_parent(integration)
+
+    assert result == workspace
 
 
 @pytest.mark.django_db
@@ -92,3 +108,24 @@ def test_integration_trashable_get_restore_operation_type():
     result = IntegrationTrashableItemType().get_restore_operation_type()
 
     assert result == RestoreIntegrationOperationType.type
+
+
+@pytest.mark.django_db
+def test_integration_trashable_get_restore_operation_types(data_fixture):
+    workspace = data_fixture.create_workspace()
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application
+    )
+    application_integration = data_fixture.create_local_baserow_integration(
+        application=builder
+    )
+    trash_type = IntegrationTrashableItemType()
+
+    assert trash_type.get_restore_operation_types(workspace_integration) == [
+        RestoreWorkspaceIntegrationOperationType.type
+    ]
+    assert trash_type.get_restore_operation_types(application_integration) == [
+        RestoreIntegrationOperationType.type
+    ]

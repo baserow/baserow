@@ -24,6 +24,7 @@ import {
   TwoFactorAuthSettingsType,
 } from '@baserow/modules/core/settingsTypes'
 import { GenerativeAIWorkspaceSettingsType } from '@baserow/modules/core/workspaceSettingsTypes'
+import { SharedApplicationType } from '@baserow/modules/core/applicationTypes'
 import {
   OpenAIModelType,
   OllamaModelType,
@@ -62,6 +63,7 @@ import {
 import {
   MembersWorkspaceSettingsPageType,
   IdentitiesWorkspaceSettingsPageType,
+  IntegrationsWorkspaceSettingsPageType,
 } from '@baserow/modules/core/workspaceSettingsPageTypes'
 import {
   WorkspaceInvitationCreatedNotificationType,
@@ -199,6 +201,8 @@ export default defineNuxtPlugin({
 
     const context = { app: nuxtApp }
 
+    registry.register('application', new SharedApplicationType(context))
+
     registry.register('subject', new UserSubjectType(context))
     registry.register('subject', new AnonymousUserSubjectType(context))
 
@@ -302,6 +306,10 @@ export default defineNuxtPlugin({
     registry.register(
       'workspaceSettingsPage',
       new IdentitiesWorkspaceSettingsPageType(context)
+    )
+    registry.register(
+      'workspaceSettingsPage',
+      new IntegrationsWorkspaceSettingsPageType(context)
     )
 
     registry.register('runtimeFormulaFunction', new RuntimeConcat(context))

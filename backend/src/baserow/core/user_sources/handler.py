@@ -332,6 +332,7 @@ class UserSourceHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        import_export_config: Optional[ImportExportConfig] = None,
     ):
         if "user_sources" not in id_mapping:
             id_mapping["user_sources"] = {}
@@ -344,6 +345,7 @@ class UserSourceHandler:
             files_zip=files_zip,
             storage=storage,
             cache=cache,
+            import_export_config=import_export_config,
         )
 
         # Generates the user source uid from user source type once the instance is

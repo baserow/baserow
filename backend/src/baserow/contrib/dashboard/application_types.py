@@ -54,6 +54,9 @@ class DashboardApplicationType(ApplicationType):
     request_serializer_field_overrides = {}
     allowed_fields = ["description"]
     supports_integrations = True
+    # Every new data source takes the dashboard's own integration, see
+    # `DashboardDataSourceHandler.create_data_source`.
+    lets_services_choose_integrations = False
     data_provider_type_registry = dashboard_data_provider_type_registry
 
     def get_api_urls(self):
@@ -138,6 +141,17 @@ class DashboardApplicationType(ApplicationType):
             )
             for data_source in data_sources
         ]
+
+        serialized_integrations += (
+            IntegrationHandler().export_referenced_workspace_integrations(
+                dashboard,
+                serialized_data_sources,
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=self.cache,
+            )
+        )
 
         serialized_dashboard = super().export_serialized(
             dashboard,

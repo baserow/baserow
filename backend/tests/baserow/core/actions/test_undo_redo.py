@@ -31,6 +31,7 @@ from baserow.core.actions import (
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.models import WORKSPACE_USER_PERMISSION_ADMIN, Application, Workspace
+from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.helpers import (
     assert_undo_redo_actions_are_valid,
     assert_undo_redo_actions_fails_with_error,
@@ -396,7 +397,7 @@ def test_when_undo_fails_can_try_undo_next_action(
         .do(user, workspace_name="test2")
         .workspace
     )
-    workspace2.delete()
+    TrashHandler.permanently_delete(workspace2)
 
     undone_actions = ActionHandler.undo(
         user, [CreateWorkspaceActionType.scope()], session_id

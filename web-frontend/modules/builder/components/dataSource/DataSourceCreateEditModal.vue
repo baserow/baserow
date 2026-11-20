@@ -122,7 +122,9 @@ export default {
       return this.allDataSources.find(({ id }) => id === this.dataSourceId)
     },
     integrations() {
-      return this.$store.getters['integration/getIntegrations'](this.builder)
+      return this.$store.getters['integration/getUsableIntegrations'](
+        this.builder
+      )
     },
     // We don't use the provided page here because it depends on the data source being
     // edited. Sometimes it's the shared page.
@@ -150,7 +152,6 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionFetchIntegrations: 'integration/fetch',
       actionCreateDataSource: 'dataSource/create',
       actionUpdateDataSource: 'dataSource/update',
     }),

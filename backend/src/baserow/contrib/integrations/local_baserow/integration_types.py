@@ -142,6 +142,40 @@ class LocalBaserowIntegrationType(IntegrationType):
             values, user, application=application, instance=instance
         )
 
+    def before_application_change(
+        self,
+        integration: LocalBaserowIntegration,
+        application: Application,
+        user: AbstractUser,
+    ):
+        """
+        A person can only authorize an integration as themselves (see
+        `prepare_values`), and the move changes which applications act as them, so
+        an integration authorized as another person is authorized as the user
+        moving it instead. So is one authorized as nobody: either no subject is
+        stored, because the person or identity was permanently deleted or it never
+        had one, or the stored user no longer exists, because deleting a user in
+        the admin tools leaves its id. An identity belongs to the workspace and is
+        kept, even trashed.
+
+        Undoing the promotion moves it back still authorized
+        as the user moving it: the previous person isn't in the action log, and
+        only they can authorize it as themselves. The promotion modal says which
+        one happens, and that undoing keeps it, see `getPromotionHint` in the
+        frontend.
+        """
+
+        subject_type = subject_type_registry.get_by_model(user)
+        is_the_user = (
+            integration.authorized_subject_type == subject_type.type
+            and integration.authorized_subject_id == user.id
+        )
+        if not is_the_user and not is_identity(
+            integration.authorized_subject_including_trash
+        ):
+            integration.authorized_subject_type = subject_type.type
+            integration.authorized_subject_id = user.id
+
     def export_serialized(
         self,
         instance: LocalBaserowIntegration,

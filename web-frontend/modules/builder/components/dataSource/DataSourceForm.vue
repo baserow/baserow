@@ -163,13 +163,24 @@ export default {
           ({ id }) => id === this.v$.values.integration_id.$model
         )
         if (!selectedIntegrationIsAvailable) {
-          this.v$.values.integration_id.$model = null
-        }
-        if (this.availableIntegrations.length === 1) {
           this.v$.values.integration_id.$model =
-            this.availableIntegrations[0].id
+            this.preselectedIntegration?.id ?? null
         }
       },
+    },
+    /**
+     * The integration picked when the service type changes and the selected one
+     * doesn't fit it. The builder's own come first: when it has exactly one of the
+     * type, that one, even if the workspace has some too. When it has none, the
+     * workspace's if there's exactly one. Several are left for the user to choose
+     * from. A new automation node is given its integration the same way.
+     */
+    preselectedIntegration() {
+      const own = this.availableIntegrations.filter(
+        (integration) => integration.application_id === this.builder.id
+      )
+      const candidates = own.length > 0 ? own : this.availableIntegrations
+      return candidates.length === 1 ? candidates[0] : null
     },
     integration() {
       return this.integrations.find(

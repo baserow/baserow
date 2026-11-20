@@ -13,19 +13,45 @@
     show-footer
     @input="select($event)"
   >
-    <DropdownItem
-      v-for="integrationItem in integrations"
-      :key="integrationItem.id"
-      :name="integrationItem.name"
-      :value="integrationItem.id"
-      :image="integrationType?.image"
-    />
+    <template v-if="workspaceIntegrations.length">
+      <DropdownSection
+        v-if="applicationIntegrations.length"
+        :title="$t('integrationDropdown.applicationIntegrations')"
+      >
+        <DropdownItem
+          v-for="integrationItem in applicationIntegrations"
+          :key="integrationItem.id"
+          :name="integrationItem.name"
+          :value="integrationItem.id"
+          :image="integrationType?.image"
+        />
+      </DropdownSection>
+      <DropdownSection :title="$t('integrationDropdown.workspaceIntegrations')">
+        <DropdownItem
+          v-for="integrationItem in workspaceIntegrations"
+          :key="integrationItem.id"
+          :name="integrationItem.name"
+          :value="integrationItem.id"
+          :image="integrationType?.image"
+          :description="integrationType?.getWorkspaceHint(integrationItem)"
+        />
+      </DropdownSection>
+    </template>
+    <template v-else>
+      <DropdownItem
+        v-for="integrationItem in integrations"
+        :key="integrationItem.id"
+        :name="integrationItem.name"
+        :value="integrationItem.id"
+        :image="integrationType?.image"
+      />
+    </template>
     <template #emptyState>
       {{ $t('integrationDropdown.noIntegrations') }}
     </template>
     <template #footer>
       <button
-        v-if="allowEditing && selectedIntegration"
+        v-if="editableIntegration"
         type="button"
         class="select__footer-button"
         @click="$refs.IntegrationEditModal.show()"
@@ -50,10 +76,10 @@
         @created="select($event.id)"
       />
       <IntegrationCreateEditModal
-        v-if="allowEditing && selectedIntegration"
+        v-if="editableIntegration"
         ref="IntegrationEditModal"
         :application="application"
-        :integration="selectedIntegration"
+        :integration="editableIntegration"
       />
     </template>
   </Dropdown>
@@ -61,10 +87,11 @@
 
 <script>
 import IntegrationCreateEditModal from '@baserow/modules/core/components/integrations/IntegrationCreateEditModal'
+import DropdownSection from '@baserow/modules/core/components/DropdownSection'
 
 export default {
   name: 'IntegrationDropdown',
-  components: { IntegrationCreateEditModal },
+  components: { IntegrationCreateEditModal, DropdownSection },
   props: {
     value: {
       type: Number,
@@ -90,6 +117,11 @@ export default {
       required: false,
       default: null,
     },
+    /**
+     * The integrations that can be chosen, usually what the
+     * `integration/getUsableIntegrations` getter returns: the application's own
+     * and the workspace ones, which are listed apart.
+     */
     integrations: {
       type: Array,
       required: true,
@@ -139,8 +171,36 @@ export default {
     currentValue() {
       return this.modelValue === undefined ? this.value : this.modelValue
     },
-    selectedIntegration() {
-      return this.integrations.find(({ id }) => id === this.currentValue)
+    /**
+     * The integrations of another application, which can only be the shared
+     * application of the workspace.
+     */
+    workspaceIntegrations() {
+      return this.integrations.filter(
+        ({ application_id: applicationId }) =>
+          applicationId !== this.application.id
+      )
+    },
+    applicationIntegrations() {
+      return this.integrations.filter(
+        ({ application_id: applicationId }) =>
+          applicationId === this.application.id
+      )
+    },
+    /**
+     * The selected integration, when it can be edited from here. A workspace
+     * integration can't: it's changed for every application from the
+     * Integrations page of the workspace settings.
+     */
+    editableIntegration() {
+      if (!this.allowEditing) {
+        return null
+      }
+      return (
+        this.applicationIntegrations.find(
+          ({ id }) => id === this.currentValue
+        ) || null
+      )
     },
   },
   watch: {

@@ -1358,6 +1358,21 @@
     "credentialRequiredTitle": "Credential required",
     "credentialRequiredMessage": "Enter the credential again to change where this integration connects."
   },
+  "promoteIntegration": {
+    "action": "Make available to the whole workspace",
+    "title": "Make {name} available to the whole workspace",
+    "description": "Every application in {workspace} will be able to use it. From then on, only workspace admins can change or delete it, in the workspace settings.",
+    "keepsWorking": "This application keeps using it. Published versions keep their current copy until they're published again.",
+    "confirm": "Make available",
+    "successTitle": "Integration available to the whole workspace",
+    "successMessage": "{name} is now listed in the workspace settings, under Integrations."
+  },
+  "applicationIntegrationSettings": {
+    "workspaceIntegrations": "Workspace",
+    "workspaceDescription": "Every application in this workspace can use these. Only workspace admins can change them.",
+    "openWorkspaceSettings": "Open the workspace settings",
+    "applicationIntegrations": "This application"
+  },
   "integrationEditForm": {
     "name": "Name",
     "namePlaceholder": "Enter integration name..."
@@ -1367,7 +1382,9 @@
     "noIntegrations": "No integrations found.",
     "selectTypeFirst": "Choose the type first",
     "integrationPlaceholder": "Select an integration",
-    "editIntegration": "Edit integration"
+    "editIntegration": "Edit integration",
+    "applicationIntegrations": "This application",
+    "workspaceIntegrations": "Workspace"
   },
   "dropdown": {
     "empty": "No items available",
@@ -2055,6 +2072,22 @@
     "emptyDescription": "Create an identity to connect AI tools to your workspace. Choose its role and teams to control what it can access.",
     "new": "New",
     "roleHelpText": "Start with No access, then grant access to specific databases, tables or views as needed."
+  },
+  "workspaceIntegrations": {
+    "tabTitle": "Integrations",
+    "title": "{count} integrations in {workspace}",
+    "subtitle": "Every application in this workspace can use these integrations. Changes reach published applications and workflows when they're published again.",
+    "search": "Search integrations",
+    "create": "Create integration",
+    "name": "Name",
+    "type": "Type",
+    "details": "Details",
+    "edit": "Edit integration",
+    "delete": "Delete integration",
+    "emptyTitle": "No integrations yet",
+    "emptyDescription": "Create an integration here to set it up once and use it in every application in this workspace.",
+    "deleteTitle": "Delete integration",
+    "deleteMessage": "Every application in this workspace that uses {name} loses this integration until it's restored from the trash. Published applications and workflows keep their own copy until they're published again."
   },
   "managementPages": {
     "you": "You"

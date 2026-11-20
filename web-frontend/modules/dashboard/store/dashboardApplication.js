@@ -870,7 +870,10 @@ export const actions = {
       )
     )
   },
-  async fetchInitial({ state, commit, dispatch }, { dashboardId, forEditing }) {
+  async fetchInitial(
+    { state, commit, dispatch, rootGetters },
+    { dashboardId, forEditing }
+  ) {
     const { $client } = this
     commit('RESET')
     commit('SET_LOADING', true)
@@ -901,8 +904,18 @@ export const actions = {
       return
     }
     if (forEditing) {
-      const { data: integrationsData } =
-        await IntegrationService($client).fetchAll(dashboardId)
+      const dashboard = rootGetters['application/get'](dashboardId)
+      const [{ data: integrationsData }] = await Promise.all([
+        IntegrationService($client).fetchAll(dashboardId),
+        // Kept in the integration store, where `getIntegrationById` finds a
+        // workspace integration that a data source uses.
+        dashboard &&
+          dispatch(
+            'integration/fetchWorkspaceIntegrationsOnce',
+            { application: dashboard },
+            { root: true }
+          ),
+      ])
       if (!isDashboardRequestCurrent(state, request)) {
         return
       }
@@ -1236,11 +1249,21 @@ export const getters = {
   getIntegrations(state) {
     return state.integrations
   },
-  getIntegrationById: (state) => (integrationId) => {
-    return state.integrations.find(
-      (integration) => integration.id === integrationId
-    )
-  },
+  /**
+   * One of the dashboard's integrations, or a workspace one that a data source
+   * uses.
+   */
+  getIntegrationById:
+    (state, getters, rootState, rootGetters) => (integrationId) => {
+      const isIt = (integration) => integration.id === integrationId
+      const dashboard = rootGetters['application/get'](state.dashboardId)
+      return (
+        state.integrations.find(isIt) ||
+        rootGetters['integration/getWorkspaceIntegrations'](dashboard).find(
+          isIt
+        )
+      )
+    },
 }
 
 export default {

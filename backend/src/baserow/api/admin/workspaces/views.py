@@ -16,7 +16,7 @@ from baserow.core.admin.workspaces.exceptions import CannotDeleteATemplateGroupE
 from baserow.core.admin.workspaces.handler import WorkspacesAdminHandler
 from baserow.core.exceptions import WorkspaceDoesNotExist
 from baserow.core.handler import CoreHandler
-from baserow.core.models import Workspace
+from baserow.core.models import Workspace, shared_application_filter
 from baserow.core.usage.handler import UsageHandler
 
 from .errors import ERROR_CANNOT_DELETE_A_TEMPLATE_GROUP
@@ -45,7 +45,10 @@ class WorkspacesAdminView(AdminListingView):
                 "workspaceuser_set", "workspaceuser_set__user"
             )
             .annotate(
-                application_count=Count("application"),
+                application_count=Count(
+                    "application",
+                    filter=~shared_application_filter("application__"),
+                ),
                 template_count=Count("template"),
                 **{
                     WorkspacesAdminResponseSerializer.ROW_COUNT_ANNOTATION_NAME: UsageHandler.get_workspace_row_count_annotation()

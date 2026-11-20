@@ -1,8 +1,8 @@
-from typing import Dict, Iterable, Optional, Union, cast
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Union, cast
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from loguru import logger
 
@@ -10,6 +10,7 @@ from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import ApplicationOperationNotSupported
 from baserow.core.integrations.exceptions import (
+    IntegrationCannotMoveToApplication,
     IntegrationDoesNotExist,
     IntegrationNotInApplication,
     IntegrationNotInWorkspace,
@@ -21,7 +22,11 @@ from baserow.core.integrations.registries import (
     IntegrationType,
     integration_type_registry,
 )
-from baserow.core.models import Application
+from baserow.core.models import (
+    Application,
+    SharedApplication,
+    shared_application_filter,
+)
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
@@ -94,7 +99,7 @@ class IntegrationHandler:
         integration_id: Optional[int],
         id_mapping: Dict[str, Dict[int, int]],
         application_id: Optional[int] = None,
-        keep_unmapped: bool = True,
+        import_export_config: Optional[ImportExportConfig] = None,
     ) -> Optional[Integration]:
         """
         Returns the integration an imported service refers to. A trashed integration
@@ -103,16 +108,34 @@ class IntegrationHandler:
         :param integration_id: The exported integration ID, if any.
         :param id_mapping: The import ID mapping.
         :param application_id: The application the service is imported into. When
-            given, an integration belonging to another application is dropped.
-        :param keep_unmapped: Whether an ID missing from the mapping is kept, as
-            duplicating within an application doesn't copy its integrations.
+            given, an integration the application can't use is dropped, see
+            `check_integration_usable`.
+        :param import_export_config: How the service is imported. An ID missing
+            from the mapping names an integration the import didn't copy: a
+            workspace integration, or an integration of the application a service
+            is duplicated within. It's kept only when the import keeps unmapped
+            references, see `ImportExportConfig.keeps_unmapped_references`.
+            Without a config it's dropped, as for an import from a file.
         :return: The integration, or `None` when there's none to refer to.
         """
 
         if not integration_id:
             return None
 
-        integration_id = id_mapping["integrations"].get(
+        keep_unmapped = (
+            import_export_config is not None
+            and import_export_config.keeps_unmapped_references
+        )
+        try:
+            # A `defaultdict` mapping answers with its default, like the
+            # `MirrorDict` a copy within an application uses.
+            integrations = id_mapping["integrations"]
+        except KeyError:
+            # Nothing was imported into the mapping when the source application
+            # has no integrations of its own, as when its services only use
+            # workspace integrations.
+            integrations = {}
+        integration_id = integrations.get(
             integration_id, integration_id if keep_unmapped else None
         )
         if integration_id is None:
@@ -146,15 +169,21 @@ class IntegrationHandler:
         checked, in that order.
 
         :param integration: The integration to check.
-        :param application_id: The application the integration must belong to.
+        :param application_id: The application the integration is used from. It can
+            use its own integrations and the workspace integrations of its
+            workspace.
         :param workspace_id: The workspace the integration must belong to.
         :param integration_types: The integration types accepted.
-        :raises IntegrationNotInApplication: When it belongs to another application.
+        :raises IntegrationNotInApplication: When the application can't use it.
         :raises IntegrationNotInWorkspace: When it belongs to another workspace.
         :raises IntegrationTypeNotAllowed: When it isn't of an accepted type.
         """
 
-        if application_id is not None and integration.application_id != application_id:
+        if (
+            application_id is not None
+            and integration.application_id != application_id
+            and not self.is_workspace_integration_of(integration, application_id)
+        ):
             raise IntegrationNotInApplication()
 
         if (
@@ -190,6 +219,58 @@ class IntegrationHandler:
 
         return local_cache.get(f"application_{application.id}_workspace_id", resolve)
 
+    def is_shared_application(self, application: Application) -> bool:
+        """
+        Returns whether the application is the shared application of its workspace,
+        whose integrations are the workspace integrations.
+
+        :param application: The application, specific or not.
+        :return: True for the shared application.
+        """
+
+        return application.specific_class is SharedApplication
+
+    def is_workspace_integration_of(
+        self, integration: Integration, application_id: int
+    ) -> bool:
+        """
+        Returns whether the integration is a workspace integration of the given
+        application's workspace. A published copy of an application has no workspace,
+        so it never matches: publishing copies the workspace integrations its
+        services use. A snapshot has no workspace either, but it counts as part of
+        the workspace of the application it's taken from, as it keeps referring to
+        the workspace integrations to restore them. The answer is cached for the
+        request, as every dispatch of a service checks it.
+
+        :param integration: The integration.
+        :param application_id: The ID of the application it's used from.
+        :return: True when its shared application is the one of that workspace.
+        """
+
+        shared_application_id = integration.application_id
+
+        def resolve():
+            shared_application = SharedApplication.objects_and_trash.filter(
+                id=shared_application_id
+            )
+            return (
+                shared_application.filter(
+                    workspace__application__id=application_id
+                ).exists()
+                # Only asked when the application isn't in the workspace, which a
+                # dispatch never needs: a snapshot is only imported and exported.
+                or shared_application.filter(
+                    workspace__application__snapshot_to__snapshot_to_application_id=(
+                        application_id
+                    )
+                ).exists()
+            )
+
+        return local_cache.get(
+            f"shared_application_{shared_application_id}_serves_{application_id}",
+            resolve,
+        )
+
     def is_integration_usable(
         self,
         integration: Integration,
@@ -201,7 +282,7 @@ class IntegrationHandler:
         Returns whether `check_integration_usable` accepts the integration.
 
         :param integration: The integration to check.
-        :param application_id: The application the integration must belong to.
+        :param application_id: The application the integration is used from.
         :param workspace_id: The workspace the integration must belong to.
         :param integration_types: The integration types accepted.
         :return: True when the integration fits every given constraint.
@@ -279,6 +360,31 @@ class IntegrationHandler:
         else:
             return queryset
 
+    def get_usable_integrations(
+        self, application: Application, specific: bool = True
+    ) -> Union[QuerySet[Integration], Iterable[Integration]]:
+        """
+        Gets the integrations the given application can use: its own and the
+        workspace integrations of its workspace, the ones `check_integration_usable`
+        accepts from it. A published copy has no workspace, so it only gets its own.
+
+        :param application: The application the integrations are used from.
+        :param specific: Whether to return the generic integrations or the specific
+            instances.
+        :return: The integrations the application can use.
+        """
+
+        usable = Q(application=application)
+        if application.workspace_id is not None:
+            usable |= Q(
+                shared_application_filter(prefix="application__"),
+                application__workspace_id=application.workspace_id,
+            )
+
+        return self.get_integrations(
+            base_queryset=Integration.objects.filter(usable), specific=specific
+        )
+
     def create_integration(
         self,
         integration_type: IntegrationType,
@@ -339,16 +445,36 @@ class IntegrationHandler:
         self,
         integration_type: IntegrationType,
         integration: IntegrationForUpdate,
+        application: Optional[Application] = None,
+        allow_demotion: bool = False,
         **kwargs,
     ) -> Integration:
         """
         Updates and integration with values. Will also check if the values are allowed
         to be set on the integration first.
 
+        :param integration_type: The type of the integration.
         :param integration: The integration that should be updated.
-        :param values: The values that should be set on the integration.
+        :param application: The application to move the integration to, if any. It
+            only moves between an application and the shared application of the
+            same workspace, and is placed last there.
+        :param allow_demotion: Whether it may move from the shared application
+            back to an application, which only undoing a promotion does.
+        :param kwargs: The values that should be set on the integration.
+        :raises IntegrationCannotMoveToApplication: When it can't move to the
+            application.
+        :raises ApplicationOperationNotSupported: When the application doesn't
+            accept integrations of its type, or the application on the other end
+            of the move doesn't let its services choose their integration.
         :return: The updated integration.
         """
+
+        if application is not None and application.id != integration.application_id:
+            self._check_application_change(
+                integration_type, integration, application, allow_demotion
+            )
+            integration.application = application
+            integration.order = Integration.get_last_order(application)
 
         shared_allowed_fields = ["name"]
         allowed_updates = extract_allowed(
@@ -361,6 +487,62 @@ class IntegrationHandler:
         integration.save()
 
         return integration
+
+    def _check_application_change(
+        self,
+        integration_type: IntegrationType,
+        integration: Integration,
+        application: Application,
+        allow_demotion: bool,
+    ):
+        """
+        Checks that the integration can move to the given application: only
+        between an application and the shared application of the same workspace,
+        which is promoting it or, with `allow_demotion`, undoing that. Nothing else
+        takes it out of the workspace, because other applications may use it by
+        then, and only the undo checks that none started to. The integration of a
+        published copy or a snapshot has no workspace, so it never moves. Neither
+        does the integration of an application whose services can't choose theirs,
+        like a dashboard: its new services would be left without one.
+
+        :param integration_type: The type of the integration.
+        :param integration: The integration, still in its current application.
+        :param application: The application it moves to.
+        :param allow_demotion: Whether it may move from the shared application to
+            an application.
+        :raises IntegrationCannotMoveToApplication: When it can't move there.
+        :raises ApplicationOperationNotSupported: When the application doesn't
+            accept integrations of its type, or the application on the other end
+            of the move doesn't let its services choose their integration.
+        """
+
+        current = integration.application
+        if (
+            current.workspace_id is None
+            or application.workspace_id != current.workspace_id
+            or not (
+                self.is_shared_application(current)
+                or self.is_shared_application(application)
+            )
+        ):
+            raise IntegrationCannotMoveToApplication()
+
+        if not allow_demotion and not self.is_shared_application(application):
+            raise IntegrationCannotMoveToApplication()
+
+        # One end is the shared application, the other the application it's
+        # promoted from or moved back to.
+        other_end = current if self.is_shared_application(application) else application
+        if not application_type_registry.get_by_model(
+            other_end.specific_class
+        ).lets_services_choose_integrations:
+            raise ApplicationOperationNotSupported()
+
+        application_type = application_type_registry.get_by_model(
+            application.specific_class
+        )
+        if not application_type.supports_integration_type(integration_type):
+            raise ApplicationOperationNotSupported()
 
     def move_integration(
         self, integration: IntegrationForUpdate, before: Optional[Integration] = None
@@ -415,6 +597,88 @@ class IntegrationHandler:
             storage=storage,
             cache=cache,
         )
+
+    def export_referenced_workspace_integrations(
+        self,
+        application: Application,
+        serialized_content: Any,
+        import_export_config: ImportExportConfig,
+        files_zip: Optional[ExportZipFile] = None,
+        storage: Optional[Storage] = None,
+        cache: Optional[Dict] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Exports the workspace integrations an application's services and user
+        sources use, as if the application owned them, so the copy gets
+        integrations of its own: a published copy has no workspace to read them
+        from, and a workspace export or template is imported without them. The
+        sensitive fields are stripped the way the config strips the application's
+        own integrations.
+
+        A duplicate or a snapshot stays in the workspace, so it keeps referring to
+        the workspace integrations and nothing is exported.
+
+        :param application: The application being exported.
+        :param serialized_content: The parts of the application's export that can
+            refer to integrations. Every `integration_id` in them is read, apart
+            from those in sample data. The row data of a table must be left out,
+            as it's large and refers to none.
+        :param import_export_config: How the application is exported.
+        :param files_zip: The zip the export's files are written to, if any.
+        :param storage: The storage the files are read from.
+        :param cache: Shared across one export, for values worth reusing.
+        :return: The serialized integrations, to add to the application's own.
+        """
+
+        if import_export_config.keeps_unmapped_references:
+            return []
+
+        integration_ids = set(self._find_integration_ids(serialized_content))
+        if not integration_ids or application.workspace_id is None:
+            return []
+
+        integrations = self.get_integrations(
+            base_queryset=Integration.objects.filter(
+                shared_application_filter(prefix="application__"),
+                id__in=integration_ids,
+                application__workspace_id=application.workspace_id,
+            )
+        )
+
+        return [
+            self.export_integration(
+                integration,
+                import_export_config,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+            )
+            for integration in integrations
+        ]
+
+    def _find_integration_ids(self, serialized: Any) -> Iterator[int]:
+        """
+        Yields every integration ID the serialized content names under an
+        `integration_id` key, at any depth. A service's `sample_data` is skipped:
+        it holds what a test dispatch returned, such as a webhook body, so any
+        `integration_id` in it comes from outside and names no integration.
+
+        :param serialized: Serialized content: dicts, lists and plain values.
+        :return: The integration IDs, possibly repeated.
+        """
+
+        if isinstance(serialized, dict):
+            for key, value in serialized.items():
+                if key == "sample_data":
+                    continue
+                if key != "integration_id":
+                    yield from self._find_integration_ids(value)
+                # A boolean is an int too, and would read as integration 0 or 1.
+                elif isinstance(value, int) and not isinstance(value, bool):
+                    yield value
+        elif isinstance(serialized, (list, tuple)):
+            for item in serialized:
+                yield from self._find_integration_ids(item)
 
     def import_integration(
         self,

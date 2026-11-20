@@ -5,10 +5,20 @@
   gap: 10px;
 }
 
-.integration-settings__loader {
-  @include loading;
+.integration-settings__section-title {
+  margin: 24px 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: $palette-neutral-1200;
 
-  margin: auto;
+  &:first-of-type {
+    margin-top: 0;
+  }
+}
+
+.integration-settings__section-description {
+  margin-bottom: 8px;
+  color: $palette-neutral-900;
 }
 
 .integration-settings__integration-actions {

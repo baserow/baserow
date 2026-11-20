@@ -41,6 +41,69 @@ export class LocalBaserowIntegrationType extends IntegrationType {
     })
   }
 
+  getWorkspaceHint(integration) {
+    const subject = integration.authorized_subject
+    // Not configured, the summary and the error message already say so.
+    if (!subject || subject.trashed) {
+      return null
+    }
+
+    const subjectType = this.app.$registry.get('subject', subject.type)
+    const name = subjectType.getDisplayName(subject)
+    if (subject.user_type === 'identity') {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowWorkspaceSubjectHint',
+        { type: subjectType.getTypeDisplayName(subject), name }
+      )
+    }
+
+    return this.app.$i18n.t(
+      'localBaserowIntegrationType.localBaserowWorkspaceHint',
+      { name }
+    )
+  }
+
+  /**
+   * Mirrors what the backend does when the integration moves to the workspace: a
+   * person can only authorize an integration as themselves, so one authorized as
+   * someone else, or as nobody, is authorized as the user promoting it, while an
+   * identity belongs to the workspace and is kept, even trashed.
+   */
+  getPromotionHint(integration) {
+    const subject = integration.authorized_subject
+    // Nobody authorized it, or the person who did no longer exists.
+    if (!subject) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowPromotionUnauthorizedHint'
+      )
+    }
+    // A trashed identity is kept, so it stays unusable, as its error says.
+    if (subject.trashed) {
+      return null
+    }
+
+    const subjectType = this.app.$registry.get('subject', subject.type)
+    const name = subjectType.getDisplayName(subject)
+    if (subject.user_type === 'identity') {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowPromotionSubjectHint',
+        { type: subjectType.getTypeDisplayName(subject), name }
+      )
+    }
+
+    const user = this.app.$store.getters['auth/getUserObject']
+    if (subject.id !== user?.id) {
+      return this.app.$i18n.t(
+        'localBaserowIntegrationType.localBaserowPromotionReauthorizeHint',
+        { name }
+      )
+    }
+
+    return this.app.$i18n.t(
+      'localBaserowIntegrationType.localBaserowPromotionHint'
+    )
+  }
+
   get formComponent() {
     return LocalBaserowForm
   }

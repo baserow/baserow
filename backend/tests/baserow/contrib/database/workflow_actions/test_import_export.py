@@ -1571,3 +1571,104 @@ def test_restoring_a_converted_button_keeps_its_action_target(data_fixture):
     assert [(m.field_id, m.value["formula"]) for m in restored_mappings] == [
         (target_field.id, "'hi'")
     ], "The kept target table's fields have to come back with it."
+
+
+def _button_that_sends_through_the_workspace_smtp(data_fixture, table, name_field):
+    """A button whose email goes through an SMTP integration of the workspace."""
+
+    smtp = data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(
+            workspace=table.database.workspace
+        ),
+        host="mail.example.org",
+        password="pw",  # nosec
+    )
+    button_field = data_fixture.create_button_field(table=table, name="btn")
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp,
+        use_instance_smtp_settings=False,
+        from_email="'from@example.com'",
+        to_emails=f"get('row.field_{name_field.id}')",
+    )
+    data_fixture.create_database_workflow_action(
+        CoreSMTPEmailWorkflowAction, field=button_field, service=service
+    )
+    return button_field, smtp
+
+
+def _smtp_integration_id(database, table_name):
+    button = database.table_set.get(name=table_name).field_set.get(name="btn").specific
+    (action,) = DatabaseWorkflowAction.objects.filter(field=button)
+    return action.specific.service.integration_id
+
+
+@pytest.mark.django_db
+def test_duplicating_a_database_keeps_a_workspace_integration(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="T")
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, smtp = _button_that_sends_through_the_workspace_smtp(
+        data_fixture, table, name_field
+    )
+
+    duplicated = CoreHandler().duplicate_application(user, database)
+
+    assert not duplicated.integrations.exists()
+    assert _smtp_integration_id(duplicated, "T") == smtp.id
+
+
+@pytest.mark.django_db
+def test_a_database_snapshot_and_its_restore_keep_a_workspace_integration(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace, order=1)
+    table = data_fixture.create_database_table(database=database, name="T")
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, smtp = _button_that_sends_through_the_workspace_smtp(
+        data_fixture, table, name_field
+    )
+    snapshot = data_fixture.create_snapshot(
+        snapshot_from_application=database, name="snap", created_by=user
+    )
+
+    SnapshotHandler().perform_create(snapshot, Progress(total=100))
+    snapshot.refresh_from_db()
+
+    # The snapshot has no workspace, but still refers to the integration.
+    assert _smtp_integration_id(snapshot.snapshot_to_application.specific, "T") == (
+        smtp.id
+    )
+
+    restored = SnapshotHandler().perform_restore(snapshot, Progress(total=100))
+
+    assert _smtp_integration_id(restored, "T") == smtp.id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_workspace_export_copies_a_workspace_integration_without_its_secrets(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="T")
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    _, smtp = _button_that_sends_through_the_workspace_smtp(
+        data_fixture, table, name_field
+    )
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+
+    exported = core_handler.export_workspace_applications(workspace, BytesIO(), config)
+    (imported,), _ = core_handler.import_applications_to_workspace(
+        data_fixture.create_workspace(user=user), exported, BytesIO(), config, None
+    )
+
+    (copy,) = imported.integrations.all()
+    assert copy.id != smtp.id
+    assert copy.specific.host == ""
+    assert _smtp_integration_id(imported, "T") == copy.id

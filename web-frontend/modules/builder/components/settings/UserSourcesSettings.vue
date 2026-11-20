@@ -154,7 +154,7 @@ export default {
   },
   methods: {
     ...mapActions({
-      actionFetchIntegrations: 'integration/fetch',
+      actionFetchIntegrations: 'integration/fetchUsable',
       actionCreateUserSource: 'userSource/create',
       actionUpdateUserSource: 'userSource/update',
       actionDeleteUserSource: 'userSource/delete',

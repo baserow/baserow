@@ -63,6 +63,91 @@ def test_get_integrations(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_the_workspace_integrations_an_application_can_use(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    first = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+    second = data_fixture.create_smtp_integration(
+        application=shared_application, password="secret"
+    )
+    # Neither the application's own nor another workspace's.
+    data_fixture.create_local_baserow_integration(application=application, user=user)
+    data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(user=user)
+    )
+
+    url = reverse(
+        "api:integrations:list_workspace", kwargs={"application_id": application.id}
+    )
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["shared_application"]["id"] == shared_application.id
+    assert response_json["shared_application"]["type"] == "shared"
+    assert response_json["shared_application"]["workspace"]["id"] == workspace.id
+    assert [i["id"] for i in response_json["integrations"]] == [first.id, second.id]
+    assert [i["type"] for i in response_json["integrations"]] == [
+        "local_baserow",
+        "smtp",
+    ]
+    assert {i["application_id"] for i in response_json["integrations"]} == {
+        shared_application.id
+    }
+    # Serialized like the other integration listings, so secrets stay out.
+    assert "password" not in response_json["integrations"][1]
+
+
+@pytest.mark.django_db
+def test_list_the_workspace_integrations_of_a_workspace_without_shared_application(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application(user=user)
+
+    url = reverse(
+        "api:integrations:list_workspace", kwargs={"application_id": application.id}
+    )
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json() == {"shared_application": None, "integrations": []}
+
+
+@pytest.mark.django_db
+def test_list_the_workspace_integrations_needs_access_to_the_application(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    application = data_fixture.create_builder_application()
+    data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(
+            workspace=application.workspace
+        )
+    )
+
+    url = reverse(
+        "api:integrations:list_workspace", kwargs={"application_id": application.id}
+    )
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+    url = reverse("api:integrations:list_workspace", kwargs={"application_id": 0})
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_APPLICATION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
 def test_create_integration(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace = data_fixture.create_workspace(user=user)
@@ -327,6 +412,155 @@ def test_update_integration_does_not_exist(api_client, data_fixture):
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_INTEGRATION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_promote_integration(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    url = reverse("api:integrations:item", kwargs={"integration_id": integration.id})
+    response = api_client.patch(
+        url,
+        {"application_id": shared_application.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["application_id"] == shared_application.id
+    assert (
+        Integration.objects.get(id=integration.id).application_id
+        == shared_application.id
+    )
+
+
+@pytest.mark.django_db
+def test_promote_integration_only_to_the_shared_application_of_its_workspace(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    other_application = data_fixture.create_builder_application(workspace=workspace)
+    other_shared_application = data_fixture.create_shared_application(
+        workspace=data_fixture.create_workspace(user=user)
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+    workspace_integration = data_fixture.create_local_baserow_integration(
+        application=shared_application, user=user
+    )
+
+    def patch(integration, application_id):
+        return api_client.patch(
+            reverse("api:integrations:item", kwargs={"integration_id": integration.id}),
+            {"application_id": application_id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+    for moved, application_id in [
+        (integration, other_application.id),
+        (integration, other_shared_application.id),
+        # Only undoing a promotion moves an integration back.
+        (workspace_integration, application.id),
+    ]:
+        response = patch(moved, application_id)
+        assert response.status_code == HTTP_400_BAD_REQUEST
+        assert (
+            response.json()["error"] == "ERROR_INTEGRATION_CANNOT_MOVE_TO_APPLICATION"
+        )
+
+    response = patch(integration, 0)
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_APPLICATION_DOES_NOT_EXIST"
+
+    assert Integration.objects.get(id=integration.id).application_id == application.id
+    assert (
+        Integration.objects.get(id=workspace_integration.id).application_id
+        == shared_application.id
+    )
+
+
+@pytest.mark.django_db
+def test_promote_integration_answers_a_non_member_the_same_for_every_target(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    _, outsider_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    other_application = data_fixture.create_builder_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=application, user=user
+    )
+
+    # The permissions are checked first, so the answer tells nothing about the
+    # application: whether it exists, or is the shared application of a workspace.
+    for application_id in [0, other_application.id, shared_application.id]:
+        response = api_client.patch(
+            reverse("api:integrations:item", kwargs={"integration_id": integration.id}),
+            {"application_id": application_id},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {outsider_token}",
+        )
+        assert response.status_code == HTTP_401_UNAUTHORIZED
+        assert response.json()["error"] == "PERMISSION_DENIED"
+
+    assert Integration.objects.get(id=integration.id).application_id == application.id
+
+
+@pytest.mark.django_db
+def test_promote_integration_of_a_type_the_workspace_does_not_support(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    agent = data_fixture.create_agent_application(workspace=workspace)
+    server = data_fixture.create_mcp_server_integration(application=agent)
+
+    response = api_client.patch(
+        reverse("api:integrations:item", kwargs={"integration_id": server.id}),
+        {"application_id": shared_application.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED"
+    assert Integration.objects.get(id=server.id).application_id == agent.id
+
+
+@pytest.mark.django_db
+def test_promote_integration_of_a_dashboard(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    shared_application = data_fixture.create_shared_application(workspace=workspace)
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+
+    response = api_client.patch(
+        reverse("api:integrations:item", kwargs={"integration_id": integration.id}),
+        {"application_id": shared_application.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_APPLICATION_OPERATION_NOT_SUPPORTED"
+    assert Integration.objects.get(id=integration.id).application_id == dashboard.id
 
 
 @pytest.mark.django_db

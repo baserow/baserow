@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from django.contrib.auth.models import AbstractUser
 
@@ -11,10 +11,15 @@ from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
+    CreateIntegrationWorkspaceOperationType,
     DeleteIntegrationOperationType,
+    DeleteWorkspaceIntegrationOperationType,
     ListIntegrationsApplicationOperationType,
+    ListIntegrationsWorkspaceOperationType,
+    OrderIntegrationsWorkspaceOperationType,
     ReadIntegrationOperationType,
     UpdateIntegrationOperationType,
+    UpdateWorkspaceIntegrationOperationType,
 )
 from baserow.core.integrations.registries import (
     IntegrationType,
@@ -27,7 +32,7 @@ from baserow.core.integrations.signals import (
     integration_updated,
 )
 from baserow.core.integrations.types import IntegrationForUpdate, UpdatedIntegration
-from baserow.core.models import Application
+from baserow.core.models import Application, SharedApplication, Workspace
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import extract_undo_redo_values
 
@@ -35,6 +40,58 @@ from baserow.core.utils import extract_undo_redo_values
 class IntegrationService:
     def __init__(self):
         self.handler = IntegrationHandler()
+
+    def _get_operation_and_context(
+        self,
+        application: Application,
+        operation_name: str,
+        workspace_operation_name: str,
+    ) -> Tuple[str, Application | Workspace]:
+        """
+        Picks the operation to check on the integrations of the given application.
+        Those of the shared application are the workspace integrations, so the
+        workspace operation is checked on the workspace instead.
+
+        :param application: The application that holds the integrations.
+        :param operation_name: The operation on the integrations of an application.
+        :param workspace_operation_name: The operation on the workspace integrations.
+        :return: The operation name and the context to check it on.
+        """
+
+        if self.handler.is_shared_application(application):
+            return workspace_operation_name, application.workspace
+        return operation_name, application
+
+    def check_integration_permission(
+        self,
+        user: AbstractUser,
+        integration: Integration,
+        operation_name: str,
+        workspace_operation_name: str,
+    ):
+        """
+        Checks an operation on the given integration. A workspace integration is
+        checked with the workspace operation instead, because the operation on an
+        integration of an application resolves through the shared application to
+        the workspace, so it would let anyone allowed to manage the integrations of
+        every application in the workspace manage it.
+
+        :param user: The user to check.
+        :param integration: The integration the operation is about.
+        :param operation_name: The operation on an integration of an application.
+        :param workspace_operation_name: The operation on a workspace integration.
+        :raises PermissionException: When the user isn't allowed.
+        """
+
+        if self.handler.is_shared_application(integration.application):
+            operation_name = workspace_operation_name
+
+        CoreHandler().check_permissions(
+            user,
+            operation_name,
+            workspace=integration.application.workspace,
+            context=integration,
+        )
 
     def get_integration(self, user: AbstractUser, integration_id: int) -> Integration:
         """
@@ -68,22 +125,119 @@ class IntegrationService:
         :return: The integrations of that application.
         """
 
+        operation_name, context = self._get_operation_and_context(
+            application,
+            ListIntegrationsApplicationOperationType.type,
+            ListIntegrationsWorkspaceOperationType.type,
+        )
+
         CoreHandler().check_permissions(
             user,
-            ListIntegrationsApplicationOperationType.type,
+            operation_name,
             workspace=application.workspace,
-            context=application,
+            context=context,
         )
 
         user_integrations = CoreHandler().filter_queryset(
             user,
-            ListIntegrationsApplicationOperationType.type,
+            operation_name,
             Integration.objects.all(),
             workspace=application.workspace,
         )
 
         return self.handler.get_integrations(
             application=application, base_queryset=user_integrations
+        )
+
+    def check_can_use_workspace_integrations(
+        self,
+        user: AbstractUser,
+        application: Application,
+        raise_permission_exceptions: bool = True,
+    ) -> bool:
+        """
+        Checks that the user may see and use the workspace integrations from the
+        given application. Whoever may list the integrations of an application may,
+        because every application of a workspace offers its workspace integrations
+        alongside its own. That includes a user with a role on that application
+        only, who can't list the workspace integrations in the workspace settings.
+
+        :param user: The user to check.
+        :param application: The application the workspace integrations are used
+            from.
+        :param raise_permission_exceptions: Whether to raise when the user isn't
+            allowed, rather than return False.
+        :raises PermissionException: When the user isn't allowed and
+            `raise_permission_exceptions` is set.
+        :return: Whether the user is allowed.
+        """
+
+        return CoreHandler().check_permissions(
+            user,
+            ListIntegrationsApplicationOperationType.type,
+            workspace=application.workspace,
+            context=application,
+            raise_permission_exceptions=raise_permission_exceptions,
+        )
+
+    def check_can_use_integration(
+        self,
+        user: AbstractUser,
+        integration: Integration,
+        application: Application,
+    ):
+        """
+        Checks that the user may use the integration from the given application:
+        read it when it is one of the application's own, and see the workspace
+        integrations from the application otherwise. The caller has already checked
+        that the application can use the integration, with
+        `IntegrationHandler.check_integration_usable`.
+
+        :param user: The user to check.
+        :param integration: The integration the user wants to use.
+        :param application: The application the integration is used from.
+        :raises PermissionException: When the user isn't allowed.
+        """
+
+        if integration.application_id == application.id:
+            CoreHandler().check_permissions(
+                user,
+                ReadIntegrationOperationType.type,
+                workspace=application.workspace,
+                context=integration,
+            )
+        else:
+            self.check_can_use_workspace_integrations(user, application)
+
+    def get_workspace_integrations(
+        self, user: AbstractUser, application: Application
+    ) -> Tuple[Optional[SharedApplication], List[Integration]]:
+        """
+        Gets the workspace integrations the given application can use, for a user
+        allowed to use them from it, see `check_can_use_workspace_integrations`.
+
+        :param user: The user trying to get the integrations.
+        :param application: The application the integrations are used from.
+        :return: The shared application that owns the workspace integrations, and
+            the integrations. None and no integrations when the workspace has no
+            shared application yet, or the application no workspace, like a
+            published copy.
+        """
+
+        self.check_can_use_workspace_integrations(user, application)
+
+        shared_application = (
+            SharedApplication.objects.filter(workspace_id=application.workspace_id)
+            .select_related("workspace")
+            .first()
+            if application.workspace_id is not None
+            else None
+        )
+        if shared_application is None:
+            return None, []
+
+        return shared_application, list(
+            self.handler.get_integrations(application=shared_application)
         )
 
     def create_integration(
@@ -105,11 +259,17 @@ class IntegrationService:
         :return: The created integration.
         """
 
+        operation_name, context = self._get_operation_and_context(
+            application,
+            CreateIntegrationOperationType.type,
+            CreateIntegrationWorkspaceOperationType.type,
+        )
+
         CoreHandler().check_permissions(
             user,
-            CreateIntegrationOperationType.type,
+            operation_name,
             workspace=application.workspace,
-            context=application,
+            context=context,
         )
 
         prepared_values = integration_type.prepare_values(
@@ -174,26 +334,57 @@ class IntegrationService:
         self,
         user: AbstractUser,
         integration: IntegrationForUpdate,
+        allow_demotion: bool = False,
         **kwargs,
     ) -> UpdatedIntegration:
         """
         Updates and integration with values. Will also check if the values are allowed
         to be set on the integration first.
 
+        An `application_id` other than the integration's moves it to that
+        application. That's how it's promoted to the shared application of its
+        workspace, and how undoing the promotion moves it back. Moving it also
+        needs the permission to create an integration in that application. Where
+        it may move is only checked after both permissions, so a user who may not
+        move it can't tell from the error which kind of application an id is.
+
         :param user: The user trying to update the integration.
         :param integration: The integration that should be updated.
+        :param allow_demotion: Whether it may move from the shared application of
+            its workspace back to an application. Only undoing a promotion sets it,
+            once it checked that nothing else started using the integration.
         :param kwargs: Additional attributes of the integration.
         :return: The updated integration together with the values that changed.
         :raises IntegrationCredentialRequired: When a request-target field changes
             without its credential.
+        :raises ApplicationDoesNotExist: When the application to move it to
+            doesn't exist.
+        :raises IntegrationCannotMoveToApplication: When it can't move to that
+            application.
         """
 
-        CoreHandler().check_permissions(
+        self.check_integration_permission(
             user,
+            integration,
             UpdateIntegrationOperationType.type,
-            workspace=integration.application.workspace,
-            context=integration,
+            UpdateWorkspaceIntegrationOperationType.type,
         )
+
+        application_id = kwargs.pop("application_id", None)
+        target_application = None
+        if application_id is not None and application_id != integration.application_id:
+            target_application = CoreHandler().get_application(application_id)
+            operation_name, context = self._get_operation_and_context(
+                target_application,
+                CreateIntegrationOperationType.type,
+                CreateIntegrationWorkspaceOperationType.type,
+            )
+            CoreHandler().check_permissions(
+                user,
+                operation_name,
+                workspace=target_application.workspace,
+                context=context,
+            )
 
         integration_type = integration.get_type()
 
@@ -206,15 +397,34 @@ class IntegrationService:
             integration, kwargs, integration_type.get_action_log_excluded_fields()
         )
 
+        if target_application is not None:
+            original_values["application_id"] = integration.application_id
+            new_values["application_id"] = target_application.id
+            integration_type.before_application_change(
+                integration, target_application, user
+            )
+
         prepared_values = integration_type.prepare_values(
             kwargs, user, application=integration.application, instance=integration
         )
 
+        previous_application = (
+            integration.application if target_application is not None else None
+        )
         integration = self.handler.update_integration(
-            integration_type, integration, **prepared_values
+            integration_type,
+            integration,
+            application=target_application,
+            allow_demotion=allow_demotion,
+            **prepared_values,
         )
 
-        integration_updated.send(self, integration=integration, user=user)
+        integration_updated.send(
+            self,
+            integration=integration,
+            user=user,
+            previous_application=previous_application,
+        )
 
         return UpdatedIntegration(integration, original_values, new_values)
 
@@ -228,16 +438,21 @@ class IntegrationService:
 
         application = integration.application
 
-        CoreHandler().check_permissions(
+        self.check_integration_permission(
             user,
+            integration,
             DeleteIntegrationOperationType.type,
-            workspace=application.workspace,
-            context=integration,
+            DeleteWorkspaceIntegrationOperationType.type,
         )
 
         # Soft-delete (trash) the integration so it can be restored via undo. The
         # `integration_deleted` realtime signal is emitted by the trashable item type.
-        TrashHandler.trash(user, application.workspace, application, integration)
+        # A workspace integration is trashed in the workspace, so it's listed and
+        # emptied with the workspace's trash, never with the shared application's.
+        trash_application = (
+            None if self.handler.is_shared_application(application) else application
+        )
+        TrashHandler.trash(user, application.workspace, trash_application, integration)
 
     def move_integration(
         self,
@@ -257,12 +472,21 @@ class IntegrationService:
         :return: The integration with an updated order.
         """
 
-        CoreHandler().check_permissions(
-            user,
-            UpdateIntegrationOperationType.type,
-            workspace=integration.application.workspace,
-            context=integration,
-        )
+        workspace = integration.application.workspace
+        if self.handler.is_shared_application(integration.application):
+            CoreHandler().check_permissions(
+                user,
+                OrderIntegrationsWorkspaceOperationType.type,
+                workspace=workspace,
+                context=workspace,
+            )
+        else:
+            CoreHandler().check_permissions(
+                user,
+                UpdateIntegrationOperationType.type,
+                workspace=workspace,
+                context=integration,
+            )
 
         # Check we are on the same application.
         if before and integration.application_id != before.application_id:

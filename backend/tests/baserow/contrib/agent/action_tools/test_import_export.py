@@ -165,3 +165,54 @@ def test_agent_supports_smtp_integrations_only(data_fixture):
         agent, exported, {}, import_export_config=config
     )
     assert SMTPIntegration.objects.filter(id=imported.id, application=agent).exists()
+
+
+@pytest.fixture
+def action_with_workspace_connection(data_fixture):
+    user = data_fixture.create_user()
+    agent = data_fixture.create_agent_application(user=user)
+    integration = data_fixture.create_smtp_integration(
+        application=data_fixture.create_shared_application(workspace=agent.workspace),
+        username="sender",
+        password="mail-secret",
+    )
+    action = data_fixture.create_agent_action(agent=agent, name="welcome_email")
+    service = action.service.specific
+    service.integration = integration
+    service.use_instance_smtp_settings = False
+    service.from_email = BaserowFormulaObject.create("'sender@example.com'")
+    service.save()
+    return user, agent, integration
+
+
+@pytest.mark.django_db
+def test_internal_duplicate_keeps_a_workspace_integration(
+    action_with_workspace_connection,
+):
+    user, agent, integration = action_with_workspace_connection
+
+    copied = CoreHandler().duplicate_application(user, agent).specific
+
+    [clone] = AgentActionHandler().list_actions(copied)
+    assert clone.service.integration_id == integration.id
+    assert not copied.integrations.exists()
+
+
+@pytest.mark.django_db
+def test_external_copy_carries_a_workspace_integration_without_its_secret(
+    action_with_workspace_connection,
+):
+    _, agent, integration = action_with_workspace_connection
+    config = ImportExportConfig(include_permission_data=False)
+    app_type = AgentApplicationType()
+
+    serialized = app_type.export_serialized(agent, config)
+    [exported_integration] = serialized["integrations"]
+    copied = app_type.import_serialized(
+        agent.workspace, deepcopy(serialized), config, {}
+    )
+
+    assert exported_integration["id"] == integration.id
+    assert exported_integration["password"] is None
+    [clone] = AgentActionHandler().list_actions(copied)
+    assert clone.service.integration.application_id == copied.id

@@ -158,10 +158,17 @@ def test_updates_select_options_check_catches_lost_ids_colors_and_cells(
 
 
 def _failed(case_id, scenario_name, tool_calls, prepare=None):
-    """Names of the checks of a case that fail after ``prepare`` changed the data."""
+    """
+    Names of the checks of a case that fail after ``prepare`` changed the data.
+
+    The workspace gets its shared application after the scenario is built, as in
+    a real run, where the tools create it the first time they list applications.
+    """
 
     case = next(c for c in all_cases() if c.id == case_id)
-    scenario = get_scenario(scenario_name)(make_fixtures())
+    fixtures = make_fixtures()
+    scenario = get_scenario(scenario_name)(fixtures)
+    fixtures.create_shared_application(workspace=scenario.workspace)
     if prepare:
         prepare(scenario)
     checks = case.checks(case, scenario, _creates_application_output(tool_calls))

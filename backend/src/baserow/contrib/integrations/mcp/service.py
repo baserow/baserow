@@ -1,10 +1,13 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 
-from baserow.core.handler import CoreHandler
 from baserow.core.integrations.exceptions import IntegrationDoesNotExist
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.integrations.operations import UpdateIntegrationOperationType
+from baserow.core.integrations.operations import (
+    UpdateIntegrationOperationType,
+    UpdateWorkspaceIntegrationOperationType,
+)
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.integrations.signals import integration_updated
 
 from .exceptions import MCPOAuthFailed, MCPServerDoesNotUseOAuth
@@ -29,11 +32,11 @@ class MCPServerService:
         integration = IntegrationHandler().get_integration(integration_id).specific
         if not isinstance(integration, MCPServerIntegration):
             raise IntegrationDoesNotExist()
-        CoreHandler().check_permissions(
+        IntegrationService().check_integration_permission(
             user,
+            integration,
             UpdateIntegrationOperationType.type,
-            workspace=integration.application.workspace,
-            context=integration,
+            UpdateWorkspaceIntegrationOperationType.type,
         )
         return integration
 

@@ -50,6 +50,19 @@ const mutations = {
       application.integrations.splice(index, 1)
     }
   },
+  MOVE_ITEM_APPLICATION(
+    state,
+    { applicationSource, applicationDest, integrationId }
+  ) {
+    const index = applicationSource.integrations.findIndex(
+      (integration) => integration.id === integrationId
+    )
+    if (index > -1) {
+      const [integration] = applicationSource.integrations.splice(index, 1)
+      integration.application_id = applicationDest.id
+      applicationDest.integrations.push(integration)
+    }
+  },
   MOVE_ITEM(state, { application, index, oldIndex }) {
     application.integrations.splice(
       index,
@@ -95,6 +108,57 @@ const actions = {
       commit('MOVE_ITEM', { application, index, oldIndex })
     }
     commit('BUMP_GENERATION', { application })
+  },
+  /**
+   * Moves the integration to the list of another application, like a promotion to
+   * the shared application of the workspace and its undo do. It goes last, where
+   * the backend orders it.
+   */
+  forceMoveToApplication(
+    { commit },
+    { applicationSource, applicationDest, integrationId }
+  ) {
+    commit('MOVE_ITEM_APPLICATION', {
+      applicationSource,
+      applicationDest,
+      integrationId,
+    })
+    commit('BUMP_GENERATION', { application: applicationSource })
+    commit('BUMP_GENERATION', { application: applicationDest })
+  },
+  /**
+   * Moves the integration to another application of the workspace, which the
+   * backend only accepts towards the workspace's shared application: a
+   * promotion. Unlike `update`, the list only changes once the backend accepted
+   * the move, and with the values the move changed, like the person a Local
+   * Baserow integration was authorized as. The tab moving it receives no
+   * realtime event of its own move.
+   */
+  async moveToApplication(
+    { dispatch, getters },
+    { application, applicationDest, integrationId }
+  ) {
+    const { data: movedIntegration } = await IntegrationService(
+      this.$client
+    ).update(integrationId, { application_id: applicationDest.id })
+
+    const integration = getters
+      .getIntegrations(application)
+      .find(({ id }) => id === integrationId)
+    if (integration) {
+      await dispatch('forceUpdate', {
+        application,
+        integration,
+        values: movedIntegration,
+      })
+      await dispatch('forceMoveToApplication', {
+        applicationSource: application,
+        applicationDest,
+        integrationId,
+      })
+    }
+
+    return movedIntegration
   },
   async create(
     { dispatch },
@@ -293,6 +357,123 @@ const actions = {
     // caller does not remember a load that did not happen.
     return null
   },
+  /**
+   * Loads the workspace integrations the application can use, at most once per
+   * workspace unless forced. Realtime events keep the list and what's stored on
+   * each integration current, but not what the backend works out when it sends
+   * them, like the tables and views a Local Baserow integration can reach
+   * (`context_data`). So the panels that offer them fetch them again through
+   * `fetchUsable`, like they fetch the application's own integrations again.
+   *
+   * They're fetched through the application, so that a user with a role on that
+   * application only gets them too, with the shared application that owns them,
+   * which the application listing leaves out for that user. Nothing is loaded
+   * when the user can't list the integrations of the application, or isn't a
+   * member of the workspace, like the one of a template preview.
+   *
+   * @param {Object} application An application of the workspace.
+   * @param {boolean} force Fetches them even when they were loaded already. A
+   *   forced fetch that gives up keeps the list it would have replaced.
+   * @returns {Promise<Array|null>} The workspace integrations, or null when
+   *   their list changed under the fetch and it gave up, like `fetch`.
+   */
+  async fetchWorkspaceIntegrations(
+    { commit, dispatch, getters, state, rootGetters },
+    { application, force = false }
+  ) {
+    const workspace =
+      application.workspace &&
+      rootGetters['workspace/get'](application.workspace.id)
+    if (
+      !workspace ||
+      !this.app.$hasPermission(
+        'application.list_integrations',
+        application,
+        workspace.id
+      )
+    ) {
+      return []
+    }
+
+    const known = rootGetters['application/getSharedApplication'](workspace)
+    if (!force && known?._integrationsLoadedOnce) {
+      return getters.getIntegrations(known)
+    }
+
+    for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
+      // Taken for every application, as the shared one isn't known before the
+      // answer when the store doesn't have it.
+      const before = { ...state.generation }
+
+      const { data } = await IntegrationService(
+        this.$client
+      ).fetchAllOfWorkspace(application.id)
+      if (!data.shared_application) {
+        return []
+      }
+
+      const sharedApplicationId = data.shared_application.id
+      // Changed while this was open, see `fetch`.
+      if (
+        (state.generation[sharedApplicationId] || 0) !==
+        (before[sharedApplicationId] || 0)
+      ) {
+        continue
+      }
+
+      // Also replaced by `forceSetAll` while the fetch was open, or missing
+      // when the application listing leaves it out.
+      const current =
+        rootGetters['application/get'](sharedApplicationId) ||
+        (await dispatch('application/forceCreate', data.shared_application, {
+          root: true,
+        }))
+
+      // Committed for the same reason as in `fetch`.
+      commit('CLEAR_ITEMS', { application: current })
+      data.integrations.forEach((integration) =>
+        commit('ADD_ITEM', { application: current, integration })
+      )
+      // Never unset: it says the list was loaded at least once, which stays
+      // true when a later forced fetch gives up.
+      await dispatch(
+        'application/forceUpdate',
+        { application: current, data: { _integrationsLoadedOnce: true } },
+        { root: true }
+      )
+      return data.integrations
+    }
+
+    // Left unmarked, so the next application that asks fetches again.
+    return null
+  },
+  /**
+   * Loads the workspace integrations once, for the paths that load an
+   * application, see `fetchWorkspaceIntegrations`.
+   */
+  fetchWorkspaceIntegrationsOnce({ dispatch }, { application }) {
+    return dispatch('fetchWorkspaceIntegrations', { application })
+  },
+  /**
+   * Fetches again every integration the application can use, its own and the
+   * workspace ones, for a panel that offers them with what they can reach, like
+   * the tables and views of a Local Baserow integration. Those change with no
+   * realtime event about the integration, like when a table is created.
+   *
+   * @param {Object} application The application the integrations are used from.
+   * @returns {Promise<Array|null>} The usable integrations, or null when either
+   *   list changed under its fetch and it gave up.
+   */
+  async fetchUsable({ dispatch }, { application }) {
+    const [own, workspace] = await Promise.all([
+      dispatch('fetch', { application }),
+      dispatch('fetchWorkspaceIntegrations', { application, force: true }),
+    ])
+    if (own === null || workspace === null) {
+      return null
+    }
+    return [...own, ...workspace]
+  },
   async duplicate({ getters, dispatch }, { application, integrationId }) {
     const integration = getters.getIntegrations.find(
       (e) => e.id === integrationId
@@ -306,13 +487,56 @@ const actions = {
 }
 
 const getters = {
+  /**
+   * The integrations the application owns. A settings page lists these, while a
+   * picker offers `getUsableIntegrations`.
+   */
   getIntegrations: (state) => (application) => {
     return application?.integrations || []
   },
-  getIntegrationById: (state) => (application, id) => {
-    return application?.integrations?.find(
-      (integration) => integration.id === id
-    )
+  /**
+   * The integrations of the application's workspace, which every application of
+   * the workspace can use. Empty for the shared application itself, which owns
+   * them, and until `fetchWorkspaceIntegrations` loaded them.
+   */
+  getWorkspaceIntegrations:
+    (state, getters, rootState, rootGetters) => (application) => {
+      if (!application?.workspace) {
+        return []
+      }
+      const sharedApplication = rootGetters['application/getSharedApplication'](
+        application.workspace
+      )
+      if (!sharedApplication || sharedApplication.id === application.id) {
+        return []
+      }
+      return getters.getIntegrations(sharedApplication)
+    },
+  /**
+   * The integrations the application can use: its own, then the workspace ones.
+   * Their `application_id` tells them apart.
+   */
+  getUsableIntegrations: (state, getters) => (application) => {
+    return [
+      ...getters.getIntegrations(application),
+      ...getters.getWorkspaceIntegrations(application),
+    ]
+  },
+  /**
+   * A number that changes with every change to the integrations of the
+   * application, so a component listing them knows when to refresh.
+   */
+  getGeneration: (state) => (application) => {
+    return state.generation[application.id] || 0
+  },
+  /**
+   * One of the integrations the application can use, its own or a workspace
+   * one, so a service using a workspace integration finds it too.
+   */
+  getIntegrationById: (state, getters) => (application, id) => {
+    return getters
+      .getUsableIntegrations(application)
+      .find((integration) => integration.id === id)
   },
 }
 

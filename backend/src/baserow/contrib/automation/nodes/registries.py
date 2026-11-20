@@ -298,6 +298,7 @@ class AutomationNodeType(
                 serialized_service.get("integration_id", None),
                 id_mapping,
                 application_id=workflow.automation_id if workflow else None,
+                import_export_config=kwargs.get("import_export_config"),
             )
 
             return ServiceHandler().import_service(
@@ -346,8 +347,8 @@ class AutomationNodeType(
     ) -> None:
         """
         Checks that the node's service reads only through what its workflow's
-        automation may use: an integration of the automation, and a table of the
-        automation's workspace.
+        automation may use: an integration of the automation or of its workspace,
+        and a table of the automation's workspace.
 
         :param workflow: The workflow the node belongs to.
         :param service: The node's service.

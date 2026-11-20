@@ -10,6 +10,7 @@ from django.db import transaction
 from faker import Faker
 from tqdm import tqdm
 
+from baserow.core.handler import CoreHandler
 from baserow.core.models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
@@ -141,6 +142,11 @@ def crete_users(limit, workspace=None):
                 UserProfile.objects.bulk_create(users_profiles, batch_size=batch_size)
                 if workspaces:
                     Workspace.objects.bulk_create(workspaces, batch_size=batch_size)
+                    # Every workspace has a shared application. One at a time,
+                    # because a model that inherits from another can't be bulk
+                    # created.
+                    for new_workspace in workspaces:
+                        CoreHandler().create_shared_application(new_workspace)
                 WorkspaceUser.objects.bulk_create(
                     workspace_users, batch_size=batch_size
                 )

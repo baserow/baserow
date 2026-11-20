@@ -242,12 +242,18 @@ from baserow.core.identities.operations import (
 )
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,
+    CreateIntegrationWorkspaceOperationType,
     DeleteIntegrationOperationType,
+    DeleteWorkspaceIntegrationOperationType,
     ListIntegrationsApplicationOperationType,
+    ListIntegrationsWorkspaceOperationType,
     OrderIntegrationsOperationType,
+    OrderIntegrationsWorkspaceOperationType,
     ReadIntegrationOperationType,
     RestoreIntegrationOperationType,
+    RestoreWorkspaceIntegrationOperationType,
     UpdateIntegrationOperationType,
+    UpdateWorkspaceIntegrationOperationType,
 )
 from baserow.core.mcp.operations import (
     CreateMCPEndpointOperationType,
@@ -503,6 +509,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         ReadAgentConfigurationOperationType,
         ListIdentitiesWorkspaceOperationType,
         BindIdentityOperationType,
+        ListIntegrationsWorkspaceOperationType,
         CreatePageOperationType,
         DeletePageOperationType,
         UpdatePageOperationType,
@@ -659,6 +666,11 @@ default_roles[ADMIN_ROLE_UID].extend(
         CreateIdentityOperationType,
         UpdateIdentityOperationType,
         DeleteIdentityOperationType,
+        CreateIntegrationWorkspaceOperationType,
+        OrderIntegrationsWorkspaceOperationType,
+        UpdateWorkspaceIntegrationOperationType,
+        DeleteWorkspaceIntegrationOperationType,
+        RestoreWorkspaceIntegrationOperationType,
         UpdateWorkspaceOperationType,
         DeleteWorkspaceOperationType,
         DeleteDatabaseRowOperationType,

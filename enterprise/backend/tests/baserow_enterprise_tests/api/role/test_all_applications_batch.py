@@ -10,6 +10,7 @@ from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.snapshots.handler import SnapshotHandler
 from baserow.core.utils import Progress
+from baserow.test_utils.helpers import without_shared_applications
 from baserow_enterprise.builder.custom_code.models import BuilderCustomScript
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -203,7 +204,7 @@ def test_list_all_applications_matches_per_workspace_listing_with_roles(
     # Sanity check the role filtering itself: NO_ACCESS workspaces only expose
     # the applications with exceptions.
     apps_per_workspace = {}
-    for app in all_applications:
+    for app in without_shared_applications(all_applications):
         apps_per_workspace.setdefault(app["workspace"]["id"], []).append(app)
 
     (
