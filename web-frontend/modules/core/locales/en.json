@@ -1367,6 +1367,12 @@
     "successTitle": "Integration available to the whole workspace",
     "successMessage": "{name} is now listed in the workspace settings, under Integrations."
   },
+  "applicationIntegrationSettings": {
+    "workspaceIntegrations": "Workspace",
+    "workspaceDescription": "Every application in this workspace can use these. Only workspace admins can change them.",
+    "openWorkspaceSettings": "Open the workspace settings",
+    "applicationIntegrations": "This application"
+  },
   "integrationEditForm": {
     "name": "Name",
     "namePlaceholder": "Enter integration name..."
