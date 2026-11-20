@@ -520,5 +520,9 @@
     "serviceTypeNotAllowed": "The account can't be connected for this action.",
     "failed": "The {provider} sign-in didn't complete. Try again.",
     "popupBlocked": "Your browser blocked the {provider} sign-in window. Allow pop-ups for Baserow, then try again."
+  },
+  "microsoftIntegrationForm": {
+    "workAccount": "Work or school account",
+    "personalAccount": "Personal account"
   }
 }
