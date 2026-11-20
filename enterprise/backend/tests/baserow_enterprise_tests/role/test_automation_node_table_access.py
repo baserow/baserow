@@ -2160,3 +2160,88 @@ def test_a_started_workflow_changed_before_the_fill_keeps_the_answers_hidden(
 
     assert _result_as(api_client, entry, restricted_token) is None
     assert "Paid 250k" in str(_result_as(api_client, entry, admin_token))
+
+
+@pytest.mark.django_db
+def test_run_results_built_from_a_table_deleted_before_the_fill_are_shown_to_nobody(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    """Also when the nodes have no test run data, as in a published workflow."""
+
+    from baserow.core.services.models import Service
+
+    admin, workflow, trigger, admin_token, restricted_token, _ = (
+        workflow_on_a_secret_table
+    )
+    histories = _run_results(workflow)
+    _forget_stored_tables(workflow)
+    Service.objects.filter(
+        id__in=AutomationNode.objects.filter(workflow=workflow).values("service_id")
+    ).update(sample_data=None)
+    table = trigger.service.specific.table
+    TrashHandler.trash(admin, workflow.automation.workspace, table.database, table)
+    TrashHandler.permanently_delete(table)
+
+    _fill()
+
+    for node_history in histories.values():
+        for token in (restricted_token, admin_token):
+            assert _result_as(api_client, node_history, token) is None
+
+
+def _give_up_on(workflow):
+    from django.db import OperationalError
+
+    from baserow.contrib.automation.nodes import backfill
+
+    with patch(
+        "baserow.contrib.automation.nodes.backfill.fill_workflow_table_ids",
+        side_effect=OperationalError("broken"),
+    ):
+        for _ in range(backfill.BACKFILL_MAX_ATTEMPTS):
+            _fill()
+    assert backfill.missing_table_ids_filled()
+
+
+@pytest.mark.django_db
+def test_a_workflow_the_fill_gave_up_on_can_still_be_edited(
+    workflow_on_a_secret_table, test_run_nodes
+):
+    from django.db import OperationalError
+
+    admin, workflow, _, _, _, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    _forget_stored_tables(workflow)
+    _give_up_on(workflow)
+
+    with patch(
+        "baserow.contrib.automation.nodes.backfill.fill_workflow_table_ids",
+        side_effect=OperationalError("broken"),
+    ):
+        AutomationNodeService().update_node(admin, iterator.id, label="Renamed")
+
+    iterator.refresh_from_db()
+    assert iterator.label == "Renamed"
+
+
+@pytest.mark.django_db
+def test_the_run_history_of_a_workflow_the_fill_gave_up_on_is_filled_before_an_edit(
+    api_client, workflow_on_a_secret_table, test_run_nodes
+):
+    from baserow.core.services.models import Service
+
+    admin, workflow, _, _, restricted_token, _ = workflow_on_a_secret_table
+    _, iterator, _ = test_run_nodes
+    histories = _run_results(workflow)
+    _forget_stored_tables(workflow)
+    _give_up_on(workflow)
+    # Only the run history is left without the tables.
+    Service.objects.filter(
+        id__in=AutomationNode.objects.filter(workflow=workflow).values("service_id")
+    ).update(sample_data=None)
+
+    AutomationNodeService().update_node(
+        admin, iterator.id, service={"source": _formula("'nothing'")}
+    )
+
+    assert _result_as(api_client, histories[iterator.id], restricted_token) is None

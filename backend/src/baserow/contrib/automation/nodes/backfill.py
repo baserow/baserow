@@ -31,8 +31,12 @@ BACKFILL_TIME_LIMIT_SECONDS = max(settings.CELERY_TASK_SOFT_TIME_LIMIT // 2, 30)
 # that it doesn't keep the fill from ever being done.
 BACKFILL_MAX_ATTEMPTS = 3
 
-# Set once a pass filled everything, so the task and the edits stop looking.
+# Set once a pass filled everything, so the task stops looking and the edits only
+# look for what an import can bring back.
 BACKFILL_DONE_CACHE_KEY = "automation_missing_table_ids_filled"
+
+# The workflows the periodic task gave up on, which the edits still fill.
+BACKFILL_GIVEN_UP_CACHE_KEY = "automation_missing_table_ids_given_up"
 
 # Stored when a node, or a node it reads, had a table that no longer exists: who
 # was allowed to see the data built from it can't be told any more, and no table
@@ -57,22 +61,34 @@ def _workflows_to_fill():
     )
 
 
-def _lost_table(nodes) -> bool:
+def _lost_table_nodes(nodes) -> set[int]:
     """
-    Whether one of the nodes has test run data built from a table that no longer
-    exists: its table field is empty, as a deleted table leaves it. A node whose
-    table was never picked has none.
+    The nodes that had a table which no longer exists: their table field is
+    empty, as a deleted table leaves it, and they have test run data or a run
+    result, which they only get with a table. A node whose table was never picked
+    has neither.
     """
 
-    for node in nodes:
-        service = node.service.specific
-        if (
-            hasattr(service, "table_id")
-            and service.table_id is None
-            and service.sample_data is not None
-        ):
-            return True
-    return False
+    from baserow.contrib.automation.history.models import AutomationNodeResult
+
+    without_table = [
+        node
+        for node in nodes
+        if hasattr(node.service.specific, "table_id")
+        and node.service.specific.table_id is None
+    ]
+    if not without_table:
+        return set()
+    with_results = set(
+        AutomationNodeResult.objects.filter(
+            node_history__node_id__in=[node.id for node in without_table]
+        ).values_list("node_history__node_id", flat=True)
+    )
+    return {
+        node.id
+        for node in without_table
+        if node.service.specific.sample_data is not None or node.id in with_results
+    }
 
 
 def fill_workflow_table_ids(workflow) -> None:
@@ -89,13 +105,11 @@ def fill_workflow_table_ids(workflow) -> None:
 
     access = AutomationNodeAccess(None, include_trashed=True)
     nodes = list(access.nodes_of_workflow(workflow).values())
+    lost_nodes = _lost_table_nodes(nodes)
     sample_table_ids, history_table_ids = {}, {}
     for node in nodes:
-        lost = (
-            {MISSING_TABLE_ID}
-            if _lost_table([node, *access.read_nodes(node)])
-            else set()
-        )
+        read_ids = {node.id} | {other.id for other in access.read_nodes(node)}
+        lost = {MISSING_TABLE_ID} if read_ids & lost_nodes else set()
         sample_table_ids[node.id] = sorted(access.sample_table_ids(node) | lost)
         history_table_ids[node.id] = sorted(access.dispatch_table_ids(node) | lost)
     with transaction.atomic():
@@ -110,8 +124,17 @@ def fill_workflow_table_ids(workflow) -> None:
             ).update(read_table_ids=history_table_ids[node.id])
 
 
-def _attempts_cache_key(workflow_id: int) -> str:
-    return f"automation_missing_table_ids_attempts_{workflow_id}"
+def _given_up() -> set[int]:
+    return set(cache.get(BACKFILL_GIVEN_UP_CACHE_KEY) or ())
+
+
+def _count_attempt(workflow_id: int) -> int:
+    key = f"automation_missing_table_ids_attempts_{workflow_id}"
+    try:
+        return cache.incr(key)
+    except ValueError:
+        cache.set(key, 1, timeout=None)
+        return 1
 
 
 def fill_missing_table_ids_batch(
@@ -138,10 +161,13 @@ def fill_missing_table_ids_batch(
         except Exception:  # noqa: BLE001
             # The workflow keeps the formula based check until the next pass, the
             # others are still filled.
-            key = _attempts_cache_key(workflow.id)
-            cache.add(key, 0, timeout=None)
-            attempts = cache.incr(key)
+            attempts = _count_attempt(workflow.id)
             if give_up and attempts >= BACKFILL_MAX_ATTEMPTS:
+                cache.set(
+                    BACKFILL_GIVEN_UP_CACHE_KEY,
+                    sorted(_given_up() | {workflow.id}),
+                    timeout=None,
+                )
                 logger.exception(
                     f"Could not fill the table IDs of the workflow {workflow.id} "
                     f"after {attempts} attempts, run the fill_automation_table_ids "
@@ -184,6 +210,8 @@ def fill_missing_table_ids(
             "tries again."
         )
         return False
+    if not give_up:
+        cache.delete(BACKFILL_GIVEN_UP_CACHE_KEY)
     cache.set(BACKFILL_DONE_CACHE_KEY, True, timeout=None)
     return True
 
@@ -192,26 +220,35 @@ def missing_table_ids_filled() -> bool:
     return bool(cache.get(BACKFILL_DONE_CACHE_KEY))
 
 
-def _needs_fill(workflow_id: int) -> bool:
+def _workflows_needing_fill(workflow_ids: set[int]) -> set[int]:
     """
-    Whether the workflow has test run data or, until the periodic fill is done,
-    run history without the tables kept. Once it is done, only an import brings
-    back test run data without them, and run history isn't imported.
+    Those of the workflows with test run data or run history without the tables
+    kept. Once the periodic fill is done, only an import brings back test run
+    data without them, and run history isn't imported, so only the history of the
+    workflows it gave up on is still looked at.
     """
 
     from baserow.contrib.automation.history.models import AutomationNodeHistory
     from baserow.contrib.automation.nodes.models import AutomationNode
 
-    return AutomationNode.objects_and_trash.filter(
-        workflow_id=workflow_id,
-        service__sample_data__isnull=False,
-        service__sample_data_table_ids__isnull=True,
-    ).exists() or (
-        not missing_table_ids_filled()
-        and AutomationNodeHistory.objects.filter(
-            node__workflow_id=workflow_id, read_table_ids__isnull=True
-        ).exists()
+    needing = set(
+        AutomationNode.objects_and_trash.filter(
+            workflow_id__in=workflow_ids,
+            service__sample_data__isnull=False,
+            service__sample_data_table_ids__isnull=True,
+        ).values_list("workflow_id", flat=True)
     )
+    history_ids = (
+        workflow_ids & _given_up() if missing_table_ids_filled() else workflow_ids
+    )
+    history_ids -= needing
+    if history_ids:
+        needing |= set(
+            AutomationNodeHistory.objects.filter(
+                node__workflow_id__in=history_ids, read_table_ids__isnull=True
+            ).values_list("node__workflow_id", flat=True)
+        )
+    return needing
 
 
 def _starting_workflow_ids(workflow_ids: Iterable[int]) -> set[int]:
@@ -230,30 +267,38 @@ def _starting_workflow_ids(workflow_ids: Iterable[int]) -> set[int]:
     )
 
 
-def fill_workflow_table_ids_before_edit(workflow) -> None:
+def _fill_softly(workflow_ids: Iterable[int]) -> None:
     """
-    Fills the missing table IDs of the workflow, and of the workflows that start
-    it, as they count its tables, before one of its nodes is edited or deleted.
-    Decided for each workflow, as missing IDs can come back after the periodic
-    fill is done, from an import.
+    Fills the workflows. One that can't be filled is logged and keeps the
+    formula based check, so the change that asked for it still goes through.
     """
 
     from baserow.contrib.automation.workflows.models import AutomationWorkflow
 
-    to_check, checked = {workflow.id}, set()
+    for workflow in AutomationWorkflow.objects_and_trash.filter(id__in=workflow_ids):
+        try:
+            with transaction.atomic():
+                fill_workflow_table_ids(workflow)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                f"Could not fill the table IDs of the workflow {workflow.id}."
+            )
+
+
+def fill_workflow_table_ids_before_edit(workflow) -> None:
+    """
+    Fills the missing table IDs of the workflow, and of the workflows that start
+    it, as they count its tables, before one of its nodes is edited or deleted.
+    """
+
+    workflow_ids, to_check = {workflow.id}, {workflow.id}
     while to_check:
-        checked |= to_check
-        for workflow_id in to_check:
-            if _needs_fill(workflow_id):
-                fill_workflow_table_ids(
-                    AutomationWorkflow.objects_and_trash.get(id=workflow_id)
-                )
-        to_check = _starting_workflow_ids(to_check) - checked
+        to_check = _starting_workflow_ids(to_check) - workflow_ids
+        workflow_ids |= to_check
+    _fill_softly(_workflows_needing_fill(workflow_ids))
 
 
 def fill_imported_workflows_table_ids(workflows) -> None:
     """Fills the missing table IDs of workflows just imported."""
 
-    for workflow in workflows:
-        if _needs_fill(workflow.id):
-            fill_workflow_table_ids(workflow)
+    _fill_softly(_workflows_needing_fill({workflow.id for workflow in workflows}))
