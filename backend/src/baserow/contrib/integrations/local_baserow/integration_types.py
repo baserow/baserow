@@ -156,8 +156,13 @@ class LocalBaserowIntegrationType(IntegrationType):
         stored, because the person or identity was permanently deleted or it never
         had one, or the stored user no longer exists, because deleting a user in
         the admin tools leaves its id. An identity belongs to the workspace and is
-        kept, even trashed. The promotion modal says which one happens, see
-        `getPromotionHint` in the frontend.
+        kept, even trashed.
+
+        Undoing the promotion moves it back still authorized
+        as the user moving it: the previous person isn't in the action log, and
+        only they can authorize it as themselves. The promotion modal says which
+        one happens, and that undoing keeps it, see `getPromotionHint` in the
+        frontend.
         """
 
         subject_type = subject_type_registry.get_by_model(user)
