@@ -249,7 +249,9 @@ class IntegrationView(APIView):
             "Updates an existing integration. Sending the id of the shared "
             "application of its workspace as `application_id` promotes it: it "
             "becomes a workspace integration, which every application of the "
-            "workspace can use."
+            "workspace can use. The integration of a dashboard can't be "
+            "promoted, because every data source of a dashboard uses the "
+            "dashboard's own integration."
         ),
         request=CustomFieldRegistryMappingSerializer(
             integration_type_registry,

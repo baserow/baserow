@@ -54,6 +54,9 @@ class DashboardApplicationType(ApplicationType):
     request_serializer_field_overrides = {}
     allowed_fields = ["description"]
     supports_integrations = True
+    # Every new data source takes the dashboard's own integration, see
+    # `DashboardDataSourceHandler.create_data_source`.
+    lets_services_choose_integrations = False
     data_provider_type_registry = dashboard_data_provider_type_registry
 
     def get_api_urls(self):

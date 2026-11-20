@@ -108,6 +108,8 @@ An Admin may promote an existing app-level integration by moving its `applicatio
 
 Promotion is undoable unless new services or user sources began referencing the integration after the move, in which case moving it back could break them.
 
+A dashboard's integration is not promoted. Dashboards have no integration selector: every new data source takes the dashboard's own integration, so promoting it would leave new widgets without one, with no way to repair them from the dashboard. Promotion opens up to dashboards once their data sources can choose an integration.
+
 For a Local Baserow integration authorised as a person other than the promoting Admin, promotion must re-authorise it as the Admin or be rejected. Workspaces with duplicate integrations can promote one and manually repoint other apps' services to it in v1. Bulk replacement is deferred to v2. Demotion is not offered; an Admin who wants to stop sharing an integration deletes it and recreates it at the app level.
 
 ## Options considered

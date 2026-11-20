@@ -461,7 +461,8 @@ class IntegrationHandler:
         :raises IntegrationCannotMoveToApplication: When it can't move to the
             application.
         :raises ApplicationOperationNotSupported: When the application doesn't
-            accept integrations of its type.
+            accept integrations of its type, or the application on the other end
+            of the move doesn't let its services choose their integration.
         :return: The updated integration.
         """
 
@@ -492,14 +493,17 @@ class IntegrationHandler:
         Checks that the integration can move to the given application: only
         between an application and the shared application of the same workspace,
         which is promoting it or undoing that. The integration of a published copy
-        or a snapshot has no workspace, so it never moves.
+        or a snapshot has no workspace, so it never moves. Neither does the
+        integration of an application whose services can't choose theirs, like a
+        dashboard: its new services would be left without one.
 
         :param integration_type: The type of the integration.
         :param integration: The integration, still in its current application.
         :param application: The application it moves to.
         :raises IntegrationCannotMoveToApplication: When it can't move there.
         :raises ApplicationOperationNotSupported: When the application doesn't
-            accept integrations of its type.
+            accept integrations of its type, or the application on the other end
+            of the move doesn't let its services choose their integration.
         """
 
         current = integration.application
@@ -512,6 +516,14 @@ class IntegrationHandler:
             )
         ):
             raise IntegrationCannotMoveToApplication()
+
+        # One end is the shared application, the other the application it's
+        # promoted from or moved back to.
+        other_end = current if self.is_shared_application(application) else application
+        if not application_type_registry.get_by_model(
+            other_end.specific_class
+        ).lets_services_choose_integrations:
+            raise ApplicationOperationNotSupported()
 
         application_type = application_type_registry.get_by_model(
             application.specific_class
