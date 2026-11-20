@@ -75,10 +75,12 @@
   },
   "widget": {
     "fixConfiguration": "Fix configuration",
-    "filteredResults": "This widget’s results are filtered."
+    "filteredResults": "This widget’s results are filtered.",
+    "filteredBy": "Filtered by {filters}"
   },
   "summaryWidget": {
-    "name": "Summary"
+    "name": "Summary",
+    "description": "A single number summing up a field"
   },
   "emptyDashboardSidebar": {
     "title": "No element selected",
@@ -97,7 +99,8 @@
     "aggregationTypeLabel": "Summary"
   },
   "widgetContext": {
-    "delete": "Delete"
+    "delete": "Delete",
+    "addFilter": "Add a filter for this widget"
   },
   "trashType": {
     "widget": "widget"
@@ -106,7 +109,8 @@
     "dashboard": "Dashboard"
   },
   "textFilterWidget": {
-    "name": "Text filter",
+    "name": "Filter",
+    "description": "Lets viewers narrow down other widgets",
     "filterType": "Filter type",
     "input": "Input",
     "dropdown": "Dropdown",
@@ -119,7 +123,7 @@
     "clear": "Clear selection",
     "placeholder": "Placeholder",
     "defaultValue": "Default value",
-    "targets": "Apply to widgets",
+    "targets": "Widgets it filters",
     "configureFilters": "Edit conditions",
     "emptyBehavior": "When nothing is selected",
     "apply_nothing": "Ignore this filter",
@@ -129,27 +133,57 @@
     "incompatibleConditions": "Some input conditions are incompatible with the selected source. Update their fields or operators before using this filter.",
     "configureSourceFirst": "Choose a data source for this widget first.",
     "unsupportedTarget": "This widget does not have a filterable data source.",
-    "targetsHelp": "Choose where this filter is used.",
-    "addWidgets": "Add widgets",
-    "noTargets": "No widgets selected. Add a widget, then set up its conditions.",
+    "targetsHelp": "Open a widget to change its conditions.",
+    "addWidgets": "Add a widget",
+    "noTargets": "This filter doesn't apply to any widget yet. Add existing widgets, or create one.",
     "noAvailableTargets": "No matching widgets available.",
     "setUpConditions": "Set up conditions",
     "conditionCount": "1 condition | {count} conditions",
     "targetDisabled": "Disabled",
     "applyToWidget": "Apply filter to {widget}",
     "targetOptions": "Options for {widget}",
-    "filterTarget": "Filter {widget}",
-    "withValue": "With a value",
-    "whenEmpty": "When empty",
     "otherConditions": "Other conditions",
     "editFilterConditions": "Edit these conditions in the {filter} filter settings.",
     "editWidgetConditions": "Edit these conditions in the widget’s data source settings.",
-    "fieldsError": "Could not load the fields. Try again."
+    "fieldsError": "Could not load the fields. Try again.",
+    "howItLooks": "How it looks",
+    "notApplied": "Not applied",
+    "notAppliedHelp": "This filter doesn't filter any widget yet. Select it to choose what it filters.",
+    "applyToNewWidgets": "Also filter widgets added later, using the conditions for their table",
+    "createWidget": "Create widget",
+    "placeholderPlaceholder": "For example: Search by name",
+    "defaultValuePlaceholder": "Empty: widgets show everything",
+    "defaultValueNone": "None: widgets show everything",
+    "conditionsFor": "Conditions for “{widget}”",
+    "conditionsSubtitle": "How the “{filter}” filter narrows down this widget.",
+    "withValueTitle": "When the filter has a value",
+    "withValueHelp": "The widget shows the rows matching these conditions.",
+    "whenEmptyTitle": "When the filter is empty",
+    "whenEmptyNothingHelp": "The widget shows all of its rows.",
+    "whenEmptyAlternativeHelp": "The widget shows the rows matching these conditions instead.",
+    "inputDefaultPlaceholder": "Type to filter…",
+    "filterValuesPlaceholder": "For example: Draft, Published, Archived",
+    "editInFilter": "Edit in the {filter} settings",
+    "conditionSummary": "{conditions}, {match}",
+    "anyCanMatch": "any can match",
+    "allMustMatch": "all must match",
+    "whenEmptyCount": "1 condition when empty | {count} conditions when empty"
   },
   "dashboardDataProviderType": {
     "widgetData": "Filter widgets"
   },
   "dashboardServiceRefinementForms": {
     "dashboardFilters": "Dashboard filters"
+  },
+  "configureFilterTargetModal": {
+    "title": "Add a widget to “{filter}”",
+    "subtitle": "Choose what the widget shows and how the “{filter}” filter narrows it down.",
+    "widget": "Widget",
+    "widgetSummary": "{title} · {table}",
+    "conditionsSummary": "{conditions} · When empty: {empty}",
+    "conditions": "How “{filter}” filters it",
+    "conditionsHelp": "They start like the first widget this filter applies to on the same table.",
+    "add": "Add widget",
+    "saveFailed": "Some changes could not be saved. Update the affected settings and try again."
   }
 }

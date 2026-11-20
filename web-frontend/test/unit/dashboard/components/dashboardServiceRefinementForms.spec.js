@@ -6,7 +6,10 @@ let testApp
 beforeEach(() => {
   testApp = new TestApp()
 })
-afterEach(() => testApp.afterEach())
+afterEach(() => {
+  testApp.afterEach()
+  vi.restoreAllMocks()
+})
 
 const emptyGroup = () => ({
   filters: [],
@@ -127,11 +130,21 @@ test.each([true, false])(
     expect(inherited.findAll('.filters__item--level-2')).toHaveLength(1)
     expect(inherited.find('.filters__add').exists()).toBe(false)
     expect(inherited.find('.filters__remove').exists()).toBe(false)
-    expect(
-      inherited.find('.dashboard-widget-filters__source-lock').classes()
-    ).toContain('iconoir-lock')
+    // A filter says what its read-only rows add up to and where to edit them.
+    const summary = inherited.find('.dashboard-widget-filters__source-summary')
+    // The conditions used when empty are counted apart from the others.
+    expect(summary.text()).toBe(
+      'textFilterWidget.conditionSummary · textFilterWidget.whenEmptyCount - 1'
+    )
+    const edit = inherited.find('.dashboard-widget-filters__source-edit')
+    expect(edit.text()).toContain('textFilterWidget.editInFilter')
     expect(filters.find('.filters__add').exists()).toBe(true)
     expect(dispatch).not.toHaveBeenCalled()
+    await edit.trigger('click')
+    expect(dispatch).toHaveBeenCalledWith(
+      'dashboardApplication/selectWidget',
+      2
+    )
   }
 )
 

@@ -358,13 +358,11 @@ exports[`adding conditions after a permanent group is saved keeps its persistent
       </div>
     </div>
   </div>
-  <div class="filters_footer">
-    <div class="dashboard-widget-filters__actions"><button type="button" class="button button--regular button--secondary filters__add"><i class="button__icon iconoir-plus"></i><span class="button__label">localBaserowTableServiceConditionalForm.addFilter</span>
-        <!--v-if-->
-      </button><button type="button" class="button button--regular button--secondary filters__add"><i class="button__icon iconoir-plus"></i><span class="button__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
-        <!--v-if-->
-      </button></div>
-  </div>
+  <div class="filters_footer"><button class="button-text button-text--small button-text--secondary filters__add"><i class="button-text__icon iconoir-plus"></i>
+      <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilter</span>
+    </button><button class="button-text button-text--small button-text--secondary filters__add"><i class="button-text__icon iconoir-plus"></i>
+      <!--v-if--><span class="button-text__label">localBaserowTableServiceConditionalForm.addFilterGroup</span>
+    </button></div>
 </div>"
 `;
 
@@ -659,7 +657,7 @@ exports[`read-only groups keep constants, formulas and nested conditions locked 
                   <div class="filters__value--formula-input" required="">
                     <div class="formula-input-field__container">
                       <div class="formula-input-field__editor">
-                        <div class="form-input formula-input-field form-input--disabled formula-input-field--disabled" role="textbox" style="--formula-placeholder: 'localBaserowTableServiceConditionalForm.expressionFilterInputPlaceholder';">
+                        <div class="form-input formula-input-field form-input--disabled formula-input-field--disabled formula-input-field--read-only" role="textbox" style="--formula-placeholder: 'localBaserowTableServiceConditionalForm.expressionFilterInputPlaceholder';">
                           <div contenteditable="false" role="textbox" translate="no" class="tiptap ProseMirror">
                             <div>​AB</div>
                           </div>

@@ -134,6 +134,19 @@ class WidgetType(
 
         return values
 
+    def prepare_edited_values(self, values: dict, instance: Widget) -> dict:
+        """
+        Hook into an update an editor makes, after `prepare_value_for_db`. Unlike
+        that hook, it doesn't run when undo or redo replays saved values, which
+        must be restored exactly as they were.
+
+        :param values: The validated values that are being updated.
+        :param instance: The widget that is being updated.
+        :return: The values to save.
+        """
+
+        return values
+
     def export_prepared_values(self, instance: Widget):
         """
         Returns a serializable dict of prepared values for the widget attributes.

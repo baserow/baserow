@@ -171,7 +171,7 @@ class UpdateWidgetActionType(UndoableActionType):
         action_to_undo: Action,
     ):
         WidgetService().update_widget(
-            user, params.widget_id, **params.widget_original_params
+            user, params.widget_id, replay=True, **params.widget_original_params
         )
 
     @classmethod
@@ -182,7 +182,7 @@ class UpdateWidgetActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         WidgetService().update_widget(
-            user, params.widget_id, **params.widget_new_params
+            user, params.widget_id, replay=True, **params.widget_new_params
         )
 
 

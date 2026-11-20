@@ -122,6 +122,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         "placeholder",
         "default_value",
         "target_filters",
+        "apply_to_new_widgets",
     ]
     serializer_field_names = [
         "mode",
@@ -130,6 +131,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         "placeholder",
         "default_value",
         "target_filters",
+        "apply_to_new_widgets",
     ]
     public_serializer_field_names = [
         "options",
@@ -141,6 +143,13 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
     ]
     serializer_field_overrides = {
         "target_filters": serializers.JSONField(required=False),
+        "apply_to_new_widgets": serializers.BooleanField(
+            required=False,
+            help_text=(
+                "Also filter widgets that start showing a table this filter already "
+                "applies to, using the first widget's conditions on that table."
+            ),
+        ),
         "options": FormulaSerializerField(
             data_provider_type_registry=dashboard_options_data_provider_registry,
         ),
@@ -164,6 +173,7 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
         placeholder: str
         default_value: str | list[str]
         target_filters: list
+        apply_to_new_widgets: bool
 
     def prepare_value_for_db(self, values, instance=None):
         """Validate option paths in their dashboard and normalize saved defaults."""
@@ -188,6 +198,22 @@ class TextFilterWidgetType(FilterWidgetTypeMixin, WidgetType):
                 values.get("multiple", getattr(instance, "multiple", False)),
             )
         return super().prepare_value_for_db(values, instance)
+
+    def prepare_edited_values(self, values, instance):
+        """
+        Widgets the editor links without conditions get the conditions of the
+        first widget of their table. Undo and redo restore links as they were,
+        including links deliberately left without conditions.
+        """
+
+        if "target_filters" in values:
+            from .filter_setup import copy_new_target_conditions
+
+            links = copy_new_target_conditions(instance, values["target_filters"])
+            if links != values["target_filters"]:
+                self.validate_target_filters(links, instance.dashboard_id)
+                values["target_filters"] = links
+        return super().prepare_edited_values(values, instance)
 
     def normalize_default_value(self, value, mode, multiple):
         """Store a list for multiple dropdowns and one string for other modes."""
