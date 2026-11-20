@@ -385,6 +385,8 @@ def test_list_templates_with_flag_off(api_client, data_fixture, settings):
     assert [t["id"] for t in response.json()["results"]] == [official.id]
     response = list_templates(api_client, token, listed="true")
     assert [t["id"] for t in response.json()["results"]] == [official.id]
+    response = list_templates(api_client, token, type="user", listed="true")
+    assert response.json()["results"] == []
     response = list_templates(api_client, token, view="public_categories")
     assert response.json() == []
 

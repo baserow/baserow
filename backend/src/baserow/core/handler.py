@@ -2821,12 +2821,11 @@ class CoreHandler:
 
         templates = Template.objects.openable(actor)
         # Without the feature, user templates are only opened through their link.
-        if template_type == Template.Type.OFFICIAL or not feature_flag_is_enabled(
-            FF_USER_TEMPLATES, user=actor
-        ):
+        lists_user_templates = feature_flag_is_enabled(FF_USER_TEMPLATES, user=actor)
+        if template_type == Template.Type.USER:
+            templates = templates.user() if lists_user_templates else templates.none()
+        elif template_type == Template.Type.OFFICIAL or not lists_user_templates:
             templates = templates.official()
-        elif template_type == Template.Type.USER:
-            templates = templates.user()
         if owned:
             templates = (
                 templates.filter_by_root(owner_id=actor.id)
