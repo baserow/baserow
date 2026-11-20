@@ -47,7 +47,7 @@ class AdminDashboardView(APIView):
         handler = AdminDashboardHandler()
         total_users = User.objects.filter(is_active=True).count()
         total_workspaces = Workspace.objects.filter(template__isnull=True).count()
-        total_applications = Application.objects.filter(
+        total_applications = Application.objects_without_shared.filter(
             workspace__template__isnull=True
         ).count()
         new_users = handler.get_new_user_counts(
