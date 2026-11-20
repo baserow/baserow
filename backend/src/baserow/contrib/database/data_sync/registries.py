@@ -282,7 +282,7 @@ class DataSyncType(
             last_error=instance.last_error,
             properties=[
                 DataSyncExportSerializedStructure.property(
-                    key=p.key, field_id=p.field_id
+                    key=p.key, field_id=p.field_id, unique_primary=p.unique_primary
                 )
                 for p in properties
             ],
@@ -338,6 +338,7 @@ class DataSyncType(
                     data_sync=data_sync,
                     field_id=mapped_field_id,
                     key=property["key"],
+                    unique_primary=property.get("unique_primary", False),
                 )
             )
 
