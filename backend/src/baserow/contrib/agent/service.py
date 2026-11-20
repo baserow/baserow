@@ -206,9 +206,11 @@ class AgentService:
     ) -> None:
         """
         Make each installed Agent with pending tool choices act as a new identity
-        named after it, with access to only the databases of the same install: the
-        editor role if one of its tools changes data, otherwise the viewer role.
-        Binding it turns the pending tools on, as when an identity is picked.
+        named after it, with no workspace access and a role on only the other
+        applications of the same install: the roles the template's identity had
+        when it was exported, or else the builder role if one of its tools changes
+        data, and the viewer role otherwise. Binding it turns the pending tools on,
+        as when an identity is picked.
 
         An Agent whose identity can't be created, scoped or bound stays installed
         with its pending choices, and the failure is logged: the identity is a
@@ -223,7 +225,6 @@ class AgentService:
         """
 
         from baserow.contrib.agent.actions import UpdateAgentConfigurationActionType
-        from baserow.contrib.database.models import Database
 
         # The access may have changed since the install was requested.
         if not IdentityService().can_create_scoped_identity(user, workspace):
@@ -234,12 +235,13 @@ class AgentService:
                 user.id,
             )
             return
-        databases = [
+        # Not the Agents, so an identity can't change its own configuration.
+        applications = [
             application
             for application in installed_applications
-            if isinstance(application, Database)
+            if not isinstance(application, AgentApplication)
         ]
-        if not databases:
+        if not applications:
             # An identity with access to nothing can't run the Agent's tools, so
             # the Agent waits for one to be picked instead.
             return
@@ -258,8 +260,14 @@ class AgentService:
                         workspace,
                         # The longest name an identity can have.
                         name=agent.name[:150],
-                        applications=databases,
+                        applications=applications,
                         can_change_data=can_change_data,
+                        roles=[
+                            tuple(role)
+                            for role in agent.pending_tool_choices.get(
+                                "identity_roles", []
+                            )
+                        ],
                     )
                     # Audited, because the Agent gets the identity's access.
                     UpdateAgentConfigurationActionType.do(

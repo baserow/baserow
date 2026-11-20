@@ -41,19 +41,37 @@ class IdentityExtensionType(Instance):
 
         return False
 
-    def scope_to_applications(self, identity, applications, can_change_data, user):
+    def scope_to_applications(
+        self, identity, applications, can_change_data, user, roles=None
+    ):
         """
         Gives a new identity, which has no access by default, access to the given
-        applications only. Only called when `can_scope_to_applications` is True,
-        and must check the user's permissions itself.
+        applications only. Only called when `can_scope_to_applications` is True.
+        The identity must never get more than the user may change.
 
         :param identity: The identity to give access to.
         :param applications: The applications it may access.
-        :param can_change_data: Whether it may change their data or only read it.
+        :param can_change_data: Whether it may change them or only read them, when
+            no usable `roles` are given.
         :param user: The user who scopes the identity.
+        :param roles: The role uid to give on each application, by application id,
+            as returned by `get_application_roles` for another identity.
         """
 
         raise NotImplementedError()
+
+    def get_application_roles(self, identity, user=None) -> list[tuple[int, str]]:
+        """
+        The roles an identity with no workspace access has on single applications,
+        for an export to recreate them with `scope_to_applications`.
+
+        :param identity: The identity whose roles are exported.
+        :param user: The user who exports them, if any, who must be allowed to see
+            them.
+        :return: (application id, role uid) pairs.
+        """
+
+        return []
 
     def annotate_serialized_identities(
         self, workspace, identities, serialized_identities, user
@@ -111,6 +129,18 @@ class IdentityExtensionTypeRegistry(Registry[IdentityExtensionType]):
             ),
             None,
         )
+
+    def get_application_roles(self, identity, user=None) -> list[tuple[int, str]]:
+        """
+        :return: The (application id, role uid) pairs that recreate the access of an
+            identity scoped to some applications.
+        """
+
+        return [
+            role
+            for extension in self.get_all()
+            for role in extension.get_application_roles(identity, user)
+        ]
 
     def get_default_role_uid(self, workspace):
         for extension in self.get_all():

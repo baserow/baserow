@@ -8,6 +8,7 @@ from baserow.core.identities.handler import IdentityHandler
 from baserow.core.identities.operations import (
     BindIdentityOperationType,
     CreateIdentityOperationType,
+    CreateScopedIdentityOperationType,
     DeleteIdentityOperationType,
     ListIdentitiesWorkspaceOperationType,
     UpdateIdentityOperationType,
@@ -205,7 +206,7 @@ class IdentityService:
         return (
             CoreHandler().check_permissions(
                 user,
-                CreateIdentityOperationType.type,
+                CreateScopedIdentityOperationType.type,
                 workspace=workspace,
                 context=workspace,
                 raise_permission_exceptions=False,
@@ -223,29 +224,63 @@ class IdentityService:
         name: str,
         applications: list,
         can_change_data: bool,
+        roles: list[tuple[int, str]] | None = None,
     ) -> User:
         """
         Creates an identity with no access to the workspace except the given
         applications. It's never made a member of the whole workspace: without an
-        extension that can scope it, nothing is created.
+        extension that can scope it, nothing is created. Unlike `create_identity`,
+        builders may, because the identity can't reach more than they can change.
 
         :param user: The user creating the identity.
         :param workspace: The workspace in which to create the identity.
         :param name: The name of the identity.
         :param applications: The applications of the workspace it may access.
-        :param can_change_data: Whether it may change their data or only read it.
+        :param can_change_data: Whether it may change them or only read them, when
+            no usable `roles` are given.
+        :param roles: The role to give on each application, by application id, as
+            exported for the identity of a template.
         :raises PermissionDenied: If no extension can scope the identity for the
-            user, or the user may not create identities or assign their roles.
+            user, or the user may not create it or change one of the applications.
         :return: The newly created identity.
         """
 
+        from baserow.core.identities.actions import CreateIdentityActionType
+
+        CoreHandler().check_permissions(
+            user,
+            CreateScopedIdentityOperationType.type,
+            workspace=workspace,
+            context=workspace,
+        )
         scoper = identity_extension_type_registry.get_application_scoper(
             user, workspace
         )
         if scoper is None:
             raise PermissionDenied()
-        identity = self.create_identity(user, workspace, name=name)
-        scoper.scope_to_applications(identity, applications, can_change_data, user)
+        # The default role of an extension that can scope has no workspace access.
+        identity = IdentityHandler().create_identity(workspace, name=name)
+        for extension in identity_extension_type_registry.get_all():
+            extension.create(identity, {}, user)
+        CreateIdentityActionType.register_action(
+            user=user,
+            params=CreateIdentityActionType.Params(
+                workspace.id,
+                workspace.name,
+                identity.id,
+                identity.first_name,
+                IdentityHandler.get_role_uid(identity),
+            ),
+            scope=CreateIdentityActionType.scope(workspace.id),
+            workspace=workspace,
+        )
+        scoper.scope_to_applications(
+            identity, applications, can_change_data, user, roles=roles
+        )
+        identity = IdentityHandler().get_identity(
+            identity.id, IdentityHandler().get_queryset(workspace)
+        )
+        identity_created.send(self, user=user, identity=identity)
         return identity
 
     def can_copy_binding(
