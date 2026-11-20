@@ -1849,6 +1849,7 @@ PERMISSION_MANAGERS = [
     "agent_participation",
     "write_field_values",
     "role",
+    "agent_triggered_conversations",
     "basic",
     "automation_workflow",
     "automation_node",

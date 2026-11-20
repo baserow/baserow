@@ -31,6 +31,7 @@ from .handler import AgentHandler
 from .models import AgentApplication, AgentConversation, AgentMessage, AgentToolApproval
 from .operations import (
     ApproveAgentToolCallsOperationType,
+    ContinueAgentTriggeredConversationOperationType,
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
     DeleteAgentConversationOperationType,
@@ -616,8 +617,10 @@ class AgentService:
         """
         Load what a reply answers, or the paused run it continues, checking again
         that it may still be written: access and configuration can change while
-        the reply waits. A human sender or approver needs current access. An unattended
-        reply needs its trigger alive and enabled.
+        the reply waits. An approver needs to approve tool calls, a sender in a
+        conversation a trigger started needs to continue it, and any other sender
+        needs to send messages. An unattended reply needs its trigger alive and
+        enabled.
 
         :param reply_id: The id of the reply.
         :param approval_actor_id: The actor whose decision resumed the reply.
@@ -648,11 +651,12 @@ class AgentService:
             )
             if actor is None or not self.can_read_conversation(actor, conversation.id):
                 raise PermissionDenied()
-            operation = (
-                ApproveAgentToolCallsOperationType
-                if approval_actor_id is not None or conversation.started_by_trigger
-                else CreateAgentMessageOperationType
-            )
+            if approval_actor_id is not None:
+                operation = ApproveAgentToolCallsOperationType
+            elif conversation.started_by_trigger:
+                operation = ContinueAgentTriggeredConversationOperationType
+            else:
+                operation = CreateAgentMessageOperationType
             CoreHandler().check_permissions(
                 actor, operation.type, workspace=agent.workspace, context=agent
             )
@@ -733,7 +737,7 @@ class AgentService:
         :raises FeatureDisabledException: When Agents are disabled, so an imported
             Agent can't call its provider.
         :raises PermissionException: When the user may not send messages to the
-            agent.
+            agent, or may not continue conversations a trigger started.
         :raises AgentConversationDoesNotExist: When the user sees no conversation
             with this uuid in the agent.
         :raises ValidationError: When the content is blank or too long.
@@ -755,7 +759,7 @@ class AgentService:
             agent, user, conversation_uuid, for_update=True
         )
         operation = (
-            ApproveAgentToolCallsOperationType
+            ContinueAgentTriggeredConversationOperationType
             if conversation.started_by_trigger
             else CreateAgentMessageOperationType
         )

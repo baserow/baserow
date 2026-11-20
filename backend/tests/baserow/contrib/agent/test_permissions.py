@@ -12,6 +12,7 @@ from baserow.contrib.agent.models import (
 )
 from baserow.contrib.agent.operations import (
     ApproveAgentToolCallsOperationType,
+    ContinueAgentTriggeredConversationOperationType,
     CreateAgentConversationOperationType,
     CreateAgentMessageOperationType,
     DeleteAgentConversationOperationType,
@@ -22,6 +23,7 @@ from baserow.contrib.agent.operations import (
 from baserow.contrib.agent.service import AgentService
 from baserow.core.action.registries import action_type_registry
 from baserow.core.actions import ExportApplicationsActionType
+from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.operations import UpdateApplicationOperationType
 
@@ -137,10 +139,6 @@ def test_each_call_checks_its_operation_on_the_agent(
     [
         ("list messages", [ReadAgentConversationsOperationType]),
         (
-            "retry message",
-            [ReadAgentConversationsOperationType, ApproveAgentToolCallsOperationType],
-        ),
-        (
             "decide approvals",
             [ReadAgentConversationsOperationType, ApproveAgentToolCallsOperationType],
         ),
@@ -175,3 +173,29 @@ def test_shared_conversation_calls_also_check_the_agent_update(
         for args, _ in check.call_args_list
         for permission in args[1]
     ] == [(operation.type, agent.id) for operation in operations]
+
+
+@pytest.mark.django_db
+def test_messages_in_trigger_started_conversations_check_the_continue_operation(
+    data_fixture, configured_agent, mocker
+):
+    user = data_fixture.create_user()
+    agent = configured_agent(user=user)
+    conversation = data_fixture.create_shared_agent_conversation(agent=agent)
+    message = data_fixture.create_agent_message(
+        conversation=conversation, role="user", sender=user
+    )
+    approval = data_fixture.create_agent_tool_approval(conversation=conversation)
+    check = mocker.spy(CoreHandler, "check_multiple_permissions")
+
+    with pytest.raises(PermissionDenied):
+        call("retry message", user, agent, conversation, message, approval)
+
+    assert [
+        permission.operation_name
+        for args, _ in check.call_args_list
+        for permission in args[1]
+    ] == [
+        ReadAgentConversationsOperationType.type,
+        ContinueAgentTriggeredConversationOperationType.type,
+    ]

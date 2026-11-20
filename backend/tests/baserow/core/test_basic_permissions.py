@@ -734,6 +734,14 @@ def test_get_permissions(data_fixture):
             },
         },
         {
+            "name": "agent_triggered_conversations",
+            "permissions": {
+                "denied_operations": [
+                    "agent_application.continue_triggered_conversation"
+                ]
+            },
+        },
+        {
             "name": "basic",
             "permissions": {
                 "admin_only_operations": [
@@ -883,6 +891,14 @@ def test_get_permissions(data_fixture):
                     "agent_application.read_configuration",
                 ],
                 "workspace_template_ids": [],
+            },
+        },
+        {
+            "name": "agent_triggered_conversations",
+            "permissions": {
+                "denied_operations": [
+                    "agent_application.continue_triggered_conversation"
+                ]
             },
         },
         {
@@ -1038,6 +1054,14 @@ def test_get_permissions(data_fixture):
             },
         },
         {
+            "name": "agent_triggered_conversations",
+            "permissions": {
+                "denied_operations": [
+                    "agent_application.continue_triggered_conversation"
+                ]
+            },
+        },
+        {
             "name": "basic",
             "permissions": {
                 "admin_only_operations": [
@@ -1127,6 +1151,14 @@ def test_get_permissions(data_fixture):
             },
         },
         {"name": "member", "permissions": False},
+        {
+            "name": "agent_triggered_conversations",
+            "permissions": {
+                "denied_operations": [
+                    "agent_application.continue_triggered_conversation"
+                ]
+            },
+        },
     ]
 
 

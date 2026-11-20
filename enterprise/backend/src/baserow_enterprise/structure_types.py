@@ -12,7 +12,10 @@ from baserow.core.registries import (
 )
 from baserow.core.types import SerializationProcessorScope
 from baserow.core.utils import atomic_if_not_already
-from baserow_enterprise.agent_permissions.models import AgentParticipationRule
+from baserow_enterprise.agent_permissions.models import (
+    AgentParticipationRule,
+    is_allowed_rule,
+)
 from baserow_enterprise.features import RBAC
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
@@ -173,6 +176,8 @@ class AgentParticipationSerializationProcessorType(SerializationProcessorType):
         ):
             return
         for values in serialized_scope.get(cls.type, []):
+            if not is_allowed_rule(values["capability"], values["role"]):
+                continue
             rule = AgentParticipationRule.objects.create(
                 agent=scope, capability=values["capability"], role=values["role"]
             )

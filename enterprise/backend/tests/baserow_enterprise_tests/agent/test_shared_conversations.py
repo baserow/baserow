@@ -5,7 +5,6 @@ from django.db import transaction
 import pytest
 
 from baserow.contrib.agent.chat_run_type import AgentChatRunType
-from baserow.contrib.agent.exceptions import AgentNotReady
 from baserow.contrib.agent.handler import AgentHandler
 from baserow.contrib.agent.models import (
     AgentConversation,
@@ -26,14 +25,14 @@ CHANGE = READ | {"stop", "pin", "rename", "delete"}
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "role_uid,allowed,send_error",
+    "role_uid,allowed",
     [
-        (None, set(), PermissionException),
-        ("NO_ACCESS", set(), PermissionException),
-        ("VIEWER", READ, PermissionException),
-        ("EDITOR", READ, AgentNotReady),
-        ("BUILDER", CHANGE, AgentNotReady),
-        ("ADMIN", CHANGE, AgentNotReady),
+        (None, set()),
+        ("NO_ACCESS", set()),
+        ("VIEWER", READ),
+        ("EDITOR", READ),
+        ("BUILDER", CHANGE),
+        ("ADMIN", CHANGE),
     ],
     ids=["non-member", "no-access", "viewer", "editor", "builder", "admin"],
 )
@@ -43,9 +42,8 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
     synced_roles,
     role_uid,
     allowed,
-    send_error,
 ):
-    """Editors may continue a ready agent. Builders may also change shared history."""
+    """Nobody continues them by default. Builders may change shared history."""
 
     admin = enterprise_data_fixture.create_user()
     user = enterprise_data_fixture.create_user()
@@ -89,7 +87,7 @@ def test_shared_conversations_are_read_by_every_role_and_changed_by_builders(
         ),
     }
 
-    with pytest.raises(send_error):
+    with pytest.raises(PermissionException):
         service.create_message(user, agent.id, conversation.uuid, run.id, "Hello")
     outcomes = {}
     # The order matters: a successful delete ends the conversation's visibility.

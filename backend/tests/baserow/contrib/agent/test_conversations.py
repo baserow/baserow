@@ -891,25 +891,18 @@ def test_shared_conversations_are_listed_and_read_by_every_member(
 
 
 @pytest.mark.django_db
-def test_triggered_conversations_wait_for_a_decision_before_taking_messages(
+def test_a_decision_in_a_triggered_conversation_resumes_the_reply_unattended(
     data_fixture, configured_agent, api_client, api_user
 ):
     agent = configured_agent(user=api_user)
     shared = data_fixture.create_shared_agent_conversation(agent=agent)
     approval = data_fixture.create_agent_tool_approval(conversation=shared)
 
-    sent = api_client.post(
-        agent_url(agent, "messages", conversation_uuid=shared.uuid),
-        {"uuid": str(uuid4()), "content": "Hello"},
-    )
     decided = api_client.post(
         agent_url(agent, "approvals", conversation_uuid=shared.uuid),
         {"decisions": [{"id": approval.id, "approved": True}]},
     )
 
-    assert sent.status_code == 409
-    assert sent.json()["error"] == "ERROR_AGENT_CONVERSATION_WAITING_FOR_APPROVAL"
-    assert not AgentMessage.objects.filter(role="user").exists()
     assert decided.status_code == 200
     approval.refresh_from_db()
     assert (approval.status, approval.decided_by_id) == ("approved", api_user.id)

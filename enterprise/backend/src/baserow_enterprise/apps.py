@@ -322,9 +322,6 @@ class BaserowEnterpriseConfig(AppConfig):
 
         from baserow.core.registries import permission_manager_type_registry
 
-        from .agent_permissions import (
-            receivers as agent_permission_receivers,  # noqa: F401
-        )
         from .agent_permissions.permission_manager import (
             AgentParticipationPermissionManager,
         )

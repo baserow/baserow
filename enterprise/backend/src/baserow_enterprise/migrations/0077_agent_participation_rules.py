@@ -28,7 +28,11 @@ class Migration(migrations.Migration):
                 (
                     "capability",
                     models.CharField(
-                        choices=[("chat", "Chat"), ("approve", "Approve and continue")],
+                        choices=[
+                            ("chat", "Chat"),
+                            ("approve", "Approve tool calls"),
+                            ("continue", "Continue triggered conversations"),
+                        ],
                         max_length=12,
                     ),
                 ),

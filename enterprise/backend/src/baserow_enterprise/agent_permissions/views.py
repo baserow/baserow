@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.db import transaction
 
 from drf_spectacular.utils import extend_schema
@@ -28,7 +30,7 @@ from baserow_enterprise.field_permissions.models import FieldPermissionsRoleEnum
 from baserow_enterprise.teams.subjects import TeamSubjectType
 from baserow_premium.license.handler import LicenseHandler
 
-from .models import AgentParticipationRule
+from .models import DEFAULT_ROLE, AgentParticipationRule
 from .service import update_rule
 
 
@@ -48,6 +50,19 @@ class AgentRuleResponseSerializer(RuleSerializer):
 class AgentRulesResponseSerializer(serializers.Serializer):
     chat = AgentRuleResponseSerializer()
     approve = AgentRuleResponseSerializer()
+    continue_ = AgentRuleResponseSerializer()
+
+    def get_fields(self) -> dict[str, serializers.Field]:
+        """
+        Rename `continue_` to `continue` in the response.
+
+        :return: The fields by response key.
+        """
+
+        fields = super().get_fields()
+        # `continue` is a Python keyword, so it can't name the class attribute.
+        fields["continue"] = fields.pop("continue_")
+        return fields
 
 
 def get_agent(user, agent_id, *, edit=False, lock=False):
@@ -62,9 +77,17 @@ def get_agent(user, agent_id, *, edit=False, lock=False):
     return agent
 
 
-def rule_data(rule):
+def rule_data(rule: AgentParticipationRule | None, capability: str) -> dict[str, Any]:
+    """
+    Describe a rule, or the default of its capability when there is none.
+
+    :param rule: The stored rule, if any.
+    :param capability: The capability the rule controls.
+    :return: The role and the people and teams of a `CUSTOM` rule.
+    """
+
     if not rule:
-        return {"role": "EDITOR", "subjects": []}
+        return {"role": DEFAULT_ROLE[capability], "subjects": []}
     users = rule.users.filter(workspaceuser__workspace=rule.agent.workspace)
     teams = rule.teams.filter(workspace=rule.agent.workspace)
     return {
@@ -109,7 +132,7 @@ class AgentRulesView(APIView):
         }
         return Response(
             {
-                cap: rule_data(rules.get(cap))
+                cap: rule_data(rules.get(cap), cap)
                 for cap in AgentParticipationRule.Capability.values
             }
         )
@@ -128,7 +151,7 @@ class AgentRuleView(APIView):
     def put(self, request, agent_id, capability, data):
         agent = get_agent(request.user, agent_id, edit=True, lock=True)
         rule = update_rule(agent, capability, data["role"], data["subjects"])
-        return Response(rule_data(rule))
+        return Response(rule_data(rule, capability))
 
 
 class AgentRuleOptionsView(APIView):

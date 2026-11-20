@@ -7,11 +7,68 @@ from baserow.contrib.agent.exceptions import (
     AgentConversationDoesNotExist,
     AgentToolApprovalNotPending,
 )
-from baserow.contrib.agent.models import AgentConversation
+from baserow.contrib.agent.models import AgentConversation, AgentMessage
+from baserow.contrib.agent.operations import (
+    ApproveAgentToolCallsOperationType,
+    ContinueAgentTriggeredConversationOperationType,
+    CreateAgentConversationOperationType,
+    CreateAgentMessageOperationType,
+)
 from baserow.contrib.agent.service import AgentService
 from baserow.core.exceptions import PermissionDenied
+from baserow.core.handler import CoreHandler
+
+from .utils import agent_url
 
 pytestmark = pytest.mark.django_db
+
+
+def test_without_rbac_members_chat_and_approve_but_nobody_continues_trigger_runs(
+    data_fixture, configured_agent, api_client, api_user
+):
+    member = data_fixture.create_user()
+    agent = configured_agent(user=api_user)
+    data_fixture.create_user_workspace(user=member, workspace=agent.workspace)
+    conversation = data_fixture.create_shared_agent_conversation(agent=agent)
+    data_fixture.create_agent_message(conversation=conversation, role="user")
+    approval = data_fixture.create_agent_tool_approval(conversation=conversation)
+    sent = data_fixture.create_agent_message(
+        conversation=conversation,
+        role=AgentMessage.Role.ASSISTANT,
+        sender=member,
+        unattended=False,
+    )
+
+    def allowed(user, operation):
+        return CoreHandler().check_permissions(
+            user,
+            operation.type,
+            workspace=agent.workspace,
+            context=agent,
+            raise_permission_exceptions=False,
+        )
+
+    for user in [api_user, member]:
+        assert allowed(user, CreateAgentConversationOperationType)
+        assert allowed(user, CreateAgentMessageOperationType)
+        assert allowed(user, ApproveAgentToolCallsOperationType)
+        assert not allowed(user, ContinueAgentTriggeredConversationOperationType)
+    response = api_client.post(
+        agent_url(agent, "messages", conversation_uuid=conversation.uuid),
+        {"uuid": str(uuid4()), "content": "Next"},
+    )
+    assert response.status_code == 401
+    assert response.json()["error"] == "PERMISSION_DENIED"
+    with pytest.raises(PermissionDenied):
+        AgentService().prepare_reply(sent.pk)
+    AgentService().prepare_reply(approval.reply.pk, approval_actor_id=member.pk)
+    permissions = {
+        item["name"]: item["permissions"]
+        for item in CoreHandler().get_permissions(member, agent.workspace)
+    }
+    assert permissions["agent_triggered_conversations"] == {
+        "denied_operations": [ContinueAgentTriggeredConversationOperationType.type]
+    }
 
 
 def test_named_approvers_keep_access_and_only_author_can_share_or_delete(

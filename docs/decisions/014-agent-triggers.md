@@ -84,9 +84,12 @@ conversations and can permanently share their history and future messages with a
 readers of the agent. Requesting approval adds the people chosen by the author to the
 private conversation. They retain access after the decision and after author deletion.
 
-Editors and above can chat in person-started conversations by default. A separate
-permission controls tool decisions and follow-ups in trigger-started conversations.
-Both settings support role thresholds and named users or teams with RBAC.
+Three settings control participation: chatting in person-started conversations,
+approving tool calls, and continuing trigger-started conversations. With RBAC each
+takes a role threshold, named users or teams, or nobody. Chat and approve default to
+Editors and above, continue to nobody, workspace admins included. Approve can't be
+nobody, or no held run could resume. Without the RBAC feature every member can chat
+and approve, nobody can continue, and stored rules are kept but not applied.
 Always allowing a tool also requires configuration access. The run identity is the
 authority for tool execution.
 
