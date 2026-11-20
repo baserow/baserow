@@ -23,7 +23,24 @@
       :key="reply.uuid"
       class="agent-pending-approvals__reply"
     >
+      <div v-if="asksPerson(reply)" class="agent-pending-approvals__question">
+        <button
+          type="button"
+          class="agent-pending-approvals__conversation"
+          :title="reply.conversation.title || $t('agent.newConversation')"
+          @click="openConversation(reply.conversation)"
+        >
+          <i class="iconoir-chat-bubble-empty" aria-hidden="true" />
+          <span class="agent-pending-approvals__conversation-name">{{
+            reply.conversation.title || $t('agent.newConversation')
+          }}</span>
+        </button>
+        <span class="agent-pending-approvals__question-note">{{
+          $t('agent.questionNeedsAnswer')
+        }}</span>
+      </div>
       <AgentApprovalCard
+        v-else
         :items="items(reply)"
         :disabled="!canDecide"
         :can-always-allow="canAlwaysAllow"
@@ -70,6 +87,7 @@ import { useNuxtApp } from '#app'
 import { useI18n } from 'vue-i18n'
 import AgentApprovalCard from '@baserow/modules/agent/components/AgentApprovalCard'
 import AgentApplicationService from '@baserow/modules/agent/services/agentApplication'
+import { ASK_PERSON_TOOL } from '@baserow/modules/agent/constants'
 import {
   approvalItem,
   pendingApprovals,
@@ -94,6 +112,11 @@ const error = ref(false)
 const failedPage = ref(1)
 let request = 0
 let opened = false
+
+/** A question is answered in its conversation, so the run waits there anyway. */
+function asksPerson(reply) {
+  return reply.approvals.some((approval) => approval.tool === ASK_PERSON_TOOL)
+}
 
 function items(reply) {
   const steps = new Map(reply.steps.map((step) => [step.id, step]))

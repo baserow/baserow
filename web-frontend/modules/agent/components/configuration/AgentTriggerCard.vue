@@ -184,13 +184,13 @@
       <div class="agent-trigger-card__section agent-trigger-card__overlap">
         <div
           :id="`${overlapId}-title`"
-          class="agent-trigger-card__overlap-title"
+          class="agent-trigger-card__section-title"
         >
           {{ $t('agent.triggerOnOverlap') }}
         </div>
         <p
           :id="`${overlapId}-description`"
-          class="agent-trigger-card__overlap-description"
+          class="agent-trigger-card__section-description"
         >
           {{ $t('agent.triggerOnOverlapDescription') }}
         </p>
@@ -229,6 +229,37 @@
         </div>
         <p v-if="skippedText" class="agent-trigger-card__skipped" role="status">
           {{ skippedText }}
+        </p>
+      </div>
+      <div class="agent-trigger-card__section agent-trigger-card__ask-person">
+        <div class="agent-trigger-card__ask-person-header">
+          <div
+            :id="`${askPersonId}-title`"
+            class="agent-trigger-card__section-title"
+          >
+            {{ $t('agent.triggerMayAskPerson') }}
+          </div>
+          <SwitchInput
+            class="agent-trigger-card__ask-person-switch"
+            small
+            role="switch"
+            :tabindex="editable ? 0 : -1"
+            :aria-labelledby="`${askPersonId}-title`"
+            :aria-describedby="`${askPersonId}-description`"
+            :aria-checked="trigger.may_ask_person"
+            :aria-disabled="!editable"
+            :model-value="trigger.may_ask_person"
+            :disabled="!editable"
+            @update:model-value="$emit('update', { may_ask_person: $event })"
+            @keydown.enter.prevent="toggleMayAskPerson"
+            @keydown.space.prevent="toggleMayAskPerson"
+          />
+        </div>
+        <p
+          :id="`${askPersonId}-description`"
+          class="agent-trigger-card__section-description"
+        >
+          {{ $t('agent.triggerMayAskPersonDescription') }}
         </p>
       </div>
     </div>
@@ -323,6 +354,7 @@ const agent = inject('agentApplication')
 const form = ref(null)
 const typePicker = ref(null)
 const overlapId = useId()
+const askPersonId = useId()
 const serviceType = computed(() => serviceTypeOf($registry, props.trigger.type))
 // Hosted service forms inject these like in Automation's node side panel.
 provide('formulaComponent', FormulaInputField)
@@ -502,5 +534,11 @@ const enabledTooltip = computed(() => {
 
 function toggleEnabled() {
   if (props.editable) emit('update', { enabled: !props.trigger.enabled })
+}
+
+function toggleMayAskPerson() {
+  if (props.editable) {
+    emit('update', { may_ask_person: !props.trigger.may_ask_person })
+  }
 }
 </script>

@@ -57,6 +57,7 @@ export const periodicTrigger = (extra = {}) => ({
     schema: triggerSchema,
   },
   on_overlap: 'skip',
+  may_ask_person: true,
   last_fired_on: null,
   last_skipped_on: null,
   last_skipped_reason: '',
