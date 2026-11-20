@@ -153,7 +153,7 @@ async function mountComponent({
         $t: (key) => key,
         $store: {
           getters: {
-            'integration/getIntegrations': () => integrations,
+            'integration/getUsableIntegrations': () => integrations,
           },
         },
         $registry: {
