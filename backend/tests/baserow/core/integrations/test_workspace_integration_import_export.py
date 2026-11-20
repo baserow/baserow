@@ -208,6 +208,33 @@ def test_publishing_a_workflow_copies_its_workspace_integrations(data_fixture):
 
 
 @pytest.mark.django_db
+def test_publishing_ignores_an_integration_id_in_sample_data(data_fixture):
+    workspace = data_fixture.create_workspace(user=data_fixture.create_user())
+    # Publishing it would fail, as the identity it acts as is trashed.
+    not_used = data_fixture.create_local_baserow_integration(
+        application=data_fixture.create_shared_application(workspace=workspace),
+        authorized_identity=data_fixture.create_identity(
+            workspace=workspace, trashed=True
+        ),
+    )
+    workflow = data_fixture.create_automation_workflow(
+        automation=data_fixture.create_automation_application(workspace=workspace),
+        trigger_type="http_trigger",
+        # The body of the request the trigger was tested with.
+        trigger_service_kwargs={
+            "sample_data": {"data": {"body": {"integration_id": not_used.id}}}
+        },
+    )
+
+    published_workflow = AutomationWorkflowHandler().publish(workflow)
+
+    assert (
+        published_workflow.automation.integrations.count()
+        == workflow.automation.integrations.count()
+    )
+
+
+@pytest.mark.django_db
 def test_duplicating_an_automation_keeps_its_workspace_integrations(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

@@ -607,8 +607,9 @@ class IntegrationHandler:
 
         :param application: The application being exported.
         :param serialized_content: The parts of the application's export that can
-            refer to integrations. Every `integration_id` in them is read, so the
-            row data of a table must be left out, as it's large and refers to none.
+            refer to integrations. Every `integration_id` in them is read, apart
+            from those in sample data. The row data of a table must be left out,
+            as it's large and refers to none.
         :param import_export_config: How the application is exported.
         :param files_zip: The zip the export's files are written to, if any.
         :param storage: The storage the files are read from.
@@ -645,7 +646,9 @@ class IntegrationHandler:
     def _find_integration_ids(self, serialized: Any) -> Iterator[int]:
         """
         Yields every integration ID the serialized content names under an
-        `integration_id` key, at any depth.
+        `integration_id` key, at any depth. A service's `sample_data` is skipped:
+        it holds what a test dispatch returned, such as a webhook body, so any
+        `integration_id` in it comes from outside and names no integration.
 
         :param serialized: Serialized content: dicts, lists and plain values.
         :return: The integration IDs, possibly repeated.
@@ -653,6 +656,8 @@ class IntegrationHandler:
 
         if isinstance(serialized, dict):
             for key, value in serialized.items():
+                if key == "sample_data":
+                    continue
                 if key != "integration_id":
                     yield from self._find_integration_ids(value)
                 # A boolean is an int too, and would read as integration 0 or 1.
